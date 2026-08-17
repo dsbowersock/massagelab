@@ -44,6 +44,8 @@ import type { ToneProofDroneDiagnostics } from "@/lib/atmosphere/tone-proof-runt
 
 type PlaybackState = "stopped" | "loading" | "playing" | "interrupted" | "paused" | "failed"
 
+const STOPPED_PLAYER_RETENTION_MS = 60_000
+
 type RuntimeReadinessState = {
   status: "idle" | "preparing" | "ready" | "error"
   error: string | null
@@ -310,6 +312,7 @@ export function MusicProvider({
   const [interruptionNoticeSessionId, setInterruptionNoticeSessionId] = useState<number | null>(null)
   const playbackRequestIdRef = useRef(0)
   const playbackSessionGenerationRef = useRef(0)
+  const stoppedPlayerRetentionTimeoutRef = useRef<number | null>(null)
   const loadingStationIdRef = useRef<string | null>(null)
   const volumeRef = useRef(defaultStorage.volume)
   const runtimeRef = useRef<LoadedAtmosphereRuntime | null>(null)
@@ -350,6 +353,47 @@ export function MusicProvider({
     setInterruptionNoticeSessionId(transition.state.noticeSessionId)
     return transition
   }, [])
+
+  /** Idempotently retires the single pending explicit-Stop deadline. */
+  const cancelStoppedPlayerRetirement = useCallback(() => {
+    if (stoppedPlayerRetentionTimeoutRef.current === null) return
+    window.clearTimeout(stoppedPlayerRetentionTimeoutRef.current)
+    stoppedPlayerRetentionTimeoutRef.current = null
+  }, [])
+
+  /** Clears retained identity only while the exact stopped session still owns it. */
+  const retireStoppedPlayer = useCallback((sessionGeneration: number, stoppedStationId: string) => {
+    stoppedPlayerRetentionTimeoutRef.current = null
+    if (
+      sessionGeneration !== playbackSessionGenerationRef.current
+      || playbackLifecycleRef.current.status !== "stopped"
+      || activeStationIdRef.current !== stoppedStationId
+    ) return
+
+    activeStationIdRef.current = null
+    activeStationMetadataRef.current = null
+    activeStationArtworkRef.current = null
+    setActiveStationId(null)
+    setActiveStationTitle(null)
+    setActiveStationArtwork(null)
+  }, [])
+
+  /** Replaces the prior Stop deadline so retention is anchored to the latest intent. */
+  const scheduleStoppedPlayerRetirement = useCallback((
+    sessionGeneration: number,
+    stoppedStationId: string | null,
+  ) => {
+    cancelStoppedPlayerRetirement()
+    if (!stoppedStationId) return
+    stoppedPlayerRetentionTimeoutRef.current = window.setTimeout(
+      () => retireStoppedPlayer(sessionGeneration, stoppedStationId),
+      STOPPED_PLAYER_RETENTION_MS,
+    )
+  }, [cancelStoppedPlayerRetirement, retireStoppedPlayer])
+
+  useEffect(() => () => {
+    cancelStoppedPlayerRetirement()
+  }, [cancelStoppedPlayerRetirement])
 
   const publishMediaSession = useCallback((
     station: AtmosphereStationMetadata,
@@ -814,6 +858,7 @@ export function MusicProvider({
     stationId: string,
     options: PlaybackStartOptions = {},
   ) => {
+    cancelStoppedPlayerRetirement()
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
     const continueSession = options.continueSession === true
@@ -990,6 +1035,7 @@ export function MusicProvider({
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not start.")
     }
   }, [
+    cancelStoppedPlayerRetirement,
     commitPlaybackLifecycle,
     ensureInterruptionMonitor,
     getRuntime,
@@ -999,6 +1045,7 @@ export function MusicProvider({
   ])
 
   const playAdjacentStation = useCallback(async (direction: 1 | -1) => {
+    cancelStoppedPlayerRetirement()
     const runtime = await getRuntime()
     const playableStationIds = runtime.playableStationIds
     if (playableStationIds.length === 0) {
@@ -1016,7 +1063,7 @@ export function MusicProvider({
       artworkInput: artworkInput ?? undefined,
       continueSession: true,
     })
-  }, [getRuntime, playStation])
+  }, [cancelStoppedPlayerRetirement, getRuntime, playStation])
 
   const playNextStation = useCallback(async () => {
     await playAdjacentStation(1)
@@ -1077,9 +1124,12 @@ export function MusicProvider({
   }, [commitPlaybackLifecycle, publishMediaSession])
 
   const stopCurrent = useCallback(async () => {
+    cancelStoppedPlayerRetirement()
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
     playbackSessionGenerationRef.current += 1
+    const sessionGeneration = playbackSessionGenerationRef.current
+    const stoppedStationId = activeStationIdRef.current
     commitPlaybackLifecycle({ type: "EXPLICIT_STOP" })
     setLoadingProgress(null)
     setLoadingStartedAt(null)
@@ -1094,7 +1144,8 @@ export function MusicProvider({
       if (requestId !== playbackRequestIdRef.current) return
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not stop.")
     }
-  }, [commitPlaybackLifecycle])
+    scheduleStoppedPlayerRetirement(sessionGeneration, stoppedStationId)
+  }, [cancelStoppedPlayerRetirement, commitPlaybackLifecycle, scheduleStoppedPlayerRetirement])
 
   const handleInterruptionStarted = useCallback(() => {
     const current = playbackLifecycleRef.current

@@ -893,6 +893,23 @@ async function invokeMediaAction(page: Page, action: string) {
   }, action)
 }
 
+/** Invokes a synchronous Media Session handler and returns its exact page-clock intent time. */
+async function invokeMediaActionAt(page: Page, action: string) {
+  return page.evaluate((name) => {
+    const invokedAt = Date.now()
+    const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
+    probe.mediaSession.handlers[name]?.()
+    return invokedAt
+  }, action)
+}
+
+/** Pauses just ahead of the moving fake clock after immediate teardown has settled. */
+async function pausePageClockAhead(page: Page) {
+  const pausedAt = await page.evaluate(() => Date.now() + 1_000)
+  await page.clock.pauseAt(pausedAt)
+  return pausedAt
+}
+
 async function invokeProbeAction(
   page: Page,
   action: "emitExternalPause" | "emitFocusAndVisibilityRecovery" | "releaseHeldPlay",
@@ -2550,6 +2567,149 @@ test("explicit Pause and Stop cannot be reversed by later focus or visibility ev
   await page.waitForTimeout(300)
   await expect(player).toHaveAttribute("data-playback-state", "stopped")
   expect((await readProbe(page)).audio.playCalls).toBe(stopPlayCalls)
+})
+
+test("stopped player retires after 60 seconds", async ({ page }) => {
+  await page.clock.install()
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await closeInterruptionNotice(page)
+
+  const title = await player.getByTestId("music-player-toolbar-identity").locator("p").first().textContent()
+  const stoppedAt = await invokeMediaActionAt(page, "stop")
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
+  const immediate = await readProbe(page)
+  expect(immediate.audio.source).toBe("")
+  expect(immediate.mediaSession.metadata).toBeNull()
+  expect(immediate.mediaSession.playbackState).toBe("none")
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-active/)
+
+  const pausedAt = await pausePageClockAhead(page)
+  const remainingRetentionMs = 60_000 - (pausedAt - stoppedAt)
+  expect(remainingRetentionMs).toBeGreaterThan(1)
+  await page.clock.fastForward(remainingRetentionMs - 1)
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await expect(player.getByTestId("music-player-toolbar-identity").locator("p").first()).toHaveText(title ?? "")
+  await expect(page.getByRole("button", { name: /^Stop MassageLab Proof Drone$/i })).toBeVisible()
+
+  await page.clock.fastForward(1)
+  await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+  await expect(page.locator("body")).not.toHaveClass(/ml-music-player-(?:active|rail)/)
+  await expect(page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })).toBeVisible()
+  console.log(`[task-21-stop-boundary] ${JSON.stringify({
+    expiredAtMs: 60_000,
+    immediateCarrierSource: immediate.audio.source,
+    immediateGeneratorSources: immediate.audioContext.activeGeneratorSources,
+    immediateMediaMetadata: immediate.mediaSession.metadata,
+    retainedAtMs: 59_999,
+    title,
+  })}`)
+})
+
+test("stopped retirement exclusions leave paused and interrupted identity intact", async ({ page }) => {
+  await page.clock.install()
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await closeInterruptionNotice(page)
+
+  await invokeMediaAction(page, "pause")
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
+  await pausePageClockAhead(page)
+  await page.clock.fastForward(60_000)
+  await expect(player).toHaveAttribute("data-playback-state", "paused")
+  await expect(player.getByTestId("music-player-toolbar-identity")).toContainText("MassageLab Proof Drone")
+
+  await page.clock.resume()
+  await invokeMediaAction(page, "play")
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await setAudioSessionState(page, "interrupted", true)
+  await expect(player).toHaveAttribute("data-playback-state", "interrupted")
+  await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
+  await pausePageClockAhead(page)
+  await page.clock.fastForward(60_000)
+  await expect(player).toHaveAttribute("data-playback-state", "interrupted")
+  await expect(player.getByTestId("music-player-toolbar-identity")).toContainText("MassageLab Proof Drone")
+  console.log(`[task-21-state-exclusions] ${JSON.stringify({
+    interruptedRetainedAtMs: 60_000,
+    pausedRetainedAtMs: 60_000,
+  })}`)
+})
+
+test("restart cancels stopped retirement without stale identity or media teardown", async ({ page }) => {
+  await page.clock.install()
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await closeInterruptionNotice(page)
+
+  const generationBeforeStop = (await readProbe(page)).audioContext.generatorGeneration
+  const firstStoppedAt = await invokeMediaActionAt(page, "stop")
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
+  const firstPausedAt = await pausePageClockAhead(page)
+  await page.clock.fastForward(60_000 - (firstPausedAt - firstStoppedAt) - 1)
+  await player.getByRole("button", { name: "Play", exact: true }).click()
+  await page.clock.fastForward(1)
+  await page.clock.resume()
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  const restarted = await readProbe(page)
+  expect(restarted.audioContext.generatorGeneration).toBeGreaterThan(generationBeforeStop)
+  expect(restarted.audioContext.activeGeneratorSources).toBeGreaterThan(0)
+  expect(restarted.audio.source).not.toBe("")
+  expect(restarted.mediaSession.metadata?.title).toBe("MassageLab Proof Drone")
+  expect(restarted.mediaSession.metadata?.artwork).toHaveLength(1)
+  const restartedArtwork = restarted.mediaSession.metadata?.artwork?.[0]?.src
+  expect(restartedArtwork).toBeTruthy()
+  await expect(player).toHaveAttribute("data-playback-state", "playing")
+
+  const adjacentStoppedAt = await invokeMediaActionAt(page, "stop")
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
+  const adjacentPausedAt = await pausePageClockAhead(page)
+  await page.clock.fastForward(60_000 - (adjacentPausedAt - adjacentStoppedAt) - 1)
+  await player.getByRole("button", { name: "Next station" }).click()
+  await page.clock.fastForward(1)
+  await page.clock.resume()
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  const adjacentTitle = await player.getByTestId("music-player-toolbar-identity").locator("p").first().textContent()
+  expect(adjacentTitle).not.toBe("MassageLab Proof Drone")
+  const adjacent = await readProbe(page)
+  expect(adjacent.mediaSession.metadata?.title).toBe(adjacentTitle)
+  expect(adjacent.mediaSession.metadata?.artwork).toHaveLength(1)
+  expect(adjacent.mediaSession.metadata?.artwork?.[0]?.src).not.toBe(restartedArtwork)
+  expect(adjacent.audioContext.activeGeneratorSources).toBeGreaterThan(0)
+  await expect(player).toHaveAttribute("data-playback-state", "playing")
+  await page.evaluate(() => {
+    const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
+    Reflect.set(window, "__task21CapturedStop", probe.mediaSession.handlers.stop)
+  })
+
+  await invokeMediaAction(page, "stop")
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
+  await pausePageClockAhead(page)
+  await page.clock.fastForward(30_000)
+  await page.evaluate(() => {
+    const capturedStop = Reflect.get(window, "__task21CapturedStop") as (() => void) | undefined
+    capturedStop?.()
+  })
+  await page.clock.fastForward(29_999)
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await page.clock.fastForward(1)
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await page.clock.fastForward(29_999)
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await page.clock.fastForward(1)
+  await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+  console.log(`[task-21-restart-races] ${JSON.stringify({
+    adjacentTitle,
+    firstRestartGeneration: restarted.audioContext.generatorGeneration,
+    replacementRetentionMs: 60_000,
+  })}`)
 })
 
 test("the in-app session notice is polite, nonmodal, and keyboard dismissible", async ({ page }) => {

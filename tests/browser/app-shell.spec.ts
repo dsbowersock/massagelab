@@ -3088,6 +3088,71 @@ test("Atmosphere interruption notice counts only active unhovered and unfocused 
   await expect(notice).toBeHidden()
 })
 
+test("stopped retirement exclusions do not cancel or extend the route and player deadline", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Stopped rail retirement is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.clock.install()
+  await page.setViewportSize({ width: 844, height: 390 })
+  const player = await startInterruptionNoticeSession(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  const notice = page.getByRole("region", { name: "Interruption preference" })
+  if (await notice.isVisible()) {
+    await notice.getByRole("button", { name: "Close" }).click()
+  }
+  await page.evaluate(() => {
+    const nativeSetTimeout = window.setTimeout.bind(window)
+    window.setTimeout = ((handler: TimerHandler, timeout = 0, ...args: unknown[]) => {
+      if (timeout === 60_000) {
+        Reflect.set(window, "__task21StoppedDeadline", Date.now() + timeout)
+      }
+      return nativeSetTimeout(handler, timeout, ...args)
+    }) as typeof window.setTimeout
+  })
+
+  await player.getByRole("button", { name: "Stop", exact: true }).click()
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-active/)
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-rail/)
+
+  const pausedAt = await page.evaluate(() => Date.now() + 1_000)
+  await page.clock.pauseAt(pausedAt)
+  const stoppedDeadline = await page.evaluate(() => Number(Reflect.get(window, "__task21StoppedDeadline")))
+  const firstActionDelayMs = stoppedDeadline - 50_000 - pausedAt
+  expect(firstActionDelayMs).toBeGreaterThan(0)
+  await page.clock.fastForward(firstActionDelayMs)
+  await player.getByRole("button", { name: /Favorite MassageLab Proof Drone/i }).click()
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+
+  await page.clock.fastForward(10_000)
+  await player.getByRole("button", { name: "Player settings" }).click()
+  await expect(page.getByRole("menuitemcheckbox", { name: "Resume after interruptions" })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+
+  await page.clock.fastForward(10_000)
+  await player.getByRole("button", { name: "Minimize", exact: true }).click()
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-collapsed/)
+  await player.getByRole("button", { name: "Expand", exact: true }).click()
+  await expect(page.locator("body")).not.toHaveClass(/ml-music-player-collapsed/)
+
+  await page.clock.fastForward(10_000)
+  await player.getByRole("link", { name: "Background" }).click()
+  await expect(page).toHaveURL(/\/clock\?.*source=music/)
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+
+  await page.clock.fastForward(19_999)
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-(?:active|rail)/)
+  await page.clock.fastForward(1)
+  await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+  await expect(page.locator("body")).not.toHaveClass(/ml-music-player-(?:active|rail|collapsed)/)
+  console.log(`[task-21-exclusions] ${JSON.stringify({
+    actionsAtMs: [10_000, 20_000, 30_000, 40_000],
+    expiredAtMs: 60_000,
+    retainedAtMs: 59_999,
+  })}`)
+})
+
 test("Atmosphere interruption notice clears the toolbar in short landscape", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Short-landscape geometry is covered in mobile Chromium.")
   await installInterruptionNoticeMediaFakes(page)
