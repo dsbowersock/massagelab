@@ -7,6 +7,7 @@ import {
   getMountedAdaptiveCarouselItemIds,
   getResponsiveBackgroundCarouselTuning,
   getResponsiveStationCarouselTuning,
+  resolveEffectiveCarouselLoop,
   resolveAdaptiveCarouselViewportProfile,
 } from "../components/carousels/adaptive-carousel-model.js"
 
@@ -17,6 +18,10 @@ const stageStyles = readFileSync(
 )
 const stageSource = readFileSync(
   new URL("../components/carousels/adaptive-carousel-stage.tsx", import.meta.url),
+  "utf8",
+)
+const controllerSource = readFileSync(
+  new URL("../components/carousels/use-adaptive-carousel-controller.ts", import.meta.url),
   "utf8",
 )
 const backgroundCarouselSource = readFileSync(
@@ -57,6 +62,11 @@ describe("production adaptive carousel", () => {
     assert.match(stageSource, /renderControls\?: \(state: AdaptiveCarouselControlState\) => ReactNode/)
     assert.match(stageSource, /renderControls \? renderControls\(controlState\) : defaultNavigation/)
     assert.match(stageSource, /data-has-custom-controls=/)
+    assert.match(
+      stageSource,
+      /data-station-carousel-controls=\{surface === "stations" && viewportProfile === "music-fit"/,
+    )
+    assert.doesNotMatch(stageSource, /data-carousel-controls="true"/)
   })
 
   it("keeps the Music baseline stable and bounds Background media to five cards", () => {
@@ -83,10 +93,31 @@ describe("production adaptive carousel", () => {
       {
         ...STATION_CAROUSEL_TUNING,
         cardWidth: 192,
-        cardHeight: 224,
+        cardHeight: 246,
         visibleRadius: 1,
       },
     )
+  })
+
+  it("lets constrained-landscape stations consume the full measured stage height", () => {
+    const landscape = getResponsiveStationCarouselTuning({
+      containerWidth: 556,
+      containerHeight: 246,
+    })
+    assert.equal(landscape.cardHeight, 246)
+
+    const portrait = getResponsiveStationCarouselTuning({
+      containerWidth: 390,
+      containerHeight: 500,
+    })
+    assert.equal(portrait.cardHeight, 224)
+  })
+
+  it("keeps station looping independent from static reduced-motion presentation", () => {
+    assert.equal(resolveEffectiveCarouselLoop(7, 1, true), true)
+    assert.match(controllerSource, /surface === "stations"[\s\S]*resolveEffectiveCarouselLoop/)
+    assert.match(controllerSource, /duration: staticPresentation \? 0 : 45/)
+    assert.doesNotMatch(controllerSource, /const finiteRail = reducedMotion \|\| tuning\.motion === false/)
   })
 
   it("station tuning consumes the measured stage allocation without a fixed control subtraction", () => {

@@ -41,6 +41,106 @@ function formatResponse(response: Response) {
   return `${response.status()} ${url.pathname}`
 }
 
+/** Sends a browser-native Chromium touch drag across an adaptive carousel viewport. */
+async function swipeCarouselStage(
+  page: Page,
+  testId: "station-carousel-stage" | "background-carousel-stage",
+  direction: "next" | "previous",
+) {
+  const stage = page.getByTestId(testId)
+  const box = await stage.boundingBox()
+  if (!box) throw new Error("Station carousel stage has no touch bounds")
+
+  const session = await page.context().newCDPSession(page)
+  const y = box.y + box.height * 0.5
+  const startX = box.x + box.width * (direction === "next" ? 0.68 : 0.32)
+  const endX = box.x + box.width * (direction === "next" ? 0.32 : 0.68)
+  const touchPoint = (x: number) => ({
+    x,
+    y,
+    id: 1,
+    radiusX: 4,
+    radiusY: 4,
+    force: 1,
+  })
+
+  try {
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [touchPoint(startX)],
+    })
+    for (let step = 1; step <= 8; step += 1) {
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [touchPoint(startX + (endX - startX) * (step / 8))],
+      })
+    }
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    })
+  } finally {
+    await session.detach()
+  }
+}
+
+/** Drags an adaptive carousel with the desktop pointer across the same bounds. */
+async function dragCarouselStageWithMouse(
+  page: Page,
+  testId: "station-carousel-stage" | "background-carousel-stage",
+  direction: "next" | "previous",
+) {
+  const box = await page.getByTestId(testId).boundingBox()
+  if (!box) throw new Error("Adaptive carousel stage has no mouse-drag bounds")
+  const y = box.y + box.height * 0.5
+  const startX = box.x + box.width * (direction === "next" ? 0.68 : 0.32)
+  const endX = box.x + box.width * (direction === "next" ? 0.32 : 0.68)
+  await page.mouse.move(startX, y)
+  await page.mouse.down()
+  await page.mouse.move(endX, y, { steps: 8 })
+  await page.mouse.up()
+}
+
+/** Clicks the visible portion of a side preview through the browser input path. */
+async function clickVisibleCarouselSideCard(
+  page: Page,
+  stage: Locator,
+  sideCard: Locator,
+) {
+  const [stageBox, cardBox] = await Promise.all([stage.boundingBox(), sideCard.boundingBox()])
+  if (!stageBox || !cardBox) throw new Error("Carousel side card has no visible bounds")
+  const left = Math.max(stageBox.x, cardBox.x)
+  const right = Math.min(stageBox.x + stageBox.width, cardBox.x + cardBox.width)
+  const top = Math.max(stageBox.y, cardBox.y)
+  const bottom = Math.min(stageBox.y + stageBox.height, cardBox.y + cardBox.height)
+  if (right <= left || bottom <= top) throw new Error("Carousel side card is outside the stage")
+  await page.mouse.click((left + right) / 2, (top + bottom) / 2)
+}
+
+/** Waits for Embla's track transform to remain unchanged across three frames. */
+async function waitForCarouselMotionToSettle(
+  page: Page,
+  testId: "station-carousel-stage" | "background-carousel-stage",
+) {
+  await page.getByTestId(testId).evaluate(async (stage) => {
+    const track = stage.firstElementChild
+    if (!(track instanceof HTMLElement)) throw new Error("Adaptive carousel track is missing")
+    let previous: number | null = null
+    let stableFrames = 0
+    for (let frame = 0; frame < 120; frame += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      const transform = getComputedStyle(track).transform
+      const current = transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41
+      stableFrames = previous !== null && Math.abs(current - previous) <= 0.05
+        ? stableFrames + 1
+        : 0
+      previous = current
+      if (stableFrames >= 3) return
+    }
+    throw new Error("Adaptive carousel track did not settle within 120 frames")
+  })
+}
+
 function isLocalHttpUrl(urlString: string) {
   const url = new URL(urlString)
   return ["127.0.0.1", "localhost"].includes(url.hostname)
@@ -1029,6 +1129,170 @@ test("center station details support swipe and short tap while actions stay prot
   await expect(proof).toHaveAttribute("data-centered", "true")
   await page.getByTestId("music-player-toolbar").getByRole("button", { name: "Stop", exact: true }).click()
 })
+
+for (const reducedMotion of [false, true] as const) {
+  test(`station carousel loops and station swipe wraps ${reducedMotion ? "with reduced motion" : "with normal motion"}`, async ({ page }, testInfo) => {
+    test.skip(
+      !["mobile-chromium", "desktop-chromium"].includes(testInfo.project.name),
+      "Station loop coverage is owned by Chromium projects.",
+    )
+    await page.emulateMedia({ reducedMotion: reducedMotion ? "reduce" : "no-preference" })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto("/music", { waitUntil: "domcontentloaded" })
+
+    const carousel = page.getByRole("region", { name: "Station carousel" })
+    const stage = page.getByTestId("station-carousel-stage")
+    const slides = carousel.locator('[data-carousel-slide="true"]')
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+    await expect(carousel).toHaveAttribute("data-reduced-motion", String(reducedMotion))
+    const ids = await slides.evaluateAll((elements) => elements
+      .map((element) => element.getAttribute("data-carousel-item-id"))
+      .filter((id): id is string => Boolean(id)))
+    expect(ids.length).toBeGreaterThan(2)
+    const firstId = ids[0]
+    const lastId = ids[ids.length - 1]
+    const centeredId = () => carousel
+      .locator('[data-carousel-slide="true"][data-centered="true"]')
+      .getAttribute("data-carousel-item-id")
+    const previous = carousel.getByRole("button", { name: "Previous station" })
+    const next = carousel.getByRole("button", { name: "Next station" })
+
+    await centerCarouselItem(page, lastId, "Next station")
+    await expect(previous).toBeEnabled()
+    await expect(next).toBeEnabled()
+    await next.click()
+    await expect.poll(centeredId).toBe(firstId)
+
+    await previous.click()
+    await expect.poll(centeredId).toBe(lastId)
+    await next.click()
+    await expect.poll(centeredId).toBe(firstId)
+
+    await stage.focus()
+    await page.keyboard.press("ArrowLeft")
+    await expect.poll(centeredId).toBe(lastId)
+    await page.keyboard.press("ArrowRight")
+    await expect.poll(centeredId).toBe(firstId)
+    await waitForCarouselMotionToSettle(page, "station-carousel-stage")
+
+    const lastSideCard = carousel.locator(`[data-carousel-item-id="${lastId}"]`)
+    await expect(lastSideCard).toHaveAttribute("data-detail-level", "summary")
+    await clickVisibleCarouselSideCard(page, stage, lastSideCard)
+    await expect.poll(centeredId).toBe(lastId)
+    await waitForCarouselMotionToSettle(page, "station-carousel-stage")
+
+    const firstSideCard = carousel.locator(`[data-carousel-item-id="${firstId}"]`)
+    await expect(firstSideCard).toHaveAttribute("data-detail-level", "summary")
+    await clickVisibleCarouselSideCard(page, stage, firstSideCard)
+    await expect.poll(centeredId).toBe(firstId)
+    await waitForCarouselMotionToSettle(page, "station-carousel-stage")
+    if (testInfo.project.name === "mobile-chromium") {
+      await swipeCarouselStage(page, "station-carousel-stage", "previous")
+    } else {
+      await dragCarouselStageWithMouse(page, "station-carousel-stage", "previous")
+    }
+    await expect.poll(centeredId).toBe(lastId)
+    await waitForCarouselMotionToSettle(page, "station-carousel-stage")
+    if (testInfo.project.name === "mobile-chromium") {
+      await swipeCarouselStage(page, "station-carousel-stage", "next")
+    } else {
+      await dragCarouselStageWithMouse(page, "station-carousel-stage", "next")
+    }
+    await expect.poll(centeredId).toBe(firstId)
+
+    await expect(previous).toBeEnabled()
+    await expect(next).toBeEnabled()
+    if (reducedMotion) {
+      const presentation = carousel.locator('[data-centered="true"] [data-carousel-transform="true"]')
+      await expect(presentation).toHaveCSS("transition-duration", "0s")
+      await expect(presentation).toHaveCSS("transform", "none")
+    }
+  })
+}
+
+for (const reducedMotion of [false, true] as const) {
+  test(`Background default navigation and Background drag keep ${reducedMotion ? "reduced-motion finite" : "normal looped"} behavior`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Native Background drag coverage is owned by mobile Chromium.")
+    await page.emulateMedia({ reducedMotion: reducedMotion ? "reduce" : "no-preference" })
+    if (reducedMotion) {
+      await page.addInitScript(() => {
+        localStorage.setItem("massage-lab-settings", JSON.stringify({ ambientMotionMode: "reduced" }))
+      })
+    }
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto("/clock?source=music&returnTo=%2Fmusic", { waitUntil: "domcontentloaded" })
+
+    const dialog = page.getByRole("dialog", { name: "Background" })
+    await expect(dialog).toBeVisible()
+    const carousel = dialog.getByRole("region", { name: "Background carousel" })
+    const stage = page.getByTestId("background-carousel-stage")
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+    await expect(carousel).toHaveAttribute("data-reduced-motion", String(reducedMotion))
+    const ids = await carousel.locator('[data-carousel-slide="true"]').evaluateAll((elements) => elements
+      .map((element) => element.getAttribute("data-carousel-item-id"))
+      .filter((id): id is string => Boolean(id)))
+    expect(ids.length).toBeGreaterThan(2)
+    const firstId = ids[0]
+    const lastId = ids[ids.length - 1]
+    const centeredId = () => carousel
+      .locator('[data-carousel-slide="true"][data-centered="true"]')
+      .getAttribute("data-carousel-item-id")
+    const previous = carousel.getByRole("button", { name: "Previous background" })
+    const next = carousel.getByRole("button", { name: "Next background" })
+    await expect(carousel).toHaveAttribute("data-has-custom-controls", "true")
+    await expect(carousel.locator("[data-station-carousel-controls], [data-carousel-controls]"))
+      .toHaveCount(0)
+    await expect(previous).toHaveCount(1)
+    await expect(next).toHaveCount(1)
+
+    await expect.poll(centeredId).toBe(firstId)
+    if (reducedMotion) {
+      await expect(previous).toBeDisabled()
+      await stage.focus()
+      await page.keyboard.press("ArrowLeft")
+      await expect.poll(centeredId).toBe(firstId)
+      await swipeCarouselStage(page, "background-carousel-stage", "previous")
+      await expect.poll(centeredId).toBe(firstId)
+
+      await next.click()
+      await expect.poll(centeredId).toBe(ids[1])
+      await previous.click()
+      await expect.poll(centeredId).toBe(firstId)
+
+      await stage.focus()
+      await page.keyboard.press("ArrowRight")
+      await expect.poll(centeredId).toBe(ids[1])
+      await page.keyboard.press("ArrowLeft")
+      await expect.poll(centeredId).toBe(firstId)
+
+      await page.keyboard.press("End")
+      await expect.poll(centeredId).toBe(lastId)
+      await expect(next).toBeDisabled()
+      await swipeCarouselStage(page, "background-carousel-stage", "next")
+      await expect.poll(centeredId).toBe(lastId)
+      await expect(carousel.locator('[data-centered="true"] [data-carousel-transform="true"]'))
+        .toHaveCSS("transition-duration", "0s")
+    } else {
+      await expect(previous).toBeEnabled()
+      await expect(next).toBeEnabled()
+      await previous.click()
+      await expect.poll(centeredId).toBe(lastId)
+      await next.click()
+      await expect.poll(centeredId).toBe(firstId)
+
+      await stage.focus()
+      await page.keyboard.press("ArrowLeft")
+      await expect.poll(centeredId).toBe(lastId)
+      await page.keyboard.press("ArrowRight")
+      await expect.poll(centeredId).toBe(firstId)
+
+      await swipeCarouselStage(page, "background-carousel-stage", "previous")
+      await expect.poll(centeredId).toBe(lastId)
+      await swipeCarouselStage(page, "background-carousel-stage", "next")
+      await expect.poll(centeredId).toBe(firstId)
+    }
+  })
+}
 
 test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample station", async ({ page }) => {
   const health = capturePageHealth(page)

@@ -139,7 +139,7 @@ export function AtmosphereStationCarousel() {
         <div className="ml-atmosphere-category-picker grid gap-1.5">
           <p className="ml-atmosphere-category-label text-sm font-medium">Station category</p>
           <div
-            className="ml-atmosphere-category-pills -mx-8 -my-8 flex gap-2 overflow-x-auto px-8 py-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="ml-atmosphere-category-pills -mx-8 -my-10 flex gap-2 overflow-x-auto px-8 py-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="group"
             aria-label="Station category"
           >

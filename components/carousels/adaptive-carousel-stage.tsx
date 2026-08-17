@@ -115,13 +115,15 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
 
   const cardWidth = finiteTuningValue(tuning.cardWidth, 208)
   const cardHeight = finiteTuningValue(tuning.cardHeight, 304)
+  // Station summaries reserve one rem-scaled control plus an exact 16px
+  // visual offset, so increased text cannot clip the control inside the stage.
   const summaryCardHeight = surface === "stations"
-    ? Math.min(cardHeight, cardWidth + 1)
-    : cardHeight
+    ? `max(0px, min(${cardHeight}px, ${cardWidth + 1}px, calc(${cardHeight}px - 2.75rem - 16px)))`
+    : `${cardHeight}px`
   const rootStyle: CarouselRootStyle = {
     "--carousel-card-width": `${cardWidth}px`,
     "--carousel-card-height": `${cardHeight}px`,
-    "--carousel-summary-card-height": `${summaryCardHeight}px`,
+    "--carousel-summary-card-height": summaryCardHeight,
     "--carousel-gap": `${finiteTuningValue(tuning.gap, 16)}px`,
     "--carousel-perspective": `${finiteTuningValue(tuning.perspective, 900)}px`,
   }
@@ -246,7 +248,12 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
         </div>
       </div>
 
-      <div className={styles.controls}>
+      <div
+        className={styles.controls}
+        data-station-carousel-controls={surface === "stations" && viewportProfile === "music-fit"
+          ? "true"
+          : undefined}
+      >
         {renderControls ? renderControls(controlState) : defaultNavigation}
       </div>
 

@@ -69,12 +69,17 @@ export const STATION_CAROUSEL_TUNING = Object.freeze({
 export function getResponsiveStationCarouselTuning({ containerWidth, containerHeight }) {
   const safeWidth = Number.isFinite(containerWidth) ? containerWidth : 556
   const safeHeight = Number.isFinite(containerHeight) ? containerHeight : 246
+  const isConstrainedLandscape = safeWidth > safeHeight && safeHeight <= 480
   return {
     ...STATION_CAROUSEL_TUNING,
     cardWidth: Math.max(160, Math.min(192, Math.floor(safeWidth / 2.6))),
-    // The caller measures the stage row after controls have been allocated,
-    // so card height can consume that box directly without a second estimate.
-    cardHeight: Math.max(72, Math.min(224, Math.floor(safeHeight))),
+    // The caller measures the complete stage. Constrained landscape consumes
+    // that box while its summary cards reserve control room internally;
+    // roomier portrait and desktop presentations retain the 224px ceiling.
+    cardHeight: Math.max(
+      72,
+      Math.min(isConstrainedLandscape ? safeHeight : 224, Math.floor(safeHeight)),
+    ),
     visibleRadius: 1,
   }
 }

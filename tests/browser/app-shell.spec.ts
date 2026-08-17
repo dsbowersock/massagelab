@@ -1546,7 +1546,7 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
   })
 })
 
-test("Music workspace fits four constrained viewports and composes route-owned controls", async ({ page }, testInfo) => {
+test("full constrained landscape four-view matrix plus S24 class keeps controls 16px below and category pill glow clear", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Constrained Music geometry is covered in mobile Chromium.")
   await installInterruptionNoticeMediaFakes(page)
   // Start from the known-roomy portrait baseline, then exercise the exact
@@ -1566,6 +1566,74 @@ test("Music workspace fits four constrained viewports and composes route-owned c
   const center = carousel.locator('[data-carousel-slide][data-centered="true"]')
   const geometryReceipt: Array<Record<string, unknown>> = []
 
+  const assertStationControlGeometry = async (label: string) => {
+    const previous = carouselRegion.getByRole("button", { name: "Previous station" })
+    const next = carouselRegion.getByRole("button", { name: "Next station" })
+    const summaries = carouselRegion.locator(
+      '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
+    )
+    await expect(carouselRegion.locator('[data-station-carousel-controls="true"]')).toBeAttached()
+    await expect(summaries).toHaveCount(2)
+    await expect.poll(async () => {
+      const [previousBox, nextBox, summaryBoxes] = await Promise.all([
+        previous.boundingBox(),
+        next.boundingBox(),
+        summaries.evaluateAll((elements) => elements.map((element) => {
+          const box = element.getBoundingClientRect()
+          return { y: box.y, height: box.height }
+        }).sort((left, right) => left.y - right.y)),
+      ])
+      if (!previousBox || !nextBox || summaryBoxes.length !== 2) return Number.POSITIVE_INFINITY
+      return Math.max(
+        Math.abs(previousBox.y - (summaryBoxes[0].y + summaryBoxes[0].height + 16)),
+        Math.abs(nextBox.y - (summaryBoxes[1].y + summaryBoxes[1].height + 16)),
+      )
+    }).toBeLessThanOrEqual(1)
+    const [previousBox, nextBox, stageBox, summaryBoxes] = await Promise.all([
+      previous.boundingBox(),
+      next.boundingBox(),
+      stage.boundingBox(),
+      summaries.evaluateAll((elements) => elements.map((element) => {
+        const box = element.getBoundingClientRect()
+        return { x: box.x, y: box.y, width: box.width, height: box.height }
+      }).sort((left, right) => left.x - right.x)),
+    ])
+    expect(previousBox, `${label} previous control box`).not.toBeNull()
+    expect(nextBox, `${label} next control box`).not.toBeNull()
+    expect(stageBox, `${label} stage box`).not.toBeNull()
+    const leftSummary = summaryBoxes[0]
+    const rightSummary = summaryBoxes[1]
+    const visibleCenter = (box: { x: number, width: number }) => {
+      const left = Math.max(box.x, stageBox?.x ?? box.x)
+      const right = Math.min(
+        box.x + box.width,
+        (stageBox?.x ?? box.x) + (stageBox?.width ?? box.width),
+      )
+      return (left + right) / 2
+    }
+    expect(Math.abs(
+      (previousBox?.y ?? 0) - (leftSummary.y + leftSummary.height + 16),
+    ), `${label} previous vertical offset`).toBeLessThanOrEqual(1)
+    expect(Math.abs(
+      (nextBox?.y ?? 0) - (rightSummary.y + rightSummary.height + 16),
+    ), `${label} next vertical offset`).toBeLessThanOrEqual(1)
+    expect(Math.abs(
+      ((previousBox?.x ?? 0) + (previousBox?.width ?? 0) / 2)
+        - visibleCenter(leftSummary),
+    ), `${label} previous center`).toBeLessThanOrEqual(1)
+    expect(Math.abs(
+      ((nextBox?.x ?? 0) + (nextBox?.width ?? 0) / 2)
+        - visibleCenter(rightSummary),
+    ), `${label} next center`).toBeLessThanOrEqual(1)
+    for (const [name, box] of [["previous", previousBox], ["next", nextBox]] as const) {
+      expect(box?.y ?? -1, `${label} ${name} stage top`).toBeGreaterThanOrEqual((stageBox?.y ?? 0) - 1)
+      expect((box?.y ?? 0) + (box?.height ?? 0), `${label} ${name} stage bottom`).toBeLessThanOrEqual(
+        (stageBox?.y ?? 0) + (stageBox?.height ?? 0) + 1,
+      )
+    }
+    return { previousBox, nextBox, stageBox, summaryBoxes }
+  }
+
   const assertContained = async (locator: Locator, container: Locator, label: string) => {
     const [box, containerBox] = await Promise.all([locator.boundingBox(), container.boundingBox()])
     expect(box, `${label} box`).not.toBeNull()
@@ -1577,11 +1645,139 @@ test("Music workspace fits four constrained viewports and composes route-owned c
     ).toBeLessThanOrEqual((containerBox?.y ?? 0) + (containerBox?.height ?? 0) + 1)
   }
 
+  const readPillHaloGeometry = async (scrollToEnd = false) => categoryGroup.evaluate(
+    (group, shouldScrollToEnd) => {
+      if (shouldScrollToEnd) group.scrollLeft = group.scrollWidth
+      const style = getComputedStyle(group)
+      const groupBox = group.getBoundingClientRect()
+      const shadowExtent = (shadow: string) => shadow
+        .replace(/rgba?\([^)]*\)/g, "")
+        .split(",")
+        .filter((entry) => !entry.includes("inset"))
+        .reduce((extent, entry) => {
+          const lengths = [...entry.matchAll(/-?\d+(?:\.\d+)?px/g)]
+            .map(([length]) => Number.parseFloat(length))
+          const [, offsetY = 0, blur = 0, spread = 0] = lengths
+          return {
+            top: Math.max(extent.top, Math.max(0, blur + spread - offsetY)),
+            bottom: Math.max(extent.bottom, Math.max(0, blur + spread + offsetY)),
+          }
+        }, { top: 0, bottom: 0 })
+      const buttons = [...group.querySelectorAll("button")].map((button) => {
+        const box = button.getBoundingClientRect()
+        const buttonHalo = shadowExtent(getComputedStyle(button).boxShadow)
+        const pseudoHalo = shadowExtent(getComputedStyle(button, "::after").boxShadow)
+        const haloTop = Math.max(buttonHalo.top, pseudoHalo.top)
+        const haloBottom = Math.max(buttonHalo.bottom, pseudoHalo.bottom)
+        return {
+          pressed: button.getAttribute("aria-pressed"),
+          haloTop,
+          haloBottom,
+          paintedTop: box.top - haloTop,
+          paintedBottom: box.bottom + haloBottom,
+          buttonHeight: box.height,
+        }
+      })
+      return {
+        paddingTop: Number.parseFloat(style.paddingTop),
+        paddingBottom: Number.parseFloat(style.paddingBottom),
+        marginTop: Number.parseFloat(style.marginTop),
+        marginBottom: Number.parseFloat(style.marginBottom),
+        paintTop: groupBox.top,
+        paintBottom: groupBox.bottom,
+        netHeight: groupBox.height
+          + Number.parseFloat(style.marginTop)
+          + Number.parseFloat(style.marginBottom),
+        scrollLeft: group.scrollLeft,
+        scrollWidth: group.scrollWidth,
+        clientWidth: group.clientWidth,
+        buttons,
+      }
+    },
+    scrollToEnd,
+  )
+
+  const assertPillHaloPaintSpace = async (label: string, scrollToEnd = false) => {
+    const geometry = await readPillHaloGeometry(scrollToEnd)
+    expect(geometry.buttons.some(({ pressed }) => pressed === "true"), `${label} selected pill`).toBe(true)
+    expect(geometry.buttons.some(({ pressed }) => pressed === "false"), `${label} unselected pill`).toBe(true)
+    for (const [index, button] of geometry.buttons.entries()) {
+      expect(button.haloTop, `${label} pill ${index} top halo extent`).toBeGreaterThan(0)
+      expect(button.haloBottom, `${label} pill ${index} bottom halo extent`).toBeGreaterThan(0)
+      expect(button.paintedTop, `${label} pill ${index} painted top`).toBeGreaterThanOrEqual(
+        geometry.paintTop - 1,
+      )
+      expect(button.paintedBottom, `${label} pill ${index} painted bottom`).toBeLessThanOrEqual(
+        geometry.paintBottom + 1,
+      )
+    }
+    expect(geometry.marginTop).toBeCloseTo(-geometry.paddingTop, 0)
+    expect(geometry.marginBottom).toBeCloseTo(-geometry.paddingBottom, 0)
+    expect(geometry.netHeight).toBeCloseTo(
+      Math.max(...geometry.buttons.map(({ buttonHeight }) => buttonHeight)),
+      0,
+    )
+    expect(geometry.scrollWidth).toBeGreaterThan(geometry.clientWidth)
+    if (scrollToEnd) expect(geometry.scrollLeft).toBeGreaterThan(0)
+    return geometry
+  }
+
+  const assertCenteredStationActionsContained = async (label: string) => {
+    const actions = [
+      ["Play/Stop", center.locator("[data-carousel-primary-action]")],
+      ["Favorite", center.locator("[data-carousel-favorite-action]")],
+      ["Details", center.locator("[data-carousel-station-details]")],
+    ] as const
+    for (const [name, action] of actions) {
+      await expect(action, `${label} ${name}`).toBeVisible()
+      await assertContained(action, center, `${label} ${name} in centered card`)
+      await assertContained(action, stage, `${label} ${name} in stage`)
+    }
+  }
+
+  const assertConstrainedStationStageFit = async (
+    label: string,
+    pillPaintSpace: Awaited<ReturnType<typeof readPillHaloGeometry>>,
+  ) => {
+    const [allocationBox, stageBox, centerBox, pillsBox, scrollBox, mainBarBox] = await Promise.all([
+      page.locator(".ml-atmosphere-station-stage-allocation").boundingBox(),
+      stage.boundingBox(),
+      center.boundingBox(),
+      categoryGroup.boundingBox(),
+      appScroll.boundingBox(),
+      page.locator(".ml-mobile-main-bar, .ml-app-topbar").evaluateAll((bars) => {
+        const visible = bars.find((bar) => {
+          const box = bar.getBoundingClientRect()
+          return box.width > 0 && box.height > 0 && getComputedStyle(bar).visibility !== "hidden"
+        })
+        if (!visible) return null
+        const box = visible.getBoundingClientRect()
+        return { x: box.x, y: box.y, width: box.width, height: box.height }
+      }),
+    ])
+    expect(stageBox?.y ?? 0, `${label} stage top`).toBeCloseTo(
+      (pillsBox?.y ?? 0) + (pillsBox?.height ?? 0) + pillPaintSpace.marginBottom,
+      0,
+    )
+    const stageBottom = (stageBox?.y ?? 0) + (stageBox?.height ?? 0)
+    const allocationBottom = (allocationBox?.y ?? 0) + (allocationBox?.height ?? 0)
+    const scrollBottom = (scrollBox?.y ?? 0) + (scrollBox?.height ?? 0)
+    const usableBottom = mainBarBox && mainBarBox.y > (scrollBox?.y ?? 0)
+      ? Math.min(scrollBottom, mainBarBox.y)
+      : scrollBottom
+    expect(stageBottom, `${label} stage/allocation bottom`).toBeCloseTo(allocationBottom, 0)
+    expect(allocationBottom, `${label} allocation/usable bottom`).toBeCloseTo(usableBottom, 0)
+    expect(stageBottom, `${label} stage/usable bottom`).toBeCloseTo(usableBottom, 0)
+    expect(centerBox?.height ?? 0, `${label} centered card height`).toBeCloseTo(stageBox?.height ?? 0, 0)
+    await assertCenteredStationActionsContained(label)
+  }
+
   const cases = [
     { width: 360, height: 670, layout: "bottom", showCategoryLabel: true, showSelection: false },
     { width: 746, height: 284, layout: "rail", showCategoryLabel: false, showSelection: false },
     { width: 390, height: 844, layout: "bottom", showCategoryLabel: true, showSelection: true },
     { width: 844, height: 390, layout: "rail", showCategoryLabel: false, showSelection: false },
+    { width: 915, height: 412, layout: "rail", showCategoryLabel: false, showSelection: false },
   ] as const
 
   for (const viewport of cases) {
@@ -1623,9 +1819,14 @@ test("Music workspace fits four constrained viewports and composes route-owned c
         return [key, box ? { x: box.x, y: box.y, width: box.width, height: box.height } : null]
       }))
     })
-    geometryReceipt.push({ viewport, boxes })
     await expect(carouselRegion.getByRole("button", { name: "Previous station" })).toBeInViewport()
     await expect(carouselRegion.getByRole("button", { name: "Next station" })).toBeInViewport()
+    const controlGeometry = await assertStationControlGeometry(`${viewport.width}x${viewport.height}`)
+
+    const pillPaintSpace = await assertPillHaloPaintSpace(`${viewport.width}x${viewport.height}`)
+    expect(pillPaintSpace.paddingTop).toBeGreaterThanOrEqual(32)
+    expect(pillPaintSpace.paddingBottom).toBeGreaterThanOrEqual(32)
+    geometryReceipt.push({ viewport, boxes, controlGeometry, pillPaintSpace })
 
     const scroll = await appScroll.evaluate((element) => ({
       clientHeight: element.clientHeight,
@@ -1637,6 +1838,27 @@ test("Music workspace fits four constrained viewports and composes route-owned c
     expect(scroll.scrollTop).toBe(0)
     expect(scroll.overflowY).toBe("hidden")
     await assertContained(carousel, appScroll, `${viewport.width}x${viewport.height} carousel`)
+
+    if (viewport.width > viewport.height) {
+      await assertConstrainedStationStageFit(
+        `${viewport.width}x${viewport.height}`,
+        pillPaintSpace,
+      )
+      for (const categoryName of [
+        "Water, nature, and field textures",
+        "Treatment room starters",
+      ]) {
+        const category = categoryGroup.getByRole("button", { name: categoryName })
+        await category.click()
+        await expect(category).toHaveAttribute("aria-pressed", "true")
+        await expect(nonShellCards).toHaveCount(3)
+        await expect(carouselRegion).toHaveAttribute("data-carousel-ready", "true")
+        const remountLabel = `${viewport.width}x${viewport.height} ${categoryName}`
+        await assertStationControlGeometry(remountLabel)
+        const remountPillPaintSpace = await assertPillHaloPaintSpace(remountLabel)
+        await assertConstrainedStationStageFit(remountLabel, remountPillPaintSpace)
+      }
+    }
 
     for (let index = 0; index < 3; index += 1) {
       await expect(nonShellCards.nth(index)).toBeInViewport({ ratio: 0.15 })
@@ -1662,8 +1884,24 @@ test("Music workspace fits four constrained viewports and composes route-owned c
     await expect(center).toHaveAttribute("data-carousel-item-id", centeredId ?? "")
   }
 
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.locator("html").evaluate((root) => { root.style.fontSize = "20px" })
+  await expect(categoryGroup).toBeVisible()
+  await expect(categoryGroup.getByRole("button")).toHaveCount(5)
+  const increasedTextPillGeometry = await assertPillHaloPaintSpace("390x844 increased text", true)
+  expect(increasedTextPillGeometry.paddingTop).toBeGreaterThanOrEqual(40)
+  expect(increasedTextPillGeometry.paddingBottom).toBeGreaterThanOrEqual(40)
+  expect(await appScroll.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true)
+  await page.locator("html").evaluate((root) => { root.style.fontSize = "16px" })
+
   await page.setViewportSize({ width: 746, height: 284 })
   await expect(toolbar).toHaveAttribute("data-layout", "rail")
+  await page.locator("html").evaluate((root) => { root.style.fontSize = "20px" })
+  const landscapeIncreasedTextPills = await assertPillHaloPaintSpace("746x284 increased text", true)
+  await assertStationControlGeometry("746x284 increased text")
+  await assertConstrainedStationStageFit("746x284 increased text", landscapeIncreasedTextPills)
+  expect(await appScroll.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true)
+  await page.locator("html").evaluate((root) => { root.style.fontSize = "16px" })
   const transport = toolbar.getByTestId("music-player-toolbar-rail-transport")
   const options = toolbar.getByTestId("music-player-toolbar-rail-options")
   expect(await transport.locator('button[aria-label]').evaluateAll((elements) => (
@@ -2184,7 +2422,11 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
     if (!stageBox || !cardBox) return
 
     const expectedWidth = Math.max(160, Math.min(192, Math.floor(stageBox.width / 2.6)))
-    const expectedHeight = Math.max(72, Math.min(224, Math.floor(stageBox.height)))
+    const isConstrainedLandscape = stageBox.width > stageBox.height && stageBox.height <= 480
+    const expectedHeight = Math.max(
+      72,
+      Math.min(isConstrainedLandscape ? stageBox.height : 224, Math.floor(stageBox.height)),
+    )
     expect(cardBox.width).toBeCloseTo(expectedWidth, 0)
     expect(cardBox.height).toBeCloseTo(expectedHeight, 0)
     expect(cardBox.x).toBeGreaterThanOrEqual(stageBox.x - 1)

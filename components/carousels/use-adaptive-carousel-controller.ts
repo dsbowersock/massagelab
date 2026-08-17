@@ -69,14 +69,16 @@ export function useAdaptiveCarouselController(
     tuning,
     reducedMotion,
   } = options
-  const finiteRail = reducedMotion || tuning.motion === false
-  const effectiveLoop = finiteRail
-    ? false
-    : resolveEffectiveCarouselLoop(
+  const staticPresentation = reducedMotion || tuning.motion === false
+  // Station navigation remains circular when motion is suppressed; Background
+  // keeps its existing finite reduced-motion rail and edge semantics.
+  const effectiveLoop = surface === "stations" || !staticPresentation
+    ? resolveEffectiveCarouselLoop(
         items.length,
         Number(tuning.visibleRadius),
         Boolean(tuning.loop),
       )
+    : false
   const [initialCenter] = useState(() => {
     const id = reconcileAdaptiveCarouselCenter(items, initialItemId, selectedItemId)
     const index = Math.max(0, items.findIndex((item) => item.id === id))
@@ -88,7 +90,7 @@ export function useAdaptiveCarouselController(
     dragFree: false,
     loop: effectiveLoop,
     skipSnaps: false,
-    duration: finiteRail ? 0 : 45,
+    duration: staticPresentation ? 0 : 45,
     startIndex: initialCenter.index,
     watchDrag: (_api, event) => shouldStartCarouselDrag(event),
   })

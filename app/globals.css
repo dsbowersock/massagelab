@@ -2010,23 +2010,25 @@
     grid-template-rows: auto minmax(0, 1fr);
   }
 
-  .ml-atmosphere-category-pills {
-    margin-block: 0 !important;
-    padding-block: 0.5rem !important;
-  }
-
   .ml-atmosphere-station-controls {
+    position: absolute;
+    inset-inline: 0;
+    /* Glow buttons render one pixel above their layout box; offset the owner
+       by 17px so the visible control top stays exactly 16px below the card. */
+    top: calc(var(--carousel-summary-card-height) + 17px);
     display: grid;
     grid-template-columns:
       calc((100% - var(--carousel-card-width)) / 2)
       var(--carousel-card-width)
       calc((100% - var(--carousel-card-width)) / 2);
-    min-height: 2.75rem;
+    height: 2.75rem;
+    pointer-events: none;
   }
 
   .ml-atmosphere-station-control {
-    align-self: center;
+    align-self: start;
     justify-self: center;
+    pointer-events: auto;
   }
 
   .ml-atmosphere-station-control-previous {
@@ -2046,19 +2048,16 @@
 
   @media (max-height: 44rem) {
     .ml-atmosphere-workspace-page {
-      padding-block: 0.75rem;
+      padding-top: 0.75rem !important;
+      padding-bottom: 0 !important;
     }
 
     .ml-atmosphere-station-carousel {
-      gap: 0.5rem;
+      gap: 0 !important;
     }
 
     .ml-atmosphere-selected-category {
       display: none;
-    }
-
-    .ml-atmosphere-category-pills {
-      padding-block: 0.25rem !important;
     }
 
     .ml-atmosphere-station-stage-allocation [data-carousel-station-details] span:last-child {
@@ -2090,9 +2089,6 @@
       gap: 0;
     }
 
-    .ml-atmosphere-station-controls {
-      min-height: 2.5rem;
-    }
   }
 
   .ml-music-player-toolbar {
