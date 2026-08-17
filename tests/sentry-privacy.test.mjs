@@ -34,10 +34,39 @@ test("sanitizeSentryEvent removes request body, headers, query strings, and defa
   })
 
   assert.deepEqual(event.request, { url: "https://massagelab.app/notes/soap" })
-  assert.deepEqual(event.user, { id: "user_123" })
+  assert.equal("user" in event, false)
   assert.equal(event.transaction, "/notes/soap")
-  assert.equal(event.extra.licenseNumber, "[Filtered]")
-  assert.equal(event.extra.message, "Email [Filtered] token=[Filtered]")
+  assert.equal("extra" in event, false)
+})
+
+test("sanitizeSentryEvent removes identity fields and non-operational tags at every nesting level", () => {
+  const event = sanitizeSentryEvent({
+    user: { id: "user_123", ip_address: "192.0.2.1" },
+    tags: {
+      userId: "user_123",
+      backgroundViewed: "dna",
+      "ml.report": "privacy-safe-problem-report",
+      "ml.report.area": "timer",
+      "ml.failure_code": "person@example.com",
+    },
+    contexts: {
+      custom: {
+        accountId: "account_123",
+        visitor_id: "visitor_123",
+        deviceId: "device_123",
+        safeCount: 2,
+      },
+    },
+    extra: { sessionId: "session_123", safeCount: 2 },
+  })
+
+  assert.equal("user" in event, false)
+  assert.deepEqual(event.tags, {
+    "ml.report": "privacy-safe-problem-report",
+    "ml.report.area": "timer",
+  })
+  assert.doesNotMatch(JSON.stringify(event), /account_123|visitor_123|device_123|person@example.com/)
+  assert.equal("extra" in event, false)
 })
 
 test("sanitizeSentryEvent scrubs diagnostic messages and exception values", () => {
@@ -136,28 +165,20 @@ test("sanitizeSentryEvent strips transaction request metadata and router state",
   assert.equal(event.contexts.trace.data["http.request.header.next_router_state_tree"], "[Filtered]")
   assert.equal(event.contexts.trace.data["http.request.header.cookie"], "[Filtered]")
   assert.equal(event.contexts.trace.data["http.response.status_code"], 200)
-  assert.equal(event.extra.next_router_state_tree, "[Filtered]")
-  assert.equal(event.extra["http.request.header.rsc"], "[Filtered]")
-  assert.equal(event.extra["http.target"], "/notes/soap")
+  assert.equal("extra" in event, false)
 })
 
-test("sanitizeSentryBreadcrumb drops console breadcrumbs and scrubs fetch data", () => {
-  assert.equal(sanitizeSentryBreadcrumb({ category: "console", message: "license=ABC" }), null)
-
-  const breadcrumb = sanitizeSentryBreadcrumb({
-    category: "fetch",
-    message: "GET https://massagelab.app/account?email=person@example.com",
-    data: {
-      url: "https://massagelab.app/account?email=person@example.com",
-      authorization: "Bearer secret",
-    },
-  })
-
-  assert.equal(breadcrumb.message, "GET https://massagelab.app/account")
-  assert.deepEqual(breadcrumb.data, {
-    url: "https://massagelab.app/account",
-    authorization: "[Filtered]",
-  })
+test("sanitizeSentryBreadcrumb drops automatic behavioral history", () => {
+  for (const breadcrumb of [
+    { category: "console", message: "license=ABC" },
+    { category: "ui.click", message: "button#save" },
+    { category: "ui.input", message: "input[name=journal]" },
+    { category: "navigation", data: { from: "/notes/1", to: "/notes/2" } },
+    { category: "fetch", data: { url: "/api/account/preferences" } },
+    { category: "xhr", data: { url: "/api/wellness" } },
+  ]) {
+    assert.equal(sanitizeSentryBreadcrumb(breadcrumb), null)
+  }
 })
 
 test("sanitizeSentrySpan scrubs urls and sensitive span attributes", () => {
