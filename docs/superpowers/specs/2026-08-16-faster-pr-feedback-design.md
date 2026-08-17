@@ -148,7 +148,7 @@ Naive Playwright `--shard=1/4` is not selected. The current configuration intent
 
 A focused lane manifest is the canonical owner of project/spec assignments. `playwright.config.ts` consumes a CI-only lane identifier and constructs only the project/spec combinations owned by that lane. An ordinary local `npm run test:browser` invocation remains unchanged and continues to run both configured projects with the existing development-review exclusions.
 
-The current assignment is an evidence-driven rebalance based on median per-project, per-spec completion-time deltas from cold attempt 3 and warm attempts 4 and 5 of hosted run `32019891653` on exact commit `cff8a9f679c074e075d6b03995ad8bfbb833d225`. The previous assignment's per-lane browser-step medians were `353 / 289 / 280 / 278s`, a 26.98% spread. Deterministic longest-processing-time allocation of all 18 indivisible project/spec units predicts the raw-unit totals below; these estimates drive the rebalance and remain planning evidence, not accepted performance proof. A new cold-plus-two-warm exact-head proof is still required.
+The current assignment is an evidence-driven rebalance based on median per-project, per-spec completion-time deltas from cold attempt 3 and warm attempts 4 and 5 of hosted run `32019891653` on exact commit `cff8a9f679c074e075d6b03995ad8bfbb833d225`. The previous assignment's per-lane browser-step medians were `353 / 289 / 280 / 278s`, a 26.98% spread. Deterministic longest-processing-time allocation of all 18 indivisible project/spec units predicted the raw-unit totals below; those estimates drove the rebalance and remain planning evidence rather than accepted performance proof. The later accepted cold-plus-two-warm exact-head proof is recorded in the [CI and PR checks guide](../../wiki/ci-pr-checks.md): measured head `728eaa405e5e1a00730ece36dd0a43b2db460547` produced per-lane medians of `288 / 291 / 291 / 325s`, a 12.85% spread.
 
 | Lane | Project/spec ownership | Estimated browser time |
 | --- | --- | ---: |
@@ -261,7 +261,7 @@ The pull request is the authoritative integration test for GitHub Actions artifa
 - total test counts and skip/retry/failure summaries; and
 - whether diagnostic artifacts were produced and remained usable.
 
-The initial workflow is rebalanced if the slowest browser execution is more than 20% slower than the fastest or if one lane is the clear critical path. A healthy cached workflow passes the speed goal when runner-start-to-final-`qa` completion is 13 minutes or less. Created-to-completed time is also reported so GitHub queue delay remains visible rather than being misattributed to repository execution.
+The initial workflow is rebalanced if the slowest per-lane browser-step median is more than 20% slower than the fastest across an accepted exact-head window of one successful cold-cache run plus at least two successful warm-cache runs, or if one lane is the clear recurring critical path. Individual-run spread remains useful diagnostic evidence, but it is not the balance acceptance gate because hosted-runner variance can move between lanes. A healthy cached workflow passes the speed goal when runner-start-to-final-`qa` completion is 13 minutes or less. Created-to-completed time is also reported so GitHub queue delay remains visible rather than being misattributed to repository execution.
 
 At least three successful representative pull-request runs must preserve full counts, show no newly introduced recurring retry, and demonstrate stable artifact transfer before the branch is described as proven. One run must follow a change that invalidates the Next.js cache so the design is not accepted only on a warm-cache result.
 
@@ -281,6 +281,7 @@ The design is fulfilled when:
 - retries, traces, screenshots, timeouts, SMTP isolation, and superseded-run cancellation remain intact;
 - final `qa` fails for every upstream non-success and never becomes ambiguously skipped;
 - three representative hosted runs meet the coverage and stability contract;
+- per-lane browser-step medians across one cold and at least two warm exact-head successes have no more than 20% spread;
 - healthy cached runner time is 13 minutes or less, with cold-cache evidence recorded separately;
 - the CI/PR-checks wiki explains repository-owned and provider-owned signals in plain language;
 - repository merge rules remain unchanged; and

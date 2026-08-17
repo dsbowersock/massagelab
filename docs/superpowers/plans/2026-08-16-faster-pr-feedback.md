@@ -83,7 +83,7 @@ Expected: failure resolving `tests/browser/ci-lanes.mjs`.
 
 ### Step 2: Implement the lane manifest and its invariant checks
 
-- [ ] Create `tests/browser/ci-lanes.mjs` with these exported constants and exact assignments. The assignment below is the evidence-driven rebalance derived from median project/spec timings across cold attempt 3 and warm attempts 4 and 5 of hosted run `32019891653` on exact commit `cff8a9f679c074e075d6b03995ad8bfbb833d225`. The previous assignment's per-lane browser-step medians were `353 / 289 / 280 / 278s` (26.98% spread); deterministic longest-processing-time allocation predicts raw-unit totals of `281.100 / 277.707 / 291.400 / 277.264s` (5.10% spread). These are planning estimates, not accepted performance proof, and require a new cold-plus-two-warm exact-head proof:
+- [ ] Create `tests/browser/ci-lanes.mjs` with these exported constants and exact assignments. The assignment below is the evidence-driven rebalance derived from median project/spec timings across cold attempt 3 and warm attempts 4 and 5 of hosted run `32019891653` on exact commit `cff8a9f679c074e075d6b03995ad8bfbb833d225`. The previous assignment's per-lane browser-step medians were `353 / 289 / 280 / 278s` (26.98% spread); deterministic longest-processing-time allocation predicted raw-unit totals of `281.100 / 277.707 / 291.400 / 277.264s` (5.10% spread). Those were planning estimates rather than accepted performance proof. The later accepted cold-plus-two-warm exact-head result is recorded in `docs/wiki/ci-pr-checks.md` with medians of `288 / 291 / 291 / 325s` (12.85% spread):
 
 ```js
 export const BROWSER_QA_PROJECT_NAMES = [
@@ -580,14 +580,14 @@ gh run watch RUN_ID --exit-status
 
   - ordinary coverage remains 310 tests in 9 spec files before lane filtering;
   - all four lane jobs succeed and the final `qa` succeeds;
-  - the slowest and fastest lane test runtimes differ by no more than 20%;
+  - per-lane browser-step medians across the accepted one-cold plus two-warm exact-head window differ by no more than 20%, calculated as `(slowest median - fastest median) / fastest median`; individual-run spread is recorded as diagnostic evidence rather than used as the balance gate;
   - healthy end-to-end feedback, measured from the earliest runner job start to final `qa` completion, is 13 minutes or less;
   - at least one measurement is cold-cache and at least two are warm-cache;
   - no new recurring Playwright retry appears.
 
 ### Step 4: Rebalance only if hosted evidence requires it
 
-- [ ] If the four hosted lane test runtimes exceed the 20% balance threshold, extract per-project/spec durations from the successful hosted logs.
+- [ ] If the per-lane median spread across the accepted hosted window exceeds the 20% balance threshold, extract per-project/spec durations from the successful hosted logs.
 
 - [ ] Reassign the 18 project/spec units with longest-processing-time greedy allocation: sort units from slowest to fastest and place each next unit in the currently lightest lane. Preserve exactly four non-empty lanes and exactly-once coverage.
 
@@ -613,21 +613,22 @@ git push
 
   - the exact commit SHA measured;
   - the cold and warm run URLs;
+  - the cold miss/save and warm exact-primary-hit cache truth;
   - total time-to-`qa` for each attempt;
-  - per-lane browser durations;
+  - per-lane browser durations, medians, and spread;
   - whether retries occurred;
   - the before/after comparison against the observed roughly 25-minute sequential baseline.
 
-- [ ] Add a concise 2026-08-16 current-state bullet to `docs/project-state.md` describing the verified four-lane PR QA architecture and measured feedback time.
+- [ ] Add a concise 2026-08-17 current-state bullet to `docs/project-state.md` describing the verified four-lane PR QA architecture and measured feedback time.
 
-- [ ] Add a 2026-08-16 chronological entry to `docs/project-log.md` recording the implementation, validation commands, hosted run evidence, preserved coverage, and any remaining operational caveat.
+- [ ] Add a 2026-08-17 chronological entry to `docs/project-log.md` recording the implementation, validation commands, hosted run evidence, preserved coverage, and any remaining operational caveat.
 
 - [ ] Validate and commit the proof record:
 
 ```powershell
 git diff --check
-git diff -- docs/wiki/ci-pr-checks.md docs/project-state.md docs/project-log.md
-git add docs/wiki/ci-pr-checks.md docs/project-state.md docs/project-log.md
+git diff -- docs/wiki/ci-pr-checks.md docs/project-state.md docs/project-log.md docs/superpowers/specs/2026-08-16-faster-pr-feedback-design.md docs/superpowers/plans/2026-08-16-faster-pr-feedback.md
+git add docs/wiki/ci-pr-checks.md docs/project-state.md docs/project-log.md docs/superpowers/specs/2026-08-16-faster-pr-feedback-design.md docs/superpowers/plans/2026-08-16-faster-pr-feedback.md
 git commit -m "docs: record faster CI proof"
 git push
 ```

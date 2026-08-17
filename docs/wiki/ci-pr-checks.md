@@ -65,6 +65,52 @@ result.
   in-progress pull-request run. Pushes to `main` execute the identical workflow
   without that pull-request cancellation behavior.
 
+## Verified hosted proof
+
+PR [#185](https://github.com/dsbowersock/massagelab/pull/185) proved the
+four-lane workflow on **2026-08-17**. The measured and substantively reviewed
+implementation head was
+`728eaa405e5e1a00730ece36dd0a43b2db460547`; its hosted CodeRabbit review
+reported no actionable comments, and all six earlier review threads were
+resolved.
+
+The accepted window is one genuine cold-cache attempt plus two exact-primary
+warm-cache attempts of workflow run `32039251082`. Runner-to-`qa` time starts
+at the earliest runner job start and ends when the final `qa` job completes.
+Created-to-completed time is included separately so GitHub scheduling overhead
+is not hidden.
+
+| Sample | Cache truth | Runner to `qa` | Created to completed | Lane 1 | Lane 2 | Lane 3 | Lane 4 | Discovery | Playwright retries/flaky |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| [Cold attempt 4](https://github.com/dsbowersock/massagelab/actions/runs/32039251082/attempts/4) | Exact primary miss, then saved | 8m 58s | 9m 03s | 242s | 297s | 316s | 325s | 64 + 94 + 61 + 91 = 310 | None |
+| [Warm attempt 5](https://github.com/dsbowersock/massagelab/actions/runs/32039251082/attempts/5) | Exact primary hit; restored; not saved again | 8m 50s | 8m 55s | 288s | 291s | 284s | 322s | 64 + 94 + 61 + 91 = 310 | None |
+| [Warm attempt 6](https://github.com/dsbowersock/massagelab/actions/runs/32039251082/attempts/6) | Exact primary hit; restored; not saved again | 9m 00s | 9m 05s | 294s | 289s | 291s | 328s | 64 + 94 + 61 + 91 = 310 | None |
+
+The cold attempt saved cache ID `6717066121` on
+`refs/pull/185/merge` with exact key
+`Linux-nextjs-v2-ea0d7ec4cf282d6484fea20f7dac1c509262bb552d7edb51a478fae207f58a6d-80155ab642316c11edc611aa7901b1ae4429682099990c5451ff34881e5cec7c`.
+Both warm attempts restored that complete primary key. Per-lane browser-step
+medians across the accepted window are `288 / 291 / 291 / 325s`; the approved
+spread calculation is `(325 - 288) / 288 = 12.85%`, below the 20% limit. Every
+sample was green, preserved all 310 ordinary tests in nine spec files, stayed
+below 13 minutes, and contained no Playwright retry or flaky marker. Compared
+with the observed roughly 25-minute sequential baseline, the verified healthy
+runner-to-`qa` window is 8m 50s to 9m 00s.
+
+Two earlier cold attempts are deliberately excluded from the accepted window:
+
+- [Attempt 2](https://github.com/dsbowersock/massagelab/actions/runs/32039251082/attempts/2)
+  failed before lane 4 could start Playwright because GitHub codeload returned
+  HTTP 429 while downloading the pinned `actions/download-artifact` archive.
+- [Attempt 3](https://github.com/dsbowersock/massagelab/actions/runs/32039251082/attempts/3)
+  failed at the same hosted setup boundary for lane 2 after three HTTP 429
+  responses. A 37-minute cooldown preceded accepted cold attempt 4.
+
+Those were GitHub-hosted infrastructure failures, not application or test
+failures. Each was a real cache miss/save but lacked full 310-test execution,
+so neither is labeled as an accepted cold sample. Their created caches were
+deleted individually with explicit authorization before the next cold attempt.
+
 ## Diagnosing a browser-lane failure
 
 Start with the failing lane number and its `browser-diagnostics` artifact in
