@@ -616,6 +616,7 @@ test("account menu hides install on an unsupported browser", async ({ page }) =>
 
 test("failed install prompt stays hidden after the failed attempt", async ({ page }, testInfo) => {
   await page.goto("/", { waitUntil: "commit" })
+  // Re-dispatch the synthetic prompt until preventDefault proves the install provider listener is attached.
   await expect.poll(async () => page.evaluate(() => {
     const event = new Event("beforeinstallprompt", { cancelable: true }) as Event & {
       prompt: () => Promise<void>
