@@ -149,7 +149,10 @@ async function getActualRuntimeModulePath() {
     for (const entry of entries) {
       if (!entry.isFile() || !entry.name.endsWith(".js")) continue
       const source = await readFile(new URL(entry.name, chunkDirectory), "utf8")
-      if (source.includes("startToneProofDrone") && source.includes("getToneProofDroneDiagnostics")) {
+      if (
+        source.includes('"startToneProofDrone",0')
+        && source.includes('"getToneProofDroneDiagnostics",0')
+      ) {
         return `/_next/static/chunks/${entry.name}`
       }
     }
@@ -1257,6 +1260,45 @@ test("touch pointerup suppresses its correlated retargeted synthetic click", asy
   expect((await readProbe(page)).audioContext.generatorGeneration).toBe(1)
 })
 
+test("touch pointerup suppresses its 750ms delayed same-control compatibility click", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+  const play = await openReadyStationPlay(page)
+  const toolbar = page.getByTestId("music-player-toolbar")
+
+  await play.evaluate(async (button) => {
+    const pointer = (type: string, buttons: number) => new PointerEvent(type, {
+      bubbles: true,
+      button: 0,
+      buttons,
+      cancelable: true,
+      clientX: 100,
+      clientY: 100,
+      isPrimary: true,
+      pointerId: 41,
+      pointerType: "touch",
+    })
+    button.dispatchEvent(pointer("pointerdown", 1))
+    button.dispatchEvent(pointer("pointerup", 0))
+    await new Promise((resolve) => window.setTimeout(resolve, 750))
+    button.dispatchEvent(new PointerEvent("click", {
+      bubbles: true,
+      button: 0,
+      buttons: 0,
+      cancelable: true,
+      detail: 1,
+      isPrimary: true,
+      pointerId: 41,
+      pointerType: "touch",
+      view: window,
+    }))
+  })
+
+  await expect(toolbar).toHaveAttribute("data-playback-state", /loading|playing/)
+  expect((await readProbe(page)).audio.playCalls).toBe(1)
+  expect((await readProbe(page)).audio.pauseCalls).toBe(0)
+  expect((await readProbe(page)).audioContext.generatorGeneration).toBe(1)
+})
+
 test("a fresh same-id touch retires prior click suppression", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
   const play = await openReadyStationPlay(page)
@@ -1308,18 +1350,28 @@ test("touch synthetic click after the suppression window follows its normal targ
   await dispatchPrimaryPointerEvent(play, "pointerdown")
   await dispatchPrimaryPointerEvent(play, "pointerup")
   await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration).toBe(1)
-  await page.waitForTimeout(150)
-  await details.dispatchEvent("click", {
-    bubbles: true,
-    button: 0,
-    buttons: 0,
-    cancelable: true,
-    detail: 1,
-    isPrimary: true,
-    pointerId: 41,
-    pointerType: "touch",
+  const clickIdentity = await details.evaluate(async (target) => {
+    await new Promise((resolve) => window.setTimeout(resolve, 1_100))
+    const click = new PointerEvent("click", {
+      bubbles: true,
+      button: 0,
+      buttons: 0,
+      cancelable: true,
+      detail: 1,
+      isPrimary: true,
+      pointerId: 41,
+      pointerType: "touch",
+      view: window,
+    })
+    target.dispatchEvent(click)
+    return {
+      detail: click.detail,
+      pointerId: click.pointerId,
+      pointerType: click.pointerType,
+    }
   })
 
+  expect(clickIdentity).toEqual({ detail: 1, pointerId: 41, pointerType: "touch" })
   await expect(page.getByRole("dialog")).toBeVisible()
   expect((await readProbe(page)).audio.playCalls).toBe(1)
   expect((await readProbe(page)).audioContext.generatorGeneration).toBe(1)

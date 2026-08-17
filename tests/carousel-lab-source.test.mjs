@@ -57,10 +57,14 @@ describe("Carousel Lab source boundaries", () => {
     assert.doesNotMatch(css, /\.slide\[data-centered="true"\]\s*\{[^}]*z-index/)
   })
 
-  it("forces a finite keyboard rail when carousel motion is off", () => {
+  it("keeps stations circular while Background motion-off navigation stays finite", () => {
     const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
-    assert.match(controller, /const finiteRail = reducedMotion \|\| tuning\.motion === false/)
-    assert.match(controller, /const effectiveLoop = finiteRail\s+\? false/)
+    assert.match(controller, /const staticPresentation = reducedMotion \|\| tuning\.motion === false/)
+    assert.match(
+      controller,
+      /const effectiveLoop = surface === "stations" \|\| !staticPresentation[\s\S]*?\? resolveEffectiveCarouselLoop\([\s\S]*?: false/,
+    )
+    assert.match(controller, /duration: staticPresentation \? 0 : 45/)
     assert.match(controller, /if \(!effectiveLoop && event\.key === "Home"\)/)
     assert.match(controller, /if \(!effectiveLoop && event\.key === "End"\)/)
   })

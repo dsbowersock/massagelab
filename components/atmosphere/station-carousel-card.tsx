@@ -56,7 +56,7 @@ type SyntheticClickSuppression = {
   pointerType: "pen" | "touch"
 }
 
-const SYNTHETIC_CLICK_SUPPRESSION_MS = 125
+const SYNTHETIC_CLICK_SUPPRESSION_MS = 1_000
 
 /**
  * Renders either the legacy compact card or the approved centered carousel
