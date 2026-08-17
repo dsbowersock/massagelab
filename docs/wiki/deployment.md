@@ -288,7 +288,9 @@ Before enabling or changing the SDK, confirm that:
 
 `/api/support/problem-report` is the approved user-initiated diagnostic path. It sends only known issue categories, coarse product areas, safe route buckets, browser family, display mode, network state, viewport bucket, and an optional linked Sentry event id. It must not send screenshots, typed support messages, full URLs, query strings, local vault contents, SOAP text, intake answers, journal text, ROM notes, wellness entries, account contact details, or user-provided freeform descriptions.
 
-Do not enable Session Replay, the standard Sentry User Feedback widget, screenshots, attachment uploads, or Logs until MassageLab has route-by-route privacy review, Sentry project scrubbing rules, and a written policy for clinical/local-first pages.
+Replay, standard Sentry User Feedback, screenshots/attachments, and Logs are
+prohibited by this current Sentry contract. Any future proposal for Replay,
+standard Sentry User Feedback, screenshots/attachments, or Logs requires a separately approved scoped design/privacy contract and disclosure review; it is not authorized by this workstream.
 
 ## Public Media R2
 

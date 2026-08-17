@@ -86,6 +86,7 @@ describe("anonymous operational Sentry boundary", () => {
       "automatic click, input, navigation, console, and network breadcrumbs are disabled",
       "not product analytics",
       "Prevent Storing of IP Addresses",
+      "requires a separately approved scoped design/privacy contract and disclosure review",
     ]) {
       assert.match(combined, new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"))
     }
