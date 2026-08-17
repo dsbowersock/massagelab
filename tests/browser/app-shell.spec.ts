@@ -1118,9 +1118,51 @@ test("narrow mobile keeps every tool and collapses only the wordmark", async ({ 
   await expect(drawer).toBeFocused()
 })
 
-test("compact landscape player rail keeps portrait bottom geometry and exposes only its minimal collapsed actions", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== mobileProject, "Compact-landscape rail geometry is covered in mobile Chromium.")
+test("global constrained landscape rail keeps route transitions, vinyl geometry, and portrait return coherent", async ({ page }, testInfo) => {
+  test.skip(
+    ![mobileProject, desktopProject].includes(testInfo.project.name),
+    "Constrained-landscape rail geometry is covered in Chromium.",
+  )
   await installInterruptionNoticeMediaFakes(page)
+  const geometryReceipt: Array<Record<string, unknown>> = []
+  const measureStageReservations = () => page.locator("[data-immersive-stage]").evaluate((stage) => {
+    const measureVariable = (variable: string) => {
+      const probe = document.createElement("span")
+      probe.style.cssText = `position:fixed;visibility:hidden;width:var(${variable});`
+      stage.appendChild(probe)
+      const width = probe.getBoundingClientRect().width
+      probe.remove()
+      return width
+    }
+    return {
+      bottom: measureVariable("--immersive-reserved-bottom"),
+      left: measureVariable("--immersive-reserved-left"),
+      right: measureVariable("--immersive-reserved-right"),
+      top: measureVariable("--immersive-reserved-top"),
+    }
+  })
+
+  await page.setViewportSize({ width: 746, height: 284 })
+  await gotoShell(page, "/music")
+  await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+  await expect(page.locator("body")).not.toHaveClass(/ml-music-player-(?:active|rail|music-route)/)
+  await expect.poll(async () => (await resolvedMusicRailSpacing(page)).rightSafe).toBe(0)
+  await page.locator('a[aria-label="MassageLab home"]:visible').first().click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.locator("body")).not.toHaveClass(/ml-music-player-(?:active|rail|music-route)/)
+  await expect.poll(async () => (await resolvedMusicRailSpacing(page)).rightSafe).toBe(0)
+  await page.getByRole("link", { name: "Open clock" }).click()
+  await expect(page).toHaveURL(/\/clock$/)
+  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  const noPlayerClockPanel = page.locator('[data-immersive-panel="clock"]')
+  await expect(noPlayerClockPanel).toHaveAttribute("data-immersive-layout", "side")
+  await expect.poll(async () => (await measureStageReservations()).right).toBeGreaterThan(0)
+  const noPlayerPanelReservation = await measureStageReservations()
+  await page.getByRole("button", { name: "Close Clock panel", exact: true }).click()
+  await expect.poll(async () => (await measureStageReservations()).right).toBe(0)
+  await page.getByRole("button", { name: "Close clock", exact: true }).click()
+  await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
+
   await page.setViewportSize({ width: 390, height: 844 })
   const toolbar = await startProofDrone(page)
   const interruptionNotice = page.getByTestId("music-interruption-notice")
@@ -1130,46 +1172,378 @@ test("compact landscape player rail keeps portrait bottom geometry and exposes o
 
   await expect(toolbar).toHaveAttribute("data-layout", "bottom")
   expect((await toolbar.boundingBox())?.width).toBe(390)
-
-  await page.setViewportSize({ width: 844, height: 390 })
-  await expect(toolbar).toHaveAttribute("data-layout", "rail")
-  await expect(page.locator("body")).toHaveClass(/ml-music-player-music-route/)
-  await expect(page.locator('[data-atmosphere-workspace="rails"]')).toBeVisible()
   await page.locator("body").evaluate((body) => body.style.setProperty("--ml-safe-right", "24px"))
-  const expanded = await toolbar.boundingBox()
-  const expandedSpacing = await resolvedMusicRailSpacing(page)
-  const shellSpacing = await resolvedShellSpacing(page)
-  const layoutPaddingRight = await toolbar.locator(".ml-music-player-toolbar-layout").evaluate((layout) => (
-    Number.parseFloat(getComputedStyle(layout).paddingRight)
-  ))
-  expect((expanded?.x ?? 0) + (expanded?.width ?? 0)).toBeCloseTo(844, 0)
-  expect(expanded?.width ?? 0).toBeGreaterThanOrEqual(256)
-  expect(expanded?.width ?? 999).toBeLessThanOrEqual(320)
-  expect(expanded?.y).toBeCloseTo(0, 0)
-  expect(expanded?.height).toBeCloseTo(390 - shellSpacing.bottomStack, 0)
-  expect(expandedSpacing.railWidth).toBeCloseTo(expanded?.width ?? 0, 0)
-  expect(expandedSpacing.rightSafe).toBeCloseTo(
-    expandedSpacing.railWidth + expandedSpacing.safeRight,
-    0,
-  )
-  expect(layoutPaddingRight).toBeCloseTo(24, 0)
-  expectMusicRailOverflowBounded(await readMusicRailOverflow(toolbar))
 
+  type RailState = {
+    layer: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>
+    rail: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>
+    spacing: Awaited<ReturnType<typeof resolvedMusicRailSpacing>>
+    vinyl: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>
+  }
+
+  const actionLabels = () => toolbar
+    .locator('.ml-music-player-toolbar-layout button[aria-label], .ml-music-player-toolbar-layout a[aria-label], .ml-music-player-toolbar-layout input[aria-label]')
+    .evaluateAll((actions) => actions.map((action) => action.getAttribute("aria-label")))
+
+  const assertRailState = async (
+    viewport: { width: number, height: number },
+    route: string,
+    collapsed: boolean,
+    expectedDiameter?: number,
+  ): Promise<RailState> => {
+    const stateLabel = `${viewport.width}x${viewport.height} ${route} ${collapsed ? "collapsed" : "expanded"}`
+    await expect(toolbar, `${stateLabel} layout`).toHaveAttribute("data-layout", "rail")
+    await expect(toolbar, `${stateLabel} state`).toHaveAttribute("data-collapsed", String(collapsed))
+    await expect(page.locator("body"), `${stateLabel} global marker`).toHaveClass(/ml-music-player-rail/)
+    if (route === "music") {
+      await expect(page.locator("body"), `${stateLabel} Music marker`).toHaveClass(/ml-music-player-music-route/)
+    } else {
+      await expect(page.locator("body"), `${stateLabel} Music marker`).not.toHaveClass(/ml-music-player-music-route/)
+    }
+
+    const [rail, vinyl, layer, spacing, stacking] = await Promise.all([
+      toolbar.boundingBox(),
+      toolbar.getByTestId("station-vinyl").boundingBox(),
+      toolbar.locator(".ml-station-vinyl-layer").boundingBox(),
+      resolvedMusicRailSpacing(page),
+      toolbar.evaluate((root) => {
+        const vinylLayer = root.querySelector<HTMLElement>(".ml-station-vinyl-layer")
+        const layout = root.querySelector<HTMLElement>(".ml-music-player-toolbar-layout")
+        const surface = root.querySelector<HTMLElement>(".ml-music-player-toolbar-surface")
+        if (!vinylLayer || !layout || !surface) throw new Error("Rail stacking owners are missing")
+        return {
+          layerZ: Number(getComputedStyle(vinylLayer).zIndex),
+          layoutZ: Number(getComputedStyle(layout).zIndex),
+          surfaceOverflowX: getComputedStyle(surface).overflowX,
+        }
+      }),
+    ])
+    expect(rail, `${stateLabel} rail`).not.toBeNull()
+    expect(vinyl, `${stateLabel} vinyl`).not.toBeNull()
+    expect(layer, `${stateLabel} vinyl layer`).not.toBeNull()
+    if (!rail || !vinyl || !layer) throw new Error(`${stateLabel} geometry is unavailable`)
+
+    expect(rail.x + rail.width, `${stateLabel} right edge`).toBeCloseTo(viewport.width, 0)
+    expect(rail.y, `${stateLabel} top edge`).toBeCloseTo(0, 0)
+    expect(spacing.railWidth, `${stateLabel} rail variable`).toBeCloseTo(rail.width, 0)
+    expect(spacing.rightSafe, `${stateLabel} right exclusion`).toBeCloseTo(
+      rail.width + spacing.safeRight,
+      0,
+    )
+    expect(vinyl.x, `${stateLabel} vinyl left`).toBeCloseTo(rail.x, 0)
+    expect(vinyl.y, `${stateLabel} vinyl top`).toBeCloseTo(rail.y, 0)
+    expect(vinyl.width, `${stateLabel} vinyl diameter`).toBeCloseTo(vinyl.height, 0)
+    expect(layer.x, `${stateLabel} layer left`).toBeCloseTo(rail.x, 0)
+    expect(layer.y, `${stateLabel} layer top`).toBeCloseTo(rail.y, 0)
+    expect(layer.width, `${stateLabel} visible clip width`).toBeCloseTo(rail.width, 0)
+    expect(layer.height, `${stateLabel} layer height`).toBeCloseTo(rail.height, 0)
+    expect(stacking.layoutZ, `${stateLabel} foreground stacking`).toBeGreaterThan(stacking.layerZ)
+    expect(stacking.surfaceOverflowX, `${stateLabel} clipping owner`).toBe("hidden")
+
+    if (route.startsWith("clock")) {
+      const stageGeometry = await page.getByRole("region", { name: "Chimer clock" }).evaluate((stage) => {
+        const primaryDisplay = stage.querySelector<HTMLElement>('[data-immersive-primary-display="true"]')
+        if (!primaryDisplay) throw new Error("Clock primary display is missing")
+        const measureVariable = (variable: string) => {
+          const probe = document.createElement("span")
+          probe.style.cssText = `position:fixed;visibility:hidden;width:var(${variable});`
+          stage.appendChild(probe)
+          const width = probe.getBoundingClientRect().width
+          probe.remove()
+          return width
+        }
+        return {
+          inlineReservedRight: (stage as HTMLElement).style.getPropertyValue("--immersive-reserved-right"),
+          playerRightSafe: measureVariable("--ml-player-right-safe"),
+          primaryRight: primaryDisplay.getBoundingClientRect().right,
+          reservedRight: measureVariable("--immersive-reserved-right"),
+        }
+      })
+      expect(
+        stageGeometry.reservedRight,
+        `${stateLabel} composed immersive reservation ${JSON.stringify(stageGeometry)}`,
+      )
+        .toBeCloseTo(spacing.rightSafe, 0)
+      await expect.poll(
+        () => page.locator('[data-immersive-primary-display="true"]').evaluate(
+          (display) => display.getBoundingClientRect().right,
+        ),
+        { message: `${stateLabel} primary display clears rail` },
+      ).toBeLessThanOrEqual(rail.x + 1)
+      const closeClock = page.getByRole("button", { name: "Close clock", exact: true })
+      const closeClockBox = await closeClock.boundingBox()
+      expect(closeClockBox, `${stateLabel} fixed clock control`).not.toBeNull()
+      if (!closeClockBox) throw new Error(`${stateLabel} fixed clock control geometry is unavailable`)
+      expect(closeClockBox.x + closeClockBox.width, `${stateLabel} fixed clock control clears rail`)
+        .toBeLessThanOrEqual(rail.x + 1)
+      await closeClock.click({ trial: true })
+    }
+
+    if (collapsed) {
+      const rootFontSize = await page.locator("html").evaluate((root) => Number.parseFloat(getComputedStyle(root).fontSize))
+      expect(rail.width, `${stateLabel} 7rem rail`).toBeCloseTo(rootFontSize * 7, 0)
+      expect(vinyl.width, `${stateLabel} retained diameter`).toBeCloseTo(expectedDiameter ?? 0, 0)
+      expect(vinyl.x + vinyl.width, `${stateLabel} clipped right arc`)
+        .toBeGreaterThan(layer.x + layer.width)
+      const visibleVinylWidth = Math.min(vinyl.x + vinyl.width, layer.x + layer.width)
+        - Math.max(vinyl.x, layer.x)
+      expect(visibleVinylWidth, `${stateLabel} visible left arc`).toBeCloseTo(rail.width, 0)
+      await expect(toolbar.getByTestId("music-player-toolbar-identity")).toBeHidden()
+      expect(await actionLabels()).toEqual(["Stop", "Expand"])
+    } else {
+      expect(vinyl.width, `${stateLabel} expanded diameter`).toBeCloseTo(rail.width, 0)
+      expect(vinyl.width, `${stateLabel} severe-height regression`).toBeGreaterThanOrEqual(256)
+      await expect(toolbar.getByTestId("music-player-toolbar-identity")).toBeVisible()
+      expect(await toolbar.getByTestId("music-player-toolbar-rail-transport")
+        .locator("button[aria-label]").evaluateAll((actions) => actions.map((action) => action.getAttribute("aria-label"))))
+        .toEqual(["Previous station", "Stop", "Next station"])
+      expect(await toolbar.getByTestId("music-player-toolbar-rail-options")
+        .locator("button[aria-label], a[aria-label]").evaluateAll((actions) => actions.map((action) => action.getAttribute("aria-label"))))
+        .toEqual(["Player settings", "Favorite MassageLab Proof Drone", "Background", "Minimize"])
+    }
+    expectMusicRailOverflowBounded(await readMusicRailOverflow(toolbar))
+    geometryReceipt.push({ state: collapsed ? "collapsed" : "expanded", viewport, route, rail, vinyl, layer, spacing })
+    return { layer, rail, spacing, vinyl }
+  }
+
+  const nonMusicGeometry = async (viewport: { width: number, height: number }, route: string) => {
+    const metrics = await page.evaluate(() => {
+      const scroll = document.querySelector<HTMLElement>(".ml-app-scroll")
+      const content = document.querySelector<HTMLElement>(".ml-app-content")
+      if (!scroll || !content) throw new Error("Non-Music layout owners are missing")
+      const scrollBox = scroll.getBoundingClientRect()
+      const contentBox = content.getBoundingClientRect()
+      return {
+        content: { x: contentBox.x, width: contentBox.width },
+        contentPaddingRight: Number.parseFloat(getComputedStyle(content).paddingRight),
+        scroll: {
+          clientHeight: scroll.clientHeight,
+          clientWidth: scroll.clientWidth,
+          overflowY: getComputedStyle(scroll).overflowY,
+          scrollHeight: scroll.scrollHeight,
+          x: scrollBox.x,
+        },
+      }
+    })
+    expect(metrics.content.x + metrics.content.width, `${route} ordinary content right`).toBeCloseTo(
+      metrics.scroll.x + metrics.scroll.clientWidth,
+      0,
+    )
+    expect(metrics.contentPaddingRight, `${route} Music workspace padding`).toBe(0)
+    expect(metrics.content.width, `${route} unsqueezed width`).toBeGreaterThan(viewport.width - 320)
+    if (route !== "clock") {
+      expect(metrics.scroll.overflowY, `${route} ordinary overflow`).not.toBe("hidden")
+      expect(metrics.scroll.scrollHeight, `${route} scroll range`).toBeGreaterThan(metrics.scroll.clientHeight)
+    }
+    return metrics
+  }
+
+  const navigateToMusic = async () => {
+    const closeClock = page.getByRole("button", { name: "Close clock", exact: true })
+    if (await closeClock.isVisible()) {
+      const interruptionNotice = page.getByTestId("music-interruption-notice")
+      if (await interruptionNotice.isVisible()) {
+        await interruptionNotice.getByRole("button", { name: "Close", exact: true }).click()
+        await expect(interruptionNotice).toBeHidden()
+      }
+      await closeClock.click()
+      await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
+    }
+    const link = page.getByRole("link", { name: "Open music", exact: true }).first()
+    await expect(link).toBeVisible()
+    await link.click()
+    await expect(page).toHaveURL(/\/music$/)
+  }
+
+  const navigateFrom = async (route: string) => {
+    if (route === "music") {
+      await page.locator('a[aria-label="MassageLab home"]:visible').first().click()
+      await expect(page).toHaveURL(/\/$/)
+      return
+    }
+    if (route === "home") {
+      await page.getByRole("link", { name: "Open wellness", exact: true }).first().click()
+      await expect(page).toHaveURL(/\/wellness$/)
+      return
+    }
+    await page.getByRole("link", { name: "Open clock" }).click()
+    await expect(page).toHaveURL(/\/clock$/)
+  }
+
+  const assertClockPanelClearsRail = async (
+    viewport: { width: number, height: number },
+    state: "collapsed" | "expanded",
+    side: "right" | "left" = "right",
+  ) => {
+    const clockTrigger = page.getByRole("button", { name: "Clock", exact: true })
+    const rail = await toolbar.boundingBox()
+    if (!rail) throw new Error(`${viewport.width} ${state} rail geometry is unavailable`)
+    const playerSpacing = await resolvedMusicRailSpacing(page)
+    await clockTrigger.click()
+    const panel = page.locator('[data-immersive-panel="clock"]')
+    await expect(panel).toHaveAttribute("data-immersive-layout", "side")
+    const panelGeometry = await panel.evaluate((surface) => {
+      const bounds = surface.getBoundingClientRect()
+      const actions = Array.from(surface.querySelectorAll<HTMLElement>(
+        'button[aria-label], a[aria-label], input[aria-label], select[aria-label]',
+      )).flatMap((action) => {
+        const actionBounds = action.getBoundingClientRect()
+        return actionBounds.width > 0 && actionBounds.height > 0
+          ? [{ label: action.getAttribute("aria-label"), right: actionBounds.right }]
+          : []
+      })
+      return { actions, right: bounds.right }
+    })
+    expect(panelGeometry.right, `${viewport.width} ${state} ${side} Clock panel clears rail`)
+      .toBeLessThanOrEqual(rail.x + 1)
+    if (side === "left") {
+      const panelBox = await panel.boundingBox()
+      expect(panelBox?.x, `${viewport.width} ${state} left-side Clock panel`).toBeLessThanOrEqual(13)
+    }
+    expect(panelGeometry.actions.length, `${viewport.width} ${state} Clock semantic actions`).toBeGreaterThan(0)
+    for (const action of panelGeometry.actions) {
+      expect(action.right, `${viewport.width} ${state} ${action.label} clears rail`)
+        .toBeLessThanOrEqual(rail.x + 1)
+    }
+    if (side === "right") {
+      await expect.poll(async () => (await measureStageReservations()).right)
+        .toBeGreaterThan(playerSpacing.rightSafe)
+    } else {
+      await expect.poll(async () => (await measureStageReservations()).right)
+        .toBeCloseTo(playerSpacing.rightSafe, 0)
+      await expect.poll(async () => (await measureStageReservations()).left).toBeGreaterThan(0)
+    }
+    await page.keyboard.press("Escape")
+    await expect(panel).toBeHidden()
+    await expect(clockTrigger).toBeFocused()
+    await expect.poll(async () => (await measureStageReservations()).right)
+      .toBeCloseTo(playerSpacing.rightSafe, 0)
+    geometryReceipt.push({ viewport, state, side, panelGeometry })
+  }
+
+  const viewports = [
+    { width: 844, height: 390 },
+    { width: 746, height: 284 },
+  ] as const
+  const routes = ["music", "home", "wellness", "clock"] as const
+
+  for (const viewport of viewports) {
+    await page.locator("html").evaluate((root) => { root.style.fontSize = "16px" })
+    await page.setViewportSize(viewport)
+    if (!/\/music$/.test(page.url())) await navigateToMusic()
+    let expandedDiameter = 0
+
+    for (let index = 0; index < routes.length; index += 1) {
+      const route = routes[index]
+      if (index === 0) {
+        expandedDiameter = (await assertRailState(viewport, route, false)).vinyl.width
+      } else {
+        await assertRailState(viewport, route, true, expandedDiameter)
+        if (route === "clock") await assertClockPanelClearsRail(viewport, "collapsed")
+        const collapsedContent = route === "music" ? null : await nonMusicGeometry(viewport, route)
+        await toolbar.getByRole("button", { name: "Expand", exact: true }).click()
+        expandedDiameter = (await assertRailState(viewport, route, false)).vinyl.width
+        if (route === "clock") await assertClockPanelClearsRail(viewport, "expanded")
+        if (collapsedContent) {
+          const expandedContent = await nonMusicGeometry(viewport, route)
+          expect(expandedContent.content.width, `${viewport.width} ${route} state-independent width`)
+            .toBeCloseTo(collapsedContent.content.width, 0)
+        }
+      }
+
+      if (route === "wellness") {
+        await page.locator(".ml-app-scroll").evaluate((element) => element.scrollTo({ top: 120 }))
+        await expect.poll(() => page.locator(".ml-app-scroll").evaluate((element) => element.scrollTop))
+          .toBeGreaterThan(0)
+      }
+
+      await toolbar.getByRole("button", { name: "Minimize", exact: true }).click()
+      await assertRailState(viewport, route, true, expandedDiameter)
+      if (index < routes.length - 1) {
+        await navigateFrom(route)
+      } else {
+        await toolbar.getByRole("button", { name: "Expand", exact: true }).click()
+        await assertRailState(viewport, route, false)
+      }
+    }
+
+    geometryReceipt.push({ viewport, noPlayerPanelReservation })
+
+    if (viewport.width === 844) {
+      await page.locator("html").evaluate((root) => root.setAttribute("data-sidebar-position", "right"))
+      await assertClockPanelClearsRail(viewport, "expanded", "left")
+      await page.locator("html").evaluate((root) => root.setAttribute("data-sidebar-position", "left"))
+    }
+
+    if (viewport.width === 844) {
+      await toolbar.getByRole("button", { name: "Stop", exact: true }).click()
+      await toolbar.getByRole("button", { name: "Play", exact: true }).click()
+      await expect(toolbar).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
+      const clockNotice = page.getByTestId("music-interruption-notice")
+      const noticeGeometry = await settledOverlayGeometry(clockNotice, toolbar, viewport, "clock interruption notice")
+      expect(noticeGeometry.surface.x + noticeGeometry.surface.width)
+        .toBeLessThanOrEqual(noticeGeometry.rail.x + 1)
+      const settingsTrigger = toolbar.getByRole("button", { name: "Player settings" })
+      await settingsTrigger.click()
+      const settings = page.getByRole("menu")
+      const settingsGeometry = await settledOverlayGeometry(settings, toolbar, viewport, "clock settings")
+      expect(settingsGeometry.surface.x + settingsGeometry.surface.width)
+        .toBeLessThanOrEqual(settingsGeometry.rail.x + 1)
+      await page.keyboard.press("Escape")
+      await expect(settingsTrigger).toBeFocused()
+      geometryReceipt.push({ label: "clock interruption notice", ...noticeGeometry })
+      geometryReceipt.push({ label: "clock settings", ...settingsGeometry })
+    }
+  }
+
+  await page.locator("html").evaluate((root) => { root.style.fontSize = "20px" })
+  const increasedTextViewport = { width: 746, height: 284 }
+  const increasedExpanded = await assertRailState(increasedTextViewport, "clock-increased-text", false)
+  expect(increasedExpanded.rail.width).toBeCloseTo(320, 0)
   await toolbar.getByRole("button", { name: "Minimize", exact: true }).click()
-  await expect(toolbar).toHaveAttribute("data-collapsed", "true")
-  const collapsed = await toolbar.boundingBox()
-  const collapsedSpacing = await resolvedMusicRailSpacing(page)
-  expect((collapsed?.x ?? 0) + (collapsed?.width ?? 0)).toBeCloseTo(844, 0)
-  expect(collapsed?.width).toBeCloseTo(112, 0)
-  expect(collapsed?.height).toBeCloseTo(390 - shellSpacing.bottomStack, 0)
-  expect(collapsedSpacing.rightSafe).toBeCloseTo(112 + collapsedSpacing.safeRight, 0)
-  await expect(toolbar.getByTestId("station-vinyl")).toBeVisible()
-  await expect(toolbar.getByTestId("music-player-toolbar-identity")).toBeHidden()
-  expect(await toolbar.locator('.ml-music-player-toolbar-layout button[aria-label], .ml-music-player-toolbar-layout a[aria-label], .ml-music-player-toolbar-layout input[aria-label]')
-    .evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
-    .toEqual(["Stop", "Expand"])
+  await assertRailState(increasedTextViewport, "clock-increased-text", true, increasedExpanded.vinyl.width)
+  await toolbar.getByRole("button", { name: "Expand", exact: true }).click()
+  await assertRailState(increasedTextViewport, "clock-increased-text", false)
 
-  expectMusicRailOverflowBounded(await readMusicRailOverflow(toolbar))
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(toolbar).toHaveAttribute("data-layout", "bottom")
+  await expect(page.locator("body")).not.toHaveClass(/ml-music-player-rail/)
+  await expect(page.locator("body")).not.toHaveClass(/ml-music-player-music-route/)
+  await expect.poll(async () => (await resolvedMusicRailSpacing(page)).rightSafe).toBe(0)
+  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  const portraitClockPanel = page.locator('[data-immersive-panel="clock"]')
+  await expect(portraitClockPanel).toHaveAttribute("data-immersive-layout", "dock")
+  await expect.poll(async () => {
+    const reservation = await measureStageReservations()
+    return reservation.top + reservation.bottom
+  }).toBeGreaterThan(0)
+  expect((await measureStageReservations()).right).toBe(0)
+  await page.getByRole("button", { name: "Close Clock panel", exact: true }).click()
+  await expect.poll(async () => {
+    const reservation = await measureStageReservations()
+    return reservation.top + reservation.right + reservation.bottom + reservation.left
+  }).toBe(0)
+  const portraitClockGeometry = await page.getByRole("region", { name: "Chimer clock" }).evaluate((stage) => {
+    const closeClock = stage.querySelector<HTMLElement>('[aria-label="Close clock"]')
+    if (!closeClock) throw new Error("Portrait clock exit control is missing")
+    const bounds = closeClock.getBoundingClientRect()
+    return {
+      reservedRight: Number.parseFloat(getComputedStyle(stage).getPropertyValue("--immersive-reserved-right")) || 0,
+      right: bounds.right,
+    }
+  })
+  expect(portraitClockGeometry.reservedRight).toBe(0)
+  expect(portraitClockGeometry.right).toBeCloseTo(370, 0)
+  geometryReceipt.push({
+    viewport: "390x844-return",
+    portraitClockGeometry,
+    rail: await toolbar.boundingBox(),
+    spacing: await resolvedMusicRailSpacing(page),
+  })
+  await testInfo.attach("task-15-global-rail-geometry.json", {
+    body: JSON.stringify(geometryReceipt, null, 2),
+    contentType: "application/json",
+  })
 })
 
 test("Music workspace fits four constrained viewports and composes route-owned controls", async ({ page }, testInfo) => {
@@ -2089,7 +2463,8 @@ test("vinyl geometry keeps short landscape complete with exact safe-area offsets
   await page.getByRole("button", { name: "Open quick actions" }).click()
   await page.getByRole("link", { name: "Quick Log" }).click()
   await expect(page).toHaveURL(/\/wellness#quick-log$/)
-  await expect(toolbar).toHaveAttribute("data-layout", "bottom")
+  await expect(toolbar).toHaveAttribute("data-layout", "rail")
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-rail/)
   const notice = page.getByTestId("music-interruption-notice")
   await page.locator("body").evaluate((body) => {
     body.style.setProperty("--ml-safe-bottom", "24px")
@@ -2097,58 +2472,37 @@ test("vinyl geometry keeps short landscape complete with exact safe-area offsets
     body.style.setProperty("--ml-safe-right", "32px")
   })
 
-  let geometry = await readVinylPlayerGeometry(toolbar)
-  let spacing = await resolvedShellSpacing(page)
-  let noticeBox = await notice.boundingBox()
+  const geometry = await readVinylPlayerGeometry(toolbar)
+  const spacing = await resolvedShellSpacing(page)
+  const railSpacing = await resolvedMusicRailSpacing(page)
+  const noticeGeometry = await settledOverlayGeometry(
+    notice,
+    toolbar,
+    { width: 844, height: 390 },
+    "wellness interruption notice",
+  )
   const appScrollHeight = await page.locator(".ml-app-scroll").evaluate((element) => element.clientHeight)
-  expect(geometry.vinyl.width).toBeGreaterThanOrEqual(80)
-  expect(geometry.vinyl.width).toBeLessThan(128)
+  expect(geometry.vinyl.width).toBeCloseTo(geometry.toolbar.width, 0)
   expect(geometry.vinyl.height).toBeCloseTo(geometry.vinyl.width, 0)
-  expect(geometry.toolbar.height).toBeLessThan(160)
-  expect(geometry.layout.paddingLeft).toBeCloseTo(24, 0)
+  expect(geometry.toolbar.right).toBeCloseTo(844, 0)
+  expect(geometry.toolbar.height).toBeCloseTo(390 - spacing.bottomStack, 0)
+  expect(geometry.layout.paddingLeft).toBeCloseTo(12, 0)
   expect(geometry.layout.paddingRight).toBeCloseTo(32, 0)
-  expect(geometry.layout.contentLeft).toBeCloseTo(geometry.layout.left + 24, 0)
+  expect(geometry.layout.contentLeft).toBeCloseTo(geometry.layout.left + 12, 0)
   expect(geometry.layout.contentRight).toBeCloseTo(geometry.layout.right - 32, 0)
-  expect(geometry.vinyl.left).toBeCloseTo(geometry.layout.contentLeft, 0)
-  expect(geometry.left?.left ?? Number.NEGATIVE_INFINITY).toBeGreaterThanOrEqual(geometry.layout.contentLeft)
-  expect(geometry.right?.right ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(geometry.layout.contentRight)
-  expect(geometry.vinyl.top).toBeGreaterThanOrEqual(geometry.toolbar.top)
-  expect(geometry.vinyl.bottom).toBeLessThanOrEqual(geometry.toolbar.bottom)
+  expect(geometry.vinyl.left).toBeCloseTo(geometry.toolbar.left, 0)
+  expect(geometry.vinyl.top).toBeCloseTo(geometry.toolbar.top, 0)
   expect(geometry.layout.scrollHeight).toBeLessThanOrEqual(geometry.layout.clientHeight)
   expect(geometry.layout.scrollWidth).toBeLessThanOrEqual(geometry.layout.clientWidth)
   expect(appScrollHeight).toBeGreaterThan(0)
   expect(spacing.safeBottom).toBeCloseTo(24, 0)
-  expect(spacing.audioToolbar).toBeCloseTo(geometry.toolbar.height, 0)
-  expect(spacing.chimerBottom).toBeCloseTo(spacing.bottomStack + geometry.toolbar.height + 12, 0)
-  expect(spacing.chimerPanelBottom).toBeCloseTo(spacing.bottomStack + geometry.toolbar.height + 12, 0)
-  expect(geometry.toolbar.top - (noticeBox?.y ?? 0) - (noticeBox?.height ?? 0)).toBeCloseTo(8, 0)
-
-  await toolbar.evaluate((root) => {
-    root.setAttribute("data-placement", "top")
-    root.querySelector('[data-testid="music-interruption-notice"]')?.setAttribute("data-placement", "top")
-    document.body.style.setProperty("--ml-safe-bottom", "0px")
-    document.body.style.setProperty("--ml-safe-top", "24px")
-    document.body.classList.remove("ml-music-player-bottom")
-    document.body.classList.add("ml-music-player-top")
-  })
-  geometry = await readVinylPlayerGeometry(toolbar)
-  spacing = await resolvedShellSpacing(page)
-  noticeBox = await notice.boundingBox()
-  expect(spacing.safeTop).toBeCloseTo(24, 0)
-  expect(spacing.audioToolbar).toBeCloseTo(geometry.toolbar.height, 0)
-  expect(spacing.pageTop).toBeCloseTo(geometry.toolbar.height, 0)
-  expect(spacing.chimerTop).toBeCloseTo(geometry.toolbar.height + 12, 0)
-  expect(spacing.chimerSettingsTop).toBeCloseTo(geometry.toolbar.height + 76, 0)
-  expect((noticeBox?.y ?? 0) - geometry.toolbar.bottom).toBeCloseTo(8, 0)
-  expect(geometry.layout.paddingLeft).toBeCloseTo(24, 0)
-  expect(geometry.layout.paddingRight).toBeCloseTo(32, 0)
-  expect(geometry.layout.contentLeft).toBeCloseTo(geometry.layout.left + 24, 0)
-  expect(geometry.layout.contentRight).toBeCloseTo(geometry.layout.right - 32, 0)
-  expect(geometry.vinyl.left).toBeCloseTo(geometry.layout.contentLeft, 0)
-  expect(geometry.left?.left ?? Number.NEGATIVE_INFINITY).toBeGreaterThanOrEqual(geometry.layout.contentLeft)
-  expect(geometry.right?.right ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(geometry.layout.contentRight)
-  expect(geometry.vinyl.top).toBeGreaterThanOrEqual(geometry.toolbar.top + 24)
-  expect(geometry.vinyl.bottom).toBeLessThanOrEqual(geometry.toolbar.bottom)
+  expect(spacing.audioToolbar).toBe(0)
+  expect(spacing.chimerBottom).toBeCloseTo(spacing.bottomStack + 12, 0)
+  expect(spacing.chimerPanelBottom).toBeCloseTo(spacing.bottomStack + 12, 0)
+  expect(railSpacing.railWidth).toBeCloseTo(geometry.toolbar.width, 0)
+  expect(railSpacing.rightSafe).toBeCloseTo(geometry.toolbar.width + 32, 0)
+  expect(noticeGeometry.surface.x + noticeGeometry.surface.width)
+    .toBeLessThanOrEqual(noticeGeometry.rail.x + 1)
 })
 
 test("Atmosphere interruption notice counts only active unhovered and unfocused time", async ({ page }, testInfo) => {
@@ -2223,14 +2577,14 @@ test("Atmosphere interruption notice clears the toolbar in short landscape", asy
   await expect(controls.locator("[aria-label]")).toHaveCount(7)
 })
 
-test("Atmosphere interruption notice follows the actual toolbar edge with safe insets", async ({ page }, testInfo) => {
+test("Atmosphere interruption notice follows the actual rail edge with safe insets", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Actual-edge landscape geometry is covered in mobile Chromium.")
   await installInterruptionNoticeMediaFakes(page)
   await page.setViewportSize({ width: 667, height: 375 })
   const player = await startInterruptionNoticeSession(page)
   await page.getByRole("link", { name: "Open clock" }).click()
   await expect(page).toHaveURL(/\/clock$/)
-  await expect(player).toHaveAttribute("data-layout", "bottom")
+  await expect(player).toHaveAttribute("data-layout", "rail")
   const notice = page.getByRole("region", { name: "Interruption preference" })
   await page.addStyleTag({ content: `
     [data-testid="music-player-toolbar-identity"] > p {
@@ -2239,61 +2593,27 @@ test("Atmosphere interruption notice follows the actual toolbar edge with safe i
     }
   ` })
 
-  async function expectNoticeBeyondActualEdge(placement: "top" | "bottom") {
-    const geometry = await page.evaluate((edge) => {
-      const toolbar = document.querySelector<HTMLElement>('[data-testid="music-player-toolbar"]')
-      const noticeElement = document.querySelector<HTMLElement>('[data-testid="music-interruption-notice"]')
-      const controls = document.querySelector<HTMLElement>('[data-testid="music-player-toolbar-controls"]')
-      if (!toolbar || !noticeElement || !controls) throw new Error("Player geometry elements are missing")
-      const toolbarBox = toolbar.getBoundingClientRect()
-      const noticeBox = noticeElement.getBoundingClientRect()
-      const controlsBox = controls.getBoundingClientRect()
-      return {
-        edgeGap: edge === "top"
-          ? noticeBox.top - toolbarBox.bottom
-          : toolbarBox.top - noticeBox.bottom,
-        noticeBottom: noticeBox.bottom,
-        noticeLeft: noticeBox.left,
-        noticeRight: noticeBox.right,
-        noticeTop: noticeBox.top,
-        controlsBottom: controlsBox.bottom,
-        controlsLeft: controlsBox.left,
-        controlsRight: controlsBox.right,
-        controlsTop: controlsBox.top,
-        viewportHeight: window.innerHeight,
-        viewportWidth: window.innerWidth,
-      }
-    }, placement)
-
-    expect(geometry.edgeGap).toBeCloseTo(8, 0)
-    expect(geometry.noticeTop).toBeGreaterThanOrEqual(0)
-    expect(geometry.noticeBottom).toBeLessThanOrEqual(geometry.viewportHeight)
-    expect(geometry.noticeLeft).toBeGreaterThanOrEqual(0)
-    expect(geometry.noticeRight).toBeLessThanOrEqual(geometry.viewportWidth)
-    expect(geometry.controlsLeft).toBeGreaterThanOrEqual(0)
-    expect(geometry.controlsRight).toBeLessThanOrEqual(geometry.viewportWidth)
-    if (placement === "top") {
-      expect(geometry.controlsBottom).toBeLessThanOrEqual(geometry.noticeTop)
-    } else {
-      expect(geometry.noticeBottom).toBeLessThanOrEqual(geometry.controlsTop)
-    }
-  }
-
   await page.locator("body").evaluate((body) => {
     body.style.setProperty("--ml-safe-bottom", "24px")
+    body.style.setProperty("--ml-safe-right", "32px")
   })
   await expect(notice).toBeVisible()
-  await expectNoticeBeyondActualEdge("bottom")
-
-  await player.evaluate((toolbar) => {
-    toolbar.setAttribute("data-placement", "top")
-    toolbar.querySelector('[data-testid="music-interruption-notice"]')?.setAttribute("data-placement", "top")
-    document.body.style.setProperty("--ml-safe-bottom", "0px")
-    document.body.style.setProperty("--ml-safe-top", "24px")
-    document.body.classList.remove("ml-music-player-bottom")
-    document.body.classList.add("ml-music-player-top")
-  })
-  await expectNoticeBeyondActualEdge("top")
+  const { rail, surface } = await settledOverlayGeometry(
+    notice,
+    player,
+    { width: 667, height: 375 },
+    "clock rail interruption notice",
+  )
+  const controls = await player.getByTestId("music-player-toolbar-controls").boundingBox()
+  const spacing = await resolvedMusicRailSpacing(page)
+  expect(surface.x).toBeGreaterThanOrEqual(0)
+  expect(surface.y).toBeGreaterThanOrEqual(0)
+  expect(surface.x + surface.width).toBeLessThanOrEqual(rail.x + 1)
+  expect(surface.y + surface.height).toBeLessThanOrEqual(375)
+  expect(controls?.x ?? -1).toBeGreaterThanOrEqual(rail.x)
+  expect((controls?.x ?? 0) + (controls?.width ?? 0)).toBeLessThanOrEqual(667)
+  expect((controls?.y ?? 0) + (controls?.height ?? 0)).toBeLessThanOrEqual(rail.y + rail.height)
+  expect(spacing.rightSafe).toBeCloseTo(rail.width + 32, 0)
 })
 
 test("Atmosphere interruption controls disclose unsupported media integration", async ({ page }) => {

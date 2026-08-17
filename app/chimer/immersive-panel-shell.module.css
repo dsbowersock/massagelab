@@ -59,6 +59,7 @@
   width: 0;
   height: 0;
   padding-top: var(--immersive-dock-top-inset);
+  padding-right: var(--ml-player-right-safe, 0px);
   padding-bottom: var(--immersive-dock-bottom-inset);
   visibility: hidden;
   pointer-events: none;
@@ -235,6 +236,7 @@
   right: calc(
     var(--immersive-visual-viewport-right, 0px)
     + max(0.75rem, env(safe-area-inset-right, 0px))
+    + var(--ml-player-right-safe, 0px)
   );
   bottom: calc(
     var(--immersive-visual-viewport-bottom, 0px)

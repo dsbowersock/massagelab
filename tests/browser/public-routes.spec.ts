@@ -615,8 +615,8 @@ test("Atmosphere visualizer action retains selected station across client routes
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("non-Music compact landscape keeps the persistent player in the bottom layout without narrowing content", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile-chromium", "Compact-landscape route exclusion is covered in mobile Chromium.")
+test("non-Music compact landscape keeps the global rail without narrowing ordinary content", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Compact-landscape global rail is covered in mobile Chromium.")
   await page.setViewportSize({ width: 844, height: 390 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
@@ -626,13 +626,19 @@ test("non-Music compact landscape keeps the persistent player in the bottom layo
 
   await page.getByRole("link", { name: "Open clock" }).click()
   await expect(page).toHaveURL(/\/clock$/)
-  await expect(toolbar).toHaveAttribute("data-layout", "bottom")
+  await expect(toolbar).toHaveAttribute("data-layout", "rail")
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-rail/)
   await expect(page.locator("body")).not.toHaveClass(/ml-music-player-music-route/)
   const contentBox = await page.locator(".ml-app-content").boundingBox()
   expect(contentBox?.width).toBeCloseTo(844, 0)
-  expect(await page.locator(":root").evaluate((root) => (
-    getComputedStyle(root).getPropertyValue("--ml-player-right-safe").trim()
-  ))).toBe("0px")
+  expect(await page.locator("body").evaluate((body) => {
+    const probe = document.createElement("div")
+    probe.style.cssText = "position:absolute;visibility:hidden;width:var(--ml-player-right-safe);"
+    body.appendChild(probe)
+    const width = probe.getBoundingClientRect().width
+    probe.remove()
+    return width
+  })).toBeGreaterThan(0)
 })
 
 test("Atmosphere restores the active station category after the Music route remounts", async ({ page }) => {

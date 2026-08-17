@@ -88,6 +88,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
     body.classList.toggle("ml-music-player-top", showPlayer && placement === "top")
     body.classList.toggle("ml-music-player-bottom", showPlayer && placement === "bottom")
     body.classList.toggle("ml-music-player-collapsed", showPlayer && isCollapsed)
+    body.classList.toggle("ml-music-player-rail", showPlayer && isCompactLandscape)
     body.classList.toggle("ml-music-player-music-route", showPlayer && isMusicRoute)
 
     return () => {
@@ -96,10 +97,11 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
         "ml-music-player-top",
         "ml-music-player-bottom",
         "ml-music-player-collapsed",
+        "ml-music-player-rail",
         "ml-music-player-music-route",
       )
     }
-  }, [isCollapsed, isMusicRoute, placement, showPlayer])
+  }, [isCollapsed, isCompactLandscape, isMusicRoute, placement, showPlayer])
 
   if (!showPlayer) {
     return null
@@ -281,7 +283,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
     <div
       className="ml-music-player-toolbar pointer-events-none absolute inset-x-0 z-[10020]"
       data-placement={placement}
-      data-layout={isMusicRoute && isCompactLandscape ? "rail" : "bottom"}
+      data-layout={isCompactLandscape ? "rail" : "bottom"}
       data-music-route={isMusicRoute}
       data-collapsed={isCollapsed}
       data-playback-state={music.playbackState}
@@ -322,7 +324,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
                 {playStopAction}
                 {expandAction}
               </>
-            ) : isMusicRoute && isCompactLandscape ? (
+            ) : isCompactLandscape ? (
               <div
                 className="ml-music-player-toolbar-controls grid min-w-0 items-center gap-2"
                 data-control-layout="rail"
