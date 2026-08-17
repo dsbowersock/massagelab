@@ -284,21 +284,33 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
       const accessibleLabel = target?.getAttribute("aria-label") ?? target?.textContent ?? ""
       return /^\s*Play(?:\s|$)/i.test(accessibleLabel) ? target : null
     }
-    for (const eventName of ["pointerover", "pointerdown", "focusin"] as const) {
-      document.addEventListener(eventName, (event) => {
-        if (!getPlayButton(event)) return
-        startup.playInputEvents.push({ observedAt: performance.now(), type: eventName })
-      }, { capture: true })
-    }
-    document.addEventListener("click", (event) => {
-      if (!getPlayButton(event)) return
-      startup.playInputEvents.push({ observedAt: performance.now(), type: "click" })
+    const markInitiatingPlayTurn = () => {
       initiatingPlayTurn = true
       lastPlayIntentAt = performance.now()
       setTimeout(() => {
         initiatingPlayTurn = false
         startup.phaseReached.push("initiating-play-task-ended")
       }, 0)
+    }
+    for (const eventName of ["pointerover", "pointerdown", "focusin"] as const) {
+      document.addEventListener(eventName, (event) => {
+        if (!getPlayButton(event)) return
+        startup.playInputEvents.push({ observedAt: performance.now(), type: eventName })
+      }, { capture: true })
+    }
+    document.addEventListener("pointerup", (event) => {
+      if (!getPlayButton(event)) return
+      startup.playInputEvents.push({ observedAt: performance.now(), type: "pointerup" })
+      if (
+        event instanceof PointerEvent
+        && (event.pointerType === "touch" || event.pointerType === "pen")
+        && event.isPrimary
+      ) markInitiatingPlayTurn()
+    }, { capture: true })
+    document.addEventListener("click", (event) => {
+      if (!getPlayButton(event)) return
+      startup.playInputEvents.push({ observedAt: performance.now(), type: "click" })
+      markInitiatingPlayTurn()
     }, { capture: true })
 
     const recordAudioContextResumeAttempt = () => {
@@ -1032,6 +1044,59 @@ async function firstEnabledStationPlayInViewport(carousel: Locator) {
   return playActions.nth(visibleIndex)
 }
 
+type PrimaryPointerType = "mouse" | "pen" | "touch"
+
+/** Dispatches one trusted-shape raw pointer event without asking Playwright to synthesize a click. */
+async function dispatchPrimaryPointerEvent(
+  play: Locator,
+  type: "pointercancel" | "pointerdown" | "pointermove" | "pointerup",
+  {
+    buttons = type === "pointerdown" || type === "pointermove" ? 1 : 0,
+    clientX = 100,
+    clientY = 100,
+    isPrimary = true,
+    pointerId = 41,
+    pointerType = "touch",
+  }: {
+    buttons?: number
+    clientX?: number
+    clientY?: number
+    isPrimary?: boolean
+    pointerId?: number
+    pointerType?: PrimaryPointerType
+  } = {},
+) {
+  await play.dispatchEvent(type, {
+    bubbles: true,
+    button: 0,
+    buttons,
+    cancelable: true,
+    clientX,
+    clientY,
+    isPrimary,
+    pointerId,
+    pointerType,
+  })
+}
+
+async function openReadyStationPlay(page: Page) {
+  await installMediaOwnershipFakes(page)
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  const play = await firstEnabledStationPlayInViewport(carousel)
+  await expect(play).toBeVisible()
+  await expect(play).toBeEnabled()
+  await expect(play).toBeInViewport()
+  return play
+}
+
+async function stationCardForPrimaryAction(page: Page, play: Locator) {
+  const cardId = await play.evaluate((button) => button.closest("article")?.id)
+  if (!cardId) throw new Error("Station card id is unavailable")
+  return page.locator(`#${cardId}`)
+}
+
 test("Safari identity path instruments the native AudioContext source lifecycle", async ({ browser }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "Chromium supplies the native AudioContext for this branch contract.")
   const context = await browser.newContext({
@@ -1055,9 +1120,13 @@ test("Safari identity path instruments the native AudioContext source lifecycle"
   }
 })
 
-for (const activation of ["tap", "click", "keyboard"] as const) {
+for (const activation of ["tap", "click", "keyboard Enter", "keyboard Space"] as const) {
   test(`first station Play activation accepts one ${activation} command after carousel readiness`, async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "mobile-chromium", "First-action coverage runs in mobile Chromium.")
+    test.skip(testInfo.project.name === "webkit-media-smoke", "Chromium owns the primary-input regression matrix.")
+    test.skip(
+      activation === "tap" && testInfo.project.name !== "mobile-chromium",
+      "Touchscreen tap coverage runs in mobile Chromium.",
+    )
     await installMediaOwnershipFakes(page)
     await page.goto("/music", { waitUntil: "domcontentloaded" })
 
@@ -1072,11 +1141,11 @@ for (const activation of ["tap", "click", "keyboard"] as const) {
       await expect(play).toBeInViewport()
       if (activation === "tap") await play.tap()
       if (activation === "click") await play.click()
-      if (activation === "keyboard") {
+      if (activation === "keyboard Enter" || activation === "keyboard Space") {
         await play.focus()
-        await page.keyboard.press("Enter")
+        await page.keyboard.press(activation === "keyboard Enter" ? "Enter" : "Space")
       }
-
+      if (activation === "tap") await expect(page.getByRole("dialog")).toHaveCount(0)
       await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
       await expect(toolbar).toHaveAttribute("data-playback-state", /loading|playing/)
       await expect(toolbar.getByRole("button", { name: "Stop", exact: true })).toBeVisible()
@@ -1093,6 +1162,261 @@ for (const activation of ["tap", "click", "keyboard"] as const) {
     }
   })
 }
+
+for (const pointerType of ["touch", "pen"] as const) {
+  test(`${pointerType} pointerup without click starts one ready station session`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+    const play = await openReadyStationPlay(page)
+    const toolbar = page.getByTestId("music-player-toolbar")
+
+    // Match the physical report: Play has been stable and enabled for five seconds.
+    await page.waitForTimeout(5_000)
+    await dispatchPrimaryPointerEvent(play, "pointerdown", { pointerType })
+    expect((await readProbe(page)).audio.playCalls).toBe(0)
+    expect((await readProbe(page)).audioContext.generatorGeneration).toBe(0)
+    await expect(toolbar).toHaveCount(0)
+
+    await dispatchPrimaryPointerEvent(play, "pointerup", { pointerType })
+    await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
+    await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration).toBe(1)
+    await expect(toolbar).toHaveAttribute("data-playback-state", /loading|playing/)
+
+    await page.waitForTimeout(250)
+    expect((await readProbe(page)).audio.playCalls).toBe(1)
+    expect((await readProbe(page)).audioContext.generatorGeneration).toBe(1)
+  })
+}
+
+test("non-primary touch cannot activate the centered station Play pointer adapter", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+  const play = await openReadyStationPlay(page)
+
+  await dispatchPrimaryPointerEvent(play, "pointerdown", { isPrimary: false })
+  await dispatchPrimaryPointerEvent(play, "pointerup", { isPrimary: false })
+  await page.waitForTimeout(250)
+
+  expect((await readProbe(page)).audio.playCalls).toBe(0)
+  expect((await readProbe(page)).audioContext.generatorGeneration).toBe(0)
+  await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+})
+
+test("secondary touch does not replace the primary Play pointer intent", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+  const play = await openReadyStationPlay(page)
+
+  await dispatchPrimaryPointerEvent(play, "pointerdown", { pointerId: 41 })
+  await dispatchPrimaryPointerEvent(play, "pointerdown", { isPrimary: false, pointerId: 42 })
+  await dispatchPrimaryPointerEvent(play, "pointerup", { isPrimary: false, pointerId: 42 })
+  expect((await readProbe(page)).audio.playCalls).toBe(0)
+  await dispatchPrimaryPointerEvent(play, "pointerup", { pointerId: 41 })
+
+  await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
+  await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration).toBe(1)
+})
+
+test("touch pointerup suppresses its correlated retargeted synthetic click", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+  const play = await openReadyStationPlay(page)
+
+  await play.evaluate((button) => {
+    const pointer = (type: string, buttons: number) => new PointerEvent(type, {
+      bubbles: true,
+      button: 0,
+      buttons,
+      cancelable: true,
+      clientX: 100,
+      clientY: 100,
+      isPrimary: true,
+      pointerId: 41,
+      pointerType: "touch",
+    })
+    button.dispatchEvent(pointer("pointerdown", 1))
+    button.dispatchEvent(pointer("pointerup", 0))
+    const details = button.closest("article")?.querySelector<HTMLElement>("[data-carousel-station-details]")
+    if (!details) throw new Error("Station details surface is unavailable")
+    details.dispatchEvent(new PointerEvent("click", {
+      bubbles: true,
+      button: 0,
+      buttons: 0,
+      cancelable: true,
+      clientX: 100,
+      clientY: 100,
+      detail: 1,
+      isPrimary: true,
+      pointerId: 41,
+      pointerType: "touch",
+      view: window,
+    }))
+  })
+
+  await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
+  await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration).toBe(1)
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await page.waitForTimeout(250)
+  expect((await readProbe(page)).audio.playCalls).toBe(1)
+  expect((await readProbe(page)).audioContext.generatorGeneration).toBe(1)
+})
+
+test("a fresh same-id touch retires prior click suppression", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+  const play = await openReadyStationPlay(page)
+
+  await play.evaluate((button) => {
+    const pointer = (target: Element, type: string, buttons: number) => target.dispatchEvent(new PointerEvent(type, {
+      bubbles: true,
+      button: 0,
+      buttons,
+      cancelable: true,
+      clientX: 100,
+      clientY: 100,
+      isPrimary: true,
+      pointerId: 41,
+      pointerType: "touch",
+    }))
+    pointer(button, "pointerdown", 1)
+    pointer(button, "pointerup", 0)
+    const details = button.closest("article")?.querySelector<HTMLElement>("[data-carousel-station-details]")
+    if (!details) throw new Error("Station details surface is unavailable")
+    pointer(details, "pointerdown", 1)
+    pointer(details, "pointerup", 0)
+    details.dispatchEvent(new PointerEvent("click", {
+      bubbles: true,
+      button: 0,
+      buttons: 0,
+      cancelable: true,
+      clientX: 100,
+      clientY: 100,
+      detail: 1,
+      isPrimary: true,
+      pointerId: 41,
+      pointerType: "touch",
+      view: window,
+    }))
+  })
+
+  await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
+  await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration).toBe(1)
+  await expect(page.getByRole("dialog")).toBeVisible()
+})
+
+test("touch synthetic click after the suppression window follows its normal target", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+  const play = await openReadyStationPlay(page)
+  const card = await stationCardForPrimaryAction(page, play)
+  const details = card.locator("[data-carousel-station-details]")
+
+  await dispatchPrimaryPointerEvent(play, "pointerdown")
+  await dispatchPrimaryPointerEvent(play, "pointerup")
+  await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration).toBe(1)
+  await page.waitForTimeout(150)
+  await details.dispatchEvent("click", {
+    bubbles: true,
+    button: 0,
+    buttons: 0,
+    cancelable: true,
+    detail: 1,
+    isPrimary: true,
+    pointerId: 41,
+    pointerType: "touch",
+  })
+
+  await expect(page.getByRole("dialog")).toBeVisible()
+  expect((await readProbe(page)).audio.playCalls).toBe(1)
+  expect((await readProbe(page)).audioContext.generatorGeneration).toBe(1)
+})
+
+for (const invalidSequence of [
+  "movement over 10px",
+  "mismatched pointer id",
+  "pointer cancellation",
+  "mouse pointerup",
+] as const) {
+  test(`${invalidSequence} does not activate the centered station Play pointer adapter`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+    const play = await openReadyStationPlay(page)
+    const pointerType = invalidSequence === "mouse pointerup" ? "mouse" : "touch"
+
+    await dispatchPrimaryPointerEvent(play, "pointerdown", { pointerType })
+    expect((await readProbe(page)).audio.playCalls).toBe(0)
+    if (invalidSequence === "movement over 10px") {
+      await dispatchPrimaryPointerEvent(play, "pointermove", { clientX: 111, pointerType })
+      await dispatchPrimaryPointerEvent(play, "pointerup", { clientX: 111, pointerType })
+    } else if (invalidSequence === "mismatched pointer id") {
+      await dispatchPrimaryPointerEvent(play, "pointerup", { pointerId: 42, pointerType })
+    } else if (invalidSequence === "pointer cancellation") {
+      await dispatchPrimaryPointerEvent(play, "pointercancel", { pointerType })
+      await dispatchPrimaryPointerEvent(play, "pointerup", { pointerType })
+    } else {
+      await dispatchPrimaryPointerEvent(play, "pointerup", { pointerType })
+    }
+
+    await page.waitForTimeout(250)
+    expect((await readProbe(page)).audio.playCalls).toBe(0)
+    expect((await readProbe(page)).audioContext.generatorGeneration).toBe(0)
+    await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+  })
+}
+
+test("touch movement exactly 10px remains eligible for one station Play", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+  const play = await openReadyStationPlay(page)
+
+  await dispatchPrimaryPointerEvent(play, "pointerdown")
+  await dispatchPrimaryPointerEvent(play, "pointermove", { clientX: 106, clientY: 108 })
+  expect((await readProbe(page)).audio.playCalls).toBe(0)
+  await dispatchPrimaryPointerEvent(play, "pointerup", { clientX: 106, clientY: 108 })
+
+  await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
+  await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration).toBe(1)
+})
+
+for (const mismatchedType of ["mouse", "pen"] as const) {
+  test(`touch pointer intent rejects and consumes a same-id ${mismatchedType} pointerup`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+    const play = await openReadyStationPlay(page)
+
+    await dispatchPrimaryPointerEvent(play, "pointerdown", { pointerType: "touch" })
+    await dispatchPrimaryPointerEvent(play, "pointerup", { pointerType: mismatchedType })
+    await page.waitForTimeout(100)
+    expect((await readProbe(page)).audio.playCalls).toBe(0)
+    expect((await readProbe(page)).audioContext.generatorGeneration).toBe(0)
+
+    await dispatchPrimaryPointerEvent(play, "pointerup", { pointerType: "touch" })
+    await page.waitForTimeout(250)
+    expect((await readProbe(page)).audio.playCalls).toBe(0)
+    expect((await readProbe(page)).audioContext.generatorGeneration).toBe(0)
+  })
+}
+
+test("direct far pointerup consumes touch intent before a later in-range pointerup", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+  const play = await openReadyStationPlay(page)
+
+  await dispatchPrimaryPointerEvent(play, "pointerdown")
+  await dispatchPrimaryPointerEvent(play, "pointerup", { clientX: 111 })
+  expect((await readProbe(page)).audio.playCalls).toBe(0)
+  await dispatchPrimaryPointerEvent(play, "pointerup")
+  await page.waitForTimeout(250)
+
+  expect((await readProbe(page)).audio.playCalls).toBe(0)
+  expect((await readProbe(page)).audioContext.generatorGeneration).toBe(0)
+})
+
+test("same-id pointerup retargeted outside Play consumes the touch intent", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Raw physical-pointer coverage is mobile-owned.")
+  const play = await openReadyStationPlay(page)
+  const card = await stationCardForPrimaryAction(page, play)
+  const details = card.locator("[data-carousel-station-details]")
+
+  await dispatchPrimaryPointerEvent(play, "pointerdown")
+  await dispatchPrimaryPointerEvent(details, "pointerup")
+  expect((await readProbe(page)).audio.playCalls).toBe(0)
+  await dispatchPrimaryPointerEvent(play, "pointerup")
+  await page.waitForTimeout(250)
+
+  expect((await readProbe(page)).audio.playCalls).toBe(0)
+  expect((await readProbe(page)).audioContext.generatorGeneration).toBe(0)
+})
 
 test("one cold touch starts the generator while carrier readiness is held", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Physical-touch regression is mobile-owned.")

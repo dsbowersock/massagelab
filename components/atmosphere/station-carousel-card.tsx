@@ -1,6 +1,13 @@
 "use client"
 
 import { Heart, Play, RefreshCw, Square } from "lucide-react"
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react"
 import { AtmosphereStationArtwork } from "@/components/atmosphere/station-artwork"
 import { MusicLoadingProgress } from "@/components/providers/music-loading-progress"
 import type { useMusic } from "@/components/providers/music-provider"
@@ -34,6 +41,23 @@ export interface AtmosphereStationCarouselCardProps {
   favoriteClassName?: string
 }
 
+type PrimaryPointerIntent = {
+  button: number
+  buttonElement: HTMLButtonElement
+  pointerId: number
+  pointerType: "pen" | "touch"
+  startX: number
+  startY: number
+}
+
+type SyntheticClickSuppression = {
+  expiresAt: number
+  pointerId: number
+  pointerType: "pen" | "touch"
+}
+
+const SYNTHETIC_CLICK_SUPPRESSION_MS = 125
+
 /**
  * Renders either the legacy compact card or the approved centered carousel
  * card. Playback, favorite, loading, attribution, and prewarm behavior stay
@@ -56,6 +80,144 @@ export function AtmosphereStationCarouselCard({
     || music.runtimeReadiness.status === "preparing"
   const runtimeFailed = music.runtimeReadiness.status === "error"
   const stationArtworkInput = resolveAtmosphereStationArtworkInput(station, groupId)
+  const primaryPointerIntentRef = useRef<PrimaryPointerIntent | null>(null)
+  const syntheticClickSuppressionRef = useRef<SyntheticClickSuppression | null>(null)
+  const suppressionCleanupRef = useRef<number | null>(null)
+
+  const clearSyntheticClickSuppression = useCallback(() => {
+    syntheticClickSuppressionRef.current = null
+    if (suppressionCleanupRef.current !== null) {
+      window.clearTimeout(suppressionCleanupRef.current)
+      suppressionCleanupRef.current = null
+    }
+  }, [])
+
+  useEffect(() => () => {
+    primaryPointerIntentRef.current = null
+    clearSyntheticClickSuppression()
+  }, [clearSyntheticClickSuppression])
+
+  const activatePrimaryAction = useCallback(() => {
+    if (runtimeFailed) {
+      music.retryRuntimeReadiness()
+      return
+    }
+    if (runtimePreparing) return
+    if (isActive) {
+      void music.stopCurrent()
+      return
+    }
+    void music.playStation(station.id, {
+      artworkInput: stationArtworkInput ?? undefined,
+    })
+  }, [isActive, music, runtimeFailed, runtimePreparing, station.id, stationArtworkInput])
+
+  const primaryPointerAdapterEnabled = station.enabled
+    && !runtimeFailed
+    && !runtimePreparing
+    && !isActive
+    && music.playbackState !== "loading"
+
+  const handlePrimaryPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (
+      !primaryPointerAdapterEnabled
+      || (event.pointerType !== "touch" && event.pointerType !== "pen")
+      || !event.isPrimary
+      || event.button !== 0
+    ) return
+
+    // Samsung can deliver the physical press without the compatibility click.
+    // Record intent only; pointerup remains the sole touch/pen activation seam.
+    primaryPointerIntentRef.current = {
+      button: event.button,
+      buttonElement: event.currentTarget,
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      startX: event.clientX,
+      startY: event.clientY,
+    }
+  }, [primaryPointerAdapterEnabled])
+
+  const handlePrimaryPointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    const intent = primaryPointerIntentRef.current
+    if (!intent || intent.pointerId !== event.pointerId) return
+    if (Math.hypot(event.clientX - intent.startX, event.clientY - intent.startY) > 10) {
+      primaryPointerIntentRef.current = null
+    }
+  }, [])
+
+  const handlePrimaryPointerCancel = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (primaryPointerIntentRef.current?.pointerId === event.pointerId) {
+      primaryPointerIntentRef.current = null
+    }
+  }, [])
+
+  const handlePrimaryPointerUp = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    const intent = primaryPointerIntentRef.current
+    if (!intent || intent.pointerId !== event.pointerId) return
+    primaryPointerIntentRef.current = null
+    if (
+      !primaryPointerAdapterEnabled
+      || intent.button !== event.button
+      || intent.buttonElement !== event.currentTarget
+      || intent.pointerType !== event.pointerType
+      || !event.isPrimary
+      || Math.hypot(event.clientX - intent.startX, event.clientY - intent.startY) > 10
+    ) return
+
+    clearSyntheticClickSuppression()
+    syntheticClickSuppressionRef.current = {
+      expiresAt: performance.now() + SYNTHETIC_CLICK_SUPPRESSION_MS,
+      pointerId: intent.pointerId,
+      pointerType: intent.pointerType,
+    }
+    suppressionCleanupRef.current = window.setTimeout(() => {
+      syntheticClickSuppressionRef.current = null
+      suppressionCleanupRef.current = null
+    }, SYNTHETIC_CLICK_SUPPRESSION_MS)
+    activatePrimaryAction()
+  }, [activatePrimaryAction, clearSyntheticClickSuppression, primaryPointerAdapterEnabled])
+
+  const handleCardPointerDownCapture = useCallback(() => {
+    // A new physical gesture owns its eventual click, even if the browser
+    // immediately reuses the pointer identity from the preceding gesture.
+    clearSyntheticClickSuppression()
+  }, [clearSyntheticClickSuppression])
+
+  const handleCardPointerUpCapture = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+    const intent = primaryPointerIntentRef.current
+    if (!intent || intent.pointerId !== event.pointerId) return
+    if (!(event.target instanceof Node) || !intent.buttonElement.contains(event.target)) {
+      primaryPointerIntentRef.current = null
+    }
+  }, [])
+
+  const handlePrimaryClick = useCallback(() => {
+    activatePrimaryAction()
+  }, [activatePrimaryAction])
+
+  const handleCardClickCapture = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+    const suppression = syntheticClickSuppressionRef.current
+    if (!suppression) return
+    if (performance.now() > suppression.expiresAt) {
+      clearSyntheticClickSuppression()
+      return
+    }
+
+    const nativePointer = event.nativeEvent as PointerEvent
+    if (
+      event.detail === 0
+      || nativePointer.pointerId !== suppression.pointerId
+      || nativePointer.pointerType !== suppression.pointerType
+    ) return
+
+    // Playback can resize the carousel before Chrome delivers its touch click,
+    // retargeting that click to the details surface. Consume only that exact
+    // pointer's first compatibility click inside the short measured window.
+    clearSyntheticClickSuppression()
+    event.preventDefault()
+    event.stopPropagation()
+  }, [clearSyntheticClickSuppression])
 
   if (displayMode === "carousel" && detailLevel === "summary") {
     return (
@@ -89,10 +251,13 @@ export function AtmosphereStationCarouselCard({
             "relative flex h-full min-w-0 overflow-hidden transition-colors",
             isActive && "border-primary/80 shadow-lg shadow-primary/15",
           )}
+          onClickCapture={handleCardClickCapture}
           onFocus={() => prewarmStation(station.id)}
+          onPointerDownCapture={handleCardPointerDownCapture}
           onPointerEnter={() => prewarmStation(station.id, {
             includeSamplePayloads: canPrewarmCompressedSamplePayloads(),
           })}
+          onPointerUpCapture={handleCardPointerUpCapture}
         >
           <div className="absolute inset-x-0 top-0 aspect-square bg-background p-1" data-carousel-artwork>
             <AtmosphereStationArtwork
@@ -120,23 +285,14 @@ export function AtmosphereStationCarouselCard({
                 || runtimePreparing
                 || (!isActive && music.playbackState === "loading")
               }
-              onClick={() => {
-                if (runtimeFailed) {
-                  music.retryRuntimeReadiness()
-                  return
-                }
-                if (runtimePreparing) return
-                if (isActive) {
-                  void music.stopCurrent()
-                  return
-                }
-                void music.playStation(station.id, {
-                  artworkInput: stationArtworkInput ?? undefined,
-                })
-              }}
+              onClick={handlePrimaryClick}
               onFocus={() => prewarmStation(station.id)}
+              onPointerCancel={handlePrimaryPointerCancel}
+              onPointerDown={handlePrimaryPointerDown}
               size="sm"
               variant="glow"
+              onPointerMove={handlePrimaryPointerMove}
+              onPointerUp={handlePrimaryPointerUp}
             >
               {runtimeFailed ? (
                 <RefreshCw aria-hidden="true" />
