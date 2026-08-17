@@ -83,7 +83,7 @@ Expected: failure resolving `tests/browser/ci-lanes.mjs`.
 
 ### Step 2: Implement the lane manifest and its invariant checks
 
-- [ ] Create `tests/browser/ci-lanes.mjs` with these exported constants and exact assignments. The assignment below is the evidence-driven rebalance derived from median project/spec timings across the three successful attempts of hosted run `31977717774`; its predicted totals are planning evidence, and rebalanced run `31979464522` did not satisfy final lane-spread or recurring-retry acceptance:
+- [ ] Create `tests/browser/ci-lanes.mjs` with these exported constants and exact assignments. The assignment below is the evidence-driven rebalance derived from median project/spec timings across cold attempt 3 and warm attempts 4 and 5 of hosted run `32019891653` on exact commit `cff8a9f679c074e075d6b03995ad8bfbb833d225`. The previous assignment's per-lane browser-step medians were `353 / 289 / 280 / 278s` (26.98% spread); deterministic longest-processing-time allocation predicts raw-unit totals of `281.100 / 277.707 / 291.400 / 277.264s` (5.10% spread). These are planning estimates, not accepted performance proof, and require a new cold-plus-two-warm exact-head proof:
 
 ```js
 export const BROWSER_QA_PROJECT_NAMES = [
@@ -107,31 +107,25 @@ export const BROWSER_QA_LANES = {
   "1": {
     "mobile-chromium": [
       "public-routes.spec.ts",
-      "immersive-panel-shell.spec.ts",
     ],
   },
   "2": {
     "desktop-chromium": [
       "public-routes.spec.ts",
-      "app-shell.spec.ts",
+      "immersive-panel-shell.spec.ts",
       "pwa.spec.ts",
-      "admin-user-operations.spec.ts",
-      "control-system-review.spec.ts",
     ],
     "mobile-chromium": [
-      "local-first.spec.ts",
-      "admin-user-operations.spec.ts",
-      "control-system-review.spec.ts",
+      "immersive-panel-shell.spec.ts",
     ],
   },
   "3": {
+    "desktop-chromium": [
+      "app-shell.spec.ts",
+    ],
     "mobile-chromium": [
       "background-commerce.spec.ts",
       "app-shell.spec.ts",
-      "pwa.spec.ts",
-    ],
-    "desktop-chromium": [
-      "immersive-panel-shell.spec.ts",
     ],
   },
   "4": {
@@ -139,9 +133,15 @@ export const BROWSER_QA_LANES = {
       "background-commerce.spec.ts",
       "music-visualizer.spec.ts",
       "local-first.spec.ts",
+      "admin-user-operations.spec.ts",
+      "control-system-review.spec.ts",
     ],
     "mobile-chromium": [
       "music-visualizer.spec.ts",
+      "local-first.spec.ts",
+      "pwa.spec.ts",
+      "admin-user-operations.spec.ts",
+      "control-system-review.spec.ts",
     ],
   },
 };

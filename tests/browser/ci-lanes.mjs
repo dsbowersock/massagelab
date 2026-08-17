@@ -19,31 +19,25 @@ export const BROWSER_QA_LANES = {
   "1": {
     "mobile-chromium": [
       "public-routes.spec.ts",
-      "immersive-panel-shell.spec.ts",
     ],
   },
   "2": {
     "desktop-chromium": [
       "public-routes.spec.ts",
-      "app-shell.spec.ts",
+      "immersive-panel-shell.spec.ts",
       "pwa.spec.ts",
-      "admin-user-operations.spec.ts",
-      "control-system-review.spec.ts",
     ],
     "mobile-chromium": [
-      "local-first.spec.ts",
-      "admin-user-operations.spec.ts",
-      "control-system-review.spec.ts",
+      "immersive-panel-shell.spec.ts",
     ],
   },
   "3": {
+    "desktop-chromium": [
+      "app-shell.spec.ts",
+    ],
     "mobile-chromium": [
       "background-commerce.spec.ts",
       "app-shell.spec.ts",
-      "pwa.spec.ts",
-    ],
-    "desktop-chromium": [
-      "immersive-panel-shell.spec.ts",
     ],
   },
   "4": {
@@ -51,9 +45,15 @@ export const BROWSER_QA_LANES = {
       "background-commerce.spec.ts",
       "music-visualizer.spec.ts",
       "local-first.spec.ts",
+      "admin-user-operations.spec.ts",
+      "control-system-review.spec.ts",
     ],
     "mobile-chromium": [
       "music-visualizer.spec.ts",
+      "local-first.spec.ts",
+      "pwa.spec.ts",
+      "admin-user-operations.spec.ts",
+      "control-system-review.spec.ts",
     ],
   },
 }

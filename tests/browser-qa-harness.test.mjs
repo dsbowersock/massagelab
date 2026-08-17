@@ -138,7 +138,6 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
         name: "mobile-chromium",
         testMatch: [
           "**/public-routes.spec.ts",
-          "**/immersive-panel-shell.spec.ts",
         ],
       },
     ],
@@ -147,34 +146,29 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
         name: "desktop-chromium",
         testMatch: [
           "**/public-routes.spec.ts",
-          "**/app-shell.spec.ts",
+          "**/immersive-panel-shell.spec.ts",
           "**/pwa.spec.ts",
-          "**/admin-user-operations.spec.ts",
-          "**/control-system-review.spec.ts",
         ],
       },
       {
         name: "mobile-chromium",
         testMatch: [
-          "**/local-first.spec.ts",
-          "**/admin-user-operations.spec.ts",
-          "**/control-system-review.spec.ts",
+          "**/immersive-panel-shell.spec.ts",
         ],
       },
     ],
     "3": [
       {
+        name: "desktop-chromium",
+        testMatch: [
+          "**/app-shell.spec.ts",
+        ],
+      },
+      {
         name: "mobile-chromium",
         testMatch: [
           "**/background-commerce.spec.ts",
           "**/app-shell.spec.ts",
-          "**/pwa.spec.ts",
-        ],
-      },
-      {
-        name: "desktop-chromium",
-        testMatch: [
-          "**/immersive-panel-shell.spec.ts",
         ],
       },
     ],
@@ -185,12 +179,18 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
           "**/background-commerce.spec.ts",
           "**/music-visualizer.spec.ts",
           "**/local-first.spec.ts",
+          "**/admin-user-operations.spec.ts",
+          "**/control-system-review.spec.ts",
         ],
       },
       {
         name: "mobile-chromium",
         testMatch: [
           "**/music-visualizer.spec.ts",
+          "**/local-first.spec.ts",
+          "**/pwa.spec.ts",
+          "**/admin-user-operations.spec.ts",
+          "**/control-system-review.spec.ts",
         ],
       },
     ],
