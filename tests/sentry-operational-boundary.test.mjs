@@ -75,4 +75,19 @@ describe("anonymous operational Sentry boundary", () => {
     assert.match(policy, /"BrowserSession"/)
     assert.match(policy, /"Replay"/)
   })
+
+  it("documents anonymous diagnostics without presenting them as product analytics", () => {
+    const deployment = source("docs/wiki/deployment.md")
+    const privacy = source("docs/wiki/privacy-and-phi.md")
+    const combined = `${deployment}\n${privacy}`
+
+    for (const phrase of [
+      "no account, user, visitor, or session identifier",
+      "automatic click, input, navigation, console, and network breadcrumbs are disabled",
+      "not product analytics",
+      "Prevent Storing of IP Addresses",
+    ]) {
+      assert.match(combined, new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"))
+    }
+  })
 })

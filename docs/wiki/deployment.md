@@ -239,7 +239,10 @@ Portal before the first destructive cleanup mutation.
 
 ## Sentry
 
-Sentry captures sanitized errors, traces, and privacy-safe diagnostic reports only.
+Sentry captures anonymous operational errors, traces, and privacy-safe diagnostic
+reports only. This is anonymous operational monitoring, not product analytics.
+Do not use Sentry to infer background popularity, user journeys, retention, or
+conversion.
 
 ```text
 NEXT_PUBLIC_SENTRY_DSN=
@@ -256,6 +259,32 @@ Production Sentry setup should keep alerting focused on:
 - Production regressions.
 - Error or failure-rate spikes on important product routes.
 - Release/deploy issues once source-map uploads and releases are configured.
+
+### Anonymous operational boundary
+
+| Keep | Remove or disable |
+| --- | --- |
+| release and environment | account, user, visitor, and session identifiers |
+| sanitized stack traces | request/response bodies, headers, cookies, and query strings |
+| coarse route/API families | full URLs and dynamic route values |
+| event-scoped trace and diagnostic IDs | automatic click, input, navigation, console, and network breadcrumbs |
+| anonymous Web Vitals and bounded spans | Session Replay, User Feedback, attachments, Logs, and product metrics |
+
+No account, user, visitor, or session identifier is sent to Sentry. Automatic
+click, input, navigation, console, and network breadcrumbs are disabled.
+Event-scoped trace and diagnostic IDs may correlate one operational failure,
+not a person or browser history.
+
+Before enabling or changing the SDK, confirm that:
+
+- server-side data scrubbing is enabled;
+- default scrubbers are enabled;
+- `Prevent Storing of IP Addresses` is enabled;
+- sensitive-field rules are reviewed;
+- public issue sharing is disabled;
+- Replay, User Feedback, attachments, and Logs are disabled or unused;
+- retention is recorded; and
+- one enum-only synthetic event is inspected after SDK changes.
 
 `/api/support/problem-report` is the approved user-initiated diagnostic path. It sends only known issue categories, coarse product areas, safe route buckets, browser family, display mode, network state, viewport bucket, and an optional linked Sentry event id. It must not send screenshots, typed support messages, full URLs, query strings, local vault contents, SOAP text, intake answers, journal text, ROM notes, wellness entries, account contact details, or user-provided freeform descriptions.
 
