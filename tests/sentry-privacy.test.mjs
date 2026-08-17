@@ -194,9 +194,9 @@ test("sanitizeSentryEvent rejects malicious values placed in allowed trace field
         trace_id: "person@example.com",
         span_id: "b".repeat(16),
         parent_span_id: "session_123",
-        op: "user_123",
+        op: "patientJane",
         status: "ok?account=person@example.com",
-        origin: "https://massagelab.app/account?user=user_123",
+        origin: "unreviewed-operation",
         data: {
           "http.request.method": "GET /account?user=user_123",
           "http.response.status_code": 999,
@@ -210,7 +210,7 @@ test("sanitizeSentryEvent rejects malicious values placed in allowed trace field
   assert.deepEqual(event.contexts.trace, {
     span_id: "b".repeat(16),
   })
-  assert.doesNotMatch(JSON.stringify(event), /person@example\.com|user_123|session_123|select \*/i)
+  assert.doesNotMatch(JSON.stringify(event), /person@example\.com|patientJane|unreviewed-operation|session_123|select \*/i)
 })
 
 test("sanitizeSentryBreadcrumb drops automatic behavioral history", () => {
@@ -249,8 +249,8 @@ test("sanitizeSentrySpan keeps route family, status, and method only", () => {
       "http.request.method": "POST /api/account?user=user_123",
       "http.response.status_code": 700,
       "http.status_code": "200",
-      "sentry.op": "user_123",
-      "sentry.origin": "https://massagelab.app/account?email=person@example.com",
+      "sentry.op": "patientJane",
+      "sentry.origin": "unreviewed-operation",
     },
   })
 
@@ -269,7 +269,7 @@ test("sanitizeSentrySpan keeps route family, status, and method only", () => {
     "sentry.origin": "auto.http.nextjs",
   })
   assert.equal("attributes" in span, false)
-  assert.doesNotMatch(JSON.stringify(span), /person@example\.com|user_123/i)
+  assert.doesNotMatch(JSON.stringify(span), /person@example\.com|patientJane|unreviewed-operation|user_123/i)
 })
 
 test("sanitizeSentrySpan rejects malicious top-level trace identity and operation values", () => {
@@ -277,11 +277,61 @@ test("sanitizeSentrySpan rejects malicious top-level trace identity and operatio
     trace_id: "person@example.com",
     span_id: "a".repeat(16),
     parent_span_id: "session_123",
-    op: "user_123",
+    op: "patientJane",
     status: "ok?account=user_123",
-    origin: "https://massagelab.app/account?user=user_123",
+    origin: "unreviewed-operation",
   })
 
   assert.deepEqual(span, { span_id: "a".repeat(16) })
-  assert.doesNotMatch(JSON.stringify(span), /person@example\.com|user_123|session_123/i)
+  assert.doesNotMatch(JSON.stringify(span), /person@example\.com|patientJane|unreviewed-operation|user_123|session_123/i)
+})
+
+test("sanitizeSentryEvent and span retain only exact current operation and origin domains", () => {
+  const operations = [
+    "db",
+    "function.server_action",
+    "http.client",
+    "http.client.stream",
+    "http.server",
+    "http.server.middleware",
+    "navigation",
+    "navigation.redirect",
+    "pageload",
+  ]
+  const origins = [
+    "auto.db.otel.prisma",
+    "auto.function.nextjs.server_action",
+    "auto.function.nextjs.wrap_api_handler",
+    "auto.function.nextjs.wrap_middleware",
+    "auto.http.browser",
+    "auto.http.browser.stream",
+    "auto.http.nextjs",
+    "auto.http.otel.http",
+    "auto.http.otel.node_fetch",
+    "auto.navigation.browser",
+    "auto.navigation.nextjs.app_router_instrumentation",
+    "auto.navigation.nextjs.pages_router_instrumentation",
+    "auto.pageload.browser",
+    "auto.pageload.nextjs.app_router_instrumentation",
+    "auto.pageload.nextjs.pages_router_instrumentation",
+    "manual",
+  ]
+
+  for (const op of operations) {
+    const event = sanitizeSentryEvent({ contexts: { trace: { op } } })
+    const span = sanitizeSentrySpan({ op, data: { "sentry.op": op } })
+
+    assert.equal(event.contexts.trace.op, op)
+    assert.equal(span.op, op)
+    assert.equal(span.data["sentry.op"], op)
+  }
+
+  for (const origin of origins) {
+    const event = sanitizeSentryEvent({ contexts: { trace: { origin } } })
+    const span = sanitizeSentrySpan({ origin, data: { "sentry.origin": origin } })
+
+    assert.equal(event.contexts.trace.origin, origin)
+    assert.equal(span.origin, origin)
+    assert.equal(span.data["sentry.origin"], origin)
+  }
 })
