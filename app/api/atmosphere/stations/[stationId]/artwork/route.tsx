@@ -1,6 +1,7 @@
 import sharp from "sharp"
 
 import {
+  ATMOSPHERE_MEDIA_SESSION_ARTWORK_REVISION,
   renderAtmosphereStationArtworkSvg,
   resolveAtmosphereStationArtworkInput,
   type AtmosphereStationArtworkSize,
@@ -28,22 +29,35 @@ export async function GET(request: Request, context: ArtworkRouteContext) {
     })
   }
 
-  const size = parseArtworkSize(new URL(request.url).searchParams.get("size"))
+  const url = new URL(request.url)
+  const size = parseArtworkSize(url.searchParams.get("size"))
   if (!size) {
     return new Response("Unsupported artwork size", {
       status: 400,
       headers: { "Cache-Control": "no-store" },
     })
   }
+  const platformDerivative = size === 512
+    && url.searchParams.get("v") === ATMOSPHERE_MEDIA_SESSION_ARTWORK_REVISION
 
   try {
     const input = resolveAtmosphereStationArtworkInput(station)
     if (!input) throw new Error("Station artwork input is invalid")
     const svg = renderAtmosphereStationArtworkSvg(input)
-    const png = await sharp(Buffer.from(svg))
-      .resize(size, size, { fit: "fill" })
+    // Only the current Media Session cache identity opts into the higher-density
+    // platform raster; direct, stale, and unknown URLs retain legacy bytes.
+    const pipeline = platformDerivative
+      ? sharp(Buffer.from(svg), { density: 153.6 })
+          .resize(512, 512, { fit: "fill" })
+          .sharpen()
+      : sharp(Buffer.from(svg))
+          .resize(size, size, { fit: "fill" })
+    const { data: png, info } = await pipeline
       .png({ compressionLevel: 9 })
-      .toBuffer()
+      .toBuffer({ resolveWithObject: true })
+    if (info.width !== size || info.height !== size) {
+      throw new Error("Artwork dimensions do not match the requested size")
+    }
 
     return new Response(new Uint8Array(png), {
       headers: {

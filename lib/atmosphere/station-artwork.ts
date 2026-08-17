@@ -13,7 +13,7 @@ export type AtmosphereStationArtworkSize = 256 | 512
  * Bump only when platform artwork publication must invalidate Media Session
  * caches; inline canonical SVG identity never depends on this token.
  */
-export const ATMOSPHERE_MEDIA_SESSION_ARTWORK_REVISION = "2026-08-16-1"
+export const ATMOSPHERE_MEDIA_SESSION_ARTWORK_REVISION = "2026-08-17-1"
 
 type AtmosphereStationArtworkSource = {
   description?: unknown

@@ -81,7 +81,7 @@ test("publishes constructed station metadata, indefinite position state, and all
     album: "MassageLab Atmosphere",
     artwork: [
       {
-        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-16-1",
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-17-1",
         sizes: "512x512",
         type: "image/png",
       },
@@ -94,7 +94,7 @@ test("publishes constructed station metadata, indefinite position state, and all
     album: "MassageLab Atmosphere",
     artwork: [
       {
-        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-16-1",
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-17-1",
         sizes: "512x512",
         type: "image/png",
       },
@@ -136,7 +136,7 @@ test("keeps one revisioned 512 artwork candidate stable per station and replaces
     {
       title: "Quiet Current",
       artwork: [{
-        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-16-1",
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-17-1",
         sizes: "512x512",
         type: "image/png",
       }],
@@ -144,7 +144,7 @@ test("keeps one revisioned 512 artwork candidate stable per station and replaces
     {
       title: "Quiet Current",
       artwork: [{
-        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-16-1",
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-17-1",
         sizes: "512x512",
         type: "image/png",
       }],
@@ -152,7 +152,7 @@ test("keeps one revisioned 512 artwork candidate stable per station and replaces
     {
       title: "Next Station",
       artwork: [{
-        src: "/api/atmosphere/stations/next-station/artwork?size=512&v=2026-08-16-1",
+        src: "/api/atmosphere/stations/next-station/artwork?size=512&v=2026-08-17-1",
         sizes: "512x512",
         type: "image/png",
       }],
