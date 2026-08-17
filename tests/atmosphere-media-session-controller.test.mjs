@@ -81,12 +81,7 @@ test("publishes constructed station metadata, indefinite position state, and all
     album: "MassageLab Atmosphere",
     artwork: [
       {
-        src: "/api/atmosphere/stations/quiet-current/artwork?size=256",
-        sizes: "256x256",
-        type: "image/png",
-      },
-      {
-        src: "/api/atmosphere/stations/quiet-current/artwork?size=512",
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-16-1",
         sizes: "512x512",
         type: "image/png",
       },
@@ -99,12 +94,7 @@ test("publishes constructed station metadata, indefinite position state, and all
     album: "MassageLab Atmosphere",
     artwork: [
       {
-        src: "/api/atmosphere/stations/quiet-current/artwork?size=256",
-        sizes: "256x256",
-        type: "image/png",
-      },
-      {
-        src: "/api/atmosphere/stations/quiet-current/artwork?size=512",
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-16-1",
         sizes: "512x512",
         type: "image/png",
       },
@@ -121,6 +111,53 @@ test("publishes constructed station metadata, indefinite position state, and all
 
   controller.clear()
   assert.equal(mediaSession.setPositionStateCalls.at(-1), undefined)
+})
+
+test("keeps one revisioned 512 artwork candidate stable per station and replaces it atomically", () => {
+  const mediaSession = createFakeMediaSession()
+  const metadataInputs = []
+  const controller = createAtmosphereMediaSessionController({
+    mediaSession,
+    createMetadata: (init) => {
+      metadataInputs.push(structuredClone(init))
+      return init
+    },
+  })
+
+  for (const metadata of [
+    { id: "quiet-current", title: "Quiet Current" },
+    { id: "quiet-current", title: "Quiet Current" },
+    { id: "next-station", title: "Next Station" },
+  ]) {
+    controller.publish({ metadata, playbackState: "playing", handlers: {} })
+  }
+
+  assert.deepEqual(metadataInputs.map(({ title, artwork }) => ({ title, artwork })), [
+    {
+      title: "Quiet Current",
+      artwork: [{
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-16-1",
+        sizes: "512x512",
+        type: "image/png",
+      }],
+    },
+    {
+      title: "Quiet Current",
+      artwork: [{
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-16-1",
+        sizes: "512x512",
+        type: "image/png",
+      }],
+    },
+    {
+      title: "Next Station",
+      artwork: [{
+        src: "/api/atmosphere/stations/next-station/artwork?size=512&v=2026-08-16-1",
+        sizes: "512x512",
+        type: "image/png",
+      }],
+    },
+  ])
 })
 
 test("publishes a fresh indefinite position state and clears it on ownership clear", () => {

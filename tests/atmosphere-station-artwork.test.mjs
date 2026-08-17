@@ -37,12 +37,16 @@ test("canonical station artwork SVG is deterministic and its sized URL safely en
   assert.match(first, /^<svg[^>]+viewBox="0 0 240 240"/)
   assert.match(first, /<circle/)
   assert.equal(
+    stationArtwork.ATMOSPHERE_MEDIA_SESSION_ARTWORK_REVISION,
+    "2026-08-16-1",
+  )
+  assert.equal(
     getAtmosphereStationArtworkUrl("proof/drone", 512),
-    "/api/atmosphere/stations/proof%2Fdrone/artwork?size=512",
+    "/api/atmosphere/stations/proof%2Fdrone/artwork?size=512&v=2026-08-16-1",
   )
   assert.equal(
     getAtmosphereStationArtworkUrl("proof/drone", 256),
-    "/api/atmosphere/stations/proof%2Fdrone/artwork?size=256",
+    "/api/atmosphere/stations/proof%2Fdrone/artwork?size=256&v=2026-08-16-1",
   )
 })
 

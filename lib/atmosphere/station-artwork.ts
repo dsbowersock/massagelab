@@ -9,6 +9,12 @@ export type AtmosphereStationArtworkInput = {
 
 export type AtmosphereStationArtworkSize = 256 | 512
 
+/**
+ * Bump only when platform artwork publication must invalidate Media Session
+ * caches; inline canonical SVG identity never depends on this token.
+ */
+export const ATMOSPHERE_MEDIA_SESSION_ARTWORK_REVISION = "2026-08-16-1"
+
 type AtmosphereStationArtworkSource = {
   description?: unknown
   groupId?: unknown
@@ -80,12 +86,12 @@ export function renderAtmosphereStationArtworkSvg(input: AtmosphereStationArtwor
   return `<svg xmlns="http://www.w3.org/2000/svg" height="240" viewBox="0 0 240 240" width="240"><defs><linearGradient id="${shadeId}" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="${palette.background}"/><stop offset="100%" stop-color="${shadeHex(palette.background, -16)}"/></linearGradient><clipPath id="${clipId}"><rect height="240" rx="10" width="240"/></clipPath></defs><g clip-path="url(#${clipId})"><rect fill="url(#${shadeId})" height="240" width="240"/>${renderMotifSvg(motif, palette, seed)}${renderSeedSignature(palette, seed)}<rect fill="none" height="218" opacity="0.5" stroke="${palette.line}" stroke-width="1.5" width="218" x="11" y="11"/></g></svg>`
 }
 
-/** Returns an honest same-origin PNG endpoint for one allowlisted output size. */
+/** Returns a revisioned, honest same-origin PNG endpoint for one allowlisted output size. */
 export function getAtmosphereStationArtworkUrl(
   stationId: string,
   size: AtmosphereStationArtworkSize,
 ): string {
-  return `/api/atmosphere/stations/${encodeURIComponent(stationId)}/artwork?size=${size}`
+  return `/api/atmosphere/stations/${encodeURIComponent(stationId)}/artwork?size=${size}&v=${encodeURIComponent(ATMOSPHERE_MEDIA_SESSION_ARTWORK_REVISION)}`
 }
 
 function nonEmptyString(value: unknown): string | null {

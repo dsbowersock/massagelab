@@ -1831,13 +1831,8 @@ test("Live position stays published while Playing and clears after Stop", async 
     artist: "MassageLab",
     artwork: [
       {
-        sizes: "256x256",
-        src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=256",
-        type: "image/png",
-      },
-      {
         sizes: "512x512",
-        src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=512",
+        src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=512&v=2026-08-16-1",
         type: "image/png",
       },
     ],
@@ -1914,7 +1909,12 @@ test("Live position rejection preserves Playing metadata and all five handlers",
 
 test("canonical station artwork renders inline immediately while the platform route publishes honest PNG sizes", async ({ page, request }) => {
   const artworkHashes = new Set<string>()
+  const platformArtworkHashes = new Set<string>()
   const stations = getVisibleAtmosphereStations()
+  const directLegacy512ArtworkUrl = "/api/atmosphere/stations/mlab-proof-drone/artwork?size=512"
+  const revisionedMetadataArtworkUrl = `${directLegacy512ArtworkUrl}&v=2026-08-16-1`
+
+  expect(directLegacy512ArtworkUrl).not.toBe(revisionedMetadataArtworkUrl)
 
   for (const station of stations) {
     const response = await request.get(`/api/atmosphere/stations/${encodeURIComponent(station.id)}/artwork?size=256`)
@@ -1929,23 +1929,43 @@ test("canonical station artwork renders inline immediately while the platform ro
   expect(artworkHashes.size).toBe(stations.length)
 
   for (const stationId of ["mlab-proof-drone", "generative-fm-documentary-films"]) {
-    const artworkUrl = `/api/atmosphere/stations/${encodeURIComponent(stationId)}/artwork?size=512`
+    const artworkUrl = `/api/atmosphere/stations/${encodeURIComponent(stationId)}/artwork?size=512&v=2026-08-16-1`
     const first = await request.get(artworkUrl)
     const second = await request.get(artworkUrl)
-    expect(pngDimensions(Buffer.from(await first.body()))).toEqual({ width: 512, height: 512 })
+    expect(first.status()).toBe(200)
+    expect(first.headers()["content-type"]).toBe("image/png")
+    expect(first.headers()["cache-control"]).toContain("max-age=86400")
+    const firstBody = Buffer.from(await first.body())
+    expect(pngDimensions(firstBody)).toEqual({ width: 512, height: 512 })
+    platformArtworkHashes.add(createHash("sha256").update(firstBody).digest("hex"))
     expect(await sha256(second)).toBe(await sha256(first))
   }
+  expect(platformArtworkHashes.size).toBe(2)
+
+  const directLegacy512 = await request.get(directLegacy512ArtworkUrl)
+  expect(directLegacy512.status()).toBe(200)
+  expect(directLegacy512.headers()["content-type"]).toBe("image/png")
+  expect(directLegacy512.headers()["cache-control"]).toContain("max-age=86400")
+  const directLegacy512Body = Buffer.from(await directLegacy512.body())
+  expect(pngDimensions(directLegacy512Body)).toEqual({ width: 512, height: 512 })
+  const revisionedProof512 = await request.get(revisionedMetadataArtworkUrl)
+  expect(createHash("sha256").update(directLegacy512Body).digest("hex"))
+    .toBe(await sha256(revisionedProof512))
 
   const decodePage = await page.context().newPage()
   try {
     await decodePage.goto("/music", { waitUntil: "domcontentloaded" })
-    for (const size of [256, 512]) {
-      await expect(decodePngInBrowser(decodePage, {
-        url: `/api/atmosphere/stations/mlab-proof-drone/artwork?size=${size}`,
-      })).resolves.toMatchObject({
-        height: size,
+    const decodeCandidates = [
+      { size: 256, url: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=256" },
+      { size: 512, url: directLegacy512ArtworkUrl },
+      { size: 512, url: revisionedMetadataArtworkUrl },
+    ]
+    expect(decodeCandidates).toHaveLength(3)
+    for (const candidate of decodeCandidates) {
+      await expect(decodePngInBrowser(decodePage, { url: candidate.url })).resolves.toMatchObject({
+        height: candidate.size,
         mimeType: "image/png",
-        width: size,
+        width: candidate.size,
       })
     }
     const truncatedPngHeader = [
@@ -1991,13 +2011,8 @@ test("canonical station artwork renders inline immediately while the platform ro
   await expect.poll(async () => (await readProbe(page)).mediaSession.metadata?.artwork)
     .toEqual([
       {
-        sizes: "256x256",
-        src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=256",
-        type: "image/png",
-      },
-      {
         sizes: "512x512",
-        src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=512",
+        src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=512&v=2026-08-16-1",
         type: "image/png",
       },
     ])
@@ -2235,13 +2250,8 @@ test("Previous and Next retain the session preference and route changes keep one
         title: "420hz Gamma Waves for Big Brain",
         artwork: [
           {
-            sizes: "256x256",
-            src: "/api/atmosphere/stations/generative-fm-420hz-gamma-waves-for-big-brain/artwork?size=256",
-            type: "image/png",
-          },
-          {
             sizes: "512x512",
-            src: "/api/atmosphere/stations/generative-fm-420hz-gamma-waves-for-big-brain/artwork?size=512",
+            src: "/api/atmosphere/stations/generative-fm-420hz-gamma-waves-for-big-brain/artwork?size=512&v=2026-08-16-1",
             type: "image/png",
           },
         ],
@@ -2260,13 +2270,8 @@ test("Previous and Next retain the session preference and route changes keep one
         title: "MassageLab Proof Drone",
         artwork: [
           {
-            sizes: "256x256",
-            src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=256",
-            type: "image/png",
-          },
-          {
             sizes: "512x512",
-            src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=512",
+            src: "/api/atmosphere/stations/mlab-proof-drone/artwork?size=512&v=2026-08-16-1",
             type: "image/png",
           },
         ],
