@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
+import { readFile, readdir } from "node:fs/promises"
 
 import {
   getPlaywrightFileFilterArguments,
@@ -42,7 +42,7 @@ function getWorkflowJob(workflow, jobId) {
   return match[1]
 }
 
-test("browser QA lanes cover each ordinary project and spec exactly once", () => {
+test("browser QA lanes cover each ordinary project and spec exactly once", async () => {
   const expectedProjects = ["desktop-chromium", "mobile-chromium"]
   const expectedSpecs = [
     "admin-user-operations.spec.ts",
@@ -56,7 +56,15 @@ test("browser QA lanes cover each ordinary project and spec exactly once", () =>
     "pwa.spec.ts",
   ]
 
+  const developmentOnlySpecs = new Set(
+    resolveDevelopmentPaletteReviewIgnoreGlobs([]).map((glob) => glob.split("/").at(-1)),
+  )
+  const discoveredOrdinarySpecs = (await readdir(new URL("./browser/", import.meta.url)))
+    .filter((filename) => filename.endsWith(".spec.ts") && !developmentOnlySpecs.has(filename))
+    .sort()
+
   assert.deepEqual(BROWSER_QA_PROJECT_NAMES, expectedProjects)
+  assert.deepEqual(ORDINARY_BROWSER_QA_SPEC_FILES, discoveredOrdinarySpecs)
   assert.deepEqual(ORDINARY_BROWSER_QA_SPEC_FILES, expectedSpecs)
   assert.equal(Object.keys(BROWSER_QA_LANES).length, 4)
 
