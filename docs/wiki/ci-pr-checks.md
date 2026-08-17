@@ -75,7 +75,7 @@ assignment. Then reproduce the project/spec locally. For example:
 ```powershell
 $env:PLAYWRIGHT_CI_LANE = "3"; npm run test:browser
 Remove-Item Env:PLAYWRIGHT_CI_LANE
-npx playwright test tests/browser/public-routes.spec.ts --project=mobile-chromium
+npx playwright test tests/browser/background-commerce.spec.ts --project=mobile-chromium
 ```
 
 Use `npx playwright test --list` before an expensive run when confirming a

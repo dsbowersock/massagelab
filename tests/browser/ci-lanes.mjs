@@ -59,8 +59,8 @@ export const BROWSER_QA_LANES = {
 }
 
 /**
- * Validates that browser-QA lanes provide exact-once coverage of every ordinary
- * Playwright project/spec pair, rejecting partitions that could omit or repeat QA.
+ * Validates a lane-ID-to-project/spec manifest. Exactly four non-empty lanes
+ * must cover every ordinary Playwright project/spec pair once; invalid manifests throw.
  */
 export function assertBrowserQaLaneCoverage(lanes = BROWSER_QA_LANES) {
   if (!lanes || typeof lanes !== "object" || Array.isArray(lanes)) {
