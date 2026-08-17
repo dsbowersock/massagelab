@@ -152,7 +152,10 @@ test("sanitizeSentryEvent keeps only coarse request and context data", () => {
       trace: {
         trace_id: "a".repeat(32),
         span_id: "b".repeat(16),
+        parent_span_id: "c".repeat(16),
         op: "http.server",
+        status: "ok",
+        origin: "auto.http.nextjs",
         data: {
           "http.target": "/account?billing=checkout-error",
           "http.response.status_code": 200,
@@ -170,11 +173,44 @@ test("sanitizeSentryEvent keeps only coarse request and context data", () => {
   assert.deepEqual(event.contexts.browser, { name: "Chrome" })
   assert.equal("device" in event.contexts, false)
   assert.equal("arbitrary" in event.contexts, false)
-  assert.equal(event.contexts.trace.trace_id, "a".repeat(32))
-  assert.deepEqual(event.contexts.trace.data, {
-    "http.target": "/account-or-auth",
-    "http.response.status_code": 200,
+  assert.deepEqual(event.contexts.trace, {
+    trace_id: "a".repeat(32),
+    span_id: "b".repeat(16),
+    parent_span_id: "c".repeat(16),
+    op: "http.server",
+    status: "ok",
+    origin: "auto.http.nextjs",
+    data: {
+      "http.target": "/account-or-auth",
+      "http.response.status_code": 200,
+    },
   })
+})
+
+test("sanitizeSentryEvent rejects malicious values placed in allowed trace fields", () => {
+  const event = sanitizeSentryEvent({
+    contexts: {
+      trace: {
+        trace_id: "person@example.com",
+        span_id: "b".repeat(16),
+        parent_span_id: "session_123",
+        op: "user_123",
+        status: "ok?account=person@example.com",
+        origin: "https://massagelab.app/account?user=user_123",
+        data: {
+          "http.request.method": "GET /account?user=user_123",
+          "http.response.status_code": 999,
+          "http.status_code": "200",
+          "http.target": "select * from User where email = 'person@example.com'",
+        },
+      },
+    },
+  })
+
+  assert.deepEqual(event.contexts.trace, {
+    span_id: "b".repeat(16),
+  })
+  assert.doesNotMatch(JSON.stringify(event), /person@example\.com|user_123|session_123|select \*/i)
 })
 
 test("sanitizeSentryBreadcrumb drops automatic behavioral history", () => {
@@ -194,19 +230,58 @@ test("sanitizeSentrySpan keeps route family, status, and method only", () => {
   const span = sanitizeSentrySpan({
     description: "GET /api/account/preferences?email=person@example.com",
     name: "GET /api/account/preferences?email=person@example.com",
+    trace_id: "d".repeat(32),
+    span_id: "e".repeat(16),
+    parent_span_id: "f".repeat(16),
+    op: "http.client",
+    status: "ok",
+    origin: "auto.http.nextjs",
     data: {
       "http.url": "https://massagelab.app/api/account/preferences?email=person@example.com",
       "http.request.method": "GET",
       "http.response.status_code": 200,
+      "sentry.op": "http.client",
+      "sentry.origin": "auto.http.nextjs",
       "db.query": "select * from User where email = 'person@example.com'",
       clientName: "Jane Doe",
+    },
+    attributes: {
+      "http.request.method": "POST /api/account?user=user_123",
+      "http.response.status_code": 700,
+      "http.status_code": "200",
+      "sentry.op": "user_123",
+      "sentry.origin": "https://massagelab.app/account?email=person@example.com",
     },
   })
 
   assert.equal(span.description, "GET /api/[route]")
   assert.equal(span.name, "GET /api/[route]")
+  assert.equal(span.trace_id, "d".repeat(32))
+  assert.equal(span.span_id, "e".repeat(16))
+  assert.equal(span.parent_span_id, "f".repeat(16))
+  assert.equal(span.op, "http.client")
+  assert.equal(span.status, "ok")
+  assert.equal(span.origin, "auto.http.nextjs")
   assert.deepEqual(span.data, {
     "http.request.method": "GET",
     "http.response.status_code": 200,
+    "sentry.op": "http.client",
+    "sentry.origin": "auto.http.nextjs",
   })
+  assert.equal("attributes" in span, false)
+  assert.doesNotMatch(JSON.stringify(span), /person@example\.com|user_123/i)
+})
+
+test("sanitizeSentrySpan rejects malicious top-level trace identity and operation values", () => {
+  const span = sanitizeSentrySpan({
+    trace_id: "person@example.com",
+    span_id: "a".repeat(16),
+    parent_span_id: "session_123",
+    op: "user_123",
+    status: "ok?account=user_123",
+    origin: "https://massagelab.app/account?user=user_123",
+  })
+
+  assert.deepEqual(span, { span_id: "a".repeat(16) })
+  assert.doesNotMatch(JSON.stringify(span), /person@example\.com|user_123|session_123/i)
 })
