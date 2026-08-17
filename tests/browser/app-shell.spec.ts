@@ -118,6 +118,76 @@ async function startProofDrone(page: Page) {
   return toolbar
 }
 
+const stationReducedMotionQuery = "(prefers-reduced-motion: reduce)"
+const stationFinePointerQuery = "(any-hover: hover) and (any-pointer: fine)"
+
+/** Installs live, test-owned station capability queries without replacing orientation matching. */
+async function installStationCapabilityQueries(page: Page, initial: {
+  reducedMotion: boolean
+  finePointer: boolean
+}) {
+  await page.addInitScript(({ reducedMotion, finePointer }) => {
+    const nativeMatchMedia = window.matchMedia.bind(window)
+    const states = new Map<string, boolean>([
+      ["(prefers-reduced-motion: reduce)", reducedMotion],
+      ["(any-hover: hover) and (any-pointer: fine)", finePointer],
+    ])
+    const lists = new Map<string, MutableMediaQueryList>()
+
+    class MutableMediaQueryList extends EventTarget implements MediaQueryList {
+      onchange: ((this: MediaQueryList, event: MediaQueryListEvent) => unknown) | null = null
+
+      constructor(readonly media: string, public matches: boolean) {
+        super()
+      }
+
+      addListener(callback: ((this: MediaQueryList, event: MediaQueryListEvent) => unknown) | null) {
+        if (callback) this.addEventListener("change", callback as EventListener)
+      }
+
+      removeListener(callback: ((this: MediaQueryList, event: MediaQueryListEvent) => unknown) | null) {
+        if (callback) this.removeEventListener("change", callback as EventListener)
+      }
+
+      setMatches(matches: boolean) {
+        if (this.matches === matches) return
+        this.matches = matches
+        const event = new Event("change") as MediaQueryListEvent
+        Object.defineProperties(event, {
+          matches: { value: matches },
+          media: { value: this.media },
+        })
+        this.dispatchEvent(event)
+        this.onchange?.call(this, event)
+      }
+    }
+
+    window.matchMedia = (query) => {
+      if (!states.has(query)) return nativeMatchMedia(query)
+      let list = lists.get(query)
+      if (!list) {
+        list = new MutableMediaQueryList(query, states.get(query) ?? false)
+        lists.set(query, list)
+      }
+      return list
+    }
+    Reflect.set(window, "__setStationCapabilityQuery", (query: string, matches: boolean) => {
+      states.set(query, matches)
+      lists.get(query)?.setMatches(matches)
+    })
+  }, initial)
+}
+
+async function setStationCapabilityQuery(page: Page, query: string, matches: boolean) {
+  await page.evaluate(({ query, matches }) => {
+    const setQuery = Reflect.get(window, "__setStationCapabilityQuery") as (
+      nextQuery: string,
+      nextMatches: boolean,
+    ) => void
+    setQuery(query, matches)
+  }, { query, matches })
+}
+
 async function openAccountMenu(page: Page) {
   const trigger = page.getByTestId("account-menu-trigger")
 
@@ -1547,6 +1617,7 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
 
 test("full constrained landscape four-view matrix plus S24 class keeps controls 16px below and category pill glow clear", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Constrained Music geometry is covered in mobile Chromium.")
+  await page.emulateMedia({ reducedMotion: "reduce" })
   await installInterruptionNoticeMediaFakes(page)
   // Start from the known-roomy portrait baseline, then exercise the exact
   // constrained viewport matrix against the already-active player.
@@ -2363,8 +2434,158 @@ test("player rail keeps overlays clear while preserving caller collision padding
   )).toEqual({ top: 1, right: 2, bottom: 3, left: 4 })
 })
 
+test("stable portrait station cards survive expanded collapsed stopped and restarted player state", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Portrait station geometry is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await installStationCapabilityQueries(page, { reducedMotion: false, finePointer: false })
+  const receipt: Array<Record<string, unknown>> = []
+
+  for (const viewport of [{ width: 390, height: 844 }, { width: 360, height: 670 }]) {
+    await page.setViewportSize(viewport)
+    const toolbar = await startProofDrone(page)
+    const carousel = page.getByRole("region", { name: "Station carousel" })
+    const readCards = async (state: string) => {
+      await expect(carousel.locator('[data-carousel-slide]:not([data-detail-level="shell"])')).toHaveCount(3)
+      const boxes = await carousel.locator(
+        '[data-carousel-slide]:not([data-detail-level="shell"]) [data-carousel-transform="true"]',
+      ).evaluateAll((elements) => elements.map((element) => {
+        const rectangle = element.getBoundingClientRect()
+        return { width: rectangle.width, height: rectangle.height }
+      }))
+      expect(boxes).toHaveLength(3)
+      const baseline = boxes[0]
+      expect(baseline.width).toBeGreaterThanOrEqual(159)
+      expect(baseline.width).toBeLessThanOrEqual(193)
+      expect(Math.abs(baseline.height - Math.round(baseline.width * 224 / 192))).toBeLessThanOrEqual(1)
+      for (const box of boxes.slice(1)) {
+        expect(Math.abs(box.width - baseline.width)).toBeLessThanOrEqual(1)
+        expect(Math.abs(box.height - baseline.height)).toBeLessThanOrEqual(1)
+      }
+      receipt.push({ viewport, state, boxes })
+      return boxes
+    }
+
+    const expanded = await readCards("expanded")
+    await toolbar.getByRole("button", { name: "Minimize", exact: true }).click()
+    await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+    const collapsed = await readCards("collapsed")
+    await toolbar.getByRole("button", { name: "Expand", exact: true }).click()
+    await expect(toolbar).toHaveAttribute("data-collapsed", "false")
+    await toolbar.getByRole("button", { name: "Stop", exact: true }).click()
+    await expect(toolbar).toHaveAttribute("data-playback-state", "stopped")
+    const stopped = await readCards("stopped")
+    await toolbar.getByRole("button", { name: "Play", exact: true }).click()
+    await expect(toolbar).toHaveAttribute("data-playback-state", /loading|playing/)
+    const restarted = await readCards("restarted")
+    for (const boxes of [collapsed, stopped, restarted]) {
+      boxes.forEach((box, index) => {
+        expect(Math.abs(box.width - expanded[index].width)).toBeLessThanOrEqual(1)
+        expect(Math.abs(box.height - expanded[index].height)).toBeLessThanOrEqual(1)
+      })
+    }
+    await toolbar.getByRole("button", { name: "Stop", exact: true }).click()
+  }
+  await testInfo.attach("task-20-portrait-card-geometry.json", {
+    body: JSON.stringify(receipt, null, 2),
+    contentType: "application/json",
+  })
+})
+
+test("station controls follow input capability live without remount", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Touch capability behavior is covered in mobile Chromium.")
+  await installStationCapabilityQueries(page, { reducedMotion: false, finePointer: false })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await gotoShell(page, "/music")
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const marker = carousel.locator('[data-station-carousel-controls="true"]')
+  const controls = page.getByTestId("station-carousel-controls")
+  const summaries = carousel.locator(
+    '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
+  )
+  await expect(summaries).toHaveCount(2)
+  await expect(marker).toHaveCount(0)
+  await expect(controls).toHaveCount(0)
+  await expect(carousel.getByRole("button", { name: /^(Previous|Next) station$/ })).toHaveCount(0)
+  const unreservedHeight = await summaries.first().evaluate((element) => element.getBoundingClientRect().height)
+  await carousel.evaluate((element) => Reflect.set(window, "__task20StageIdentity", element))
+
+  await setStationCapabilityQuery(page, stationReducedMotionQuery, true)
+  await expect(marker).toHaveCount(1)
+  await expect(controls).toHaveCount(1)
+  await expect(carousel.getByRole("button", { name: /^(Previous|Next) station$/ })).toHaveCount(2)
+  const reducedHeight = await summaries.first().evaluate((element) => element.getBoundingClientRect().height)
+  expect(unreservedHeight - reducedHeight).toBeCloseTo(60, 0)
+  const [summaryBoxes, controlBoxes] = await Promise.all([
+    summaries.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON())),
+    carousel.getByRole("button", { name: /^(Previous|Next) station$/ })
+      .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON())),
+  ])
+  controlBoxes.forEach((box, index) => {
+    const offset = box.y - (summaryBoxes[index].y + summaryBoxes[index].height)
+    expect(offset).toBeGreaterThanOrEqual(15)
+    expect(offset).toBeLessThanOrEqual(17)
+  })
+  await setStationCapabilityQuery(page, stationReducedMotionQuery, false)
+  await expect(marker).toHaveCount(0)
+  await expect(controls).toHaveCount(0)
+  await expect.poll(() => summaries.first().evaluate((element) => element.getBoundingClientRect().height))
+    .toBeCloseTo(unreservedHeight, 0)
+  await setStationCapabilityQuery(page, stationFinePointerQuery, true)
+  await expect(marker).toHaveCount(1)
+  await expect(controls).toHaveCount(1)
+  await expect.poll(() => summaries.first().evaluate((element) => element.getBoundingClientRect().height))
+    .toBeCloseTo(reducedHeight, 0)
+  const preservedStageIdentity = await carousel.evaluate(
+    (element) => Reflect.get(window, "__task20StageIdentity") === element,
+  )
+  expect(preservedStageIdentity).toBe(true)
+  await setStationCapabilityQuery(page, stationFinePointerQuery, false)
+  await expect(marker).toHaveCount(0)
+  await testInfo.attach("task-20-capability-geometry.json", {
+    body: JSON.stringify({
+      queryStates: [
+        { reducedMotion: false, finePointer: false, controls: 0, summaryHeight: unreservedHeight },
+        { reducedMotion: true, finePointer: false, controls: 2, summaryHeight: reducedHeight },
+        { reducedMotion: false, finePointer: false, controls: 0, summaryHeight: unreservedHeight },
+        { reducedMotion: false, finePointer: true, controls: 2, summaryHeight: reducedHeight },
+        { reducedMotion: false, finePointer: false, controls: 0, summaryHeight: unreservedHeight },
+      ],
+      summaryBoxes,
+      controlBoxes,
+      reserveDelta: unreservedHeight - reducedHeight,
+      preservedStageIdentity,
+    }, null, 2),
+    contentType: "application/json",
+  })
+})
+
+test("fine pointer station controls render and update live", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== desktopProject, "Fine-pointer behavior is covered in desktop Chromium.")
+  await installStationCapabilityQueries(page, { reducedMotion: false, finePointer: true })
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await gotoShell(page, "/music")
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(carousel.locator('[data-station-carousel-controls="true"]')).toHaveCount(1)
+  const controls = carousel.getByRole("button", { name: /^(Previous|Next) station$/ })
+  await expect(controls).toHaveCount(2)
+  const controlBoxes = await controls.evaluateAll((elements) => elements.map(
+    (element) => element.getBoundingClientRect().toJSON(),
+  ))
+  await setStationCapabilityQuery(page, stationFinePointerQuery, false)
+  await expect(carousel.locator('[data-station-carousel-controls="true"]')).toHaveCount(0)
+  await expect(controls).toHaveCount(0)
+  await testInfo.attach("task-20-fine-pointer-controls.json", {
+    body: JSON.stringify({
+      shown: { reducedMotion: false, finePointer: true, controls: 2, controlBoxes },
+      hidden: { reducedMotion: false, finePointer: false, controls: 0 },
+    }, null, 2),
+    contentType: "application/json",
+  })
+})
+
 test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Compact-landscape carousel geometry is covered in mobile Chromium.")
+  await page.emulateMedia({ reducedMotion: "reduce" })
   await page.addInitScript(() => {
     const NativeResizeObserver = window.ResizeObserver
     const records: Array<{ targets: string[], disconnected: boolean }> = []

@@ -32,6 +32,10 @@ const backgroundControlTraySource = readFileSync(
   new URL("../components/backgrounds/background-carousel-control-tray.tsx", import.meta.url),
   "utf8",
 )
+const stationCarouselSource = readFileSync(
+  new URL("../components/atmosphere/station-carousel.tsx", import.meta.url),
+  "utf8",
+)
 
 describe("production adaptive carousel", () => {
   it("uses three Background renderers only in short landscape", () => {
@@ -60,11 +64,20 @@ describe("production adaptive carousel", () => {
   it("offers typed custom controls while retaining default navigation", () => {
     assert.match(stageSource, /export interface AdaptiveCarouselControlState/)
     assert.match(stageSource, /renderControls\?: \(state: AdaptiveCarouselControlState\) => ReactNode/)
-    assert.match(stageSource, /renderControls \? renderControls\(controlState\) : defaultNavigation/)
+    assert.match(stageSource, /customControlsVisible\?: boolean/)
+    assert.match(stageSource, /customControlsVisible = true/)
+    assert.match(
+      stageSource,
+      /renderControls && customControlsVisible[\s\S]*\? renderControls\(controlState\)[\s\S]*: !renderControls[\s\S]*\? defaultNavigation[\s\S]*: null/,
+    )
     assert.match(stageSource, /data-has-custom-controls=/)
     assert.match(
       stageSource,
-      /data-station-carousel-controls=\{surface === "stations" && viewportProfile === "music-fit"/,
+      /data-station-carousel-controls=\{surface === "stations" && renderControls && customControlsVisible[\s\S]*viewportProfile === "music-fit"/,
+    )
+    assert.match(
+      stageSource,
+      /surface === "stations" && renderControls && customControlsVisible/,
     )
     assert.doesNotMatch(stageSource, /data-carousel-controls="true"/)
   })
@@ -89,7 +102,11 @@ describe("production adaptive carousel", () => {
 
   it("station tuning fits three cards inside a constrained rail workspace", () => {
     assert.deepEqual(
-      getResponsiveStationCarouselTuning({ containerWidth: 556, containerHeight: 246 }),
+      getResponsiveStationCarouselTuning({
+        containerWidth: 556,
+        containerHeight: 246,
+        constrainedLandscape: true,
+      }),
       {
         ...STATION_CAROUSEL_TUNING,
         cardWidth: 192,
@@ -103,14 +120,45 @@ describe("production adaptive carousel", () => {
     const landscape = getResponsiveStationCarouselTuning({
       containerWidth: 556,
       containerHeight: 246,
+      constrainedLandscape: true,
     })
     assert.equal(landscape.cardHeight, 246)
 
     const portrait = getResponsiveStationCarouselTuning({
-      containerWidth: 390,
-      containerHeight: 500,
+      containerWidth: 556,
+      containerHeight: 246,
+      constrainedLandscape: false,
     })
     assert.equal(portrait.cardHeight, 224)
+  })
+
+  it("keeps wide short portrait stage cards on the stable width-derived 7:6 ratio", () => {
+    const expanded = getResponsiveStationCarouselTuning({
+      containerWidth: 556,
+      containerHeight: 246,
+      constrainedLandscape: false,
+    })
+    const collapsed = getResponsiveStationCarouselTuning({
+      containerWidth: 556,
+      containerHeight: 412,
+      constrainedLandscape: false,
+    })
+    assert.deepEqual(
+      { width: expanded.cardWidth, height: expanded.cardHeight },
+      { width: 192, height: 224 },
+    )
+    assert.deepEqual(
+      { width: collapsed.cardWidth, height: collapsed.cardHeight },
+      { width: 192, height: 224 },
+    )
+
+    const narrow = getResponsiveStationCarouselTuning({
+      containerWidth: 420,
+      containerHeight: 210,
+      constrainedLandscape: false,
+    })
+    assert.equal(narrow.cardWidth, 161)
+    assert.equal(narrow.cardHeight, Math.round(161 * 224 / 192))
   })
 
   it("keeps station looping independent from static reduced-motion presentation", () => {
@@ -121,7 +169,11 @@ describe("production adaptive carousel", () => {
   })
 
   it("station tuning consumes the measured stage allocation without a fixed control subtraction", () => {
-    const tuning = getResponsiveStationCarouselTuning({ containerWidth: 420, containerHeight: 210 })
+    const tuning = getResponsiveStationCarouselTuning({
+      containerWidth: 420,
+      containerHeight: 210,
+      constrainedLandscape: true,
+    })
     assert.equal(tuning.cardWidth, 161)
     assert.equal(tuning.cardHeight, 210)
     assert.equal(tuning.visibleRadius, 1)
@@ -129,10 +181,27 @@ describe("production adaptive carousel", () => {
     const severeHeight = getResponsiveStationCarouselTuning({
       containerWidth: 360,
       containerHeight: 96,
+      constrainedLandscape: true,
     })
     assert.equal(severeHeight.cardWidth, 160)
     assert.equal(severeHeight.cardHeight, 96)
     assert.equal(severeHeight.visibleRadius, 1)
+  })
+
+  it("owns live station capability and constrained-landscape media queries without touch heuristics", () => {
+    assert.match(stationCarouselSource, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/)
+    assert.match(
+      stationCarouselSource,
+      /window\.matchMedia\("\(any-hover: hover\) and \(any-pointer: fine\)"\)/,
+    )
+    assert.match(
+      stationCarouselSource,
+      /window\.matchMedia\([\s\S]*"\(orientation: landscape\) and \(max-width: 60rem\) and \(max-height: 31\.25rem\)"/,
+    )
+    assert.match(stationCarouselSource, /const showStationControls = reducedMotion \|\| hasFineHoverPointer/)
+    assert.match(stationCarouselSource, /customControlsVisible=\{showStationControls\}/)
+    assert.match(stationCarouselSource, /constrainedLandscape/)
+    assert.doesNotMatch(stationCarouselSource, /maxTouchPoints/)
   })
 
   it("offers one tray-owned Animated previews switch wired to the saved preference", () => {

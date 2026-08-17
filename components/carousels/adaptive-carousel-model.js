@@ -63,23 +63,26 @@ export const STATION_CAROUSEL_TUNING = Object.freeze({
 /**
  * Fits the station carousel to its actual workspace while preserving one
  * centered card and one summary neighbor on each side.
- * @param {{ containerWidth: number, containerHeight: number }} dimensions
+ * @param {{ containerWidth: number, containerHeight: number, constrainedLandscape: boolean }} dimensions
  * @returns {AdaptiveCarouselTuning}
  */
-export function getResponsiveStationCarouselTuning({ containerWidth, containerHeight }) {
+export function getResponsiveStationCarouselTuning({
+  containerWidth,
+  containerHeight,
+  constrainedLandscape,
+}) {
   const safeWidth = Number.isFinite(containerWidth) ? containerWidth : 556
   const safeHeight = Number.isFinite(containerHeight) ? containerHeight : 246
-  const isConstrainedLandscape = safeWidth > safeHeight && safeHeight <= 480
+  const cardWidth = Math.max(160, Math.min(192, Math.floor(safeWidth / 2.6)))
   return {
     ...STATION_CAROUSEL_TUNING,
-    cardWidth: Math.max(160, Math.min(192, Math.floor(safeWidth / 2.6))),
-    // The caller measures the complete stage. Constrained landscape consumes
-    // that box while its summary cards reserve control room internally;
-    // roomier portrait and desktop presentations retain the 224px ceiling.
-    cardHeight: Math.max(
-      72,
-      Math.min(isConstrainedLandscape ? safeHeight : 224, Math.floor(safeHeight)),
-    ),
+    cardWidth,
+    // Viewport orientation is caller-owned. Portrait cards derive height only
+    // from their stable width; explicitly constrained landscape consumes the
+    // complete measured stage while summary controls reserve room internally.
+    cardHeight: constrainedLandscape
+      ? Math.max(72, Math.floor(safeHeight))
+      : Math.round(cardWidth * 224 / 192),
     visibleRadius: 1,
   }
 }

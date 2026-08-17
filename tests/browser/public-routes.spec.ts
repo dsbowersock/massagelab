@@ -1156,17 +1156,26 @@ for (const reducedMotion of [false, true] as const) {
       .getAttribute("data-carousel-item-id")
     const previous = carousel.getByRole("button", { name: "Previous station" })
     const next = carousel.getByRole("button", { name: "Next station" })
+    const customControlMarker = carousel.locator('[data-station-carousel-controls="true"]')
+    const controlsExpected = reducedMotion || testInfo.project.name === "desktop-chromium"
 
-    await centerCarouselItem(page, lastId, "Next station")
-    await expect(previous).toBeEnabled()
-    await expect(next).toBeEnabled()
-    await next.click()
-    await expect.poll(centeredId).toBe(firstId)
-
-    await previous.click()
+    await expect(previous).toHaveCount(controlsExpected ? 1 : 0)
+    await expect(next).toHaveCount(controlsExpected ? 1 : 0)
+    await expect(customControlMarker).toHaveCount(controlsExpected ? 1 : 0)
+    await stage.focus()
+    await page.keyboard.press("ArrowLeft")
     await expect.poll(centeredId).toBe(lastId)
-    await next.click()
+    await page.keyboard.press("ArrowRight")
     await expect.poll(centeredId).toBe(firstId)
+
+    if (controlsExpected) {
+      await expect(previous).toBeEnabled()
+      await expect(next).toBeEnabled()
+      await previous.click()
+      await expect.poll(centeredId).toBe(lastId)
+      await next.click()
+      await expect.poll(centeredId).toBe(firstId)
+    }
 
     await stage.focus()
     await page.keyboard.press("ArrowLeft")
@@ -1200,8 +1209,10 @@ for (const reducedMotion of [false, true] as const) {
     }
     await expect.poll(centeredId).toBe(firstId)
 
-    await expect(previous).toBeEnabled()
-    await expect(next).toBeEnabled()
+    if (controlsExpected) {
+      await expect(previous).toBeEnabled()
+      await expect(next).toBeEnabled()
+    }
     if (reducedMotion) {
       const presentation = carousel.locator('[data-centered="true"] [data-carousel-transform="true"]')
       await expect(presentation).toHaveCSS("transition-duration", "0s")

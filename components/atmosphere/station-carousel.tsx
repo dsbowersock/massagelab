@@ -40,6 +40,8 @@ export function AtmosphereStationCarousel() {
       : initialGroup.stations[0]?.id
   })
   const [reducedMotion, setReducedMotion] = useState(false)
+  const [hasFineHoverPointer, setHasFineHoverPointer] = useState(false)
+  const [constrainedLandscape, setConstrainedLandscape] = useState(false)
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 })
   const stageAllocationRef = useRef<HTMLDivElement | null>(null)
   const positionsRef = useRef(new Map<string, string>())
@@ -56,11 +58,25 @@ export function AtmosphereStationCarousel() {
   )
 
   useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const update = () => setReducedMotion(query.matches)
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const finePointerQuery = window.matchMedia("(any-hover: hover) and (any-pointer: fine)")
+    const constrainedLandscapeQuery = window.matchMedia(
+      "(orientation: landscape) and (max-width: 60rem) and (max-height: 31.25rem)",
+    )
+    const update = () => {
+      setReducedMotion(reducedMotionQuery.matches)
+      setHasFineHoverPointer(finePointerQuery.matches)
+      setConstrainedLandscape(constrainedLandscapeQuery.matches)
+    }
     update()
-    query.addEventListener("change", update)
-    return () => query.removeEventListener("change", update)
+    reducedMotionQuery.addEventListener("change", update)
+    finePointerQuery.addEventListener("change", update)
+    constrainedLandscapeQuery.addEventListener("change", update)
+    return () => {
+      reducedMotionQuery.removeEventListener("change", update)
+      finePointerQuery.removeEventListener("change", update)
+      constrainedLandscapeQuery.removeEventListener("change", update)
+    }
   }, [])
 
   // Category changes remount the keyed stage, so rebind measurement to the
@@ -117,9 +133,11 @@ export function AtmosphereStationCarousel() {
     () => getResponsiveStationCarouselTuning({
       containerWidth: stageSize.width,
       containerHeight: stageSize.height,
+      constrainedLandscape,
     }),
-    [stageSize.height, stageSize.width],
+    [constrainedLandscape, stageSize.height, stageSize.width],
   )
+  const showStationControls = reducedMotion || hasFineHoverPointer
 
   if (!group) {
     return (
@@ -177,6 +195,7 @@ export function AtmosphereStationCarousel() {
           presentation="background-picker"
           tuning={tuning}
           reducedMotion={reducedMotion}
+          customControlsVisible={showStationControls}
           testId="station-carousel-stage"
           viewportProfile="music-fit"
           onCenteredItemChange={handleCenteredItemChange}

@@ -45,6 +45,7 @@ export interface AdaptiveCarouselStageProps<T extends AdaptiveCarouselItem> {
   testId?: string
   viewportProfile?: string
   renderControls?: (state: AdaptiveCarouselControlState) => ReactNode
+  customControlsVisible?: boolean
 }
 
 type CarouselRootStyle = CSSProperties & {
@@ -79,6 +80,7 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
   testId = "adaptive-carousel-stage",
   viewportProfile,
   renderControls,
+  customControlsVisible = true,
 }: AdaptiveCarouselStageProps<T>) {
   const items = useMemo(
     () => normalizeAdaptiveCarouselItems(sourceItems) as T[],
@@ -117,7 +119,8 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
   const cardHeight = finiteTuningValue(tuning.cardHeight, 304)
   // Station summaries reserve one rem-scaled control plus an exact 16px
   // visual offset, so increased text cannot clip the control inside the stage.
-  const summaryCardHeight = surface === "stations"
+  const stationControlsReserve = surface === "stations" && (!renderControls || customControlsVisible)
+  const summaryCardHeight = stationControlsReserve
     ? `max(0px, min(${cardHeight}px, ${cardWidth + 1}px, calc(${cardHeight}px - 2.75rem - 16px)))`
     : `${cardHeight}px`
   const rootStyle: CarouselRootStyle = {
@@ -169,6 +172,11 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
       </Button>
     </div>
   )
+  const renderedControls = renderControls && customControlsVisible
+    ? renderControls(controlState)
+    : !renderControls
+      ? defaultNavigation
+      : null
 
   return (
     <section
@@ -248,14 +256,17 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
         </div>
       </div>
 
-      <div
-        className={styles.controls}
-        data-station-carousel-controls={surface === "stations" && viewportProfile === "music-fit"
-          ? "true"
-          : undefined}
-      >
-        {renderControls ? renderControls(controlState) : defaultNavigation}
-      </div>
+      {renderedControls ? (
+        <div
+          className={styles.controls}
+          data-station-carousel-controls={surface === "stations" && renderControls && customControlsVisible
+            && viewportProfile === "music-fit"
+            ? "true"
+            : undefined}
+        >
+          {renderedControls}
+        </div>
+      ) : null}
 
       <p className={styles.status} aria-live="polite" aria-atomic="true">
         {statusText}
