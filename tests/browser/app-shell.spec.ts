@@ -188,18 +188,23 @@ async function setStationCapabilityQuery(page: Page, query: string, matches: boo
   }, { query, matches })
 }
 
-/** Opens the account menu without repeating a click after its expanded state is committed. */
+/** Opens the account menu across SSR hydration and transient mobile-drawer closure. */
 async function openAccountMenu(page: Page) {
   const trigger = page.getByTestId("account-menu-trigger")
   const helpItem = page.getByRole("menuitem", { name: "Help & FAQ" })
+  const navigation = page.getByRole("button", { name: "Open navigation" })
 
   if (!await trigger.isVisible().catch(() => false)) {
-    await page.getByRole("button", { name: "Open navigation" }).click()
+    await navigation.click()
   }
 
   await expect(trigger).toBeVisible()
   await expect.poll(async () => {
     if (await helpItem.isVisible().catch(() => false)) return true
+    if (!await trigger.isVisible().catch(() => false)) {
+      if (await navigation.getAttribute("aria-expanded") !== "true") await navigation.click()
+      return false
+    }
     if (await trigger.getAttribute("aria-expanded") !== "true") await trigger.click()
     return helpItem.isVisible().catch(() => false)
   }).toBe(true)

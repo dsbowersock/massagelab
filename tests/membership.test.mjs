@@ -66,9 +66,28 @@ describe("Membership and entitlement helpers", () => {
     assert.match(authUsersSource, /loadActiveTemporaryGrants\(prisma, userId, now\)/)
     assert.match(
       authUsersSource,
-      /features:\s*buildEntitlements\(\{\s*subscriptions:\s*user\?\.membershipSubscriptions \?\? \[\],\s*studentAccess:\s*user\?\.studentAccess \?\? null,\s*temporaryGrants,\s*now,\s*\}\)\.features/,
+      /features:\s*buildEntitlements\(\{\s*adminAccess,\s*subscriptions:\s*user\?\.membershipSubscriptions \?\? \[\],\s*studentAccess:\s*user\?\.studentAccess \?\? null,\s*temporaryGrants,\s*now,\s*\}\)\.features/,
     )
     assert.doesNotMatch(authUsersSource, /temporaryFeatureGrant[\s\S]*take:/)
+  })
+
+  it("reloads a repaired Admin role before granting request-time features", () => {
+    assert.match(
+      authUsersSource,
+      /await ensureUserRole\(userId, user\.email\)[\s\S]*await prisma\.userRole\.findUnique\([\s\S]*userId_role:[\s\S]*role: "ADMIN"/,
+    )
+    assert.match(
+      authUsersSource,
+      /persistedAdminRole\?\.role === "ADMIN" && persistedAdminRole\.status === "VERIFIED"/,
+    )
+    assert.match(
+      authUsersSource,
+      /hasVerifiedAdminRole[\s\S]*assignment\.role === "ADMIN" && assignment\.status === "VERIFIED"[\s\S]*!hasVerifiedAdminRole/,
+    )
+    assert.doesNotMatch(
+      authUsersSource,
+      /roleAssignments\.push\(\{ role: "ADMIN", status: "VERIFIED" \}\)/,
+    )
   })
 
   it("grants one active temporary feature and records its request-time expiration source", () => {
@@ -333,6 +352,85 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(canceled.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
     assert.equal(isActiveSubscriptionStatus("trialing"), true)
     assert.equal(isActiveSubscriptionStatus("incomplete"), false)
+  })
+
+  it("grants verified full admins the maximum current non-PHI features without inventing a paid membership", () => {
+    const entitlements = buildEntitlements({
+      adminAccess: true,
+      subscriptions: [],
+      studentAccess: null,
+      temporaryGrants: [],
+      now: new Date("2026-08-16T00:00:00.000Z"),
+    })
+
+    assert.equal(entitlements.level, "FREE")
+    assert.equal(entitlements.paidLevel, null)
+    assert.deepEqual(entitlements.features, [
+      FEATURE_KEYS.calendarBasicScheduling,
+      FEATURE_KEYS.premiumBackgrounds,
+      FEATURE_KEYS.therapistDocumentationTools,
+      FEATURE_KEYS.calendarFullScheduling,
+      FEATURE_KEYS.externalCalendarSync,
+      FEATURE_KEYS.calendarTeamScheduling,
+    ])
+    for (const featureKey of entitlements.features.slice(1)) {
+      assert.deepEqual(entitlements.featureAccess.find((entry) => entry.featureKey === featureKey)?.sources, [
+        { source: "admin", expiresAt: null },
+      ])
+    }
+    for (const restrictedFeature of [FEATURE_KEYS.cloudStorage, FEATURE_KEYS.phiStorageTools]) {
+      assert.equal(entitlements.hasFeature(restrictedFeature), false)
+    }
+  })
+
+  it("keeps permanent Admin detail provenance when temporary access overlaps", () => {
+    const expiresAt = new Date("2026-09-15T00:00:00.000Z")
+    const entitlements = buildEntitlements({
+      adminAccess: true,
+      subscriptions: [],
+      studentAccess: null,
+      temporaryGrants: [{
+        featureKey: FEATURE_KEYS.premiumBackgrounds,
+        startsAt: new Date("2026-08-01T00:00:00.000Z"),
+        expiresAt,
+        revocation: null,
+      }],
+      now: new Date("2026-08-16T00:00:00.000Z"),
+    })
+
+    assert.deepEqual(entitlements.featureDetails.find(({ key }) => key === FEATURE_KEYS.premiumBackgrounds), {
+      key: FEATURE_KEYS.premiumBackgrounds,
+      source: "ADMIN",
+      expiresAt: null,
+    })
+    assert.deepEqual(entitlements.featureAccess.find(({ featureKey }) => featureKey === FEATURE_KEYS.premiumBackgrounds)?.sources, [
+      { source: "admin", expiresAt: null },
+      { source: "temporary", expiresAt: expiresAt.toISOString() },
+    ])
+  })
+
+  it("loads administrative feature access only from a freshly verified full-admin database role", async () => {
+    const roleQueries = []
+    const state = await membership.getUserEntitlementState({
+      membershipSubscription: { findMany: async () => [] },
+      studentAccess: { findUnique: async () => null },
+      temporaryFeatureGrant: { findMany: async () => [] },
+      userRole: {
+        findFirst: async (query) => {
+          roleQueries.push(query)
+          return { id: "admin-role-1" }
+        },
+      },
+    }, "owner-user", new Date("2026-08-16T00:00:00.000Z"))
+
+    assert.deepEqual(roleQueries, [{
+      where: { userId: "owner-user", role: "ADMIN", status: "VERIFIED" },
+      select: { id: true },
+    }])
+    assert.equal(state.paidLevel, null)
+    assert.equal(state.hasFeature(FEATURE_KEYS.premiumBackgrounds), true)
+    assert.equal(state.hasFeature(FEATURE_KEYS.calendarTeamScheduling), true)
+    assert.equal(state.hasFeature(FEATURE_KEYS.phiStorageTools), false)
   })
 
   it("does not unlock professional features for an active supporter subscription or student access", () => {
@@ -672,6 +770,7 @@ describe("Membership and entitlement helpers", () => {
       stripeCustomer: { findUnique: async () => null },
       membershipSubscription: { findMany: async () => [] },
       studentAccess: { findUnique: async () => null },
+      userRole: { findFirst: async () => null },
       temporaryFeatureGrant: {
         findMany: async (args) => {
           calls.push(args)

@@ -15,9 +15,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  qa:
+  code_quality:
+    name: Code quality
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 12
     env:
       AUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only
       NEXTAUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only
@@ -39,19 +40,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Restore Next.js build cache
-        # Pinned from actions/cache@v4 on 2026-06-19.
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: ${{ github.workspace }}/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('next.config.mjs', 'tsconfig.json', 'tailwind.config.ts', 'postcss.config.mjs', 'app/**/*.js', 'app/**/*.jsx', 'app/**/*.ts', 'app/**/*.tsx', 'components/**/*.js', 'components/**/*.jsx', 'components/**/*.ts', 'components/**/*.tsx', 'lib/**/*.js', 'lib/**/*.jsx', 'lib/**/*.ts', 'lib/**/*.tsx', 'prisma/**/*') }}
-          restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-
-            ${{ runner.os }}-nextjs-
-
-      - name: Install Chromium for browser QA
-        run: npx playwright install --with-deps chromium webkit
-
       - name: Validate Prisma schema
         run: npm run prisma:validate
 
@@ -67,8 +55,146 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+  browser_build:
+    name: Browser build
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      AUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only
+      NEXTAUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only
+      AUTH_URL: http://127.0.0.1:3010
+      NEXTAUTH_URL: http://127.0.0.1:3010
+
+    steps:
+      - name: Check out repository
+        # Pinned from actions/checkout@v6 on 2026-06-10.
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        # Pinned from actions/setup-node@v6 on 2026-06-10.
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore Next.js build cache
+        # Pinned from actions/cache@v4 on 2026-06-19.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ github.workspace }}/.next/cache
+          key: ${{ runner.os }}-nextjs-v2-${{ hashFiles('package-lock.json') }}-${{ hashFiles('next.config.mjs', 'tsconfig.json', 'tailwind.config.ts', 'postcss.config.mjs', 'app/**/*.js', 'app/**/*.jsx', 'app/**/*.ts', 'app/**/*.tsx', 'components/**/*.js', 'components/**/*.jsx', 'components/**/*.ts', 'components/**/*.tsx', 'lib/**/*.js', 'lib/**/*.jsx', 'lib/**/*.ts', 'lib/**/*.tsx', 'prisma/**/*') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-v2-${{ hashFiles('package-lock.json') }}-
+            ${{ runner.os }}-nextjs-v2-
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
       - name: Build
-        run: npm run build:next
+        run: npm run build
+
+      - name: Upload browser runtime
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: next-runtime-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            .next
+            !.next/cache/**
+          if-no-files-found: error
+          retention-days: 1
+          include-hidden-files: true
+
+  browser_qa:
+    name: Browser QA (lane ${{ matrix.lane }})
+    needs: browser_build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: ["1", "2", "3", "4"]
+    env:
+      AUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only
+      NEXTAUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only
+      AUTH_URL: http://127.0.0.1:3010
+      NEXTAUTH_URL: http://127.0.0.1:3010
+      PLAYWRIGHT_CI_LANE: ${{ matrix.lane }}
+
+    steps:
+      - name: Check out repository
+        # Pinned from actions/checkout@v6 on 2026-06-10.
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        # Pinned from actions/setup-node@v6 on 2026-06-10.
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Install Chromium for browser QA
+        run: npx playwright install --with-deps chromium
+
+      - name: Download browser runtime
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: next-runtime-${{ github.sha }}-${{ github.run_attempt }}
+          path: .next
 
       - name: Browser QA
         run: npm run test:browser
+
+      - name: Upload browser diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: browser-diagnostics-${{ github.sha }}-${{ github.run_attempt }}-lane-${{ matrix.lane }}
+          path: test-results
+          if-no-files-found: ignore
+          retention-days: 7
+          include-hidden-files: true
+
+  qa:
+    name: qa
+    needs:
+      - code_quality
+      - browser_build
+      - browser_qa
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Aggregate upstream results
+        env:
+          CODE_QUALITY_RESULT: ${{ needs.code_quality.result }}
+          BROWSER_BUILD_RESULT: ${{ needs.browser_build.result }}
+          BROWSER_QA_RESULT: ${{ needs.browser_qa.result }}
+        run: |
+          failed=0
+          for dependency_result in \
+            "code_quality=$CODE_QUALITY_RESULT" \
+            "browser_build=$BROWSER_BUILD_RESULT" \
+            "browser_qa=$BROWSER_QA_RESULT"; do
+            dependency="${dependency_result%%=*}"
+            result="${dependency_result#*=}"
+            echo "$dependency: $result"
+            if [ "$result" != "success" ]; then
+              echo "::error::$dependency returned $result"
+              failed=1
+            fi
+          done
+          exit "$failed"

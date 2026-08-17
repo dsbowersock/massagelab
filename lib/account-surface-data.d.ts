@@ -120,7 +120,7 @@ export type MembershipPricingCatalog = {
 export type EffectiveFeatureAccess = {
   featureKey: string
   sources: Array<{
-    source: "membership" | "student" | "temporary"
+    source: "admin" | "membership" | "student" | "temporary"
     expiresAt: string | null
   }>
 }

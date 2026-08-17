@@ -177,7 +177,7 @@ function isBackgroundBrandingEntry(value: unknown): value is BackgroundBrandingE
 
 export type BackgroundAccessSnapshot = {
   featureKeys: readonly string[]
-  premiumBackgroundAccessSource?: "subscription" | "temporary" | null
+  premiumBackgroundAccessSource?: "subscription" | "temporary" | "admin" | null
   ownedBackgroundIds: readonly string[]
 }
 
@@ -2227,10 +2227,11 @@ export function userCanUseBackground(entry: BackgroundDefinition, access: Backgr
 export function resolveBackgroundCommerceAccessSource(
   entry: BackgroundDefinition,
   access: BackgroundAccessSnapshot,
-): "free" | "subscription" | "temporary" | "ownership" | "locked" {
+): "free" | "subscription" | "temporary" | "admin" | "ownership" | "locked" {
   if (!userCanUseBackground(entry, access)) return "locked"
   if (!entry.requiresSubscription) return "free"
   if (access.ownedBackgroundIds.includes(entry.id)) return "ownership"
+  if (access.premiumBackgroundAccessSource === "admin") return "admin"
   return access.premiumBackgroundAccessSource === "temporary" ? "temporary" : "subscription"
 }
 

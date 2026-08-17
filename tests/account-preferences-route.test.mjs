@@ -268,10 +268,17 @@ describe("account preference route ownership boundary", () => {
       body: JSON.stringify({ chimerSettings: ownedOnlySettings() }),
     }))
     const overlapping = loadRoute({ featureAccess: overlappingFeatureAccess })
+    const administrative = loadRoute({
+      featureAccess: [{
+        featureKey: "premium_backgrounds",
+        sources: [{ source: "admin", expiresAt: null }],
+      }],
+    })
 
     assert.equal(temporaryGet.body.premiumBackgroundAccessSource, "temporary")
     assert.equal(temporaryPut.body.premiumBackgroundAccessSource, "temporary")
     assert.equal((await overlapping.GET()).body.premiumBackgroundAccessSource, "subscription")
+    assert.equal((await administrative.GET()).body.premiumBackgroundAccessSource, "admin")
   })
 
   it("GET falls back when the saved background is not owned", async () => {

@@ -43,6 +43,7 @@ describe("production background commerce states", () => {
       ["owned-credit", "Owned"],
       ["owned-purchase", "Owned"],
       ["included-subscription", "Included with membership"],
+      ["included-admin", "Included with administrator access"],
       ["locked-credit-available", "Locked · credit available"],
       ["locked-no-credit", "Locked · no credit"],
       ["unavailable", "Unavailable"],
@@ -188,6 +189,11 @@ describe("production background commerce states", () => {
       premiumBackgroundAccessSource: "subscription",
       ownedBackgroundIds: [],
     }), "included-subscription")
+    assert.equal(stateFor({
+      featureKeys: ["premium_backgrounds"],
+      premiumBackgroundAccessSource: "admin",
+      ownedBackgroundIds: [],
+    }), "included-admin")
     assert.equal(stateFor({
       featureKeys: ["premium_backgrounds"],
       premiumBackgroundAccessSource: "temporary",

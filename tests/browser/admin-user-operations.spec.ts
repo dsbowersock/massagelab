@@ -41,7 +41,7 @@ test.describe("Admin user operations", () => {
     await expect(sectionNavigation).toBeVisible()
     await expect(sectionNavigation.getByRole("link", { name: "Security" })).toBeVisible()
     await sectionNavigation.getByRole("link", { name: "Security" }).click()
-    await expect(page.getByRole("heading", { name: "Security" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Security", exact: true })).toBeVisible()
     const detailOverflow = await page.locator("html").evaluate((element) => element.scrollWidth > element.clientWidth)
     expect(detailOverflow).toBe(false)
   })
@@ -171,7 +171,7 @@ test.describe("Admin user operations", () => {
     await expect(billingCard.getByText("Current Stripe credit", { exact: true })).toBeVisible()
     await expect(billingCard.getByText("Projected next invoice", { exact: true })).toBeVisible()
     await expect(billingCard.getByText("$0.00", { exact: true })).toBeVisible()
-    await expect(billingCard.getByText("$20.00", { exact: true })).toBeVisible()
+    await expect(billingCard.locator("dd").getByText("$20.00", { exact: true })).toBeVisible()
     await expect(billingCard.getByText("active", { exact: true })).toBeVisible()
     for (const amount of ["$1.00", "$2.00", "$5.00", "$10.00", "$20.00", "$50.00"]) {
       await expect(billingCard.getByRole("button", { name: amount, exact: true })).toBeVisible()

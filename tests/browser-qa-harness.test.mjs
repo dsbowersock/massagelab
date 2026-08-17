@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
+import { readFile, readdir } from "node:fs/promises"
 
 import {
   getPlaywrightFileFilterArguments,
@@ -9,6 +9,13 @@ import {
   matchesDevelopmentPaletteReviewArgument,
   resolveDevelopmentPaletteReviewIgnoreGlobs,
 } from "../playwright.config.ts"
+import {
+  BROWSER_QA_LANES,
+  BROWSER_QA_PROJECT_NAMES,
+  ORDINARY_BROWSER_QA_SPEC_FILES,
+  assertBrowserQaLaneCoverage,
+  resolveCiBrowserQaLaneProjects,
+} from "./browser/ci-lanes.mjs"
 
 async function readProjectFile(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
@@ -23,18 +30,6 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
 
-test("CI installs Chromium and WebKit for configured browser QA projects", async () => {
-  const ciWorkflow = await readProjectFile(".github/workflows/ci.yml")
-
-  assert.match(ciWorkflow, /npx playwright install --with-deps chromium webkit/)
-})
-
-test("CI reserves the evidence-backed 45-minute budget for the complete QA job", async () => {
-  const ciWorkflow = await readProjectFile(".github/workflows/ci.yml")
-
-  assert.match(ciWorkflow, /jobs:\r?\n  qa:\r?\n    runs-on: ubuntu-latest\r?\n    timeout-minutes: 45/)
-})
-
 test("install-prompt QA dispatches only while the provider listener is proven active", async () => {
   const appShellSpec = await readProjectFile("tests/browser/app-shell.spec.ts")
 
@@ -44,6 +39,185 @@ test("install-prompt QA dispatches only while the provider listener is proven ac
     appShellSpec,
     /if \(!Reflect\.get\(window, "__massagelabPwaInstallPromptListenerReady"\)\) return false[\s\S]*window\.dispatchEvent\(event\)/,
   )
+})
+
+/**
+ * Extracts one job from this repository's CI workflow source. The matcher
+ * intentionally follows its two-space job indentation and lowercase-letter or
+ * underscore job IDs so the next top-level job or absolute end of the source
+ * forms an unambiguous boundary.
+ */
+function getWorkflowJob(workflow, jobId) {
+  const match = workflow.match(
+    new RegExp(`^  ${jobId}:\\r?\\n([\\s\\S]*?)(?=^  [a-z_]+:\\r?$|(?![\\s\\S]))`, "m"),
+  )
+
+  assert.ok(match, `Expected workflow job ${jobId}`)
+  return match[1]
+}
+
+test("workflow job extraction includes the complete body and stops at the next job", () => {
+  const workflow = [
+    "jobs:",
+    "  first_job:",
+    "    name: First job",
+    "    needs: unexpected_dependency",
+    "    steps:",
+    "      - run: npm test",
+    "  second_job:",
+    "    name: Second job",
+  ].join("\n")
+
+  const firstJob = getWorkflowJob(workflow, "first_job")
+  assert.match(firstJob, /^    needs: unexpected_dependency$/m)
+  assert.doesNotMatch(firstJob, /Second job/)
+})
+
+test("browser QA lanes cover each ordinary project and spec exactly once", async () => {
+  const expectedProjects = ["desktop-chromium", "mobile-chromium"]
+  const expectedSpecs = [
+    "admin-user-operations.spec.ts",
+    "app-shell.spec.ts",
+    "background-commerce.spec.ts",
+    "control-system-review.spec.ts",
+    "immersive-panel-shell.spec.ts",
+    "local-first.spec.ts",
+    "music-media-session.spec.ts",
+    "music-visualizer.spec.ts",
+    "public-routes.spec.ts",
+    "pwa.spec.ts",
+  ]
+
+  const developmentOnlySpecs = new Set(
+    resolveDevelopmentPaletteReviewIgnoreGlobs([]).map((glob) => glob.split("/").at(-1)),
+  )
+  const discoveredOrdinarySpecs = (await readdir(new URL("./browser/", import.meta.url)))
+    .filter((filename) => filename.endsWith(".spec.ts") && !developmentOnlySpecs.has(filename))
+    .sort()
+
+  assert.deepEqual(BROWSER_QA_PROJECT_NAMES, expectedProjects)
+  assert.deepEqual(ORDINARY_BROWSER_QA_SPEC_FILES, discoveredOrdinarySpecs)
+  assert.deepEqual(ORDINARY_BROWSER_QA_SPEC_FILES, expectedSpecs)
+  assert.equal(Object.keys(BROWSER_QA_LANES).length, 4)
+
+  const expectedPairs = new Set(
+    expectedProjects.flatMap((projectName) => expectedSpecs.map((spec) => `${projectName}:${spec}`)),
+  )
+  assert.equal(expectedPairs.size, 20)
+
+  const actualPairs = []
+  for (const lane of Object.values(BROWSER_QA_LANES)) {
+    assert.ok(Object.values(lane).some((specs) => specs.length > 0), "Expected every lane to be non-empty")
+    for (const [projectName, specs] of Object.entries(lane)) {
+      for (const spec of specs) actualPairs.push(`${projectName}:${spec}`)
+    }
+  }
+
+  assert.equal(new Set(actualPairs).size, expectedPairs.size)
+  assert.deepEqual(new Set(actualPairs), expectedPairs)
+  assert.doesNotMatch(
+    JSON.stringify(BROWSER_QA_LANES),
+    /background-(?:palette|carousel-preview|preview-pilot)\.spec\.ts|dna-twisted-cubes-backgrounds\.spec\.ts/,
+  )
+  assert.doesNotThrow(() => assertBrowserQaLaneCoverage())
+
+  const lanesWithWrongFourthId = Object.fromEntries(
+    Object.entries(BROWSER_QA_LANES).map(([laneId, lane]) => [laneId === "4" ? "5" : laneId, lane]),
+  )
+  assert.throws(
+    () => assertBrowserQaLaneCoverage(lanesWithWrongFourthId),
+    /exact lane IDs 1, 2, 3, and 4; found 1, 2, 3, 5/i,
+  )
+})
+
+test("browser QA lane resolver preserves ordinary runs and returns exact lane assignments", () => {
+  assert.equal(resolveCiBrowserQaLaneProjects(), null)
+  assert.equal(resolveCiBrowserQaLaneProjects("   "), null)
+  assert.throws(
+    () => resolveCiBrowserQaLaneProjects("unknown"),
+    /Unknown browser QA lane/i,
+  )
+  for (const inheritedKey of ["constructor", "toString"]) {
+    assert.throws(
+      () => resolveCiBrowserQaLaneProjects(inheritedKey),
+      new RegExp(`Unknown browser QA lane: ${inheritedKey}`, "i"),
+    )
+  }
+
+  const expectedLaneProjects = {
+    "1": [
+      {
+        name: "desktop-chromium",
+        testMatch: [
+          "**/public-routes.spec.ts",
+          "**/local-first.spec.ts",
+        ],
+      },
+      {
+        name: "mobile-chromium",
+        testMatch: [
+          "**/app-shell.spec.ts",
+          "**/pwa.spec.ts",
+        ],
+      },
+    ],
+    "2": [
+      {
+        name: "desktop-chromium",
+        testMatch: [
+          "**/app-shell.spec.ts",
+          "**/pwa.spec.ts",
+        ],
+      },
+      {
+        name: "mobile-chromium",
+        testMatch: [
+          "**/public-routes.spec.ts",
+          "**/local-first.spec.ts",
+        ],
+      },
+    ],
+    "3": [
+      {
+        name: "desktop-chromium",
+        testMatch: [
+          "**/music-media-session.spec.ts",
+          "**/admin-user-operations.spec.ts",
+        ],
+      },
+      {
+        name: "mobile-chromium",
+        testMatch: [
+          "**/music-media-session.spec.ts",
+        ],
+      },
+    ],
+    "4": [
+      {
+        name: "desktop-chromium",
+        testMatch: [
+          "**/background-commerce.spec.ts",
+          "**/control-system-review.spec.ts",
+          "**/immersive-panel-shell.spec.ts",
+          "**/music-visualizer.spec.ts",
+        ],
+      },
+      {
+        name: "mobile-chromium",
+        testMatch: [
+          "**/admin-user-operations.spec.ts",
+          "**/background-commerce.spec.ts",
+          "**/control-system-review.spec.ts",
+          "**/immersive-panel-shell.spec.ts",
+          "**/music-visualizer.spec.ts",
+        ],
+      },
+    ],
+  }
+
+  for (const [laneId, expectedProjects] of Object.entries(expectedLaneProjects)) {
+    assert.deepEqual(resolveCiBrowserQaLaneProjects(` ${laneId} `), expectedProjects)
+  }
 })
 
 test("development review spec matching accepts Playwright line and column suffixes", () => {
@@ -261,4 +435,63 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(ciWorkflow, /npx playwright install --with-deps chromium/)
   assert.match(ciWorkflow, /^permissions:\r?\n  contents: read$/m)
   assertWorkflowStepBefore(ciWorkflow, "npm run prisma:generate", "npm run typecheck")
+})
+
+test("CI workflow parallelizes browser QA and aggregates every upstream result", async () => {
+  const ciWorkflow = await readProjectFile(".github/workflows/ci.yml")
+
+  assert.match(ciWorkflow, /^  code_quality:\r?$/m)
+  assert.match(ciWorkflow, /^  browser_build:\r?$/m)
+  assert.match(ciWorkflow, /^  browser_qa:\r?$/m)
+  assert.match(ciWorkflow, /^  qa:\r?$/m)
+  assert.match(ciWorkflow, /code_quality:\r?\n    name: Code quality[\s\S]*?timeout-minutes: 12/)
+  assert.match(ciWorkflow, /browser_build:\r?\n    name: Browser build[\s\S]*?timeout-minutes: 12/)
+  assert.match(ciWorkflow, /browser_qa:\r?\n    name: Browser QA \(lane \$\{\{ matrix\.lane \}\}\)[\s\S]*?needs: browser_build[\s\S]*?timeout-minutes: 15/)
+  assert.match(ciWorkflow, /qa:\r?\n    name: qa[\s\S]*?if: \$\{\{ always\(\) \}\}[\s\S]*?timeout-minutes: 2/)
+  assert.doesNotMatch(getWorkflowJob(ciWorkflow, "code_quality"), /^    needs:/m)
+  assert.doesNotMatch(getWorkflowJob(ciWorkflow, "browser_build"), /^    needs:/m)
+  for (const jobId of ["browser_build", "browser_qa"]) {
+    assert.match(
+      getWorkflowJob(ciWorkflow, jobId),
+      /- name: Check out repository\r?\n        # Pinned from actions\/checkout@v6 on 2026-06-10\.\r?\n        uses: actions\/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10\r?\n        with:\r?\n          persist-credentials: false/,
+    )
+  }
+
+  assert.equal((ciWorkflow.match(/npm run build(?::next)?/g) ?? []).length, 1)
+  assert.match(ciWorkflow, /strategy:\r?\n      fail-fast: false\r?\n      matrix:\r?\n        lane: \["1", "2", "3", "4"\]/)
+  assert.match(ciWorkflow, /PLAYWRIGHT_CI_LANE: \$\{\{ matrix\.lane \}\}/)
+  assert.match(ciWorkflow, /key: \$\{\{ runner\.os \}\}-nextjs-v2-/)
+
+  const runtimeArtifact = "next-runtime-${{ github.sha }}-${{ github.run_attempt }}"
+  assert.match(ciWorkflow, new RegExp(`name: ${runtimeArtifact.replaceAll("$", "\\$").replaceAll("{", "\\{").replaceAll("}", "\\}")}`))
+  assert.match(
+    ciWorkflow,
+    /uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a\r?\n        with:\r?\n          name: next-runtime-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}\r?\n          path: \|\r?\n            \.next\r?\n            !\.next\/cache\/\*\*\r?\n          if-no-files-found: error\r?\n          retention-days: 1\r?\n          include-hidden-files: true/,
+  )
+  assert.match(
+    ciWorkflow,
+    /uses: actions\/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c\r?\n        with:\r?\n          name: next-runtime-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}\r?\n          path: \.next/,
+  )
+  assert.match(
+    ciWorkflow,
+    /if: \$\{\{ always\(\) \}\}\r?\n        uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a\r?\n        with:\r?\n          name: browser-diagnostics-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}-lane-\$\{\{ matrix\.lane \}\}\r?\n          path: test-results\r?\n          if-no-files-found: ignore\r?\n          retention-days: 7\r?\n          include-hidden-files: true/,
+  )
+
+  assert.match(ciWorkflow, /needs:\r?\n      - code_quality\r?\n      - browser_build\r?\n      - browser_qa/)
+  assert.match(ciWorkflow, /CODE_QUALITY_RESULT: \$\{\{ needs\.code_quality\.result \}\}/)
+  assert.match(ciWorkflow, /BROWSER_BUILD_RESULT: \$\{\{ needs\.browser_build\.result \}\}/)
+  assert.match(ciWorkflow, /BROWSER_QA_RESULT: \$\{\{ needs\.browser_qa\.result \}\}/)
+  assert.match(ciWorkflow, /"code_quality=\$CODE_QUALITY_RESULT"/)
+  assert.match(ciWorkflow, /"browser_build=\$BROWSER_BUILD_RESULT"/)
+  assert.match(ciWorkflow, /"browser_qa=\$BROWSER_QA_RESULT"/)
+  assert.match(ciWorkflow, /echo "::error::\$dependency returned \$result"/)
+  assert.match(ciWorkflow, /if \[ "\$result" != "success" \]; then/)
+  assert.match(ciWorkflow, /exit "\$failed"/)
+
+  assert.match(ciWorkflow, /^  pull_request:/m)
+  assert.match(ciWorkflow, /^  push:\r?\n    branches:\r?\n      - main$/m)
+  assert.match(ciWorkflow, /^permissions:\r?\n  contents: read$/m)
+  assert.match(ciWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/)
+  assertWorkflowStepBefore(ciWorkflow, "npm run prisma:generate", "npm run typecheck")
+  assertWorkflowStepBefore(ciWorkflow, "npm run prisma:generate", "npm run test:browser")
 })
