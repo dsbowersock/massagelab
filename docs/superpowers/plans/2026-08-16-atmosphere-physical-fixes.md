@@ -2,11 +2,19 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Restore canonical station artwork on the protected deployment, make one cold Play touch authoritative on the physically affected Samsung path, and use a coherent constrained-landscape player rail and viewport-fitted station carousel everywhere the active player is exposed.
+**Goal:** Complete physical Samsung acceptance for canonical station artwork, one-touch playback, responsive station/player presentation, and truthful Media Session lifecycle behavior without changing the single playback, artwork, player, or carousel ownership model.
 
-**Architecture:** Keep the existing station-art identity, playback, player, and carousel owners. The centered card supplies a narrow touch/pen `pointerup` compatibility adapter without changing mouse/keyboard activation; Media Session publishes one cache-revisioned honest `512x512` PNG while app surfaces retain inline canonical SVG; every constrained-landscape route presents the existing player as a right rail and publishes its real overlay exclusion inset; only `/music` squeezes its bounded workspace around that rail, while other routes retain ordinary full-width vertical scrolling. The station carousel owns station-only looping, exact side-control geometry, glow clearance, and full allocated-stage use without changing Background carousel behavior.
+**Architecture:** Keep the existing station-art identity, playback, player, and carousel owners. The centered card supplies the proven narrow touch/pen `pointerup` compatibility adapter; Media Session publishes one cache-revisioned honest `512x512` platform derivative while app surfaces and legacy image routes retain canonical output; every constrained-landscape route uses the existing right rail, while `/music` alone constrains its workspace. The station carousel uses actual viewport orientation for its landscape/full-stage decision, a stable width-driven `192:224` portrait ratio, and capability-aware optional buttons without changing swipe, keyboard, looping, or Background behavior. Explicit Stop clears system ownership immediately, retains the in-app Stopped identity for exactly 60 seconds, and then retires it through the existing provider under session-generation guards.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript/JavaScript, Sharp 0.35.3, Tailwind CSS 3, Embla Carousel, Radix UI, Media Session API, Node test runner, Playwright desktop/mobile Chromium and scoped WebKit, Vercel protected previews, GitHub Actions.
+
+**Baseline/Authority Refs:** `docs/project-state.md`, `docs/project-log.md`, `docs/wiki/index.md`, `docs/wiki/atmosphere-audio.md`, this parent plan, ignored Tasks 13–17 execution reports, the untracked Android QA report, exact pushed/deployed head `c905db0458152659ef0ea2c0598a902c9631049e`, and the user's 2026-08-17 S24 screenshots, observations, and approved Round 4 design.
+
+**Compatibility Boundary:** Preserve one audio runtime/carrier/Media Session owner, authoritative Pause/Stop/Previous/Next request-generation guards, no fabricated duration or seeking, direct unversioned 256/512 artwork routes, inline canonical SVG, Background carousel behavior, portrait bottom-player placement, ordinary non-Music scrolling, rail-aware overlays, and PR #183's draft/unmerged state. The notification heart is explicitly deferred to a future native Android surface; do not create a web workaround, `skipad` mapping, or duplicate generic notification.
+
+**TDD Route:** Mode `auto`; decision `strict`; strict authority is the parent plan and approved subagent-driven repair contract requiring the smallest reproducing RED before every production change. Each coherent task receives fresh implementer, spec review, quality review, coordinator verification, and one scoped commit.
+
+**Verification:** Focused Node and Playwright RED/GREEN per task, typecheck/lint/build/diff-check, full desktop/mobile/WebKit release matrices, exact hosted decode/hash/crop proof, one immutable deployment, and an affected Samsung S24 pass recording screenshots, CSS/visual viewport, DPR, subjective artwork judgment, responsive geometry, control-capability behavior, and the 60-second stopped-player lifecycle.
 
 ## Global Constraints
 
@@ -1698,3 +1706,764 @@ unexecuted platform/device rows explicitly pending.
   serially. Fallback is inline execution with the same gates if agent capacity
   is unavailable. No new user confirmation is required before implementation;
   deployment/PR actions remain limited by the explicit Task 17 stop boundaries.
+
+## Physical Round 4 Amendment — 2026-08-17
+
+The user physically tested immutable deployment
+`https://massagelab-ghs8jf2mt-dsbteam.vercel.app/music` at exact pushed head
+`c905db0458152659ef0ea2c0598a902c9631049e` on the recorded Samsung Galaxy S24
+Ultra and Chrome 151. This pass accepts the first-touch repair, matching system
+artwork, Previous/Next identity pairing, no fabricated timeline, reduced
+motion, global constrained-landscape rail placement, station looping, rail
+action order, and observed overlay clearance. It reopens only notification
+sharpness, vinyl timing/edge clearance, portrait card stability, conditional
+station navigation, and stopped-player retirement.
+
+The notification heart request is understood but explicitly deferred. The Web
+Media Session action vocabulary does not provide an application-defined
+favorite/like action. This branch must not mislabel another standardized media
+action, publish a second generic web notification, or otherwise imitate a
+native control. A future native Android wrapper may expose the existing
+favorite owner as a custom notification action.
+
+### Round 4 goal, architecture, and technology
+
+**Goal:** improve only the affected platform raster; slow and inset the vinyl;
+make portrait station geometry stable across expanded/collapsed bottom-player
+states; show station buttons only when they are needed or a fine pointer is
+available; and dismiss a retained Stopped player after exactly 60 seconds.
+
+**Architecture:** use the existing artwork route as a revision-selective
+platform derivative, leaving unversioned compatibility output and inline SVG
+untouched. Keep vinyl presentation in the existing player CSS. Correct station
+orientation at the carousel owner by passing the actual constrained-landscape
+viewport state into the pure tuning model, and let the existing stage suppress
+its custom control allocation when controls are not rendered. Keep the
+provider as the only stopped-session owner: immediate Stop clears generator,
+carrier, and Media Session; one guarded timer later clears retained identity.
+
+**Tech Stack:** unchanged: Next.js 16, React 19, TypeScript/JavaScript, Sharp
+0.35.3, Tailwind CSS 3, Embla, Media Session, Node test runner, Playwright
+desktop/mobile Chromium and WebKit media smoke, Vercel, GitHub Actions, and
+CodeRabbit.
+
+### Round 4 authority and readiness
+
+**Aegis Visibility:** the remaining work crosses platform raster publication,
+responsive geometry, pointer-capability changes, and a delayed provider
+lifecycle transition; durable owner, compatibility, retirement, and exact-head
+physical gates are required before implementation resumes.
+
+**Baseline/Authority Refs:**
+
+- Exact local, remote, PR, and immutable-preview head:
+  `c905db0458152659ef0ea2c0598a902c9631049e`.
+- `.superpowers/sdd/2026-08-16-atmosphere-physical-fixes/task-13-report.md`
+  through `task-17-report.md`.
+- `docs/superpowers/qa/2026-08-14-android-media-notifications-audio-interruptions.md`.
+- Nine 2026-08-17 Samsung screenshots and the user's direct physical results.
+- The user's approved 52-second, 7px, stable-portrait, conditional-navigation,
+  native-heart deferral, and 60-second stopped-retirement decisions.
+- `docs/project-state.md`, `docs/project-log.md`, `docs/wiki/index.md`, and
+  `docs/wiki/atmosphere-audio.md`.
+
+**BaselineUsageDraft:**
+
+- Required baseline refs: exact head/status; canonical state/log/wiki; parent
+  plan; Tasks 13–17 reports; untracked physical QA; current owner source.
+- Delivered context refs: nine screenshots and direct S24 observations.
+- Acknowledged before plan refs: all required refs above.
+- Cited in plan refs: all required refs above.
+- Missing refs: the screenshots establish raster orientation and UI evidence,
+  but CSS viewport, `visualViewport`, and DPR were not captured. Task 22 records
+  them before interpreting future geometry.
+- Decision: continue.
+
+**Requirement Ready Check:**
+
+- Requirement source refs: direct physical findings plus the user's separately
+  approved design answers.
+- Goals and scope refs: platform-only mild 512 derivative, 52-second playing
+  rotation, 7px rail inset, stable portrait ratio, capability-aware controls,
+  and exact 60,000ms stopped retirement.
+- User/scenario refs: S24 Ultra Chrome 151, portrait and constrained landscape,
+  normal/reduced motion, touch-only and connected fine pointer, explicit Stop,
+  route changes, and any-station restart.
+- Acceptance refs: deterministic contracts and physical matrix in Tasks 18–22.
+- Open blocker questions: none.
+- Decision: ready.
+
+**Change Necessity:**
+
+- User-visible need: the notification remains softer than comparable media
+  notifications; vinyl movement/rail edge spacing is uncomfortable; portrait
+  card proportions change with player state; touch-only buttons consume card
+  space; and stopped identity persists indefinitely.
+- No-change/non-code option: documentation, user training, or OS settings
+  cannot change raster detail, geometry, capability visibility, or lifecycle.
+- Why code change is necessary: each remaining result is owned by raster
+  generation, CSS, carousel measurement/rendering, or provider state.
+- Minimum change boundary: the existing raster route/revision, player CSS,
+  station carousel/model/stage, provider, and focused canonical tests.
+- Decision: code-change.
+
+**Existence Check:**
+
+- Proposed new surface: no new artwork catalog, audio owner, player, media
+  action, notification, pointer subsystem, or lifecycle manager.
+- Existing owner/reuse candidate: canonical artwork helper/route, player CSS,
+  station carousel/model/stage, and global music provider.
+- Why existing surface is sufficient: each already owns the exact data and
+  transition being changed.
+- Creation proof: one short-lived provider timeout ref and one stage visibility
+  prop are state inside existing owners, not new subsystems or fallbacks.
+- Entropy/retirement impact: one timer is cancelled/cleared on every terminal
+  path; obsolete indefinite retention and stage-shape orientation inference are
+  retired.
+- Decision: reuse-existing.
+
+**Architecture Integrity Lens:**
+
+- Invariant: canonical SVG identity, station ids, provider request/session
+  authority, and Background behavior remain single-source and unchanged.
+- Canonical owners: artwork route/helper, player CSS, station carousel/model/
+  stage, and provider.
+- Responsibility overlap: the platform derivative must not leak into inline or
+  legacy route output; the timer must not move into the mini-player; media-query
+  capability must not be inferred from `maxTouchPoints`.
+- Higher-level simplification: actual viewport orientation replaces unreliable
+  stage-box orientation; Stop retirement is one provider transition rather than
+  a UI-local hide.
+- Retirement/falsifier: if the revisioned c905 raster is not byte-identical to
+  the direct legacy raster before Task 18, stop and reconcile the baseline. If
+  portrait dimensions differ while viewport width is unchanged after the model
+  RED is added, stop and identify a second geometry owner.
+- Verdict: proceed.
+
+**Compatibility Boundary:**
+
+- Preserve direct unversioned `size=256` and `size=512` bytes and semantics,
+  inline SVG source/geometry/palette/motif, one 512 Media Session descriptor,
+  no 1024 candidate, and no contrast/source-art redesign.
+- Preserve bottom/portrait vinyl size and placement, playing-only animation,
+  reduced-motion no-animation, expanded/collapsed rail composition, and safe
+  overlay geometry.
+- Preserve constrained-landscape full-stage cards, station swipe/drag/keyboard/
+  loop behavior, exact 16px button placement when visible, and all Background
+  carousel behavior.
+- Preserve immediate Stop teardown/dismissal and authoritative request/session
+  guards. Pause, Interrupted, Loading, and Failed never schedule retirement.
+- Notification heart remains native-only deferred work; no web workaround.
+- Keep PR #183 draft and unmerged until exact-head local, hosted, and affected
+  physical gates are green.
+
+**TDD Route:**
+
+- Mode: auto.
+- Decision: strict.
+- Strict authority: parent-plan rule and approved subagent-driven execution.
+- Test posture: exact current-code RED, minimum owner repair, focused GREEN,
+  fresh spec/quality review, coordinator rerun, one coherent commit.
+- Reason: raster compatibility, shared stage behavior, and delayed provider
+  state each carry cross-surface or race risk.
+- Verification: Tasks 18–21 record RED/GREEN and independent review; Task 22
+  owns broad/hosted/physical/PR gates.
+
+**Plan Pressure Test:**
+
+- Owner/contract/retirement: explicit in every task; no duplicate owner.
+- Architecture integrity/higher-level path: actual viewport orientation and
+  provider lifecycle are the highest stable owners.
+- Verification scope: byte/decode/crop, geometry/media-query changes, fake-time
+  races, full release, hosted proof, and physical S24 evidence.
+- Task executability: four independently revertible implementation tasks plus
+  one serial release task.
+- Pressure result: proceed.
+
+**Complexity Budget:**
+
+- Artifact class: platform adapter, high-pressure global CSS/browser tests,
+  shared carousel stage/model, and high-pressure provider.
+- Target files: artwork route/helper/tests; `app/globals.css`; station carousel,
+  adaptive model/stage/tests; provider and lifecycle tests.
+- Current pressure: CSS, provider, and browser suites are already large.
+- Projected post-change pressure: within responsibility but at-risk by size.
+- Budget result: at-risk.
+- Planned governance: four owner-bounded tasks; reuse existing browser helpers
+  and page clock; no new helper file unless review proves an existing owner
+  cannot express the contract; no unrelated refactor.
+
+**Plan-Time Complexity Check:**
+
+- Target files: `route.tsx`, `station-artwork.ts`, `app/globals.css`,
+  `station-carousel.tsx`, adaptive model/stage, `music-provider.tsx`, and their
+  current tests.
+- Existing size/shape signals: provider and browser specs are large; route and
+  model are compact; carousel stage already owns custom-control allocation.
+- Owner fit: all behavior belongs to the current files.
+- Add-in-place risk: highest for provider callback dependencies and browser
+  geometry fixtures.
+- Better file boundary: keep the timeout as one documented provider lifecycle
+  block; extend the existing station geometry/media fixture rather than adding
+  another oracle.
+- Recommendation: split task; edit in place.
+
+### Round 4 file responsibility additions
+
+- `app/api/atmosphere/stations/[stationId]/artwork/route.tsx`: selects the mild
+  raster derivative only for the exact current revisioned 512 request and
+  guards emitted dimensions.
+- `lib/atmosphere/station-artwork.ts`: bumps the one platform cache revision;
+  canonical SVG identity remains unchanged.
+- `app/globals.css`: owns 52-second playing motion and the 7px rail record inset.
+- `components/atmosphere/station-carousel.tsx`: owns live reduced-motion,
+  fine-hover-pointer, and constrained-landscape query state.
+- `components/carousels/adaptive-carousel-model.js`: owns the stable `192:224`
+  portrait ratio and explicit constrained-landscape full-stage branch.
+- `components/carousels/adaptive-carousel-stage.tsx`: removes station control
+  rendering/reservation when the surface owner says those controls are hidden.
+- `components/providers/music-provider.tsx`: owns the explicit-Stop retention
+  deadline and guarded retained-identity retirement.
+
+### Execution Readiness View
+
+- Intent Lock: implement only Tasks 18–22 and the approved Round 4 behaviors.
+- Scope Fence: no heart workaround, 1024 image, contrast adjustment, source-art
+  change, provider redesign, Background change, native wrapper, or merge.
+- Baseline Lock: exact `c905db04...`; clean tracked state; one intentional
+  untracked QA file; current physical passes/failures recorded below.
+- Approved Behavior: mild derivative at density 153.6; 52-second playing vinyl;
+  7px rail inset; stable portrait ratio; query-driven buttons; 60-second Stop
+  retirement.
+- Owner/Contract Constraints: use the existing owners above; session generation
+  remains the race authority.
+- Compatibility Boundary: as stated above.
+- Retirement Boundary: retire soft revisioned raster bytes, 16-second motion,
+  edge-touching rail vinyl, stage-shape orientation, unconditional station
+  buttons/control reserve, and indefinite stopped identity.
+- Task Batches: Task 18 artwork; Task 19 vinyl; Task 20 carousel; Task 21
+  lifecycle; Task 22 release/physical/docs/review.
+- Test Obligations: strict RED/GREEN, fresh spec and quality review, coordinator
+  rerun, scoped commit, exact-head full matrix, hosted proof, S24 rerun.
+- Review Gates: do not begin the next task before the current task is reviewed,
+  freshly verified, and committed by the coordinator.
+- Drift/Rewind Rules: verify against current code; if RED does not reproduce,
+  stop the repair. Any bundle-affecting change after physical acceptance invokes
+  the full post-physical rewind in Task 22.
+- Evidence Required Before Completion: exact commands/counts, legacy/revisioned
+  hashes and crops, geometry/query receipts, fake-time races, immutable deploy,
+  S24 screenshots/viewport/DPR/subjective art result, checks, substantive
+  CodeRabbit review, and zero unresolved threads.
+- Advisory Boundary: method-pack execution guidance only; not GateDecision,
+  PolicySnapshot, or completion authority.
+
+### Task 18: Apply the triggered revisioned 512px platform derivative
+
+**Files:**
+
+- Modify: `app/api/atmosphere/stations/[stationId]/artwork/route.tsx`
+- Modify: `lib/atmosphere/station-artwork.ts`
+- Modify: `tests/atmosphere-station-artwork.test.mjs`
+- Modify: `tests/atmosphere-media-session-controller.test.mjs`
+- Modify: `tests/browser/music-media-session.spec.ts`
+- Create ignored evidence:
+  `.superpowers/sdd/2026-08-16-atmosphere-physical-fixes/task-18-report.md`
+
+**Why:** the exact c905 revisioned 512 image decodes correctly and matches the
+station, but the user still finds its notification rendering visibly softer
+than other Android audio notifications. This satisfies Task 14B's physical
+trigger.
+
+**Change Necessity:** cache revision alone has been physically falsified as a
+complete clarity repair. The minimum source edit is the exact revisioned 512
+raster path; canonical SVG and compatibility paths stay unchanged.
+
+**Impact/Compatibility:** only `size=512&v=<current revision>` receives native
+SVG raster density plus mild default Sharp sharpening. Unversioned 256/512,
+unknown revisions, inline SVG, station identity, response/error/cache policy,
+and one-entry metadata shape remain compatible.
+
+**Repair Track:** bump the platform revision to `2026-08-17-1`. Parse the URL
+once, identify only an exact 512/current-revision request, construct Sharp with
+SVG density `153.6` (`72 * 512 / 240`), retain an exact 512×512 resize guard,
+call Sharp's default `.sharpen()` with no custom sigma/flat/jagged values, and
+reject any emitted dimensions other than the requested allowlisted size.
+
+Use this exact pipeline shape after the RED:
+
+```ts
+const searchParams = new URL(request.url).searchParams
+const size = parseArtworkSize(searchParams.get("size"))
+const platformDerivative = size === 512
+  && searchParams.get("v") === ATMOSPHERE_MEDIA_SESSION_ARTWORK_REVISION
+
+const pipeline = platformDerivative
+  ? sharp(Buffer.from(svg), { density: 153.6 })
+      .resize(512, 512, { fit: "fill" })
+      .sharpen()
+  : sharp(Buffer.from(svg)).resize(size, size, { fit: "fill" })
+const { data: png, info } = await pipeline
+  .png({ compressionLevel: 9 })
+  .toBuffer({ resolveWithObject: true })
+if (info.width !== size || info.height !== size) {
+  throw new Error("Station artwork dimensions do not match the requested size")
+}
+```
+
+Import the canonical revision constant into the route. Do not add contrast,
+modulate, gamma, source geometry, or 1024 output.
+
+**Retirement Track:** retire c905's revisioned-but-unsharpened platform bytes.
+Keep legacy output indefinitely unless a separately approved compatibility
+retirement proves it unused.
+
+- [ ] Capture `TaskStartSnapshot`, repeat the nine-worktree overlap audit, and
+  download c905's exact revisioned Proof Drone and Trees/Gamma 512 responses.
+  Record URL, PNG signature, dimensions, SHA-256, and the SHA-256 of a fixed
+  center crop (`left=128, top=128, width=256, height=256`). Require the current
+  revisioned and direct unversioned 512 bytes/crops to match before editing; if
+  they do not, stop and reconcile the baseline.
+- [ ] Add strict RED assertions that the exported revision equals
+  `2026-08-17-1`, Media Session still publishes exactly one revisioned 512
+  entry, direct unversioned 256/512 decode unchanged, and the current revisioned
+  512 whole-image and center-crop hashes differ from direct 512 while dimensions
+  remain exactly `512x512`. Current source must fail on the revision and
+  byte/crop difference.
+- [ ] Implement only the pipeline above and revision bump. Preserve the
+  existing `new Uint8Array(png)` response boundary and cache/error headers.
+- [ ] GREEN all-station signature/decode/stability/distinctness, repeated same-
+  station bytes, Previous/Next title/art pairing, no timeline, zero in-app
+  artwork requests, exact legacy baseline hashes, distinct revisioned hash and
+  crop, and unchanged canonical SVG serialization/hash.
+- [ ] Run:
+
+  ```powershell
+  node --test tests/atmosphere-station-artwork.test.mjs tests/atmosphere-media-session-controller.test.mjs
+  npm run test:browser -- tests/browser/music-media-session.spec.ts --project=desktop-chromium --project=mobile-chromium --project=webkit-media-smoke --grep "canonical station artwork|platform artwork derivative|Media Session metadata|Previous and Next|Live position"
+  npm run typecheck
+  npm run lint
+  npm run build
+  git diff --check
+  ```
+
+  Expected: exact legacy hashes remain, revisioned bytes/crop change and decode
+  at 512 in every applicable engine, all identity/no-timeline assertions pass,
+  and every static/build gate is green.
+- [ ] Obtain fresh spec/quality approval. The coordinator reruns the gates,
+  commits `fix: tune media session artwork clarity`, and records before/after
+  whole/crop hashes plus decoded dimensions in `task-18-report.md`. Do not
+  deploy separately; Task 22 owns the coordinated immutable physical build.
+
+### Task 19: Slow the vinyl and add exact landscape-rail clearance
+
+**Files:**
+
+- Modify: `app/globals.css`
+- Modify: `tests/browser/music-media-session.spec.ts`
+- Modify: `tests/browser/app-shell.spec.ts`
+- Create ignored evidence:
+  `.superpowers/sdd/2026-08-16-atmosphere-physical-fixes/task-19-report.md`
+
+**Why:** the accepted 16-second motion is still uncomfortable for the user, and
+the expanded/collapsed landscape record visually touches the rail edge.
+
+**Change Necessity:** timing and geometry are CSS-owned runtime presentation;
+no preference or documentation change can satisfy them.
+
+**Impact/Compatibility:** normal playing rotation becomes 52 seconds. Paused,
+Stopped, Loading, and reduced-motion behavior remain stationary. Only the
+landscape rail record changes size/offset; portrait/bottom geometry stays byte-
+and-layout-compatible.
+
+**Repair Track:** change the base disc animation to `52s linear infinite`. In
+the constrained-landscape rail block set the record diameter to
+`calc(var(--ml-music-player-expanded-rail-width) - 14px)` and set `left: 7px;
+top: 7px`. Collapsed mode retains that exact diameter and origin while the rail
+layer clips its left arc.
+
+**Retirement Track:** retire 16-second normal motion and the rail's zero-edge
+record. The 7px value is a reviewed starting contract, not a new spacing token.
+
+- [ ] RED computed animation at Playing, Paused, Stopped, and reduced motion:
+  current Playing reports `16s`, so require `52s`; require paused/stopped play
+  state paused and reduced motion `animation-name: none`.
+- [ ] RED rail geometry at `844x390`, `746x284`, and the captured S24-class
+  viewport. Expanded record top/left must equal rail top/left plus `7px ±1` and
+  diameter must equal expanded rail width minus `14px ±1`. Collapsed record
+  must retain that exact diameter and origin while extending beyond the clipped
+  rail; only its left arc is visible.
+- [ ] Record portrait expanded/collapsed bottom-player vinyl rectangles before
+  the edit and require exact parity after the edit.
+- [ ] Apply only the duration and constrained-landscape CSS changes.
+- [ ] Run:
+
+  ```powershell
+  npm run test:browser -- tests/browser/music-media-session.spec.ts --project=mobile-chromium --project=desktop-chromium --grep "vinyl"
+  npm run test:browser -- tests/browser/app-shell.spec.ts --project=mobile-chromium --grep "vinyl geometry|rail inset|portrait player"
+  npm run typecheck
+  npm run lint
+  npm run build
+  git diff --check
+  ```
+
+  Expected: 52-second playing-only motion, no reduced-motion animation, exact
+  7px rail inset in both states, unchanged portrait geometry, and green gates.
+- [ ] Obtain fresh spec/quality approval, coordinator verification, and commit
+  `fix: refine atmosphere vinyl motion and rail inset`. Record computed styles
+  and rectangles in `task-19-report.md`.
+
+### Task 20: Stabilize portrait cards and conditionally expose station buttons
+
+**Files:**
+
+- Modify: `components/atmosphere/station-carousel.tsx`
+- Modify: `components/carousels/adaptive-carousel-model.js`
+- Modify: `components/carousels/adaptive-carousel-stage.tsx`
+- Modify: `tests/adaptive-carousel.test.mjs`
+- Modify: `tests/browser/app-shell.spec.ts`
+- Modify: `tests/browser/public-routes.spec.ts`
+- Create ignored evidence:
+  `.superpowers/sdd/2026-08-16-atmosphere-physical-fixes/task-20-report.md`
+
+**Why:** a short portrait stage can currently satisfy `width > height` and be
+misclassified as constrained landscape, causing the center card to change
+height when the bottom player expands/collapses. Touch-only normal-motion users
+also lose side-card height to buttons they do not need.
+
+**Change Necessity:** current orientation and reservation logic are source
+contracts in the carousel/model/stage. CSS alone cannot distinguish viewport
+orientation, live pointer capability, and reduced motion without leaving React
+DOM/reservation behavior stale.
+
+**Impact/Compatibility:** portrait stations use the existing 192×224 baseline
+ratio (`7/6`) at the current width clamp and remain stable across player state.
+Constrained landscape still consumes the full stage. Buttons are visible when
+reduced motion is active or `(any-hover: hover) and (any-pointer: fine)`
+matches; otherwise they and their reserve are absent. Swipe/drag, keyboard,
+centering, side-card navigation, and looping always remain active. Background
+is unchanged.
+
+**Repair Track:**
+
+1. In `station-carousel.tsx`, listen to these exact live queries and remove all
+   listeners on unmount:
+
+   ```ts
+   const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
+   const finePointerQuery = window.matchMedia("(any-hover: hover) and (any-pointer: fine)")
+   const constrainedLandscapeQuery = window.matchMedia(
+     "(orientation: landscape) and (max-width: 60rem) and (max-height: 31.25rem)",
+   )
+   ```
+
+   Derive `showStationControls = reducedMotion || hasFineHoverPointer`. Do not
+   inspect `navigator.maxTouchPoints`.
+2. Extend the pure station-tuning input with explicit
+   `constrainedLandscape`. For portrait/unconstrained mode compute width with
+   the existing `160..192` clamp, then height as
+   `Math.round(cardWidth * 224 / 192)`. Do not infer orientation from stage
+   width/height. For constrained landscape retain full measured stage height.
+3. Add one default-true stage prop named `customControlsVisible`. When a custom
+   station control renderer exists and the prop is false, render no controls,
+   publish no `data-station-carousel-controls`, and compute summary height
+   without the `2.75rem + 16px` reserve. Background/default navigation remains
+   on the existing path.
+
+**Retirement Track:** retire stage-box orientation inference, unconditional
+station control DOM, and hidden-control reserve. Retain exact shown-control
+placement and all nonbutton navigation.
+
+- [ ] Node RED: a portrait viewport with a wide/short stage and unchanged width
+  must resolve the same `192x224` or proportionate `160..192`/`7:6` dimensions
+  before and after player state; current code misclassifies it. Require explicit
+  constrained landscape to retain full stage height.
+- [ ] Browser RED at `390x844` and `360x670`: with equal viewport width, start a
+  station and measure center/side cards in player expanded, collapsed, stopped,
+  and restarted states. Center width, height, and ratio must remain within one
+  pixel across states; current source must fail at least one state.
+- [ ] Capability RED: mobile normal-motion/touch-only has no Previous/Next
+  buttons or control marker and side summaries use the unreserved height;
+  reduced motion shows both buttons exactly 16px below side cards; desktop fine
+  pointer shows both; dynamically changing either query updates DOM and
+  reservation without remount. Current unconditional controls must fail.
+- [ ] GREEN swipe/drag, Arrow keys, visible side-card click, and first↔last
+  looping with buttons hidden. When buttons show, retain `16px ±1` and full
+  containment. Require no use of `maxTouchPoints` in the source contract.
+- [ ] Re-run Background normal/reduced button, keyboard, drag, custom/default
+  control, geometry, and loop contracts with no DOM/behavior change.
+- [ ] Run:
+
+  ```powershell
+  node --test tests/adaptive-carousel.test.mjs
+  npm run test:browser -- tests/browser/app-shell.spec.ts tests/browser/public-routes.spec.ts --project=mobile-chromium --grep "stable portrait station cards|station controls follow input capability|station carousel loops|station swipe wraps|16px below|full constrained landscape|Background"
+  npm run test:browser -- tests/browser/app-shell.spec.ts tests/browser/public-routes.spec.ts --project=desktop-chromium --grep "fine pointer station controls|station carousel loops|Background"
+  npm run typecheck
+  npm run lint
+  npm run build
+  git diff --check
+  ```
+
+  Expected: stable portrait ratio, unchanged landscape fill, live conditional
+  buttons/reservation, permanent nonbutton navigation/looping, unchanged
+  Background behavior, and all gates green.
+- [ ] Obtain fresh spec/quality approval, coordinator verification, and commit
+  `fix: stabilize responsive station controls and sizing`. Record every query
+  state and card/control rectangle in `task-20-report.md`.
+
+### Task 21: Retire an explicitly stopped player after 60 seconds
+
+**Files:**
+
+- Modify: `components/providers/music-provider.tsx`
+- Modify: `tests/music-visualizer-provider.test.mjs`
+- Modify: `tests/browser/music-media-session.spec.ts`
+- Modify: `tests/browser/app-shell.spec.ts`
+- Create ignored evidence:
+  `.superpowers/sdd/2026-08-16-atmosphere-physical-fixes/task-21-report.md`
+
+**Why:** explicit Stop correctly dismisses OS media ownership but retains the
+Stopped in-app player forever. The user wants a 60-second opportunity to
+restart, followed by complete player retirement if nothing restarts.
+
+**Change Necessity:** retention and identity are provider state. Hiding the
+mini-player with CSS would leave stale canonical state and could reappear on a
+route/layout change.
+
+**Impact/Compatibility:** explicit Stop still immediately invalidates the
+request/session, stops generator/carrier, clears Media Session metadata and the
+OS card, and displays Stopped. At 60,000ms it clears active station id, title,
+artwork, and metadata refs/state so player/body/rail markers disappear. Any
+station restart or adjacent action cancels synchronously. Pause, Interrupted,
+Loading, Failed, settings, Favorite, Background, minimize/expand, and route
+changes neither schedule nor cancel the deadline.
+
+**Repair Track:** add `STOPPED_PLAYER_RETENTION_MS = 60_000`, one timeout ref,
+one idempotent cancellation callback, and one guarded retirement callback in
+the provider. `stopCurrent` captures the incremented session generation and
+stopped station id, performs all existing immediate teardown, then schedules
+retirement. The callback may clear identity only when the captured generation
+still equals `playbackSessionGenerationRef.current`, lifecycle status remains
+`stopped`, and `activeStationIdRef.current` still equals the captured station.
+At the first synchronous line of `playStation` and `playAdjacentStation`, cancel
+the pending deadline before any `await`. Provider unmount also clears it.
+
+The guarded retirement clears exactly:
+
+```ts
+activeStationIdRef.current = null
+activeStationMetadataRef.current = null
+activeStationArtworkRef.current = null
+setActiveStationId(null)
+setActiveStationTitle(null)
+setActiveStationArtwork(null)
+```
+
+It does not start/stop audio, publish metadata, change preferences, or create a
+new lifecycle session.
+
+**Retirement Track:** retire indefinite stopped identity and the old source
+contract forbidding any identity clear in `stopCurrent`. The timer itself is
+retired on fire, restart/adjacent intent, replacement Stop, or unmount.
+
+- [ ] Strict RED with Playwright page clock: after explicit Stop, prove carrier
+  and Media Session clear immediately, state/identity/player remain Stopped at
+  `59,999ms`, then player plus active/body/rail markers disappear at exactly
+  `60,000ms`. Current source must still show the player.
+- [ ] RED schedule exclusions: 60 seconds in Paused, Interrupted, Loading, and
+  Failed must not clear identity. Route changes, Settings, Favorite, Background,
+  minimize/expand, and interruption-notice actions must not cancel or extend an
+  already scheduled explicit-Stop deadline.
+- [ ] RED race matrix: restart the same station at `59,999ms`, choose an
+  adjacent station, and issue Stop→Play→late old timer. Require synchronous
+  cancellation, a new generation, and no stale timer clearing current title,
+  art, metadata, player, generator, or carrier. A second Stop replaces the old
+  deadline and expires 60 seconds from the second explicit intent.
+- [ ] Implement only the provider-owned timer/guards and update the existing
+  source contract from “never clears identity” to “never clears identity
+  synchronously; guarded retirement clears it after the constant.”
+- [ ] Run:
+
+  ```powershell
+  node --test tests/music-visualizer-provider.test.mjs tests/atmosphere-playback-lifecycle.test.mjs tests/atmosphere-runtime-controller.test.mjs tests/atmosphere-media-playback-carrier.test.mjs
+  npm run test:browser -- tests/browser/music-media-session.spec.ts tests/browser/app-shell.spec.ts --project=mobile-chromium --grep "stopped player retires after 60 seconds|stopped retirement exclusions|restart cancels stopped retirement|Stop stays authoritative|Pause cancels"
+  npm run test:browser -- tests/browser/music-media-session.spec.ts --project=desktop-chromium --grep "stopped player retires after 60 seconds|restart cancels stopped retirement|Media Session Stop"
+  npm run typecheck
+  npm run lint
+  npm run build
+  git diff --check
+  ```
+
+  Expected: immediate system dismissal, exact retained/expired boundary,
+  exclusion/race protection, no stale state, and all gates green.
+- [ ] Obtain fresh spec/quality approval, coordinator verification, and commit
+  `fix: retire stopped atmosphere player after timeout`. Record clock times,
+  generations, carrier/session state, and body markers in `task-21-report.md`.
+
+### Task 22: Coordinated release, Samsung acceptance, documentation, and PR loop
+
+**Files:**
+
+- Modify only after affected physical GREEN:
+  `docs/superpowers/qa/2026-08-14-android-media-notifications-audio-interruptions.md`
+- Modify only after affected physical GREEN: `docs/project-state.md`
+- Modify only after affected physical GREEN: `docs/project-log.md`
+- Modify only after affected physical GREEN: `docs/wiki/atmosphere-audio.md`
+- Create ignored evidence:
+  `.superpowers/sdd/2026-08-16-atmosphere-physical-fixes/task-22-report.md`
+
+**Why:** Round 4 is one coordinated physical pass. Automated raster dimensions,
+CSS geometry, and fake-time lifecycle do not establish subjective One UI
+sharpness or physical interaction acceptance.
+
+**Change Necessity:** Tasks 18–21 own source changes. Task 22 changes canonical
+documentation only after the final deployed behavior is physically accepted.
+
+**Impact/Compatibility:** no merge. PR #183 remains draft; no CodeRabbit trigger
+or ready-for-review transition occurs until all local, hosted, and affected S24
+rows pass. Previously unexecuted PWA, Bluetooth, call/meeting, carrier-failure,
+Apple, and notification Stop-control rows remain explicitly pending/not exposed.
+
+**Repair Track:** verify current failures only in their canonical Task 18–21
+owners through a new strict cycle; never stack a speculative cross-owner fix.
+
+**Retirement Track:** after exact-head physical acceptance, retire Round 4 open
+rows through truthful QA/canonical docs. Preserve all historical matrices and
+unexecuted platform rows.
+
+- [ ] Capture final preflight: exact head/status, staged/untracked files, no Git
+  operation, refreshed `origin/main`, PR head/draft state, and committed/dirty
+  overlap with all active admin/password-reset worktrees.
+- [ ] Run the complete focused Node union from Task 17 plus Tasks 18–21, then:
+
+  ```powershell
+  npm run lint
+  npm run typecheck
+  npm run test
+  npm run build
+  npm run test:browser -- tests/browser/music-media-session.spec.ts tests/browser/app-shell.spec.ts tests/browser/public-routes.spec.ts tests/browser/music-visualizer.spec.ts --project=desktop-chromium
+  npm run test:browser -- tests/browser/music-media-session.spec.ts tests/browser/app-shell.spec.ts tests/browser/public-routes.spec.ts tests/browser/music-visualizer.spec.ts --project=mobile-chromium
+  npm run test:browser -- tests/browser/music-media-session.spec.ts --project=webkit-media-smoke
+  git diff --check
+  ```
+
+  Expected: zero failures; only intentional project/engine skips and the known
+  non-failing Babel large-file note are acceptable.
+- [ ] Push the exact reviewed head, wait for Vercel/CodeQL/GitHub QA, and deploy
+  one immutable preview. Prove local/remote/PR/deployment SHA equality, `/music`
+  HTTP 200, zero in-app artwork requests, one revisioned 512 Media Session
+  descriptor, exact legacy hashes, new derivative whole/crop hashes, real 512
+  decode, and bounded logs without artwork exceptions.
+- [ ] Before judging geometry on the S24, record screenshot filenames and
+  raster dimensions plus this sanitized browser receipt:
+
+  ```js
+  ({
+    innerWidth,
+    innerHeight,
+    devicePixelRatio,
+    screenWidth: screen.width,
+    screenHeight: screen.height,
+    visualViewport: visualViewport && {
+      width: visualViewport.width,
+      height: visualViewport.height,
+      scale: visualViewport.scale,
+      offsetLeft: visualViewport.offsetLeft,
+      offsetTop: visualViewport.offsetTop,
+    },
+  })
+  ```
+
+  Do not infer CSS viewport or DPR from screenshot pixels.
+- [ ] Run the affected S24 matrix on the one immutable head:
+  1. after Play is visibly ready for five seconds, one touch starts exactly one
+     session;
+  2. carousel/vinyl/notification/lock-screen art match, the new revisioned
+     notification art receives an explicit subjective `acceptable` or `still
+     soft` judgment, and Previous/Next change title/art together;
+  3. no fabricated timeline appears;
+  4. normal vinyl completes one revolution in 52 seconds within observation
+     tolerance; pause/stop freeze it and reduced motion removes animation;
+  5. expanded/collapsed constrained-landscape rail records keep exact 7px edge
+     clearance and the collapsed left arc while overlays remain clear;
+  6. portrait center/side card rectangles and ratio remain unchanged when the
+     bottom player expands/collapses, stops, and restarts;
+  7. normal touch-only hides station buttons without side-card reserve; reduced
+     motion shows them; a connected mouse/trackpad shows them; disconnecting it
+     hides them; swipe/drag/keyboard/loop remain available and shown buttons sit
+     16px below their side cards;
+  8. explicit Stop immediately dismisses system ownership, retains Stopped in
+     app through 59 seconds, hides player/body/rail markers at 60 seconds, and a
+     same/adjacent restart before expiry cancels retirement; and
+  9. representative dialog, menu, drawer, notice, popover, tooltip, `/music`,
+     and non-Music route behavior remains accepted.
+- [ ] If any physical row fails, leave PR draft and canonical docs unchanged.
+  Add the smallest deterministic RED in Task 18, 19, 20, or 21, obtain new
+  review/commit/push, deploy a new immutable preview, and rerun every impacted
+  S24 row. A still-soft Task 18 result does not authorize contrast, 1024, or
+  source-art changes; return to the user with exact evidence and a separately
+  reviewed decision.
+- [ ] Only after affected physical GREEN, update the untracked QA report and
+  canonical state/log/wiki with exact head/deployment/device/browser, screenshot
+  names, viewport/DPR receipt, subjective artwork result, all affected rows,
+  and explicit pending platform rows. Stage only those four approved docs,
+  commit `docs: record atmosphere round four verification`, rerun docs/static
+  checks, and push.
+- [ ] Retain the Task 17 post-physical rewind rule verbatim. Any later change to
+  production source, runtime configuration, layout, artwork, public assets,
+  dependencies, build inputs, or deployed behavior immediately returns PR #183
+  to draft before push, requires focused/proportionate/full automation, a new
+  immutable deployment, and all impacted S24 rows—plus the full Round 4 matrix
+  for a shared playback/artwork/player/carousel owner—before readiness/review.
+- [ ] The only no-redeploy/no-physical exception remains a proven docs/tests/
+  ignored-evidence-only commit with complete name-status and zero bundle-root
+  diff against the accepted physical SHA. Any ambiguity invokes the rewind.
+- [ ] Subject to those exact-head rules, mark PR #183 ready, request substantive
+  CodeRabbit review after any cooldown, verify every finding against current
+  code, fix only valid findings through focused/proportionate gates, reply in
+  the original thread, resolve addressed threads, and stop with latest-head
+  substantive review, required checks green, and zero unresolved threads.
+  Never merge.
+- [ ] Write `task-22-report.md` with exact final head, command counts, hosted
+  hash/crop/decode/log receipts, physical rows, screenshot/viewport/DPR data,
+  accepted/pending boundaries, PR checks, CodeRabbit review SHA/time, thread
+  count, and tracked/untracked status.
+
+### Round 4 risks, rollback, retirement, and self-review
+
+- **Artwork risk:** default sharpening may remain subjectively soft or may add
+  halos after One UI scaling. Task 18 is independently revertible; no stronger
+  processing is authorized by this plan.
+- **Motion/rail risk:** the 7px inset reduces diameter by 14px and may feel too
+  small at the narrowest rail. Exact physical judgment can reopen only Task 19.
+- **Carousel risk:** hiding buttons must remove their reserve without removing
+  keyboard/swipe topology or changing Background. Dynamic-query and Background
+  matrices are load-bearing.
+- **Lifecycle risk:** a late stopped timer could clear a new station. Synchronous
+  cancellation plus generation/station/status guards and fake-time races are
+  load-bearing.
+- Rollback surface: normal revert of the independently scoped Task 18, 19, 20,
+  or 21 commit. Never use destructive reset or silently restore old files.
+- Retirement: old platform bytes, 16-second motion, zero rail inset,
+  stage-shape orientation, unconditional controls/reserve, and indefinite
+  stopped identity are retired only when their owning task passes.
+- Spec coverage: every approved Round 4 requirement maps to Tasks 18–22; heart
+  deferral and prohibited web workarounds are explicit.
+- Placeholder scan: no `TBD`, `TODO`, unnamed error handling, or unspecified
+  verification step remains. Future hardware/platform rows are explicitly
+  pending evidence, not implementation placeholders.
+- Type consistency: revision remains string; artwork sizes remain `256 | 512`;
+  query state is boolean; card dimensions remain finite numbers; timeout is
+  60,000ms; station identity remains nullable provider state.
+- Compatibility: legacy art, inline SVG, Background, nonbutton station
+  navigation, portrait player, system teardown, and PR draft state are pinned.
+- Change necessity/existence: every code task names the current owner and adds
+  no duplicate subsystem.
+- Architecture/minimality: provider owns lifecycle, model owns sizing, stage
+  owns reservation, CSS owns vinyl, route owns raster.
+- Verification: every production task has exact RED/GREEN, commands, review,
+  commit, rollback, and Task 22 physical acceptance.
+- Execution route: subagent-driven. Tasks 18–21 require a fresh implementer,
+  fresh spec reviewer, and fresh quality reviewer before coordinator commit;
+  Task 22 is coordinated serially. Fallback is inline with identical gates if
+  agent capacity is unavailable. No additional user confirmation is needed
+  before implementation; external PR/merge bounds remain as stated.
