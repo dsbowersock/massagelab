@@ -615,17 +615,16 @@ test("account menu hides install on an unsupported browser", async ({ page }) =>
 })
 
 test("failed install prompt stays hidden after the failed attempt", async ({ page }, testInfo) => {
-  await gotoShell(page, "/")
-  await prepareAccountMenu(page)
-  await page.evaluate(() => {
-    const event = new Event("beforeinstallprompt") as Event & {
-      prompt: () => Promise<void>
-      userChoice: Promise<{ outcome: "dismissed"; platform: string }>
-    }
-    event.prompt = async () => { throw new Error("prompt failed") }
-    event.userChoice = Promise.resolve({ outcome: "dismissed", platform: "web" })
+  await page.goto("/", { waitUntil: "commit" })
+  // Re-dispatch the synthetic prompt until preventDefault proves the install provider listener is attached.
+  await expect.poll(async () => page.evaluate(() => {
+    const event = Object.assign(new Event("beforeinstallprompt", { cancelable: true }), {
+      prompt: async () => { throw new Error("prompt failed") },
+      userChoice: Promise.resolve({ outcome: "dismissed" as const, platform: "web" }),
+    })
     window.dispatchEvent(event)
-  })
+    return event.defaultPrevented
+  }), { message: "PWA install provider captures the browser prompt event" }).toBe(true)
   await openAccountMenu(page)
   await page.getByRole("menuitem", { name: "Install MassageLab" }).click()
   await reopenAccountMenu(page, testInfo.project.name)

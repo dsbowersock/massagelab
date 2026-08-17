@@ -4,6 +4,10 @@ Use this checklist before inviting real users or tagging/deploying an alpha buil
 
 ## Automated Gate
 
+See [CI and PR checks](ci-pr-checks.md) for the repository-owned workflow,
+browser-lane diagnosis, and external-status boundaries. Its stable `qa` result
+aggregates Code quality, Browser build, and all four Browser QA lanes.
+
 ```bash
 npm run prisma:validate
 npm run typecheck
