@@ -33,9 +33,9 @@ test("sanitizeSentryEvent removes request body, headers, query strings, and defa
     },
   })
 
-  assert.deepEqual(event.request, { url: "https://massagelab.app/notes/soap" })
+  assert.deepEqual(event.request, { url: "/notes/[local-first]" })
   assert.equal("user" in event, false)
-  assert.equal(event.transaction, "/notes/soap")
+  assert.equal(event.transaction, "/notes/[local-first]")
   assert.equal("extra" in event, false)
 })
 
@@ -140,32 +140,41 @@ test("sanitizeSentryEvent preserves safe runtime diagnostics without clinical co
   assert.equal(event.logentry.formatted, "TypeError: Cannot read properties of undefined (reading 'profile') token: [Filtered]")
 })
 
-test("sanitizeSentryEvent strips transaction request metadata and router state", () => {
+test("sanitizeSentryEvent keeps only coarse request and context data", () => {
   const event = sanitizeSentryEvent({
     transaction: "/account?billing=checkout-error&_rsc=abc123",
+    request: {
+      method: "GET",
+      url: "https://massagelab.app/account?billing=checkout-error&_rsc=abc123",
+      headers: { cookie: "authjs.session-token=secret" },
+    },
     contexts: {
       trace: {
+        trace_id: "a".repeat(32),
+        span_id: "b".repeat(16),
+        op: "http.server",
         data: {
-          "http.target": "/account?billing=checkout-error&_rsc=abc123",
-          "http.request.header.next_router_state_tree": "['',{'children':['account']}]",
-          "http.request.header.cookie": "authjs.session-token=secret",
+          "http.target": "/account?billing=checkout-error",
           "http.response.status_code": 200,
+          userId: "user_123",
         },
       },
-    },
-    extra: {
-      "next_router_state_tree": "['',{'children':['notes','soap']}]",
-      "http.request.header.rsc": "1",
-      "http.target": "/notes/soap?client=Jane",
+      browser: { name: "Chrome", version: "140.0.1" },
+      device: { family: "iPhone 17", model: "A123" },
+      arbitrary: { clientName: "Jane", safeCount: 1 },
     },
   })
 
-  assert.equal(event.transaction, "/account")
-  assert.equal(event.contexts.trace.data["http.target"], "/account")
-  assert.equal(event.contexts.trace.data["http.request.header.next_router_state_tree"], "[Filtered]")
-  assert.equal(event.contexts.trace.data["http.request.header.cookie"], "[Filtered]")
-  assert.equal(event.contexts.trace.data["http.response.status_code"], 200)
-  assert.equal("extra" in event, false)
+  assert.equal(event.transaction, "/account-or-auth")
+  assert.deepEqual(event.request, { method: "GET", url: "/account-or-auth" })
+  assert.deepEqual(event.contexts.browser, { name: "Chrome" })
+  assert.equal("device" in event.contexts, false)
+  assert.equal("arbitrary" in event.contexts, false)
+  assert.equal(event.contexts.trace.trace_id, "a".repeat(32))
+  assert.deepEqual(event.contexts.trace.data, {
+    "http.target": "/account-or-auth",
+    "http.response.status_code": 200,
+  })
 })
 
 test("sanitizeSentryBreadcrumb drops automatic behavioral history", () => {
@@ -181,20 +190,23 @@ test("sanitizeSentryBreadcrumb drops automatic behavioral history", () => {
   }
 })
 
-test("sanitizeSentrySpan scrubs urls and sensitive span attributes", () => {
+test("sanitizeSentrySpan keeps route family, status, and method only", () => {
   const span = sanitizeSentrySpan({
     description: "GET /api/account/preferences?email=person@example.com",
+    name: "GET /api/account/preferences?email=person@example.com",
     data: {
       "http.url": "https://massagelab.app/api/account/preferences?email=person@example.com",
+      "http.request.method": "GET",
+      "http.response.status_code": 200,
+      "db.query": "select * from User where email = 'person@example.com'",
       clientName: "Jane Doe",
-      status_code: 200,
     },
   })
 
-  assert.equal(span.description, "GET /api/account/preferences")
+  assert.equal(span.description, "GET /api/[route]")
+  assert.equal(span.name, "GET /api/[route]")
   assert.deepEqual(span.data, {
-    "http.url": "https://massagelab.app/api/account/preferences",
-    clientName: "[Filtered]",
-    status_code: 200,
+    "http.request.method": "GET",
+    "http.response.status_code": 200,
   })
 })

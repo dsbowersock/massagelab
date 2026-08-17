@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
+import { sanitizeSentryEvent } from "../lib/sentry-privacy.js"
 import {
   buildProblemReportSentryPayload,
   classifyProblemReportRoute,
@@ -92,5 +93,24 @@ describe("privacy-safe problem reports", () => {
     assert.equal(getSafeBrowserHint("Mozilla/5.0 Firefox/120.0"), "firefox")
     assert.equal(normalizeLinkedSentryEventId(" ABCDEFabcdef12345678901234567890 "), "abcdefabcdef12345678901234567890")
     assert.equal(normalizeLinkedSentryEventId("abc"), undefined)
+  })
+
+  it("survives the final Sentry sanitizer without gaining identity or behavior data", () => {
+    const payload = buildProblemReportSentryPayload({
+      category: "page-error",
+      area: "chimer-clock",
+      route: "/chimer?background=dna",
+      userAgent: "Mozilla/5.0 Chrome/140.0.0.0 Safari/537.36",
+    })
+    const event = sanitizeSentryEvent({
+      message: payload.message,
+      tags: payload.tags,
+      contexts: payload.contexts,
+      user: { id: "must-not-survive" },
+    })
+
+    assert.equal("user" in event, false)
+    assert.equal(event.tags["ml.report.area"], "timer")
+    assert.equal(event.contexts.problemReport.safePath, "/timer")
   })
 })
