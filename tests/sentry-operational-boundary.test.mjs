@@ -43,6 +43,26 @@ describe("anonymous operational Sentry boundary", () => {
     ])
   })
 
+  it("pins root Sentry framework hooks without allowing additional capture APIs", () => {
+    const rootSources = [
+      ["instrumentation.ts", source("instrumentation.ts")],
+      ["instrumentation-client.ts", source("instrumentation-client.ts")],
+    ]
+
+    assert.match(rootSources[0][1], /export const onRequestError\s*=\s*Sentry\.captureRequestError/)
+    assert.match(rootSources[1][1], /export const onRouterTransitionStart\s*=\s*Sentry\.captureRouterTransitionStart/)
+
+    const rootCaptureCalls = rootSources
+      .flatMap(([path, contents]) => [...contents.matchAll(/Sentry\.capture[A-Za-z0-9_]+/g)]
+        .map(([match]) => `${path}:${match}`))
+      .sort()
+
+    assert.deepEqual(rootCaptureCalls, [
+      "instrumentation-client.ts:Sentry.captureRouterTransitionStart",
+      "instrumentation.ts:Sentry.captureRequestError",
+    ])
+  })
+
   it("keeps the SDK policy explicit and session-free", () => {
     const options = source("sentry.options.ts")
     const policy = source("lib/sentry-options.js")
@@ -51,6 +71,7 @@ describe("anonymous operational Sentry boundary", () => {
     assert.match(options, /enableLogs:\s*false/)
     assert.match(options, /enableMetrics:\s*false/)
     assert.match(options, /maxBreadcrumbs:\s*0/)
+    assert.match(options, /integrations\(defaultIntegrations\)\s*{\s*return filterAnonymousSentryIntegrations\(defaultIntegrations\)\s*}/s)
     assert.match(policy, /"BrowserSession"/)
     assert.match(policy, /"Replay"/)
   })
