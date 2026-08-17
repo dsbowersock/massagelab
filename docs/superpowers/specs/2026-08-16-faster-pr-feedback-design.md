@@ -148,14 +148,14 @@ Naive Playwright `--shard=1/4` is not selected. The current configuration intent
 
 A focused lane manifest is the canonical owner of project/spec assignments. `playwright.config.ts` consumes a CI-only lane identifier and constructs only the project/spec combinations owned by that lane. An ordinary local `npm run test:browser` invocation remains unchanged and continues to run both configured projects with the existing development-review exclusions.
 
-The initial assignment is based on per-project, per-spec completion-time deltas from successful hosted run `31958461963`. These figures include normal skips and the run's observed retry overhead and are planning evidence, not permanent performance promises.
+The current assignment is an evidence-driven rebalance based on median per-project, per-spec completion-time deltas from the three successful attempts of hosted run `31977717774`. These predicted totals drove the rebalance and remain planning evidence, not accepted performance proof: rebalanced run `31979464522` stayed healthy but did not meet the lane-spread and recurring-retry acceptance criteria.
 
 | Lane | Project/spec ownership | Estimated browser time |
 | --- | --- | ---: |
-| 1 | mobile `public-routes`; desktop `local-first`, `pwa`, and `admin-user-operations`; mobile `admin-user-operations` | 292.9s |
-| 2 | desktop `public-routes`, `app-shell`, `immersive-panel-shell`, and `control-system-review` | 294.3s |
-| 3 | mobile `background-commerce`, `app-shell`, and `immersive-panel-shell` | 293.1s |
-| 4 | desktop `background-commerce` and `music-visualizer`; mobile `music-visualizer`, `control-system-review`, `local-first`, and `pwa` | 293.5s |
+| 1 | mobile `public-routes` and `immersive-panel-shell` | 287.000s |
+| 2 | desktop `public-routes`, `app-shell`, `pwa`, `admin-user-operations`, and `control-system-review`; mobile `local-first`, `admin-user-operations`, and `control-system-review` | 264.174s |
+| 3 | mobile `background-commerce`, `app-shell`, and `pwa`; desktop `immersive-panel-shell` | 264.647s |
+| 4 | desktop `background-commerce`, `music-visualizer`, and `local-first`; mobile `music-visualizer` | 265.600s |
 
 The manifest exposes a pure validation surface used by unit tests. Validation rejects:
 

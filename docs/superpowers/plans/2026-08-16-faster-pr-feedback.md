@@ -83,7 +83,7 @@ Expected: failure resolving `tests/browser/ci-lanes.mjs`.
 
 ### Step 2: Implement the lane manifest and its invariant checks
 
-- [ ] Create `tests/browser/ci-lanes.mjs` with these exported constants and exact assignments:
+- [ ] Create `tests/browser/ci-lanes.mjs` with these exported constants and exact assignments. The assignment below is the evidence-driven rebalance derived from median project/spec timings across the three successful attempts of hosted run `31977717774`; its predicted totals are planning evidence, and rebalanced run `31979464522` did not satisfy final lane-spread or recurring-retry acceptance:
 
 ```js
 export const BROWSER_QA_PROJECT_NAMES = [
@@ -105,21 +105,22 @@ export const ORDINARY_BROWSER_QA_SPEC_FILES = [
 
 export const BROWSER_QA_LANES = {
   "1": {
-    "desktop-chromium": [
-      "local-first.spec.ts",
-      "pwa.spec.ts",
-      "admin-user-operations.spec.ts",
-    ],
     "mobile-chromium": [
       "public-routes.spec.ts",
-      "admin-user-operations.spec.ts",
+      "immersive-panel-shell.spec.ts",
     ],
   },
   "2": {
     "desktop-chromium": [
       "public-routes.spec.ts",
       "app-shell.spec.ts",
-      "immersive-panel-shell.spec.ts",
+      "pwa.spec.ts",
+      "admin-user-operations.spec.ts",
+      "control-system-review.spec.ts",
+    ],
+    "mobile-chromium": [
+      "local-first.spec.ts",
+      "admin-user-operations.spec.ts",
       "control-system-review.spec.ts",
     ],
   },
@@ -127,6 +128,9 @@ export const BROWSER_QA_LANES = {
     "mobile-chromium": [
       "background-commerce.spec.ts",
       "app-shell.spec.ts",
+      "pwa.spec.ts",
+    ],
+    "desktop-chromium": [
       "immersive-panel-shell.spec.ts",
     ],
   },
@@ -134,12 +138,10 @@ export const BROWSER_QA_LANES = {
     "desktop-chromium": [
       "background-commerce.spec.ts",
       "music-visualizer.spec.ts",
+      "local-first.spec.ts",
     ],
     "mobile-chromium": [
       "music-visualizer.spec.ts",
-      "control-system-review.spec.ts",
-      "local-first.spec.ts",
-      "pwa.spec.ts",
     ],
   },
 };
