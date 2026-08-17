@@ -33,14 +33,34 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
 /**
  * Extracts one job from this repository's CI workflow source. The matcher
  * intentionally follows its two-space job indentation and lowercase-letter or
- * underscore job IDs so the next top-level job forms an unambiguous boundary.
+ * underscore job IDs so the next top-level job or absolute end of the source
+ * forms an unambiguous boundary.
  */
 function getWorkflowJob(workflow, jobId) {
-  const match = workflow.match(new RegExp(`^  ${jobId}:\\r?\\n([\\s\\S]*?)(?=^  [a-z_]+:\\r?$|$)`, "m"))
+  const match = workflow.match(
+    new RegExp(`^  ${jobId}:\\r?\\n([\\s\\S]*?)(?=^  [a-z_]+:\\r?$|(?![\\s\\S]))`, "m"),
+  )
 
   assert.ok(match, `Expected workflow job ${jobId}`)
   return match[1]
 }
+
+test("workflow job extraction includes the complete body and stops at the next job", () => {
+  const workflow = [
+    "jobs:",
+    "  first_job:",
+    "    name: First job",
+    "    needs: unexpected_dependency",
+    "    steps:",
+    "      - run: npm test",
+    "  second_job:",
+    "    name: Second job",
+  ].join("\n")
+
+  const firstJob = getWorkflowJob(workflow, "first_job")
+  assert.match(firstJob, /^    needs: unexpected_dependency$/m)
+  assert.doesNotMatch(firstJob, /Second job/)
+})
 
 test("browser QA lanes cover each ordinary project and spec exactly once", async () => {
   const expectedProjects = ["desktop-chromium", "mobile-chromium"]
@@ -105,6 +125,12 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
     () => resolveCiBrowserQaLaneProjects("unknown"),
     /Unknown browser QA lane/i,
   )
+  for (const inheritedKey of ["constructor", "toString"]) {
+    assert.throws(
+      () => resolveCiBrowserQaLaneProjects(inheritedKey),
+      new RegExp(`Unknown browser QA lane: ${inheritedKey}`, "i"),
+    )
+  }
 
   const expectedLaneProjects = {
     "1": [
@@ -405,6 +431,12 @@ test("CI workflow parallelizes browser QA and aggregates every upstream result",
   assert.match(ciWorkflow, /qa:\r?\n    name: qa[\s\S]*?if: \$\{\{ always\(\) \}\}[\s\S]*?timeout-minutes: 2/)
   assert.doesNotMatch(getWorkflowJob(ciWorkflow, "code_quality"), /^    needs:/m)
   assert.doesNotMatch(getWorkflowJob(ciWorkflow, "browser_build"), /^    needs:/m)
+  for (const jobId of ["browser_build", "browser_qa"]) {
+    assert.match(
+      getWorkflowJob(ciWorkflow, jobId),
+      /- name: Check out repository\r?\n        # Pinned from actions\/checkout@v6 on 2026-06-10\.\r?\n        uses: actions\/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10\r?\n        with:\r?\n          persist-credentials: false/,
+    )
+  }
 
   assert.equal((ciWorkflow.match(/npm run build(?::next)?/g) ?? []).length, 1)
   assert.match(ciWorkflow, /strategy:\r?\n      fail-fast: false\r?\n      matrix:\r?\n        lane: \["1", "2", "3", "4"\]/)

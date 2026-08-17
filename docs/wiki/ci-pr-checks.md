@@ -16,8 +16,9 @@ After **Browser build** succeeds, **Browser QA** starts a four-lane matrix. Each
 lane downloads that same build artifact and runs only its assigned Playwright
 project/spec pairs. `tests/browser/ci-lanes.mjs` is the canonical lane owner:
 it validates that the four lanes cover every ordinary desktop- and
-mobile-Chromium project/spec pair exactly once. Do not duplicate or hand-edit a
-separate lane list in a workflow or runbook.
+mobile-Chromium project/spec pair exactly once. Keep that manifest as the source
+of truth for project/spec assignments, and keep the workflow matrix lane IDs
+synchronized with its validated lanes without duplicating the assignment map.
 
 The final `qa` job always runs after `code_quality`, `browser_build`, and the
 four-lane `browser_qa` matrix have concluded. It succeeds only when every

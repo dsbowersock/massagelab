@@ -375,12 +375,20 @@ env:
   BROWSER_BUILD_RESULT: ${{ needs.browser_build.result }}
   BROWSER_QA_RESULT: ${{ needs.browser_qa.result }}
 run: |
-  for result in "$CODE_QUALITY_RESULT" "$BROWSER_BUILD_RESULT" "$BROWSER_QA_RESULT"; do
-    echo "$result"
+  failed=0
+  for dependency_result in \
+    "code_quality=$CODE_QUALITY_RESULT" \
+    "browser_build=$BROWSER_BUILD_RESULT" \
+    "browser_qa=$BROWSER_QA_RESULT"; do
+    dependency="${dependency_result%%=*}"
+    result="${dependency_result#*=}"
+    echo "$dependency: $result"
     if [ "$result" != "success" ]; then
-      exit 1
+      echo "::error::$dependency returned $result"
+      failed=1
     fi
   done
+  exit "$failed"
 ```
 
 This intentionally makes cancellation, skipped dependencies, build failures, and any failed matrix lane visible as a failed final `qa` status.

@@ -133,8 +133,10 @@ export function resolveCiBrowserQaLaneProjects(laneId) {
 
   assertBrowserQaLaneCoverage()
   const normalizedLaneId = laneId.trim()
+  if (!Object.hasOwn(BROWSER_QA_LANES, normalizedLaneId)) {
+    throw new Error(`Unknown browser QA lane: ${normalizedLaneId}`)
+  }
   const lane = BROWSER_QA_LANES[normalizedLaneId]
-  if (!lane) throw new Error(`Unknown browser QA lane: ${normalizedLaneId}`)
 
   return Object.entries(lane)
     .filter(([, specs]) => specs.length > 0)
