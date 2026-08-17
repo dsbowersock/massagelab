@@ -188,15 +188,21 @@ async function setStationCapabilityQuery(page: Page, query: string, matches: boo
   }, { query, matches })
 }
 
+/** Opens the account menu without repeating a click after its expanded state is committed. */
 async function openAccountMenu(page: Page) {
   const trigger = page.getByTestId("account-menu-trigger")
+  const helpItem = page.getByRole("menuitem", { name: "Help & FAQ" })
 
   if (!await trigger.isVisible().catch(() => false)) {
     await page.getByRole("button", { name: "Open navigation" }).click()
   }
 
   await expect(trigger).toBeVisible()
-  await trigger.click()
+  await expect.poll(async () => {
+    if (await helpItem.isVisible().catch(() => false)) return true
+    if (await trigger.getAttribute("aria-expanded") !== "true") await trigger.click()
+    return helpItem.isVisible().catch(() => false)
+  }).toBe(true)
 }
 
 async function prepareAccountMenu(page: Page) {
@@ -647,19 +653,23 @@ const MAIN_BAR_TOOL_LABELS = [
   "Use light theme",
 ] as const
 
-async function expectStableMainBarControls(page: Page) {
+/** Reads the configured edge and ordered controls from one settled shell render. */
+async function expectStableMainBarControls(
+  page: Page,
+  expectedDrawerEdge: WideMobileShellCase["drawerEdge"],
+) {
   const usesMobileBar = (page.viewportSize()?.width ?? 0) < 768
   const usesModalDrawer = (page.viewportSize()?.width ?? 0) <= 600
   const bar = usesMobileBar
     ? page.locator(".ml-mobile-main-bar")
     : page.locator(".ml-app-topbar")
-  const drawerCluster = bar.locator(usesMobileBar ? ".ml-main-bar-drawer-brand" : ".ml-app-bar-drawer-brand")
+  const drawerClusterSelector = usesMobileBar ? ".ml-main-bar-drawer-brand" : ".ml-app-bar-drawer-brand"
+  const drawerCluster = bar.locator(drawerClusterSelector)
   const drawer = drawerControl(drawerCluster)
-  const drawerEdge = await drawerCluster.getAttribute("data-drawer-edge")
   const tools = bar.locator(".ml-main-bar-tools")
   const controls = tools.locator('a[aria-label], button[aria-label]')
   const quickCreate = bar.locator('button[data-quick-action-trigger="true"]')
-  const expectedLabels = drawerEdge === "right"
+  const expectedLabels = expectedDrawerEdge === "right"
     ? [...MAIN_BAR_TOOL_LABELS].reverse()
     : [...MAIN_BAR_TOOL_LABELS]
 
@@ -667,9 +677,15 @@ async function expectStableMainBarControls(page: Page) {
   await expect(drawer.locator('svg[data-icon="menu"]')).toHaveCount(1)
   await expect(drawer).toHaveAttribute("aria-label", "Open navigation")
   await expect(drawer).toHaveAttribute("aria-expanded", "false")
+  await expect(drawerCluster).toHaveAttribute("data-drawer-edge", expectedDrawerEdge)
   await expect(controls).toHaveCount(expectedLabels.length)
-  expect(await controls.evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
-    .toEqual(expectedLabels)
+  const settledMainBar = await bar.evaluate((element, clusterSelector) => ({
+    drawerEdge: element.querySelector(clusterSelector)?.getAttribute("data-drawer-edge"),
+    labels: Array.from(element.querySelectorAll<HTMLElement>(
+      ".ml-main-bar-tools a[aria-label], .ml-main-bar-tools button[aria-label]",
+    )).map((control) => control.getAttribute("aria-label")),
+  }), drawerClusterSelector)
+  expect(settledMainBar).toEqual({ drawerEdge: expectedDrawerEdge, labels: expectedLabels })
 
   const drawerBox = await drawer.boundingBox()
   expect(drawerBox, "drawer control box").not.toBeNull()
@@ -760,6 +776,7 @@ async function expectWideMobileShellGeometry(page: Page, shellCase: WideMobileSh
   const sidebarContainer = page.locator('[data-sidebar-container="true"]')
   const backdrop = page.getByTestId("wide-mobile-sidebar-backdrop")
   const appScroll = page.locator(".ml-app-scroll")
+  await expectStableMainBarControls(page, shellCase.drawerEdge)
   const [barBox, drawerBox, brandBox, toolsBox] = await Promise.all([
     bar.boundingBox(),
     drawer.boundingBox(),
@@ -770,7 +787,6 @@ async function expectWideMobileShellGeometry(page: Page, shellCase: WideMobileSh
   expect(barBox?.x).toBeLessThanOrEqual(1)
   expect(barBox?.width).toBeGreaterThanOrEqual(762)
   expect(barBox?.height).toBeCloseTo(52, 0)
-  await expectStableMainBarControls(page)
   expect(drawerBox, "wide-mobile drawer box").not.toBeNull()
   expect(brandBox, "wide-mobile brand box").not.toBeNull()
   expect(toolsBox, "wide-mobile tools box").not.toBeNull()
@@ -1140,7 +1156,7 @@ for (const boundaryCase of [
     })
     await gotoShell(page, "/music")
 
-    await expectStableMainBarControls(page)
+    await expectStableMainBarControls(page, boundaryCase.drawerEdge)
   })
 }
 
@@ -1157,7 +1173,7 @@ for (const drawerEdge of ["left", "right"] as const) {
     await gotoShell(page, "/music")
 
     await expectDrawerAlignedWithCollapsedSidebar(page)
-    await expectStableMainBarControls(page)
+    await expectStableMainBarControls(page, drawerEdge)
   })
 }
 
@@ -1170,7 +1186,7 @@ test("narrow mobile keeps every tool and collapses only the wordmark", async ({ 
   const barBox = await bar.boundingBox()
   const drawer = page.locator(".ml-mobile-main-bar .ml-main-bar-drawer-brand button").first()
   expect(barBox?.height).toBeCloseTo(52, 0)
-  await expectStableMainBarControls(page)
+  await expectStableMainBarControls(page, "left")
   await expect(bar.locator(".ml-app-bar-brand-mark")).toBeVisible()
   await expect(bar.locator(".ml-app-bar-brand-wordmark")).toBeHidden()
   for (const name of ["Open music", "Open clock", "Open quick actions", "Open calendar"]) {
@@ -1637,37 +1653,56 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
   const geometryReceipt: Array<Record<string, unknown>> = []
 
   const assertStationControlGeometry = async (label: string) => {
-    const previous = carouselRegion.getByRole("button", { name: "Previous station" })
-    const next = carouselRegion.getByRole("button", { name: "Next station" })
     const summaries = carouselRegion.locator(
       '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
     )
     await expect(carouselRegion.locator('[data-station-carousel-controls="true"]')).toBeAttached()
     await expect(summaries).toHaveCount(2)
+    const readStationControlGeometry = () => carouselRegion.evaluate((region) => {
+      const previousControl = region.querySelector<HTMLElement>('[aria-label="Previous station"]')
+      const nextControl = region.querySelector<HTMLElement>('[aria-label="Next station"]')
+      const stageElement = region.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')
+      const summaryElements = [...region.querySelectorAll<HTMLElement>(
+        '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
+      )]
+      if (!previousControl || !nextControl || !stageElement || summaryElements.length !== 2) {
+        return null
+      }
+      const readBox = (element: HTMLElement) => {
+        const { x, y, width, height } = element.getBoundingClientRect()
+        return { x, y, width, height }
+      }
+      const previousBox = readBox(previousControl)
+      const nextBox = readBox(nextControl)
+      const stageBox = readBox(stageElement)
+      const summaryBoxes = summaryElements
+        .map(readBox)
+        .sort((left, right) => left.x - right.x)
+      return { previousBox, nextBox, stageBox, summaryBoxes }
+    })
+    const settledGeometry = {
+      current: null as Awaited<ReturnType<typeof readStationControlGeometry>>,
+    }
     await expect.poll(async () => {
-      const [previousBox, nextBox, summaryBoxes] = await Promise.all([
-        previous.boundingBox(),
-        next.boundingBox(),
-        summaries.evaluateAll((elements) => elements.map((element) => {
-          const box = element.getBoundingClientRect()
-          return { y: box.y, height: box.height }
-        }).sort((left, right) => left.y - right.y)),
-      ])
-      if (!previousBox || !nextBox || summaryBoxes.length !== 2) return Number.POSITIVE_INFINITY
+      const geometry = await readStationControlGeometry()
+      if (!geometry) return Number.POSITIVE_INFINITY
+      settledGeometry.current = geometry
+      const { previousBox, nextBox, stageBox, summaryBoxes } = geometry
+      const visibleCenter = (box: { x: number, width: number }) => (
+        Math.max(box.x, stageBox.x) + Math.min(
+          box.x + box.width,
+          stageBox.x + stageBox.width,
+        )
+      ) / 2
       return Math.max(
         Math.abs(previousBox.y - (summaryBoxes[0].y + summaryBoxes[0].height + 16)),
         Math.abs(nextBox.y - (summaryBoxes[1].y + summaryBoxes[1].height + 16)),
+        Math.abs(previousBox.x + previousBox.width / 2 - visibleCenter(summaryBoxes[0])),
+        Math.abs(nextBox.x + nextBox.width / 2 - visibleCenter(summaryBoxes[1])),
       )
     }).toBeLessThanOrEqual(1)
-    const [previousBox, nextBox, stageBox, summaryBoxes] = await Promise.all([
-      previous.boundingBox(),
-      next.boundingBox(),
-      stage.boundingBox(),
-      summaries.evaluateAll((elements) => elements.map((element) => {
-        const box = element.getBoundingClientRect()
-        return { x: box.x, y: box.y, width: box.width, height: box.height }
-      }).sort((left, right) => left.x - right.x)),
-    ])
+    if (!settledGeometry.current) throw new Error(`${label} station control geometry did not settle`)
+    const { previousBox, nextBox, stageBox, summaryBoxes } = settledGeometry.current
     expect(previousBox, `${label} previous control box`).not.toBeNull()
     expect(nextBox, `${label} next control box`).not.toBeNull()
     expect(stageBox, `${label} stage box`).not.toBeNull()

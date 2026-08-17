@@ -628,6 +628,13 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
         disconnect() {}
       }
 
+      class FakeWaveShaperNode extends FakeAudioNode {
+        private curveValue: Float32Array | null = null
+
+        get curve() { return this.curveValue }
+        set curve(value: Float32Array | null) { this.curveValue = value }
+      }
+
       class FakeAudioBuffer {
         duration: number
         length: number
@@ -663,10 +670,12 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
         listener: Record<string, FakeAudioParam>
         sampleRate = 44_100
         state = "suspended"
+        private trackOnlineLifecycle: boolean
 
-        constructor() {
+        constructor(trackOnlineLifecycle: boolean | object = true) {
           super()
-          audioContext.created += 1
+          this.trackOnlineLifecycle = trackOnlineLifecycle !== false
+          if (this.trackOnlineLifecycle) audioContext.created += 1
           this.destination = new FakeAudioNode(this)
           this.destination.numberOfInputs = 1
           this.destination.numberOfOutputs = 0
@@ -715,10 +724,18 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
             start() {},
             stop() { setTimeout(() => node.onended?.(), 0) },
           })
-          return instrumentScheduledSource(node, "buffer-source")
+          return this.trackOnlineLifecycle ? instrumentScheduledSource(node, "buffer-source") : node
         }
-        createChannelMerger() { return new FakeAudioNode(this) }
-        createChannelSplitter() { return new FakeAudioNode(this) }
+        createChannelMerger(numberOfInputs = 6) {
+          const node = new FakeAudioNode(this)
+          node.numberOfInputs = numberOfInputs
+          return node
+        }
+        createChannelSplitter(numberOfOutputs = 6) {
+          const node = new FakeAudioNode(this)
+          node.numberOfOutputs = numberOfOutputs
+          return node
+        }
         createConstantSource() {
           return Object.assign(new FakeAudioNode(this), {
             offset: new FakeAudioParam(1), start() {}, stop() {},
@@ -741,7 +758,7 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
           return Object.assign(new FakeAudioNode(this), { gain: new FakeAudioParam(1) })
         }
         createOscillator() {
-          return instrumentScheduledSource(Object.assign(new FakeAudioNode(this), {
+          const node = Object.assign(new FakeAudioNode(this), {
             detune: new FakeAudioParam(0),
             frequency: new FakeAudioParam(440),
             onended: null,
@@ -749,7 +766,9 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
             start() {},
             stop() {},
             type: "sine",
-          }), "oscillator", () => {
+          })
+          if (!this.trackOnlineLifecycle) return node
+          return instrumentScheduledSource(node, "oscillator", () => {
             // standardized-audio-context implements WebKit's transport
             // ConstantSource with the first raw oscillator. It belongs to the
             // shared Tone engine, not to the proof station's disposable graph.
@@ -765,7 +784,7 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
           return Object.assign(new FakeAudioNode(this), { pan: new FakeAudioParam(0) })
         }
         createWaveShaper() {
-          return Object.assign(new FakeAudioNode(this), { curve: null, oversample: "none" })
+          return Object.assign(new FakeWaveShaperNode(this), { curve: null, oversample: "none" })
         }
         decodeAudioData() { return Promise.resolve(new FakeAudioBuffer({ length: 1, sampleRate: this.sampleRate })) }
         async resume() {
@@ -779,12 +798,42 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
         suspend() { this.state = "suspended"; this.dispatchEvent(new Event("statechange")); return Promise.resolve() }
       }
 
+      class FakeOfflineAudioContext extends FakeAudioContext {
+        length: number
+        oncomplete: ((event: Event & { renderedBuffer: FakeAudioBuffer }) => void) | null = null
+        private numberOfChannels: number
+
+        constructor(numberOfChannels: number, length: number, sampleRate: number) {
+          super(false)
+          this.length = length
+          this.numberOfChannels = numberOfChannels
+          this.sampleRate = sampleRate
+          this.destination.channelCount = numberOfChannels
+        }
+
+        startRendering() {
+          const renderedBuffer = new FakeAudioBuffer({
+            length: this.length,
+            numberOfChannels: this.numberOfChannels,
+            sampleRate: this.sampleRate,
+          })
+          this.currentTime = renderedBuffer.duration
+          this.state = "closed"
+          const event = new Event("complete") as Event & { renderedBuffer: FakeAudioBuffer }
+          Object.defineProperty(event, "renderedBuffer", { value: renderedBuffer })
+          this.oncomplete?.(event)
+          this.dispatchEvent(new Event("statechange"))
+          return Promise.resolve(renderedBuffer)
+        }
+      }
+
       Object.defineProperties(window, {
         AudioBuffer: { configurable: true, value: FakeAudioBuffer },
         AudioContext: { configurable: true, value: FakeAudioContext },
         AudioNode: { configurable: true, value: FakeAudioNode },
         AudioParam: { configurable: true, value: FakeAudioParam },
         BaseAudioContext: { configurable: true, value: FakeAudioContext },
+        OfflineAudioContext: { configurable: true, value: FakeOfflineAudioContext },
       })
     }
 
@@ -903,9 +952,11 @@ async function invokeMediaActionAt(page: Page, action: string) {
   }, action)
 }
 
+const PAGE_CLOCK_PAUSE_LEAD_MS = 10_000
+
 /** Pauses just ahead of the moving fake clock after immediate teardown has settled. */
 async function pausePageClockAhead(page: Page) {
-  const pausedAt = await page.evaluate(() => Date.now() + 1_000)
+  const pausedAt = await page.evaluate((leadMs) => Date.now() + leadMs, PAGE_CLOCK_PAUSE_LEAD_MS)
   await page.clock.pauseAt(pausedAt)
   return pausedAt
 }
@@ -1022,12 +1073,20 @@ async function setAudioSessionState(page: Page, state: "active" | "interrupted",
   }, { nextState: state, shouldEmit: emit })
 }
 
+/** Activates setup-only controls without depending on animated pointer stability. */
+async function activateSetupButton(button: Locator) {
+  await expect(button).toBeVisible()
+  await expect(button).toBeEnabled()
+  await button.focus()
+  await button.press("Enter")
+}
+
 async function startProofStation(page: Page) {
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
     .toHaveAttribute("data-music-storage-status", "available")
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
-  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  await activateSetupButton(page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }))
   return page.getByTestId("music-player-toolbar")
 }
 
@@ -1047,8 +1106,9 @@ async function readVinylMotion(vinyl: Locator) {
 }
 
 async function expectVinylTransformFrozen(vinyl: Locator) {
-  // Let the compositor observe the state transition before taking the stable baseline.
-  await vinyl.page().waitForTimeout(100)
+  await expect.poll(() => vinyl.locator(".ml-station-vinyl-disc").evaluate((disc) => (
+    disc.getAnimations()[0]?.pending ?? false
+  ))).toBe(false)
   const before = (await readVinylMotion(vinyl)).transform
   await vinyl.page().waitForTimeout(250)
   expect((await readVinylMotion(vinyl)).transform).toBe(before)
@@ -1649,7 +1709,7 @@ test("runtime readiness failure exposes a visible retry before Play becomes acti
 async function closeInterruptionNotice(page: Page) {
   const notice = page.getByRole("region", { name: "Interruption preference" })
   if (await notice.isVisible()) {
-    await notice.getByRole("button", { name: "Close" }).click()
+    await activateSetupButton(notice.getByRole("button", { name: "Close" }))
   }
   await expect(notice).toHaveCount(0)
 }
@@ -2101,7 +2161,7 @@ test("canonical station artwork and platform artwork derivative preserve honest 
   await expect(cardArtwork.locator("svg")).toBeVisible()
   await expect(centered.locator("[data-carousel-artwork] img")).toHaveCount(0)
   expect(artworkApiRequests).toBe(0)
-  await centered.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  await activateSetupButton(centered.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }))
   const player = page.getByTestId("music-player-toolbar")
   const vinyl = player.getByTestId("station-vinyl")
   await expect(vinyl.locator("svg")).toBeVisible()
@@ -2138,7 +2198,7 @@ test("platform artwork route failure cannot break inline canonical art or playba
   await expect(centered.getByRole("img", {
     name: "MassageLab Proof Drone station artwork",
   }).locator("svg")).toBeVisible()
-  await centered.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  await activateSetupButton(centered.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }))
   await expect(page.getByTestId("music-player-toolbar"))
     .toHaveAttribute("data-playback-state", /loading|playing/)
   expect(artworkApiRequests).toBe(0)
@@ -2506,7 +2566,7 @@ test("vinyl motion stays frozen while station startup is Loading and after failu
     const state = Reflect.get(window, "__massagelabRouteTestServiceWorker") as { forwarded: number }
     return state?.forwarded ?? 0
   })).toBe(0)
-  await play.click()
+  await activateSetupButton(play)
   const matchedSampleIndexUrl = await sampleIndexRequest
   expect(matchedSampleIndexUrl).toMatch(
     /\/observable-streams-vsco-adaptation\/sample-index(?:\.[^/?]+)?\.json(?:\?.*)?$/,
@@ -2652,7 +2712,7 @@ test("restart cancels stopped retirement without stale identity or media teardow
   await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
   const firstPausedAt = await pausePageClockAhead(page)
   await page.clock.fastForward(60_000 - (firstPausedAt - firstStoppedAt) - 1)
-  await player.getByRole("button", { name: "Play", exact: true }).click()
+  await activateSetupButton(player.getByRole("button", { name: "Play", exact: true }))
   await page.clock.fastForward(1)
   await page.clock.resume()
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
@@ -2671,7 +2731,7 @@ test("restart cancels stopped retirement without stale identity or media teardow
   await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
   const adjacentPausedAt = await pausePageClockAhead(page)
   await page.clock.fastForward(60_000 - (adjacentPausedAt - adjacentStoppedAt) - 1)
-  await player.getByRole("button", { name: "Next station" }).click()
+  await activateSetupButton(player.getByRole("button", { name: "Next station" }))
   await page.clock.fastForward(1)
   await page.clock.resume()
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
