@@ -3678,7 +3678,9 @@ html[data-theme-transition-fallback="toggle-light"]::before {
     display: block;
   }
 
-  @container (min-width: 12rem) and (min-height: 14.5rem) {
+  /* Heading (about 1.1rem), the gap, and an exact 192px square fit in this
+     smallest roomy portrait allocation, including expanded-player states. */
+  @container (min-width: 12rem) and (min-height: 13.5rem) {
     .ml-atmosphere-favorites-region {
       display: grid;
       height: 100%;
@@ -3699,7 +3701,7 @@ html[data-theme-transition-fallback="toggle-light"]::before {
       grid-auto-rows: minmax(0, 1fr);
       gap: 0.2rem;
       aspect-ratio: 1;
-      inline-size: min(100cqi, calc(100cqb - 2.5rem));
+      inline-size: min(100cqi, calc(100cqb - 1.5rem));
       justify-self: center;
       min-block-size: 0;
       overflow: hidden;

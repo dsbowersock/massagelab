@@ -2678,6 +2678,17 @@ test("Favorites mosaic preserves the approved one through nine placement table",
   await gotoShell(page, "/music")
   const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
   await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(9)
+  const reducedMotionPlacements = await mosaic
+    .locator('[data-favorite-destination="station"]')
+    .evaluateAll((tiles) => tiles.map((tile) => {
+      const owner = tile.parentElement
+      return [
+        Number(owner?.getAttribute("data-layout-row")),
+        Number(owner?.getAttribute("data-layout-column")),
+        Number(owner?.getAttribute("data-layout-column-span")),
+      ]
+    }))
+  expect(reducedMotionPlacements).toEqual(expectedLayouts[9])
   await expect(mosaic.locator('[data-favorite-destination="station"]').first()).toHaveCSS("transition-duration", "0s")
   await expect(mosaic.locator('[data-favorite-destination="station"]').first()).toHaveCSS("animation-name", "none")
 })
