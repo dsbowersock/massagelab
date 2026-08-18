@@ -2619,6 +2619,49 @@ test("roomy portrait composes a square Favorites mosaic without changing the sta
   await expect(page.getByTestId("atmosphere-favorites-region")).toBeHidden()
 })
 
+test("Favorites empty state adds the centered station without playing or remounting the carousel", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Portrait Favorites behavior is covered in mobile Chromium.")
+  await installAtmosphereFavorites(page, [])
+  await page.setViewportSize({ width: 390, height: 844 })
+  await gotoShell(page, "/music")
+
+  const favorites = page.getByRole("region", { name: "Favorites" })
+  const add = favorites.getByRole("button", { name: "Add MassageLab Proof Drone to favorites" })
+  await expect(add).toBeVisible()
+  await add.click()
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("massagelab-atmosphere-v2")))
+    .toContain('"mlab-proof-drone"')
+  await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+  await expect(favorites.locator('[data-favorite-destination="station"]')).toHaveCount(1)
+
+  await page.evaluate(() => {
+    localStorage.setItem("massagelab-atmosphere-v2", JSON.stringify({
+      version: 2,
+      favorites: [],
+      recentStations: [],
+      volume: 0.4,
+      miniPlayerCollapsed: false,
+      visualizer: { backgroundId: "static-gradient", showClock: false },
+      migrations: { legacyMusicBackground: true },
+    }))
+  })
+  await page.reload({ waitUntil: "domcontentloaded" })
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
+
+  const carouselStage = page.getByTestId("station-carousel-stage")
+  const stageHandle = await carouselStage.elementHandle()
+  expect(stageHandle).not.toBeNull()
+  await centerCarouselItem(page, "observable-streams-probe", "Next station")
+  await expect(favorites.getByRole("button", { name: "Add Observable Streams to favorites" })).toBeVisible()
+  await expect.poll(() => carouselStage.evaluate((stage) => document.activeElement === stage)).toBe(true)
+
+  await favorites.getByRole("button", { name: "Add Observable Streams to favorites" }).click()
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("massagelab-atmosphere-v2")))
+    .toContain('"observable-streams-probe"')
+  expect(await stageHandle?.evaluate((stage) => stage.isConnected)).toBe(true)
+  await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+})
+
 test("Favorites mosaic preserves the approved one through nine placement table", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Portrait Favorites layout is covered in mobile Chromium.")
   const favoriteIds = [

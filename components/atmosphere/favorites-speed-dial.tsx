@@ -36,12 +36,17 @@ export function AtmosphereFavoritesSpeedDial({
 
   return (
     <section
-      aria-busy={busy}
+      aria-busy={busy ? "true" : "false"}
       aria-labelledby="atmosphere-favorites-heading"
       className="ml-atmosphere-favorites-region"
       data-testid="atmosphere-favorites-region"
     >
       <h2 id="atmosphere-favorites-heading">Favorites</h2>
+      {busy ? (
+        <p aria-live="polite" className="sr-only" role="status">
+          Favorites are unavailable while audio prepares.
+        </p>
+      ) : null}
       <div className="ml-atmosphere-favorites-mosaic" data-testid="atmosphere-favorites-mosaic">
         {model.destinations.map((destination, index) => {
           const placement = model.layout[index]
@@ -92,11 +97,13 @@ function FavoriteStationTile({
 }) {
   const unavailable = !station.enabled
   const disabled = busy || unavailable
+  const label = getFavoriteStationActionLabel(station, { playing, unavailable })
 
   return (
     <button
       aria-current={playing ? "true" : undefined}
       aria-disabled={playing || disabled}
+      aria-label={label}
       className="ml-atmosphere-favorite-tile"
       data-favorite-destination="station"
       disabled={disabled}
@@ -109,6 +116,20 @@ function FavoriteStationTile({
       <span>{station.title}</span>
     </button>
   )
+}
+
+/**
+ * Keeps Favorite mosaic and collection controls on one accessibility contract:
+ * only an active station is focusable-but-inert, while unavailable stations
+ * remain plainly identified without introducing alternate playback controls.
+ */
+function getFavoriteStationActionLabel(
+  station: (typeof stations)[number],
+  { playing, unavailable }: { playing: boolean; unavailable: boolean },
+) {
+  if (playing) return `${station.title} playing`
+  if (unavailable) return `${station.title} unavailable`
+  return station.title
 }
 
 function EmptyFavoriteTile({

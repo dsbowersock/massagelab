@@ -170,6 +170,21 @@ async function getActualRuntimeModulePath() {
   return actualRuntimeModulePathPromise
 }
 
+/** Persists a deterministic newest-first Favorites fixture before Music hydrates. */
+async function installAtmosphereFavorites(page: Page, favorites: string[]) {
+  await page.addInitScript((favoriteIds) => {
+    localStorage.setItem("massagelab-atmosphere-v2", JSON.stringify({
+      version: 2,
+      favorites: favoriteIds,
+      recentStations: [],
+      volume: 0.4,
+      miniPlayerCollapsed: false,
+      visualizer: { backgroundId: "static-gradient", showClock: false },
+      migrations: { legacyMusicBackground: true },
+    }))
+  }, favorites)
+}
+
 async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFakeOptions = {}) {
   await page.addInitScript((fakeOptions) => {
     const audio = {
@@ -1631,6 +1646,43 @@ test("fresh-page cold runtime exposes only an activation-safe centered Play acti
   expect(firstTapProbe.audioContext.resumeAttempts).toHaveLength(1)
   expect(firstTapProbe.audioContext.resumeAttempts[0]).toMatchObject({ sameInitiatingTurn: true })
   await expect(page.getByTestId("music-player-toolbar")).toHaveAttribute("data-playback-state", "playing")
+})
+
+test("Favorites direct playback keeps the provider as the single owner during loading and while active", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Touch Favorites playback is mobile-owned.")
+  await installAtmosphereFavorites(page, ["observable-streams-probe", "mlab-proof-drone"])
+  await installMediaOwnershipFakes(page, {
+    actualRuntimeModulePath: await getActualRuntimeModulePath(),
+    holdPhase: "module-loading",
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+
+  const favorites = page.getByRole("region", { name: "Favorites" })
+  const observable = favorites.getByRole("button", { name: "Observable Streams" })
+  await expect(observable).toBeVisible()
+  await observable.click()
+  await waitForStartupPhase(page, "module-loading")
+
+  await expect(favorites).toHaveAttribute("aria-busy", "true")
+  await expect(favorites.getByRole("status")).toHaveText("Favorites are unavailable while audio prepares.")
+  await expect(observable).toBeDisabled()
+  expect((await readProbe(page)).audio.playCalls).toBe(1)
+
+  await releaseHeldStartupPhase(page)
+  const player = page.getByTestId("music-player-toolbar")
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  const playingTile = favorites.getByRole("button", { name: "Observable Streams playing" })
+  await expect(playingTile).toHaveAttribute("aria-current", "true")
+  await expect(playingTile).toHaveAttribute("aria-disabled", "true")
+
+  const probeBeforeRepeat = await readProbe(page)
+  await playingTile.focus()
+  await page.keyboard.press("Enter")
+  await page.waitForTimeout(250)
+  const probeAfterRepeat = await readProbe(page)
+  expect(probeAfterRepeat.audio.playCalls).toBe(probeBeforeRepeat.audio.playCalls)
+  expect(probeAfterRepeat.audioContext.generatorGeneration).toBe(probeBeforeRepeat.audioContext.generatorGeneration)
 })
 
 test("runtime readiness failure exposes a visible retry before Play becomes actionable", async ({ page }, testInfo) => {
