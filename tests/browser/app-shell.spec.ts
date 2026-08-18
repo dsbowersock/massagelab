@@ -1762,9 +1762,17 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
           stageBox.x + stageBox.width,
         )
       ) / 2
+      const previousTargetTop = summaryBoxes[0].y + summaryBoxes[0].height + 16
+      const nextTargetTop = summaryBoxes[1].y + summaryBoxes[1].height + 16
+      const previousVerticalDeviation = previousTargetTop + previousBox.height <= stageBox.y + stageBox.height + 1
+        ? Math.abs(previousBox.y - previousTargetTop)
+        : 0
+      const nextVerticalDeviation = nextTargetTop + nextBox.height <= stageBox.y + stageBox.height + 1
+        ? Math.abs(nextBox.y - nextTargetTop)
+        : 0
       return Math.max(
-        Math.abs(previousBox.y - (summaryBoxes[0].y + summaryBoxes[0].height + 16)),
-        Math.abs(nextBox.y - (summaryBoxes[1].y + summaryBoxes[1].height + 16)),
+        previousVerticalDeviation,
+        nextVerticalDeviation,
         Math.abs(previousBox.x + previousBox.width / 2 - visibleCenter(summaryBoxes[0])),
         Math.abs(nextBox.x + nextBox.width / 2 - visibleCenter(summaryBoxes[1])),
       )
@@ -1784,12 +1792,25 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
       )
       return (left + right) / 2
     }
-    expect(Math.abs(
-      (previousBox?.y ?? 0) - (leftSummary.y + leftSummary.height + 16),
-    ), `${label} previous vertical offset`).toBeLessThanOrEqual(1)
-    expect(Math.abs(
-      (nextBox?.y ?? 0) - (rightSummary.y + rightSummary.height + 16),
-    ), `${label} next vertical offset`).toBeLessThanOrEqual(1)
+    const assertVerticalControlPlacement = (
+      name: "previous" | "next",
+      control: { y: number, height: number },
+      summary: { y: number, height: number },
+    ) => {
+      const targetTop = summary.y + summary.height + 16
+      const stageBottom = (stageBox?.y ?? 0) + (stageBox?.height ?? 0)
+      if (targetTop + control.height <= stageBottom + 1) {
+        expect(Math.abs(control.y - targetTop), `${label} ${name} vertical offset`).toBeLessThanOrEqual(1)
+        return
+      }
+      // On the shortest landscape stages, keeping a 16px gap would put the
+      // control below the usable viewport. Keep it visible and visibly tied
+      // to its wing by overlapping only the card's lower edge instead.
+      expect(control.y, `${label} ${name} compact overlay top`).toBeGreaterThanOrEqual(summary.y + summary.height - control.height - 1)
+      expect(control.y + control.height, `${label} ${name} compact overlay bottom`).toBeLessThanOrEqual(stageBottom + 1)
+    }
+    assertVerticalControlPlacement("previous", previousBox!, leftSummary)
+    assertVerticalControlPlacement("next", nextBox!, rightSummary)
     expect(Math.abs(
       ((previousBox?.x ?? 0) + (previousBox?.width ?? 0) / 2)
         - visibleCenter(leftSummary),
@@ -1912,7 +1933,7 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
     label: string,
     pillPaintSpace: Awaited<ReturnType<typeof readPillHaloGeometry>>,
   ) => {
-    const [allocationBox, stageBox, centerBox, pillsBox, scrollBox, mainBarBox] = await Promise.all([
+    const [allocationBox, stageBox, centerBox, pillsBox, scrollBox, mainBarBox, stationGap] = await Promise.all([
       page.locator(".ml-atmosphere-station-stage-allocation").boundingBox(),
       stage.boundingBox(),
       center.boundingBox(),
@@ -1927,9 +1948,14 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
         const box = visible.getBoundingClientRect()
         return { x: box.x, y: box.y, width: box.width, height: box.height }
       }),
+      page.locator(".ml-atmosphere-station-carousel").evaluate((carouselElement) => (
+        Number.parseFloat(getComputedStyle(carouselElement).rowGap)
+      )),
     ])
     expect(stageBox?.y ?? 0, `${label} stage top`).toBeCloseTo(
-      (pillsBox?.y ?? 0) + (pillsBox?.height ?? 0) + pillPaintSpace.marginBottom,
+      // Compact landscapes keep the approved 1.5rem pill-to-carousel breath,
+      // which follows the active text size rather than a fixed pixel value.
+      (pillsBox?.y ?? 0) + (pillsBox?.height ?? 0) + pillPaintSpace.marginBottom + stationGap,
       0,
     )
     const stageBottom = (stageBox?.y ?? 0) + (stageBox?.height ?? 0)
