@@ -2799,6 +2799,84 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
   }
 })
 
+test("Favorites use measured remaining space before any player rail exists", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== mobileProject && testInfo.project.name !== desktopProject,
+    "Inactive Favorites workspace geometry is covered in desktop and mobile Chromium.",
+  )
+  await installAtmosphereFavorites(page, [
+    "generative-fm-trees",
+    "observable-streams-probe",
+    "mlab-proof-drone",
+    "generative-fm-aisatsana",
+  ])
+  const roomyViewports = testInfo.project.name === mobileProject
+    ? [{ width: 535, height: 951 }, { width: 770, height: 1026 }]
+    : [{ width: 1162, height: 972 }]
+  await page.setViewportSize(roomyViewports[0])
+  await gotoShell(page, "/music")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const favorites = page.getByTestId("atmosphere-favorites-region")
+  const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
+
+  for (const viewport of roomyViewports) {
+    await page.setViewportSize(viewport)
+    await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+    await expect(favorites).toBeVisible()
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+    await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(4)
+    await expect.poll(() => carousel.evaluate((region) => {
+      const stage = region.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')
+      const center = region.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )
+      if (!stage || !center) return Number.POSITIVE_INFINITY
+      const stageBox = stage.getBoundingClientRect()
+      const centerBox = center.getBoundingClientRect()
+      return Math.abs(
+        centerBox.left + (centerBox.width / 2) - (stageBox.left + (stageBox.width / 2)),
+      )
+    })).toBeLessThanOrEqual(1)
+    const geometry = await mosaic.evaluate((element) => {
+      const mosaic = element.getBoundingClientRect()
+      const slot = element.parentElement?.parentElement?.getBoundingClientRect()
+      return {
+        height: mosaic.height,
+        left: mosaic.left,
+        slotCenter: slot ? slot.left + (slot.width / 2) : 0,
+        width: mosaic.width,
+      }
+    })
+    expect(geometry.width).toBeCloseTo(geometry.height, 0)
+    expect(geometry.width).toBeGreaterThanOrEqual(192)
+    expect(geometry.width).toBeLessThanOrEqual(512)
+    expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+    const cardGeometry = await carousel.evaluate((region) => {
+      const center = region.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )
+      const artwork = center?.querySelector<HTMLElement>("[data-carousel-artwork]")
+      if (!center || !artwork) throw new Error("Inactive Favorites carousel geometry is incomplete")
+      const centerBox = center.getBoundingClientRect()
+      const artworkBox = artwork.getBoundingClientRect()
+      return {
+        artwork: { height: artworkBox.height, width: artworkBox.width },
+        center: { height: centerBox.height, width: centerBox.width },
+      }
+    })
+    expect(cardGeometry.center.width / cardGeometry.center.height).toBeCloseTo(192 / 224, 2)
+    expect(cardGeometry.artwork.width / cardGeometry.artwork.height).toBeCloseTo(1, 2)
+  }
+
+  if (testInfo.project.name === mobileProject) {
+    await page.setViewportSize({ width: 844, height: 390 })
+    await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+    await expect(favorites).toBeHidden()
+  }
+})
+
 test("Favorites empty state adds the centered station without playing or remounting the carousel", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Portrait Favorites behavior is covered in mobile Chromium.")
   await installAtmosphereFavorites(page, [])
