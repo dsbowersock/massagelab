@@ -2660,6 +2660,58 @@ test("roomy portrait composes a square Favorites mosaic without changing the sta
   await expect(page.getByTestId("atmosphere-favorites-region")).toBeHidden()
 })
 
+test("Favorites use measured remaining space across roomy bottom-rail workspaces", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== mobileProject && testInfo.project.name !== desktopProject,
+    "Favorites workspace geometry is covered in desktop and mobile Chromium.",
+  )
+  await installInterruptionNoticeMediaFakes(page)
+  await installAtmosphereFavorites(page, [
+    "generative-fm-trees",
+    "observable-streams-probe",
+    "mlab-proof-drone",
+    "generative-fm-aisatsana",
+  ])
+  const roomyViewports = testInfo.project.name === mobileProject
+    ? [{ width: 535, height: 980 }, { width: 770, height: 1026 }]
+    : [
+      { width: 1140, height: 970 },
+      { width: 1460, height: 1095 },
+      { width: 2048, height: 1280 },
+    ]
+  await page.setViewportSize(roomyViewports[0])
+  const toolbar = await startProofDrone(page)
+  const favorites = page.getByTestId("atmosphere-favorites-region")
+  const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
+
+  for (const viewport of roomyViewports) {
+    await page.setViewportSize(viewport)
+    await expect(toolbar).toHaveAttribute("data-layout", "bottom")
+    await expect(favorites).toBeVisible()
+    const geometry = await mosaic.evaluate((element) => {
+      const mosaic = element.getBoundingClientRect()
+      const slot = element.parentElement?.parentElement?.getBoundingClientRect()
+      return {
+        height: mosaic.height,
+        left: mosaic.left,
+        slotCenter: slot ? slot.left + (slot.width / 2) : 0,
+        width: mosaic.width,
+      }
+    })
+    expect(geometry.width).toBeCloseTo(geometry.height, 0)
+    expect(geometry.width).toBeGreaterThanOrEqual(192)
+    expect(geometry.width).toBeLessThanOrEqual(512)
+    expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+  }
+
+  if (testInfo.project.name === mobileProject) {
+    await page.setViewportSize({ width: 844, height: 390 })
+    await expect(toolbar).toHaveAttribute("data-layout", "rail")
+    await expect(favorites).toBeHidden()
+  }
+})
+
 test("Favorites empty state adds the centered station without playing or remounting the carousel", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Portrait Favorites behavior is covered in mobile Chromium.")
   await installAtmosphereFavorites(page, [])

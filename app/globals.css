@@ -3667,7 +3667,11 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   min-height: 0;
 }
 
-@media (orientation: portrait) and (min-height: 44.01rem) {
+/* Reserve the compact landscape rail for its approved carousel-only geometry.
+   Every taller Music workspace gets a real leftover-row container; the size
+   query below, rather than portrait orientation, decides whether Favorites
+   has enough measured block space to render. */
+@media (min-height: 44.01rem) {
   .ml-atmosphere-carousel-slot {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
@@ -3684,7 +3688,7 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   }
 
   /* Heading (about 1.1rem), the gap, and an exact 192px square fit in this
-     smallest roomy portrait allocation, including expanded-player states. */
+     smallest roomy allocation, including expanded-player states. */
   @container (min-width: 12rem) and (min-height: 13.5rem) {
     .ml-atmosphere-favorites-region {
       display: grid;
@@ -3706,8 +3710,11 @@ html[data-theme-transition-fallback="toggle-light"]::before {
       grid-auto-rows: minmax(0, 1fr);
       gap: 0.2rem;
       aspect-ratio: 1;
-      inline-size: min(100cqi, calc(100cqb - 1.5rem));
-      justify-self: center;
+      /* Do not let an ultra-wide workspace turn the speed dial into a giant
+         artwork panel. It remains square, centers in its measured leftover
+         row, and caps at a touch-friendly 32rem. */
+      inline-size: min(100cqi, calc(100cqb - 1.5rem), 32rem);
+      place-self: center;
       min-block-size: 0;
       overflow: hidden;
     }

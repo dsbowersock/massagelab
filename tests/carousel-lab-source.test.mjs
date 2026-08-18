@@ -306,16 +306,20 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(labSurface, /useMusic\(\)/)
   })
 
-  it("keeps portrait Favorites rendering under the workspace playback boundary", () => {
+  it("keeps measured-space Favorites rendering under the workspace playback boundary", () => {
     const workspace = read("app/browse/workspace.tsx")
     const productionCarousel = read("components/atmosphere/station-carousel.tsx")
     const favoritesSurface = read("components/atmosphere/favorites-speed-dial.tsx")
+    const styles = read("app/globals.css")
 
     assert.match(workspace, /AtmosphereFavoritesSpeedDial/)
     assert.match(workspace, /favoriteIds=\{music\.favorites\}/)
     assert.match(workspace, /onAddFavorite=\{music\.toggleFavorite\}/)
     assert.match(productionCarousel, /onCenteredStationChange\?\./)
     assert.doesNotMatch(favoritesSurface, /useMusic\(|new Audio|AudioContext|stopCurrent|pauseCurrent/)
+    assert.match(styles, /@media \(min-height: 44\.01rem\)/)
+    assert.doesNotMatch(styles, /@media \(orientation: portrait\) and \(min-height: 44\.01rem\)/)
+    assert.match(styles, /inline-size: min\(100cqi, calc\(100cqb - 1\.5rem\), 32rem\)/)
   })
 
   it("renders unavailable Favorites through the shared inert tile state", () => {
