@@ -10,6 +10,21 @@ async function gotoShell(page: Page, path: string) {
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
 }
 
+/** Persists a deterministic newest-first Atmosphere Favorites fixture before app hydration. */
+async function installAtmosphereFavorites(page: Page, favorites: string[]) {
+  await page.addInitScript((favoriteIds) => {
+    localStorage.setItem("massagelab-atmosphere-v2", JSON.stringify({
+      version: 2,
+      favorites: favoriteIds,
+      recentStations: [],
+      volume: 0.4,
+      miniPlayerCollapsed: false,
+      visualizer: { backgroundId: "static-gradient", showClock: false },
+      migrations: { legacyMusicBackground: true },
+    }))
+  }, favorites)
+}
+
 /** Supplies deterministic browser media capabilities for interruption-preference UI tests. */
 async function installInterruptionNoticeMediaFakes(page: Page, options: {
   rejectCarrierPlay?: boolean
@@ -2519,6 +2534,12 @@ test("stable portrait station cards survive expanded collapsed stopped and resta
   await page.emulateMedia({ reducedMotion: "no-preference" })
   await installInterruptionNoticeMediaFakes(page)
   await installStationCapabilityQueries(page, { reducedMotion: false, finePointer: false })
+  await installAtmosphereFavorites(page, [
+    "generative-fm-trees",
+    "observable-streams-probe",
+    "mlab-proof-drone",
+    "generative-fm-aisatsana",
+  ])
   const receipt: Array<Record<string, unknown>> = []
 
   for (const viewport of [{ width: 390, height: 844 }, { width: 360, height: 670 }]) {
@@ -2535,6 +2556,13 @@ test("stable portrait station cards survive expanded collapsed stopped and resta
       })
       expect(box.width).toBeCloseTo(192, 0)
       expect(box.height).toBeCloseTo(224, 0)
+      if (viewport.width === 390 && viewport.height === 844) {
+        const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
+        await expect(mosaic).toBeVisible()
+        const mosaicBox = await mosaic.boundingBox()
+        expect(mosaicBox?.width).toBeCloseTo(mosaicBox?.height ?? 0, 0)
+        expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+      }
       receipt.push({ viewport, state, box })
       return box
     }
@@ -2561,6 +2589,97 @@ test("stable portrait station cards survive expanded collapsed stopped and resta
     body: JSON.stringify(receipt, null, 2),
     contentType: "application/json",
   })
+})
+
+test("roomy portrait composes a square Favorites mosaic without changing the station carousel", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Portrait Favorites geometry is covered in mobile Chromium.")
+  await installAtmosphereFavorites(page, [
+    "generative-fm-trees",
+    "observable-streams-probe",
+    "mlab-proof-drone",
+    "generative-fm-aisatsana",
+  ])
+  await page.setViewportSize({ width: 390, height: 844 })
+  await gotoShell(page, "/music")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const centered = carousel.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]')
+  const favorites = page.getByRole("region", { name: "Favorites" })
+  const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
+  await expect(favorites.getByRole("heading", { name: "Favorites" })).toBeVisible()
+  await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(4)
+  const mosaicBox = await mosaic.boundingBox()
+  expect(mosaicBox?.width).toBeCloseTo(mosaicBox?.height ?? 0, 0)
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+  const approvedCardBox = await centered.boundingBox()
+  expect(approvedCardBox?.width).toBeCloseTo(192, 0)
+  expect(approvedCardBox?.height).toBeCloseTo(224, 0)
+
+  await page.setViewportSize({ width: 844, height: 390 })
+  await expect(page.getByTestId("atmosphere-favorites-region")).toBeHidden()
+})
+
+test("Favorites mosaic preserves the approved one through nine placement table", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Portrait Favorites layout is covered in mobile Chromium.")
+  const favoriteIds = [
+    "mlab-proof-drone",
+    "generative-fm-trees",
+    "observable-streams-probe",
+    "generative-fm-aisatsana",
+    "generative-fm-at-sunrise",
+    "generative-fm-day-dream",
+    "generative-fm-eno-machine",
+    "generative-fm-lemniscate",
+    "generative-fm-peace",
+  ]
+  const expectedLayouts: Record<number, Array<[number, number, number]>> = {
+    1: [[1, 1, 6]],
+    2: [[1, 1, 6], [2, 1, 6]],
+    3: [[1, 1, 3], [1, 4, 3], [2, 1, 6]],
+    4: [[1, 1, 3], [1, 4, 3], [2, 1, 3], [2, 4, 3]],
+    5: [[1, 1, 2], [1, 3, 2], [1, 5, 2], [2, 1, 3], [2, 4, 3]],
+    6: [[1, 1, 2], [1, 3, 2], [1, 5, 2], [2, 1, 2], [2, 3, 2], [2, 5, 2]],
+    7: [[1, 1, 2], [1, 3, 2], [1, 5, 2], [2, 1, 2], [2, 3, 2], [2, 5, 2], [3, 1, 6]],
+    8: [[1, 1, 2], [1, 3, 2], [1, 5, 2], [2, 1, 2], [2, 3, 2], [2, 5, 2], [3, 1, 3], [3, 4, 3]],
+    9: [[1, 1, 2], [1, 3, 2], [1, 5, 2], [2, 1, 2], [2, 3, 2], [2, 5, 2], [3, 1, 2], [3, 3, 2], [3, 5, 2]],
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await gotoShell(page, "/music")
+  for (let count = 1; count <= favoriteIds.length; count += 1) {
+    await page.evaluate((favorites) => {
+      localStorage.setItem("massagelab-atmosphere-v2", JSON.stringify({
+        version: 2,
+        favorites,
+        recentStations: [],
+        volume: 0.4,
+        miniPlayerCollapsed: false,
+        visualizer: { backgroundId: "static-gradient", showClock: false },
+        migrations: { legacyMusicBackground: true },
+      }))
+    }, favoriteIds.slice(0, count))
+    await page.reload({ waitUntil: "domcontentloaded" })
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
+
+    const placements = await page.getByTestId("atmosphere-favorites-mosaic")
+      .locator('[data-favorite-destination="station"]')
+      .evaluateAll((tiles) => tiles.map((tile) => {
+        const owner = tile.parentElement
+        return [
+          Number(owner?.getAttribute("data-layout-row")),
+          Number(owner?.getAttribute("data-layout-column")),
+          Number(owner?.getAttribute("data-layout-column-span")),
+        ]
+      }))
+    expect(placements).toEqual(expectedLayouts[count])
+  }
+
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await gotoShell(page, "/music")
+  const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
+  await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(9)
+  await expect(mosaic.locator('[data-favorite-destination="station"]').first()).toHaveCSS("transition-duration", "0s")
+  await expect(mosaic.locator('[data-favorite-destination="station"]').first()).toHaveCSS("animation-name", "none")
 })
 
 test("compact landscape restores the approved five-card Station composition", async ({ page }, testInfo) => {

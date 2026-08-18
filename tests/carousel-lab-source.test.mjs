@@ -306,6 +306,18 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(labSurface, /useMusic\(\)/)
   })
 
+  it("keeps portrait Favorites rendering under the workspace playback boundary", () => {
+    const workspace = read("app/browse/workspace.tsx")
+    const productionCarousel = read("components/atmosphere/station-carousel.tsx")
+    const favoritesSurface = read("components/atmosphere/favorites-speed-dial.tsx")
+
+    assert.match(workspace, /AtmosphereFavoritesSpeedDial/)
+    assert.match(workspace, /favoriteIds=\{music\.favorites\}/)
+    assert.match(workspace, /onAddFavorite=\{music\.toggleFavorite\}/)
+    assert.match(productionCarousel, /onCenteredStationChange\?\./)
+    assert.doesNotMatch(favoritesSurface, /useMusic\(|new Audio|AudioContext|stopCurrent|pauseCurrent/)
+  })
+
   it("preserves Station category positions and cancels lab prewarm on category change and unmount", () => {
     const surface = read("app/dev/buttons/carousel-lab/station-lab-surface.tsx")
 

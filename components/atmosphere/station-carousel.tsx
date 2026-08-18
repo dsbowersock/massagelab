@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { StepBack, StepForward } from "lucide-react"
 import { AtmosphereStationCarouselCard } from "@/components/atmosphere/station-carousel-card"
 import { AdaptiveCarouselStage } from "@/components/carousels/adaptive-carousel-stage"
@@ -16,6 +16,14 @@ import { cn } from "@/lib/utils"
 
 const stationGroups = groupAtmosphereStations(getVisibleAtmosphereStations())
 
+type AtmosphereStationCarouselProps = {
+  onCenteredStationChange?: (stationId: string) => void
+}
+
+type AtmosphereStationCarouselStyle = CSSProperties & {
+  "--ml-atmosphere-station-stage-block-size": string
+}
+
 /** Returns the active station's category, falling back to the first review category. */
 function getInitialStationGroup(activeStationId: string | null) {
   return (activeStationId
@@ -29,7 +37,9 @@ function getInitialStationGroup(activeStationId: string | null) {
  * changes may prewarm audio, but playback and favorites remain explicit card
  * actions.
  */
-export function AtmosphereStationCarousel() {
+export function AtmosphereStationCarousel({
+  onCenteredStationChange,
+}: AtmosphereStationCarouselProps = {}) {
   const music = useMusic()
   const [groupId, setGroupId] = useState(() => getInitialStationGroup(music.activeStationId)?.id ?? "")
   const [initialItemId, setInitialItemId] = useState(() => {
@@ -113,7 +123,8 @@ export function AtmosphereStationCarousel() {
     if (!group) return
     positionsRef.current.set(group.id, stationId)
     prewarmStation(stationId)
-  }, [group, prewarmStation])
+    onCenteredStationChange?.(stationId)
+  }, [group, onCenteredStationChange, prewarmStation])
 
   const handleGroupChange = useCallback((nextGroupId: string) => {
     prewarmAbortRef.current?.abort()
@@ -138,6 +149,9 @@ export function AtmosphereStationCarousel() {
     [constrainedLandscape, stageSize.height, stageSize.width],
   )
   const showStationControls = reducedMotion || hasFineHoverPointer
+  const carouselStyle: AtmosphereStationCarouselStyle = {
+    "--ml-atmosphere-station-stage-block-size": `${Number(tuning.cardHeight) + (showStationControls ? 60 : 0)}px`,
+  }
 
   if (!group) {
     return (
@@ -152,6 +166,7 @@ export function AtmosphereStationCarousel() {
       className="ml-atmosphere-station-carousel grid gap-4"
       aria-label="Atmosphere audio stations"
       data-music-storage-status={music.visualizer.storageStatus}
+      style={carouselStyle}
     >
       <div className="ml-atmosphere-station-heading grid gap-3">
         <div className="ml-atmosphere-category-picker grid gap-1.5">

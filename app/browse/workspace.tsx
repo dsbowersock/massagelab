@@ -1,9 +1,10 @@
 "use client"
 
-import { useCallback, useEffect } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { Heart, Play, Radio, Square, Wind } from "lucide-react"
 import { AtmosphereStationCarousel } from "@/components/atmosphere/station-carousel"
+import { AtmosphereFavoritesSpeedDial } from "@/components/atmosphere/favorites-speed-dial"
 import { AppNotice, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { useMusic } from "@/components/providers/music-provider"
@@ -50,6 +51,7 @@ type AtmosphereWorkspaceLayout = "grid" | "rails"
 
 export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWorkspaceLayout } = {}) {
   const music = useMusic()
+  const [centeredStationId, setCenteredStationId] = useState<string | null>(stations[0]?.id ?? null)
   const { prewarmStation: prewarmMusicStation } = music
   const isRailLayout = layout === "rails"
   const prewarmStation = useCallback((stationId: string, options: { includeSamplePayloads?: boolean } = {}) => {
@@ -147,7 +149,19 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
 
       <div className={isRailLayout ? "ml-atmosphere-carousel-slot" : "space-y-8"}>
         {isRailLayout ? (
-          <AtmosphereStationCarousel />
+          <>
+            <AtmosphereStationCarousel onCenteredStationChange={setCenteredStationId} />
+            <div className="ml-atmosphere-favorites-slot">
+              <AtmosphereFavoritesSpeedDial
+                busy={music.playbackState === "loading"}
+                centeredStationId={centeredStationId}
+                favoriteIds={music.favorites}
+                onAddFavorite={music.toggleFavorite}
+                onPlayStation={(stationId) => { void music.playStation(stationId) }}
+                playingStationId={music.playbackState === "playing" ? music.activeStationId : null}
+              />
+            </div>
+          </>
         ) : (
           stationGroups.map((group) => (
             <AtmosphereStationGrid
