@@ -2877,6 +2877,114 @@ test("Favorites use measured remaining space before any player rail exists", asy
   }
 })
 
+test("Favorites retain measured workspace authority at enlarged root text sizes", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== mobileProject && testInfo.project.name !== desktopProject,
+    "Scaled inactive Favorites workspace geometry is covered in desktop and mobile Chromium.",
+  )
+  await installAtmosphereFavorites(page, [
+    "generative-fm-trees",
+    "observable-streams-probe",
+    "mlab-proof-drone",
+    "generative-fm-aisatsana",
+  ])
+  const roomyViewports = testInfo.project.name === mobileProject
+    ? [{ width: 535, height: 951 }, { width: 770, height: 1026 }]
+    : [{ width: 1162, height: 972 }]
+  await page.setViewportSize(roomyViewports[0])
+  await gotoShell(page, "/music")
+  await page.evaluate(() => { document.documentElement.style.fontSize = "24px" })
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const favorites = page.getByTestId("atmosphere-favorites-region")
+  const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
+
+  for (const viewport of roomyViewports) {
+    await page.setViewportSize(viewport)
+    await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+    const media = await page.evaluate(() => ({
+      legacyViewportQueryMatches: matchMedia("(min-height: 44.01rem)").matches,
+      rootFontSize: getComputedStyle(document.documentElement).fontSize,
+    }))
+    expect(media.rootFontSize).toBe("24px")
+    // The retired viewport query would still match: media-query rem units use
+    // the initial root size. The live visibility decision must instead be the
+    // slot's measured geometry.
+    expect(media.legacyViewportQueryMatches).toBe(true)
+    await expect(favorites).toBeVisible()
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+    await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(4)
+    const geometry = await mosaic.evaluate((element) => {
+      const mosaic = element.getBoundingClientRect()
+      const slot = element.parentElement?.parentElement?.getBoundingClientRect()
+      return {
+        height: mosaic.height,
+        left: mosaic.left,
+        slotCenter: slot ? slot.left + (slot.width / 2) : 0,
+        width: mosaic.width,
+      }
+    })
+    expect(geometry.width).toBeCloseTo(geometry.height, 0)
+    expect(geometry.width).toBeGreaterThanOrEqual(192)
+    expect(geometry.width).toBeLessThanOrEqual(512)
+    expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+  }
+
+  if (testInfo.project.name === mobileProject) {
+    await page.setViewportSize({ width: 844, height: 390 })
+    await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+    await expect(favorites).toBeHidden()
+  }
+})
+
+test("Favorites use slot measurement below the legacy viewport-height cutoff", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== mobileProject && testInfo.project.name !== desktopProject,
+    "Compact-height Favorites workspace geometry is covered in desktop and mobile Chromium.",
+  )
+  await installAtmosphereFavorites(page, [
+    "generative-fm-trees",
+    "observable-streams-probe",
+    "mlab-proof-drone",
+    "generative-fm-aisatsana",
+  ])
+  const viewport = testInfo.project.name === mobileProject
+    ? { width: 770, height: 700 }
+    : { width: 1162, height: 700 }
+  await page.setViewportSize(viewport)
+  await gotoShell(page, "/music")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const favorites = page.getByTestId("atmosphere-favorites-region")
+  const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
+  await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+  expect(await page.evaluate(() => matchMedia("(min-height: 44.01rem)").matches)).toBe(false)
+  await expect(favorites).toBeVisible()
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(4)
+  const geometry = await mosaic.evaluate((element) => {
+    const mosaic = element.getBoundingClientRect()
+    const region = element.parentElement
+    const slot = region?.parentElement?.getBoundingClientRect()
+    const heading = region?.querySelector("h2")?.getBoundingClientRect()
+    const gap = region ? Number.parseFloat(getComputedStyle(region).rowGap) : 0
+    return {
+      height: mosaic.height,
+      requiredHeight: (heading?.height ?? 0) + gap + 192,
+      slotHeight: slot?.height ?? 0,
+      width: mosaic.width,
+    }
+  })
+  expect(geometry.slotHeight).toBeGreaterThanOrEqual(geometry.requiredHeight)
+  expect(geometry.width).toBeCloseTo(geometry.height, 0)
+  expect(geometry.width).toBeGreaterThanOrEqual(192)
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+
+  await page.setViewportSize({ width: 844, height: 390 })
+  await expect(favorites).toBeHidden()
+})
+
 test("Favorites empty state adds the centered station without playing or remounting the carousel", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Portrait Favorites behavior is covered in mobile Chromium.")
   await installAtmosphereFavorites(page, [])
