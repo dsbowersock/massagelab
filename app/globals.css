@@ -2389,6 +2389,11 @@
     right: var(--ml-player-right-safe) !important;
   }
 
+  .ml-player-viewport-safe-sheet[data-ml-player-viewport-side="bottom"] {
+    max-width: max(0px, calc(100dvw - var(--ml-player-right-safe))) !important;
+    right: var(--ml-player-right-safe) !important;
+  }
+
   @media (max-width: 39.999rem) {
     /* Keep the edge rule visual-only so it cannot subtract from the grid. */
     .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface {
@@ -3829,6 +3834,96 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   .ml-atmosphere-favorite-tile {
     animation: none;
     transition: none;
+  }
+}
+
+/* The complete Favorites collection stays within the shared player-safe Sheet
+   primitive. Its scroll body is bounded so the fixed Music workspace never
+   inherits document scrolling when a user saves more than nine stations. */
+.ml-atmosphere-all-favorites-sheet {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(100%, 42rem);
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-all-favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.15rem 0.1rem 0.4rem;
+}
+
+.ml-atmosphere-all-favorites-grid > div {
+  aspect-ratio: 1;
+  min-width: 0;
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.56);
+  border-radius: 0.55rem;
+  background: hsl(var(--card) / 0.8);
+  color: hsl(var(--foreground));
+  isolation: isolate;
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile {
+  cursor: pointer;
+  text-align: left;
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile[aria-current="true"] {
+  border-color: hsl(var(--primary) / 0.88);
+  box-shadow: 0 0 0.75rem hsl(var(--primary) / 0.34);
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile:not(:disabled):hover {
+  border-color: hsl(var(--primary) / 0.72);
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile > [role="img"] {
+  grid-area: 1 / 1;
+  border-radius: 0;
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile > span {
+  z-index: 1;
+  align-self: end;
+  min-width: 0;
+  padding: 1.15rem 0.5rem 0.35rem;
+  overflow: hidden;
+  background: linear-gradient(to top, hsl(0 0% 0% / 0.88), transparent);
+  color: hsl(var(--foreground));
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 32rem) {
+  .ml-atmosphere-all-favorites-sheet .ml-atmosphere-all-favorites-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

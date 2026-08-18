@@ -1687,6 +1687,59 @@ test("Favorites direct playback keeps the provider as the single owner during lo
   expect(probeAfterRepeat.audioContext.generatorGeneration).toBe(probeBeforeRepeat.audioContext.generatorGeneration)
 })
 
+test("All favorites direct playback reuses provider ownership and collection states", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Touch Favorites playback is mobile-owned.")
+  await installAtmosphereFavorites(page, [
+    "generative-fm-420hz-gamma-waves-for-big-brain",
+    "generative-fm-a-viable-system",
+    "generative-fm-above-the-rain",
+    "generative-fm-agua-ravine",
+    "generative-fm-aisatsana",
+    "generative-fm-animalia-chordata",
+    "generative-fm-apoapsis",
+    "generative-fm-at-sunrise",
+    "generative-fm-awash",
+    "generative-fm-beneath-waves",
+    "mlab-proof-drone",
+    "retired-station-id",
+  ])
+  await installMediaOwnershipFakes(page, {
+    actualRuntimeModulePath: await getActualRuntimeModulePath(),
+    holdPhase: "module-loading",
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+
+  await page.getByRole("region", { name: "Favorites" })
+    .getByRole("button", { name: "All favorites, 11 stations" })
+    .click()
+  const sheet = page.getByRole("dialog", { name: "All favorites" })
+  const proofDrone = sheet.getByRole("button", { name: "MassageLab Proof Drone" })
+  await expect(proofDrone).toHaveAttribute("data-all-favorite-station", "")
+  await proofDrone.click()
+  await waitForStartupPhase(page, "module-loading")
+
+  await expect(sheet.locator("[data-all-favorite-station]")).toHaveCount(11)
+  expect(await sheet.locator("[data-all-favorite-station]").evaluateAll((buttons) => (
+    buttons.every((button) => button instanceof HTMLButtonElement && button.disabled)
+  ))).toBe(true)
+  expect((await readProbe(page)).audio.playCalls).toBe(1)
+
+  await releaseHeldStartupPhase(page)
+  const player = page.getByTestId("music-player-toolbar")
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  const activeStation = sheet.getByRole("button", { name: "MassageLab Proof Drone playing" })
+  await expect(activeStation).toHaveAttribute("aria-current", "true")
+  await expect(activeStation).toHaveAttribute("aria-disabled", "true")
+  await activeStation.focus()
+  await page.keyboard.press("Enter")
+  const beforeRepeat = await readProbe(page)
+  await page.waitForTimeout(250)
+  const afterRepeat = await readProbe(page)
+  expect(afterRepeat.audio.playCalls).toBe(beforeRepeat.audio.playCalls)
+  expect(afterRepeat.audioContext.generatorGeneration).toBe(beforeRepeat.audioContext.generatorGeneration)
+})
+
 test("runtime readiness failure exposes a visible retry before Play becomes actionable", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Physical-touch regression is mobile-owned.")
   const actualRuntimeModulePath = await getActualRuntimeModulePath()

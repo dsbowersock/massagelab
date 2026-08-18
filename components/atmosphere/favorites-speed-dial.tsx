@@ -1,7 +1,16 @@
 "use client"
 
+import { useState } from "react"
 import { AtmosphereStationArtwork } from "@/components/atmosphere/station-artwork"
 import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { buildAtmosphereFavoritesSpeedDialModel } from "@/lib/atmosphere/favorites-speed-dial"
 import { resolveAtmosphereStationArtworkInput } from "@/lib/atmosphere/station-artwork"
 import { getVisibleAtmosphereStations } from "@/lib/atmosphere/stations"
@@ -33,6 +42,17 @@ export function AtmosphereFavoritesSpeedDial({
 }: AtmosphereFavoritesSpeedDialProps) {
   const model = buildAtmosphereFavoritesSpeedDialModel(favoriteIds, stations)
   const centeredStation = stations.find((station) => station.id === centeredStationId) ?? null
+  const [allFavoritesOpen, setAllFavoritesOpen] = useState(false)
+
+  const renderStationDestination = (station: (typeof stations)[number], location: "mosaic" | "collection") => (
+    <FavoriteStationTile
+      busy={busy}
+      collection={location === "collection"}
+      onPlayStation={onPlayStation}
+      playing={station.id === playingStationId}
+      station={station}
+    />
+  )
 
   return (
     <section
@@ -62,19 +82,39 @@ export function AtmosphereFavoritesSpeedDial({
               }}
             >
               {destination.kind === "station" ? (
-                <FavoriteStationTile
-                  busy={busy}
-                  onPlayStation={onPlayStation}
-                  playing={destination.station.id === playingStationId}
-                  station={destination.station}
-                />
+                renderStationDestination(destination.station, "mosaic")
               ) : destination.kind === "empty" ? (
                 <EmptyFavoriteTile centeredStation={centeredStation} onAddFavorite={onAddFavorite} />
               ) : (
-                <div className="ml-atmosphere-favorite-tile ml-atmosphere-favorite-collection" data-favorite-destination="all-favorites">
-                  <span>All favorites</span>
-                  <strong>{destination.count}</strong>
-                </div>
+                <Sheet open={allFavoritesOpen} onOpenChange={setAllFavoritesOpen}>
+                  <SheetTrigger asChild>
+                    <button
+                      aria-label={`All favorites, ${destination.count} stations`}
+                      className="ml-atmosphere-favorite-tile ml-atmosphere-favorite-collection"
+                      data-favorite-destination="all-favorites"
+                      type="button"
+                    >
+                      <span>All favorites</span>
+                      <strong>{destination.count}</strong>
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent
+                    className="ml-atmosphere-all-favorites-sheet max-h-[min(80dvh,42rem)]"
+                    side="bottom"
+                  >
+                    <SheetHeader>
+                      <SheetTitle>All favorites</SheetTitle>
+                      <SheetDescription>Start any saved Atmosphere station.</SheetDescription>
+                    </SheetHeader>
+                    <div className="ml-atmosphere-all-favorites-grid">
+                      {model.allFavorites.map((station) => (
+                        <div key={station.id}>
+                          {renderStationDestination(station, "collection")}
+                        </div>
+                      ))}
+                    </div>
+                  </SheetContent>
+                </Sheet>
               )}
             </div>
           )
@@ -88,11 +128,13 @@ function FavoriteStationTile({
   station,
   playing,
   busy,
+  collection = false,
   onPlayStation,
 }: {
   station: (typeof stations)[number]
   playing: boolean
   busy: boolean
+  collection?: boolean
   onPlayStation: (stationId: string) => void
 }) {
   const unavailable = !station.enabled
@@ -105,7 +147,9 @@ function FavoriteStationTile({
       aria-disabled={playing || disabled}
       aria-label={label}
       className="ml-atmosphere-favorite-tile"
+      data-all-favorite-station={collection ? "" : undefined}
       data-favorite-destination="station"
+      data-station-id={collection ? station.id : undefined}
       disabled={disabled}
       onClick={() => {
         if (!playing && !disabled) onPlayStation(station.id)

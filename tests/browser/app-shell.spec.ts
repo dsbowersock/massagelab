@@ -2736,6 +2736,80 @@ test("Favorites mosaic preserves the approved one through nine placement table",
   await expect(mosaic.locator('[data-favorite-destination="station"]').first()).toHaveCSS("animation-name", "none")
 })
 
+test("All favorites opens a complete newest-first Sheet with focus restoration", async ({ page }) => {
+  const newestFirstIds = [
+    "generative-fm-420hz-gamma-waves-for-big-brain",
+    "generative-fm-a-viable-system",
+    "generative-fm-above-the-rain",
+    "generative-fm-agua-ravine",
+    "generative-fm-aisatsana",
+    "generative-fm-animalia-chordata",
+    "generative-fm-apoapsis",
+    "generative-fm-at-sunrise",
+    "generative-fm-awash",
+    "generative-fm-beneath-waves",
+    "mlab-proof-drone",
+    "retired-station-id",
+  ]
+  const expectedNewestFirstIds = newestFirstIds.slice(0, -1)
+
+  await installAtmosphereFavorites(page, newestFirstIds)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await gotoShell(page, "/music")
+
+  const favorites = page.getByRole("region", { name: "Favorites" })
+  await expect(favorites.locator('[data-favorite-destination="station"]')).toHaveCount(8)
+  const trigger = favorites.getByRole("button", { name: "All favorites, 11 stations" })
+  await trigger.focus()
+  await trigger.press("Enter")
+
+  const sheet = page.getByRole("dialog", { name: "All favorites" })
+  await expect(sheet).toBeVisible()
+  const collectionStations = sheet.locator("[data-all-favorite-station]")
+  await expect(collectionStations).toHaveCount(11)
+  expect(await collectionStations.evaluateAll((items) => (
+    items.map((item) => item.getAttribute("data-station-id"))
+  ))).toEqual(expectedNewestFirstIds)
+
+  await sheet.getByRole("button", { name: "Close" }).focus()
+  await page.keyboard.press("Shift+Tab")
+  await expect.poll(() => sheet.evaluate((element) => element.contains(document.activeElement))).toBe(true)
+
+  await page.setViewportSize({ width: 824, height: 384 })
+  await page.evaluate(() => document.body.classList.add("ml-music-player-active", "ml-music-player-rail"))
+  await page.waitForTimeout(600)
+  await expect(sheet).toBeVisible()
+  const sheetGeometry = await sheet.evaluate((element) => {
+    const box = element.getBoundingClientRect()
+    const probe = document.createElement("div")
+    probe.style.cssText = "position:fixed;visibility:hidden;width:var(--ml-player-right-safe);"
+    document.body.appendChild(probe)
+    const playerRightSafe = probe.getBoundingClientRect().width
+    probe.remove()
+    return {
+      bottom: box.bottom,
+      left: box.left,
+      playerRightSafe,
+      right: box.right,
+      top: box.top,
+      viewportHeight: window.innerHeight,
+      viewportWidth: window.innerWidth,
+    }
+  })
+  expect(sheetGeometry.playerRightSafe).toBeGreaterThan(0)
+  expect(sheetGeometry.left).toBeGreaterThanOrEqual(0)
+  expect(sheetGeometry.right).toBeLessThanOrEqual(sheetGeometry.viewportWidth - sheetGeometry.playerRightSafe)
+  expect(sheetGeometry.top).toBeGreaterThanOrEqual(0)
+  expect(sheetGeometry.bottom).toBeLessThanOrEqual(sheetGeometry.viewportHeight)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.evaluate(() => document.body.classList.remove("ml-music-player-active", "ml-music-player-rail"))
+  await page.waitForTimeout(600)
+  await page.keyboard.press("Escape")
+  await expect(sheet).toBeHidden()
+  await expect(trigger).toBeFocused()
+})
+
 test("compact landscape restores the approved five-card Station composition", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Compact Station composition is covered in mobile Chromium.")
   await page.emulateMedia({ reducedMotion: "no-preference" })
