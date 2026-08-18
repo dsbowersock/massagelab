@@ -1387,8 +1387,16 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
 
     if (collapsed) {
       const sidebarFrame = await page.locator(".ml-app-sidebar-frame").boundingBox()
-      expect(sidebarFrame, `${stateLabel} app sidebar`).not.toBeNull()
-      expect(rail.width, `${stateLabel} shared collapsed rail width`).toBeCloseTo(sidebarFrame?.width ?? 0, 0)
+      // Clock's immersive route removes the physical sidebar while retaining
+      // the same icon-rail token that defines a collapsed player rail.
+      const expectedCollapsedRailWidth = sidebarFrame?.width ?? await page.evaluate(() => {
+        const root = getComputedStyle(document.documentElement)
+        // This route has no SidebarProvider to publish the custom property;
+        // match the CSS rail fallback of 3.25rem instead.
+        return 3.25 * Number.parseFloat(root.fontSize)
+      })
+      expect(rail.width, `${stateLabel} shared collapsed rail width`)
+        .toBeCloseTo(expectedCollapsedRailWidth, 0)
       expect(vinyl.width, `${stateLabel} retained diameter`).toBeCloseTo(expectedDiameter ?? 0, 0)
       expect(vinyl.x + vinyl.width, `${stateLabel} clipped right arc`)
         .toBeGreaterThan(layer.x + layer.width)
@@ -1416,17 +1424,24 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
         if (!identity || !grooves || !glare || !label) throw new Error("Vinyl treatment is incomplete")
         return {
           identityBackground: getComputedStyle(identity).backgroundImage,
+          identityPlate: getComputedStyle(identity, "::before").backgroundImage,
           identityShadow: getComputedStyle(identity).textShadow,
           grooves: getComputedStyle(grooves).backgroundImage,
           glare: getComputedStyle(glare).backgroundImage,
           label: getComputedStyle(label).backgroundImage,
+          labelDisc: getComputedStyle(label, "::before").backgroundColor,
         }
       })
-      expect(vinylTreatment.identityBackground).not.toBe("none")
+      // The readable treatment is a feathered pseudo-element plate over the
+      // vinyl; the identity itself remains transparent so it does not obscure
+      // the artwork beneath it.
+      expect(vinylTreatment.identityBackground).toBe("none")
+      expect(vinylTreatment.identityPlate).not.toBe("none")
       expect(vinylTreatment.identityShadow).not.toBe("none")
       expect(vinylTreatment.grooves).not.toBe("none")
       expect(vinylTreatment.glare).not.toBe("none")
-      expect(vinylTreatment.label).not.toBe("none")
+      expect(vinylTreatment.label).toBe("none")
+      expect(vinylTreatment.labelDisc).not.toBe("rgba(0, 0, 0, 0)")
     }
     expectMusicRailOverflowBounded(await readMusicRailOverflow(toolbar))
     geometryReceipt.push({ state: collapsed ? "collapsed" : "expanded", viewport, route, rail, vinyl, layer, spacing })
