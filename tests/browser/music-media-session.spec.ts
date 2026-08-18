@@ -1660,6 +1660,7 @@ test("Favorites direct playback keeps the provider as the single owner during lo
 
   const favorites = page.getByRole("region", { name: "Favorites" })
   const observable = favorites.getByRole("button", { name: "Observable Streams" })
+  const proofDrone = favorites.getByRole("button", { name: "MassageLab Proof Drone" })
   await expect(observable).toBeVisible()
   await observable.click()
   await waitForStartupPhase(page, "module-loading")
@@ -1667,6 +1668,7 @@ test("Favorites direct playback keeps the provider as the single owner during lo
   await expect(favorites).toHaveAttribute("aria-busy", "true")
   await expect(favorites.getByRole("status")).toHaveText("Favorites are unavailable while audio prepares.")
   await expect(observable).toBeDisabled()
+  await expect(proofDrone).toBeDisabled()
   expect((await readProbe(page)).audio.playCalls).toBe(1)
 
   await releaseHeldStartupPhase(page)
