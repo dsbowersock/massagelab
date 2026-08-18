@@ -2706,6 +2706,21 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
     expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
 
+    // Embla applies its post-resize snap on the next frame. Assert the
+    // completed geometry rather than sampling its intentional transition.
+    await expect.poll(() => carousel.evaluate((region) => {
+      const stage = region.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')
+      const center = region.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )
+      if (!stage || !center) return Number.POSITIVE_INFINITY
+      const stageBox = stage.getBoundingClientRect()
+      const centerBox = center.getBoundingClientRect()
+      return Math.abs(
+        centerBox.left + (centerBox.width / 2) - (stageBox.left + (stageBox.width / 2)),
+      )
+    })).toBeLessThanOrEqual(1)
+
     const carouselGeometry = await carousel.evaluate((region) => {
       const stage = region.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')
       const center = region.querySelector<HTMLElement>(
