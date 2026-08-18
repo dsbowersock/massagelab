@@ -5,14 +5,14 @@ import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMusic } from "./music-provider"
 
-const NOTICE_DURATION_MS = 30_000
+const NOTICE_DURATION_MS = 24_000
 
 type MusicInterruptionNoticeProps = {
   placement: "top" | "bottom"
 }
 
 /**
- * Presents the per-session interruption choice for 30 seconds of active
+ * Presents the per-session interruption choice for 24 seconds of active
  * reading time. Hover and focus share one remaining-time deadline so moving
  * between controls cannot accidentally reset or consume the notice timeout.
  */

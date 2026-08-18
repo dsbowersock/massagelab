@@ -149,13 +149,6 @@
   align-items: flex-start;
 }
 
-/* Keep the summary previews top-aligned in the shared stage so their visual
-   bottom is a stable anchor for the surface-owned controls. */
-.root[data-surface="stations"][data-carousel-responsive-profile="music-fit"]
-  .slide[data-detail-level="summary"] .presentation {
-  transform: none;
-}
-
 .root[data-surface="stations"][data-carousel-responsive-profile="music-fit"] .controls {
   position: absolute;
   inset: 0;

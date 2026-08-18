@@ -1371,8 +1371,9 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
     }
 
     if (collapsed) {
-      const rootFontSize = await page.locator("html").evaluate((root) => Number.parseFloat(getComputedStyle(root).fontSize))
-      expect(rail.width, `${stateLabel} 7rem rail`).toBeCloseTo(rootFontSize * 7, 0)
+      const sidebarFrame = await page.locator(".ml-app-sidebar-frame").boundingBox()
+      expect(sidebarFrame, `${stateLabel} app sidebar`).not.toBeNull()
+      expect(rail.width, `${stateLabel} shared collapsed rail width`).toBeCloseTo(sidebarFrame?.width ?? 0, 0)
       expect(vinyl.width, `${stateLabel} retained diameter`).toBeCloseTo(expectedDiameter ?? 0, 0)
       expect(vinyl.x + vinyl.width, `${stateLabel} clipped right arc`)
         .toBeGreaterThan(layer.x + layer.width)
@@ -1381,6 +1382,7 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
       expect(visibleVinylWidth, `${stateLabel} visible left arc`).toBeCloseTo(rail.width - 7, 0)
       await expect(toolbar.getByTestId("music-player-toolbar-identity")).toBeHidden()
       expect(await actionLabels()).toEqual(["Stop", "Expand"])
+      await expect(toolbar.getByRole("button", { name: "Expand" }).locator("svg.lucide-chevron-left")).toHaveCount(1)
     } else {
       expect(vinyl.width, `${stateLabel} expanded diameter`).toBeCloseTo(rail.width - 14, 0)
       await expect(toolbar.getByTestId("music-player-toolbar-identity")).toBeVisible()
@@ -1390,6 +1392,26 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
       expect(await toolbar.getByTestId("music-player-toolbar-rail-options")
         .locator("button[aria-label], a[aria-label]").evaluateAll((actions) => actions.map((action) => action.getAttribute("aria-label"))))
         .toEqual(["Player settings", "Favorite MassageLab Proof Drone", "Background", "Minimize"])
+      await expect(toolbar.getByRole("button", { name: "Minimize" }).locator("svg.lucide-chevron-right")).toHaveCount(1)
+      const vinylTreatment = await toolbar.evaluate((root) => {
+        const identity = root.querySelector<HTMLElement>('[data-testid="music-player-toolbar-identity"]')
+        const grooves = root.querySelector<HTMLElement>(".ml-station-vinyl-grooves")
+        const glare = root.querySelector<HTMLElement>(".ml-station-vinyl-glare")
+        const label = root.querySelector<HTMLElement>(".ml-station-vinyl-label")
+        if (!identity || !grooves || !glare || !label) throw new Error("Vinyl treatment is incomplete")
+        return {
+          identityBackground: getComputedStyle(identity).backgroundImage,
+          identityShadow: getComputedStyle(identity).textShadow,
+          grooves: getComputedStyle(grooves).backgroundImage,
+          glare: getComputedStyle(glare).backgroundImage,
+          label: getComputedStyle(label).backgroundImage,
+        }
+      })
+      expect(vinylTreatment.identityBackground).not.toBe("none")
+      expect(vinylTreatment.identityShadow).not.toBe("none")
+      expect(vinylTreatment.grooves).not.toBe("none")
+      expect(vinylTreatment.glare).not.toBe("none")
+      expect(vinylTreatment.label).not.toBe("none")
     }
     expectMusicRailOverflowBounded(await readMusicRailOverflow(toolbar))
     geometryReceipt.push({ state: collapsed ? "collapsed" : "expanded", viewport, route, rail, vinyl, layer, spacing })
@@ -1662,15 +1684,18 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
       '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
     )
     await expect(carouselRegion.locator('[data-station-carousel-controls="true"]')).toBeAttached()
-    await expect(summaries).toHaveCount(2)
+    await expect.poll(() => summaries.count()).toBeGreaterThanOrEqual(2)
     const readStationControlGeometry = () => carouselRegion.evaluate((region) => {
       const previousControl = region.querySelector<HTMLElement>('[aria-label="Previous station"]')
       const nextControl = region.querySelector<HTMLElement>('[aria-label="Next station"]')
       const stageElement = region.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')
+      const centerElement = region.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )
       const summaryElements = [...region.querySelectorAll<HTMLElement>(
         '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
       )]
-      if (!previousControl || !nextControl || !stageElement || summaryElements.length !== 2) {
+      if (!previousControl || !nextControl || !stageElement || !centerElement || summaryElements.length < 2) {
         return null
       }
       const readBox = (element: HTMLElement) => {
@@ -1680,9 +1705,17 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
       const previousBox = readBox(previousControl)
       const nextBox = readBox(nextControl)
       const stageBox = readBox(stageElement)
-      const summaryBoxes = summaryElements
-        .map(readBox)
-        .sort((left, right) => left.x - right.x)
+      const centerBox = readBox(centerElement)
+      const centerX = centerBox.x + centerBox.width / 2
+      const candidates = summaryElements.map(readBox)
+      const leftSummary = candidates
+        .filter((box) => box.x + box.width / 2 < centerX)
+        .sort((left, right) => right.x - left.x)[0]
+      const rightSummary = candidates
+        .filter((box) => box.x + box.width / 2 > centerX)
+        .sort((left, right) => left.x - right.x)[0]
+      if (!leftSummary || !rightSummary) return null
+      const summaryBoxes = [leftSummary, rightSummary]
       return { previousBox, nextBox, stageBox, summaryBoxes }
     })
     const settledGeometry = {
@@ -1878,7 +1911,10 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
     expect(stageBottom, `${label} stage/allocation bottom`).toBeCloseTo(allocationBottom, 0)
     expect(allocationBottom, `${label} allocation/usable bottom`).toBeCloseTo(usableBottom, 0)
     expect(stageBottom, `${label} stage/usable bottom`).toBeCloseTo(usableBottom, 0)
-    expect(centerBox?.height ?? 0, `${label} centered card height`).toBeCloseTo(stageBox?.height ?? 0, 0)
+    const expectedHeight = Math.min(224, Math.floor(stageBox?.height ?? 0))
+    const expectedWidth = Math.round(expectedHeight * 192 / 224)
+    expect(centerBox?.width ?? 0, `${label} centered card width`).toBeCloseTo(expectedWidth, 0)
+    expect(centerBox?.height ?? 0, `${label} centered card height`).toBeCloseTo(expectedHeight, 0)
     await assertCenteredStationActionsContained(label)
   }
 
@@ -1909,7 +1945,7 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
     }
     await expect(selectedHeading)[viewport.showSelection ? "toBeVisible" : "toBeHidden"]()
     await expect(selectedDescription)[viewport.showSelection ? "toBeVisible" : "toBeHidden"]()
-    await expect(nonShellCards).toHaveCount(3)
+    await expect(nonShellCards).toHaveCount(9)
     await expect(center).toHaveAttribute("data-carousel-item-id", "mlab-proof-drone")
     const boxes = await page.evaluate(() => {
       const selectors = {
@@ -1961,7 +1997,7 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
         const category = categoryGroup.getByRole("button", { name: categoryName })
         await category.click()
         await expect(category).toHaveAttribute("aria-pressed", "true")
-        await expect(nonShellCards).toHaveCount(3)
+        await expect(nonShellCards).toHaveCount(Math.min(9, await carouselRegion.locator('[data-carousel-slide]').count()))
         await expect(carouselRegion).toHaveAttribute("data-carousel-ready", "true")
         const remountLabel = `${viewport.width}x${viewport.height} ${categoryName}`
         await assertStationControlGeometry(remountLabel)
@@ -1970,10 +2006,8 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
       }
     }
 
-    for (let index = 0; index < 3; index += 1) {
-      await expect(nonShellCards.nth(index)).toBeInViewport({ ratio: 0.15 })
-      await assertContained(nonShellCards.nth(index), stage, `${viewport.width}x${viewport.height} card ${index}`)
-    }
+    await expect(center).toBeInViewport({ ratio: 0.9 })
+    await assertContained(center, stage, `${viewport.width}x${viewport.height} centered card`)
 
     if (viewport.width === 746 && viewport.height === 284) {
       const centeredTitle = center.locator("[data-carousel-station-details] span").first()
@@ -2048,8 +2082,14 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
         })
         .sort((left, right) => left.x - right.x)),
     ])
-    const leftCardBox = visualCardBoxes[0]
-    const rightCardBox = visualCardBoxes[visualCardBoxes.length - 1]
+    const stageCenter = (stageBox?.x ?? 0) + (stageBox?.width ?? 0) / 2
+    const leftCardBox = visualCardBoxes
+      .filter((box) => box.x + box.width / 2 < stageCenter)
+      .sort((left, right) => right.x - left.x)[0]
+    const rightCardBox = visualCardBoxes
+      .filter((box) => box.x + box.width / 2 > stageCenter)
+      .sort((left, right) => left.x - right.x)[0]
+    if (!leftCardBox || !rightCardBox) return false
     const visibleCenter = (box: { x: number, width: number }) => {
       const left = Math.max(box.x, stageBox?.x ?? box.x)
       const right = Math.min(
@@ -2476,6 +2516,7 @@ test("player rail keeps overlays clear while preserving caller collision padding
 
 test("stable portrait station cards survive expanded collapsed stopped and restarted player state", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Portrait station geometry is covered in mobile Chromium.")
+  await page.emulateMedia({ reducedMotion: "no-preference" })
   await installInterruptionNoticeMediaFakes(page)
   await installStationCapabilityQueries(page, { reducedMotion: false, finePointer: false })
   const receipt: Array<Record<string, unknown>> = []
@@ -2485,24 +2526,17 @@ test("stable portrait station cards survive expanded collapsed stopped and resta
     const toolbar = await startProofDrone(page)
     const carousel = page.getByRole("region", { name: "Station carousel" })
     const readCards = async (state: string) => {
-      await expect(carousel.locator('[data-carousel-slide]:not([data-detail-level="shell"])')).toHaveCount(3)
-      const boxes = await carousel.locator(
-        '[data-carousel-slide]:not([data-detail-level="shell"]) [data-carousel-transform="true"]',
-      ).evaluateAll((elements) => elements.map((element) => {
+      await expect(carousel.locator('[data-carousel-slide]:not([data-detail-level="shell"])')).toHaveCount(9)
+      const box = await carousel.locator(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      ).evaluate((element) => {
         const rectangle = element.getBoundingClientRect()
         return { width: rectangle.width, height: rectangle.height }
-      }))
-      expect(boxes).toHaveLength(3)
-      const baseline = boxes[0]
-      expect(baseline.width).toBeGreaterThanOrEqual(159)
-      expect(baseline.width).toBeLessThanOrEqual(193)
-      expect(Math.abs(baseline.height - Math.round(baseline.width * 224 / 192))).toBeLessThanOrEqual(1)
-      for (const box of boxes.slice(1)) {
-        expect(Math.abs(box.width - baseline.width)).toBeLessThanOrEqual(1)
-        expect(Math.abs(box.height - baseline.height)).toBeLessThanOrEqual(1)
-      }
-      receipt.push({ viewport, state, boxes })
-      return boxes
+      })
+      expect(box.width).toBeCloseTo(192, 0)
+      expect(box.height).toBeCloseTo(224, 0)
+      receipt.push({ viewport, state, box })
+      return box
     }
 
     const expanded = await readCards("expanded")
@@ -2517,11 +2551,9 @@ test("stable portrait station cards survive expanded collapsed stopped and resta
     await toolbar.getByRole("button", { name: "Play", exact: true }).click()
     await expect(toolbar).toHaveAttribute("data-playback-state", /loading|playing/)
     const restarted = await readCards("restarted")
-    for (const boxes of [collapsed, stopped, restarted]) {
-      boxes.forEach((box, index) => {
-        expect(Math.abs(box.width - expanded[index].width)).toBeLessThanOrEqual(1)
-        expect(Math.abs(box.height - expanded[index].height)).toBeLessThanOrEqual(1)
-      })
+    for (const box of [collapsed, stopped, restarted]) {
+      expect(Math.abs(box.width - expanded.width)).toBeLessThanOrEqual(1)
+      expect(Math.abs(box.height - expanded.height)).toBeLessThanOrEqual(1)
     }
     await toolbar.getByRole("button", { name: "Stop", exact: true }).click()
   }
@@ -2529,6 +2561,316 @@ test("stable portrait station cards survive expanded collapsed stopped and resta
     body: JSON.stringify(receipt, null, 2),
     contentType: "application/json",
   })
+})
+
+test("compact landscape restores the approved five-card Station composition", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Compact Station composition is covered in mobile Chromium.")
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await installStationCapabilityQueries(page, { reducedMotion: false, finePointer: false })
+  await page.setViewportSize({ width: 824, height: 384 })
+  await gotoShell(page, "/music")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const mountedCards = carousel.locator('[data-carousel-slide]:not([data-detail-level="shell"])')
+  const center = carousel.locator('[data-carousel-slide][data-centered="true"]')
+  const centerPresentation = center.locator('[data-carousel-transform="true"]')
+  const centerArtwork = center.locator("[data-carousel-artwork]")
+  const summaries = carousel.locator(
+    '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
+  )
+
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  await expect(mountedCards).toHaveCount(9)
+  await expect(summaries).toHaveCount(8)
+  await expect.poll(() => summaries.evaluateAll((elements) => elements.some(
+    (element) => getComputedStyle(element).transform !== "none"
+      && getComputedStyle(element).transform !== "matrix(1, 0, 0, 1, 0, 0)",
+  ))).toBe(true)
+  await expect.poll(async () => {
+    const [centerBox, artworkBox] = await Promise.all([
+      centerPresentation.boundingBox(),
+      centerArtwork.boundingBox(),
+    ])
+    if (!centerBox || !artworkBox) return null
+    return Math.max(
+      Math.abs(artworkBox.width - artworkBox.height),
+      Math.abs(centerBox.width / centerBox.height - 192 / 224),
+    )
+  }).toBeLessThanOrEqual(0.002)
+
+  const geometry = await carousel.evaluate((region) => {
+    const stationSurface = region.closest<HTMLElement>(".ml-atmosphere-station-carousel")
+    const headingElement = stationSurface?.querySelector<HTMLElement>(".ml-atmosphere-station-heading")
+    const allocationElement = stationSurface?.querySelector<HTMLElement>(".ml-atmosphere-station-stage-allocation")
+    const stageElement = region.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')
+    const centerElement = region.querySelector<HTMLElement>(
+      '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+    )
+    const summaryElements = [...region.querySelectorAll<HTMLElement>(
+      '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
+    )]
+    if (!headingElement || !allocationElement || !stageElement || !centerElement) {
+      throw new Error("Station carousel geometry is incomplete")
+    }
+    const headingBox = headingElement.getBoundingClientRect()
+    const allocationBox = allocationElement.getBoundingClientRect()
+    const stageBox = stageElement.getBoundingClientRect()
+    const centerBox = centerElement.getBoundingClientRect()
+    const summaries = summaryElements.map((element) => {
+      const box = element.getBoundingClientRect()
+      return {
+        intrinsicHeight: element.offsetHeight,
+        intrinsicWidth: element.offsetWidth,
+        width: box.width,
+        height: box.height,
+        visibleWidth: Math.max(0, Math.min(box.right, stageBox.right) - Math.max(box.left, stageBox.left)),
+      }
+    })
+    return {
+      compactGap: allocationBox.top - headingBox.bottom,
+      center: { width: centerBox.width, height: centerBox.height },
+      summaries,
+      visiblyComposedCards: 1 + summaries.filter(({ visibleWidth }) => visibleWidth >= 8).length,
+    }
+  })
+  expect(geometry.compactGap).toBeCloseTo(24, 0)
+  expect(geometry.visiblyComposedCards).toBeGreaterThanOrEqual(5)
+  expect(geometry.summaries.some(({ width }) => width < geometry.center.width)).toBe(true)
+  expect(geometry.summaries.every(({ width }) => width <= geometry.center.width)).toBe(true)
+  expect(geometry.summaries.every(({ intrinsicHeight, intrinsicWidth }) => (
+    intrinsicHeight === 192 && intrinsicWidth === 192
+  ))).toBe(true)
+})
+
+test("starting a constrained-landscape station preserves the approved card spacing", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Constrained player-rail composition is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await page.setViewportSize({ width: 824, height: 384 })
+  await gotoShell(page, "/music")
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  const readNearCardGeometry = () => carousel.evaluate((region) => {
+    const center = region.querySelector<HTMLElement>(
+      '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+    )
+    const summaries = [...region.querySelectorAll<HTMLElement>(
+      '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
+    )]
+    if (!center) throw new Error("Centered Station card is missing")
+    const centerBox = center.getBoundingClientRect()
+    const centerX = centerBox.left + centerBox.width / 2
+    const boxes = summaries.map((summary) => summary.getBoundingClientRect())
+    const left = boxes.filter((box) => box.left + box.width / 2 < centerX)
+      .sort((first, second) => second.right - first.right)[0]
+    const right = boxes.filter((box) => box.left + box.width / 2 > centerX)
+      .sort((first, second) => first.left - second.left)[0]
+    if (!left || !right) throw new Error("Nearest Station previews are missing")
+    return {
+      width: region.getBoundingClientRect().width,
+      left: centerBox.left - left.right,
+      right: right.left - centerBox.right,
+    }
+  })
+
+  await expect.poll(async () => {
+    const gaps = await readNearCardGeometry()
+    return Math.abs(gaps.left - gaps.right)
+  }).toBeLessThanOrEqual(1)
+  const before = await readNearCardGeometry()
+  expect(before.left).toBeGreaterThanOrEqual(4)
+  expect(before.right).toBeGreaterThanOrEqual(4)
+
+  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  const toolbar = page.getByTestId("music-player-toolbar")
+  await expect(toolbar).toHaveAttribute("data-layout", "rail")
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-rail/)
+  await expect.poll(async () => before.width - (await readNearCardGeometry()).width).toBeGreaterThan(50)
+
+  let stableSamples = 0
+  let previous = await readNearCardGeometry()
+  let after = previous
+  await expect.poll(async () => {
+    after = await readNearCardGeometry()
+    const unchanged = Math.max(
+      Math.abs(after.width - previous.width),
+      Math.abs(after.left - previous.left),
+      Math.abs(after.right - previous.right),
+    ) <= 0.25
+    stableSamples = unchanged ? stableSamples + 1 : 0
+    previous = after
+    return stableSamples
+  }, { intervals: [100, 100, 100, 150, 200] }).toBeGreaterThanOrEqual(2)
+
+  expect(after.left).toBeGreaterThanOrEqual(0)
+  expect(after.right).toBeGreaterThanOrEqual(0)
+  expect(Math.abs(after.left - after.right)).toBeLessThanOrEqual(1)
+  expect(Math.abs(after.left - before.left)).toBeLessThanOrEqual(2)
+  expect(Math.abs(after.right - before.right)).toBeLessThanOrEqual(2)
+})
+
+test("medium landscape keeps both outer Station wings visible", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== desktopProject, "The annotated fine-pointer viewport is covered in desktop Chromium.")
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await page.setViewportSize({ width: 714, height: 597 })
+  await gotoShell(page, "/music")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  await expect.poll(() => carousel.evaluate((region) => {
+    const stage = region.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')
+    const cards = [...region.querySelectorAll<HTMLElement>(
+      '[data-carousel-slide]:not([data-detail-level="shell"]) [data-carousel-transform="true"]',
+    )]
+    if (!stage) return 0
+    const stageBox = stage.getBoundingClientRect()
+    return cards.filter((card) => {
+      const box = card.getBoundingClientRect()
+      const visibleWidth = Math.max(
+        0,
+        Math.min(box.right, stageBox.right) - Math.max(box.left, stageBox.left),
+      )
+      // A sliver is not a useful wing. Keep at least one quarter of each
+      // outer preview visible so its art can still be recognized.
+      return visibleWidth >= Math.min(48, box.width * 0.25)
+    }).length
+  })).toBeGreaterThanOrEqual(5)
+})
+
+test("short Station controls remain inside the usable carousel height", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Short touch viewport controls are covered in mobile Chromium.")
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await installStationCapabilityQueries(page, { reducedMotion: true, finePointer: false })
+  await page.setViewportSize({ width: 674, height: 331 })
+  await gotoShell(page, "/music")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const controls = page.getByTestId("station-carousel-controls")
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  await expect(controls).toBeVisible()
+  const geometry = await carousel.evaluate((region) => {
+    const root = region.getBoundingClientRect()
+    const buttons = [...region.querySelectorAll<HTMLElement>(
+      '[data-testid="station-carousel-controls"] button',
+    )].map((button) => button.getBoundingClientRect().toJSON())
+    return { root: root.toJSON(), buttons }
+  })
+  expect(geometry.buttons).toHaveLength(2)
+  for (const button of geometry.buttons) {
+    expect(button.top).toBeGreaterThanOrEqual(geometry.root.top)
+    expect(button.bottom).toBeLessThanOrEqual(geometry.root.bottom)
+    expect(button.bottom).toBeLessThanOrEqual(331)
+  }
+})
+
+test("side player rail shares sidebar width, readable vinyl treatment, and directional controls", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Constrained side-player styling is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 824, height: 384 })
+  const toolbar = await startProofDrone(page)
+  const notice = page.getByRole("region", { name: "Interruption preference" })
+  if (await notice.isVisible()) await notice.getByRole("button", { name: "Close" }).click()
+
+  await expect(toolbar).toHaveAttribute("data-layout", "rail")
+  await expect(toolbar.getByRole("button", { name: "Minimize" }).locator("svg.lucide-chevron-right")).toHaveCount(1)
+  const treatment = await toolbar.evaluate((root) => {
+    const identity = root.querySelector<HTMLElement>('[data-testid="music-player-toolbar-identity"]')
+    const disc = root.querySelector<HTMLElement>(".ml-station-vinyl-disc")
+    const artwork = root.querySelector<HTMLElement>(".ml-station-vinyl-artwork")
+    const grooves = root.querySelector<HTMLElement>(".ml-station-vinyl-grooves")
+    const glare = root.querySelector<HTMLElement>(".ml-station-vinyl-glare")
+    const label = root.querySelector<HTMLElement>(".ml-station-vinyl-label")
+    const controls = root.querySelector<HTMLElement>('[data-testid="music-player-toolbar-controls"]')
+    const layout = root.querySelector<HTMLElement>(".ml-music-player-toolbar-layout")
+    if (!identity || !disc || !artwork || !grooves || !glare || !label || !controls || !layout) {
+      throw new Error("Vinyl treatment is incomplete")
+    }
+    const discBox = disc.getBoundingClientRect()
+    const artworkBox = artwork.getBoundingClientRect()
+    const labelBefore = getComputedStyle(label, "::before")
+    const identityBefore = getComputedStyle(identity, "::before")
+    const sharedSurfaceBefore = getComputedStyle(layout, "::before")
+    return {
+      identityBackground: getComputedStyle(identity).backgroundImage,
+      identityBoxShadow: getComputedStyle(identity).boxShadow,
+      identityPlate: identityBefore.backgroundImage,
+      identityPlateContent: identityBefore.content,
+      identityShadow: getComputedStyle(identity).textShadow,
+      identityZIndex: Number.parseInt(getComputedStyle(identity).zIndex, 10),
+      controlsZIndex: Number.parseInt(getComputedStyle(controls).zIndex, 10),
+      sharedSurfaceBackground: sharedSurfaceBefore.backgroundColor,
+      sharedSurfaceContent: sharedSurfaceBefore.content,
+      sharedSurfaceGridRowEnd: sharedSurfaceBefore.gridRowEnd,
+      sharedSurfaceGridRowStart: sharedSurfaceBefore.gridRowStart,
+      sharedSurfaceOpacity: Number.parseFloat(sharedSurfaceBefore.opacity),
+      sharedSurfaceZIndex: Number.parseInt(sharedSurfaceBefore.zIndex, 10),
+      artworkInset: artworkBox.left - discBox.left,
+      grooves: getComputedStyle(grooves).backgroundImage,
+      grooveBlendMode: getComputedStyle(grooves).mixBlendMode,
+      glare: getComputedStyle(glare).backgroundImage,
+      labelDiameter: Number.parseFloat(labelBefore.width),
+      discDiameter: discBox.width,
+    }
+  })
+  expect(treatment.identityBackground).toBe("none")
+  expect(treatment.identityBoxShadow).toBe("none")
+  expect(treatment.identityPlateContent).toBe("none")
+  expect(treatment.identityShadow).not.toBe("none")
+  expect(treatment.sharedSurfaceContent).not.toBe("none")
+  expect(treatment.sharedSurfaceBackground).not.toBe("rgba(0, 0, 0, 0)")
+  expect(treatment.sharedSurfaceGridRowStart).toBe("2")
+  expect(treatment.sharedSurfaceGridRowEnd).toBe("4")
+  expect(treatment.sharedSurfaceOpacity).toBeGreaterThanOrEqual(0.45)
+  expect(treatment.sharedSurfaceOpacity).toBeLessThanOrEqual(0.7)
+  expect(treatment.identityZIndex).toBeGreaterThan(treatment.sharedSurfaceZIndex)
+  expect(treatment.controlsZIndex).toBeGreaterThan(treatment.identityZIndex)
+  expect(treatment.artworkInset).toBeGreaterThan(0)
+  expect(treatment.grooves).not.toBe("none")
+  expect(treatment.grooveBlendMode).toBe("normal")
+  expect(treatment.glare).not.toBe("none")
+  expect(treatment.labelDiameter / treatment.discDiameter).toBeGreaterThanOrEqual(0.3)
+
+  const [expandedVinyl, expandedIdentity, expandedControls, expandedRail] = await Promise.all([
+    toolbar.getByTestId("station-vinyl").boundingBox(),
+    toolbar.getByTestId("music-player-toolbar-identity").boundingBox(),
+    toolbar.getByTestId("music-player-toolbar-controls").boundingBox(),
+    toolbar.boundingBox(),
+  ])
+  expect(expandedVinyl, "expanded vinyl").not.toBeNull()
+  expect(expandedIdentity, "expanded identity").not.toBeNull()
+  expect(expandedControls, "expanded controls").not.toBeNull()
+  expect(expandedRail, "expanded player rail").not.toBeNull()
+  const identityCenterX = (expandedIdentity?.x ?? 0) + (expandedIdentity?.width ?? 0) / 2
+  const vinylCenterX = (expandedVinyl?.x ?? 0) + (expandedVinyl?.width ?? 0) / 2
+  const identityCenterY = (expandedIdentity?.y ?? 0) + (expandedIdentity?.height ?? 0) / 2
+  const vinylCenterY = (expandedVinyl?.y ?? 0) + (expandedVinyl?.height ?? 0) / 2
+  expect(Math.abs(identityCenterX - vinylCenterX)).toBeLessThanOrEqual(1)
+  expect(identityCenterY).toBeGreaterThan(vinylCenterY + 16)
+  expect((expandedControls?.y ?? 0) - (
+    (expandedIdentity?.y ?? 0) + (expandedIdentity?.height ?? 0)
+  )).toBeGreaterThanOrEqual(0)
+  expect((expandedControls?.y ?? 0) - (
+    (expandedIdentity?.y ?? 0) + (expandedIdentity?.height ?? 0)
+  )).toBeLessThanOrEqual(16)
+  expect(
+    (expandedRail?.y ?? 0) + (expandedRail?.height ?? 0)
+      - ((expandedControls?.y ?? 0) + (expandedControls?.height ?? 0)),
+  ).toBeLessThanOrEqual(16)
+  await toolbar.getByRole("button", { name: "Minimize" }).click()
+  await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+  await expect(toolbar.getByRole("button", { name: "Expand" }).locator("svg.lucide-chevron-left")).toHaveCount(1)
+  const [collapsedRail, sidebar, collapsedVinyl] = await Promise.all([
+    toolbar.boundingBox(),
+    page.locator(".ml-app-sidebar-frame").boundingBox(),
+    toolbar.getByTestId("station-vinyl").boundingBox(),
+  ])
+  expect(collapsedRail, "collapsed player rail").not.toBeNull()
+  expect(sidebar, "app sidebar rail").not.toBeNull()
+  expect(collapsedVinyl, "collapsed vinyl").not.toBeNull()
+  expect(collapsedRail?.width).toBeCloseTo(sidebar?.width ?? 0, 0)
+  expect(collapsedVinyl?.width).toBeCloseTo(expandedVinyl?.width ?? 0, 0)
 })
 
 test("station controls follow input capability live without remount", async ({ page }, testInfo) => {
@@ -2542,21 +2884,42 @@ test("station controls follow input capability live without remount", async ({ p
   const summaries = carousel.locator(
     '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
   )
-  await expect(summaries).toHaveCount(2)
+  await expect(summaries).toHaveCount(8)
   await expect(marker).toHaveCount(0)
   await expect(controls).toHaveCount(0)
   await expect(carousel.getByRole("button", { name: /^(Previous|Next) station$/ })).toHaveCount(0)
-  const unreservedHeight = await summaries.first().evaluate((element) => element.getBoundingClientRect().height)
+  const unreservedHeight = await summaries.first().evaluate(
+    (element) => Number.parseFloat(getComputedStyle(element).height),
+  )
   await carousel.evaluate((element) => Reflect.set(window, "__task20StageIdentity", element))
 
   await setStationCapabilityQuery(page, stationReducedMotionQuery, true)
   await expect(marker).toHaveCount(1)
   await expect(controls).toHaveCount(1)
   await expect(carousel.getByRole("button", { name: /^(Previous|Next) station$/ })).toHaveCount(2)
-  const reducedHeight = await summaries.first().evaluate((element) => element.getBoundingClientRect().height)
-  expect(unreservedHeight - reducedHeight).toBeCloseTo(60, 0)
+  const reducedHeight = await summaries.first().evaluate(
+    (element) => Number.parseFloat(getComputedStyle(element).height),
+  )
+  expect(reducedHeight).toBeCloseTo(unreservedHeight, 0)
   const [summaryBoxes, controlBoxes] = await Promise.all([
-    summaries.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON())),
+    carousel.evaluate((region) => {
+      const center = region.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )
+      const summaries = [...region.querySelectorAll<HTMLElement>(
+        '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
+      )]
+      if (!center) throw new Error("Centered Station card is missing")
+      const centerBox = center.getBoundingClientRect()
+      const centerX = centerBox.x + centerBox.width / 2
+      const boxes = summaries.map((element) => element.getBoundingClientRect().toJSON())
+      const left = boxes.filter((box) => box.x + box.width / 2 < centerX)
+        .sort((first, second) => second.x - first.x)[0]
+      const right = boxes.filter((box) => box.x + box.width / 2 > centerX)
+        .sort((first, second) => first.x - second.x)[0]
+      if (!left || !right) throw new Error("Adjacent Station summaries are missing")
+      return [left, right]
+    }),
     carousel.getByRole("button", { name: /^(Previous|Next) station$/ })
       .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON())),
   ])
@@ -2568,12 +2931,16 @@ test("station controls follow input capability live without remount", async ({ p
   await setStationCapabilityQuery(page, stationReducedMotionQuery, false)
   await expect(marker).toHaveCount(0)
   await expect(controls).toHaveCount(0)
-  await expect.poll(() => summaries.first().evaluate((element) => element.getBoundingClientRect().height))
+  await expect.poll(() => summaries.first().evaluate(
+    (element) => Number.parseFloat(getComputedStyle(element).height),
+  ))
     .toBeCloseTo(unreservedHeight, 0)
   await setStationCapabilityQuery(page, stationFinePointerQuery, true)
   await expect(marker).toHaveCount(1)
   await expect(controls).toHaveCount(1)
-  await expect.poll(() => summaries.first().evaluate((element) => element.getBoundingClientRect().height))
+  await expect.poll(() => summaries.first().evaluate(
+    (element) => Number.parseFloat(getComputedStyle(element).height),
+  ))
     .toBeCloseTo(reducedHeight, 0)
   const preservedStageIdentity = await carousel.evaluate(
     (element) => Reflect.get(window, "__task20StageIdentity") === element,
@@ -2681,12 +3048,11 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
     expect(cardBox, "centered station card box").not.toBeNull()
     if (!stageBox || !cardBox) return
 
-    const expectedWidth = Math.max(160, Math.min(192, Math.floor(stageBox.width / 2.6)))
-    const isConstrainedLandscape = stageBox.width > stageBox.height && stageBox.height <= 480
     const expectedHeight = Math.max(
       72,
-      Math.min(isConstrainedLandscape ? stageBox.height : 224, Math.floor(stageBox.height)),
+      Math.min(224, Math.floor(stageBox.height)),
     )
+    const expectedWidth = Math.round(expectedHeight * 192 / 224)
     expect(cardBox.width).toBeCloseTo(expectedWidth, 0)
     expect(cardBox.height).toBeCloseTo(expectedHeight, 0)
     expect(cardBox.x).toBeGreaterThanOrEqual(stageBox.x - 1)
@@ -2697,7 +3063,7 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
 
   await expect(toolbar).toHaveAttribute("data-layout", "rail")
   expect(centeredStationId).toBe("mlab-proof-drone")
-  await expect(nonShellCards).toHaveCount(3)
+  await expect(nonShellCards).toHaveCount(9)
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
   await expect(proofDrone).toHaveAttribute("data-centered", "true")
   await expect(proofDrone.getByRole("button", { name: /Play|Stop MassageLab Proof Drone/i })).toBeInViewport()
@@ -2710,21 +3076,21 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
   await expect(toolbar).toHaveAttribute("data-collapsed", "true")
   await expect.poll(async () => (await proofDrone.boundingBox())?.width).toBe(192)
   await expect(proofDrone).toHaveAttribute("data-centered", "true")
-  await expect(nonShellCards).toHaveCount(3)
+  await expect(nonShellCards).toHaveCount(9)
   await expect.poll(readCenterOffset).toBeLessThanOrEqual(0.5)
 
   await toolbar.getByRole("button", { name: "Expand", exact: true }).click()
   await expect(toolbar).toHaveAttribute("data-collapsed", "false")
-  await expect.poll(async () => (await proofDrone.boundingBox())?.width).toBe(175)
+  await expect.poll(async () => (await proofDrone.boundingBox())?.width).toBe(192)
   await expect(proofDrone).toHaveAttribute("data-centered", "true")
-  await expect(nonShellCards).toHaveCount(3)
+  await expect(nonShellCards).toHaveCount(9)
   await expect.poll(readCenterOffset).toBeLessThanOrEqual(0.5)
 
   await toolbar.getByRole("button", { name: "Minimize", exact: true }).click()
   await expect(toolbar).toHaveAttribute("data-collapsed", "true")
   await expect.poll(async () => (await proofDrone.boundingBox())?.width).toBe(192)
   await expect(proofDrone).toHaveAttribute("data-centered", "true")
-  await expect(nonShellCards).toHaveCount(3)
+  await expect(nonShellCards).toHaveCount(9)
   await expect.poll(readCenterOffset).toBeLessThanOrEqual(0.5)
   await assertResponsiveCenteredCard()
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
@@ -2834,6 +3200,7 @@ test("vinyl player controls expose grouped semantic actions and a minimal collap
   await expect(left.getByRole("button", { name: "Player settings" })).toHaveClass(/ml-button-glow/)
   await expect(right.getByRole("slider", { name: "Atmosphere volume" })).toBeVisible()
   await expect(right.getByRole("button", { name: "Minimize" })).toHaveClass(/ml-button-glow/)
+  await expect(right.getByRole("button", { name: "Minimize" }).locator("svg.lucide-chevron-down")).toHaveCount(1)
 
   const actionLabels = await primary
     .locator('button[aria-label], a[aria-label]')
@@ -2863,6 +3230,7 @@ test("vinyl player controls expose grouped semantic actions and a minimal collap
 
   await right.getByRole("button", { name: "Minimize" }).click()
   await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+  await expect(toolbar.getByRole("button", { name: "Expand" }).locator("svg.lucide-chevron-up")).toHaveCount(1)
   await expect(left).toHaveCount(0)
   await expect(primary).toHaveCount(0)
   await expect(right).toHaveCount(0)
@@ -2977,6 +3345,29 @@ test("portrait player vinyl rectangles remain exact across expanded and collapse
     collapsed: { bottom: 888, height: 128, left: 12, right: 140, top: 760, width: 128 },
     expanded: { bottom: 776, height: 128, left: 12, right: 140, top: 648, width: 128 },
   })
+})
+
+test("collapsed portrait actions stay vertically centered in the player bar", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Portrait collapsed action alignment is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  const toolbar = await startInterruptionNoticeSession(page)
+
+  await toolbar.getByRole("button", { name: "Minimize" }).click()
+  await expect(toolbar).toHaveAttribute("data-collapsed", "true")
+  const [bar, playStop, expand] = await Promise.all([
+    toolbar.boundingBox(),
+    toolbar.getByRole("button", { name: "Stop", exact: true }).boundingBox(),
+    toolbar.getByRole("button", { name: "Expand" }).boundingBox(),
+  ])
+  if (!bar || !playStop || !expand) throw new Error("Collapsed portrait player geometry is unavailable")
+
+  const barCenterY = bar.y + bar.height / 2
+  const playStopCenterY = playStop.y + playStop.height / 2
+  const expandCenterY = expand.y + expand.height / 2
+  expect(Math.abs(playStopCenterY - barCenterY)).toBeLessThanOrEqual(1)
+  expect(Math.abs(expandCenterY - barCenterY)).toBeLessThanOrEqual(1)
+  expect(Math.abs(playStopCenterY - expandCenterY)).toBeLessThanOrEqual(1)
 })
 
 test("rail inset keeps constrained-landscape vinyl geometry seven pixels inside in both player states", async ({ page }, testInfo) => {
@@ -3108,7 +3499,7 @@ test("Atmosphere interruption notice counts only active unhovered and unfocused 
   await page.clock.fastForward("00:40")
   await expect(notice).toBeVisible()
   await page.mouse.move(1, 1)
-  await page.clock.fastForward(19_500)
+  await page.clock.fastForward(13_500)
   await expect(notice).toBeVisible()
   await page.clock.fastForward(500)
   await expect(notice).toBeHidden()
@@ -3122,10 +3513,33 @@ test("Atmosphere interruption notice counts only active unhovered and unfocused 
   await page.clock.fastForward("01:00")
   await expect(notice).toBeVisible()
   await player.getByRole("button", { name: "Minimize", exact: true }).focus()
-  await page.clock.fastForward(29_500)
+  await page.clock.fastForward(23_500)
   await expect(notice).toBeVisible()
   await page.clock.fastForward(500)
   await expect(notice).toBeHidden()
+})
+
+test("Atmosphere interruption notice schedules auto-dismiss after 24 unattended seconds", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "The exact notice deadline is covered in mobile Chromium.")
+  await installInterruptionNoticeMediaFakes(page)
+  await page.addInitScript(() => {
+    const nativeSetTimeout = window.setTimeout.bind(window)
+    Reflect.set(window, "__interruptionNoticeTimeouts", [])
+    window.setTimeout = ((handler: TimerHandler, timeout = 0, ...args: unknown[]) => {
+      if (timeout >= 20_000 && timeout <= 30_000) {
+        const timeouts = Reflect.get(window, "__interruptionNoticeTimeouts") as number[]
+        timeouts.push(timeout)
+      }
+      return nativeSetTimeout(handler, timeout, ...args)
+    }) as typeof window.setTimeout
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await startInterruptionNoticeSession(page)
+  const notice = page.getByRole("region", { name: "Interruption preference" })
+  await expect(notice).toBeVisible()
+  await expect.poll(() => page.evaluate(() => (
+    Reflect.get(window, "__interruptionNoticeTimeouts") as number[]
+  ))).toContain(24_000)
 })
 
 test("stopped retirement exclusions do not cancel or extend the route and player deadline", async ({ page }, testInfo) => {

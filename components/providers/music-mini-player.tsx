@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import {
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   MoreHorizontal,
   Play,
@@ -223,7 +225,9 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
           aria-label="Minimize"
           onClick={() => music.setMiniPlayerCollapsed(true)}
         >
-          <ChevronDown aria-hidden="true" />
+          {isCompactLandscape
+            ? <ChevronRight aria-hidden="true" />
+            : <ChevronDown aria-hidden="true" />}
         </Button>
       </TooltipTrigger>
       <TooltipContent>Minimize</TooltipContent>
@@ -272,7 +276,9 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
           aria-label="Expand"
           onClick={() => music.setMiniPlayerCollapsed(false)}
         >
-          <ChevronUp aria-hidden="true" />
+          {isCompactLandscape
+            ? <ChevronLeft aria-hidden="true" />
+            : <ChevronUp aria-hidden="true" />}
         </Button>
       </TooltipTrigger>
       <TooltipContent>Expand</TooltipContent>

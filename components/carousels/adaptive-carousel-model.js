@@ -61,8 +61,9 @@ export const STATION_CAROUSEL_TUNING = Object.freeze({
 })
 
 /**
- * Fits the station carousel to its actual workspace while preserving one
- * centered card and one summary neighbor on each side.
+ * Preserves the approved Station composition. Portrait and roomy landscape
+ * use the exact 192x224 card; a shorter constrained stage scales that complete
+ * 6:7 shape down rather than stretching one dimension or dropping wing cards.
  * @param {{ containerWidth: number, containerHeight: number, constrainedLandscape: boolean }} dimensions
  * @returns {AdaptiveCarouselTuning}
  */
@@ -71,19 +72,22 @@ export function getResponsiveStationCarouselTuning({
   containerHeight,
   constrainedLandscape,
 }) {
-  const safeWidth = Number.isFinite(containerWidth) ? containerWidth : 556
-  const safeHeight = Number.isFinite(containerHeight) ? containerHeight : 246
-  const cardWidth = Math.max(160, Math.min(192, Math.floor(safeWidth / 2.6)))
+  const safeWidth = Number.isFinite(containerWidth) ? containerWidth : 740
+  const safeHeight = Number.isFinite(containerHeight) ? containerHeight : 224
+  const cardHeight = constrainedLandscape
+    ? Math.max(72, Math.min(224, Math.floor(safeHeight)))
+    : STATION_CAROUSEL_TUNING.cardHeight
+  const cardWidth = Math.round(cardHeight * 192 / 224)
   return {
     ...STATION_CAROUSEL_TUNING,
     cardWidth,
-    // Viewport orientation is caller-owned. Portrait cards derive height only
-    // from their stable width; explicitly constrained landscape consumes the
-    // complete measured stage while summary controls reserve room internally.
-    cardHeight: constrainedLandscape
-      ? Math.max(72, Math.floor(safeHeight))
-      : Math.round(cardWidth * 224 / 192),
-    visibleRadius: 1,
+    cardHeight,
+    // Preserve the approved 27-degree composition when room permits. At the
+    // medium-width shell, pull the second pair of wings inward far enough to
+    // remain recognizable instead of leaving only imperceptible slivers.
+    spread: safeWidth < 700 && !constrainedLandscape
+      ? 20
+      : STATION_CAROUSEL_TUNING.spread,
   }
 }
 

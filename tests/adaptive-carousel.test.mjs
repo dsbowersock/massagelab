@@ -100,7 +100,7 @@ describe("production adaptive carousel", () => {
     )
   })
 
-  it("station tuning fits three cards inside a constrained rail workspace", () => {
+  it("preserves the approved fixed Station composition in constrained landscape", () => {
     assert.deepEqual(
       getResponsiveStationCarouselTuning({
         containerWidth: 556,
@@ -110,19 +110,22 @@ describe("production adaptive carousel", () => {
       {
         ...STATION_CAROUSEL_TUNING,
         cardWidth: 192,
-        cardHeight: 246,
-        visibleRadius: 1,
+        cardHeight: 224,
+        visibleRadius: 4,
       },
     )
   })
 
-  it("lets constrained-landscape stations consume the full measured stage height", () => {
+  it("keeps constrained-landscape stations on the approved fixed baseline", () => {
     const landscape = getResponsiveStationCarouselTuning({
       containerWidth: 556,
       containerHeight: 246,
       constrainedLandscape: true,
     })
-    assert.equal(landscape.cardHeight, 246)
+    assert.deepEqual(
+      { width: landscape.cardWidth, height: landscape.cardHeight },
+      { width: 192, height: 224 },
+    )
 
     const portrait = getResponsiveStationCarouselTuning({
       containerWidth: 556,
@@ -132,7 +135,28 @@ describe("production adaptive carousel", () => {
     assert.equal(portrait.cardHeight, 224)
   })
 
-  it("keeps wide short portrait stage cards on the stable width-derived 7:6 ratio", () => {
+  it("compresses only the medium-width Station wing sweep", () => {
+    const medium = getResponsiveStationCarouselTuning({
+      containerWidth: 650,
+      containerHeight: 420,
+      constrainedLandscape: false,
+    })
+    const roomy = getResponsiveStationCarouselTuning({
+      containerWidth: 740,
+      containerHeight: 246,
+      constrainedLandscape: true,
+    })
+    const constrained = getResponsiveStationCarouselTuning({
+      containerWidth: 556,
+      containerHeight: 246,
+      constrainedLandscape: true,
+    })
+    assert.equal(medium.spread, 20)
+    assert.equal(roomy.spread, STATION_CAROUSEL_TUNING.spread)
+    assert.equal(constrained.spread, STATION_CAROUSEL_TUNING.spread)
+  })
+
+  it("keeps portrait cards fixed across stage and player-rail changes", () => {
     const expanded = getResponsiveStationCarouselTuning({
       containerWidth: 556,
       containerHeight: 246,
@@ -157,8 +181,8 @@ describe("production adaptive carousel", () => {
       containerHeight: 210,
       constrainedLandscape: false,
     })
-    assert.equal(narrow.cardWidth, 161)
-    assert.equal(narrow.cardHeight, Math.round(161 * 224 / 192))
+    assert.equal(narrow.cardWidth, 192)
+    assert.equal(narrow.cardHeight, 224)
   })
 
   it("keeps station looping independent from static reduced-motion presentation", () => {
@@ -168,24 +192,24 @@ describe("production adaptive carousel", () => {
     assert.doesNotMatch(controllerSource, /const finiteRail = reducedMotion \|\| tuning\.motion === false/)
   })
 
-  it("station tuning consumes the measured stage allocation without a fixed control subtraction", () => {
+  it("scales the approved Station ratio down only when constrained height requires it", () => {
     const tuning = getResponsiveStationCarouselTuning({
       containerWidth: 420,
       containerHeight: 210,
       constrainedLandscape: true,
     })
-    assert.equal(tuning.cardWidth, 161)
+    assert.equal(tuning.cardWidth, 180)
     assert.equal(tuning.cardHeight, 210)
-    assert.equal(tuning.visibleRadius, 1)
+    assert.equal(tuning.visibleRadius, 4)
 
     const severeHeight = getResponsiveStationCarouselTuning({
       containerWidth: 360,
       containerHeight: 96,
       constrainedLandscape: true,
     })
-    assert.equal(severeHeight.cardWidth, 160)
+    assert.equal(severeHeight.cardWidth, Math.round(96 * 192 / 224))
     assert.equal(severeHeight.cardHeight, 96)
-    assert.equal(severeHeight.visibleRadius, 1)
+    assert.equal(severeHeight.visibleRadius, 4)
   })
 
   it("owns live station capability and constrained-landscape media queries without touch heuristics", () => {

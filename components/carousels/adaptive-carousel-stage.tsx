@@ -117,11 +117,12 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
 
   const cardWidth = finiteTuningValue(tuning.cardWidth, 208)
   const cardHeight = finiteTuningValue(tuning.cardHeight, 304)
-  // Station summaries reserve one rem-scaled control plus an exact 16px
-  // visual offset, so increased text cannot clip the control inside the stage.
-  const stationControlsReserve = surface === "stations" && (!renderControls || customControlsVisible)
-  const summaryCardHeight = stationControlsReserve
-    ? `max(0px, min(${cardHeight}px, ${cardWidth + 1}px, calc(${cardHeight}px - 2.75rem - 16px)))`
+  // Station previews are square so their artwork and title remain complete.
+  // Navigation is an independently overlaid affordance and must not change
+  // card geometry when pointer or reduced-motion capability changes live.
+  const approvedSummaryCardHeight = Math.min(cardHeight, cardWidth)
+  const summaryCardHeight = surface === "stations"
+    ? `${approvedSummaryCardHeight}px`
     : `${cardHeight}px`
   const rootStyle: CarouselRootStyle = {
     "--carousel-card-width": `${cardWidth}px`,

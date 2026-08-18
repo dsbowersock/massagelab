@@ -73,6 +73,9 @@ export function AtmosphereStationCarouselCard({
   favoriteClassName,
 }: AtmosphereStationCarouselCardProps) {
   const isActive = music.activeStationId === station.id
+  const isPrimaryActionActive = isActive
+    && music.playbackState !== "stopped"
+    && music.playbackState !== "failed"
   const isFavorite = music.favorites.includes(station.id)
   const attributionText = stationAttributionText(station)
   const attributionHref = station.attribution.notice ? "" : station.attribution.sourceUrl
@@ -103,19 +106,19 @@ export function AtmosphereStationCarouselCard({
       return
     }
     if (runtimePreparing) return
-    if (isActive) {
+    if (isPrimaryActionActive) {
       void music.stopCurrent()
       return
     }
     void music.playStation(station.id, {
       artworkInput: stationArtworkInput ?? undefined,
     })
-  }, [isActive, music, runtimeFailed, runtimePreparing, station.id, stationArtworkInput])
+  }, [isPrimaryActionActive, music, runtimeFailed, runtimePreparing, station.id, stationArtworkInput])
 
   const primaryPointerAdapterEnabled = station.enabled
     && !runtimeFailed
     && !runtimePreparing
-    && !isActive
+    && !isPrimaryActionActive
     && music.playbackState !== "loading"
 
   const handlePrimaryPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -277,13 +280,13 @@ export function AtmosphereStationCarouselCard({
                 ? "Retry audio setup"
                 : runtimePreparing
                   ? `Preparing audio for ${station.title}`
-                  : isActive
+                  : isPrimaryActionActive
                     ? `Stop ${station.title}`
                     : `Play ${station.title}`}
               disabled={
                 !station.enabled
                 || runtimePreparing
-                || (!isActive && music.playbackState === "loading")
+                || (!isPrimaryActionActive && music.playbackState === "loading")
               }
               onClick={handlePrimaryClick}
               onFocus={() => prewarmStation(station.id)}
@@ -296,12 +299,12 @@ export function AtmosphereStationCarouselCard({
             >
               {runtimeFailed ? (
                 <RefreshCw aria-hidden="true" />
-              ) : isActive ? (
+              ) : isPrimaryActionActive ? (
                 <Square aria-hidden="true" />
               ) : (
                 <Play aria-hidden="true" />
               )}
-              {runtimeFailed ? "Retry audio" : runtimePreparing ? "Preparing" : isActive ? "Stop" : "Play"}
+              {runtimeFailed ? "Retry audio" : runtimePreparing ? "Preparing" : isPrimaryActionActive ? "Stop" : "Play"}
             </Button>
             <Button
               data-carousel-favorite-action

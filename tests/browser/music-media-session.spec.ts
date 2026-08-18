@@ -2493,6 +2493,9 @@ test("vinyl motion advances only while the station is Playing and freezes inacti
   const vinyl = player.getByTestId("station-vinyl")
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
   await expect(vinyl).toHaveAttribute("data-playing", "true")
+  await expect.poll(() => vinyl.locator(".ml-station-vinyl-disc").evaluate((disc) => (
+    disc.getAnimations()[0]?.pending ?? false
+  ))).toBe(false)
 
   const playingBefore = await readVinylMotion(vinyl)
   expect(playingBefore.animationName).toBe("ml-station-vinyl-spin")
@@ -2629,6 +2632,21 @@ test("explicit Pause and Stop cannot be reversed by later focus or visibility ev
   expect((await readProbe(page)).audio.playCalls).toBe(stopPlayCalls)
 })
 
+test("the station card returns to Play immediately after its explicit Stop", async ({ page }) => {
+  await installMediaOwnershipFakes(page)
+  const player = await startProofStation(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await closeInterruptionNotice(page)
+
+  await page.getByRole("button", { name: /^Stop MassageLab Proof Drone$/i }).click()
+  await expect(player).toHaveAttribute("data-playback-state", "stopped")
+  await expect(page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })).toBeVisible()
+  await expect(player).toBeVisible()
+
+  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  await expect(player).toHaveAttribute("data-playback-state", /loading|playing/)
+})
+
 test("stopped player retires after 60 seconds", async ({ page }) => {
   await page.clock.install()
   await installMediaOwnershipFakes(page)
@@ -2652,7 +2670,7 @@ test("stopped player retires after 60 seconds", async ({ page }) => {
   await page.clock.fastForward(remainingRetentionMs - 1)
   await expect(player).toHaveAttribute("data-playback-state", "stopped")
   await expect(player.getByTestId("music-player-toolbar-identity").locator("p").first()).toHaveText(title ?? "")
-  await expect(page.getByRole("button", { name: /^Stop MassageLab Proof Drone$/i })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })).toBeVisible()
 
   await page.clock.fastForward(1)
   await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
