@@ -2681,6 +2681,7 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
     ]
   await page.setViewportSize(roomyViewports[0])
   const toolbar = await startProofDrone(page)
+  const carousel = page.getByRole("region", { name: "Station carousel" })
   const favorites = page.getByTestId("atmosphere-favorites-region")
   const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
 
@@ -2688,6 +2689,7 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
     await page.setViewportSize(viewport)
     await expect(toolbar).toHaveAttribute("data-layout", "bottom")
     await expect(favorites).toBeVisible()
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
     const geometry = await mosaic.evaluate((element) => {
       const mosaic = element.getBoundingClientRect()
       const slot = element.parentElement?.parentElement?.getBoundingClientRect()
@@ -2703,6 +2705,76 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
     expect(geometry.width).toBeLessThanOrEqual(512)
     expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+
+    const carouselGeometry = await carousel.evaluate((region) => {
+      const stage = region.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')
+      const center = region.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )
+      const artwork = center?.querySelector<HTMLElement>("[data-carousel-artwork]")
+      const cards = [...region.querySelectorAll<HTMLElement>(
+        '[data-carousel-slide]:not([data-detail-level="shell"]) [data-carousel-transform="true"]',
+      )]
+      const summaries = [...region.querySelectorAll<HTMLElement>(
+        '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
+      )]
+      if (!stage || !center || !artwork) throw new Error("Roomy Station carousel geometry is incomplete")
+      const stageBox = stage.getBoundingClientRect()
+      const centerBox = center.getBoundingClientRect()
+      const artworkBox = artwork.getBoundingClientRect()
+      const visibleSummaries = summaries.filter((summary) => {
+        const box = summary.getBoundingClientRect()
+        const visibleWidth = Math.max(0, Math.min(box.right, stageBox.right) - Math.max(box.left, stageBox.left))
+        return visibleWidth >= Math.min(48, box.width * 0.25)
+      })
+      const centerX = centerBox.left + centerBox.width / 2
+      const nearestLeft = summaries
+        .map((summary) => summary.getBoundingClientRect())
+        .filter((box) => box.left + box.width / 2 < centerX)
+        .sort((first, second) => second.right - first.right)[0]
+      const nearestRight = summaries
+        .map((summary) => summary.getBoundingClientRect())
+        .filter((box) => box.left + box.width / 2 > centerX)
+        .sort((first, second) => first.left - second.left)[0]
+      if (!nearestLeft || !nearestRight) throw new Error("Roomy Station carousel wings are incomplete")
+      return {
+        artwork: { height: artworkBox.height, width: artworkBox.width },
+        center: { height: centerBox.height, left: centerBox.left, width: centerBox.width },
+        centerContained: centerBox.left >= stageBox.left - 1
+          && centerBox.right <= stageBox.right + 1
+          && centerBox.top >= stageBox.top - 1
+          && centerBox.bottom <= stageBox.bottom + 1,
+        centered: Math.abs(centerX - (stageBox.left + stageBox.width / 2)),
+        mountedCardCount: cards.length,
+        nearestWingGaps: {
+          left: centerBox.left - nearestLeft.right,
+          right: nearestRight.left - centerBox.right,
+        },
+        summaryCount: summaries.length,
+        visiblyComposedCards: 1 + visibleSummaries.length,
+      }
+    })
+    expect(carouselGeometry.mountedCardCount).toBe(9)
+    expect(carouselGeometry.summaryCount).toBe(8)
+    expect(carouselGeometry.center.width / carouselGeometry.center.height).toBeCloseTo(192 / 224, 2)
+    expect(carouselGeometry.artwork.width / carouselGeometry.artwork.height).toBeCloseTo(1, 2)
+    expect(carouselGeometry.centerContained).toBe(true)
+    expect(carouselGeometry.centered).toBeLessThanOrEqual(1)
+    // Portrait keeps the approved centered card plus its two adjacent wings;
+    // wider desktop stages retain the established five-card composition.
+    expect(carouselGeometry.visiblyComposedCards).toBeGreaterThanOrEqual(
+      testInfo.project.name === mobileProject ? 3 : 5,
+    )
+    if (testInfo.project.name === desktopProject) {
+      expect(carouselGeometry.nearestWingGaps.left).toBeGreaterThanOrEqual(4)
+      expect(carouselGeometry.nearestWingGaps.right).toBeGreaterThanOrEqual(4)
+    } else {
+      // The approved portrait stage uses controlled overlap for depth, while
+      // keeping the adjacent wings visibly balanced around the center card.
+      expect(Math.abs(
+        carouselGeometry.nearestWingGaps.left - carouselGeometry.nearestWingGaps.right,
+      )).toBeLessThanOrEqual(1)
+    }
   }
 
   if (testInfo.project.name === mobileProject) {
