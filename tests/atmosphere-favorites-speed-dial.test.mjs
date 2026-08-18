@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   buildAtmosphereFavoritesSpeedDialModel,
+  getAtmosphereFavoriteStationTileState,
   getAtmosphereFavoritesMosaicLayout,
 } from "../lib/atmosphere/favorites-speed-dial.js"
 
@@ -51,6 +52,24 @@ describe("Atmosphere Favorites speed dial", () => {
       stations.slice(0, 8).map(({ id }) => id))
     assert.deepEqual(model.destinations[8], { kind: "all-favorites", count: 11 })
     assert.equal(model.layout.length, 9)
+  })
+
+  it("renders a known unavailable collection station as disabled without a playback action", () => {
+    const unavailableStation = {
+      id: "unavailable-station",
+      title: "Unavailable station",
+      enabled: false,
+    }
+
+    assert.deepEqual(
+      getAtmosphereFavoriteStationTileState(unavailableStation, { busy: false, playing: false }),
+      {
+        ariaLabel: "Unavailable station unavailable",
+        ariaDisabled: true,
+        disabled: true,
+        canPlay: false,
+      },
+    )
   })
 
   it("returns one empty destination when no valid favorite remains", () => {

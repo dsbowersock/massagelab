@@ -2771,11 +2771,15 @@ test("All favorites opens a complete newest-first Sheet with focus restoration",
     items.map((item) => item.getAttribute("data-station-id"))
   ))).toEqual(expectedNewestFirstIds)
 
-  await sheet.getByRole("button", { name: "Close" }).focus()
+  const firstCollectionStation = collectionStations.first()
+  const close = sheet.getByRole("button", { name: "Close" })
+  await firstCollectionStation.focus()
   await page.keyboard.press("Shift+Tab")
-  await expect.poll(() => sheet.evaluate((element) => element.contains(document.activeElement))).toBe(true)
+  await expect(close).toBeFocused()
+  await page.keyboard.press("Tab")
+  await expect(firstCollectionStation).toBeFocused()
 
-  await page.setViewportSize({ width: 824, height: 384 })
+  await page.setViewportSize({ width: 674, height: 331 })
   await page.evaluate(() => document.body.classList.add("ml-music-player-active", "ml-music-player-rail"))
   await page.waitForTimeout(600)
   await expect(sheet).toBeVisible()
@@ -2801,6 +2805,9 @@ test("All favorites opens a complete newest-first Sheet with focus restoration",
   expect(sheetGeometry.right).toBeLessThanOrEqual(sheetGeometry.viewportWidth - sheetGeometry.playerRightSafe)
   expect(sheetGeometry.top).toBeGreaterThanOrEqual(0)
   expect(sheetGeometry.bottom).toBeLessThanOrEqual(sheetGeometry.viewportHeight)
+  expect(await sheet.locator(".ml-atmosphere-all-favorites-grid").evaluate((grid) => (
+    getComputedStyle(grid).gridTemplateColumns.split(" ").length
+  ))).toBe(2)
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.evaluate(() => document.body.classList.remove("ml-music-player-active", "ml-music-player-rail"))

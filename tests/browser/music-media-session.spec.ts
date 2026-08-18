@@ -1716,6 +1716,7 @@ test("All favorites direct playback reuses provider ownership and collection sta
   const sheet = page.getByRole("dialog", { name: "All favorites" })
   const proofDrone = sheet.getByRole("button", { name: "MassageLab Proof Drone" })
   await expect(proofDrone).toHaveAttribute("data-all-favorite-station", "")
+  const probeBeforeStart = await readProbe(page)
   await proofDrone.click()
   await waitForStartupPhase(page, "module-loading")
 
@@ -1728,13 +1729,15 @@ test("All favorites direct playback reuses provider ownership and collection sta
   await releaseHeldStartupPhase(page)
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration).toBe(
+    probeBeforeStart.audioContext.generatorGeneration + 1,
+  )
   const activeStation = sheet.getByRole("button", { name: "MassageLab Proof Drone playing" })
   await expect(activeStation).toHaveAttribute("aria-current", "true")
   await expect(activeStation).toHaveAttribute("aria-disabled", "true")
   await activeStation.focus()
-  await page.keyboard.press("Enter")
   const beforeRepeat = await readProbe(page)
-  await page.waitForTimeout(250)
+  await page.keyboard.press("Enter")
   const afterRepeat = await readProbe(page)
   expect(afterRepeat.audio.playCalls).toBe(beforeRepeat.audio.playCalls)
   expect(afterRepeat.audioContext.generatorGeneration).toBe(beforeRepeat.audioContext.generatorGeneration)

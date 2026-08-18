@@ -318,6 +318,14 @@ describe("Carousel Lab source boundaries", () => {
     assert.doesNotMatch(favoritesSurface, /useMusic\(|new Audio|AudioContext|stopCurrent|pauseCurrent/)
   })
 
+  it("renders unavailable Favorites through the shared inert tile state", () => {
+    const favoritesSurface = read("components/atmosphere/favorites-speed-dial.tsx")
+
+    assert.match(favoritesSurface, /getAtmosphereFavoriteStationTileState/)
+    assert.match(favoritesSurface, /disabled=\{tileState\.disabled\}/)
+    assert.match(favoritesSurface, /if \(!tileState\.canPlay\) return/)
+  })
+
   it("preserves Station category positions and cancels lab prewarm on category change and unmount", () => {
     const surface = read("app/dev/buttons/carousel-lab/station-lab-surface.tsx")
 

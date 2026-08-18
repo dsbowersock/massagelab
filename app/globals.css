@@ -3841,6 +3841,7 @@ html[data-theme-transition-fallback="toggle-light"]::before {
    primitive. Its scroll body is bounded so the fixed Music workspace never
    inherits document scrolling when a user saves more than nine stations. */
 .ml-atmosphere-all-favorites-sheet {
+  container-type: inline-size;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: min(100%, 42rem);
@@ -3921,8 +3922,8 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   white-space: nowrap;
 }
 
-@media (min-width: 32rem) {
-  .ml-atmosphere-all-favorites-sheet .ml-atmosphere-all-favorites-grid {
+@container (min-width: 32rem) {
+  .ml-atmosphere-all-favorites-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

@@ -11,11 +11,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { buildAtmosphereFavoritesSpeedDialModel } from "@/lib/atmosphere/favorites-speed-dial"
+import {
+  buildAtmosphereFavoritesSpeedDialModel,
+  getAtmosphereFavoriteStationTileState,
+} from "@/lib/atmosphere/favorites-speed-dial"
 import { resolveAtmosphereStationArtworkInput } from "@/lib/atmosphere/station-artwork"
 import { getVisibleAtmosphereStations } from "@/lib/atmosphere/stations"
 
 const stations = getVisibleAtmosphereStations()
+type AtmosphereFavoriteStation = (typeof stations)[number]
 
 export type AtmosphereFavoritesSpeedDialProps = {
   favoriteIds: string[]
@@ -44,7 +48,7 @@ export function AtmosphereFavoritesSpeedDial({
   const centeredStation = stations.find((station) => station.id === centeredStationId) ?? null
   const [allFavoritesOpen, setAllFavoritesOpen] = useState(false)
 
-  const renderStationDestination = (station: (typeof stations)[number], location: "mosaic" | "collection") => (
+  const renderStationDestination = (station: AtmosphereFavoriteStation, location: "mosaic" | "collection") => (
     <FavoriteStationTile
       busy={busy}
       collection={location === "collection"}
@@ -131,28 +135,27 @@ function FavoriteStationTile({
   collection = false,
   onPlayStation,
 }: {
-  station: (typeof stations)[number]
+  station: AtmosphereFavoriteStation
   playing: boolean
   busy: boolean
   collection?: boolean
   onPlayStation: (stationId: string) => void
 }) {
-  const unavailable = !station.enabled
-  const disabled = busy || unavailable
-  const label = getFavoriteStationActionLabel(station, { playing, unavailable })
+  const tileState = getAtmosphereFavoriteStationTileState(station, { busy, playing })
 
   return (
     <button
       aria-current={playing ? "true" : undefined}
-      aria-disabled={playing || disabled}
-      aria-label={label}
+      aria-disabled={tileState.ariaDisabled}
+      aria-label={tileState.ariaLabel}
       className="ml-atmosphere-favorite-tile"
       data-all-favorite-station={collection ? "" : undefined}
       data-favorite-destination="station"
       data-station-id={collection ? station.id : undefined}
-      disabled={disabled}
+      disabled={tileState.disabled}
       onClick={() => {
-        if (!playing && !disabled) onPlayStation(station.id)
+        if (!tileState.canPlay) return
+        onPlayStation(station.id)
       }}
       type="button"
     >
@@ -162,25 +165,11 @@ function FavoriteStationTile({
   )
 }
 
-/**
- * Keeps Favorite mosaic and collection controls on one accessibility contract:
- * only an active station is focusable-but-inert, while unavailable stations
- * remain plainly identified without introducing alternate playback controls.
- */
-function getFavoriteStationActionLabel(
-  station: (typeof stations)[number],
-  { playing, unavailable }: { playing: boolean; unavailable: boolean },
-) {
-  if (playing) return `${station.title} playing`
-  if (unavailable) return `${station.title} unavailable`
-  return station.title
-}
-
 function EmptyFavoriteTile({
   centeredStation,
   onAddFavorite,
 }: {
-  centeredStation: (typeof stations)[number] | null
+  centeredStation: AtmosphereFavoriteStation | null
   onAddFavorite: (stationId: string) => void
 }) {
   if (!centeredStation) {
