@@ -343,10 +343,10 @@ export function AtmosphereStationCarouselCard({
               data-carousel-station-details
               data-carousel-drag-surface="true"
               aria-label={`Show full information for ${station.title}`}
-              className="absolute inset-x-0 bottom-0 top-[42%] z-20 grid min-w-0 content-start gap-1 bg-gradient-to-t from-black/95 via-black/85 to-transparent px-3 pb-3 pt-10 text-left text-white transition-colors hover:from-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              className="absolute inset-x-0 bottom-0 top-[34%] z-20 grid min-w-0 content-end gap-1 bg-gradient-to-t from-black/95 via-black/85 to-transparent px-3 pb-2 pt-6 text-left text-white transition-colors hover:from-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
               <span className="truncate text-sm font-semibold tracking-normal">{station.title}</span>
-              <span className="overflow-hidden text-xs leading-5 text-white/75 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+              <span data-carousel-station-description className="min-h-5 overflow-hidden text-xs leading-5 text-white/75 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
                 {station.description}
               </span>
             </button>

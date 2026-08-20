@@ -2066,11 +2066,16 @@
       display: none;
     }
 
-    .ml-atmosphere-station-stage-allocation [data-carousel-station-details] span:last-child {
+    .ml-atmosphere-carousel-workspace[data-favorites-fit="false"]
+      .ml-atmosphere-station-stage-allocation
+      [data-carousel-station-details]
+      span:last-child {
       display: none;
     }
 
-    .ml-atmosphere-station-stage-allocation [data-carousel-station-details] {
+    .ml-atmosphere-carousel-workspace[data-favorites-fit="false"]
+      .ml-atmosphere-station-stage-allocation
+      [data-carousel-station-details] {
       top: auto !important;
       min-height: 2.5rem;
       padding-block: 0.5rem !important;
@@ -3689,36 +3694,32 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   min-height: 0;
 }
 
-/* The outer slot measures capacity without reserving a second row. Its child
-   becomes the roomy two-row workspace only after the rail itself can sustain
-   the approved carousel baseline plus a possible Favorites allocation. */
+/* The outer slot is the live geometry boundary used by the workspace owner.
+   It stays single-row until measured carousel and Favorites content fit. */
 .ml-atmosphere-carousel-slot {
   container-name: ml-atmosphere-carousel-slot;
   container-type: size;
 }
 
-@container ml-atmosphere-carousel-slot (min-height: 480px) {
-  .ml-atmosphere-carousel-workspace {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-
-  .ml-atmosphere-station-carousel {
-    height: auto;
-    grid-template-rows: auto var(--ml-atmosphere-station-stage-block-size);
-  }
-
-  .ml-atmosphere-favorites-slot {
-    container-name: ml-atmosphere-favorites-slot;
-    container-type: size;
-    display: block;
-  }
+.ml-atmosphere-carousel-workspace[data-favorites-fit="true"] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
-/* A 192px square is the fixed visual floor. The remaining allowance tracks
-   the scaled heading and gap, so text enlargement cannot reserve more space
-   than the content needs or permit a clipped mosaic. */
-@container ml-atmosphere-favorites-slot (min-width: 192px) and (min-height: calc(192px + 1.5rem)) {
+.ml-atmosphere-carousel-workspace[data-favorites-fit="true"] .ml-atmosphere-station-carousel {
+  height: auto;
+  grid-template-rows: auto var(--ml-atmosphere-station-stage-block-size);
+}
+
+.ml-atmosphere-carousel-workspace[data-favorites-fit="true"] .ml-atmosphere-favorites-slot {
+  container-name: ml-atmosphere-favorites-slot;
+  container-type: size;
+  display: block;
+}
+
+/* JavaScript measures the actual centered card and assigns its 90% visual
+   counterpart. CSS then keeps that square bounded by the remaining slot. */
+.ml-atmosphere-carousel-workspace[data-favorites-fit="true"] {
     .ml-atmosphere-favorites-region {
       display: grid;
       height: 100%;
@@ -3730,7 +3731,7 @@ html[data-theme-transition-fallback="toggle-light"]::before {
       color: hsl(var(--foreground) / 0.92);
       font-size: 0.625rem;
       font-weight: 650;
-      inline-size: min(100cqi, calc(100cqb - 1.5rem), 32rem);
+      inline-size: min(100cqi, calc(100cqb - 1.5rem), var(--ml-atmosphere-favorites-edge));
       justify-self: center;
       line-height: 1.25;
       text-align: center;
@@ -3742,10 +3743,10 @@ html[data-theme-transition-fallback="toggle-light"]::before {
       grid-auto-rows: minmax(0, 1fr);
       gap: 0.2rem;
       aspect-ratio: 1;
-      /* Do not let an ultra-wide workspace turn the speed dial into a giant
-         artwork panel. It remains square, centers in its measured leftover
-         row, and caps at a touch-friendly 32rem. */
-      inline-size: min(100cqi, calc(100cqb - 1.5rem), 32rem);
+      /* The centered carousel card is the visual scale anchor. Available
+         workspace decides whether Favorites fits, while this shared edge
+         keeps its size proportional as browser zoom changes effective space. */
+      inline-size: min(100cqi, calc(100cqb - 1.5rem), var(--ml-atmosphere-favorites-edge));
       place-self: center;
       min-block-size: 0;
       overflow: hidden;
@@ -3843,33 +3844,26 @@ html[data-theme-transition-fallback="toggle-light"]::before {
       font-size: clamp(1rem, 7cqi, 2rem);
     }
 
-    .ml-atmosphere-favorite-empty > [role="img"] {
-      position: absolute;
-      inset: 0;
-      opacity: 0.42;
-    }
-
     .ml-atmosphere-favorite-empty > span {
       align-self: auto;
       padding: 0;
       background: transparent;
+      color: hsl(var(--muted-foreground));
+      font-size: clamp(0.52rem, 2.4cqi, 0.7rem);
+      line-height: 1.2;
       white-space: normal;
     }
 
-    .ml-atmosphere-favorite-empty .ml-button-press-motion {
-      z-index: 1;
-      max-width: 100%;
-      height: auto;
-      min-height: 2rem;
-      padding: 0.35rem 0.45rem;
-      font-size: clamp(0.55rem, 2.7cqi, 0.72rem);
-      line-height: 1.1;
-      white-space: normal;
+    .ml-atmosphere-favorite-empty > strong {
+      max-width: 18ch;
+      font-size: clamp(0.62rem, 3cqi, 0.82rem);
+      line-height: 1.15;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ml-atmosphere-favorite-tile {
+  .ml-atmosphere-carousel-workspace[data-favorites-fit="true"] .ml-atmosphere-favorite-tile,
+  .ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile {
     animation: none;
     transition: none;
   }

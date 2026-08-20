@@ -4,6 +4,15 @@ import { centerCarouselItem } from "./carousel-test-helpers"
 
 const desktopProject = "desktop-chromium"
 const mobileProject = "mobile-chromium"
+const FAVORITES_TO_CENTER_CARD_RATIO = 0.9
+
+async function expectFavoritesMosaicTracksCenteredCard(mosaic: Locator, centeredCard: Locator) {
+  const mosaicBox = await mosaic.boundingBox()
+  const centeredCardBox = await centeredCard.boundingBox()
+  expect(mosaicBox, "Favorites mosaic should have measurable geometry").not.toBeNull()
+  expect(centeredCardBox, "Centered station card should have measurable geometry").not.toBeNull()
+  expect(mosaicBox!.width / centeredCardBox!.width).toBeCloseTo(FAVORITES_TO_CENTER_CARD_RATIO, 2)
+}
 
 async function gotoShell(page: Page, path: string) {
   await page.goto(path, { waitUntil: "domcontentloaded" })
@@ -2684,6 +2693,7 @@ test("roomy portrait composes a square Favorites mosaic without changing the sta
   await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(4)
   const mosaicBox = await mosaic.boundingBox()
   expect(mosaicBox?.width).toBeCloseTo(mosaicBox?.height ?? 0, 0)
+  await expectFavoritesMosaicTracksCenteredCard(mosaic, centered)
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
   const approvedCardBox = await centered.boundingBox()
   expect(approvedCardBox?.width).toBeCloseTo(192, 0)
@@ -2718,6 +2728,7 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
   const favorites = page.getByTestId("atmosphere-favorites-region")
   const favoritesHeading = page.getByRole("heading", { name: "Favorites" })
   const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
+  let previousVisibleCardCount = 0
 
   for (const viewport of roomyViewports) {
     await page.setViewportSize(viewport)
@@ -2735,8 +2746,6 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
       }
     })
     expect(geometry.width).toBeCloseTo(geometry.height, 0)
-    expect(geometry.width).toBeGreaterThanOrEqual(192)
-    expect(geometry.width).toBeLessThanOrEqual(512)
     expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
     const headingGeometry = await favoritesHeading.evaluate((element) => {
@@ -2823,11 +2832,17 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
     expect(carouselGeometry.artwork.width / carouselGeometry.artwork.height).toBeCloseTo(1, 2)
     expect(carouselGeometry.centerContained).toBe(true)
     expect(carouselGeometry.centered).toBeLessThanOrEqual(1)
+    await expectFavoritesMosaicTracksCenteredCard(
+      mosaic,
+      carousel.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]'),
+    )
     // Portrait keeps the approved centered card plus its two adjacent wings;
     // wider desktop stages retain the established five-card composition.
     expect(carouselGeometry.visiblyComposedCards).toBeGreaterThanOrEqual(
       testInfo.project.name === mobileProject ? 3 : 5,
     )
+    expect(carouselGeometry.visiblyComposedCards).toBeGreaterThanOrEqual(previousVisibleCardCount)
+    previousVisibleCardCount = carouselGeometry.visiblyComposedCards
     if (testInfo.project.name === desktopProject) {
       expect(carouselGeometry.nearestWingGaps.left).toBeGreaterThanOrEqual(4)
       expect(carouselGeometry.nearestWingGaps.right).toBeGreaterThanOrEqual(4)
@@ -2897,8 +2912,6 @@ test("Favorites use measured remaining space before any player rail exists", asy
       }
     })
     expect(geometry.width).toBeCloseTo(geometry.height, 0)
-    expect(geometry.width).toBeGreaterThanOrEqual(192)
-    expect(geometry.width).toBeLessThanOrEqual(512)
     expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
     const cardGeometry = await carousel.evaluate((region) => {
@@ -2916,6 +2929,10 @@ test("Favorites use measured remaining space before any player rail exists", asy
     })
     expect(cardGeometry.center.width / cardGeometry.center.height).toBeCloseTo(192 / 224, 2)
     expect(cardGeometry.artwork.width / cardGeometry.artwork.height).toBeCloseTo(1, 2)
+    await expectFavoritesMosaicTracksCenteredCard(
+      mosaic,
+      carousel.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]'),
+    )
   }
 
   if (testInfo.project.name === mobileProject) {
@@ -2973,9 +2990,11 @@ test("Favorites retain measured workspace authority at enlarged root text sizes"
       }
     })
     expect(geometry.width).toBeCloseTo(geometry.height, 0)
-    expect(geometry.width).toBeGreaterThanOrEqual(192)
-    expect(geometry.width).toBeLessThanOrEqual(512)
     expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
+    await expectFavoritesMosaicTracksCenteredCard(
+      mosaic,
+      carousel.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]'),
+    )
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
   }
 
@@ -3026,23 +3045,30 @@ test("Favorites use slot measurement below the legacy viewport-height cutoff", a
   })
   expect(geometry.slotHeight).toBeGreaterThanOrEqual(geometry.requiredHeight)
   expect(geometry.width).toBeCloseTo(geometry.height, 0)
-  expect(geometry.width).toBeGreaterThanOrEqual(192)
+  await expectFavoritesMosaicTracksCenteredCard(
+    mosaic,
+    carousel.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]'),
+  )
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
 
   await page.setViewportSize({ width: 844, height: 390 })
   await expect(favorites).toBeHidden()
 })
 
-test("Favorites empty state adds the centered station without playing or remounting the carousel", async ({ page }, testInfo) => {
+test("Favorites empty state explains the speed dial without duplicating station actions", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Portrait Favorites behavior is covered in mobile Chromium.")
   await installAtmosphereFavorites(page, [])
   await page.setViewportSize({ width: 390, height: 844 })
   await gotoShell(page, "/music")
 
   const favorites = page.getByRole("region", { name: "Favorites" })
-  const add = favorites.getByRole("button", { name: "Add MassageLab Proof Drone to favorites" })
-  await expect(add).toBeVisible()
-  await add.click()
+  await expect(favorites.getByText("Add favorites to make your speed dial")).toBeVisible()
+  await expect(favorites.getByText("Heart a station and it will appear here.")).toBeVisible()
+  await expect(favorites.getByRole("button")).toHaveCount(0)
+  await expect(favorites.locator('[role="img"]')).toHaveCount(0)
+
+  const favorite = page.getByRole("button", { name: "Favorite MassageLab Proof Drone" })
+  await favorite.click()
   await expect.poll(() => page.evaluate(() => localStorage.getItem("massagelab-atmosphere-v2")))
     .toContain('"mlab-proof-drone"')
   await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
@@ -3066,14 +3092,35 @@ test("Favorites empty state adds the centered station without playing or remount
   const stageHandle = await carouselStage.elementHandle()
   expect(stageHandle).not.toBeNull()
   await centerCarouselItem(page, "observable-streams-probe", "Next station")
-  await expect(favorites.getByRole("button", { name: "Add Observable Streams to favorites" })).toBeVisible()
+  await expect(favorites.getByText("Add favorites to make your speed dial")).toBeVisible()
   await expect.poll(() => carouselStage.evaluate((stage) => document.activeElement === stage)).toBe(true)
 
-  await favorites.getByRole("button", { name: "Add Observable Streams to favorites" }).click()
+  await page.getByRole("button", { name: "Favorite Observable Streams" }).click()
   await expect.poll(() => page.evaluate(() => localStorage.getItem("massagelab-atmosphere-v2")))
     .toContain('"observable-streams-probe"')
   expect(await stageHandle?.evaluate((stage) => stage.isConnected)).toBe(true)
   await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+})
+
+test("centered station description remains visible as roomy layouts rescale", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== mobileProject && testInfo.project.name !== desktopProject,
+    "Centered station description geometry is covered in Chromium.",
+  )
+  await page.setViewportSize(testInfo.project.name === mobileProject
+    ? { width: 770, height: 700 }
+    : { width: 1162, height: 972 })
+  await gotoShell(page, "/music")
+
+  const centered = page.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]')
+  const description = centered.locator("[data-carousel-station-description]")
+  await expect(description).toBeVisible()
+  await expect(description).toContainText("A soft, steady drone")
+  const geometry = await Promise.all([centered.boundingBox(), description.boundingBox()])
+  expect(geometry[0]).not.toBeNull()
+  expect(geometry[1]).not.toBeNull()
+  expect(geometry[1]!.y).toBeGreaterThanOrEqual(geometry[0]!.y)
+  expect(geometry[1]!.y + geometry[1]!.height).toBeLessThanOrEqual(geometry[0]!.y + geometry[0]!.height + 1)
 })
 
 test("Favorites mosaic preserves the approved one through nine placement table", async ({ page }, testInfo) => {
@@ -3131,8 +3178,9 @@ test("Favorites mosaic preserves the approved one through nine placement table",
     expect(placements).toEqual(expectedLayouts[count])
   }
 
-  await page.emulateMedia({ reducedMotion: "reduce" })
   await gotoShell(page, "/music")
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await expect.poll(() => page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true)
   const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
   await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(9)
   const reducedMotionPlacements = await mosaic

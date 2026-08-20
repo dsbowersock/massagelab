@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { AtmosphereStationArtwork } from "@/components/atmosphere/station-artwork"
-import { Button } from "@/components/ui/button"
 import {
   Sheet,
   SheetContent,
@@ -23,10 +22,8 @@ type AtmosphereFavoriteStation = (typeof stations)[number]
 
 export type AtmosphereFavoritesSpeedDialProps = {
   favoriteIds: string[]
-  centeredStationId: string | null
   playingStationId: string | null
   busy: boolean
-  onAddFavorite: (stationId: string) => void
   onPlayStation: (stationId: string) => void
 }
 
@@ -38,14 +35,11 @@ export type AtmosphereFavoritesSpeedDialProps = {
  */
 export function AtmosphereFavoritesSpeedDial({
   favoriteIds,
-  centeredStationId,
   playingStationId,
   busy,
-  onAddFavorite,
   onPlayStation,
 }: AtmosphereFavoritesSpeedDialProps) {
   const model = buildAtmosphereFavoritesSpeedDialModel(favoriteIds, stations)
-  const centeredStation = stations.find((station) => station.id === centeredStationId) ?? null
   const [allFavoritesOpen, setAllFavoritesOpen] = useState(false)
 
   const renderStationDestination = (station: AtmosphereFavoriteStation, location: "mosaic" | "collection") => (
@@ -88,7 +82,7 @@ export function AtmosphereFavoritesSpeedDial({
               {destination.kind === "station" ? (
                 renderStationDestination(destination.station, "mosaic")
               ) : destination.kind === "empty" ? (
-                <EmptyFavoriteTile centeredStation={centeredStation} onAddFavorite={onAddFavorite} />
+                <EmptyFavoriteTile />
               ) : (
                 <Sheet open={allFavoritesOpen} onOpenChange={setAllFavoritesOpen}>
                   <SheetTrigger asChild>
@@ -165,33 +159,11 @@ function FavoriteStationTile({
   )
 }
 
-function EmptyFavoriteTile({
-  centeredStation,
-  onAddFavorite,
-}: {
-  centeredStation: AtmosphereFavoriteStation | null
-  onAddFavorite: (stationId: string) => void
-}) {
-  if (!centeredStation) {
-    return (
-      <div className="ml-atmosphere-favorite-tile ml-atmosphere-favorite-empty" data-favorite-destination="empty">
-        Choose a station to add a favorite.
-      </div>
-    )
-  }
-
+function EmptyFavoriteTile() {
   return (
     <div className="ml-atmosphere-favorite-tile ml-atmosphere-favorite-empty" data-favorite-destination="empty">
-      <AtmosphereStationArtwork artworkInput={resolveAtmosphereStationArtworkInput(centeredStation)} decorative />
-      <span>{centeredStation.title}</span>
-      <Button
-        onClick={() => onAddFavorite(centeredStation.id)}
-        size="compact"
-        type="button"
-        variant="glow"
-      >
-        Add {centeredStation.title} to favorites
-      </Button>
+      <strong>Add favorites to make your speed dial</strong>
+      <span>Heart a station and it will appear here.</span>
     </div>
   )
 }

@@ -313,14 +313,31 @@ describe("Carousel Lab source boundaries", () => {
     const styles = read("app/globals.css")
 
     assert.match(workspace, /AtmosphereFavoritesSpeedDial/)
+    assert.match(workspace, /FAVORITES_TO_CENTER_CARD_RATIO\s*=\s*0\.9/)
+    assert.match(workspace, /ResizeObserver/)
+    assert.match(workspace, /data-favorites-fit/)
+    assert.match(workspace, /data-carousel-slide.*data-centered/)
+    assert.match(workspace, /--ml-atmosphere-favorites-edge/)
+    assert.match(workspace, /centeredCardWidth\s*\*\s*FAVORITES_TO_CENTER_CARD_RATIO/)
+    assert.match(workspace, /--ml-atmosphere-favorites-edge/)
     assert.match(workspace, /favoriteIds=\{music\.favorites\}/)
-    assert.match(workspace, /onAddFavorite=\{music\.toggleFavorite\}/)
     assert.match(productionCarousel, /onCenteredStationChange\?\./)
     assert.doesNotMatch(favoritesSurface, /useMusic\(|new Audio|AudioContext|stopCurrent|pauseCurrent/)
     assert.doesNotMatch(styles, /@media \(min-height: 44\.01rem\)/)
-    assert.match(styles, /@container ml-atmosphere-carousel-slot \(min-height: 480px\)/)
-    assert.match(styles, /@container ml-atmosphere-favorites-slot \(min-width: 192px\) and \(min-height: calc\(192px \+ 1\.5rem\)\)/)
-    assert.match(styles, /inline-size: min\(100cqi, calc\(100cqb - 1\.5rem\), 32rem\)/)
+    assert.match(styles, /data-favorites-fit="true"/)
+    assert.doesNotMatch(styles, /@container ml-atmosphere-carousel-slot \(min-height:/)
+    assert.doesNotMatch(styles, /@container ml-atmosphere-favorites-slot \(min-width:/)
+    assert.match(styles, /inline-size: min\(100cqi, calc\(100cqb - 1\.5rem\), var\(--ml-atmosphere-favorites-edge\)\)/)
+    assert.doesNotMatch(workspace, /devicePixelRatio|visualViewport\.scale|userAgent/)
+  })
+
+  it("renders an instructional zero-Favorites state without promoting the centered station", () => {
+    const favoritesSurface = read("components/atmosphere/favorites-speed-dial.tsx")
+
+    assert.match(favoritesSurface, /Add favorites to make your speed dial/)
+    assert.match(favoritesSurface, /Heart a station and it will appear here\./)
+    assert.doesNotMatch(favoritesSurface, /onAddFavorite/)
+    assert.doesNotMatch(favoritesSurface, /Add \{centeredStation\.title\} to favorites/)
   })
 
   it("renders unavailable Favorites through the shared inert tile state", () => {
