@@ -165,6 +165,7 @@ export function AtmosphereStationCarousel({
     <section
       className="ml-atmosphere-station-carousel grid gap-4"
       aria-label="Atmosphere audio stations"
+      data-constrained-landscape={constrainedLandscape ? "true" : "false"}
       data-music-storage-status={music.visualizer.storageStatus}
       style={carouselStyle}
     >

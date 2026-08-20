@@ -2066,14 +2066,16 @@
       display: none;
     }
 
-    .ml-atmosphere-carousel-workspace[data-favorites-fit="false"]
+    /* Keep the title-only card treatment tied to the carousel's measured
+       constrained-landscape mode, not to whether the separate Favorites row fits. */
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
       .ml-atmosphere-station-stage-allocation
       [data-carousel-station-details]
       span:last-child {
       display: none;
     }
 
-    .ml-atmosphere-carousel-workspace[data-favorites-fit="false"]
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
       .ml-atmosphere-station-stage-allocation
       [data-carousel-station-details] {
       top: auto !important;

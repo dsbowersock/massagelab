@@ -3113,20 +3113,31 @@ test("centered station description remains visible as roomy layouts rescale", as
     testInfo.project.name !== mobileProject && testInfo.project.name !== desktopProject,
     "Centered station description geometry is covered in Chromium.",
   )
-  await page.setViewportSize(testInfo.project.name === mobileProject
-    ? { width: 770, height: 700 }
-    : { width: 1162, height: 972 })
-  await gotoShell(page, "/music")
+  const viewports = testInfo.project.name === mobileProject
+    ? [{ width: 770, height: 700 }]
+    : [
+        { width: 904, height: 663 },
+        { width: 1004, height: 737 },
+        { width: 1130, height: 829 },
+      ]
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize(viewports[0])
+  await startProofDrone(page)
 
   const centered = page.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]')
   const description = centered.locator("[data-carousel-station-description]")
-  await expect(description).toBeVisible()
-  await expect(description).toContainText("A soft, steady drone")
-  const geometry = await Promise.all([centered.boundingBox(), description.boundingBox()])
-  expect(geometry[0]).not.toBeNull()
-  expect(geometry[1]).not.toBeNull()
-  expect(geometry[1]!.y).toBeGreaterThanOrEqual(geometry[0]!.y)
-  expect(geometry[1]!.y + geometry[1]!.height).toBeLessThanOrEqual(geometry[0]!.y + geometry[0]!.height + 1)
+  const stationSurface = page.locator(".ml-atmosphere-station-carousel")
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport)
+    await expect(stationSurface).toHaveAttribute("data-constrained-landscape", "false")
+    await expect(description).toBeVisible()
+    await expect(description).toContainText("A soft, steady drone")
+    const geometry = await Promise.all([centered.boundingBox(), description.boundingBox()])
+    expect(geometry[0]).not.toBeNull()
+    expect(geometry[1]).not.toBeNull()
+    expect(geometry[1]!.y).toBeGreaterThanOrEqual(geometry[0]!.y)
+    expect(geometry[1]!.y + geometry[1]!.height).toBeLessThanOrEqual(geometry[0]!.y + geometry[0]!.height + 1)
+  }
 })
 
 test("Favorites mosaic preserves the approved one through nine placement table", async ({ page }, testInfo) => {
@@ -3293,15 +3304,19 @@ test("compact landscape restores the approved five-card Station composition", as
   await gotoShell(page, "/music")
 
   const carousel = page.getByRole("region", { name: "Station carousel" })
+  const stationSurface = page.locator(".ml-atmosphere-station-carousel")
   const mountedCards = carousel.locator('[data-carousel-slide]:not([data-detail-level="shell"])')
   const center = carousel.locator('[data-carousel-slide][data-centered="true"]')
   const centerPresentation = center.locator('[data-carousel-transform="true"]')
   const centerArtwork = center.locator("[data-carousel-artwork]")
+  const centerDescription = center.locator("[data-carousel-station-description]")
   const summaries = carousel.locator(
     '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
   )
 
   await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  await expect(stationSurface).toHaveAttribute("data-constrained-landscape", "true")
+  await expect(centerDescription).toBeHidden()
   await expect(mountedCards).toHaveCount(9)
   await expect(summaries).toHaveCount(8)
   await expect.poll(() => summaries.evaluateAll((elements) => elements.some(
