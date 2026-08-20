@@ -1988,6 +1988,7 @@
   .ml-atmosphere-workspace-page,
   .ml-atmosphere-rail-content,
   .ml-atmosphere-carousel-slot,
+  .ml-atmosphere-carousel-workspace,
   .ml-atmosphere-station-carousel {
     height: 100%;
     min-height: 0;
@@ -3667,11 +3668,16 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   min-height: 0;
 }
 
-/* Every Music rail workspace exposes its leftover row to a size container.
-   The query below is the only visibility authority: it keeps genuinely short
-   constrained layouts carousel-only without treating a viewport heuristic as
-   a proxy for the space that is actually available. */
-  .ml-atmosphere-carousel-slot {
+/* The outer slot measures capacity without reserving a second row. Its child
+   becomes the roomy two-row workspace only after the rail itself can sustain
+   the approved carousel baseline plus a possible Favorites allocation. */
+.ml-atmosphere-carousel-slot {
+  container-name: ml-atmosphere-carousel-slot;
+  container-type: size;
+}
+
+@container ml-atmosphere-carousel-slot (min-height: 480px) {
+  .ml-atmosphere-carousel-workspace {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
   }
@@ -3682,14 +3688,16 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   }
 
   .ml-atmosphere-favorites-slot {
+    container-name: ml-atmosphere-favorites-slot;
     container-type: size;
     display: block;
   }
+}
 
-  /* A 192px square is the fixed visual floor. The remaining allowance tracks
-     the scaled heading and gap, so text enlargement cannot reserve more space
-     than the content needs or permit a clipped mosaic. */
-  @container (min-width: 192px) and (min-height: calc(192px + 1.5rem)) {
+/* A 192px square is the fixed visual floor. The remaining allowance tracks
+   the scaled heading and gap, so text enlargement cannot reserve more space
+   than the content needs or permit a clipped mosaic. */
+@container ml-atmosphere-favorites-slot (min-width: 192px) and (min-height: calc(192px + 1.5rem)) {
     .ml-atmosphere-favorites-region {
       display: grid;
       height: 100%;

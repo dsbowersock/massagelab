@@ -149,7 +149,7 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
 
       <div className={isRailLayout ? "ml-atmosphere-carousel-slot" : "space-y-8"}>
         {isRailLayout ? (
-          <>
+          <div className="ml-atmosphere-carousel-workspace">
             <AtmosphereStationCarousel onCenteredStationChange={setCenteredStationId} />
             <div className="ml-atmosphere-favorites-slot">
               <AtmosphereFavoritesSpeedDial
@@ -161,7 +161,7 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
                 playingStationId={music.playbackState === "playing" ? music.activeStationId : null}
               />
             </div>
-          </>
+          </div>
         ) : (
           stationGroups.map((group) => (
             <AtmosphereStationGrid

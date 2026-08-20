@@ -318,7 +318,8 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(productionCarousel, /onCenteredStationChange\?\./)
     assert.doesNotMatch(favoritesSurface, /useMusic\(|new Audio|AudioContext|stopCurrent|pauseCurrent/)
     assert.doesNotMatch(styles, /@media \(min-height: 44\.01rem\)/)
-    assert.match(styles, /@container \(min-width: 192px\) and \(min-height: calc\(192px \+ 1\.5rem\)\)/)
+    assert.match(styles, /@container ml-atmosphere-carousel-slot \(min-height: 480px\)/)
+    assert.match(styles, /@container ml-atmosphere-favorites-slot \(min-width: 192px\) and \(min-height: calc\(192px \+ 1\.5rem\)\)/)
     assert.match(styles, /inline-size: min\(100cqi, calc\(100cqb - 1\.5rem\), 32rem\)/)
   })
 
