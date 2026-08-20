@@ -3660,6 +3660,27 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   }
 }
 
+/* Keep horizontal category overflow discoverable without letting the scroll
+   viewport cut pill glow into a hard edge. The existing 2rem end padding lets
+   the first and last pills settle beyond the feather at their endpoints. */
+.ml-atmosphere-category-pills {
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 2rem,
+    #000 calc(100% - 2rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 2rem,
+    #000 calc(100% - 2rem),
+    transparent 100%
+  );
+  scroll-padding-inline: 2rem;
+}
+
 /* The Favorites surface only receives the leftover room of the fixed-height
    Music workspace; it never asks the document to become scrollable. */
 .ml-atmosphere-favorites-slot,
@@ -3707,9 +3728,12 @@ html[data-theme-transition-fallback="toggle-light"]::before {
 
     .ml-atmosphere-favorites-region > h2 {
       color: hsl(var(--foreground) / 0.92);
-      font-size: 0.875rem;
+      font-size: 0.625rem;
       font-weight: 650;
+      inline-size: min(100cqi, calc(100cqb - 1.5rem), 32rem);
+      justify-self: center;
       line-height: 1.25;
+      text-align: center;
     }
 
     .ml-atmosphere-favorites-mosaic {

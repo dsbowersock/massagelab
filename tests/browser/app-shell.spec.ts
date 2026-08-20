@@ -2170,6 +2170,39 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
   })
 })
 
+test("Station category overflow feathers pill glow before the viewport edge", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== desktopProject, "Horizontal category overflow is covered in desktop Chromium.")
+  await page.setViewportSize({ width: 904, height: 663 })
+  await gotoShell(page, "/music")
+
+  const categoryGroup = page.getByRole("group", { name: "Station category" })
+  await expect(categoryGroup).toBeVisible()
+  const geometry = await categoryGroup.evaluate((group) => {
+    const style = getComputedStyle(group)
+    const groupBox = group.getBoundingClientRect()
+    const buttons = [...group.querySelectorAll<HTMLElement>("button")]
+    const firstBox = buttons[0]?.getBoundingClientRect()
+    group.scrollLeft = group.scrollWidth
+    const lastBox = buttons.at(-1)?.getBoundingClientRect()
+
+    return {
+      firstInset: firstBox ? firstBox.left - groupBox.left : 0,
+      lastInset: lastBox ? groupBox.right - lastBox.right : 0,
+      maskImage: style.maskImage || style.webkitMaskImage,
+      paddingLeft: Number.parseFloat(style.paddingLeft),
+      paddingRight: Number.parseFloat(style.paddingRight),
+      scrollable: group.scrollWidth > group.clientWidth,
+    }
+  })
+
+  expect(geometry.scrollable).toBe(true)
+  expect(geometry.maskImage).not.toBe("none")
+  expect(geometry.maskImage).toContain("linear-gradient")
+  expect(geometry.firstInset).toBeGreaterThanOrEqual(geometry.paddingLeft - 1)
+  expect(geometry.lastInset).toBeGreaterThanOrEqual(geometry.paddingRight - 1)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
 test("player rail keeps overlays clear of dialog, sheet, tooltip, and interruption notice", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Compact-landscape overlay geometry is covered in mobile Chromium.")
   await installInterruptionNoticeMediaFakes(page)
@@ -2683,6 +2716,7 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
   const toolbar = await startProofDrone(page)
   const carousel = page.getByRole("region", { name: "Station carousel" })
   const favorites = page.getByTestId("atmosphere-favorites-region")
+  const favoritesHeading = page.getByRole("heading", { name: "Favorites" })
   const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
 
   for (const viewport of roomyViewports) {
@@ -2705,6 +2739,20 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
     expect(geometry.width).toBeLessThanOrEqual(512)
     expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+    const headingGeometry = await favoritesHeading.evaluate((element) => {
+      const heading = element.getBoundingClientRect()
+      const mosaic = element.parentElement
+        ?.querySelector<HTMLElement>('[data-testid="atmosphere-favorites-mosaic"]')
+        ?.getBoundingClientRect()
+      return {
+        centerDelta: mosaic
+          ? Math.abs((heading.left + heading.width / 2) - (mosaic.left + mosaic.width / 2))
+          : Number.POSITIVE_INFINITY,
+        fontSize: getComputedStyle(element).fontSize,
+      }
+    })
+    expect(headingGeometry.fontSize).toBe("10px")
+    expect(headingGeometry.centerDelta).toBeLessThanOrEqual(1)
 
     // Embla applies its post-resize snap on the next frame. Assert the
     // completed geometry rather than sampling its intentional transition.
