@@ -60,10 +60,21 @@ export const STATION_CAROUSEL_TUNING = Object.freeze({
   scaleFalloff: 0.05,
 })
 
+export const STATION_CAROUSEL_LARGE_SCREEN_TUNING = Object.freeze({
+  referenceWidth: 960,
+  maxScale: 2.5,
+  maxHeaderScale: 1.5,
+  favoritesRatio: 1.3,
+  fitRoundingBuffer: 2,
+  minimumFavoritesGap: 8,
+  preferredFavoritesGap: 30,
+})
+
 /**
- * Preserves the approved Station composition. Portrait and roomy landscape
- * use the exact 192x224 card; a shorter constrained stage scales that complete
- * 6:7 shape down rather than stretching one dimension or dropping wing cards.
+ * Preserves the approved Station composition while allowing roomy laptop and
+ * television stages to scale it as one unit. Width proposes the scale and the
+ * live block allocation bounds it so the 1.3x Favorites square can still fit;
+ * constrained landscape retains its separate height-first compact behavior.
  * @param {{ containerWidth: number, containerHeight: number, constrainedLandscape: boolean }} dimensions
  * @returns {AdaptiveCarouselTuning}
  */
@@ -74,14 +85,32 @@ export function getResponsiveStationCarouselTuning({
 }) {
   const safeWidth = Number.isFinite(containerWidth) ? containerWidth : 740
   const safeHeight = Number.isFinite(containerHeight) ? containerHeight : 224
+  const widthScale = safeWidth / STATION_CAROUSEL_LARGE_SCREEN_TUNING.referenceWidth
+  const stackedBaseHeight = STATION_CAROUSEL_TUNING.cardHeight
+    + STATION_CAROUSEL_TUNING.cardWidth * STATION_CAROUSEL_LARGE_SCREEN_TUNING.favoritesRatio
+  const heightScale = (
+    safeHeight
+      - STATION_CAROUSEL_LARGE_SCREEN_TUNING.minimumFavoritesGap
+      - STATION_CAROUSEL_LARGE_SCREEN_TUNING.fitRoundingBuffer
+  ) / stackedBaseHeight
+  const roomyScale = constrainedLandscape
+    ? 1
+    : Math.max(1, Math.min(
+        STATION_CAROUSEL_LARGE_SCREEN_TUNING.maxScale,
+        widthScale,
+        heightScale,
+      ))
   const cardHeight = constrainedLandscape
     ? Math.max(72, Math.min(224, Math.floor(safeHeight)))
-    : STATION_CAROUSEL_TUNING.cardHeight
-  const cardWidth = Math.round(cardHeight * 192 / 224)
+    : Math.round(STATION_CAROUSEL_TUNING.cardHeight * roomyScale)
+  const cardWidth = constrainedLandscape
+    ? Math.round(cardHeight * 192 / 224)
+    : Math.round(STATION_CAROUSEL_TUNING.cardWidth * roomyScale)
   return {
     ...STATION_CAROUSEL_TUNING,
     cardWidth,
     cardHeight,
+    radius: Math.round(STATION_CAROUSEL_TUNING.radius * roomyScale),
     // Preserve the approved 27-degree composition when room permits. At the
     // medium-width shell, pull the second pair of wings inward far enough to
     // remain recognizable instead of leaving only imperceptible slivers.

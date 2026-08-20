@@ -55,11 +55,10 @@ export function AtmosphereFavoritesSpeedDial({
   return (
     <section
       aria-busy={busy ? "true" : "false"}
-      aria-labelledby="atmosphere-favorites-heading"
+      aria-label="Favorites"
       className="ml-atmosphere-favorites-region"
       data-testid="atmosphere-favorites-region"
     >
-      <h2 id="atmosphere-favorites-heading">Favorites</h2>
       {busy ? (
         <p aria-live="polite" className="sr-only" role="status">
           Favorites are unavailable while audio prepares.

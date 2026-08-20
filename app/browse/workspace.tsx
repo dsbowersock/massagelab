@@ -5,6 +5,10 @@ import Link from "next/link"
 import { Heart, Play, Radio, Square, Wind } from "lucide-react"
 import { AtmosphereStationCarousel } from "@/components/atmosphere/station-carousel"
 import { AtmosphereFavoritesSpeedDial } from "@/components/atmosphere/favorites-speed-dial"
+import {
+  STATION_CAROUSEL_LARGE_SCREEN_TUNING,
+  STATION_CAROUSEL_TUNING,
+} from "@/components/carousels/adaptive-carousel-model"
 import { AppNotice, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { useMusic } from "@/components/providers/music-provider"
@@ -46,12 +50,15 @@ const initialPayloadPrewarmStationIdSet = new Set([
   "generative-fm-day-dream",
 ])
 
-const FAVORITES_TO_CENTER_CARD_RATIO = 0.9
-const FAVORITES_CHROME_REM = 1.5
+const FAVORITES_TO_CENTER_CARD_RATIO = STATION_CAROUSEL_LARGE_SCREEN_TUNING.favoritesRatio
+const FAVORITES_PREFERRED_CENTER_CARD_GAP_PX = STATION_CAROUSEL_LARGE_SCREEN_TUNING.preferredFavoritesGap
+const FAVORITES_MIN_CENTER_CARD_GAP_PX = 8
 
 type AtmosphereFavoritesLayout = {
   edge: number
   fit: boolean
+  scale: number
+  top: number
 }
 
 type AtmosphereStationGroup = (typeof stationGroups)[number]
@@ -166,6 +173,13 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
             data-favorites-fit={favoritesLayout.fit ? "true" : "false"}
             style={{
               "--ml-atmosphere-favorites-edge": `${favoritesLayout.edge}px`,
+              "--ml-atmosphere-favorites-top": `${favoritesLayout.top}px`,
+              "--ml-atmosphere-workspace-scale": favoritesLayout.scale,
+              "--ml-atmosphere-header-scale-rem": `${Math.min(
+                favoritesLayout.scale,
+                STATION_CAROUSEL_LARGE_SCREEN_TUNING.maxHeaderScale,
+              )}rem`,
+              "--ml-atmosphere-workspace-scale-rem": `${favoritesLayout.scale}rem`,
             } as CSSProperties}
           >
             <AtmosphereStationCarousel onCenteredStationChange={setCenteredStationId} />
@@ -201,7 +215,7 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
  */
 function useAtmosphereFavoritesLayout(centeredStationId: string | null) {
   const carouselSlotRef = useRef<HTMLDivElement>(null)
-  const [layout, setLayout] = useState<AtmosphereFavoritesLayout>({ edge: 0, fit: false })
+  const [layout, setLayout] = useState<AtmosphereFavoritesLayout>({ edge: 0, fit: false, scale: 1, top: 0 })
 
   useEffect(() => {
     const slot = carouselSlotRef.current
@@ -212,33 +226,35 @@ function useAtmosphereFavoritesLayout(centeredStationId: string | null) {
 
     const measure = () => {
       const stationCarousel = slot.querySelector<HTMLElement>(".ml-atmosphere-station-carousel")
-      const stationHeading = slot.querySelector<HTMLElement>(".ml-atmosphere-station-heading")
       const centeredCard = slot.querySelector<HTMLElement>(
         '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
       )
-      if (!stationCarousel || !stationHeading || !centeredCard) return
+      if (!stationCarousel || !centeredCard) return
 
       const slotRect = slot.getBoundingClientRect()
-      const centeredCardWidth = centeredCard.getBoundingClientRect().width
-      const stationStyles = window.getComputedStyle(stationCarousel)
-      const rootFontSize = Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16
-      const stationStageBlockSize = Number.parseFloat(
-        stationStyles.getPropertyValue("--ml-atmosphere-station-stage-block-size"),
-      ) || 0
-      const stationRowGap = Number.parseFloat(stationStyles.rowGap) || 0
-      const edge = centeredCardWidth * FAVORITES_TO_CENTER_CARD_RATIO
-      const stationRequiredHeight = stationHeading.getBoundingClientRect().height
-        + stationRowGap
-        + stationStageBlockSize
-      const favoritesRequiredHeight = edge + (rootFontSize * FAVORITES_CHROME_REM)
+      const centeredCardRect = centeredCard.getBoundingClientRect()
+      const edge = centeredCardRect.width * FAVORITES_TO_CENTER_CARD_RATIO
+      const scale = Math.max(1, centeredCardRect.width / STATION_CAROUSEL_TUNING.cardWidth)
+      const centeredCardBottom = centeredCardRect.bottom - slotRect.top
+      const availableGap = slotRect.height - centeredCardBottom - edge
+      const centerCardGap = Math.max(
+        FAVORITES_MIN_CENTER_CARD_GAP_PX,
+        Math.min(FAVORITES_PREFERRED_CENTER_CARD_GAP_PX, availableGap),
+      )
+      const top = centeredCardBottom + centerCardGap
+      const constrainedLandscape = stationCarousel.dataset.constrainedLandscape === "true"
       const fit = edge > 0
+        && !constrainedLandscape
         && slotRect.width >= edge
-        && slotRect.height >= stationRequiredHeight + favoritesRequiredHeight
+        && availableGap >= FAVORITES_MIN_CENTER_CARD_GAP_PX
 
       setLayout((current) => (
-        current.fit === fit && Math.abs(current.edge - edge) < 0.5
+        current.fit === fit
+          && Math.abs(current.edge - edge) < 0.5
+          && Math.abs(current.scale - scale) < 0.005
+          && Math.abs(current.top - top) < 0.5
           ? current
-          : { edge, fit }
+          : { edge, fit, scale, top }
       ))
     }
 

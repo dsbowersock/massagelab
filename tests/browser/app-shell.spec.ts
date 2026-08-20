@@ -4,14 +4,16 @@ import { centerCarouselItem } from "./carousel-test-helpers"
 
 const desktopProject = "desktop-chromium"
 const mobileProject = "mobile-chromium"
-const FAVORITES_TO_CENTER_CARD_RATIO = 0.9
+const FAVORITES_TO_CENTER_CARD_RATIO = 1.3
 
 async function expectFavoritesMosaicTracksCenteredCard(mosaic: Locator, centeredCard: Locator) {
-  const mosaicBox = await mosaic.boundingBox()
-  const centeredCardBox = await centeredCard.boundingBox()
-  expect(mosaicBox, "Favorites mosaic should have measurable geometry").not.toBeNull()
-  expect(centeredCardBox, "Centered station card should have measurable geometry").not.toBeNull()
-  expect(mosaicBox!.width / centeredCardBox!.width).toBeCloseTo(FAVORITES_TO_CENTER_CARD_RATIO, 2)
+  await expect.poll(async () => {
+    const mosaicBox = await mosaic.boundingBox()
+    const centeredCardBox = await centeredCard.boundingBox()
+    if (!mosaicBox || !centeredCardBox) return Number.POSITIVE_INFINITY
+    return Math.abs(mosaicBox.width / centeredCardBox.width - FAVORITES_TO_CENTER_CARD_RATIO)
+  }, { message: "Favorites mosaic should settle at 1.3x the centered station card" })
+    .toBeLessThanOrEqual(0.01)
 }
 
 async function gotoShell(page: Page, path: string) {
@@ -1785,7 +1787,8 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
         Math.abs(previousBox.x + previousBox.width / 2 - visibleCenter(summaryBoxes[0])),
         Math.abs(nextBox.x + nextBox.width / 2 - visibleCenter(summaryBoxes[1])),
       )
-    }).toBeLessThanOrEqual(1)
+    }, { message: `${label} station control geometry should settle on its visible wing centers` })
+      .toBeLessThanOrEqual(1)
     if (!settledGeometry.current) throw new Error(`${label} station control geometry did not settle`)
     const { previousBox, nextBox, stageBox, summaryBoxes } = settledGeometry.current
     expect(previousBox, `${label} previous control box`).not.toBeNull()
@@ -2216,6 +2219,86 @@ test("Station category overflow preserves pill glow through the viewport edge", 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
   expect(sawScrollableViewport).toBe(true)
+})
+
+test("Station pills and wing cards use the complete sidebar-safe inline workspace", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== desktopProject, "Desktop sidebar edge geometry is covered in Chromium.")
+
+  await page.setViewportSize({ width: 705, height: 748 })
+  await gotoShell(page, "/music")
+  const carouselRegion = page.getByRole("region", { name: "Station carousel" })
+
+  for (const sidebarPosition of ["left", "right"] as const) {
+    await page.evaluate((position) => {
+      localStorage.setItem("massage-lab-settings", JSON.stringify({
+        appBarPosition: "bottom",
+        sidebarPosition: position,
+        sidebarTriggerPosition: "bottom",
+        themeMode: "dark",
+      }))
+    }, sidebarPosition)
+    await page.reload({ waitUntil: "domcontentloaded" })
+
+    for (const width of [705, 680]) {
+      await page.setViewportSize({ width, height: 748 })
+      const categoryGroup = page.getByRole("group", { name: "Station category" })
+      const stage = page.getByTestId("station-carousel-stage")
+      await expect(categoryGroup).toBeVisible()
+      await expect(stage).toBeVisible()
+      await expect(carouselRegion).toHaveAttribute("data-carousel-ready", "true")
+      await expect.poll(() => carouselRegion.evaluate((region) => {
+        const stage = region.getBoundingClientRect()
+        const center = region.querySelector<HTMLElement>(
+          '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+        )?.getBoundingClientRect()
+        return center ? Math.abs(center.left + center.width / 2 - (stage.left + stage.width / 2)) : Number.POSITIVE_INFINITY
+      })).toBeLessThanOrEqual(1)
+
+      const readGeometry = () => page.evaluate(() => {
+        const usable = document.querySelector<HTMLElement>(".ml-app-scroll")?.getBoundingClientRect()
+        const pills = document.querySelector<HTMLElement>(".ml-atmosphere-category-pills")?.getBoundingClientRect()
+        const stage = document.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')?.getBoundingClientRect()
+        const center = document.querySelector<HTMLElement>(
+          '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+        )?.getBoundingClientRect()
+        const summaries = [...document.querySelectorAll<HTMLElement>(
+          '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
+        )].map((element) => element.getBoundingClientRect())
+        if (!usable || !pills || !stage || !center) throw new Error("Station edge geometry is incomplete")
+        const centerX = center.left + center.width / 2
+        const intersection = (box: DOMRect) => Math.max(
+          0,
+          Math.min(box.right, stage.right) - Math.max(box.left, stage.left),
+        )
+        const left = summaries
+          .filter((box) => box.left + box.width / 2 < centerX)
+          .sort((first, second) => second.right - first.right)
+        const right = summaries
+          .filter((box) => box.left + box.width / 2 > centerX)
+          .sort((first, second) => first.left - second.left)
+        return {
+          pillsLeftDelta: Math.abs(pills.left - usable.left),
+          pillsRightDelta: Math.abs(pills.right - usable.right),
+          visibleLeftWingCount: left.filter((box) => intersection(box) > 1).length,
+          visibleRightWingCount: right.filter((box) => intersection(box) > 1).length,
+          stageLeftDelta: Math.abs(stage.left - usable.left),
+          stageRightDelta: Math.abs(stage.right - usable.right),
+        }
+      })
+      await expect.poll(async () => {
+        const geometry = await readGeometry()
+        return Math.min(geometry.visibleLeftWingCount, geometry.visibleRightWingCount)
+      }).toBeGreaterThanOrEqual(2)
+      const geometry = await readGeometry()
+
+      expect.soft(geometry.pillsLeftDelta, `${sidebarPosition} ${width}px pill left edge`).toBeLessThanOrEqual(1)
+      expect.soft(geometry.pillsRightDelta, `${sidebarPosition} ${width}px pill right edge`).toBeLessThanOrEqual(1)
+      expect.soft(geometry.stageLeftDelta, `${sidebarPosition} ${width}px carousel left edge`).toBeLessThanOrEqual(1)
+      expect.soft(geometry.stageRightDelta, `${sidebarPosition} ${width}px carousel right edge`).toBeLessThanOrEqual(1)
+      expect.soft(geometry.visibleLeftWingCount, `${sidebarPosition} ${width}px visible left wings`).toBeGreaterThanOrEqual(2)
+      expect.soft(geometry.visibleRightWingCount, `${sidebarPosition} ${width}px visible right wings`).toBeGreaterThanOrEqual(2)
+    }
+  }
 })
 
 test("player rail keeps overlays clear of dialog, sheet, tooltip, and interruption notice", async ({ page }, testInfo) => {
@@ -2695,7 +2778,7 @@ test("roomy portrait composes a square Favorites mosaic without changing the sta
   const centered = carousel.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]')
   const favorites = page.getByRole("region", { name: "Favorites" })
   const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
-  await expect(favorites.getByRole("heading", { name: "Favorites" })).toBeVisible()
+  await expect(favorites.getByRole("heading")).toHaveCount(0)
   await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(4)
   const mosaicBox = await mosaic.boundingBox()
   expect(mosaicBox?.width).toBeCloseTo(mosaicBox?.height ?? 0, 0)
@@ -2732,7 +2815,6 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
   const toolbar = await startProofDrone(page)
   const carousel = page.getByRole("region", { name: "Station carousel" })
   const favorites = page.getByTestId("atmosphere-favorites-region")
-  const favoritesHeading = page.getByRole("heading", { name: "Favorites" })
   const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
   let previousVisibleCardCount = 0
 
@@ -2744,30 +2826,26 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
     const geometry = await mosaic.evaluate((element) => {
       const mosaic = element.getBoundingClientRect()
       const slot = element.parentElement?.parentElement?.getBoundingClientRect()
+      const center = element.closest(".ml-atmosphere-carousel-workspace")
+        ?.querySelector<HTMLElement>(
+          '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+        )
+        ?.getBoundingClientRect()
       return {
+        centerGap: center ? mosaic.top - center.bottom : Number.NEGATIVE_INFINITY,
         height: mosaic.height,
         left: mosaic.left,
+        slotBottomGap: slot ? slot.bottom - mosaic.bottom : Number.NEGATIVE_INFINITY,
         slotCenter: slot ? slot.left + (slot.width / 2) : 0,
         width: mosaic.width,
       }
     })
+    expect(geometry.centerGap).toBeGreaterThanOrEqual(29)
+    expect(geometry.slotBottomGap).toBeGreaterThanOrEqual(-1)
     expect(geometry.width).toBeCloseTo(geometry.height, 0)
     expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
-    const headingGeometry = await favoritesHeading.evaluate((element) => {
-      const heading = element.getBoundingClientRect()
-      const mosaic = element.parentElement
-        ?.querySelector<HTMLElement>('[data-testid="atmosphere-favorites-mosaic"]')
-        ?.getBoundingClientRect()
-      return {
-        centerDelta: mosaic
-          ? Math.abs((heading.left + heading.width / 2) - (mosaic.left + mosaic.width / 2))
-          : Number.POSITIVE_INFINITY,
-        fontSize: getComputedStyle(element).fontSize,
-      }
-    })
-    expect(headingGeometry.fontSize).toBe("10px")
-    expect(headingGeometry.centerDelta).toBeLessThanOrEqual(1)
+    await expect(favorites.getByRole("heading")).toHaveCount(0)
 
     // Embla applies its post-resize snap on the next frame. Assert the
     // completed geometry rather than sampling its intentional transition.
@@ -2880,8 +2958,22 @@ test("Favorites use measured remaining space before any player rail exists", asy
     "generative-fm-aisatsana",
   ])
   const roomyViewports = testInfo.project.name === mobileProject
-    ? [{ width: 535, height: 951 }, { width: 770, height: 1026 }]
-    : [{ width: 1162, height: 972 }]
+    ? [
+      // Surface Duo portrait boundary reported from device emulation.
+      { width: 540, height: 720 },
+      { width: 535, height: 951 },
+      { width: 770, height: 1026 },
+    ]
+    : [
+      // Approximate the user's screenshot-sized window at 130% browser zoom.
+      { width: 669, height: 748 },
+      { width: 870, height: 972 },
+      { width: 1162, height: 972 },
+      // Roomy desktop boundary reported at 90% browser zoom.
+      { width: 1420, height: 972 },
+      { width: 1420, height: 1000 },
+      { width: 1578, height: 1080 },
+    ]
   await page.setViewportSize(roomyViewports[0])
   await gotoShell(page, "/music")
 
@@ -2892,6 +2984,29 @@ test("Favorites use measured remaining space before any player rail exists", asy
   for (const viewport of roomyViewports) {
     await page.setViewportSize(viewport)
     await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
+    const fitGeometry = await carousel.evaluate((region) => {
+      const slot = region.closest<HTMLElement>(".ml-atmosphere-carousel-slot")
+      const stationSurface = region.closest<HTMLElement>(".ml-atmosphere-station-carousel")
+      const workspace = region.closest<HTMLElement>(".ml-atmosphere-carousel-workspace")
+      const center = region.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )
+      if (!slot || !stationSurface || !workspace || !center) {
+        throw new Error("Inactive Favorites fit geometry is incomplete")
+      }
+      const slotBox = slot.getBoundingClientRect()
+      const centerBox = center.getBoundingClientRect()
+      const edge = centerBox.width * 1.3
+      const centeredCardBottom = centerBox.bottom - slotBox.top
+      return {
+        availableGap: slotBox.height - centeredCardBottom - edge,
+        constrainedLandscape: stationSurface.dataset.constrainedLandscape,
+        fitState: workspace.dataset.favoritesFit,
+      }
+    })
+    expect(fitGeometry.constrainedLandscape, JSON.stringify(fitGeometry)).toBe("false")
+    expect(fitGeometry.availableGap, JSON.stringify(fitGeometry)).toBeGreaterThanOrEqual(8)
+    expect(fitGeometry.fitState, JSON.stringify(fitGeometry)).toBe("true")
     await expect(favorites).toBeVisible()
     await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
     await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(4)
@@ -2907,16 +3022,31 @@ test("Favorites use measured remaining space before any player rail exists", asy
         centerBox.left + (centerBox.width / 2) - (stageBox.left + (stageBox.width / 2)),
       )
     })).toBeLessThanOrEqual(1)
-    const geometry = await mosaic.evaluate((element) => {
+    const readMosaicGeometry = () => mosaic.evaluate((element) => {
       const mosaic = element.getBoundingClientRect()
-      const slot = element.parentElement?.parentElement?.getBoundingClientRect()
+      const workspace = element.closest<HTMLElement>(".ml-atmosphere-carousel-workspace")
+      const outerSlot = workspace?.parentElement?.getBoundingClientRect()
+      const center = workspace?.querySelector<HTMLElement>(
+          '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+        )
+        ?.getBoundingClientRect()
       return {
+        centerGap: center ? mosaic.top - center.bottom : Number.NEGATIVE_INFINITY,
         height: mosaic.height,
         left: mosaic.left,
-        slotCenter: slot ? slot.left + (slot.width / 2) : 0,
+        slotBottomGap: outerSlot ? outerSlot.bottom - mosaic.bottom : Number.NEGATIVE_INFINITY,
+        slotCenter: outerSlot ? outerSlot.left + (outerSlot.width / 2) : 0,
         width: mosaic.width,
       }
     })
+    await expect.poll(async () => {
+      const gap = (await readMosaicGeometry()).centerGap
+      return gap >= 7.5 && gap <= 30.5
+    }).toBe(true)
+    const geometry = await readMosaicGeometry()
+    expect(geometry.centerGap).toBeGreaterThanOrEqual(7.5)
+    expect(geometry.centerGap).toBeLessThanOrEqual(30.5)
+    expect(geometry.slotBottomGap).toBeGreaterThanOrEqual(-1)
     expect(geometry.width).toBeCloseTo(geometry.height, 0)
     expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
@@ -3038,13 +3168,10 @@ test("Favorites use slot measurement below the legacy viewport-height cutoff", a
   await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(4)
   const geometry = await mosaic.evaluate((element) => {
     const mosaic = element.getBoundingClientRect()
-    const region = element.parentElement
-    const slot = region?.parentElement?.getBoundingClientRect()
-    const heading = region?.querySelector("h2")?.getBoundingClientRect()
-    const gap = region ? Number.parseFloat(getComputedStyle(region).rowGap) : 0
+    const slot = element.parentElement?.parentElement?.getBoundingClientRect()
     return {
       height: mosaic.height,
-      requiredHeight: (heading?.height ?? 0) + gap + 192,
+      requiredHeight: 192,
       slotHeight: slot?.height ?? 0,
       width: mosaic.width,
     }
@@ -3108,6 +3235,45 @@ test("Favorites empty state explains the speed dial without duplicating station 
   await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
 })
 
+test("Favorites empty mosaic remains visible at reported device and zoom boundaries", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== mobileProject && testInfo.project.name !== desktopProject,
+    "Reported empty-mosaic boundaries are covered in desktop and mobile Chromium.",
+  )
+  await installAtmosphereFavorites(page, [])
+  const viewports = testInfo.project.name === mobileProject
+    ? [{ width: 540, height: 720 }]
+    : [{ width: 1420, height: 972 }, { width: 1578, height: 1080 }]
+  await page.setViewportSize(viewports[0])
+  await gotoShell(page, "/music")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const favorites = page.getByRole("region", { name: "Favorites" })
+  const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport)
+    await expect(favorites.getByText("Add favorites to make your speed dial")).toBeVisible()
+    await expect(favorites.getByText("Heart a station and it will appear here.")).toBeVisible()
+    await expect(favorites.locator('[data-favorite-destination="empty"]')).toHaveCount(1)
+    await expect(favorites.getByRole("button")).toHaveCount(0)
+    await expect.poll(() => mosaic.evaluate((element) => {
+      const mosaic = element.getBoundingClientRect()
+      const center = element.closest(".ml-atmosphere-carousel-workspace")
+        ?.querySelector<HTMLElement>(
+          '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+        )
+        ?.getBoundingClientRect()
+      const gap = center ? mosaic.top - center.bottom : Number.NEGATIVE_INFINITY
+      return gap >= 7.5 && gap <= 30.5
+    })).toBe(true)
+    await expectFavoritesMosaicTracksCenteredCard(
+      mosaic,
+      carousel.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]'),
+    )
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+  }
+})
+
 test("centered station description remains visible as roomy layouts rescale", async ({ page }, testInfo) => {
   test.skip(
     testInfo.project.name !== mobileProject && testInfo.project.name !== desktopProject,
@@ -3137,6 +3303,81 @@ test("centered station description remains visible as roomy layouts rescale", as
     expect(geometry[1]).not.toBeNull()
     expect(geometry[1]!.y).toBeGreaterThanOrEqual(geometry[0]!.y)
     expect(geometry[1]!.y + geometry[1]!.height).toBeLessThanOrEqual(geometry[0]!.y + geometry[0]!.height + 1)
+  }
+})
+
+test("Atmosphere workspace fluidly scales from Laptop L through 4K", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== desktopProject, "Large-screen Atmosphere geometry is covered in desktop Chromium.")
+  await installAtmosphereFavorites(page, [])
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await gotoShell(page, "/music")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
+  const cases = [
+    { viewport: { width: 1440, height: 900 }, minCardWidth: 240, maxCardWidth: 270, minControlWidth: 48, minEmptyTitleSize: 16, minLabelSize: 17 },
+    { viewport: { width: 2560, height: 1440 }, minCardWidth: 440, maxCardWidth: 481, minControlWidth: 80, minEmptyTitleSize: 28, minLabelSize: 20 },
+  ]
+
+  for (const largeScreen of cases) {
+    await page.setViewportSize(largeScreen.viewport)
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+    await expect(mosaic).toBeVisible()
+    await expect.poll(() => carousel.evaluate((region) => {
+      const center = region.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )
+      return center?.getBoundingClientRect().width ?? 0
+    })).toBeGreaterThanOrEqual(largeScreen.minCardWidth)
+    await expect.poll(() => page.evaluate(() => {
+      const center = document.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )?.getBoundingClientRect()
+      const mosaic = document.querySelector<HTMLElement>(
+        '[data-testid="atmosphere-favorites-mosaic"]',
+      )?.getBoundingClientRect()
+      return center && mosaic
+        ? Math.abs(mosaic.width / center.width - 1.3)
+        : Number.POSITIVE_INFINITY
+    })).toBeLessThanOrEqual(0.01)
+
+    const geometry = await page.evaluate(() => {
+      const usable = document.querySelector<HTMLElement>(".ml-app-scroll")?.getBoundingClientRect()
+      const stage = document.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')?.getBoundingClientRect()
+      const center = document.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )?.getBoundingClientRect()
+      const mosaic = document.querySelector<HTMLElement>(
+        '[data-testid="atmosphere-favorites-mosaic"]',
+      )?.getBoundingClientRect()
+      const label = document.querySelector<HTMLElement>(".ml-atmosphere-category-label")
+      const previousControl = document.querySelector<HTMLElement>('[aria-label="Previous station"]')
+      const emptyTitle = document.querySelector<HTMLElement>(".ml-atmosphere-favorite-empty > strong")
+      if (!usable || !stage || !center || !mosaic || !label || !previousControl || !emptyTitle) {
+        throw new Error("Large-screen Atmosphere geometry is incomplete")
+      }
+      return {
+        centerWidth: center.width,
+        controlWidth: previousControl.getBoundingClientRect().width,
+        emptyTitleFontSize: Number.parseFloat(getComputedStyle(emptyTitle).fontSize),
+        labelFontSize: Number.parseFloat(getComputedStyle(label).fontSize),
+        mosaicRatio: mosaic.width / center.width,
+        stageLeftDelta: Math.abs(stage.left - usable.left),
+        stageRightDelta: Math.abs(stage.right - usable.right),
+        noHorizontalOverflow: document.documentElement.scrollWidth <= innerWidth,
+        noVerticalOverflow: document.documentElement.scrollHeight <= innerHeight,
+      }
+    })
+
+    expect(geometry.centerWidth).toBeLessThanOrEqual(largeScreen.maxCardWidth)
+    expect(geometry.controlWidth).toBeGreaterThanOrEqual(largeScreen.minControlWidth)
+    expect(geometry.emptyTitleFontSize).toBeGreaterThanOrEqual(largeScreen.minEmptyTitleSize)
+    expect(geometry.labelFontSize).toBeGreaterThanOrEqual(largeScreen.minLabelSize)
+    expect(Math.abs(geometry.mosaicRatio - 1.3)).toBeLessThanOrEqual(0.01)
+    expect(geometry.stageLeftDelta).toBeLessThanOrEqual(1)
+    expect(geometry.stageRightDelta).toBeLessThanOrEqual(1)
+    expect(geometry.noHorizontalOverflow).toBe(true)
+    expect(geometry.noVerticalOverflow).toBe(true)
   }
 })
 

@@ -1972,10 +1972,12 @@
 
   .ml-app-shell[data-music-workspace-route="true"] .ml-app-scroll {
     overflow: hidden;
+    scrollbar-gutter: auto;
   }
 
   .ml-app-shell[data-music-workspace-route="true"] .ml-app-content {
     height: 100%;
+    max-inline-size: none !important;
     min-height: 0;
     padding-bottom: var(--ml-bottom-stack-height);
   }
@@ -2000,15 +2002,138 @@
 
   .ml-atmosphere-rail-content {
     gap: 0;
+    max-inline-size: none !important;
     padding-bottom: 0 !important;
   }
 
   .ml-atmosphere-workspace-page {
+    --ml-atmosphere-page-inline-padding: 1rem;
     min-height: 0 !important;
+  }
+
+  @media (min-width: 40rem) {
+    .ml-atmosphere-workspace-page {
+      --ml-atmosphere-page-inline-padding: 1.5rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .ml-atmosphere-workspace-page {
+      --ml-atmosphere-page-inline-padding: 2rem;
+    }
+  }
+
+  /* The category scroller and carousel are viewport rails, so their clipping
+     edge is the real sidebar-safe workspace rather than the padded text column. */
+  .ml-atmosphere-category-pills,
+  .ml-atmosphere-station-stage-allocation {
+    margin-inline: calc(0px - var(--ml-atmosphere-page-inline-padding));
+    inline-size: calc(100% + (2 * var(--ml-atmosphere-page-inline-padding)));
+    max-inline-size: none;
   }
 
   .ml-atmosphere-station-carousel {
     grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  /* Large displays scale the complete Atmosphere composition from the same
+     measured card ratio while the global sidebar and bottom navigation remain
+     on their normal app-shell sizing. */
+  .ml-atmosphere-carousel-workspace {
+    --ml-atmosphere-header-scale-rem: 1rem;
+    --ml-atmosphere-workspace-scale-rem: 1rem;
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-carousel {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 1);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-heading {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 0.75);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-picker {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 0.375);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-label,
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-selected-category > p {
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 0.875);
+    line-height: calc(var(--ml-atmosphere-header-scale-rem) * 1.25);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-selected-category > h2 {
+    font-size: var(--ml-atmosphere-header-scale-rem);
+    line-height: calc(var(--ml-atmosphere-header-scale-rem) * 1.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-selected-category > p {
+    margin-top: calc(var(--ml-atmosphere-header-scale-rem) * 0.25);
+    max-inline-size: calc(var(--ml-atmosphere-header-scale-rem) * 48);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-pills {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 0.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-pills > button {
+    min-height: calc(var(--ml-atmosphere-header-scale-rem) * 2);
+    padding-inline: calc(var(--ml-atmosphere-header-scale-rem) * 0.75);
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 0.75);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-actions {
+    inset-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    top: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.5);
+  }
+
+  .ml-atmosphere-carousel-workspace [data-carousel-primary-action] {
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.25);
+    padding-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.5);
+    font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.875);
+  }
+
+  .ml-atmosphere-carousel-workspace [data-carousel-favorite-action] {
+    width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+  }
+
+  .ml-atmosphere-carousel-workspace [data-carousel-primary-action] > svg,
+  .ml-atmosphere-carousel-workspace [data-carousel-favorite-action] svg {
+    width: var(--ml-atmosphere-workspace-scale-rem);
+    height: var(--ml-atmosphere-workspace-scale-rem);
+    min-width: var(--ml-atmosphere-workspace-scale-rem);
+    min-height: var(--ml-atmosphere-workspace-scale-rem);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-summary-title {
+    inset-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.25);
+    bottom: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.25);
+    padding: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    padding-top: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-summary-title > p,
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-details > span:first-child {
+    font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.875);
+    line-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.25);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-details {
+    gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.25);
+    padding-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    padding-top: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.5);
+    padding-bottom: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-details > span:last-child {
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.25);
+    font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    line-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.25);
   }
 
   .ml-atmosphere-station-controls {
@@ -2017,22 +2142,33 @@
     /* Glow buttons render one pixel above their layout box; offset the owner
        by 17px so the visible control top stays exactly 16px below the card. */
     top: min(
-      calc(var(--carousel-summary-card-height) + 17px),
-      calc(100% - 2.75rem)
+      calc(var(--carousel-summary-card-height) + (var(--ml-atmosphere-workspace-scale-rem) * 1.0625)),
+      calc(100% - (var(--ml-atmosphere-workspace-scale-rem) * 2.75))
     );
     display: grid;
     grid-template-columns:
       calc((100% - var(--carousel-card-width)) / 2)
       var(--carousel-card-width)
       calc((100% - var(--carousel-card-width)) / 2);
-    height: 2.75rem;
+    height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.75);
     pointer-events: none;
   }
 
   .ml-atmosphere-station-control {
     align-self: start;
     justify-self: center;
+    width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
     pointer-events: auto;
+  }
+
+  .ml-atmosphere-station-control > svg {
+    width: var(--ml-atmosphere-workspace-scale-rem);
+    height: var(--ml-atmosphere-workspace-scale-rem);
+    min-width: var(--ml-atmosphere-workspace-scale-rem);
+    min-height: var(--ml-atmosphere-workspace-scale-rem);
   }
 
   .ml-atmosphere-station-control-previous {
@@ -2041,6 +2177,27 @@
 
   .ml-atmosphere-station-control-next {
     grid-column: 3;
+  }
+
+  /* Reduced motion removes the wing transforms. When three complete cards
+     leave spare inline room, move each control by one quarter of that room so
+     it stays centered beneath the adjacent visible card rather than the wider
+     outer grid column. */
+  @media (prefers-reduced-motion: reduce) {
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
+      .ml-atmosphere-station-control-previous {
+      translate: max(
+        0px,
+        calc((100cqi - (3 * var(--carousel-card-width))) / 4)
+      ) 0;
+    }
+
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
+      .ml-atmosphere-station-control-next {
+      translate: calc(
+        0px - max(0px, calc((100cqi - (3 * var(--carousel-card-width))) / 4))
+      ) 0;
+    }
   }
 
   /* Short landscape workspaces already keep their controls above the fixed app bar. */
@@ -3689,52 +3846,40 @@ html[data-theme-transition-fallback="toggle-light"]::before {
 }
 
 .ml-atmosphere-carousel-workspace[data-favorites-fit="true"] {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.ml-atmosphere-carousel-workspace[data-favorites-fit="true"] .ml-atmosphere-station-carousel {
-  height: auto;
-  grid-template-rows: auto var(--ml-atmosphere-station-stage-block-size);
+  position: relative;
 }
 
 .ml-atmosphere-carousel-workspace[data-favorites-fit="true"] .ml-atmosphere-favorites-slot {
+  position: absolute;
+  inset-block: var(--ml-atmosphere-favorites-top) 0;
+  inset-inline-start: 50%;
+  inline-size: min(100%, var(--ml-atmosphere-favorites-edge));
+  transform: translateX(-50%);
   container-name: ml-atmosphere-favorites-slot;
   container-type: size;
   display: block;
 }
 
-/* JavaScript measures the actual centered card and assigns its 90% visual
-   counterpart. CSS then keeps that square bounded by the remaining slot. */
+/* JavaScript measures the actual centered card and assigns a 130% visual
+   counterpart. Roomy layouts retain the preferred 30px gap; boundary layouts
+   may use the measured 8px floor rather than hiding a complete fitting square. */
 .ml-atmosphere-carousel-workspace[data-favorites-fit="true"] {
     .ml-atmosphere-favorites-region {
       display: grid;
       height: 100%;
-      grid-template-rows: auto minmax(0, 1fr);
-      gap: 0.4rem;
-    }
-
-    .ml-atmosphere-favorites-region > h2 {
-      color: hsl(var(--foreground) / 0.92);
-      font-size: 0.625rem;
-      font-weight: 650;
-      inline-size: min(100cqi, calc(100cqb - 1.5rem), var(--ml-atmosphere-favorites-edge));
-      justify-self: center;
-      line-height: 1.25;
-      text-align: center;
+      grid-template-rows: minmax(0, 1fr);
     }
 
     .ml-atmosphere-favorites-mosaic {
       display: grid;
       grid-template-columns: repeat(6, minmax(0, 1fr));
       grid-auto-rows: minmax(0, 1fr);
-      gap: 0.2rem;
+      gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.2);
       aspect-ratio: 1;
-      /* The centered carousel card is the visual scale anchor. Available
-         workspace decides whether Favorites fits, while this shared edge
-         keeps its size proportional as browser zoom changes effective space. */
-      inline-size: min(100cqi, calc(100cqb - 1.5rem), var(--ml-atmosphere-favorites-edge));
-      place-self: center;
+      /* The centered carousel card is the visual scale anchor; Favorites is
+         intentionally 30% larger when the complete square fits. */
+      inline-size: min(100cqi, 100cqb, var(--ml-atmosphere-favorites-edge));
+      place-self: start center;
       min-block-size: 0;
       overflow: hidden;
     }
@@ -3753,7 +3898,7 @@ html[data-theme-transition-fallback="toggle-light"]::before {
       min-height: 0;
       overflow: hidden;
       border: 1px solid hsl(var(--border) / 0.56);
-      border-radius: 0.55rem;
+      border-radius: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.55);
       background: hsl(var(--card) / 0.8);
       color: hsl(var(--foreground));
       isolation: isolate;
@@ -3798,7 +3943,11 @@ html[data-theme-transition-fallback="toggle-light"]::before {
       overflow: hidden;
       background: linear-gradient(to top, hsl(0 0% 0% / 0.88), transparent);
       color: hsl(var(--foreground));
-      font-size: clamp(0.55rem, 2.8cqi, 0.78rem);
+      font-size: clamp(
+        0.55rem,
+        2.8cqi,
+        calc(var(--ml-atmosphere-workspace-scale-rem) * 0.78)
+      );
       font-weight: 650;
       line-height: 1.1;
       text-overflow: ellipsis;
@@ -3809,8 +3958,8 @@ html[data-theme-transition-fallback="toggle-light"]::before {
     .ml-atmosphere-favorite-empty {
       place-items: center;
       align-content: center;
-      gap: 0.35rem;
-      padding: 0.45rem;
+      gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.35);
+      padding: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.45);
       text-align: center;
     }
 
@@ -3828,7 +3977,11 @@ html[data-theme-transition-fallback="toggle-light"]::before {
     }
 
     .ml-atmosphere-favorite-collection > strong {
-      font-size: clamp(1rem, 7cqi, 2rem);
+      font-size: clamp(
+        1rem,
+        7cqi,
+        calc(var(--ml-atmosphere-workspace-scale-rem) * 2)
+      );
     }
 
     .ml-atmosphere-favorite-empty > span {
@@ -3836,14 +3989,14 @@ html[data-theme-transition-fallback="toggle-light"]::before {
       padding: 0;
       background: transparent;
       color: hsl(var(--muted-foreground));
-      font-size: clamp(0.52rem, 2.4cqi, 0.7rem);
+      font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.7);
       line-height: 1.2;
       white-space: normal;
     }
 
     .ml-atmosphere-favorite-empty > strong {
       max-width: 18ch;
-      font-size: clamp(0.62rem, 3cqi, 0.82rem);
+      font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.82);
       line-height: 1.15;
     }
 }

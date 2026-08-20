@@ -185,6 +185,40 @@ describe("production adaptive carousel", () => {
     assert.equal(narrow.cardHeight, 224)
   })
 
+  it("fluidly scales the complete Station composition on laptop and TV-sized stages", () => {
+    const laptop = getResponsiveStationCarouselTuning({
+      containerWidth: 1368,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    assert.deepEqual(
+      { width: laptop.cardWidth, height: laptop.cardHeight },
+      { width: 274, height: 319 },
+    )
+    assert.equal(laptop.radius, 599)
+
+    const television = getResponsiveStationCarouselTuning({
+      containerWidth: 2488,
+      containerHeight: 1400,
+      constrainedLandscape: false,
+    })
+    assert.deepEqual(
+      { width: television.cardWidth, height: television.cardHeight },
+      { width: 480, height: 560 },
+    )
+    assert.equal(television.radius, 1050)
+
+    const shortTelevisionStage = getResponsiveStationCarouselTuning({
+      containerWidth: 2488,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    assert.ok(shortTelevisionStage.cardWidth < television.cardWidth)
+    assert.ok(
+      shortTelevisionStage.cardHeight + shortTelevisionStage.cardWidth * 1.3 + 8 <= 801,
+    )
+  })
+
   it("keeps station looping independent from static reduced-motion presentation", () => {
     assert.equal(resolveEffectiveCarouselLoop(7, 1, true), true)
     assert.match(controllerSource, /surface === "stations"[\s\S]*resolveEffectiveCarouselLoop/)
