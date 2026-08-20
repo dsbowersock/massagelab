@@ -2179,37 +2179,43 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
   })
 })
 
-test("Station category overflow feathers pill glow before the viewport edge", async ({ page }, testInfo) => {
+test("Station category overflow preserves pill glow through the viewport edge", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== desktopProject, "Horizontal category overflow is covered in desktop Chromium.")
-  await page.setViewportSize({ width: 904, height: 663 })
-  await gotoShell(page, "/music")
+  let sawScrollableViewport = false
+  for (const viewport of [
+    { width: 904, height: 663 },
+    { width: 1280, height: 806 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await gotoShell(page, "/music")
 
-  const categoryGroup = page.getByRole("group", { name: "Station category" })
-  await expect(categoryGroup).toBeVisible()
-  const geometry = await categoryGroup.evaluate((group) => {
-    const style = getComputedStyle(group)
-    const groupBox = group.getBoundingClientRect()
-    const buttons = [...group.querySelectorAll<HTMLElement>("button")]
-    const firstBox = buttons[0]?.getBoundingClientRect()
-    group.scrollLeft = group.scrollWidth
-    const lastBox = buttons.at(-1)?.getBoundingClientRect()
+    const categoryGroup = page.getByRole("group", { name: "Station category" })
+    await expect(categoryGroup).toBeVisible()
+    const geometry = await categoryGroup.evaluate((group) => {
+      const style = getComputedStyle(group)
+      const groupBox = group.getBoundingClientRect()
+      const buttons = [...group.querySelectorAll<HTMLElement>("button")]
+      const firstBox = buttons[0]?.getBoundingClientRect()
+      group.scrollLeft = group.scrollWidth
+      const lastBox = buttons.at(-1)?.getBoundingClientRect()
 
-    return {
-      firstInset: firstBox ? firstBox.left - groupBox.left : 0,
-      lastInset: lastBox ? groupBox.right - lastBox.right : 0,
-      maskImage: style.maskImage || style.webkitMaskImage,
-      paddingLeft: Number.parseFloat(style.paddingLeft),
-      paddingRight: Number.parseFloat(style.paddingRight),
-      scrollable: group.scrollWidth > group.clientWidth,
-    }
-  })
+      return {
+        firstInset: firstBox ? firstBox.left - groupBox.left : 0,
+        lastInset: lastBox ? groupBox.right - lastBox.right : 0,
+        maskImage: style.maskImage || style.webkitMaskImage,
+        paddingLeft: Number.parseFloat(style.paddingLeft),
+        paddingRight: Number.parseFloat(style.paddingRight),
+        scrollable: group.scrollWidth > group.clientWidth,
+      }
+    })
 
-  expect(geometry.scrollable).toBe(true)
-  expect(geometry.maskImage).not.toBe("none")
-  expect(geometry.maskImage).toContain("linear-gradient")
-  expect(geometry.firstInset).toBeGreaterThanOrEqual(geometry.paddingLeft - 1)
-  expect(geometry.lastInset).toBeGreaterThanOrEqual(geometry.paddingRight - 1)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    sawScrollableViewport ||= geometry.scrollable
+    expect(geometry.maskImage).toBe("none")
+    expect(geometry.firstInset).toBeGreaterThanOrEqual(geometry.paddingLeft - 1)
+    expect(geometry.lastInset).toBeGreaterThanOrEqual(geometry.paddingRight - 1)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  }
+  expect(sawScrollableViewport).toBe(true)
 })
 
 test("player rail keeps overlays clear of dialog, sheet, tooltip, and interruption notice", async ({ page }, testInfo) => {

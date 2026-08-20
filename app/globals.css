@@ -3665,24 +3665,9 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   }
 }
 
-/* Keep horizontal category overflow discoverable without letting the scroll
-   viewport cut pill glow into a hard edge. The existing 2rem end padding lets
-   the first and last pills settle beyond the feather at their endpoints. */
+/* Keep enough endpoint room for the first and last category pills to expose
+   their full glow without masking the visible portion of the scroll strip. */
 .ml-atmosphere-category-pills {
-  -webkit-mask-image: linear-gradient(
-    90deg,
-    transparent 0,
-    #000 2rem,
-    #000 calc(100% - 2rem),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    90deg,
-    transparent 0,
-    #000 2rem,
-    #000 calc(100% - 2rem),
-    transparent 100%
-  );
   scroll-padding-inline: 2rem;
 }
 
