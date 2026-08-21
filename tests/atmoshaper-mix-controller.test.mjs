@@ -112,6 +112,94 @@ test("an exclusive replacement is prepared before its working predecessor fades 
     < log.findIndex((entry) => entry[0] === "dispose" && entry[1] === "station-old"))
 })
 
+test("a failed exclusive replacement retains its healthy predecessor at runtime", async () => {
+  const log = []
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      if (nextLayer.id === "station-new") return Promise.reject(new Error("station unavailable"))
+      return createFakeHandle(log, nextLayer)
+    },
+  })
+  await controller.start(recipe([layer("station-old", "station")]))
+  log.length = 0
+
+  await controller.applyRecipe(recipe([layer("station-new", "station")]))
+
+  assert.deepEqual(log, [])
+  assert.equal(controller.getSnapshot().status, "playing")
+  assert.deepEqual(controller.getSnapshot().layers, {
+    "station-old": { status: "playing" },
+    "station-new": { status: "failed", error: "station unavailable" },
+  })
+})
+
+test("a stale activation disposes only its private handle after a newer request", async () => {
+  const log = []
+  let releaseStaleFade
+  let staleFadeStarted
+  const staleFade = new Promise((resolve) => { releaseStaleFade = resolve })
+  const staleFadeHasStarted = new Promise((resolve) => { staleFadeStarted = resolve })
+  let adapterCount = 0
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      adapterCount += 1
+      const handleName = adapterCount === 1 ? "stale-handle" : "newer-handle"
+      return {
+        async fadeIn() {
+          log.push(["fadeIn", handleName])
+          if (handleName === "stale-handle") {
+            staleFadeStarted()
+            await staleFade
+          }
+        },
+        async update() { log.push(["update", handleName]) },
+        async pause() { log.push(["pause", handleName]) },
+        async resume() { log.push(["resume", handleName]) },
+        async fadeOutAndDispose() { log.push(["dispose", handleName]) },
+      }
+    },
+  })
+  const staleStart = controller.start(recipe([layer("rain")]))
+  await staleFadeHasStarted
+
+  await controller.start(recipe([layer("rain")]))
+  releaseStaleFade()
+  await staleStart
+
+  assert.deepEqual(log, [
+    ["fadeIn", "stale-handle"],
+    ["fadeIn", "newer-handle"],
+    ["dispose", "stale-handle"],
+  ])
+  assert.deepEqual(controller.getSnapshot().layers, { rain: { status: "playing" } })
+})
+
+test("a layer added while paused prepares silently and enters paused state", async () => {
+  const log = []
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      log.push(["create", nextLayer.id])
+      return createFakeHandle(log, nextLayer)
+    },
+  })
+  await controller.start(recipe([layer("rain")]))
+  await controller.pause()
+  log.length = 0
+
+  await controller.applyRecipe(recipe([layer("rain"), layer("birds", "ambient")]))
+
+  assert.deepEqual(log, [
+    ["update", "rain", 0.5],
+    ["create", "birds"],
+    ["pause", "birds"],
+  ])
+  assert.equal(controller.getSnapshot().status, "paused")
+  assert.deepEqual(controller.getSnapshot().layers, {
+    rain: { status: "paused" },
+    birds: { status: "paused" },
+  })
+})
+
 test("stop and dispose clean active and late-arriving handles", async () => {
   const log = []
   let resolveLate
