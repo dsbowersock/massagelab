@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ChevronUp,
   MoreHorizontal,
+  Pause,
   Play,
   SkipBack,
   SkipForward,
@@ -50,11 +51,11 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
   const music = useMusic()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const hasStation = Boolean(music.activeStationId)
-  const showPlayer = hasStation || music.playbackState === "failed"
+  const hasPlaybackIdentity = music.activePlaybackKind !== null
+  const showPlayer = hasPlaybackIdentity
   const isCollapsed = music.miniPlayerCollapsed
   const isLoading = music.playbackState === "loading"
-  const isPlayingOrLoading = music.playbackState === "playing" || isLoading
+  const isPlaying = music.playbackState === "playing"
   const isVinylPlaying = music.playbackState === "playing"
   const isMusicRoute = pathname === "/music"
   const [isCompactLandscape, setIsCompactLandscape] = useState(false)
@@ -115,16 +116,12 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
 
   const title = music.activeStationTitle ?? "Atmosphere"
 
-  function handlePlayStop() {
-    // Loading is an active, cancellable playback intent, so Stop must invalidate pending startup.
-    if (isPlayingOrLoading) {
-      void music.stopCurrent()
-      return
-    }
-    if (music.activeStationId) void music.playStation(music.activeStationId)
+  function handlePlayPause() {
+    if (music.playbackState === "playing") void music.pauseCurrent()
+    else if (music.playbackState !== "loading") void music.restartCurrent()
   }
 
-  const favoriteAction = music.activeStationId ? (
+  const favoriteAction = music.canNavigateStations && music.activeStationId ? (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -143,7 +140,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
     </Tooltip>
   ) : null
 
-  const previousAction = (
+  const previousAction = music.canNavigateStations ? (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -159,28 +156,47 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
       </TooltipTrigger>
       <TooltipContent>Previous station</TooltipContent>
     </Tooltip>
-  )
+  ) : null
 
-  const playStopLabel = isPlayingOrLoading ? "Stop" : "Play"
-  const playStopAction = (
+  const playPauseLabel = isPlaying ? "Pause" : "Play"
+  const playPauseAction = (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           type="button"
           size="icon"
-          variant={isPlayingOrLoading ? "destructive" : "success"}
-          aria-label={playStopLabel}
-          disabled={!music.activeStationId}
-          onClick={handlePlayStop}
+          variant={isPlaying ? "glow" : "success"}
+          aria-label={playPauseLabel}
+          disabled={isLoading || !hasPlaybackIdentity}
+          onClick={handlePlayPause}
         >
-          {isPlayingOrLoading ? <Square aria-hidden="true" /> : <Play aria-hidden="true" />}
+          {isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{playStopLabel}</TooltipContent>
+      <TooltipContent>{playPauseLabel}</TooltipContent>
     </Tooltip>
   )
 
-  const nextAction = (
+  // Stop remains available during startup so it can cancel a pending source.
+  const stopAction = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant="destructive"
+          aria-label={isLoading ? "Cancel loading" : "Stop"}
+          disabled={music.playbackState === "stopped"}
+          onClick={() => void music.stopCurrent()}
+        >
+          <Square aria-hidden="true" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{isLoading ? "Cancel loading" : "Stop"}</TooltipContent>
+    </Tooltip>
+  )
+
+  const nextAction = music.canNavigateStations ? (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -196,7 +212,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
       </TooltipTrigger>
       <TooltipContent>Next station</TooltipContent>
     </Tooltip>
-  )
+  ) : null
 
   const visualizerAction = (
     <Tooltip>
@@ -339,7 +355,10 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
 
             {isCollapsed ? (
               <>
-                {playStopAction}
+                <div className={cn("flex gap-1", isCompactLandscape && "flex-col")}>
+                  {playPauseAction}
+                  {stopAction}
+                </div>
                 {expandAction}
               </>
             ) : isCompactLandscape ? (
@@ -353,7 +372,8 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
                   data-testid="music-player-toolbar-rail-transport"
                 >
                   {previousAction}
-                  {playStopAction}
+                  {playPauseAction}
+                  {stopAction}
                   {nextAction}
                 </div>
                 <div
@@ -381,7 +401,8 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
                   >
                     {favoriteAction}
                     {previousAction}
-                    {playStopAction}
+                    {playPauseAction}
+                    {stopAction}
                     {nextAction}
                     {visualizerAction}
                   </div>

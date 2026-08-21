@@ -1252,7 +1252,7 @@ for (const activation of ["tap", "click", "keyboard Enter", "keyboard Space"] as
       if (activation === "tap") await expect(page.getByRole("dialog")).toHaveCount(0)
       await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
       await expect(toolbar).toHaveAttribute("data-playback-state", /loading|playing/)
-      await expect(toolbar.getByRole("button", { name: "Stop", exact: true })).toBeVisible()
+      await expect(toolbar.getByRole("button", { name: /^(Cancel loading|Stop)$/ })).toBeVisible()
       await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration)
         .toBeGreaterThan(0)
       const firstGeneratorGeneration = (await readProbe(page)).audioContext.generatorGeneration
@@ -2061,6 +2061,8 @@ test("unbounded playback keeps position absent while Playing and clears prior st
 
   await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await expect(player.getByRole("button", { name: "Pause", exact: true })).toBeVisible()
+  await expect(player.getByRole("button", { name: "Stop", exact: true })).toBeVisible()
   await expect.poll(async () => page.evaluate(() => {
     const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
     return {

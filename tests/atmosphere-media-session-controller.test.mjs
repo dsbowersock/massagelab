@@ -156,6 +156,35 @@ test("keeps one revisioned 512 artwork candidate stable per station and replaces
   ])
 })
 
+test("omits ordinary-station artwork routes for AtmoShaper metadata", () => {
+  const mediaSession = createFakeMediaSession()
+  const metadataInputs = []
+  const controller = createAtmosphereMediaSessionController({
+    mediaSession,
+    createMetadata: (init) => {
+      metadataInputs.push(structuredClone(init))
+      return init
+    },
+  })
+
+  controller.publish({
+    metadata: {
+      id: "atmoshaper:quiet-focus",
+      title: "Quiet Focus",
+      artist: "MassageLab",
+    },
+    playbackState: "playing",
+    handlers: {},
+  })
+
+  assert.deepEqual(metadataInputs, [{
+    title: "Quiet Focus",
+    artist: "MassageLab",
+    album: "MassageLab Atmosphere",
+  }])
+  assert.equal("artwork" in mediaSession.metadata, false)
+})
+
 test("leaves the unbounded generator timeline absent and clears prior platform state on ownership clear", () => {
   const mediaSession = createFakeMediaSession()
   const controller = createAtmosphereMediaSessionController({
@@ -242,6 +271,10 @@ test("maps only supported playback states to Media Session values", () => {
   controller.publish({ metadata: { title: "Three" }, playbackState: "none", handlers })
   assert.equal(mediaSession.playbackState, "none")
   controller.publish({ metadata: { title: "Four" }, playbackState: "interrupted", handlers })
+  assert.equal(mediaSession.playbackState, "none")
+  controller.publish({ metadata: { title: "Five" }, playbackState: "failed", handlers })
+  assert.equal(mediaSession.playbackState, "none")
+  controller.publish({ metadata: { title: "Six" }, playbackState: "stopped", handlers })
   assert.equal(mediaSession.playbackState, "none")
 })
 

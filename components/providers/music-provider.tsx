@@ -481,9 +481,14 @@ export function MusicProvider({
     const controller = mediaSessionControllerRef.current
     if (!controller) return
     const canNavigateStations = activePlaybackKindRef.current === "station"
+    const mediaPlaybackState = state === "paused" || state === "interrupted"
+      ? "paused"
+      : state === "failed" || state === "stopped"
+        ? "none"
+        : "playing"
     controller.publish({
       metadata: station,
-      playbackState: state === "paused" || state === "interrupted" ? "paused" : "playing",
+      playbackState: mediaPlaybackState,
       handlers: {
         play: () => void restartCurrentRef.current("media-session"),
         pause: () => {
@@ -796,7 +801,7 @@ export function MusicProvider({
         title: string
         artist: string
         album: string
-        artwork: Array<{ src: string, sizes: string, type: string }>
+        artwork?: Array<{ src: string, sizes: string, type: string }>
       }) => unknown
     }).MediaMetadata
     mediaSessionControllerRef.current = createAtmosphereMediaSessionController({
@@ -1280,6 +1285,9 @@ export function MusicProvider({
             }
             if (nextSnapshot.status === "failed") {
               setError(firstAtmoShaperError(nextSnapshot) ?? "AtmoShaper could not start any layer.")
+              mediaCarrierRef.current?.stopAndDismiss()
+              const metadata = activeStationMetadataRef.current
+              if (metadata) publishMediaSession(metadata, "failed")
             }
           },
         })
@@ -1334,8 +1342,8 @@ export function MusicProvider({
       } else {
         commitPlaybackLifecycle({ type: "START_FAILED", sessionId: lifecycleSessionId })
         setError(firstAtmoShaperError(snapshot) ?? "AtmoShaper could not start any layer.")
-        mediaCarrierRef.current?.pauseRetained()
-        publishMediaSession(latestMetadata, "paused")
+        mediaCarrierRef.current?.stopAndDismiss()
+        publishMediaSession(latestMetadata, "failed")
       }
     } catch (caughtError) {
       if (
@@ -1588,11 +1596,15 @@ export function MusicProvider({
         if (metadata) publishMediaSession(metadata, "playing")
       } else {
         commitPlaybackLifecycle({ type: "START_FAILED", sessionId })
+        mediaCarrierRef.current?.stopAndDismiss()
+        if (metadata) publishMediaSession(metadata, "failed")
         setError(firstAtmoShaperError(snapshot) ?? "AtmoShaper could not resume.")
       }
     } catch (caughtError) {
       if (requestId !== playbackRequestIdRef.current) return
       commitPlaybackLifecycle({ type: "START_FAILED", sessionId })
+      mediaCarrierRef.current?.stopAndDismiss()
+      if (metadata) publishMediaSession(metadata, "failed")
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not resume.")
     }
   }, [
