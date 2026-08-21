@@ -250,6 +250,35 @@ test("a layer added while paused prepares silently and enters paused state", asy
   })
 })
 
+test("pause during deferred station preparation settles silent and resume keeps the handle", async () => {
+  const log = []
+  let releaseAdapter
+  let adapterEntered
+  const adapterReady = new Promise((resolve) => { releaseAdapter = resolve })
+  const adapterWasEntered = new Promise((resolve) => { adapterEntered = resolve })
+  const controller = createAtmoShaperMixController({
+    async createAdapter(nextLayer) {
+      adapterEntered()
+      await adapterReady
+      return createFakeHandle(log, nextLayer)
+    },
+  })
+
+  const starting = controller.start(recipe([layer("station", "station")]))
+  await adapterWasEntered
+  const pausing = controller.pause()
+  releaseAdapter()
+  await Promise.all([starting, pausing])
+
+  assert.deepEqual(log, [["pause", "station"]])
+  assert.equal(controller.getSnapshot().status, "paused")
+  assert.deepEqual(controller.getSnapshot().layers, { station: { status: "paused" } })
+
+  await controller.resume()
+  assert.deepEqual(log, [["pause", "station"], ["resume", "station"]])
+  assert.equal(controller.getSnapshot().status, "playing")
+})
+
 test("a same-id kind change stages a replacement instead of updating the old adapter", async () => {
   const log = []
   let stationAttempts = 0

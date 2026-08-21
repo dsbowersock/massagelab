@@ -1,7 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { createAtmospherePlaybackLifecycle, transitionAtmospherePlayback } from "../lib/atmosphere/playback-lifecycle.js"
+import * as playbackLifecycle from "../lib/atmosphere/playback-lifecycle.js"
+
+const { createAtmospherePlaybackLifecycle, transitionAtmospherePlayback } = playbackLifecycle
 
 const playing = { ...createAtmospherePlaybackLifecycle(true), status: "playing", sessionId: 1, explicitIntent: "play" }
 
@@ -102,4 +104,87 @@ test("dismisses only the matching notice session", () => {
 
 test("unknown lifecycle events throw", () => {
   assert.throws(() => transitionAtmospherePlayback(playing, { type: "UNKNOWN" }), /Unknown atmosphere playback event/)
+})
+
+test("deferred runtime startup reconciles the latest recipe and desired paused transport", async () => {
+  assert.equal(typeof playbackLifecycle.settleSourceRuntimeStartup, "function")
+  const log = []
+  let releaseStart
+  let startEntered
+  const startReady = new Promise((resolve) => { releaseStart = resolve })
+  const startWasEntered = new Promise((resolve) => { startEntered = resolve })
+  let current = true
+  let state = { recipe: { id: "old" }, revision: 1, desiredTransport: "playing" }
+  let status = "stopped"
+  const runtime = {
+    async start(recipe) {
+      log.push(["start", recipe.id])
+      status = "loading"
+      startEntered()
+      await startReady
+      status = "playing"
+    },
+    async applyRecipe(recipe) { log.push(["apply", recipe.id]) },
+    async pause() { log.push(["pause"]); status = "paused" },
+    async resume() { log.push(["resume"]); status = "playing" },
+    getSnapshot() { return { status } },
+  }
+
+  const settling = playbackLifecycle.settleSourceRuntimeStartup({
+    runtime,
+    isCurrent: () => current,
+    readState: () => state,
+  })
+  await startWasEntered
+  state = { recipe: { id: "latest" }, revision: 2, desiredTransport: "paused" }
+  releaseStart()
+
+  assert.deepEqual(await settling, {
+    status: "current",
+    recipe: state.recipe,
+    revision: 2,
+    desiredTransport: "paused",
+  })
+  assert.deepEqual(log, [["start", "old"], ["apply", "latest"], ["pause"]])
+})
+
+test("startup uses a recovered play intent that changes before runtime adoption", async () => {
+  assert.equal(typeof playbackLifecycle.settleSourceRuntimeStartup, "function")
+  const log = []
+  let state = { recipe: { id: "latest" }, revision: 2, desiredTransport: "paused" }
+  state = { ...state, desiredTransport: "playing" }
+  const runtime = {
+    async start(recipe) { log.push(["start", recipe.id]) },
+    async applyRecipe(recipe) { log.push(["apply", recipe.id]) },
+    async pause() { log.push(["pause"]) },
+    async resume() { log.push(["resume"]) },
+    getSnapshot() { return { status: "playing" } },
+  }
+
+  await playbackLifecycle.settleSourceRuntimeStartup({
+    runtime,
+    isCurrent: () => true,
+    readState: () => state,
+  })
+
+  assert.deepEqual(log, [["start", "latest"]])
+})
+
+test("an async owner effect cannot commit after its lease becomes stale", async () => {
+  assert.equal(typeof playbackLifecycle.commitOwnedPlaybackEffect, "function")
+  let releaseEffect
+  const effectReady = new Promise((resolve) => { releaseEffect = resolve })
+  let current = true
+  let commits = 0
+  const settling = playbackLifecycle.commitOwnedPlaybackEffect({
+    effect: () => effectReady,
+    isCurrent: () => current,
+    commit: () => { commits += 1 },
+  })
+
+  current = false
+  releaseEffect()
+
+  assert.equal(await settling, false)
+  assert.equal(commits, 0)
 })

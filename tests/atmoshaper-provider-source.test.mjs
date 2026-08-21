@@ -47,14 +47,28 @@ describe("AtmoShaper provider ownership contract", () => {
         < stationPath.indexOf("runtime.controller.start(station)"),
       "station playback must dispose AtmoShaper before its adapter starts",
     )
-    assert.match(atmoPath, /runtimeRef\.current\?\.controller\.stop\(\)/)
+    assert.match(atmoPath, /runtimeRef\.current\?\.controller\.stopAndWait\(\)/)
     assert.ok(
-      atmoPath.indexOf("runtimeRef.current?.controller.stop()")
+      atmoPath.indexOf("runtimeRef.current?.controller.stopAndWait()")
         < atmoPath.indexOf('import("@/lib/atmoshaper/runtime")'),
-      "AtmoShaper must stop ordinary playback before creating its runtime",
+      "AtmoShaper must begin awaited ordinary disposal before creating its runtime",
     )
-    assert.match(atmoPath, /requestId !== playbackRequestIdRef\.current/)
+    assert.ok(
+      atmoPath.indexOf("await ordinaryStationDisposal")
+        < atmoPath.indexOf('import("@/lib/atmoshaper/runtime")'),
+      "AtmoShaper must finish ordinary disposal before creating its runtime",
+    )
+    assert.match(atmoPath, /sessionGeneration !== playbackSessionGenerationRef\.current/)
     assert.match(atmoPath, /runtimeLease !== atmoShaperRuntimeLeaseRef\.current/)
+    assert.match(atmoPath, /settleSourceRuntimeStartup/)
+    assert.match(atmoPath, /recipe:\s*atmoShaperRecipeRef\.current/)
+    assert.match(atmoPath, /revision:\s*atmoShaperRecipeRevisionRef\.current/)
+    assert.match(atmoPath, /desiredTransport:\s*atmoShaperDesiredTransportRef\.current/)
+    assert.match(
+      atmoPath,
+      /recipe:\s*atmoShaperRecipeRef\.current \?\? snapshot\.recipe/,
+      "startup callbacks must not republish a superseded captured recipe",
+    )
   })
 
   it("keeps AtmoShaper paused and stopped edits silent while retaining its recipe", () => {
@@ -72,6 +86,7 @@ describe("AtmoShaper provider ownership contract", () => {
     assert.match(restartPath, /atmoShaperRecipeRef\.current/)
     assert.match(restartPath, /await runtime\.resume\(\)/)
     assert.match(updatePath, /atmoShaperRecipeRef\.current = recipe/)
+    assert.match(updatePath, /atmoShaperRecipeRevisionRef\.current \+= 1/)
     assert.match(updatePath, /if \(activePlaybackKindRef\.current !== "atmoshaper"\) return/)
     assert.match(updatePath, /await runtime\.applyRecipe\(recipe\)/)
     assert.match(retryPath, /snapshot\.status === "failed"/)
@@ -81,6 +96,9 @@ describe("AtmoShaper provider ownership contract", () => {
       "an all-failed retry must reacquire global playback and media ownership",
     )
     assert.match(stopPath, /await disposeAtmoShaperRuntime\(\)/)
+    assert.match(stopPath, /commitOwnedPlaybackEffect/)
+    assert.match(stopPath, /requestId === playbackRequestIdRef\.current/)
+    assert.match(stopPath, /activePlaybackKindRef\.current === stoppedPlaybackKind/)
     assert.match(stopPath, /scheduleStoppedPlayerRetirement/)
   })
 
