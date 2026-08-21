@@ -98,6 +98,35 @@ describe("AtmoShaper workspace ownership model", () => {
     }), "restart")
   })
 
+  it("stops only the exact provider-owned AtmoShaper recipe", () => {
+    const canStop = requireModelFunction("canStopAtmoShaperWorkspaceRecipe")
+
+    assert.equal(canStop({
+      activePlaybackKind: "station",
+      localRecipeId: "local",
+      playbackState: "playing",
+      providerRecipeId: null,
+    }), false)
+    assert.equal(canStop({
+      activePlaybackKind: "atmoshaper",
+      localRecipeId: "local",
+      playbackState: "playing",
+      providerRecipeId: "foreign",
+    }), false)
+    assert.equal(canStop({
+      activePlaybackKind: "atmoshaper",
+      localRecipeId: "local",
+      playbackState: "playing",
+      providerRecipeId: "local",
+    }), true)
+    assert.equal(canStop({
+      activePlaybackKind: "atmoshaper",
+      localRecipeId: "local",
+      playbackState: "stopped",
+      providerRecipeId: "local",
+    }), false)
+  })
+
   it("projects and restores a retained audible predecessor after replacement failure", async () => {
     const projectRetained = requireModelFunction("projectRetainedAtmoShaperLayersForWorkspace")
     const restoreRetained = requireModelFunction("restoreRetainedAtmoShaperLayer")

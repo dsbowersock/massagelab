@@ -112,6 +112,7 @@ describe("AtmoShaper live-session workspace source contract", () => {
       /music\.playAtmoShaper\(recipe\)/,
       /music\.pauseCurrent/,
       /music\.stopCurrent/,
+      /canStopAtmoShaperWorkspaceRecipe/,
       /projectRetainedAtmoShaperLayers/,
       /restoreRetainedLayer/,
       /removeRetainedLayer/,
@@ -122,6 +123,8 @@ describe("AtmoShaper live-session workspace source contract", () => {
     assert.match(mixSource, /max=\{1\}/)
     assert.match(mixSource, /step=\{0\.05\}/)
     assert.match(mixSource, /Still playing during replacement/)
+    assert.match(mixSource, /if \(!canStopThisRecipe\) return/)
+    assert.match(mixSource, /disabled=\{!canStopThisRecipe\}/)
   })
 
   it("restores focus after removal through stable row refs", () => {

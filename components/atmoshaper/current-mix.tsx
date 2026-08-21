@@ -11,6 +11,7 @@ import { getAtmosphereStationById } from "@/lib/atmosphere/stations.js"
 import type { AtmoShaperRecipeActions } from "./use-atmoshaper-recipe"
 import {
   atmoShaperWorkspaceTransportAction,
+  canStopAtmoShaperWorkspaceRecipe,
   focusTargetAfterAtmoShaperVisibleRowRemoval,
   projectRetainedAtmoShaperLayersForWorkspace,
 } from "./workspace-model.js"
@@ -241,6 +242,12 @@ function AtmoShaperTransportButtons({
     providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
   })
   const isPlayingThisRecipe = transportAction === "pause"
+  const canStopThisRecipe = canStopAtmoShaperWorkspaceRecipe({
+    activePlaybackKind: music.activePlaybackKind,
+    localRecipeId: recipe.id,
+    playbackState: music.playbackState,
+    providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
+  })
 
   // The provider owns source replacement; this surface only selects the
   // correct pause, retained-restart, or explicit ownership-transfer action.
@@ -248,6 +255,11 @@ function AtmoShaperTransportButtons({
     if (transportAction === "pause") void music.pauseCurrent()
     else if (transportAction === "restart") void music.restartCurrent()
     else void music.playAtmoShaper(recipe)
+  }
+
+  function handleStop() {
+    if (!canStopThisRecipe) return
+    void music.stopCurrent()
   }
 
   return (
@@ -265,8 +277,8 @@ function AtmoShaperTransportButtons({
         size={compact ? "sm" : "default"}
         variant="outline"
         aria-label="Stop AtmoShaper"
-        disabled={music.playbackState === "stopped"}
-        onClick={() => void music.stopCurrent()}
+        disabled={!canStopThisRecipe}
+        onClick={handleStop}
       >
         Stop
       </Button>

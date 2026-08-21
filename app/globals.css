@@ -127,6 +127,8 @@
     --ml-main-bar-height: 3.25rem;
     --ml-desktop-app-bar-height: 3.5rem;
     --ml-bottom-stack-height: var(--ml-safe-bottom);
+    /* Portaled overlays inherit from the root rather than .ml-app-shell. */
+    --ml-portal-bottom-stack-height: var(--ml-safe-bottom);
   }
 
   .light {
@@ -2330,10 +2332,7 @@
      The outer size container lets both available width and height allocate the
      mixer without inferring a device, browser zoom, or display class. */
   .ml-atmoshaper-workspace {
-    --ml-atmoshaper-bottom-reserve: max(
-      var(--ml-safe-bottom, env(safe-area-inset-bottom, 0px)),
-      calc(var(--ml-bottom-stack-height, 0px) + var(--ml-audio-toolbar-height, 0px))
-    );
+    --ml-atmoshaper-bottom-reserve: var(--ml-bottom-stack-height, var(--ml-safe-bottom));
     container-type: size;
     width: 100%;
     height: 100%;
@@ -2343,9 +2342,11 @@
     scroll-padding-block-end: var(--ml-atmoshaper-bottom-reserve);
   }
 
-  body.ml-music-player-top .ml-atmoshaper-workspace,
-  body.ml-music-player-rail .ml-atmoshaper-workspace {
-    --ml-atmoshaper-bottom-reserve: var(--ml-bottom-stack-height, var(--ml-safe-bottom));
+  body.ml-music-player-active.ml-music-player-bottom:not(.ml-music-player-rail)
+    .ml-atmoshaper-workspace {
+    --ml-atmoshaper-bottom-reserve: calc(
+      var(--ml-bottom-stack-height, var(--ml-safe-bottom)) + var(--ml-audio-toolbar-height)
+    );
   }
 
   .ml-atmoshaper-layout {
@@ -2437,10 +2438,7 @@
      persistent bottom exclusions from root shell variables and bounds its own
      editor scroll instead of making the document scroll. */
   .ml-atmoshaper-current-mix-sheet {
-    --ml-atmoshaper-sheet-bottom-reserve: max(
-      var(--ml-safe-bottom, env(safe-area-inset-bottom, 0px)),
-      calc(var(--ml-bottom-stack-height, 0px) + var(--ml-audio-toolbar-height, 0px))
-    );
+    --ml-atmoshaper-sheet-bottom-reserve: var(--ml-portal-bottom-stack-height);
     inset-block-end: var(--ml-atmoshaper-sheet-bottom-reserve) !important;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
@@ -2455,9 +2453,16 @@
     padding-block-end: max(1rem, env(safe-area-inset-bottom, 0px));
   }
 
-  body.ml-music-player-top .ml-atmoshaper-current-mix-sheet,
-  body.ml-music-player-rail .ml-atmoshaper-current-mix-sheet {
-    --ml-atmoshaper-sheet-bottom-reserve: var(--ml-safe-bottom, env(safe-area-inset-bottom, 0px));
+  body.ml-music-player-active.ml-music-player-bottom:not(.ml-music-player-rail)
+    .ml-atmoshaper-current-mix-sheet {
+    --ml-atmoshaper-sheet-bottom-reserve: calc(
+      var(--ml-portal-bottom-stack-height) + var(--ml-audio-toolbar-height)
+    );
+  }
+
+  body.ml-music-player-active.ml-music-player-top .ml-atmoshaper-current-mix-sheet,
+  body.ml-music-player-active.ml-music-player-rail .ml-atmoshaper-current-mix-sheet {
+    --ml-atmoshaper-sheet-bottom-reserve: var(--ml-portal-bottom-stack-height);
   }
 
   .ml-atmoshaper-current-mix-sheet-body {
@@ -3142,6 +3147,14 @@
   }
 
   @media (min-width: 768px) {
+    html[data-app-bar-position="top"] {
+      --ml-portal-bottom-stack-height: var(--ml-safe-bottom);
+    }
+
+    html[data-app-bar-position="bottom"] {
+      --ml-portal-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-desktop-app-bar-height));
+    }
+
     html[data-app-bar-position="top"] .ml-app-shell {
       --ml-page-top-safe: var(--ml-desktop-app-bar-height);
     }
@@ -3165,6 +3178,14 @@
   }
 
   @media (max-width: 767px) {
+    html[data-app-bar-position="top"] {
+      --ml-portal-bottom-stack-height: var(--ml-safe-bottom);
+    }
+
+    html[data-app-bar-position="bottom"] {
+      --ml-portal-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
+    }
+
     html[data-app-bar-position="top"] .ml-app-shell[data-main-bar-visible="true"] {
       --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
       --ml-bottom-stack-height: var(--ml-safe-bottom);

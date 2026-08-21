@@ -50,14 +50,34 @@ describe("AtmoShaper responsive integration source contract", () => {
     assert.match(styles, /\.ml-atmoshaper-mix-tray\s*\{[\s\S]*?position:\s*sticky/)
   })
 
-  it("bounds internal overflow and reserves navigation, audio, and safe-area edges", () => {
+  it("bounds internal overflow and gives portaled Sheets a root-owned navigation reservation", () => {
     assert.match(styles, /\.ml-atmoshaper-library\s*\{[\s\S]*?overflow-y:\s*auto/)
     assert.match(styles, /overscroll-behavior:\s*contain/)
     assert.match(styles, /overflow-x:\s*hidden/)
-    assert.match(styles, /--ml-atmoshaper-bottom-reserve:[\s\S]*?--ml-bottom-stack-height/)
-    assert.match(styles, /--ml-audio-toolbar-height/)
-    assert.match(styles, /--ml-safe-bottom|safe-area-inset-bottom/)
+    assert.match(styles, /--ml-portal-bottom-stack-height:\s*var\(--ml-safe-bottom\)/)
+    assert.match(
+      styles,
+      /html\[data-app-bar-position="bottom"\][\s\S]*?--ml-portal-bottom-stack-height:\s*calc\(var\(--ml-safe-bottom\) \+ var\(--ml-(?:desktop-app-bar|main-bar)-height\)\)/,
+    )
     assert.match(styles, /\.ml-atmoshaper-current-mix-sheet[\s\S]*?max-block-size:\s*calc\(100dvh/)
+  })
+
+  it("adds audio height only for an active bottom player and keeps top or rail navigation-safe", () => {
+    const inactiveSheetRule = styles.match(
+      /\.ml-atmoshaper-current-mix-sheet \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? ""
+    const activeBottomRule = styles.match(
+      /body\.ml-music-player-active\.ml-music-player-bottom:not\(\.ml-music-player-rail\)\s+\.ml-atmoshaper-current-mix-sheet \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? ""
+    const topAndRailRule = styles.match(
+      /body\.ml-music-player-active\.ml-music-player-top \.ml-atmoshaper-current-mix-sheet,\s*body\.ml-music-player-active\.ml-music-player-rail \.ml-atmoshaper-current-mix-sheet \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? ""
+
+    assert.match(inactiveSheetRule, /--ml-atmoshaper-sheet-bottom-reserve:\s*var\(--ml-portal-bottom-stack-height\)/)
+    assert.doesNotMatch(inactiveSheetRule, /--ml-audio-toolbar-height/)
+    assert.match(activeBottomRule, /var\(--ml-portal-bottom-stack-height\)[\s\S]*?var\(--ml-audio-toolbar-height\)/)
+    assert.match(topAndRailRule, /--ml-atmoshaper-sheet-bottom-reserve:\s*var\(--ml-portal-bottom-stack-height\)/)
+    assert.doesNotMatch(topAndRailRule, /--ml-audio-toolbar-height/)
   })
 
   it("keeps the tray and transport reachable in constrained landscape", () => {

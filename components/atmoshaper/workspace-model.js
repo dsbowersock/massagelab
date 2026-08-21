@@ -59,6 +59,23 @@ export function atmoShaperWorkspaceTransportAction({
 }
 
 /**
+ * Stops only when this workspace recipe is the exact active AtmoShaper owner.
+ * Editing beside an ordinary station or a foreign mix must stay non-destructive.
+ *
+ * @param {{ activePlaybackKind: "station" | "atmoshaper" | null, localRecipeId: string, playbackState: string, providerRecipeId: string | null }} input
+ */
+export function canStopAtmoShaperWorkspaceRecipe({
+  activePlaybackKind,
+  localRecipeId,
+  playbackState,
+  providerRecipeId,
+}) {
+  return activePlaybackKind === "atmoshaper"
+    && providerRecipeId === localRecipeId
+    && playbackState !== "stopped"
+}
+
+/**
  * Finds runtime-active sources whose exact identity is no longer represented
  * by this workspace's current recipe. Foreign and stale provider snapshots
  * must not introduce rows into a recipe they do not own.
