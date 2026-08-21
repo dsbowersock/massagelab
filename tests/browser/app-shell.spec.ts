@@ -2775,6 +2775,12 @@ test("roomy portrait composes a square Favorites mosaic without changing the sta
   await gotoShell(page, "/music")
 
   const carousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(carousel.locator(
+    '[data-carousel-slide="true"][data-carousel-loop-clone="true"][aria-hidden="true"]',
+  )).toHaveCount(8)
+  await expect(carousel.locator(
+    '[data-carousel-slide="true"][role="group"]',
+  )).toHaveCount(9)
   const centered = carousel.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]')
   const favorites = page.getByRole("region", { name: "Favorites" })
   const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
@@ -3379,6 +3385,108 @@ test("Atmosphere workspace fluidly scales from Laptop L through 4K", async ({ pa
     expect(geometry.noHorizontalOverflow).toBe(true)
     expect(geometry.noVerticalOverflow).toBe(true)
   }
+})
+
+test("Atmosphere carousel shows equal visible station wings at each responsive size", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== desktopProject, "Station wing symmetry is covered in desktop Chromium.")
+  await page.setViewportSize({ width: 540, height: 720 })
+  await gotoShell(page, "/music")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const cases = [
+    { viewport: { width: 540, height: 720 }, minimumPerSide: 2 },
+    { viewport: { width: 1024, height: 768 }, minimumPerSide: 4 },
+    { viewport: { width: 1440, height: 900 }, minimumPerSide: 3 },
+    { viewport: { width: 2560, height: 1440 }, minimumPerSide: 4 },
+  ]
+  for (const responsiveCase of cases) {
+    await page.setViewportSize(responsiveCase.viewport)
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+    await expect.poll(() => carousel.evaluate((region) => {
+      const stage = region.querySelector<HTMLElement>(
+        '[data-testid="station-carousel-stage"]',
+      )?.getBoundingClientRect()
+      const center = region.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"]',
+      )?.getBoundingClientRect()
+      if (!stage || !center) return Number.POSITIVE_INFINITY
+      return Math.abs(
+        (center.left + center.width / 2) - (stage.left + stage.width / 2),
+      )
+    })).toBeLessThanOrEqual(1)
+    await page.waitForTimeout(400)
+
+    const readVisibleWingCounts = () => carousel.evaluate((region) => {
+      const stage = region.querySelector<HTMLElement>(
+        '[data-testid="station-carousel-stage"]',
+      )?.getBoundingClientRect()
+      const center = region.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )?.getBoundingClientRect()
+      const summaries = [...region.querySelectorAll<HTMLElement>(
+        '[data-carousel-slide][data-detail-level="summary"] [data-carousel-transform="true"]',
+      )].map((element) => element.getBoundingClientRect())
+      if (!stage || !center) throw new Error("Station wing geometry is incomplete")
+
+      const centerX = center.left + center.width / 2
+      const visibleWidth = (box: DOMRect) => Math.max(
+        0,
+        Math.min(box.right, stage.right) - Math.max(box.left, stage.left),
+      )
+      const leftBoxes = summaries
+        .filter((box) => box.left + box.width / 2 < centerX && visibleWidth(box) > 1)
+        .sort((first, second) => first.left - second.left)
+      const rightBoxes = summaries
+        .filter((box) => box.left + box.width / 2 > centerX && visibleWidth(box) > 1)
+        .sort((first, second) => second.right - first.right)
+      return {
+        left: leftBoxes.length,
+        right: rightBoxes.length,
+        leftOuterExposure: leftBoxes.length > 1 ? leftBoxes[1].left - leftBoxes[0].left : 0,
+        rightOuterExposure: rightBoxes.length > 1 ? rightBoxes[0].right - rightBoxes[1].right : 0,
+      }
+    })
+
+    await expect.poll(async () => {
+      const counts = await readVisibleWingCounts()
+      return Math.abs(counts.left - counts.right)
+    }).toBe(0)
+    await expect.poll(async () => {
+      const counts = await readVisibleWingCounts()
+      return Math.min(counts.left, counts.right)
+    }, { message: `${responsiveCase.viewport.width}px minimum wings per side` }).toBeGreaterThanOrEqual(
+      responsiveCase.minimumPerSide,
+    )
+    if (responsiveCase.viewport.width === 2560) {
+      await expect.poll(async () => {
+        const counts = await readVisibleWingCounts()
+        return Math.min(counts.leftOuterExposure, counts.rightOuterExposure)
+      }, { message: "4K outer wing exposure" }).toBeGreaterThanOrEqual(8)
+    }
+  }
+})
+
+test("Atmosphere carousel wraps across its temporary edges without exposing copies", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== desktopProject, "Station wrap behavior is covered in desktop Chromium.")
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await gotoShell(page, "/music")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const centeredSlide = carousel.locator(
+    '[data-carousel-slide="true"][data-centered="true"]',
+  )
+  await expect(centeredSlide).toHaveAttribute("data-carousel-canonical-id", "mlab-proof-drone")
+
+  await carousel.getByRole("button", { name: "Previous station" }).click()
+  await expect(centeredSlide).toHaveAttribute("data-carousel-canonical-id", "generative-fm-trees")
+  await expect(centeredSlide).not.toHaveAttribute("data-carousel-loop-clone", "true")
+  await expect(carousel.locator(
+    '[data-carousel-slide="true"][data-centered="true"]',
+  )).toHaveCount(1)
+
+  await carousel.getByRole("button", { name: "Next station" }).click()
+  await expect(centeredSlide).toHaveAttribute("data-carousel-canonical-id", "mlab-proof-drone")
+  await expect(centeredSlide).not.toHaveAttribute("data-carousel-loop-clone", "true")
 })
 
 test("Favorites mosaic preserves the approved one through nine placement table", async ({ page }, testInfo) => {

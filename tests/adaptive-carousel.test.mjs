@@ -4,6 +4,9 @@ import { describe, it } from "node:test"
 import {
   BACKGROUND_CAROUSEL_BASE_TUNING,
   STATION_CAROUSEL_TUNING,
+  createAdaptiveCarouselLoopBuffer,
+  getAdaptiveCarouselPresentationProgress,
+  getAdaptiveCarouselPresentationVariables,
   getMountedAdaptiveCarouselItemIds,
   getResponsiveBackgroundCarouselTuning,
   getResponsiveStationCarouselTuning,
@@ -12,6 +15,7 @@ import {
 } from "../components/carousels/adaptive-carousel-model.js"
 
 const items = ["a", "b", "c", "d", "e", "f", "g"].map((id) => ({ id }))
+const nineItems = [...items, { id: "h" }, { id: "i" }]
 const stageStyles = readFileSync(
   new URL("../components/carousels/adaptive-carousel-stage.module.css", import.meta.url),
   "utf8",
@@ -92,6 +96,7 @@ describe("production adaptive carousel", () => {
       motion: true,
       spread: 27,
       radius: 420,
+      perspective: 900,
       scaleFalloff: 0.05,
     })
     assert.deepEqual(
@@ -196,6 +201,7 @@ describe("production adaptive carousel", () => {
       { width: 274, height: 319 },
     )
     assert.equal(laptop.radius, 599)
+    assert.equal(laptop.perspective, 1283)
 
     const television = getResponsiveStationCarouselTuning({
       containerWidth: 2488,
@@ -207,6 +213,7 @@ describe("production adaptive carousel", () => {
       { width: 480, height: 560 },
     )
     assert.equal(television.radius, 1050)
+    assert.equal(television.perspective, 2250)
 
     const shortTelevisionStage = getResponsiveStationCarouselTuning({
       containerWidth: 2488,
@@ -290,6 +297,58 @@ describe("production adaptive carousel", () => {
   it("normalizes looped indexes when the radius exceeds the item count", () => {
     const mountedIds = getMountedAdaptiveCarouselItemIds(items.slice(0, 3), "a", 4, true)
     assert.deepEqual([...mountedIds].sort(), ["a", "b", "c"])
+  })
+
+  it("buffers equal unique Station neighbors on both sides of the real collection", () => {
+    const buffered = createAdaptiveCarouselLoopBuffer(nineItems, 4, true)
+    assert.equal(buffered.length, 17)
+    assert.equal(new Set(buffered.map(({ id }) => id)).size, buffered.length)
+    assert.deepEqual(
+      buffered.slice(0, 4).map(({ canonicalId }) => canonicalId),
+      ["f", "g", "h", "i"],
+    )
+    assert.deepEqual(
+      buffered.slice(-4).map(({ canonicalId }) => canonicalId),
+      ["a", "b", "c", "d"],
+    )
+    assert.deepEqual(
+      buffered.slice(4, 13).map(({ canonicalId, loopClone }) => ({ canonicalId, loopClone })),
+      nineItems.map(({ id }) => ({ canonicalId: id, loopClone: false })),
+    )
+
+    const sevenStationBuffer = createAdaptiveCarouselLoopBuffer(items, 4, true)
+    assert.equal(sevenStationBuffer.length, 13)
+    assert.equal(sevenStationBuffer.filter(({ loopClone }) => loopClone).length, 6)
+    assert.strictEqual(createAdaptiveCarouselLoopBuffer(items, 4, false), items)
+  })
+
+  it("keeps buffered Station cards on the approved visual curve", () => {
+    assert.equal(getAdaptiveCarouselPresentationProgress(4, 9, true), 32 / 9)
+    assert.equal(getAdaptiveCarouselPresentationProgress(-4, 9, true), -32 / 9)
+    assert.ok(
+      Math.abs(getAdaptiveCarouselPresentationProgress(3, 7, true) - (18 / 7)) < 1e-12,
+    )
+    assert.equal(getAdaptiveCarouselPresentationProgress(4, 9, false), 4)
+
+    const progress = 32 / 9
+    const right = Number.parseFloat(getAdaptiveCarouselPresentationVariables(
+      "background-picker",
+      "stations",
+      progress,
+      STATION_CAROUSEL_TUNING,
+      false,
+      9,
+    )["--carousel-x"])
+    const left = Number.parseFloat(getAdaptiveCarouselPresentationVariables(
+      "background-picker",
+      "stations",
+      -progress,
+      STATION_CAROUSEL_TUNING,
+      false,
+      9,
+    )["--carousel-x"])
+    assert.ok(Math.abs(right + left) < 0.01)
+    assert.ok(Math.abs(right) > 280)
   })
 
   it("uses the approved compact vertical padding for short Station and Background stages", () => {

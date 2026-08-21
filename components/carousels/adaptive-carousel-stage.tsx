@@ -3,7 +3,10 @@
 import { useEffect, useMemo, type CSSProperties, type ReactNode } from "react"
 import { StepBack, StepForward } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { normalizeAdaptiveCarouselItems } from "./adaptive-carousel-model"
+import {
+  createAdaptiveCarouselLoopBuffer,
+  normalizeAdaptiveCarouselItems,
+} from "./adaptive-carousel-model"
 import {
   useAdaptiveCarouselController,
   type AdaptiveCarouselItem,
@@ -48,6 +51,11 @@ export interface AdaptiveCarouselStageProps<T extends AdaptiveCarouselItem> {
   customControlsVisible?: boolean
 }
 
+type BufferedAdaptiveCarouselItem<T extends AdaptiveCarouselItem> = T & {
+  canonicalId?: string
+  loopClone?: boolean
+}
+
 type CarouselRootStyle = CSSProperties & {
   "--carousel-card-width": string
   "--carousel-card-height": string
@@ -66,7 +74,7 @@ function finiteTuningValue(value: number | boolean | undefined, fallback: number
  * Embla stage shared by production and the development review surface.
  */
 export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
-  items: sourceItems,
+  items: sourceItemInput,
   initialItemId,
   selectedItemId,
   surface,
@@ -82,9 +90,21 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
   renderControls,
   customControlsVisible = true,
 }: AdaptiveCarouselStageProps<T>) {
-  const items = useMemo(
-    () => normalizeAdaptiveCarouselItems(sourceItems) as T[],
+  const sourceItems = useMemo(
+    () => normalizeAdaptiveCarouselItems(sourceItemInput) as T[],
+    [sourceItemInput],
+  )
+  const sourceItemsById = useMemo(
+    () => new Map(sourceItems.map((item) => [item.id, item])),
     [sourceItems],
+  )
+  const items = useMemo(
+    () => createAdaptiveCarouselLoopBuffer(
+      sourceItems,
+      Number(tuning.visibleRadius),
+      surface === "stations" && Boolean(tuning.loop),
+    ) as BufferedAdaptiveCarouselItem<T>[],
+    [sourceItems, surface, tuning.loop, tuning.visibleRadius],
   )
   const {
     viewportRef,
@@ -204,26 +224,33 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
         }}
       >
         <div className={styles.track}>
-          {items.map((item, index) => {
+          {items.map((item) => {
+            const canonicalId = item.canonicalId ?? item.id
+            const sourceItem = sourceItemsById.get(canonicalId)
+            if (!sourceItem) return null
             const nearby = mountedIds.has(item.id)
             const centered = centeredId === item.id
             const detailLevel = centered ? "full" : nearby ? "summary" : "shell"
             const availability =
               item.statusLabel ?? (item.disabled ? "disabled" : "available")
+            const logicalIndex = sourceItems.findIndex(({ id }) => id === canonicalId)
             const accessibleLabel =
-              `${item.label}, item ${index + 1} of ${items.length}, ${availability}`
+              `${item.label}, item ${logicalIndex + 1} of ${sourceItems.length}, ${availability}`
 
             return (
               <div
                 key={item.id}
                 ref={(element) => registerItemElement(item.id, element)}
                 className={styles.slide}
-                role="group"
-                aria-roledescription="slide"
-                aria-current={centered ? "true" : undefined}
-                aria-label={accessibleLabel}
+                role={item.loopClone ? undefined : "group"}
+                aria-roledescription={item.loopClone ? undefined : "slide"}
+                aria-current={!item.loopClone && centered ? "true" : undefined}
+                aria-label={item.loopClone ? undefined : accessibleLabel}
+                aria-hidden={item.loopClone ? "true" : undefined}
                 data-carousel-slide="true"
                 data-carousel-item-id={item.id}
+                data-carousel-canonical-id={canonicalId}
+                data-carousel-loop-clone={item.loopClone ? "true" : undefined}
                 data-centered={centered}
                 data-detail-level={detailLevel}
                 onClick={(event) => {
@@ -243,11 +270,11 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
                     <div className={styles.shell} aria-hidden="true" />
                   ) : centered ? (
                     <div className={styles.renderer}>
-                      {renderItem(item, { centered, nearby, detailLevel })}
+                      {renderItem(sourceItem, { centered, nearby, detailLevel })}
                     </div>
                   ) : (
                     <div className={styles.summary} aria-hidden="true" inert>
-                      {renderItem(item, { centered, nearby, detailLevel })}
+                      {renderItem(sourceItem, { centered, nearby, detailLevel })}
                     </div>
                   )}
                 </div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import useEmblaCarousel from "embla-carousel-react"
 import {
+  getAdaptiveCarouselPresentationProgress,
   getAdaptiveCarouselPresentationVariables,
   getMountedAdaptiveCarouselItemIds,
   reconcileAdaptiveCarouselCenter,
@@ -40,6 +41,8 @@ export interface AdaptiveCarouselItem {
   label: string
   disabled?: boolean
   statusLabel?: string
+  canonicalId?: string
+  loopClone?: boolean
 }
 
 interface UseAdaptiveCarouselControllerOptions {
@@ -72,13 +75,23 @@ export function useAdaptiveCarouselController(
   const staticPresentation = reducedMotion || tuning.motion === false
   // Station navigation remains circular when motion is suppressed; Background
   // keeps its existing finite reduced-motion rail and edge semantics.
+  const logicalItems = useMemo(
+    () => items.filter((item) => !item.loopClone),
+    [items],
+  )
+  const bufferedLoop = items.some((item) => item.loopClone)
+  const visibleRadius = Math.min(
+    Number(tuning.visibleRadius),
+    Math.floor(Math.max(0, logicalItems.length - 1) / 2),
+  )
   const effectiveLoop = surface === "stations" || !staticPresentation
     ? resolveEffectiveCarouselLoop(
-        items.length,
-        Number(tuning.visibleRadius),
+        logicalItems.length,
+        visibleRadius,
         Boolean(tuning.loop),
       )
     : false
+  const emblaLoop = effectiveLoop && !bufferedLoop
   const [initialCenter] = useState(() => {
     const id = reconcileAdaptiveCarouselCenter(items, initialItemId, selectedItemId)
     const index = Math.max(0, items.findIndex((item) => item.id === id))
@@ -88,7 +101,7 @@ export function useAdaptiveCarouselController(
     align: "center",
     containScroll: false,
     dragFree: false,
-    loop: effectiveLoop,
+    loop: emblaLoop,
     skipSnaps: false,
     duration: staticPresentation ? 0 : 45,
     startIndex: initialCenter.index,
@@ -104,14 +117,19 @@ export function useAdaptiveCarouselController(
   const isCarouselReady = Boolean(api)
 
   const centeredIndex = Math.max(0, items.findIndex(({ id }) => id === centeredId))
+  const centeredCanonicalId = items[centeredIndex]?.canonicalId ?? centeredId
+  const centeredLogicalIndex = Math.max(
+    0,
+    logicalItems.findIndex(({ id }) => id === centeredCanonicalId),
+  )
   const mountedIds = useMemo(
     () => getMountedAdaptiveCarouselItemIds(
       items,
       centeredId,
-      Number(tuning.visibleRadius),
-      effectiveLoop,
+      visibleRadius,
+      emblaLoop,
     ),
-    [centeredId, effectiveLoop, items, tuning.visibleRadius],
+    [centeredId, emblaLoop, items, visibleRadius],
   )
 
   useEffect(() => {
@@ -124,14 +142,21 @@ export function useAdaptiveCarouselController(
     const current = api.scrollProgress()
     items.forEach((item, index) => {
       let difference = (snaps[index] ?? 0) - current
-      if (effectiveLoop && difference > 0.5) difference -= 1
-      if (effectiveLoop && difference < -0.5) difference += 1
-      const progress = difference * Math.max(1, items.length - 1)
+      if (emblaLoop && difference > 0.5) difference -= 1
+      if (emblaLoop && difference < -0.5) difference += 1
+      const physicalProgress = difference * Math.max(1, items.length - 1)
+      const progress = getAdaptiveCarouselPresentationProgress(
+        physicalProgress,
+        logicalItems.length,
+        bufferedLoop,
+      )
       const variables = getAdaptiveCarouselPresentationVariables(
         presentation,
         surface,
         progress,
-        tuning,
+        visibleRadius === Number(tuning.visibleRadius)
+          ? tuning
+          : { ...tuning, visibleRadius },
         reducedMotion,
         items.length,
       )
@@ -142,7 +167,18 @@ export function useAdaptiveCarouselController(
         element.style.setProperty(name, String(value))
       })
     })
-  }, [api, effectiveLoop, items, presentation, reducedMotion, surface, tuning])
+  }, [
+    api,
+    bufferedLoop,
+    emblaLoop,
+    items,
+    logicalItems.length,
+    presentation,
+    reducedMotion,
+    surface,
+    tuning,
+    visibleRadius,
+  ])
 
   const scheduleTransformWrite = useCallback(() => {
     if (frameRef.current !== null) return
@@ -159,7 +195,16 @@ export function useAdaptiveCarouselController(
       setCenteredId(item?.id ?? null)
       setCanGoPrevious(effectiveLoop || api.canScrollPrev())
       setCanGoNext(effectiveLoop || api.canScrollNext())
-      if (item) onCenteredItemChangeRef.current?.(item.id)
+      if (item?.loopClone) {
+        const canonicalIndex = items.findIndex((candidate) => (
+          !candidate.loopClone && candidate.id === item.canonicalId
+        ))
+        if (canonicalIndex >= 0) {
+          api.scrollTo(canonicalIndex, true)
+          return
+        }
+      }
+      if (item) onCenteredItemChangeRef.current?.(item.canonicalId ?? item.id)
       scheduleTransformWrite()
     }
     select()
@@ -238,7 +283,7 @@ export function useAdaptiveCarouselController(
       else itemElements.current.delete(id)
     },
     statusText: centeredId
-      ? `${items[centeredIndex]?.label ?? "Item"}, item ${centeredIndex + 1} of ${items.length}`
+      ? `${items[centeredIndex]?.label ?? "Item"}, item ${centeredLogicalIndex + 1} of ${logicalItems.length}`
       : "No carousel items",
   }
 }
