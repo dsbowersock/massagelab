@@ -116,10 +116,14 @@
     /* App shell spacing */
     --ml-safe-top: env(safe-area-inset-top, 0px);
     --ml-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --ml-safe-left: env(safe-area-inset-left, 0px);
+    --ml-safe-right: env(safe-area-inset-right, 0px);
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
     --ml-scroll-end-buffer: 1.5rem;
     --ml-audio-toolbar-content-height: 5rem;
     --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
+    --ml-music-player-rail-width: 0px;
+    --ml-player-right-safe: 0px;
     --ml-main-bar-height: 3.25rem;
     --ml-desktop-app-bar-height: 3.5rem;
     --ml-bottom-stack-height: var(--ml-safe-bottom);
@@ -219,55 +223,50 @@
   }
 
   body.ml-music-player-active.ml-music-player-top {
-    --chimer-top-control-offset: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height) + 0.75rem);
-    --chimer-settings-panel-top-offset: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height) + 4.75rem);
+    --ml-audio-toolbar-height: calc(var(--ml-audio-toolbar-content-height) + var(--ml-safe-top));
+    --chimer-top-control-offset: calc(var(--ml-audio-toolbar-height) + 0.75rem);
+    --chimer-settings-panel-top-offset: calc(var(--ml-audio-toolbar-height) + 4.75rem);
   }
 
   body.ml-music-player-active.ml-music-player-bottom {
+    --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
     --chimer-bottom-control-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
     --chimer-panel-bottom-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
   }
 
-  /* The narrow shell reservation follows the toolbar's expanded or compact grid. */
-  @media (max-width: 39.999rem) {
+  body.ml-music-player-active:not(.ml-music-player-collapsed) {
+    --ml-audio-toolbar-expanded-content-height: 10rem;
+    --ml-audio-toolbar-content-height: var(--ml-audio-toolbar-expanded-content-height);
+  }
+
+  body.ml-music-player-active.ml-music-player-collapsed {
+    --ml-audio-toolbar-content-height: 4.5rem;
+  }
+
+  /* The root owns the placement-specific reservation while the grid keeps
+     its full control height. The bottom stack already owns its safe inset. */
+  .ml-music-player-toolbar {
+    height: var(--ml-audio-toolbar-height);
+  }
+
+  .ml-music-player-toolbar-surface {
+    box-sizing: border-box;
+    height: 100%;
+    position: relative;
+  }
+
+  .ml-music-player-toolbar-layout {
+    height: var(--ml-audio-toolbar-content-height);
+    min-height: var(--ml-audio-toolbar-content-height);
+  }
+
+  @media (min-width: 36.0625rem) and (max-height: 44rem) {
     body.ml-music-player-active:not(.ml-music-player-collapsed) {
-      --ml-audio-toolbar-content-height: 7rem;
+      --ml-audio-toolbar-expanded-content-height: 8rem;
     }
+  }
 
-    body.ml-music-player-active.ml-music-player-collapsed {
-      --ml-audio-toolbar-content-height: 4.5rem;
-    }
-
-    body.ml-music-player-active.ml-music-player-top {
-      --ml-audio-toolbar-height: calc(var(--ml-audio-toolbar-content-height) + var(--ml-safe-top));
-      --chimer-top-control-offset: calc(var(--ml-audio-toolbar-height) + 0.75rem);
-      --chimer-settings-panel-top-offset: calc(var(--ml-audio-toolbar-height) + 4.75rem);
-    }
-
-    body.ml-music-player-active.ml-music-player-bottom {
-      --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
-    }
-
-    /* The root owns the placement-specific reservation while the grid keeps
-       its full control height. The bottom stack already owns its safe inset. */
-    .ml-music-player-toolbar {
-      height: var(--ml-audio-toolbar-height);
-    }
-
-    .ml-music-player-toolbar-surface {
-      box-sizing: border-box;
-      height: 100%;
-      position: relative;
-    }
-
-    .ml-music-player-toolbar-layout {
-      height: var(--ml-audio-toolbar-content-height);
-      min-height: var(--ml-audio-toolbar-content-height) !important;
-      padding-bottom: 0.25rem;
-      padding-top: 0.25rem;
-      row-gap: 0.25rem;
-    }
-
+  @media (max-width: 39.999rem) {
     /* Loading keeps one visible identity line plus the accessible progress bar,
        avoiding duplicate status copy inside the bounded narrow grid. */
     .ml-music-player-toolbar[data-playback-state="loading"] .ml-music-player-toolbar-status,
@@ -275,23 +274,6 @@
       display: none;
     }
 
-    .ml-music-player-toolbar-surface::after {
-      background: hsl(var(--border) / 0.82);
-      content: "";
-      height: 1px;
-      left: 0;
-      pointer-events: none;
-      position: absolute;
-      right: 0;
-    }
-
-    .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface::after {
-      bottom: 0;
-    }
-
-    .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface::after {
-      top: 0;
-    }
   }
 
   body.chimer-running aside,
@@ -1937,14 +1919,10 @@
   }
 
   body.ml-music-player-active.ml-music-player-top .ml-app-shell {
-    --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height));
+    --ml-page-top-safe: var(--ml-audio-toolbar-height);
   }
 
   @media (max-width: 39.999rem) {
-    body.ml-music-player-active.ml-music-player-top .ml-app-shell {
-      --ml-page-top-safe: var(--ml-audio-toolbar-height);
-    }
-
     body.ml-music-player-active.ml-music-player-top .ml-app-scroll {
       scroll-padding-top: calc(var(--ml-page-edge-gap) + var(--ml-page-top-safe));
     }
@@ -1985,10 +1963,608 @@
     padding-bottom: var(--ml-page-bottom-safe);
   }
 
+  /* Music is a viewport-owned workspace. Its content box, rather than an
+     independently scrolling page, consumes the dynamic viewport left above
+     the app bar and (while bottom-based) the player. */
+  .ml-app-shell[data-music-workspace-route="true"] {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  .ml-app-shell[data-music-workspace-route="true"] .ml-app-scroll {
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+
+  .ml-app-shell[data-music-workspace-route="true"] .ml-app-content {
+    height: 100%;
+    max-inline-size: none !important;
+    min-height: 0;
+    padding-bottom: var(--ml-bottom-stack-height);
+  }
+
+  body.ml-music-player-active .ml-app-shell[data-music-workspace-route="true"] .ml-app-content {
+    padding-bottom: calc(var(--ml-bottom-stack-height) + var(--ml-audio-toolbar-height));
+  }
+
+  [data-atmosphere-workspace="rails"],
+  .ml-atmosphere-workspace-page,
+  .ml-atmosphere-rail-content,
+  .ml-atmosphere-carousel-slot,
+  .ml-atmosphere-carousel-workspace,
+  .ml-atmosphere-station-carousel {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .ml-atmosphere-station-stage-allocation {
+    min-height: 0;
+  }
+
+  .ml-atmosphere-station-special-state {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    align-content: center;
+    justify-items: center;
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 1.25);
+    padding: 1rem;
+    color: hsl(var(--muted-foreground));
+    text-align: center;
+  }
+
+  .ml-atmosphere-station-special-state > strong {
+    color: hsl(var(--foreground));
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 1.1);
+    line-height: 1.25;
+  }
+
+  .ml-atmosphere-station-special-state[data-special-state="favorites"] {
+    position: relative;
+    display: block;
+  }
+
+  .ml-atmosphere-station-special-content {
+    position: absolute;
+    inset-block-start: 33.333%;
+    inset-inline-start: 50%;
+    display: grid;
+    inline-size: calc(100% - 2rem);
+    justify-items: center;
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 1.25);
+    translate: -50% -50%;
+  }
+
+  .ml-atmosphere-station-special-content > strong {
+    max-inline-size: 28ch;
+    color: hsl(var(--foreground));
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 1.45);
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  .ml-atmosphere-station-special-icon {
+    display: grid;
+    inline-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 5);
+    aspect-ratio: 1;
+    place-items: center;
+    border: 1px solid hsl(var(--button-cta-face-bright) / 0.75);
+    border-radius: 9999px;
+    color: hsl(var(--foreground));
+    background:
+      radial-gradient(circle at 35% 25%, hsl(var(--button-cta-face) / 0.28), transparent 52%),
+      hsl(var(--button-cta-face-depth) / 0.84);
+    box-shadow:
+      0 0 calc(var(--ml-atmosphere-workspace-scale-rem) * 1.5) hsl(var(--button-cta-face) / 0.72),
+      inset 0 1px 0 hsl(0 0% 100% / 0.22);
+  }
+
+  .ml-atmosphere-station-special-icon > svg {
+    inline-size: 52%;
+    block-size: 52%;
+  }
+
+  .ml-atmosphere-rail-content {
+    gap: 0;
+    max-inline-size: none !important;
+    padding-bottom: 0 !important;
+  }
+
+  .ml-atmosphere-workspace-page {
+    --ml-atmosphere-page-inline-padding: 1rem;
+    min-height: 0 !important;
+  }
+
+  @media (min-width: 40rem) {
+    .ml-atmosphere-workspace-page {
+      --ml-atmosphere-page-inline-padding: 1.5rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .ml-atmosphere-workspace-page {
+      --ml-atmosphere-page-inline-padding: 2rem;
+    }
+  }
+
+  /* The category scroller and carousel are viewport rails, so their clipping
+     edge is the real sidebar-safe workspace rather than the padded text column. */
+  .ml-atmosphere-category-pills,
+  .ml-atmosphere-station-stage-allocation {
+    margin-inline: calc(0px - var(--ml-atmosphere-page-inline-padding));
+    inline-size: calc(100% + (2 * var(--ml-atmosphere-page-inline-padding)));
+    max-inline-size: none;
+  }
+
+  .ml-atmosphere-station-carousel {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  /* Large displays scale the complete Atmosphere composition from the same
+     measured card ratio while the global sidebar and bottom navigation remain
+     on their normal app-shell sizing. */
+  .ml-atmosphere-carousel-workspace {
+    --ml-atmosphere-header-scale-rem: 1rem;
+    --ml-atmosphere-workspace-scale-rem: 1rem;
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-carousel {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 1);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-heading {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 0.75);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-picker {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 0.375);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-label,
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-selected-category > p {
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 0.875);
+    line-height: calc(var(--ml-atmosphere-header-scale-rem) * 1.25);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-selected-category > h2 {
+    font-size: var(--ml-atmosphere-header-scale-rem);
+    line-height: calc(var(--ml-atmosphere-header-scale-rem) * 1.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-selected-category > p {
+    margin-top: calc(var(--ml-atmosphere-header-scale-rem) * 0.25);
+    max-inline-size: calc(var(--ml-atmosphere-header-scale-rem) * 48);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-pills {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 0.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-pills > button {
+    min-height: calc(var(--ml-atmosphere-header-scale-rem) * 2);
+    padding-inline: calc(var(--ml-atmosphere-header-scale-rem) * 0.75);
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 0.75);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-actions {
+    inset-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    top: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.5);
+  }
+
+  .ml-atmosphere-carousel-workspace [data-carousel-primary-action] {
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.25);
+    padding-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.5);
+    font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.875);
+  }
+
+  .ml-atmosphere-carousel-workspace [data-carousel-favorite-action] {
+    width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+  }
+
+  .ml-atmosphere-carousel-workspace [data-carousel-primary-action] > svg,
+  .ml-atmosphere-carousel-workspace [data-carousel-favorite-action] svg {
+    width: var(--ml-atmosphere-workspace-scale-rem);
+    height: var(--ml-atmosphere-workspace-scale-rem);
+    min-width: var(--ml-atmosphere-workspace-scale-rem);
+    min-height: var(--ml-atmosphere-workspace-scale-rem);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-summary-title {
+    inset-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.25);
+    bottom: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.25);
+    padding: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    padding-top: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-summary-title > p,
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-details > span:first-child {
+    font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.875);
+    line-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.25);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-details {
+    gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.25);
+    padding-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    padding-top: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.5);
+    padding-bottom: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-details > span:last-child {
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.25);
+    font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    line-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.25);
+  }
+
+  .ml-atmosphere-station-controls {
+    position: absolute;
+    inset-inline: 0;
+    /* Glow buttons render one pixel above their layout box; offset the owner
+       by 17px so the visible control top stays exactly 16px below the card. */
+    top: min(
+      calc(var(--carousel-summary-card-height) + (var(--ml-atmosphere-workspace-scale-rem) * 1.0625)),
+      calc(100% - (var(--ml-atmosphere-workspace-scale-rem) * 2.75))
+    );
+    display: grid;
+    grid-template-columns:
+      calc((100% - var(--carousel-card-width)) / 2)
+      var(--carousel-card-width)
+      calc((100% - var(--carousel-card-width)) / 2);
+    height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.75);
+    pointer-events: none;
+  }
+
+  .ml-atmosphere-station-control {
+    align-self: start;
+    justify-self: center;
+    width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    pointer-events: auto;
+  }
+
+  .ml-atmosphere-station-control > svg {
+    width: var(--ml-atmosphere-workspace-scale-rem);
+    height: var(--ml-atmosphere-workspace-scale-rem);
+    min-width: var(--ml-atmosphere-workspace-scale-rem);
+    min-height: var(--ml-atmosphere-workspace-scale-rem);
+  }
+
+  .ml-atmosphere-station-control-previous {
+    grid-column: 1;
+  }
+
+  .ml-atmosphere-station-control-next {
+    grid-column: 3;
+  }
+
+  /* Reduced motion removes the wing transforms. When three complete cards
+     leave spare inline room, move each control by one quarter of that room so
+     it stays centered beneath the adjacent visible card rather than the wider
+     outer grid column. */
+  @media (prefers-reduced-motion: reduce) {
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
+      .ml-atmosphere-station-control-previous {
+      translate: max(
+        0px,
+        calc((100cqi - (3 * var(--carousel-card-width))) / 4)
+      ) 0;
+    }
+
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
+      .ml-atmosphere-station-control-next {
+      translate: calc(
+        0px - max(0px, calc((100cqi - (3 * var(--carousel-card-width))) / 4))
+      ) 0;
+    }
+  }
+
   /* Short landscape workspaces already keep their controls above the fixed app bar. */
   @media (min-width: 36.0625rem) and (max-height: 44rem) {
     .ml-atmosphere-rail-content {
       padding-bottom: 0 !important;
+    }
+  }
+
+  @media (max-height: 44rem) {
+    .ml-atmosphere-workspace-page {
+      padding-top: 0.75rem !important;
+      padding-bottom: 0 !important;
+    }
+
+    .ml-atmosphere-station-carousel {
+      /* Compact mode hides the selected-category copy, so this becomes the
+         direct user-approved pill-to-carousel breathing room. */
+      gap: 1.5rem !important;
+    }
+
+    .ml-atmosphere-selected-category {
+      display: none;
+    }
+
+    /* Keep the title-only card treatment tied to the carousel's measured
+       constrained-landscape mode, not to whether the separate Favorites row fits. */
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
+      .ml-atmosphere-station-stage-allocation
+      [data-carousel-station-details]
+      span:last-child {
+      display: none;
+    }
+
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
+      .ml-atmosphere-station-stage-allocation
+      [data-carousel-station-details] {
+      top: auto !important;
+      min-height: 2.5rem;
+      padding-block: 0.5rem !important;
+    }
+  }
+
+  @media (max-height: 36rem) {
+    .ml-atmosphere-category-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .ml-atmosphere-category-picker,
+    .ml-atmosphere-station-heading {
+      gap: 0;
+    }
+
+  }
+
+  .ml-music-player-toolbar {
+    --ml-station-vinyl-size: 8rem;
+    --ml-music-player-expanded-content-height: var(--ml-audio-toolbar-expanded-content-height, 10rem);
+    --ml-music-player-inline-padding: 0.75rem;
+    --ml-music-player-safe-offset: 0px;
+  }
+
+  .ml-music-player-toolbar[data-placement="top"] {
+    --ml-music-player-safe-offset: var(--ml-safe-top);
+  }
+
+  .ml-music-player-toolbar-surface {
+    overflow: hidden;
+  }
+
+  .ml-music-player-toolbar-surface::after {
+    background: hsl(var(--border) / 0.82);
+    content: "";
+    height: 1px;
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+  }
+
+  .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface::after {
+    bottom: 0;
+  }
+
+  .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface::after {
+    top: 0;
+  }
+
+  .ml-station-vinyl-layer {
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    position: absolute;
+    z-index: 0;
+  }
+
+  .ml-music-player-toolbar-layout {
+    grid-template-rows: minmax(0, 1fr) auto;
+    /* Safe insets replace the ordinary gutter only when they are larger, so
+       the physical screen edge is consumed once rather than added twice. */
+    padding-left: max(var(--ml-music-player-inline-padding), var(--ml-safe-left));
+    padding-right: max(var(--ml-music-player-inline-padding), var(--ml-safe-right));
+    position: relative;
+    z-index: 1;
+  }
+
+  .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+    align-self: center;
+    margin-left: calc(var(--ml-station-vinyl-size) + 1rem);
+    position: relative;
+    z-index: 1;
+  }
+
+  .ml-music-player-toolbar-controls {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .ml-station-vinyl {
+    height: var(--ml-station-vinyl-size);
+    left: calc(
+      max(0px, (100% - 96rem) / 2)
+      + max(var(--ml-music-player-inline-padding), var(--ml-safe-left))
+    );
+    position: absolute;
+    top: calc(
+      var(--ml-music-player-safe-offset)
+      + (var(--ml-music-player-expanded-content-height) - var(--ml-station-vinyl-size)) / 2
+    );
+    width: var(--ml-station-vinyl-size);
+    z-index: 0;
+  }
+
+  .ml-station-vinyl-disc {
+    animation: ml-station-vinyl-spin 52s linear infinite;
+    animation-play-state: paused;
+    background: hsl(240 5% 5%);
+    border-radius: 9999px;
+    box-shadow:
+      inset 0 0 0 0.22rem hsl(240 4% 12%),
+      0 0.35rem 0.8rem hsl(0 0% 0% / 0.42);
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    transform-origin: center;
+    width: 100%;
+  }
+
+  .ml-station-vinyl[data-playing="true"] .ml-station-vinyl-disc {
+    animation-play-state: running;
+  }
+
+  .ml-station-vinyl-artwork {
+    border-radius: inherit;
+    inset: 4%;
+    position: absolute;
+  }
+
+  .ml-station-vinyl-grooves,
+  .ml-station-vinyl-glare,
+  .ml-station-vinyl-label {
+    border-radius: inherit;
+    inset: 0;
+    position: absolute;
+  }
+
+  .ml-station-vinyl-grooves {
+    background:
+      repeating-radial-gradient(
+        circle at center,
+        transparent 0 5.2%,
+        hsl(0 0% 0% / 0.34) 5.55% 5.95%,
+        hsl(0 0% 100% / 0.13) 6.05%,
+        transparent 6.35% 8.9%
+      ),
+      radial-gradient(
+        circle at center,
+        transparent 0 18%,
+        hsl(0 0% 0% / 0.08) 18.5% 84%,
+        hsl(240 5% 5% / 0.96) 88% 100%
+      );
+    mix-blend-mode: normal;
+  }
+
+  .ml-station-vinyl-glare {
+    background:
+      conic-gradient(
+        from 208deg at 50% 50%,
+        transparent 0deg 24deg,
+        hsl(0 0% 100% / 0.24) 36deg,
+        transparent 58deg 178deg,
+        hsl(0 0% 100% / 0.08) 196deg,
+        transparent 222deg 360deg
+      ),
+      radial-gradient(circle at 35% 28%, hsl(0 0% 100% / 0.18), transparent 38%);
+    mix-blend-mode: screen;
+  }
+
+  .ml-station-vinyl-label {
+    background: none;
+  }
+
+  .ml-station-vinyl-label::before {
+    background: hsl(240 5% 9% / 0.97);
+    border: 0.2rem solid hsl(240 3% 34% / 0.96);
+    border-radius: 9999px;
+    box-shadow:
+      0 0 0 0.12rem hsl(0 0% 3% / 0.78),
+      inset 0 0.18rem 0.45rem hsl(0 0% 0% / 0.5);
+    content: "";
+    height: 34%;
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 34%;
+  }
+
+  .ml-station-vinyl-label > span {
+    background: radial-gradient(circle, hsl(0 0% 92%) 0 30%, hsl(0 0% 24%) 36% 64%, hsl(0 0% 5%) 70%);
+    border-radius: 9999px;
+    height: 3.5%;
+    left: 48.25%;
+    position: absolute;
+    top: 48.25%;
+    width: 3.5%;
+    z-index: 1;
+  }
+
+  .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+    background-image: none;
+    box-shadow: none;
+    isolation: isolate;
+    padding-inline: 0.4rem;
+    text-shadow: 0 1px 2px hsl(0 0% 0% / 0.98), 0 0 0.5rem hsl(0 0% 0% / 0.9);
+  }
+
+  .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"]::before {
+    background-image: radial-gradient(
+      ellipse at center,
+      hsl(var(--card) / 0.94) 0 34%,
+      hsl(var(--card) / 0.68) 52%,
+      hsl(var(--card) / 0.28) 67%,
+      transparent 82%
+    );
+    content: "";
+    filter: blur(0.28rem);
+    inset: -0.35rem -0.85rem;
+    opacity: 0.52;
+    pointer-events: none;
+    position: absolute;
+    z-index: -1;
+  }
+
+  .ml-music-player-toolbar[data-collapsed="true"] .ml-station-vinyl {
+    transform: translateY(1.5rem);
+  }
+
+  .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(0, 1fr);
+    row-gap: 0;
+  }
+
+  .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+    margin-left: 0;
+    text-shadow: 0 1px 2px hsl(var(--card));
+  }
+
+  .ml-music-player-toolbar[data-collapsed="true"]:not([data-layout="rail"]) .ml-music-player-toolbar-layout > button {
+    align-self: center;
+  }
+
+  @media (min-width: 40rem) {
+    .ml-music-player-toolbar {
+      --ml-music-player-inline-padding: 1rem;
+    }
+  }
+
+  @media (min-width: 36.0625rem) and (max-height: 44rem) {
+    .ml-music-player-toolbar {
+      --ml-station-vinyl-size: 6rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ml-station-vinyl-disc {
+      animation: none;
+    }
+  }
+
+  @keyframes ml-station-vinyl-spin {
+    to {
+      transform: rotate(360deg);
     }
   }
 
@@ -2001,13 +2577,50 @@
   }
 
   .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface {
-    border-bottom: 1px solid hsl(var(--border) / 0.82);
+    border-bottom: 0;
     padding-top: var(--ml-safe-top);
   }
 
   .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface {
-    border-top: 1px solid hsl(var(--border) / 0.82);
-    padding-bottom: var(--ml-safe-bottom);
+    border-top: 0;
+    padding-bottom: 0;
+  }
+
+  /* The session notice sits just beyond the reserved toolbar edge. Its own
+     active-time deadline pauses for hover/focus, so it remains nonmodal. */
+  .ml-music-interruption-notice {
+    left: max(0.75rem, env(safe-area-inset-left, 0px));
+    margin-inline: auto;
+    max-width: min(28rem, calc(100vw - 1.5rem));
+    position: absolute;
+    right: max(0.75rem, env(safe-area-inset-right, 0px));
+    width: auto;
+    z-index: 1;
+  }
+
+  .ml-music-interruption-notice[data-placement="top"] {
+    top: calc(100% + 0.5rem);
+  }
+
+  .ml-music-interruption-notice[data-placement="bottom"] {
+    bottom: calc(100% + 0.5rem);
+  }
+
+  /* Shared overlays use the CSS-owned rail inset while it is nonzero. The
+     default keeps existing viewport centering and right-edge placement. */
+  body.ml-music-player-rail .ml-player-viewport-safe-modal {
+    left: calc((100dvw - var(--ml-player-right-safe)) / 2) !important;
+    max-width: min(32rem, max(0px, calc(100dvw - var(--ml-player-right-safe)))) !important;
+  }
+
+  .ml-player-viewport-safe-sheet[data-ml-player-viewport-side="right"] {
+    max-width: max(0px, calc(100dvw - var(--ml-player-right-safe))) !important;
+    right: var(--ml-player-right-safe) !important;
+  }
+
+  .ml-player-viewport-safe-sheet[data-ml-player-viewport-side="bottom"] {
+    max-width: max(0px, calc(100dvw - var(--ml-player-right-safe))) !important;
+    right: var(--ml-player-right-safe) !important;
   }
 
   @media (max-width: 39.999rem) {
@@ -2019,6 +2632,181 @@
     .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface {
       border-top-width: 0;
       padding-bottom: 0;
+    }
+  }
+
+  @media (orientation: landscape) and (max-width: 60rem) and (max-height: 31.25rem) {
+    /* The active rail owns player and overlay geometry on every route. Music
+       keeps a separate marker solely for its bounded workspace allocation. */
+    body.ml-music-player-active.ml-music-player-rail {
+      --ml-music-player-expanded-rail-width: clamp(16rem, 34vw, 20rem);
+      --ml-music-player-rail-width: var(--ml-music-player-expanded-rail-width);
+      --ml-player-right-safe: calc(var(--ml-music-player-rail-width) + var(--ml-safe-right));
+      --ml-audio-toolbar-height: 0px;
+    }
+
+    /* Immersive stage reservations compose the live exclusion in their inline
+       geometry owner; the fixed exit control consumes the same shared value. */
+    body.ml-music-player-rail [data-immersive-stage] > div > button[data-chimer-control="true"]:is(
+      [aria-label="Close clock"],
+      [aria-label="End timer"],
+      [aria-label="Minimize visualizer"]
+    ) {
+      right: calc(var(--ml-player-right-safe) + 1rem);
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-app-scroll {
+      overflow: hidden;
+    }
+
+    body.ml-music-player-rail .ml-music-interruption-notice {
+      bottom: auto;
+      left: auto;
+      max-width: min(28rem, max(0px, calc(100dvw - var(--ml-player-right-safe) - 1.5rem)));
+      right: calc(100% + 0.75rem);
+      top: 0.75rem;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route [data-atmosphere-workspace="rails"] {
+      display: grid;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route [data-atmosphere-workspace="rails"] > div {
+      height: 100%;
+      min-height: 0;
+      padding-right: calc(1.5rem + var(--ml-player-right-safe));
+    }
+
+    body.ml-music-player-rail.ml-music-player-collapsed {
+      --ml-music-player-rail-width: var(--sidebar-width-icon, 3.25rem);
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar {
+      --ml-station-vinyl-size: calc(var(--ml-music-player-expanded-rail-width) - 14px);
+      bottom: var(--ml-bottom-stack-height);
+      height: calc(100dvh - var(--ml-bottom-stack-height));
+      left: auto !important;
+      right: 0 !important;
+      top: 0;
+      width: var(--ml-music-player-rail-width);
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-layout {
+      gap: 0.5rem !important;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) auto auto;
+      height: 100%;
+      min-height: 0;
+      padding: 0.75rem max(0.75rem, var(--ml-safe-right)) 0.75rem 0.75rem !important;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-layout::before {
+      background-color: hsl(var(--card) / 0.86);
+      border: 1px solid hsl(var(--border) / 0.58);
+      border-radius: 1rem;
+      box-shadow: 0 0.35rem 1rem hsl(0 0% 0% / 0.24);
+      content: "";
+      grid-column: 1;
+      grid-row: 2 / 4;
+      margin: -0.35rem -0.25rem -0.25rem;
+      opacity: 0.58;
+      pointer-events: none;
+      position: relative;
+      z-index: 0;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+      align-items: center;
+      align-self: end;
+      display: flex;
+      flex-direction: column;
+      grid-column: 1;
+      grid-row: 2;
+      height: auto;
+      justify-content: center;
+      left: auto;
+      margin-left: 0;
+      padding: 0 0.4rem;
+      pointer-events: none;
+      position: relative;
+      right: auto;
+      text-align: center;
+      top: auto;
+      width: 100%;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"]::before {
+      content: none;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-controls {
+      align-self: end;
+      grid-column: 1;
+      grid-row: 3;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto auto;
+      min-height: 0;
+      position: relative;
+      z-index: 2;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-rail-row {
+      align-items: center;
+      display: grid;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+
+    body.ml-music-player-rail [data-testid="music-player-toolbar-rail-transport"] {
+      grid-template-columns: repeat(3, auto);
+    }
+
+    body.ml-music-player-rail [data-testid="music-player-toolbar-rail-options"] {
+      grid-template-columns: repeat(4, auto);
+    }
+
+    body.ml-music-player-rail .ml-station-vinyl {
+      left: 7px;
+      top: 7px;
+      transform: none;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout {
+      align-items: center;
+      display: flex !important;
+      flex-direction: column;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      padding: 0.75rem 0.25rem 1rem !important;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+      display: none;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar[data-collapsed="true"] .ml-station-vinyl {
+      left: 7px;
+      top: 7px;
+      transform: none;
+    }
+  }
+
+  @media (orientation: landscape) and (max-width: 60rem) and (max-height: 20rem) {
+    body.ml-music-player-rail .ml-music-player-toolbar-layout {
+      gap: 0.25rem !important;
+      padding-block: 0.5rem !important;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-status,
+    body.ml-music-player-rail .ml-music-player-toolbar-progress {
+      display: none;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-rail-row {
+      gap: 0.375rem;
     }
   }
 
@@ -3018,6 +3806,14 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   }
 }
 
+[aria-label="Station carousel"][data-carousel-ready="false"]
+[data-carousel-primary-action],
+[aria-label="Station carousel"][data-carousel-ready="false"]
+[data-carousel-favorite-action] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 @media (max-width: 639px) {
   [data-anatomy-browser-toolbar][data-compact="true"] [data-anatomy-search-label] {
     position: absolute;
@@ -3089,6 +3885,284 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   .ml-metal-attention-root * {
     animation: none !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Keep enough endpoint room for the first and last category pills to expose
+   their full glow without masking the visible portion of the scroll strip. */
+.ml-atmosphere-category-pills {
+  scroll-padding-inline: 2rem;
+}
+
+/* The Favorites surface only receives the leftover room of the fixed-height
+   Music workspace; it never asks the document to become scrollable. */
+.ml-atmosphere-favorites-slot,
+.ml-atmosphere-favorites-region {
+  display: none;
+  min-height: 0;
+}
+
+/* The outer slot is the live geometry boundary used by the workspace owner.
+   It stays single-row until measured carousel and Favorites content fit. */
+.ml-atmosphere-carousel-slot {
+  container-name: ml-atmosphere-carousel-slot;
+  container-type: size;
+}
+
+.ml-atmosphere-carousel-workspace[data-favorites-fit="true"] {
+  position: relative;
+}
+
+.ml-atmosphere-carousel-workspace[data-favorites-fit="true"] .ml-atmosphere-favorites-slot {
+  position: absolute;
+  inset-block: var(--ml-atmosphere-favorites-top) 0;
+  inset-inline-start: 50%;
+  inline-size: min(100%, var(--ml-atmosphere-favorites-edge));
+  transform: translateX(-50%);
+  container-name: ml-atmosphere-favorites-slot;
+  container-type: size;
+  display: block;
+}
+
+/* JavaScript prefers 130% of the centered card, then lets the square consume
+   surplus portrait room. Tight boundaries use the largest useful fit; the top
+   offset still divides the remaining room evenly with a 4px-per-side floor. */
+.ml-atmosphere-carousel-workspace[data-favorites-fit="true"] {
+    .ml-atmosphere-favorites-region {
+      display: grid;
+      height: 100%;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .ml-atmosphere-favorites-mosaic {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-auto-rows: minmax(0, 1fr);
+      gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.2);
+      aspect-ratio: 1;
+      /* The centered card supplies the preferred 130% baseline; measured room
+         may grow it or, at a tight boundary, choose the largest safe fit. */
+      inline-size: min(100cqi, 100cqb, var(--ml-atmosphere-favorites-edge));
+      place-self: start center;
+      min-block-size: 0;
+      /* Tiles clip their own artwork; the mosaic must leave their shared card
+         shadow visible beyond the square's edge. */
+      overflow: visible;
+    }
+
+    .ml-atmosphere-favorites-mosaic > div {
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .ml-atmosphere-favorite-tile {
+      position: relative;
+      display: grid;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid hsl(var(--border) / 0.56);
+      border-radius: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.55);
+      background: hsl(var(--card) / 0.8);
+      color: hsl(var(--foreground));
+      isolation: isolate;
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    }
+
+    button.ml-atmosphere-favorite-tile {
+      cursor: pointer;
+      text-align: left;
+    }
+
+    button.ml-atmosphere-favorite-tile:focus-visible {
+      outline: 2px solid hsl(var(--ring));
+      outline-offset: 2px;
+    }
+
+    button.ml-atmosphere-favorite-tile[aria-current="true"] {
+      border-color: hsl(var(--primary) / 0.88);
+      box-shadow: 0 0 0.75rem hsl(var(--primary) / 0.34);
+    }
+
+    button.ml-atmosphere-favorite-tile:not(:disabled):hover {
+      border-color: hsl(var(--primary) / 0.72);
+      transform: translateY(-1px);
+    }
+
+    button.ml-atmosphere-favorite-tile:disabled {
+      cursor: default;
+      opacity: 0.58;
+    }
+
+    .ml-atmosphere-favorite-tile > [role="img"] {
+      grid-area: 1 / 1;
+      border-radius: 0;
+    }
+
+    .ml-atmosphere-favorite-tile > span {
+      z-index: 1;
+      align-self: end;
+      min-width: 0;
+      padding: 1.15rem 0.38rem 0.28rem;
+      overflow: hidden;
+      background: linear-gradient(to top, hsl(0 0% 0% / 0.88), transparent);
+      color: hsl(var(--foreground));
+      font-size: clamp(
+        0.55rem,
+        2.8cqi,
+        calc(var(--ml-atmosphere-workspace-scale-rem) * 0.78)
+      );
+      font-weight: 650;
+      line-height: 1.1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ml-atmosphere-favorite-collection,
+    .ml-atmosphere-favorite-empty {
+      place-items: center;
+      align-content: center;
+      gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.35);
+      padding: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.45);
+      text-align: center;
+    }
+
+    .ml-atmosphere-favorite-collection {
+      background:
+        linear-gradient(145deg, hsl(var(--primary) / 0.32), hsl(var(--card) / 0.92)),
+        hsl(var(--card));
+    }
+
+    .ml-atmosphere-favorite-collection > span {
+      align-self: auto;
+      padding: 0;
+      background: transparent;
+      white-space: normal;
+    }
+
+    .ml-atmosphere-favorite-collection > strong {
+      font-size: clamp(
+        1rem,
+        7cqi,
+        calc(var(--ml-atmosphere-workspace-scale-rem) * 2)
+      );
+    }
+
+    .ml-atmosphere-favorite-empty > span {
+      align-self: auto;
+      padding: 0;
+      background: transparent;
+      color: hsl(var(--muted-foreground));
+      font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.7);
+      line-height: 1.2;
+      white-space: normal;
+    }
+
+    .ml-atmosphere-favorite-empty > strong {
+      max-width: 18ch;
+      font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.82);
+      line-height: 1.15;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ml-atmosphere-carousel-workspace[data-favorites-fit="true"] .ml-atmosphere-favorite-tile,
+  .ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* The complete Favorites collection stays within the shared player-safe Sheet
+   primitive. Its scroll body is bounded so the fixed Music workspace never
+   inherits document scrolling when a user saves more than nine stations. */
+.ml-atmosphere-all-favorites-sheet {
+  container-type: inline-size;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(100%, 42rem);
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-all-favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.15rem 0.1rem 0.4rem;
+}
+
+.ml-atmosphere-all-favorites-grid > div {
+  aspect-ratio: 1;
+  min-width: 0;
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.56);
+  border-radius: 0.55rem;
+  background: hsl(var(--card) / 0.8);
+  color: hsl(var(--foreground));
+  isolation: isolate;
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile {
+  cursor: pointer;
+  text-align: left;
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile[aria-current="true"] {
+  border-color: hsl(var(--primary) / 0.88);
+  box-shadow: 0 0 0.75rem hsl(var(--primary) / 0.34);
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile:not(:disabled):hover {
+  border-color: hsl(var(--primary) / 0.72);
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile > [role="img"] {
+  grid-area: 1 / 1;
+  border-radius: 0;
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile > span {
+  z-index: 1;
+  align-self: end;
+  min-width: 0;
+  padding: 1.15rem 0.5rem 0.35rem;
+  overflow: hidden;
+  background: linear-gradient(to top, hsl(0 0% 0% / 0.88), transparent);
+  color: hsl(var(--foreground));
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container (min-width: 32rem) {
+  .ml-atmosphere-all-favorites-sheet .ml-atmosphere-all-favorites-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

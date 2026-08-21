@@ -4,18 +4,28 @@ import { describe, it } from "node:test"
 import {
   BACKGROUND_CAROUSEL_BASE_TUNING,
   STATION_CAROUSEL_TUNING,
+  createAdaptiveCarouselLoopBuffer,
+  getAdaptiveCarouselPresentationProgress,
+  getAdaptiveCarouselPresentationVariables,
   getMountedAdaptiveCarouselItemIds,
   getResponsiveBackgroundCarouselTuning,
+  getResponsiveStationCarouselTuning,
+  resolveEffectiveCarouselLoop,
   resolveAdaptiveCarouselViewportProfile,
 } from "../components/carousels/adaptive-carousel-model.js"
 
 const items = ["a", "b", "c", "d", "e", "f", "g"].map((id) => ({ id }))
+const nineItems = [...items, { id: "h" }, { id: "i" }]
 const stageStyles = readFileSync(
   new URL("../components/carousels/adaptive-carousel-stage.module.css", import.meta.url),
   "utf8",
 )
 const stageSource = readFileSync(
   new URL("../components/carousels/adaptive-carousel-stage.tsx", import.meta.url),
+  "utf8",
+)
+const controllerSource = readFileSync(
+  new URL("../components/carousels/use-adaptive-carousel-controller.ts", import.meta.url),
   "utf8",
 )
 const backgroundCarouselSource = readFileSync(
@@ -26,8 +36,26 @@ const backgroundControlTraySource = readFileSync(
   new URL("../components/backgrounds/background-carousel-control-tray.tsx", import.meta.url),
   "utf8",
 )
+const stationCarouselSource = readFileSync(
+  new URL("../components/atmosphere/station-carousel.tsx", import.meta.url),
+  "utf8",
+)
 
 describe("production adaptive carousel", () => {
+  it("uses documented fallback dimensions for non-positive Station measurements", () => {
+    assert.deepEqual(
+      getResponsiveStationCarouselTuning({
+        containerWidth: 0,
+        containerHeight: -1,
+        constrainedLandscape: false,
+      }),
+      getResponsiveStationCarouselTuning({
+        containerWidth: 740,
+        containerHeight: 224,
+        constrainedLandscape: false,
+      }),
+    )
+  })
   it("uses three Background renderers only in short landscape", () => {
     const cases = [
       [{ containerWidth: 479, viewportWidth: 390, viewportHeight: 844 }, "phone-portrait", 164, 312, 22, 2],
@@ -54,11 +82,25 @@ describe("production adaptive carousel", () => {
   it("offers typed custom controls while retaining default navigation", () => {
     assert.match(stageSource, /export interface AdaptiveCarouselControlState/)
     assert.match(stageSource, /renderControls\?: \(state: AdaptiveCarouselControlState\) => ReactNode/)
-    assert.match(stageSource, /renderControls \? renderControls\(controlState\) : defaultNavigation/)
+    assert.match(stageSource, /customControlsVisible\?: boolean/)
+    assert.match(stageSource, /customControlsVisible = true/)
+    assert.match(
+      stageSource,
+      /renderControls && customControlsVisible[\s\S]*\? renderControls\(controlState\)[\s\S]*: !renderControls[\s\S]*\? defaultNavigation[\s\S]*: null/,
+    )
     assert.match(stageSource, /data-has-custom-controls=/)
+    assert.match(
+      stageSource,
+      /data-station-carousel-controls=\{stationControlsVisible && viewportProfile === "music-fit"/,
+    )
+    assert.match(
+      stageSource,
+      /const stationControlsVisible = surface === "stations"[\s\S]*Boolean\(renderControls\)[\s\S]*customControlsVisible/,
+    )
+    assert.doesNotMatch(stageSource, /data-carousel-controls="true"/)
   })
 
-  it("keeps Music cards fixed on every device and bounds Background media to five cards", () => {
+  it("keeps the Music baseline stable and bounds Background media to five cards", () => {
     assert.deepEqual(STATION_CAROUSEL_TUNING, {
       cardWidth: 192,
       cardHeight: 224,
@@ -68,12 +110,229 @@ describe("production adaptive carousel", () => {
       motion: true,
       spread: 27,
       radius: 420,
+      perspective: 900,
       scaleFalloff: 0.05,
     })
     assert.deepEqual(
       [...getMountedAdaptiveCarouselItemIds(items, "d", 2, true)],
       ["b", "c", "d", "e", "f"],
     )
+  })
+
+  it("preserves the approved fixed Station composition in constrained landscape", () => {
+    assert.deepEqual(
+      getResponsiveStationCarouselTuning({
+        containerWidth: 556,
+        containerHeight: 246,
+        constrainedLandscape: true,
+      }),
+      {
+        ...STATION_CAROUSEL_TUNING,
+        cardWidth: 192,
+        cardHeight: 224,
+        visibleRadius: 4,
+      },
+    )
+  })
+
+  it("keeps constrained-landscape stations on the approved fixed baseline", () => {
+    const landscape = getResponsiveStationCarouselTuning({
+      containerWidth: 556,
+      containerHeight: 246,
+      constrainedLandscape: true,
+    })
+    assert.deepEqual(
+      { width: landscape.cardWidth, height: landscape.cardHeight },
+      { width: 192, height: 224 },
+    )
+
+    const portrait = getResponsiveStationCarouselTuning({
+      containerWidth: 556,
+      containerHeight: 246,
+      constrainedLandscape: false,
+    })
+    assert.equal(portrait.cardHeight, 224)
+  })
+
+  it("compresses only the medium-width Station wing sweep", () => {
+    const medium = getResponsiveStationCarouselTuning({
+      containerWidth: 650,
+      containerHeight: 420,
+      constrainedLandscape: false,
+    })
+    const roomy = getResponsiveStationCarouselTuning({
+      containerWidth: 740,
+      containerHeight: 246,
+      constrainedLandscape: true,
+    })
+    const constrained = getResponsiveStationCarouselTuning({
+      containerWidth: 556,
+      containerHeight: 246,
+      constrainedLandscape: true,
+    })
+    assert.equal(medium.spread, 20)
+    assert.equal(roomy.spread, STATION_CAROUSEL_TUNING.spread)
+    assert.equal(constrained.spread, STATION_CAROUSEL_TUNING.spread)
+  })
+
+  it("keeps portrait cards fixed across stage and player-rail changes", () => {
+    const expanded = getResponsiveStationCarouselTuning({
+      containerWidth: 556,
+      containerHeight: 246,
+      constrainedLandscape: false,
+    })
+    const collapsed = getResponsiveStationCarouselTuning({
+      containerWidth: 556,
+      containerHeight: 412,
+      constrainedLandscape: false,
+    })
+    assert.deepEqual(
+      { width: expanded.cardWidth, height: expanded.cardHeight },
+      { width: 192, height: 224 },
+    )
+    assert.deepEqual(
+      { width: collapsed.cardWidth, height: collapsed.cardHeight },
+      { width: 192, height: 224 },
+    )
+
+    const narrow = getResponsiveStationCarouselTuning({
+      containerWidth: 420,
+      containerHeight: 210,
+      constrainedLandscape: false,
+    })
+    assert.equal(narrow.cardWidth, 192)
+    assert.equal(narrow.cardHeight, 224)
+  })
+
+  it("uses measured phone and tablet room without changing the approved endpoints", () => {
+    const iphoneSe = getResponsiveStationCarouselTuning({
+      containerWidth: 375,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    const galaxyS24 = getResponsiveStationCarouselTuning({
+      containerWidth: 384,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    const pixel8 = getResponsiveStationCarouselTuning({
+      containerWidth: 412,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    const iphone15ProMax = getResponsiveStationCarouselTuning({
+      containerWidth: 430,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    const tallTablet = getResponsiveStationCarouselTuning({
+      containerWidth: 768,
+      containerHeight: 1200,
+      constrainedLandscape: false,
+    })
+    const rotated4k = getResponsiveStationCarouselTuning({
+      containerWidth: 1368,
+      containerHeight: 2300,
+      constrainedLandscape: false,
+    })
+    const heightLimitedSurfaceDuo = getResponsiveStationCarouselTuning({
+      containerWidth: 540,
+      containerHeight: 500,
+      constrainedLandscape: false,
+    })
+
+    assert.equal(iphoneSe.cardWidth, STATION_CAROUSEL_TUNING.cardWidth)
+    assert.ok(galaxyS24.cardWidth > iphoneSe.cardWidth)
+    assert.ok(pixel8.cardWidth > galaxyS24.cardWidth)
+    assert.ok(iphone15ProMax.cardWidth > pixel8.cardWidth)
+    assert.ok(tallTablet.cardWidth >= 380 && tallTablet.cardWidth <= 390)
+    assert.equal(rotated4k.cardWidth, 480)
+    assert.ok(heightLimitedSurfaceDuo.cardWidth <= 200)
+  })
+
+  it("fluidly scales the complete Station composition on laptop and TV-sized stages", () => {
+    const laptop = getResponsiveStationCarouselTuning({
+      containerWidth: 1368,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    assert.deepEqual(
+      { width: laptop.cardWidth, height: laptop.cardHeight },
+      { width: 274, height: 319 },
+    )
+    assert.equal(laptop.radius, 599)
+    assert.equal(laptop.perspective, 1283)
+
+    const television = getResponsiveStationCarouselTuning({
+      containerWidth: 2488,
+      containerHeight: 1400,
+      constrainedLandscape: false,
+    })
+    assert.deepEqual(
+      { width: television.cardWidth, height: television.cardHeight },
+      { width: 480, height: 560 },
+    )
+    assert.equal(television.radius, 1050)
+    assert.equal(television.perspective, 2250)
+
+    const shortTelevisionStage = getResponsiveStationCarouselTuning({
+      containerWidth: 2488,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    assert.ok(shortTelevisionStage.cardWidth < television.cardWidth)
+    assert.ok(
+      shortTelevisionStage.cardHeight + shortTelevisionStage.cardWidth * 1.3 + 8 <= 801,
+    )
+  })
+
+  it("keeps station looping independent from static reduced-motion presentation", () => {
+    assert.equal(resolveEffectiveCarouselLoop(7, 1, true), true)
+    assert.match(controllerSource, /surface === "stations"[\s\S]*resolveEffectiveCarouselLoop/)
+    assert.match(controllerSource, /duration: staticPresentation \? 0 : 45/)
+    assert.doesNotMatch(controllerSource, /const finiteRail = reducedMotion \|\| tuning\.motion === false/)
+  })
+
+  it("scales the approved Station ratio down only when constrained height requires it", () => {
+    const tuning = getResponsiveStationCarouselTuning({
+      containerWidth: 420,
+      containerHeight: 210,
+      constrainedLandscape: true,
+    })
+    assert.equal(tuning.cardWidth, 180)
+    assert.equal(tuning.cardHeight, 210)
+    assert.equal(tuning.visibleRadius, 4)
+
+    const severeHeight = getResponsiveStationCarouselTuning({
+      containerWidth: 360,
+      containerHeight: 96,
+      constrainedLandscape: true,
+    })
+    assert.equal(
+      severeHeight.cardWidth,
+      Math.round(96 * STATION_CAROUSEL_TUNING.cardWidth / STATION_CAROUSEL_TUNING.cardHeight),
+    )
+    assert.equal(severeHeight.cardHeight, 96)
+    assert.equal(severeHeight.visibleRadius, 4)
+  })
+
+  it("owns live station capability and constrained-landscape media queries without touch heuristics", () => {
+    assert.match(stationCarouselSource, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/)
+    assert.match(
+      stationCarouselSource,
+      /window\.matchMedia\("\(any-hover: hover\) and \(any-pointer: fine\)"\)/,
+    )
+    assert.match(
+      stationCarouselSource,
+      /window\.matchMedia\([\s\S]*"\(orientation: landscape\) and \(max-width: 60rem\) and \(max-height: 31\.25rem\)"/,
+    )
+    assert.match(stationCarouselSource, /const showStationControls = reducedMotion \|\| hasFineHoverPointer/)
+    assert.match(stationCarouselSource, /customControlsVisible=\{showStationControls\}/)
+    assert.match(
+      stationCarouselSource,
+      /getResponsiveStationCarouselTuning\(\{[\s\S]*?constrainedLandscape,?[\s\S]*?\}\)/,
+    )
+    assert.doesNotMatch(stationCarouselSource, /maxTouchPoints/)
   })
 
   it("offers one tray-owned Animated previews switch wired to the saved preference", () => {
@@ -104,6 +363,58 @@ describe("production adaptive carousel", () => {
   it("normalizes looped indexes when the radius exceeds the item count", () => {
     const mountedIds = getMountedAdaptiveCarouselItemIds(items.slice(0, 3), "a", 4, true)
     assert.deepEqual([...mountedIds].sort(), ["a", "b", "c"])
+  })
+
+  it("buffers equal unique Station neighbors on both sides of the real collection", () => {
+    const buffered = createAdaptiveCarouselLoopBuffer(nineItems, 4, true)
+    assert.equal(buffered.length, 17)
+    assert.equal(new Set(buffered.map(({ id }) => id)).size, buffered.length)
+    assert.deepEqual(
+      buffered.slice(0, 4).map(({ canonicalId }) => canonicalId),
+      ["f", "g", "h", "i"],
+    )
+    assert.deepEqual(
+      buffered.slice(-4).map(({ canonicalId }) => canonicalId),
+      ["a", "b", "c", "d"],
+    )
+    assert.deepEqual(
+      buffered.slice(4, 13).map(({ canonicalId, loopClone }) => ({ canonicalId, loopClone })),
+      nineItems.map(({ id }) => ({ canonicalId: id, loopClone: false })),
+    )
+
+    const sevenStationBuffer = createAdaptiveCarouselLoopBuffer(items, 4, true)
+    assert.equal(sevenStationBuffer.length, 13)
+    assert.equal(sevenStationBuffer.filter(({ loopClone }) => loopClone).length, 6)
+    assert.strictEqual(createAdaptiveCarouselLoopBuffer(items, 4, false), items)
+  })
+
+  it("keeps buffered Station cards on the approved visual curve", () => {
+    assert.equal(getAdaptiveCarouselPresentationProgress(4, 9, true), 32 / 9)
+    assert.equal(getAdaptiveCarouselPresentationProgress(-4, 9, true), -32 / 9)
+    assert.ok(
+      Math.abs(getAdaptiveCarouselPresentationProgress(3, 7, true) - (18 / 7)) < 1e-12,
+    )
+    assert.equal(getAdaptiveCarouselPresentationProgress(4, 9, false), 4)
+
+    const progress = 32 / 9
+    const right = Number.parseFloat(getAdaptiveCarouselPresentationVariables(
+      "background-picker",
+      "stations",
+      progress,
+      STATION_CAROUSEL_TUNING,
+      false,
+      9,
+    )["--carousel-x"])
+    const left = Number.parseFloat(getAdaptiveCarouselPresentationVariables(
+      "background-picker",
+      "stations",
+      -progress,
+      STATION_CAROUSEL_TUNING,
+      false,
+      9,
+    )["--carousel-x"])
+    assert.ok(Math.abs(right + left) < 0.01)
+    assert.ok(Math.abs(right) > 280)
   })
 
   it("uses the approved compact vertical padding for short Station and Background stages", () => {

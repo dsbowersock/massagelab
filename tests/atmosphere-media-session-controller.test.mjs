@@ -1,0 +1,273 @@
+import assert from "node:assert/strict"
+import test from "node:test"
+
+import { createAtmosphereMediaSessionController } from "../lib/atmosphere/media-session-controller.js"
+
+const actions = ["play", "pause", "stop", "previoustrack", "nexttrack"]
+
+/**
+ * Mirror the MediaSession boundary, including action rejection, so tests
+ * exercise controller effects without depending on a browser navigator.
+ * @param {{ rejectLivePositionState?: boolean, unsupportedActions?: string[] }} [options]
+ */
+function createFakeMediaSession(options = {}) {
+  const handlers = new Map()
+  const setActionCalls = []
+  const setPositionStateCalls = []
+  const unsupportedActions = new Set(options.unsupportedActions ?? [])
+  return {
+    handlers,
+    setActionCalls,
+    setPositionStateCalls,
+    metadata: null,
+    playbackState: "none",
+    setActionHandler(action, handler) {
+      setActionCalls.push({ action, handler })
+      if (unsupportedActions.has(action)) {
+        throw new DOMException(`Unsupported action: ${action}`, "NotSupportedError")
+      }
+      handlers.set(action, handler)
+    },
+    setPositionState(positionState) {
+      setPositionStateCalls.push(positionState)
+      if (options.rejectLivePositionState && positionState) {
+        throw new DOMException("Position state rejected", "NotSupportedError")
+      }
+    },
+  }
+}
+
+test("reports unavailable and remains inert when Media Session is absent", () => {
+  let metadataConstructions = 0
+  const controller = createAtmosphereMediaSessionController({
+    mediaSession: undefined,
+    createMetadata: () => {
+      metadataConstructions += 1
+      return {}
+    },
+  })
+
+  assert.equal(controller.isAvailable(), false)
+  assert.doesNotThrow(() => controller.publish({
+    metadata: { title: "Quiet Current", artist: "MassageLab" },
+    playbackState: "playing",
+    handlers: Object.fromEntries(actions.map((action) => [action, () => action])),
+  }))
+  assert.doesNotThrow(() => controller.clear())
+  assert.doesNotThrow(() => controller.dispose())
+  assert.equal(metadataConstructions, 0)
+})
+
+test("publishes constructed station metadata and all five controls without a fabricated timeline", () => {
+  const mediaSession = createFakeMediaSession()
+  const metadataInputs = []
+  const createMetadata = (init) => {
+    metadataInputs.push(structuredClone(init))
+    return { kind: "MediaMetadata", ...init }
+  }
+  const handlers = Object.fromEntries(actions.map((action) => [action, () => action]))
+  const controller = createAtmosphereMediaSessionController({ mediaSession, createMetadata })
+
+  controller.publish({
+    metadata: { id: "quiet-current", title: "Quiet Current", artist: "Field Artist" },
+    playbackState: "paused",
+    handlers,
+  })
+
+  assert.equal(controller.isAvailable(), true)
+  assert.deepEqual(metadataInputs, [{
+    title: "Quiet Current",
+    artist: "Field Artist",
+    album: "MassageLab Atmosphere",
+    artwork: [
+      {
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-17-1",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+  }])
+  assert.deepEqual(mediaSession.metadata, {
+    kind: "MediaMetadata",
+    title: "Quiet Current",
+    artist: "Field Artist",
+    album: "MassageLab Atmosphere",
+    artwork: [
+      {
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-17-1",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+  })
+  assert.equal(mediaSession.playbackState, "paused")
+  assert.deepEqual(mediaSession.setPositionStateCalls, [])
+  assert.deepEqual([...mediaSession.handlers.keys()].sort(), [...actions].sort())
+  for (const action of actions) assert.equal(mediaSession.handlers.get(action), handlers[action])
+
+  controller.clear()
+  assert.equal(mediaSession.setPositionStateCalls.at(-1), undefined)
+})
+
+test("keeps one revisioned 512 artwork candidate stable per station and replaces it atomically", () => {
+  const mediaSession = createFakeMediaSession()
+  const metadataInputs = []
+  const controller = createAtmosphereMediaSessionController({
+    mediaSession,
+    createMetadata: (init) => {
+      metadataInputs.push(structuredClone(init))
+      return init
+    },
+  })
+
+  for (const metadata of [
+    { id: "quiet-current", title: "Quiet Current" },
+    { id: "quiet-current", title: "Quiet Current" },
+    { id: "next-station", title: "Next Station" },
+  ]) {
+    controller.publish({ metadata, playbackState: "playing", handlers: {} })
+  }
+
+  assert.deepEqual(metadataInputs.map(({ title, artwork }) => ({ title, artwork })), [
+    {
+      title: "Quiet Current",
+      artwork: [{
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-17-1",
+        sizes: "512x512",
+        type: "image/png",
+      }],
+    },
+    {
+      title: "Quiet Current",
+      artwork: [{
+        src: "/api/atmosphere/stations/quiet-current/artwork?size=512&v=2026-08-17-1",
+        sizes: "512x512",
+        type: "image/png",
+      }],
+    },
+    {
+      title: "Next Station",
+      artwork: [{
+        src: "/api/atmosphere/stations/next-station/artwork?size=512&v=2026-08-17-1",
+        sizes: "512x512",
+        type: "image/png",
+      }],
+    },
+  ])
+})
+
+test("leaves the unbounded generator timeline absent and clears prior platform state on ownership clear", () => {
+  const mediaSession = createFakeMediaSession()
+  const controller = createAtmosphereMediaSessionController({
+    mediaSession,
+    createMetadata: (init) => init,
+  })
+
+  controller.publish({
+    metadata: { id: "quiet-current", title: "Quiet Current" },
+    playbackState: "playing",
+    handlers: {},
+  })
+  controller.publish({
+    metadata: { id: "quiet-current", title: "Quiet Current" },
+    playbackState: "paused",
+    handlers: {},
+  })
+  controller.clear()
+
+  assert.deepEqual(mediaSession.setPositionStateCalls, [undefined])
+})
+
+test("does not publish a position state while retaining metadata and controls", () => {
+  const mediaSession = createFakeMediaSession({ rejectLivePositionState: true })
+  const controller = createAtmosphereMediaSessionController({
+    mediaSession,
+    createMetadata: (init) => init,
+  })
+  const handlers = Object.fromEntries(actions.map((action) => [action, () => action]))
+
+  assert.doesNotThrow(() => controller.publish({
+    metadata: { id: "quiet-current", title: "Quiet Current" },
+    playbackState: "playing",
+    handlers,
+  }))
+  assert.deepEqual(mediaSession.setPositionStateCalls, [])
+  assert.equal(mediaSession.metadata.title, "Quiet Current")
+  assert.equal(mediaSession.playbackState, "playing")
+  for (const action of actions) assert.equal(mediaSession.handlers.get(action), handlers[action])
+})
+
+test("replaces prior handlers while guarding each unsupported action independently", () => {
+  const mediaSession = createFakeMediaSession({ unsupportedActions: ["pause"] })
+  const controller = createAtmosphereMediaSessionController({
+    mediaSession,
+    createMetadata: (init) => init,
+  })
+  const firstHandlers = Object.fromEntries(actions.map((action) => [action, () => `first-${action}`]))
+  const replacementHandlers = Object.fromEntries(actions.map((action) => [action, () => `next-${action}`]))
+
+  assert.doesNotThrow(() => controller.publish({
+    metadata: { title: "First" },
+    playbackState: "playing",
+    handlers: firstHandlers,
+  }))
+  assert.doesNotThrow(() => controller.publish({
+    metadata: { title: "Next" },
+    playbackState: "playing",
+    handlers: replacementHandlers,
+  }))
+
+  assert.equal(mediaSession.playbackState, "playing")
+  assert.deepEqual(
+    mediaSession.setActionCalls.map(({ action }) => action),
+    [...actions, ...actions],
+  )
+  for (const action of actions.filter((action) => action !== "pause")) {
+    assert.equal(mediaSession.handlers.get(action), replacementHandlers[action])
+  }
+})
+
+test("maps only supported playback states to Media Session values", () => {
+  const mediaSession = createFakeMediaSession()
+  const controller = createAtmosphereMediaSessionController({
+    mediaSession,
+    createMetadata: (init) => init,
+  })
+  const handlers = Object.fromEntries(actions.map((action) => [action, () => action]))
+
+  controller.publish({ metadata: { title: "One" }, playbackState: "playing", handlers })
+  assert.equal(mediaSession.playbackState, "playing")
+  controller.publish({ metadata: { title: "Two" }, playbackState: "paused", handlers })
+  assert.equal(mediaSession.playbackState, "paused")
+  controller.publish({ metadata: { title: "Three" }, playbackState: "none", handlers })
+  assert.equal(mediaSession.playbackState, "none")
+  controller.publish({ metadata: { title: "Four" }, playbackState: "interrupted", handlers })
+  assert.equal(mediaSession.playbackState, "none")
+})
+
+test("clear removes metadata and handlers, and dispose repeats cleanup only once", () => {
+  const mediaSession = createFakeMediaSession()
+  const controller = createAtmosphereMediaSessionController({
+    mediaSession,
+    createMetadata: (init) => init,
+  })
+  const handlers = Object.fromEntries(actions.map((action) => [action, () => action]))
+
+  controller.publish({ metadata: { title: "Quiet Current" }, playbackState: "playing", handlers })
+  controller.clear()
+
+  assert.equal(mediaSession.metadata, null)
+  assert.equal(mediaSession.playbackState, "none")
+  for (const action of actions) assert.equal(mediaSession.handlers.get(action), null)
+
+  const callsBeforeDispose = mediaSession.setActionCalls.length
+  controller.dispose()
+  const callsAfterFirstDispose = mediaSession.setActionCalls.length
+  controller.dispose()
+
+  assert.equal(callsAfterFirstDispose, callsBeforeDispose + actions.length)
+  assert.equal(mediaSession.setActionCalls.length, callsAfterFirstDispose)
+  assert.equal(controller.isAvailable(), false)
+  controller.publish({ metadata: { title: "Late" }, playbackState: "playing", handlers })
+  assert.equal(mediaSession.playbackState, "none")
+})

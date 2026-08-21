@@ -10,6 +10,7 @@ export const ORDINARY_BROWSER_QA_SPEC_FILES = [
   "control-system-review.spec.ts",
   "immersive-panel-shell.spec.ts",
   "local-first.spec.ts",
+  "music-media-session.spec.ts",
   "music-visualizer.spec.ts",
   "public-routes.spec.ts",
   "pwa.spec.ts",
@@ -17,43 +18,47 @@ export const ORDINARY_BROWSER_QA_SPEC_FILES = [
 
 export const BROWSER_QA_LANES = {
   "1": {
-    "mobile-chromium": [
+    "desktop-chromium": [
       "public-routes.spec.ts",
+      "local-first.spec.ts",
+    ],
+    "mobile-chromium": [
+      "app-shell.spec.ts",
+      "pwa.spec.ts",
     ],
   },
   "2": {
     "desktop-chromium": [
-      "public-routes.spec.ts",
-      "immersive-panel-shell.spec.ts",
+      "app-shell.spec.ts",
       "pwa.spec.ts",
     ],
     "mobile-chromium": [
-      "immersive-panel-shell.spec.ts",
+      "public-routes.spec.ts",
+      "local-first.spec.ts",
     ],
   },
   "3": {
     "desktop-chromium": [
-      "app-shell.spec.ts",
+      "music-media-session.spec.ts",
+      "admin-user-operations.spec.ts",
     ],
     "mobile-chromium": [
-      "background-commerce.spec.ts",
-      "app-shell.spec.ts",
+      "music-media-session.spec.ts",
     ],
   },
   "4": {
     "desktop-chromium": [
       "background-commerce.spec.ts",
-      "music-visualizer.spec.ts",
-      "local-first.spec.ts",
-      "admin-user-operations.spec.ts",
       "control-system-review.spec.ts",
+      "immersive-panel-shell.spec.ts",
+      "music-visualizer.spec.ts",
     ],
     "mobile-chromium": [
-      "music-visualizer.spec.ts",
-      "local-first.spec.ts",
-      "pwa.spec.ts",
       "admin-user-operations.spec.ts",
+      "background-commerce.spec.ts",
       "control-system-review.spec.ts",
+      "immersive-panel-shell.spec.ts",
+      "music-visualizer.spec.ts",
     ],
   },
 }

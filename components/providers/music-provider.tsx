@@ -22,12 +22,40 @@ import { canSyncAccountPreferencesFromSession } from "@/lib/account-preferences"
 import { fetchWithTimeout } from "@/lib/client-fetch"
 import { startAbortableGenerativeFmPrewarm } from "@/lib/atmosphere/generative-fm-provider"
 import {
+  resolveAtmosphereStationArtworkInput,
+  type AtmosphereStationArtworkInput,
+} from "@/lib/atmosphere/station-artwork"
+import { createAtmosphereMediaCarrier } from "@/lib/atmosphere/media-playback-carrier"
+import { createAtmosphereMediaSessionController } from "@/lib/atmosphere/media-session-controller"
+import { createAtmosphereInterruptionMonitor } from "@/lib/atmosphere/media-interruption-monitor"
+import {
+  readAtmosphereInterruptionPreference,
+  writeAtmosphereInterruptionPreference,
+} from "@/lib/atmosphere/interruption-preference"
+import {
+  createAtmospherePlaybackLifecycle,
+  transitionAtmospherePlayback,
+} from "@/lib/atmosphere/playback-lifecycle"
+import {
   normalizeMusicVisualizerAccountPreferences,
   normalizeMusicVisualizerDevicePreferences,
 } from "@/lib/music-visualizer"
 import type { ToneProofDroneDiagnostics } from "@/lib/atmosphere/tone-proof-runtime"
 
-type PlaybackState = "stopped" | "loading" | "playing" | "failed"
+type PlaybackState = "stopped" | "loading" | "playing" | "interrupted" | "paused" | "failed"
+
+const STOPPED_PLAYER_RETENTION_MS = 60_000
+
+type RuntimeReadinessState = {
+  status: "idle" | "preparing" | "ready" | "error"
+  error: string | null
+}
+
+type PlaybackStartOptions = {
+  artworkInput?: AtmosphereStationArtworkInput
+  origin?: "in-app" | "media-session"
+  continueSession?: boolean
+}
 
 export interface MusicVisualizerState {
   backgroundId: string | null
@@ -43,23 +71,33 @@ export interface MusicVisualizerState {
 interface MusicContextType {
   activeStationId: string | null
   activeStationTitle: string | null
+  activeStationArtwork: AtmosphereStationArtworkInput | null
   playbackState: PlaybackState
   loadingProgress: number | null
   loadingStartedAt: number | null
   error: string | null
+  runtimeReadiness: RuntimeReadinessState
   favorites: string[]
   recentStations: string[]
   volume: number
   miniPlayerCollapsed: boolean
   visualizer: MusicVisualizerState
-  playStation: (stationId: string) => Promise<void>
+  playStation: (stationId: string, options?: PlaybackStartOptions) => Promise<void>
   playNextStation: () => Promise<void>
   playPreviousStation: () => Promise<void>
   prewarmStation: (
     stationId: string,
     options?: { includeSamplePayloads?: boolean, signal?: AbortSignal },
   ) => Promise<void>
+  retryRuntimeReadiness: () => void
   stopCurrent: () => Promise<void>
+  mediaIntegrationAvailable: boolean
+  resumeAfterInterruptionDefault: boolean
+  resumeAfterInterruptionForSession: boolean
+  interruptionNoticeSessionId: number | null
+  setSessionResumeAfterInterruption: (value: boolean) => void
+  setResumeAfterInterruptionDefault: (value: boolean) => void
+  dismissInterruptionNotice: (sessionId: number) => void
   setVolume: (volume: number) => void
   toggleFavorite: (stationId: string) => void
   setMiniPlayerCollapsed: (collapsed: boolean) => void
@@ -99,9 +137,11 @@ type StoredAtmosphereHydration = {
 }
 
 interface RuntimeAdapterPayload {
+  isCurrent: () => boolean
   station: {
     id: string
     title?: string
+    description?: string
     artist?: string
     attribution?: {
       artist?: string
@@ -119,20 +159,17 @@ interface RuntimeAdapterPayload {
   }
 }
 
-type AtmosphereMediaSessionAction = "play" | "pause" | "stop" | "previoustrack" | "nexttrack"
-
 interface AtmosphereMediaSession {
   metadata: unknown
   playbackState: "none" | "paused" | "playing"
-  setActionHandler: (action: AtmosphereMediaSessionAction, handler: (() => void) | null) => void
+  setActionHandler: (
+    action: "play" | "pause" | "stop" | "previoustrack" | "nexttrack",
+    handler: (() => void) | null,
+  ) => void
+  setPositionState?: (state?: object) => void
 }
 
-interface AtmosphereMediaMetadataInit {
-  title: string
-  artist: string
-  album: string
-  artwork: Array<{ src: string; sizes: string; type: string }>
-}
+type AtmosphereStationMetadata = { id: string, title: string, artist: string }
 
 type AtmosphereStation = RuntimeAdapterPayload["station"] & {
   id: string
@@ -146,9 +183,18 @@ type AtmosphereStation = RuntimeAdapterPayload["station"] & {
 
 type AtmosphereRuntimeAdapter = (payload: RuntimeAdapterPayload) => Promise<void | (() => void)> | void | (() => void)
 
+type AtmosphereRuntimeStartResult = {
+  status: "active" | "stale"
+  requestId: number
+}
+
+type AtmosphereRuntimeStopResult = {
+  requestId: number
+}
+
 type AtmosphereRuntimeController = {
-  start: (station: RuntimeAdapterPayload["station"]) => Promise<void>
-  stop: () => Promise<void>
+  start: (station: RuntimeAdapterPayload["station"]) => Promise<AtmosphereRuntimeStartResult>
+  stop: () => AtmosphereRuntimeStopResult
   getActiveStationId: () => string | null
 }
 
@@ -166,7 +212,9 @@ type AtmosphereRuntimeModules = {
   setGenerativeFmPieceVolume: (volume: number) => void
   setToneProofDroneVolume: (volume: number) => void
   getToneProofDroneDiagnostics: () => ToneProofDroneDiagnostics | null
+  getAtmosphereAudioContext: () => EventTarget & { state: unknown }
   startGenerativeFmPiece: (options: {
+    isCurrent?: () => boolean
     onLoadProgress?: (progress: number) => void
     station: RuntimeAdapterPayload["station"]
     volume?: number
@@ -176,6 +224,7 @@ type AtmosphereRuntimeModules = {
     detuneCents?: number
     fadeSeconds?: number
     volume?: number
+    isCurrent?: () => boolean
   }) => Promise<void | (() => void)>
 }
 
@@ -184,15 +233,16 @@ type LoadedAtmosphereRuntime = AtmosphereRuntimeModules & {
 }
 
 const defaultStorage = createDefaultAtmosphereStorage() as AtmosphereStorageState
-const mediaSessionActions: AtmosphereMediaSessionAction[] = ["play", "pause", "stop", "previoustrack", "nexttrack"]
 
 const defaultMusicContext: MusicContextType = {
   activeStationId: null,
   activeStationTitle: null,
+  activeStationArtwork: null,
   playbackState: "stopped",
   loadingProgress: null,
   loadingStartedAt: null,
   error: null,
+  runtimeReadiness: { status: "idle", error: null },
   favorites: defaultStorage.favorites,
   recentStations: defaultStorage.recentStations,
   volume: defaultStorage.volume,
@@ -211,7 +261,15 @@ const defaultMusicContext: MusicContextType = {
   playNextStation: async () => undefined,
   playPreviousStation: async () => undefined,
   prewarmStation: async () => undefined,
+  retryRuntimeReadiness: () => undefined,
   stopCurrent: async () => undefined,
+  mediaIntegrationAvailable: false,
+  resumeAfterInterruptionDefault: true,
+  resumeAfterInterruptionForSession: true,
+  interruptionNoticeSessionId: null,
+  setSessionResumeAfterInterruption: () => undefined,
+  setResumeAfterInterruptionDefault: () => undefined,
+  dismissInterruptionNotice: () => undefined,
   setVolume: () => undefined,
   toggleFavorite: () => undefined,
   setMiniPlayerCollapsed: () => undefined,
@@ -234,11 +292,15 @@ export function MusicProvider({
 }) {
   const [activeStationId, setActiveStationId] = useState<string | null>(null)
   const [activeStationTitle, setActiveStationTitle] = useState<string | null>(null)
-  const [activeStationArtist, setActiveStationArtist] = useState<string | null>(null)
+  const [activeStationArtwork, setActiveStationArtwork] = useState<AtmosphereStationArtworkInput | null>(null)
   const [playbackState, setPlaybackState] = useState<PlaybackState>("stopped")
   const [loadingProgress, setLoadingProgress] = useState<number | null>(null)
   const [loadingStartedAt, setLoadingStartedAt] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [runtimeReadiness, setRuntimeReadiness] = useState<RuntimeReadinessState>({
+    status: "idle",
+    error: null,
+  })
   const [storageState, setStorageState] = useState(defaultStorage)
   const [storageHydrated, setStorageHydrated] = useState(false)
   const [storageStatus, setStorageStatus] = useState<MusicVisualizerState["storageStatus"]>("loading")
@@ -247,7 +309,13 @@ export function MusicProvider({
   const [accountStatus, setAccountStatus] = useState<MusicVisualizerState["accountStatus"]>("loading")
   const [accountError, setAccountError] = useState<string | null>(null)
   const [accountSignedIn, setAccountSignedIn] = useState(false)
+  const [mediaIntegrationAvailable, setMediaIntegrationAvailable] = useState(false)
+  const [resumeAfterInterruptionDefault, setResumeAfterInterruptionDefaultState] = useState(true)
+  const [resumeAfterInterruptionForSession, setResumeAfterInterruptionForSession] = useState(true)
+  const [interruptionNoticeSessionId, setInterruptionNoticeSessionId] = useState<number | null>(null)
   const playbackRequestIdRef = useRef(0)
+  const playbackSessionGenerationRef = useRef(0)
+  const stoppedPlayerRetentionTimeoutRef = useRef<number | null>(null)
   const loadingStationIdRef = useRef<string | null>(null)
   const volumeRef = useRef(defaultStorage.volume)
   const runtimeRef = useRef<LoadedAtmosphereRuntime | null>(null)
@@ -261,6 +329,136 @@ export function MusicProvider({
   const pendingAccountDefaultBackgroundIdRef = useRef<string | null>(null)
   const failedAccountPayloadRef = useRef<MusicVisualizerAccountPreferences | null>(null)
   const isMountedRef = useRef(true)
+  const activeStationIdRef = useRef<string | null>(null)
+  const activeStationMetadataRef = useRef<AtmosphereStationMetadata | null>(null)
+  const activeStationArtworkRef = useRef<AtmosphereStationArtworkInput | null>(null)
+  const mediaCarrierRef = useRef<ReturnType<typeof createAtmosphereMediaCarrier> | null>(null)
+  const mediaSessionControllerRef = useRef<ReturnType<typeof createAtmosphereMediaSessionController> | null>(null)
+  const interruptionMonitorRef = useRef<ReturnType<typeof createAtmosphereInterruptionMonitor> | null>(null)
+  const interruptionMonitorUsesRuntimeContextRef = useRef(false)
+  const carrierEventBridgeRef = useRef<EventTarget | null>(null)
+  const playbackLifecycleRef = useRef(createAtmospherePlaybackLifecycle())
+  const resumeAfterInterruptionDefaultRef = useRef(true)
+  const playStationRef = useRef<MusicContextType["playStation"]>(async () => undefined)
+  const playNextStationRef = useRef<MusicContextType["playNextStation"]>(async () => undefined)
+  const playPreviousStationRef = useRef<MusicContextType["playPreviousStation"]>(async () => undefined)
+  const pauseCurrentRef = useRef<() => Promise<void>>(async () => undefined)
+  const stopCurrentRef = useRef<() => Promise<void>>(async () => undefined)
+  const interruptionStartedRef = useRef<() => void>(() => undefined)
+  const interruptionRecoveredRef = useRef<() => void>(() => undefined)
+  const ambiguousPauseRef = useRef<() => void>(() => undefined)
+
+  const commitPlaybackLifecycle = useCallback((event: Parameters<typeof transitionAtmospherePlayback>[1]) => {
+    const transition = transitionAtmospherePlayback(playbackLifecycleRef.current, event)
+    playbackLifecycleRef.current = transition.state
+    setPlaybackState(transition.state.status as PlaybackState)
+    setResumeAfterInterruptionForSession(transition.state.resumeAfterInterruption)
+    setInterruptionNoticeSessionId(transition.state.noticeSessionId)
+    return transition
+  }, [])
+
+  /** Idempotently retires the single pending explicit-Stop deadline. */
+  const cancelStoppedPlayerRetirement = useCallback(() => {
+    if (stoppedPlayerRetentionTimeoutRef.current === null) return
+    window.clearTimeout(stoppedPlayerRetentionTimeoutRef.current)
+    stoppedPlayerRetentionTimeoutRef.current = null
+  }, [])
+
+  /** Clears retained identity only while the exact stopped session still owns it. */
+  const retireStoppedPlayer = useCallback((sessionGeneration: number, stoppedStationId: string) => {
+    stoppedPlayerRetentionTimeoutRef.current = null
+    if (
+      sessionGeneration !== playbackSessionGenerationRef.current
+      || playbackLifecycleRef.current.status !== "stopped"
+      || activeStationIdRef.current !== stoppedStationId
+    ) return
+
+    activeStationIdRef.current = null
+    activeStationMetadataRef.current = null
+    activeStationArtworkRef.current = null
+    setActiveStationId(null)
+    setActiveStationTitle(null)
+    setActiveStationArtwork(null)
+  }, [])
+
+  /** Replaces the prior Stop deadline so retention is anchored to the latest intent. */
+  const scheduleStoppedPlayerRetirement = useCallback((
+    sessionGeneration: number,
+    stoppedStationId: string | null,
+  ) => {
+    cancelStoppedPlayerRetirement()
+    if (!stoppedStationId) return
+    stoppedPlayerRetentionTimeoutRef.current = window.setTimeout(
+      () => retireStoppedPlayer(sessionGeneration, stoppedStationId),
+      STOPPED_PLAYER_RETENTION_MS,
+    )
+  }, [cancelStoppedPlayerRetirement, retireStoppedPlayer])
+
+  useEffect(() => () => {
+    cancelStoppedPlayerRetirement()
+  }, [cancelStoppedPlayerRetirement])
+
+  const publishMediaSession = useCallback((
+    station: AtmosphereStationMetadata,
+    state: PlaybackState,
+  ) => {
+    const controller = mediaSessionControllerRef.current
+    if (!controller) return
+    controller.publish({
+      metadata: station,
+      playbackState: state === "paused" || state === "interrupted" ? "paused" : "playing",
+      handlers: {
+        play: () => {
+          const stationId = activeStationIdRef.current
+          if (stationId) void playStationRef.current(stationId, { origin: "media-session" })
+        },
+        pause: () => {
+          const monitor = interruptionMonitorRef.current
+          if (monitor?.isInterrupted()) return
+          if (monitor?.hasCurrentInterruptionSignal()) {
+            interruptionStartedRef.current()
+            return
+          }
+          void pauseCurrentRef.current()
+        },
+        stop: () => void stopCurrentRef.current(),
+        previoustrack: () => void playPreviousStationRef.current(),
+        nexttrack: () => void playNextStationRef.current(),
+      },
+    })
+  }, [])
+
+  /** Upgrade the early carrier observer with the generator's existing context once. */
+  const ensureInterruptionMonitor = useCallback((runtime: LoadedAtmosphereRuntime) => {
+    if (interruptionMonitorUsesRuntimeContextRef.current || !carrierEventBridgeRef.current) return
+    const audioSession = (navigator as unknown as {
+      audioSession?: EventTarget & { state: unknown, type?: unknown }
+    }).audioSession
+    let audioContext: (EventTarget & { state: unknown }) | null = null
+    try {
+      audioContext = runtime.getAtmosphereAudioContext()
+    } catch {
+      // Tone context access is optional for interruption fallback.
+    }
+    try {
+      interruptionMonitorRef.current?.dispose()
+      const monitor = createAtmosphereInterruptionMonitor({
+        audioSession,
+        audioContext,
+        carrier: carrierEventBridgeRef.current,
+        documentTarget: document,
+        onInterrupted: () => interruptionStartedRef.current(),
+        onRecovered: () => interruptionRecoveredRef.current(),
+        onAmbiguousPause: () => ambiguousPauseRef.current(),
+      })
+      interruptionMonitorRef.current = monitor
+      monitor.start()
+      interruptionMonitorUsesRuntimeContextRef.current = true
+    } catch {
+      // Interruption APIs are optional and can disappear independently of the
+      // audible generator, which must remain usable when observation fails.
+    }
+  }, [])
 
   const reportStationLoadProgress = useCallback((stationId: string, progress: number) => {
     if (loadingStationIdRef.current !== stationId) {
@@ -275,27 +473,37 @@ export function MusicProvider({
       return Promise.resolve(runtimeRef.current)
     }
 
-    runtimeLoadPromiseRef.current = runtimeLoadPromiseRef.current ?? loadAtmosphereRuntimeModules().then((modules) => {
-      const controller = modules.createAtmosphereRuntimeController({
-        adapters: {
-          "tone-proof-drone": async ({ station }) => modules.startToneProofDrone({
-            ...station.runtime?.defaultOptions,
-            volume: volumeRef.current,
-          }),
-          "generative-fm-piece": async ({ station }) => modules.startGenerativeFmPiece({
-            onLoadProgress: (progress) => reportStationLoadProgress(station.id, progress),
-            station,
-            volume: volumeRef.current,
-          }),
-        },
+    if (!runtimeLoadPromiseRef.current) {
+      setRuntimeReadiness({ status: "preparing", error: null })
+      runtimeLoadPromiseRef.current = loadAtmosphereRuntimeModules().then((modules) => {
+        const controller = modules.createAtmosphereRuntimeController({
+          adapters: {
+            "tone-proof-drone": async ({ station, isCurrent }) => modules.startToneProofDrone({
+              ...station.runtime?.defaultOptions,
+              isCurrent,
+              volume: volumeRef.current,
+            }),
+            "generative-fm-piece": async ({ station, isCurrent }) => modules.startGenerativeFmPiece({
+              isCurrent,
+              onLoadProgress: (progress) => reportStationLoadProgress(station.id, progress),
+              station,
+              volume: volumeRef.current,
+            }),
+          },
+        })
+        const runtime = { ...modules, controller }
+        runtimeRef.current = runtime
+        if (isMountedRef.current) {
+          setRuntimeReadiness({ status: "ready", error: null })
+        }
+        return runtime
+      }).catch((caughtError) => {
+        if (isMountedRef.current) {
+          setRuntimeReadiness({ status: "error", error: "Audio setup failed. Try again." })
+        }
+        throw caughtError
       })
-      const runtime = { ...modules, controller }
-      runtimeRef.current = runtime
-      return runtime
-    }).catch((error) => {
-      runtimeLoadPromiseRef.current = null
-      throw error
-    })
+    }
 
     return runtimeLoadPromiseRef.current
   }, [reportStationLoadProgress])
@@ -456,6 +664,73 @@ export function MusicProvider({
     }
   }, [accountSyncEnabled, beginAccountRequest])
 
+  // Browser media ownership is provider-scoped so route changes reuse one
+  // carrier and one set of notification handlers.
+  useEffect(() => {
+    const bridge = new EventTarget()
+    carrierEventBridgeRef.current = bridge
+    mediaCarrierRef.current = createAtmosphereMediaCarrier({
+      createAudio: () => new Audio(),
+      onEvent: (event) => {
+        bridge.dispatchEvent(new CustomEvent(event.type, { detail: { origin: event.origin } }))
+      },
+    })
+
+    const mediaSession = (navigator as unknown as { mediaSession?: AtmosphereMediaSession }).mediaSession
+    const MediaMetadataConstructor = (window as unknown as {
+      MediaMetadata?: new (init: {
+        title: string
+        artist: string
+        album: string
+        artwork: Array<{ src: string, sizes: string, type: string }>
+      }) => unknown
+    }).MediaMetadata
+    mediaSessionControllerRef.current = createAtmosphereMediaSessionController({
+      mediaSession,
+      createMetadata: MediaMetadataConstructor
+        ? (init) => new MediaMetadataConstructor(init)
+        : null,
+    })
+    const audioSession = (navigator as unknown as {
+      audioSession?: EventTarget & { state: unknown, type?: unknown }
+    }).audioSession
+    const earlyMonitor = createAtmosphereInterruptionMonitor({
+      audioSession,
+      audioContext: null,
+      carrier: bridge,
+      documentTarget: document,
+      onInterrupted: () => interruptionStartedRef.current(),
+      onRecovered: () => interruptionRecoveredRef.current(),
+      onAmbiguousPause: () => ambiguousPauseRef.current(),
+    })
+    interruptionMonitorRef.current = earlyMonitor
+    earlyMonitor.start()
+
+    return () => {
+      playbackRequestIdRef.current += 1
+      interruptionMonitorRef.current?.dispose()
+      interruptionMonitorRef.current = null
+      interruptionMonitorUsesRuntimeContextRef.current = false
+      mediaSessionControllerRef.current?.dispose()
+      mediaSessionControllerRef.current = null
+      mediaCarrierRef.current?.dispose()
+      mediaCarrierRef.current = null
+      carrierEventBridgeRef.current = null
+    }
+  }, [])
+
+  // The interruption preference is device-local and guarded against browsers
+  // that deny storage access.
+  useEffect(() => {
+    const preference = readAtmosphereInterruptionPreference(() => window.localStorage)
+    resumeAfterInterruptionDefaultRef.current = preference.value
+    setResumeAfterInterruptionDefaultState(preference.value)
+    if (playbackLifecycleRef.current.sessionId === 0) {
+      playbackLifecycleRef.current = createAtmospherePlaybackLifecycle(preference.value)
+      setResumeAfterInterruptionForSession(preference.value)
+    }
+  }, [])
+
   // Keep the provider mounted globally for route-persistent playback, but load
   // the audio catalog/runtime only after a user plays or prewarms a station.
   useEffect(() => () => {
@@ -539,101 +814,270 @@ export function MusicProvider({
     runtimeRef.current?.setGenerativeFmPieceVolume(storageState.volume)
   }, [storageState.volume])
 
-  const playStation = useCallback(async (stationId: string) => {
+  /** Settle notification/interruption availability without owning generator playback. */
+  const settleMediaIntegrationAvailability = useCallback(({
+    available,
+    continueSession,
+    origin,
+    requestId,
+    sessionGeneration,
+  }: {
+    available: boolean
+    continueSession: boolean
+    origin: PlaybackStartOptions["origin"]
+    requestId: number
+    sessionGeneration: number
+  }) => {
+    if (
+      requestId !== playbackRequestIdRef.current
+      || sessionGeneration !== playbackSessionGenerationRef.current
+    ) return
+
+    const integrationAvailable = Boolean(
+      available
+      && mediaSessionControllerRef.current?.isAvailable()
+      && interruptionMonitorRef.current?.isAvailable(),
+    )
+    setMediaIntegrationAvailable(integrationAvailable)
+    if (
+      integrationAvailable
+      && origin !== "media-session"
+      && !continueSession
+      && document.visibilityState !== "hidden"
+    ) {
+      playbackLifecycleRef.current = {
+        ...playbackLifecycleRef.current,
+        noticeSessionId: playbackLifecycleRef.current.sessionId,
+      }
+      setInterruptionNoticeSessionId(playbackLifecycleRef.current.sessionId)
+    } else if (!integrationAvailable && !continueSession) {
+      playbackLifecycleRef.current = {
+        ...playbackLifecycleRef.current,
+        noticeSessionId: null,
+      }
+      setInterruptionNoticeSessionId(null)
+    }
+  }, [])
+
+  const playStation = useCallback(async (
+    stationId: string,
+    options: PlaybackStartOptions = {},
+  ) => {
+    cancelStoppedPlayerRetirement()
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
+    const continueSession = options.continueSession === true
+      && playbackLifecycleRef.current.sessionId > 0
+      && playbackLifecycleRef.current.status !== "stopped"
+    if (continueSession) {
+      const continued = {
+        ...playbackLifecycleRef.current,
+        status: "loading" as const,
+        explicitIntent: "play" as const,
+        interruptionObserved: false,
+      }
+      playbackLifecycleRef.current = continued
+      setPlaybackState("loading")
+    } else {
+      playbackSessionGenerationRef.current += 1
+      commitPlaybackLifecycle({
+        type: options.origin === "media-session" ? "BEGIN_EXTERNAL_SESSION" : "BEGIN_IN_APP_SESSION",
+        savedDefault: resumeAfterInterruptionDefaultRef.current,
+        documentVisible: document.visibilityState !== "hidden",
+        integrationAvailable: mediaIntegrationAvailable,
+      })
+    }
+    const sessionGeneration = playbackSessionGenerationRef.current
+    const lifecycleSessionId = playbackLifecycleRef.current.sessionId
+    const retainedMetadata = activeStationIdRef.current === stationId
+      ? activeStationMetadataRef.current
+      : null
+    const resolvedSuppliedArtwork = options.artworkInput
+      ? resolveAtmosphereStationArtworkInput(options.artworkInput)
+      : null
+    const suppliedArtwork = resolvedSuppliedArtwork?.stationId === stationId
+      ? resolvedSuppliedArtwork
+      : null
+    const retainedArtwork = activeStationIdRef.current === stationId
+      ? activeStationArtworkRef.current
+      : null
+    const initialArtwork = suppliedArtwork ?? retainedArtwork
+    activeStationIdRef.current = stationId
+    activeStationArtworkRef.current = initialArtwork
     setActiveStationId(stationId)
-    setActiveStationTitle(null)
-    setActiveStationArtist(null)
-    setPlaybackState("loading")
+    setActiveStationTitle(initialArtwork?.title ?? retainedMetadata?.title ?? null)
+    setActiveStationArtwork(initialArtwork)
     setLoadingProgress(0.02)
     setLoadingStartedAt(Date.now())
     loadingStationIdRef.current = stationId
     setError(null)
+    publishMediaSession(
+      retainedMetadata ?? {
+        id: stationId,
+        title: initialArtwork?.title ?? "Atmosphere",
+        artist: "MassageLab",
+      },
+      "loading",
+    )
 
-    let runtime: LoadedAtmosphereRuntime
-    let station: AtmosphereStation
+    // Start the carrier before the first await so media ownership is requested
+    // in the same user-activation turn as the accepted Play intent.
+    const carrierStartPromise = mediaCarrierRef.current?.start()
+      ?? Promise.resolve({ available: false })
+
+    let runtimeAndStation: { runtime: LoadedAtmosphereRuntime, station: AtmosphereStation }
     try {
-      runtime = await getRuntime()
-      station = runtime.getAtmosphereStationById(stationId)
+      const runtime = await getRuntime()
+      ensureInterruptionMonitor(runtime)
+      const station = runtime.getAtmosphereStationById(stationId)
+      runtimeAndStation = { runtime, station }
     } catch (caughtError) {
-      if (requestId !== playbackRequestIdRef.current) {
+      if (
+        requestId !== playbackRequestIdRef.current
+        || sessionGeneration !== playbackSessionGenerationRef.current
+      ) {
         return
       }
 
       loadingStationIdRef.current = null
       setLoadingProgress(null)
       setLoadingStartedAt(null)
-      setPlaybackState("failed")
+      commitPlaybackLifecycle({ type: "START_FAILED", sessionId: lifecycleSessionId })
+      mediaCarrierRef.current?.stopAndDismiss()
+      mediaSessionControllerRef.current?.clear()
       setError(caughtError instanceof Error ? caughtError.message : "Audio runtime could not load.")
       return
     }
+    const { runtime, station } = runtimeAndStation
+    const stationArtwork = suppliedArtwork ?? resolveAtmosphereStationArtworkInput(station)
 
-    if (requestId !== playbackRequestIdRef.current) {
+    void carrierStartPromise
+      .catch(() => ({ available: false }))
+      .then(({ available }) => {
+        settleMediaIntegrationAvailability({
+          available,
+          continueSession,
+          origin: options.origin,
+          requestId,
+          sessionGeneration,
+        })
+      })
+
+    if (
+      requestId !== playbackRequestIdRef.current
+      || sessionGeneration !== playbackSessionGenerationRef.current
+    ) {
       return
     }
 
     if (!station.enabled) {
       setActiveStationId(station.id)
       setActiveStationTitle(station.title)
-      setActiveStationArtist(getStationArtist(station))
-      setPlaybackState("failed")
+      setActiveStationArtwork(stationArtwork)
+      activeStationArtworkRef.current = stationArtwork
+      activeStationMetadataRef.current = {
+        id: station.id,
+        title: station.title,
+        artist: getStationArtist(station),
+      }
+      commitPlaybackLifecycle({ type: "START_FAILED", sessionId: lifecycleSessionId })
       setLoadingProgress(null)
       setLoadingStartedAt(null)
       loadingStationIdRef.current = null
       setError(station.disabledReason ?? "This station is not playable yet.")
+      mediaCarrierRef.current?.stopAndDismiss()
+      mediaSessionControllerRef.current?.clear()
       return
     }
 
+    const stationMetadata = { id: station.id, title: station.title, artist: getStationArtist(station) }
     setActiveStationId(station.id)
     setActiveStationTitle(station.title)
-    setActiveStationArtist(getStationArtist(station))
+    setActiveStationArtwork(stationArtwork)
+    activeStationIdRef.current = station.id
+    activeStationArtworkRef.current = stationArtwork
+    activeStationMetadataRef.current = stationMetadata
     setPlaybackState("loading")
     setLoadingProgress(0.05)
     setLoadingStartedAt(Date.now())
     loadingStationIdRef.current = station.id
     setError(null)
+    publishMediaSession(stationMetadata, "loading")
 
     try {
-      await runtime.controller.start(station)
-      if (requestId !== playbackRequestIdRef.current) {
+      const runtimeResult = await runtime.controller.start(station)
+      await carrierStartPromise.catch(() => ({ available: false }))
+      if (
+        runtimeResult.status !== "active"
+        || requestId !== playbackRequestIdRef.current
+        || sessionGeneration !== playbackSessionGenerationRef.current
+      ) {
         return
       }
 
       loadingStationIdRef.current = null
       setLoadingProgress(null)
       setLoadingStartedAt(null)
-      setPlaybackState("playing")
+      commitPlaybackLifecycle({ type: "START_SUCCEEDED", sessionId: lifecycleSessionId })
+      publishMediaSession(stationMetadata, "playing")
       setStorageState((current) => ({
         ...current,
         recentStations: [station.id, ...current.recentStations.filter((id) => id !== station.id)].slice(0, 12),
       }))
     } catch (caughtError) {
-      if (requestId !== playbackRequestIdRef.current) {
+      if (
+        requestId !== playbackRequestIdRef.current
+        || sessionGeneration !== playbackSessionGenerationRef.current
+      ) {
         return
       }
 
       loadingStationIdRef.current = null
       setLoadingProgress(null)
       setLoadingStartedAt(null)
-      setPlaybackState("failed")
+      commitPlaybackLifecycle({ type: "START_FAILED", sessionId: lifecycleSessionId })
+      mediaCarrierRef.current?.pauseRetained()
+      publishMediaSession(stationMetadata, "paused")
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not start.")
     }
-  }, [getRuntime])
+  }, [
+    cancelStoppedPlayerRetirement,
+    commitPlaybackLifecycle,
+    ensureInterruptionMonitor,
+    getRuntime,
+    mediaIntegrationAvailable,
+    publishMediaSession,
+    settleMediaIntegrationAvailability,
+  ])
 
   const playAdjacentStation = useCallback(async (direction: 1 | -1) => {
+    cancelStoppedPlayerRetirement()
+    const navigationRequestId = playbackRequestIdRef.current
+    const navigationSessionGeneration = playbackSessionGenerationRef.current
     const runtime = await getRuntime()
+    if (
+      navigationRequestId !== playbackRequestIdRef.current
+      || navigationSessionGeneration !== playbackSessionGenerationRef.current
+    ) {
+      return
+    }
     const playableStationIds = runtime.playableStationIds
     if (playableStationIds.length === 0) {
       return
     }
 
-    const currentIndex = activeStationId ? playableStationIds.indexOf(activeStationId) : -1
+    const currentStationId = activeStationIdRef.current
+    const currentIndex = currentStationId ? playableStationIds.indexOf(currentStationId) : -1
     const fallbackIndex = direction === 1 ? -1 : 0
     const nextIndex = (currentIndex >= 0 ? currentIndex : fallbackIndex) + direction
     const normalizedIndex = (nextIndex + playableStationIds.length) % playableStationIds.length
-    await playStation(playableStationIds[normalizedIndex])
-  }, [activeStationId, getRuntime, playStation])
+    const nextStation = runtime.getAtmosphereStationById(playableStationIds[normalizedIndex])
+    const artworkInput = resolveAtmosphereStationArtworkInput(nextStation)
+    await playStation(nextStation.id, {
+      artworkInput: artworkInput ?? undefined,
+      continueSession: true,
+    })
+  }, [cancelStoppedPlayerRetirement, getRuntime, playStation])
 
   const playNextStation = useCallback(async () => {
     await playAdjacentStation(1)
@@ -642,6 +1086,11 @@ export function MusicProvider({
   const playPreviousStation = useCallback(async () => {
     await playAdjacentStation(-1)
   }, [playAdjacentStation])
+
+  /** Reloads the pre-play route after a failed dynamic import clears only with a fresh module graph. */
+  const retryRuntimeReadiness = useCallback(() => {
+    window.location.reload()
+  }, [])
 
   const prewarmStation = useCallback(async (
     stationId: string,
@@ -665,77 +1114,120 @@ export function MusicProvider({
     }
   }, [getRuntime])
 
-  const stopCurrent = useCallback(async () => {
+  const pauseCurrent = useCallback(async () => {
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
-    setPlaybackState("stopped")
+    commitPlaybackLifecycle({ type: "EXPLICIT_PAUSE" })
     setLoadingProgress(null)
     setLoadingStartedAt(null)
     loadingStationIdRef.current = null
     setError(null)
+    mediaCarrierRef.current?.pauseRetained()
+    const metadata = activeStationMetadataRef.current
+    if (metadata) publishMediaSession(metadata, "paused")
 
     try {
-      await runtimeRef.current?.controller.stop()
+      runtimeRef.current?.controller.stop()
     } catch (caughtError) {
       if (requestId !== playbackRequestIdRef.current) {
         return
       }
 
-      setPlaybackState("failed")
+      setError(caughtError instanceof Error ? caughtError.message : "Audio could not pause.")
+    }
+  }, [commitPlaybackLifecycle, publishMediaSession])
+
+  const stopCurrent = useCallback(async () => {
+    cancelStoppedPlayerRetirement()
+    const requestId = playbackRequestIdRef.current + 1
+    playbackRequestIdRef.current = requestId
+    playbackSessionGenerationRef.current += 1
+    const sessionGeneration = playbackSessionGenerationRef.current
+    const stoppedStationId = activeStationIdRef.current
+    commitPlaybackLifecycle({ type: "EXPLICIT_STOP" })
+    setLoadingProgress(null)
+    setLoadingStartedAt(null)
+    loadingStationIdRef.current = null
+    setError(null)
+    mediaCarrierRef.current?.stopAndDismiss()
+    mediaSessionControllerRef.current?.clear()
+
+    try {
+      runtimeRef.current?.controller.stop()
+    } catch (caughtError) {
+      if (requestId !== playbackRequestIdRef.current) return
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not stop.")
     }
-  }, [])
+    scheduleStoppedPlayerRetirement(sessionGeneration, stoppedStationId)
+  }, [cancelStoppedPlayerRetirement, commitPlaybackLifecycle, scheduleStoppedPlayerRetirement])
 
-  // Expose the active station to Android/iOS/browser media surfaces when the
-  // browser supports Media Session. Unsupported actions are ignored because
-  // browser notification controls vary by device and installed browser.
+  const handleInterruptionStarted = useCallback(() => {
+    const current = playbackLifecycleRef.current
+    if (current.status !== "playing" && current.status !== "loading") return
+    playbackRequestIdRef.current += 1
+    const transition = commitPlaybackLifecycle({ type: "INTERRUPTION_STARTED" })
+    try {
+      runtimeRef.current?.controller.stop()
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Audio could not pause.")
+    }
+    mediaCarrierRef.current?.pauseRetained()
+    const metadata = activeStationMetadataRef.current
+    if (metadata) publishMediaSession(metadata, "paused")
+    if (transition.state.status === "paused") {
+      setError(null)
+    }
+  }, [commitPlaybackLifecycle, publishMediaSession])
+
+  const handleInterruptionRecovered = useCallback(() => {
+    const sessionGeneration = playbackSessionGenerationRef.current
+    const transition = commitPlaybackLifecycle({ type: "INTERRUPTION_ENDED" })
+    const stationId = activeStationIdRef.current
+    if (
+      transition.effects.includes("RESUME_GENERATOR")
+      && stationId
+      && sessionGeneration === playbackSessionGenerationRef.current
+    ) {
+      void playStationRef.current(stationId, {
+        origin: "media-session",
+        continueSession: true,
+      })
+    }
+  }, [commitPlaybackLifecycle])
+
   useEffect(() => {
-    const mediaSession = (navigator as unknown as { mediaSession?: AtmosphereMediaSession }).mediaSession
-    if (!mediaSession) {
-      return undefined
-    }
-
-    if (!activeStationId || playbackState === "stopped" || playbackState === "failed") {
-      mediaSession.playbackState = "none"
-      mediaSession.metadata = null
-      clearAtmosphereMediaSessionHandlers(mediaSession)
-      return undefined
-    }
-
-    mediaSession.playbackState = "playing"
-    setAtmosphereMediaSessionMetadata(mediaSession, {
-      artist: activeStationArtist,
-      title: activeStationTitle ?? "Atmosphere",
-    })
-    setAtmosphereMediaSessionHandler(mediaSession, "play", () => {
-      void playStation(activeStationId)
-    })
-    setAtmosphereMediaSessionHandler(mediaSession, "pause", () => {
-      void stopCurrent()
-    })
-    setAtmosphereMediaSessionHandler(mediaSession, "stop", () => {
-      void stopCurrent()
-    })
-    setAtmosphereMediaSessionHandler(mediaSession, "previoustrack", () => {
-      void playPreviousStation()
-    })
-    setAtmosphereMediaSessionHandler(mediaSession, "nexttrack", () => {
-      void playNextStation()
-    })
-
-    return () => {
-      clearAtmosphereMediaSessionHandlers(mediaSession)
-    }
+    playStationRef.current = playStation
+    playNextStationRef.current = playNextStation
+    playPreviousStationRef.current = playPreviousStation
+    pauseCurrentRef.current = pauseCurrent
+    stopCurrentRef.current = stopCurrent
+    interruptionStartedRef.current = handleInterruptionStarted
+    interruptionRecoveredRef.current = handleInterruptionRecovered
+    ambiguousPauseRef.current = () => void pauseCurrentRef.current()
   }, [
-    activeStationArtist,
-    activeStationId,
-    activeStationTitle,
+    handleInterruptionRecovered,
+    handleInterruptionStarted,
+    pauseCurrent,
     playNextStation,
     playPreviousStation,
     playStation,
-    playbackState,
     stopCurrent,
   ])
+
+  const setSessionResumeAfterInterruption = useCallback((value: boolean) => {
+    commitPlaybackLifecycle({ type: "SET_SESSION_RESUME", value })
+  }, [commitPlaybackLifecycle])
+
+  const setResumeAfterInterruptionDefault = useCallback((value: boolean) => {
+    const result = writeAtmosphereInterruptionPreference(() => window.localStorage, value)
+    resumeAfterInterruptionDefaultRef.current = result.value
+    setResumeAfterInterruptionDefaultState(result.value)
+    commitPlaybackLifecycle({ type: "SET_SESSION_RESUME", value: result.value })
+  }, [commitPlaybackLifecycle])
+
+  const dismissInterruptionNotice = useCallback((sessionId: number) => {
+    commitPlaybackLifecycle({ type: "DISMISS_NOTICE", sessionId })
+  }, [commitPlaybackLifecycle])
 
   const setVolume = useCallback((nextVolume: number) => {
     const clampedVolume = Math.min(1, Math.max(0, nextVolume))
@@ -847,10 +1339,12 @@ export function MusicProvider({
   const value = useMemo<MusicContextType>(() => ({
     activeStationId,
     activeStationTitle,
+    activeStationArtwork,
     playbackState,
     loadingProgress,
     loadingStartedAt,
     error,
+    runtimeReadiness,
     favorites: storageState.favorites,
     recentStations: storageState.recentStations,
     volume: storageState.volume,
@@ -869,7 +1363,15 @@ export function MusicProvider({
     playNextStation,
     playPreviousStation,
     prewarmStation,
+    retryRuntimeReadiness,
     stopCurrent,
+    mediaIntegrationAvailable,
+    resumeAfterInterruptionDefault,
+    resumeAfterInterruptionForSession,
+    interruptionNoticeSessionId,
+    setSessionResumeAfterInterruption,
+    setResumeAfterInterruptionDefault,
+    dismissInterruptionNotice,
     setVolume,
     toggleFavorite,
     setMiniPlayerCollapsed,
@@ -885,8 +1387,11 @@ export function MusicProvider({
     accountSignedIn,
     accountStatus,
     activeStationId,
+    activeStationArtwork,
     activeStationTitle,
+    dismissInterruptionNotice,
     error,
+    interruptionNoticeSessionId,
     loadingProgress,
     loadingStartedAt,
     playNextStation,
@@ -894,11 +1399,18 @@ export function MusicProvider({
     playStation,
     playbackState,
     prewarmStation,
+    retryRuntimeReadiness,
+    runtimeReadiness,
+    mediaIntegrationAvailable,
+    resumeAfterInterruptionDefault,
+    resumeAfterInterruptionForSession,
     restoreVisualizerAccountDefault,
     retryVisualizerAccountSync,
     getPlaybackDiagnostics,
     selectVisualizerBackground,
     setMiniPlayerCollapsed,
+    setResumeAfterInterruptionDefault,
+    setSessionResumeAfterInterruption,
     setCurrentVisualizerBackgroundAsDefault,
     setVisualizerShowClock,
     setVolume,
@@ -1000,11 +1512,13 @@ async function loadAtmosphereRuntimeModules(): Promise<AtmosphereRuntimeModules>
     runtimeController,
     generativeRuntime,
     toneProofRuntime,
+    toneGlobal,
   ] = await Promise.all([
     import("@/lib/atmosphere/stations"),
     import("@/lib/atmosphere/runtime-controller"),
     import("@/lib/atmosphere/generative-fm-runtime"),
     import("@/lib/atmosphere/tone-proof-runtime"),
+    import("tone/build/esm/core/Global"),
   ])
 
   return {
@@ -1015,6 +1529,7 @@ async function loadAtmosphereRuntimeModules(): Promise<AtmosphereRuntimeModules>
     setGenerativeFmPieceVolume: generativeRuntime.setGenerativeFmPieceVolume,
     setToneProofDroneVolume: toneProofRuntime.setToneProofDroneVolume,
     getToneProofDroneDiagnostics: toneProofRuntime.getToneProofDroneDiagnostics,
+    getAtmosphereAudioContext: () => toneGlobal.getContext().rawContext as EventTarget & { state: unknown },
     startGenerativeFmPiece: generativeRuntime.startGenerativeFmPiece,
     startToneProofDrone: toneProofRuntime.startToneProofDrone,
   }
@@ -1022,52 +1537,4 @@ async function loadAtmosphereRuntimeModules(): Promise<AtmosphereRuntimeModules>
 
 function getStationArtist(station: AtmosphereStation) {
   return station.artist || station.attribution?.artist || "MassageLab"
-}
-
-function setAtmosphereMediaSessionMetadata(
-  mediaSession: AtmosphereMediaSession,
-  station: { artist?: string | null, title: string },
-) {
-  const MediaMetadataConstructor = (window as unknown as {
-    MediaMetadata?: new (init: AtmosphereMediaMetadataInit) => unknown
-  }).MediaMetadata
-  if (!MediaMetadataConstructor) {
-    return
-  }
-
-  try {
-    mediaSession.metadata = new MediaMetadataConstructor({
-      title: station.title,
-      artist: station.artist || "MassageLab",
-      album: "MassageLab Atmosphere",
-      artwork: [
-        { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-        { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-      ],
-    })
-  } catch {
-    // Metadata failures should not interrupt playback.
-  }
-}
-
-function setAtmosphereMediaSessionHandler(
-  mediaSession: AtmosphereMediaSession,
-  action: AtmosphereMediaSessionAction,
-  handler: () => void,
-) {
-  try {
-    mediaSession.setActionHandler(action, handler)
-  } catch {
-    // Some browsers expose Media Session but reject individual controls.
-  }
-}
-
-function clearAtmosphereMediaSessionHandlers(mediaSession: AtmosphereMediaSession) {
-  for (const action of mediaSessionActions) {
-    try {
-      mediaSession.setActionHandler(action, null)
-    } catch {
-      // Clearing handlers is best-effort for the same device-variance reason.
-    }
-  }
 }

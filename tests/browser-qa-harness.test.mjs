@@ -30,6 +30,21 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
 
+test("install-prompt QA dispatches only while the provider listener is proven active", async () => {
+  const appShellSpec = await readProjectFile("tests/browser/app-shell.spec.ts")
+
+  assert.equal((appShellSpec.match(/await installPwaPromptListenerProbe\(page\)/g) ?? []).length, 2)
+  assert.equal((appShellSpec.match(/await dispatchPwaInstallPromptWhenReady\(page,/g) ?? []).length, 2)
+  const dispatchStart = appShellSpec.indexOf("async function dispatchPwaInstallPromptWhenReady")
+  const dispatchEnd = appShellSpec.indexOf("\nasync function ", dispatchStart + 1)
+  const dispatchSource = appShellSpec.slice(dispatchStart, dispatchEnd === -1 ? undefined : dispatchEnd)
+  assert.notEqual(dispatchStart, -1)
+  assert.match(
+    dispatchSource,
+    /if \(!Reflect\.get\(window, "__massagelabPwaInstallPromptListenerReady"\)\) return false[\s\S]*window\.dispatchEvent\(event\)/,
+  )
+})
+
 /**
  * Extracts one job from this repository's CI workflow source. The matcher
  * intentionally follows its two-space job indentation and lowercase-letter or
@@ -71,6 +86,7 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
     "control-system-review.spec.ts",
     "immersive-panel-shell.spec.ts",
     "local-first.spec.ts",
+    "music-media-session.spec.ts",
     "music-visualizer.spec.ts",
     "public-routes.spec.ts",
     "pwa.spec.ts",
@@ -91,7 +107,7 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
   const expectedPairs = new Set(
     expectedProjects.flatMap((projectName) => expectedSpecs.map((spec) => `${projectName}:${spec}`)),
   )
-  assert.equal(expectedPairs.size, 18)
+  assert.equal(expectedPairs.size, 20)
 
   const actualPairs = []
   for (const lane of Object.values(BROWSER_QA_LANES)) {
@@ -135,9 +151,17 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
   const expectedLaneProjects = {
     "1": [
       {
-        name: "mobile-chromium",
+        name: "desktop-chromium",
         testMatch: [
           "**/public-routes.spec.ts",
+          "**/local-first.spec.ts",
+        ],
+      },
+      {
+        name: "mobile-chromium",
+        testMatch: [
+          "**/app-shell.spec.ts",
+          "**/pwa.spec.ts",
         ],
       },
     ],
@@ -145,15 +169,15 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
       {
         name: "desktop-chromium",
         testMatch: [
-          "**/public-routes.spec.ts",
-          "**/immersive-panel-shell.spec.ts",
+          "**/app-shell.spec.ts",
           "**/pwa.spec.ts",
         ],
       },
       {
         name: "mobile-chromium",
         testMatch: [
-          "**/immersive-panel-shell.spec.ts",
+          "**/public-routes.spec.ts",
+          "**/local-first.spec.ts",
         ],
       },
     ],
@@ -161,14 +185,14 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
       {
         name: "desktop-chromium",
         testMatch: [
-          "**/app-shell.spec.ts",
+          "**/music-media-session.spec.ts",
+          "**/admin-user-operations.spec.ts",
         ],
       },
       {
         name: "mobile-chromium",
         testMatch: [
-          "**/background-commerce.spec.ts",
-          "**/app-shell.spec.ts",
+          "**/music-media-session.spec.ts",
         ],
       },
     ],
@@ -177,20 +201,19 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
         name: "desktop-chromium",
         testMatch: [
           "**/background-commerce.spec.ts",
-          "**/music-visualizer.spec.ts",
-          "**/local-first.spec.ts",
-          "**/admin-user-operations.spec.ts",
           "**/control-system-review.spec.ts",
+          "**/immersive-panel-shell.spec.ts",
+          "**/music-visualizer.spec.ts",
         ],
       },
       {
         name: "mobile-chromium",
         testMatch: [
-          "**/music-visualizer.spec.ts",
-          "**/local-first.spec.ts",
-          "**/pwa.spec.ts",
           "**/admin-user-operations.spec.ts",
+          "**/background-commerce.spec.ts",
           "**/control-system-review.spec.ts",
+          "**/immersive-panel-shell.spec.ts",
+          "**/music-visualizer.spec.ts",
         ],
       },
     ],

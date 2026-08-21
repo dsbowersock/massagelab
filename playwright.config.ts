@@ -233,6 +233,15 @@ const ordinaryProjects = [
       ...devices["Pixel 7"],
     },
   },
+  {
+    // Focused compatibility smoke only; CI lanes remain Chromium-only.
+    name: "webkit-media-smoke",
+    testMatch: /music-media-session\.spec\.ts/,
+    use: {
+      ...devices["Desktop Safari"],
+      viewport: { width: 1024, height: 768 },
+    },
+  },
 ]
 const ciBrowserQaLaneProjects = resolveCiBrowserQaLaneProjects(process.env.PLAYWRIGHT_CI_LANE)
 // PLAYWRIGHT_CI_LANE narrows CI discovery to each lane's project/spec pairs;

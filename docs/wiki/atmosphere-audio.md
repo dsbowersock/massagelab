@@ -10,6 +10,30 @@ Atmosphere is a public, non-clinical audio workspace. It does not store PHI, the
 
 MassageLab hosts the audio runtime in the app. It does not embed Generative.fm as a remote player UI. `/music` now exposes the local Tone.js proof station plus the full Alex Bainter Generative.fm package catalog through the global music provider, route-persistent playback, grouped station browsing, Atmosphere-only swipe/scroll station rails, deterministic organic-geometric SVG station artwork, and the placement-aware audio toolbar opposite the selected app bar edge. All 57 Generative.fm package stations are currently playable from hosted public-media sample indexes. `/wellness/breathing` carries the first public Calmness-style breathing guide as a separate Wellness tool that does not store account data or clinical records. The hosted Generative.fm runtime prewarms sample-index metadata and browser modules for a small starter set during idle, warms compressed sample payloads only for a tiny starter subset and deliberate hover on healthy connections, and batches provider sample fetch/decode work so large stations do not request every sample in one unbounded burst. Actual Tone start, Transport start, output nodes, and WAV fallback payload loading remain user-gesture gated. The audio toolbar shows loading progress while a station prepares and offers previous/next station controls; supported browsers also receive Media Session metadata and play/pause/stop/previous/next handlers for notification and lock-screen controls. Generative.fm handoffs fade the outgoing station down and fade the incoming station up to soften abrupt first notes. All playable Generative.fm stations have Ogg Opus, AAC/M4A, and MP3 sidecar indexes for broader browser coverage, and keep their original WAV indexes as the final fallback.
 
+## Physical Android verification
+
+The affected media/player behavior passed physical review on a Samsung Galaxy
+S24 Ultra using Chrome `151.0.7922.137` against immutable deployment
+`https://massagelab-1ia9a0227-dsbteam.vercel.app/music` at exact commit
+`ca429f7f4c3cc1c40bac2a850be73a8226981c2e`. One touch starts playback;
+revisioned 512×512 system artwork looks sharp and remains paired with the title
+through Previous/Next; no fabricated timeline appears; the vinyl completes one
+normal revolution in 52 seconds and becomes static under reduced motion; rail
+art retains approximately 7px edge clearance; portrait cards keep the same
+height while the player expands or collapses; touch-only station buttons are
+hidden unless reduced motion or a fine pointer applies; station navigation
+loops in both directions; constrained landscape uses the global side rail; and
+explicit Stop retires the rail after 60 seconds unless playback restarts first.
+
+The web runtime intentionally does not imitate a native notification Favorite
+or rating action. The requested heart remains deferred to a future native
+Android wrapper. Installed-PWA, Bluetooth/headset, real-call, meeting-app,
+controlled carrier-failure, broader lock/background-return, current-session
+preference, and physical Apple verification remain separate pending work. The
+physical QA record keeps the exact evidence boundary, screenshot filenames,
+and source raster dimensions; CSS viewport, DPR, and safe-area values are not
+inferred from attachment pixels.
+
 ## Package Findings
 
 | Package | Version | License | Source |

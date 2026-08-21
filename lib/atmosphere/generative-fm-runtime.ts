@@ -8,6 +8,10 @@ import {
   startAbortableGenerativeFmPrewarm,
   waitForAbortableGenerativeFmPrewarm,
 } from "./generative-fm-provider"
+import {
+  loadGenerativeFmPieceModule,
+  prepareGenerativeFmPlayback,
+} from "./generative-fm-piece-loader"
 
 type HostedCompressedSampleFormat = "opus" | "aac" | "mp3"
 type HostedSampleFormat = HostedCompressedSampleFormat | "wav"
@@ -26,6 +30,7 @@ type GenerativeFmRuntimeOptions = {
   station: GenerativeFmRuntimeStation
   volume?: number
   onLoadProgress?: (progress: number) => void
+  isCurrent?: () => boolean
 }
 
 type GenerativeFmPrewarmOptions = {
@@ -109,10 +114,11 @@ const HOSTED_SAMPLE_FORMAT_PREFERENCE: ReadonlyArray<{
 
 /**
  * Starts a Generative.fm package inside MassageLab's global audio lifecycle.
- * The adapter reuses any already prepared metadata/module promise, then starts
- * Tone only from the user-initiated playback path.
+ * The adapter reuses any already prepared metadata/module promise and requests
+ * Tone activation immediately from the user-initiated playback path.
  */
 export async function startGenerativeFmPiece({
+  isCurrent = () => true,
   onLoadProgress,
   station,
   volume = 0.75,
@@ -123,13 +129,15 @@ export async function startGenerativeFmPiece({
 
   const startedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.04)
-  const prepared = await getPreparedGenerativeFmRuntime(station, "playback")
-  const preparedAt = performance.now()
+  const playbackPreparation = await prepareGenerativeFmPlayback({
+    loadRuntimeModules: loadGenerativeFmRuntimeModules,
+    prepareRuntime: () => getPreparedGenerativeFmRuntime(station, "playback"),
+  })
+  const prepared = playbackPreparation.prepared as PreparedGenerativeFmRuntimeResult
+  const { preparedAt, toneStartedAt } = playbackPreparation
   reportLoadProgress(onLoadProgress, 0.22)
   const { Tone, createWebProvider, createWebLibrary, piece, pieceId, sampleIndex } = prepared
 
-  await Tone.start()
-  const toneStartedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.32)
 
   const providerRequestStats = createGenerativeFmProviderRequestStats()
@@ -160,6 +168,14 @@ export async function startGenerativeFmPiece({
   } catch (error) {
     output.dispose()
     throw error
+  }
+
+  // A newer request may finish while this piece is preparing. Do not let this
+  // stale graph cancel or claim the newer request's shared Tone.Transport.
+  if (!isCurrent()) {
+    deactivate()
+    output.dispose()
+    return () => undefined
   }
   const activatedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.9)
@@ -201,9 +217,9 @@ export async function startGenerativeFmPiece({
     sampleRequestMemoryHitUrlCount: providerRequestStats.memoryHitUrlCount,
     sampleRequestUniqueUrlCount: providerRequestStats.uniqueUrlCount,
     sampleRequestUrlCount: providerRequestStats.requestedUrlCount,
-    prepareWaitMs: preparedAt - startedAt,
-    toneStartMs: toneStartedAt - preparedAt,
-    pieceActivateMs: activatedAt - toneStartedAt,
+    prepareWaitMs: Math.max(0, preparedAt - toneStartedAt),
+    toneStartMs: Math.max(0, toneStartedAt - startedAt),
+    pieceActivateMs: Math.max(0, activatedAt - Math.max(preparedAt, toneStartedAt)),
     scheduleMs: scheduledAt - activatedAt,
     totalMs: scheduledAt - startedAt,
   })
@@ -530,25 +546,8 @@ function resolveToneContext(Tone: ToneModule) {
   return Tone.context
 }
 
-/**
- * Loads the requested Generative.fm package piece. Observable Streams stays on
- * the single-piece package because its exported runtime matches the hosted
- * rendered sample keys verified for MassageLab playback; the aggregate package
- * remains the catalog source for future sample-enabled stations.
- */
 async function loadGenerativeFmPiece(pieceId: string): Promise<GenerativeMusicPiece> {
-  if (pieceId === "observable-streams") {
-    const { default: piece } = await import("@generative-music/piece-observable-streams")
-    return piece
-  }
-
-  const { byId: piecesById } = await import("@generative-music/pieces-alex-bainter")
-  const piece = piecesById?.[pieceId] as GenerativeMusicPiece | undefined
-  if (!piece) {
-    throw new Error(`Generative.fm package did not expose piece id: ${pieceId}`)
-  }
-
-  return piece
+  return loadGenerativeFmPieceModule(pieceId) as Promise<GenerativeMusicPiece>
 }
 
 /**
