@@ -46,6 +46,17 @@ test("interruption resumes when enabled and pauses when disabled", () => {
   assert.deepEqual(disabled.effects, ["STOP_GENERATOR_RETAIN_MEDIA"])
 })
 
+test("disabling resume during an interruption prevents late recovery", () => {
+  const interrupted = transitionAtmospherePlayback(playing, { type: "INTERRUPTION_STARTED" }).state
+  const disabled = transitionAtmospherePlayback(interrupted, { type: "SET_SESSION_RESUME", value: false }).state
+  const recovery = transitionAtmospherePlayback(disabled, { type: "INTERRUPTION_ENDED" })
+
+  assert.equal(recovery.state.status, "paused")
+  assert.equal(recovery.state.explicitIntent, "pause")
+  assert.equal(recovery.state.interruptionObserved, false)
+  assert.deepEqual(recovery.effects, ["NONE"])
+})
+
 test("explicit stop wins over late recovery", () => {
   const interrupted = transitionAtmospherePlayback(playing, { type: "INTERRUPTION_STARTED" }).state
   const stopped = transitionAtmospherePlayback(interrupted, { type: "EXPLICIT_STOP" }).state
