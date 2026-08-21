@@ -40,9 +40,19 @@ import {
   normalizeMusicVisualizerAccountPreferences,
   normalizeMusicVisualizerDevicePreferences,
 } from "@/lib/music-visualizer"
-import type { ToneProofDroneDiagnostics } from "@/lib/atmosphere/tone-proof-runtime"
+import type { AtmoShaperRecipe } from "@/lib/atmoshaper/recipe.js"
 
 type PlaybackState = "stopped" | "loading" | "playing" | "interrupted" | "paused" | "failed"
+export type MusicPlaybackKind = "station" | "atmoshaper" | null
+type PlaybackKind = MusicPlaybackKind
+
+type ToneProofDroneDiagnostics = {
+  sessionId: number
+  audioContextState: string
+  startedAt: number
+  currentTime: number
+  elapsed: number
+}
 
 const STOPPED_PLAYER_RETENTION_MS = 60_000
 
@@ -68,10 +78,33 @@ export interface MusicVisualizerState {
   signedIn: boolean
 }
 
+type AtmoShaperRuntimeSnapshot = {
+  status: "stopped" | "loading" | "playing" | "paused" | "failed"
+  recipe: AtmoShaperRecipe | null
+  layers: Record<string, {
+    status: "loading" | "playing" | "paused" | "failed"
+    error?: string
+  }>
+}
+
+type LoadedAtmoShaperRuntime = {
+  start: (recipe: AtmoShaperRecipe) => Promise<void>
+  applyRecipe: (recipe: AtmoShaperRecipe) => Promise<void>
+  pause: () => Promise<void>
+  resume: () => Promise<void>
+  stop: () => Promise<void>
+  dispose: () => Promise<void>
+  setMasterVolume: (volume: number) => void
+  getSnapshot: () => AtmoShaperRuntimeSnapshot
+}
+
 interface MusicContextType {
+  activePlaybackKind: PlaybackKind
   activeStationId: string | null
   activeStationTitle: string | null
   activeStationArtwork: AtmosphereStationArtworkInput | null
+  canNavigateStations: boolean
+  atmoShaperSnapshot: AtmoShaperRuntimeSnapshot | null
   playbackState: PlaybackState
   loadingProgress: number | null
   loadingStartedAt: number | null
@@ -83,6 +116,9 @@ interface MusicContextType {
   miniPlayerCollapsed: boolean
   visualizer: MusicVisualizerState
   playStation: (stationId: string, options?: PlaybackStartOptions) => Promise<void>
+  playAtmoShaper: (recipe: AtmoShaperRecipe) => Promise<void>
+  updateAtmoShaper: (recipe: AtmoShaperRecipe) => Promise<void>
+  retryAtmoShaperLayer: (layerId: string) => Promise<void>
   playNextStation: () => Promise<void>
   playPreviousStation: () => Promise<void>
   prewarmStation: (
@@ -90,6 +126,8 @@ interface MusicContextType {
     options?: { includeSamplePayloads?: boolean, signal?: AbortSignal },
   ) => Promise<void>
   retryRuntimeReadiness: () => void
+  pauseCurrent: () => Promise<void>
+  restartCurrent: () => Promise<void>
   stopCurrent: () => Promise<void>
   mediaIntegrationAvailable: boolean
   resumeAfterInterruptionDefault: boolean
@@ -235,9 +273,12 @@ type LoadedAtmosphereRuntime = AtmosphereRuntimeModules & {
 const defaultStorage = createDefaultAtmosphereStorage() as AtmosphereStorageState
 
 const defaultMusicContext: MusicContextType = {
+  activePlaybackKind: null,
   activeStationId: null,
   activeStationTitle: null,
   activeStationArtwork: null,
+  canNavigateStations: false,
+  atmoShaperSnapshot: null,
   playbackState: "stopped",
   loadingProgress: null,
   loadingStartedAt: null,
@@ -258,10 +299,15 @@ const defaultMusicContext: MusicContextType = {
     signedIn: false,
   },
   playStation: async () => undefined,
+  playAtmoShaper: async () => undefined,
+  updateAtmoShaper: async () => undefined,
+  retryAtmoShaperLayer: async () => undefined,
   playNextStation: async () => undefined,
   playPreviousStation: async () => undefined,
   prewarmStation: async () => undefined,
   retryRuntimeReadiness: () => undefined,
+  pauseCurrent: async () => undefined,
+  restartCurrent: async () => undefined,
   stopCurrent: async () => undefined,
   mediaIntegrationAvailable: false,
   resumeAfterInterruptionDefault: true,
@@ -290,9 +336,11 @@ export function MusicProvider({
   children: ReactNode
   accountSyncEnabled?: boolean
 }) {
+  const [activePlaybackKind, setActivePlaybackKind] = useState<PlaybackKind>(null)
   const [activeStationId, setActiveStationId] = useState<string | null>(null)
   const [activeStationTitle, setActiveStationTitle] = useState<string | null>(null)
   const [activeStationArtwork, setActiveStationArtwork] = useState<AtmosphereStationArtworkInput | null>(null)
+  const [atmoShaperSnapshot, setAtmoShaperSnapshot] = useState<AtmoShaperRuntimeSnapshot | null>(null)
   const [playbackState, setPlaybackState] = useState<PlaybackState>("stopped")
   const [loadingProgress, setLoadingProgress] = useState<number | null>(null)
   const [loadingStartedAt, setLoadingStartedAt] = useState<number | null>(null)
@@ -320,6 +368,11 @@ export function MusicProvider({
   const volumeRef = useRef(defaultStorage.volume)
   const runtimeRef = useRef<LoadedAtmosphereRuntime | null>(null)
   const runtimeLoadPromiseRef = useRef<Promise<LoadedAtmosphereRuntime> | null>(null)
+  const atmoShaperRuntimeRef = useRef<LoadedAtmoShaperRuntime | null>(null)
+  const atmoShaperPendingRuntimeRef = useRef<Promise<LoadedAtmoShaperRuntime> | null>(null)
+  const atmoShaperDisposalPromiseRef = useRef<Promise<void>>(Promise.resolve())
+  const atmoShaperRuntimeLeaseRef = useRef(0)
+  const atmoShaperRecipeRef = useRef<AtmoShaperRecipe | null>(null)
   const storageStateRef = useRef(defaultStorage)
   const accountRequestIdRef = useRef(0)
   const accountAbortControllerRef = useRef<AbortController | null>(null)
@@ -329,6 +382,7 @@ export function MusicProvider({
   const pendingAccountDefaultBackgroundIdRef = useRef<string | null>(null)
   const failedAccountPayloadRef = useRef<MusicVisualizerAccountPreferences | null>(null)
   const isMountedRef = useRef(true)
+  const activePlaybackKindRef = useRef<PlaybackKind>(null)
   const activeStationIdRef = useRef<string | null>(null)
   const activeStationMetadataRef = useRef<AtmosphereStationMetadata | null>(null)
   const activeStationArtworkRef = useRef<AtmosphereStationArtworkInput | null>(null)
@@ -343,6 +397,7 @@ export function MusicProvider({
   const playNextStationRef = useRef<MusicContextType["playNextStation"]>(async () => undefined)
   const playPreviousStationRef = useRef<MusicContextType["playPreviousStation"]>(async () => undefined)
   const pauseCurrentRef = useRef<() => Promise<void>>(async () => undefined)
+  const restartCurrentRef = useRef<(origin?: PlaybackStartOptions["origin"]) => Promise<void>>(async () => undefined)
   const stopCurrentRef = useRef<() => Promise<void>>(async () => undefined)
   const interruptionStartedRef = useRef<() => void>(() => undefined)
   const interruptionRecoveredRef = useRef<() => void>(() => undefined)
@@ -364,32 +419,41 @@ export function MusicProvider({
     stoppedPlayerRetentionTimeoutRef.current = null
   }, [])
 
-  /** Clears retained identity only while the exact stopped session still owns it. */
-  const retireStoppedPlayer = useCallback((sessionGeneration: number, stoppedStationId: string) => {
+  /** Clears retained identity only while the exact stopped source still owns it. */
+  const retireStoppedPlayer = useCallback((
+    sessionGeneration: number,
+    stoppedStationId: string | null,
+    stoppedPlaybackKind: Exclude<PlaybackKind, null>,
+  ) => {
     stoppedPlayerRetentionTimeoutRef.current = null
     if (
       sessionGeneration !== playbackSessionGenerationRef.current
       || playbackLifecycleRef.current.status !== "stopped"
-      || activeStationIdRef.current !== stoppedStationId
+      || activePlaybackKindRef.current !== stoppedPlaybackKind
+      || (stoppedPlaybackKind === "station" && activeStationIdRef.current !== stoppedStationId)
     ) return
 
+    activePlaybackKindRef.current = null
     activeStationIdRef.current = null
     activeStationMetadataRef.current = null
     activeStationArtworkRef.current = null
+    setActivePlaybackKind(null)
     setActiveStationId(null)
     setActiveStationTitle(null)
     setActiveStationArtwork(null)
+    setAtmoShaperSnapshot(null)
   }, [])
 
   /** Replaces the prior Stop deadline so retention is anchored to the latest intent. */
   const scheduleStoppedPlayerRetirement = useCallback((
     sessionGeneration: number,
     stoppedStationId: string | null,
+    stoppedPlaybackKind: PlaybackKind,
   ) => {
     cancelStoppedPlayerRetirement()
-    if (!stoppedStationId) return
+    if (!stoppedPlaybackKind) return
     stoppedPlayerRetentionTimeoutRef.current = window.setTimeout(
-      () => retireStoppedPlayer(sessionGeneration, stoppedStationId),
+      () => retireStoppedPlayer(sessionGeneration, stoppedStationId, stoppedPlaybackKind),
       STOPPED_PLAYER_RETENTION_MS,
     )
   }, [cancelStoppedPlayerRetirement, retireStoppedPlayer])
@@ -404,14 +468,12 @@ export function MusicProvider({
   ) => {
     const controller = mediaSessionControllerRef.current
     if (!controller) return
+    const canNavigateStations = activePlaybackKindRef.current === "station"
     controller.publish({
       metadata: station,
       playbackState: state === "paused" || state === "interrupted" ? "paused" : "playing",
       handlers: {
-        play: () => {
-          const stationId = activeStationIdRef.current
-          if (stationId) void playStationRef.current(stationId, { origin: "media-session" })
-        },
+        play: () => void restartCurrentRef.current("media-session"),
         pause: () => {
           const monitor = interruptionMonitorRef.current
           if (monitor?.isInterrupted()) return
@@ -422,8 +484,12 @@ export function MusicProvider({
           void pauseCurrentRef.current()
         },
         stop: () => void stopCurrentRef.current(),
-        previoustrack: () => void playPreviousStationRef.current(),
-        nexttrack: () => void playNextStationRef.current(),
+        previoustrack: canNavigateStations
+          ? () => void playPreviousStationRef.current()
+          : undefined,
+        nexttrack: canNavigateStations
+          ? () => void playNextStationRef.current()
+          : undefined,
       },
     })
   }, [])
@@ -507,6 +573,42 @@ export function MusicProvider({
 
     return runtimeLoadPromiseRef.current
   }, [reportStationLoadProgress])
+
+  /**
+   * Invalidates AtmoShaper callbacks immediately, then serializes cleanup of
+   * both an adopted runtime and a runtime still crossing its lazy-load await.
+   * This keeps overlapping source replacements from adopting or starting a
+   * superseded audio owner.
+   */
+  const disposeAtmoShaperRuntime = useCallback(() => {
+    atmoShaperRuntimeLeaseRef.current += 1
+    const runtime = atmoShaperRuntimeRef.current
+    const pendingRuntime = atmoShaperPendingRuntimeRef.current
+    atmoShaperRuntimeRef.current = null
+    atmoShaperPendingRuntimeRef.current = null
+
+    const priorDisposal = atmoShaperDisposalPromiseRef.current
+    const nextDisposal = priorDisposal.then(async () => {
+      let pending: LoadedAtmoShaperRuntime | null = null
+      if (pendingRuntime) {
+        try {
+          pending = await pendingRuntime
+        } catch {
+          // A failed lazy runtime has no owned graph to dispose.
+        }
+      }
+      const runtimes = new Set([runtime, pending].filter((value): value is LoadedAtmoShaperRuntime => Boolean(value)))
+      await Promise.all([...runtimes].map(async (ownedRuntime) => {
+        try {
+          await ownedRuntime.dispose()
+        } catch {
+          // Terminal replacement cleanup must continue for every captured owner.
+        }
+      }))
+    })
+    atmoShaperDisposalPromiseRef.current = nextDisposal.catch(() => undefined)
+    return nextDisposal
+  }, [])
 
   const beginAccountRequest = useCallback(() => {
     accountAbortControllerRef.current?.abort()
@@ -738,7 +840,8 @@ export function MusicProvider({
     runtimeRef.current = null
     runtimeLoadPromiseRef.current = null
     void runtime?.controller.stop()
-  }, [])
+    void disposeAtmoShaperRuntime()
+  }, [disposeAtmoShaperRuntime])
 
   useEffect(() => {
     isMountedRef.current = true
@@ -806,12 +909,16 @@ export function MusicProvider({
     void syncVisualizerAccountPreferences()
   }, [accountSyncEnabled, storageHydrated, syncVisualizerAccountPreferences])
 
-  // Keep the active Tone graph in sync with saved volume changes without
-  // restarting the station or creating a second audio context.
+  // Keep only the current owner's master output in sync with saved volume.
+  // An inactive graph must never be woken or adjusted by preference hydration.
   useEffect(() => {
     volumeRef.current = storageState.volume
-    runtimeRef.current?.setToneProofDroneVolume(storageState.volume)
-    runtimeRef.current?.setGenerativeFmPieceVolume(storageState.volume)
+    if (activePlaybackKindRef.current === "station") {
+      runtimeRef.current?.setToneProofDroneVolume(storageState.volume)
+      runtimeRef.current?.setGenerativeFmPieceVolume(storageState.volume)
+    } else if (activePlaybackKindRef.current === "atmoshaper") {
+      atmoShaperRuntimeRef.current?.setMasterVolume(storageState.volume)
+    }
   }, [storageState.volume])
 
   /** Settle notification/interruption availability without owning generator playback. */
@@ -866,6 +973,7 @@ export function MusicProvider({
     cancelStoppedPlayerRetirement()
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
+    const atmoShaperDisposal = disposeAtmoShaperRuntime()
     const continueSession = options.continueSession === true
       && playbackLifecycleRef.current.sessionId > 0
       && playbackLifecycleRef.current.status !== "stopped"
@@ -902,11 +1010,14 @@ export function MusicProvider({
       ? activeStationArtworkRef.current
       : null
     const initialArtwork = suppliedArtwork ?? retainedArtwork
+    activePlaybackKindRef.current = "station"
     activeStationIdRef.current = stationId
     activeStationArtworkRef.current = initialArtwork
+    setActivePlaybackKind("station")
     setActiveStationId(stationId)
     setActiveStationTitle(initialArtwork?.title ?? retainedMetadata?.title ?? null)
     setActiveStationArtwork(initialArtwork)
+    setAtmoShaperSnapshot(null)
     setLoadingProgress(0.02)
     setLoadingStartedAt(Date.now())
     loadingStationIdRef.current = stationId
@@ -1005,6 +1116,13 @@ export function MusicProvider({
     publishMediaSession(stationMetadata, "loading")
 
     try {
+      await atmoShaperDisposal
+      if (
+        requestId !== playbackRequestIdRef.current
+        || sessionGeneration !== playbackSessionGenerationRef.current
+      ) {
+        return
+      }
       const runtimeResult = await runtime.controller.start(station)
       await carrierStartPromise.catch(() => ({ available: false }))
       if (
@@ -1043,6 +1161,7 @@ export function MusicProvider({
   }, [
     cancelStoppedPlayerRetirement,
     commitPlaybackLifecycle,
+    disposeAtmoShaperRuntime,
     ensureInterruptionMonitor,
     getRuntime,
     mediaIntegrationAvailable,
@@ -1050,8 +1169,227 @@ export function MusicProvider({
     settleMediaIntegrationAvailability,
   ])
 
+  /**
+   * Replaces the ordinary station owner with one lazily composed mixer. The
+   * provider owns the cross-source lease; the runtime owns only mix layers.
+   */
+  const playAtmoShaper = useCallback(async (
+    recipe: AtmoShaperRecipe,
+    options: Pick<PlaybackStartOptions, "origin"> = {},
+  ) => {
+    cancelStoppedPlayerRetirement()
+    const requestId = playbackRequestIdRef.current + 1
+    playbackRequestIdRef.current = requestId
+    playbackSessionGenerationRef.current += 1
+    const sessionGeneration = playbackSessionGenerationRef.current
+    commitPlaybackLifecycle({
+      type: options.origin === "media-session" ? "BEGIN_EXTERNAL_SESSION" : "BEGIN_IN_APP_SESSION",
+      savedDefault: resumeAfterInterruptionDefaultRef.current,
+      documentVisible: document.visibilityState !== "hidden",
+      integrationAvailable: mediaIntegrationAvailable,
+    })
+    const lifecycleSessionId = playbackLifecycleRef.current.sessionId
+
+    // Ordinary station cleanup is synchronous at its established controller
+    // boundary. AtmoShaper cleanup is awaited because it owns async layer fades.
+    runtimeRef.current?.controller.stop()
+    const priorAtmoShaperDisposal = disposeAtmoShaperRuntime()
+
+    const title = recipe.name || "AtmoShaper"
+    const artwork: AtmosphereStationArtworkInput = {
+      stationId: `atmoshaper:${recipe.artworkSeed}`,
+      title,
+      description: "A custom AtmoShaper mix.",
+      groupId: "atmoshaper",
+    }
+    const metadata = { id: artwork.stationId, title, artist: "MassageLab" }
+    atmoShaperRecipeRef.current = recipe
+    activePlaybackKindRef.current = "atmoshaper"
+    activeStationIdRef.current = null
+    activeStationMetadataRef.current = metadata
+    activeStationArtworkRef.current = artwork
+    setActivePlaybackKind("atmoshaper")
+    setActiveStationId(null)
+    setActiveStationTitle(title)
+    setActiveStationArtwork(artwork)
+    setAtmoShaperSnapshot({ status: "loading", recipe, layers: {} })
+    setLoadingProgress(null)
+    setLoadingStartedAt(Date.now())
+    loadingStationIdRef.current = null
+    setError(null)
+    publishMediaSession(metadata, "loading")
+
+    // Preserve the current user-activation turn for platform media ownership.
+    const carrierStartPromise = mediaCarrierRef.current?.start()
+      ?? Promise.resolve({ available: false })
+
+    try {
+      await priorAtmoShaperDisposal
+      if (
+        requestId !== playbackRequestIdRef.current
+        || sessionGeneration !== playbackSessionGenerationRef.current
+      ) return
+
+      const runtimeLease = ++atmoShaperRuntimeLeaseRef.current
+      const pendingRuntime = import("@/lib/atmoshaper/runtime").then(async ({
+        createAtmoShaperRuntime,
+      }) => {
+        const runtime = await createAtmoShaperRuntime({
+          initialMasterVolume: volumeRef.current,
+          onSnapshot(snapshot) {
+            if (
+              runtimeLease !== atmoShaperRuntimeLeaseRef.current
+              || activePlaybackKindRef.current !== "atmoshaper"
+            ) return
+            const nextSnapshot = snapshot as AtmoShaperRuntimeSnapshot
+            setAtmoShaperSnapshot(nextSnapshot)
+            const lifecycle = playbackLifecycleRef.current
+            if (lifecycle.status !== "loading" && lifecycle.status !== "interrupted") {
+              if (
+                nextSnapshot.status === "playing"
+                || nextSnapshot.status === "paused"
+                || nextSnapshot.status === "failed"
+              ) {
+                playbackLifecycleRef.current = {
+                  ...lifecycle,
+                  status: nextSnapshot.status,
+                  explicitIntent: nextSnapshot.status === "paused" ? "pause" : "play",
+                }
+                setPlaybackState(nextSnapshot.status)
+              }
+            }
+            if (nextSnapshot.status === "failed") {
+              setError(firstAtmoShaperError(nextSnapshot) ?? "AtmoShaper could not start any layer.")
+            }
+          },
+        })
+        return runtime as LoadedAtmoShaperRuntime
+      })
+      atmoShaperPendingRuntimeRef.current = pendingRuntime
+      const runtime = await pendingRuntime
+      if (atmoShaperPendingRuntimeRef.current === pendingRuntime) {
+        atmoShaperPendingRuntimeRef.current = null
+      }
+      if (runtimeLease !== atmoShaperRuntimeLeaseRef.current) return
+      atmoShaperRuntimeRef.current = runtime
+
+      // A pause may supersede startup while intentionally retaining the newly
+      // created silent runtime and recipe for a later restart.
+      if (
+        requestId !== playbackRequestIdRef.current
+        || sessionGeneration !== playbackSessionGenerationRef.current
+      ) return
+
+      await runtime.start(recipe)
+      await carrierStartPromise.catch(() => ({ available: false }))
+      if (
+        requestId !== playbackRequestIdRef.current
+        || sessionGeneration !== playbackSessionGenerationRef.current
+        || runtimeLease !== atmoShaperRuntimeLeaseRef.current
+      ) return
+
+      const snapshot = runtime.getSnapshot()
+      setLoadingStartedAt(null)
+      if (snapshot.status === "playing") {
+        commitPlaybackLifecycle({ type: "START_SUCCEEDED", sessionId: lifecycleSessionId })
+        setError(null)
+        publishMediaSession(metadata, "playing")
+      } else {
+        commitPlaybackLifecycle({ type: "START_FAILED", sessionId: lifecycleSessionId })
+        setError(firstAtmoShaperError(snapshot) ?? "AtmoShaper could not start any layer.")
+        mediaCarrierRef.current?.pauseRetained()
+        publishMediaSession(metadata, "paused")
+      }
+    } catch (caughtError) {
+      if (
+        requestId !== playbackRequestIdRef.current
+        || sessionGeneration !== playbackSessionGenerationRef.current
+      ) return
+      setLoadingStartedAt(null)
+      commitPlaybackLifecycle({ type: "START_FAILED", sessionId: lifecycleSessionId })
+      mediaCarrierRef.current?.stopAndDismiss()
+      mediaSessionControllerRef.current?.clear()
+      setError(caughtError instanceof Error ? caughtError.message : "AtmoShaper audio could not start.")
+    }
+
+    void carrierStartPromise
+      .catch(() => ({ available: false }))
+      .then(({ available }) => settleMediaIntegrationAvailability({
+        available,
+        continueSession: false,
+        origin: options.origin,
+        requestId,
+        sessionGeneration,
+      }))
+  }, [
+    cancelStoppedPlayerRetirement,
+    commitPlaybackLifecycle,
+    disposeAtmoShaperRuntime,
+    mediaIntegrationAvailable,
+    publishMediaSession,
+    settleMediaIntegrationAvailability,
+  ])
+
+  /** Updates the retained recipe and only reconciles adapters for the active mix owner. */
+  const updateAtmoShaper = useCallback(async (recipe: AtmoShaperRecipe) => {
+    atmoShaperRecipeRef.current = recipe
+    if (activePlaybackKindRef.current !== "atmoshaper") return
+
+    const title = recipe.name || "AtmoShaper"
+    const artwork: AtmosphereStationArtworkInput = {
+      stationId: `atmoshaper:${recipe.artworkSeed}`,
+      title,
+      description: "A custom AtmoShaper mix.",
+      groupId: "atmoshaper",
+    }
+    const metadata = { id: artwork.stationId, title, artist: "MassageLab" }
+    activeStationMetadataRef.current = metadata
+    activeStationArtworkRef.current = artwork
+    setActiveStationTitle(title)
+    setActiveStationArtwork(artwork)
+
+    const runtime = atmoShaperRuntimeRef.current
+    if (!runtime) {
+      setAtmoShaperSnapshot({ status: "stopped", recipe, layers: {} })
+      return
+    }
+    const runtimeLease = atmoShaperRuntimeLeaseRef.current
+    try {
+      await runtime.applyRecipe(recipe)
+      if (
+        runtimeLease !== atmoShaperRuntimeLeaseRef.current
+        || activePlaybackKindRef.current !== "atmoshaper"
+      ) return
+      publishMediaSession(metadata, playbackLifecycleRef.current.status as PlaybackState)
+    } catch (caughtError) {
+      if (runtimeLease !== atmoShaperRuntimeLeaseRef.current) return
+      setError(caughtError instanceof Error ? caughtError.message : "AtmoShaper could not update.")
+    }
+  }, [publishMediaSession])
+
+  /** Reconciles the current recipe when its requested failed layer is still visible. */
+  const retryAtmoShaperLayer = useCallback(async (layerId: string) => {
+    const runtime = atmoShaperRuntimeRef.current
+    const recipe = atmoShaperRecipeRef.current
+    const snapshot = runtime?.getSnapshot()
+    if (
+      activePlaybackKindRef.current !== "atmoshaper"
+      || !runtime
+      || !recipe
+      || snapshot?.layers[layerId]?.status !== "failed"
+    ) return
+    if (snapshot.status === "failed") {
+      // With no surviving layer there is no active media owner to resume.
+      // Re-enter the full start path so carrier, lifecycle, and metadata agree.
+      await playAtmoShaper(recipe)
+    } else {
+      await runtime.applyRecipe(recipe)
+    }
+  }, [playAtmoShaper])
+
   const playAdjacentStation = useCallback(async (direction: 1 | -1) => {
     cancelStoppedPlayerRetirement()
+    if (activePlaybackKindRef.current !== "station") return
     const navigationRequestId = playbackRequestIdRef.current
     const navigationSessionGeneration = playbackSessionGenerationRef.current
     const runtime = await getRuntime()
@@ -1127,7 +1465,18 @@ export function MusicProvider({
     if (metadata) publishMediaSession(metadata, "paused")
 
     try {
-      runtimeRef.current?.controller.stop()
+      if (activePlaybackKindRef.current === "atmoshaper") {
+        const runtime = atmoShaperRuntimeRef.current
+        await runtime?.pause()
+        const recipe = atmoShaperRecipeRef.current
+        setAtmoShaperSnapshot(runtime?.getSnapshot() ?? (recipe
+          ? { status: "paused", recipe, layers: {} }
+          : null))
+      } else if (activePlaybackKindRef.current === "station") {
+        // Ordinary station pause intentionally retains its established
+        // dispose-and-restart semantics; only AtmoShaper keeps live handles.
+        runtimeRef.current?.controller.stop()
+      }
     } catch (caughtError) {
       if (requestId !== playbackRequestIdRef.current) {
         return
@@ -1137,12 +1486,75 @@ export function MusicProvider({
     }
   }, [commitPlaybackLifecycle, publishMediaSession])
 
+  /** Resumes AtmoShaper handles in place, while ordinary stations restart as before. */
+  const restartCurrent = useCallback(async (
+    origin: PlaybackStartOptions["origin"] = "in-app",
+  ) => {
+    const kind = activePlaybackKindRef.current
+    if (kind === "station") {
+      const stationId = activeStationIdRef.current
+      if (stationId) await playStation(stationId, { origin })
+      return
+    }
+    if (kind !== "atmoshaper") return
+
+    const recipe = atmoShaperRecipeRef.current
+    const runtime = atmoShaperRuntimeRef.current
+    if (!recipe) return
+    if (!runtime || runtime.getSnapshot().status !== "paused") {
+      await playAtmoShaper(recipe, { origin })
+      return
+    }
+
+    cancelStoppedPlayerRetirement()
+    const requestId = playbackRequestIdRef.current + 1
+    playbackRequestIdRef.current = requestId
+    const sessionId = playbackLifecycleRef.current.sessionId
+    playbackLifecycleRef.current = {
+      ...playbackLifecycleRef.current,
+      status: "loading",
+      explicitIntent: "play",
+      interruptionObserved: false,
+    }
+    setPlaybackState("loading")
+    setError(null)
+    const metadata = activeStationMetadataRef.current
+    if (metadata) publishMediaSession(metadata, "loading")
+    const carrierStartPromise = mediaCarrierRef.current?.start()
+      ?? Promise.resolve({ available: false })
+
+    try {
+      await runtime.resume()
+      await carrierStartPromise.catch(() => ({ available: false }))
+      if (requestId !== playbackRequestIdRef.current) return
+      const snapshot = runtime.getSnapshot()
+      if (snapshot.status === "playing") {
+        commitPlaybackLifecycle({ type: "START_SUCCEEDED", sessionId })
+        if (metadata) publishMediaSession(metadata, "playing")
+      } else {
+        commitPlaybackLifecycle({ type: "START_FAILED", sessionId })
+        setError(firstAtmoShaperError(snapshot) ?? "AtmoShaper could not resume.")
+      }
+    } catch (caughtError) {
+      if (requestId !== playbackRequestIdRef.current) return
+      commitPlaybackLifecycle({ type: "START_FAILED", sessionId })
+      setError(caughtError instanceof Error ? caughtError.message : "Audio could not resume.")
+    }
+  }, [
+    cancelStoppedPlayerRetirement,
+    commitPlaybackLifecycle,
+    playAtmoShaper,
+    playStation,
+    publishMediaSession,
+  ])
+
   const stopCurrent = useCallback(async () => {
     cancelStoppedPlayerRetirement()
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
     playbackSessionGenerationRef.current += 1
     const sessionGeneration = playbackSessionGenerationRef.current
+    const stoppedPlaybackKind = activePlaybackKindRef.current
     const stoppedStationId = activeStationIdRef.current
     commitPlaybackLifecycle({ type: "EXPLICIT_STOP" })
     setLoadingProgress(null)
@@ -1153,20 +1565,36 @@ export function MusicProvider({
     mediaSessionControllerRef.current?.clear()
 
     try {
-      runtimeRef.current?.controller.stop()
+      if (stoppedPlaybackKind === "atmoshaper") {
+        await disposeAtmoShaperRuntime()
+        setAtmoShaperSnapshot(atmoShaperRecipeRef.current
+          ? { status: "stopped", recipe: atmoShaperRecipeRef.current, layers: {} }
+          : null)
+      } else if (stoppedPlaybackKind === "station") {
+        runtimeRef.current?.controller.stop()
+      }
     } catch (caughtError) {
       if (requestId !== playbackRequestIdRef.current) return
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not stop.")
     }
-    scheduleStoppedPlayerRetirement(sessionGeneration, stoppedStationId)
-  }, [cancelStoppedPlayerRetirement, commitPlaybackLifecycle, scheduleStoppedPlayerRetirement])
+    scheduleStoppedPlayerRetirement(sessionGeneration, stoppedStationId, stoppedPlaybackKind)
+  }, [
+    cancelStoppedPlayerRetirement,
+    commitPlaybackLifecycle,
+    disposeAtmoShaperRuntime,
+    scheduleStoppedPlayerRetirement,
+  ])
 
   const handleInterruptionStarted = useCallback(() => {
     const current = playbackLifecycleRef.current
     if (current.status !== "playing" && current.status !== "loading") return
     playbackRequestIdRef.current += 1
     const transition = commitPlaybackLifecycle({ type: "INTERRUPTION_STARTED" })
-    try {
+    if (activePlaybackKindRef.current === "atmoshaper") {
+      void atmoShaperRuntimeRef.current?.pause().catch((caughtError: unknown) => {
+        setError(caughtError instanceof Error ? caughtError.message : "Audio could not pause.")
+      })
+    } else try {
       runtimeRef.current?.controller.stop()
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not pause.")
@@ -1182,24 +1610,50 @@ export function MusicProvider({
   const handleInterruptionRecovered = useCallback(() => {
     const sessionGeneration = playbackSessionGenerationRef.current
     const transition = commitPlaybackLifecycle({ type: "INTERRUPTION_ENDED" })
+    const playbackKind = activePlaybackKindRef.current
     const stationId = activeStationIdRef.current
     if (
       transition.effects.includes("RESUME_GENERATOR")
-      && stationId
       && sessionGeneration === playbackSessionGenerationRef.current
     ) {
-      void playStationRef.current(stationId, {
-        origin: "media-session",
-        continueSession: true,
-      })
+      if (playbackKind === "station" && stationId) {
+        void playStationRef.current(stationId, {
+          origin: "media-session",
+          continueSession: true,
+        })
+      } else if (playbackKind === "atmoshaper") {
+        const runtime = atmoShaperRuntimeRef.current
+        const recipe = atmoShaperRecipeRef.current
+        if (runtime && recipe) {
+          const carrierStartPromise = mediaCarrierRef.current?.start()
+            ?? Promise.resolve({ available: false })
+          const resume = runtime.getSnapshot().status === "paused"
+            ? runtime.resume()
+            : runtime.start(recipe)
+          void Promise.all([
+            resume,
+            carrierStartPromise.catch(() => ({ available: false })),
+          ]).then(() => {
+            if (
+              playbackSessionGenerationRef.current !== sessionGeneration
+              || activePlaybackKindRef.current !== "atmoshaper"
+            ) return
+            const metadata = activeStationMetadataRef.current
+            if (metadata) publishMediaSession(metadata, "playing")
+          }).catch((caughtError: unknown) => {
+            setError(caughtError instanceof Error ? caughtError.message : "Audio could not resume.")
+          })
+        }
+      }
     }
-  }, [commitPlaybackLifecycle])
+  }, [commitPlaybackLifecycle, publishMediaSession])
 
   useEffect(() => {
     playStationRef.current = playStation
     playNextStationRef.current = playNextStation
     playPreviousStationRef.current = playPreviousStation
     pauseCurrentRef.current = pauseCurrent
+    restartCurrentRef.current = restartCurrent
     stopCurrentRef.current = stopCurrent
     interruptionStartedRef.current = handleInterruptionStarted
     interruptionRecoveredRef.current = handleInterruptionRecovered
@@ -1211,6 +1665,7 @@ export function MusicProvider({
     playNextStation,
     playPreviousStation,
     playStation,
+    restartCurrent,
     stopCurrent,
   ])
 
@@ -1232,8 +1687,12 @@ export function MusicProvider({
   const setVolume = useCallback((nextVolume: number) => {
     const clampedVolume = Math.min(1, Math.max(0, nextVolume))
     volumeRef.current = clampedVolume
-    runtimeRef.current?.setToneProofDroneVolume(clampedVolume)
-    runtimeRef.current?.setGenerativeFmPieceVolume(clampedVolume)
+    if (activePlaybackKindRef.current === "atmoshaper") {
+      atmoShaperRuntimeRef.current?.setMasterVolume(clampedVolume)
+    } else if (activePlaybackKindRef.current === "station") {
+      runtimeRef.current?.setToneProofDroneVolume(clampedVolume)
+      runtimeRef.current?.setGenerativeFmPieceVolume(clampedVolume)
+    }
     setStorageState((current) => ({
       ...current,
       volume: clampedVolume,
@@ -1337,9 +1796,12 @@ export function MusicProvider({
   ), [])
 
   const value = useMemo<MusicContextType>(() => ({
+    activePlaybackKind,
     activeStationId,
     activeStationTitle,
     activeStationArtwork,
+    canNavigateStations: activePlaybackKind === "station" && activeStationId !== null,
+    atmoShaperSnapshot,
     playbackState,
     loadingProgress,
     loadingStartedAt,
@@ -1360,10 +1822,15 @@ export function MusicProvider({
       signedIn: accountSignedIn,
     },
     playStation,
+    playAtmoShaper,
+    updateAtmoShaper,
+    retryAtmoShaperLayer,
     playNextStation,
     playPreviousStation,
     prewarmStation,
     retryRuntimeReadiness,
+    pauseCurrent,
+    restartCurrent,
     stopCurrent,
     mediaIntegrationAvailable,
     resumeAfterInterruptionDefault,
@@ -1386,25 +1853,31 @@ export function MusicProvider({
     accountError,
     accountSignedIn,
     accountStatus,
+    activePlaybackKind,
     activeStationId,
     activeStationArtwork,
     activeStationTitle,
+    atmoShaperSnapshot,
     dismissInterruptionNotice,
     error,
     interruptionNoticeSessionId,
     loadingProgress,
     loadingStartedAt,
+    pauseCurrent,
+    playAtmoShaper,
     playNextStation,
     playPreviousStation,
     playStation,
     playbackState,
     prewarmStation,
     retryRuntimeReadiness,
+    retryAtmoShaperLayer,
     runtimeReadiness,
     mediaIntegrationAvailable,
     resumeAfterInterruptionDefault,
     resumeAfterInterruptionForSession,
     restoreVisualizerAccountDefault,
+    restartCurrent,
     retryVisualizerAccountSync,
     getPlaybackDiagnostics,
     selectVisualizerBackground,
@@ -1419,6 +1892,7 @@ export function MusicProvider({
     storageError,
     storageStatus,
     toggleFavorite,
+    updateAtmoShaper,
   ])
 
   return <MusicContext.Provider value={value}>{children}</MusicContext.Provider>
@@ -1500,6 +1974,11 @@ function isAbortError(error: unknown) {
 
 function clampLoadingProgress(progress: number) {
   return Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0))
+}
+
+/** Returns one privacy-safe layer failure for the global player status. */
+function firstAtmoShaperError(snapshot: AtmoShaperRuntimeSnapshot) {
+  return Object.values(snapshot.layers).find(({ error }) => Boolean(error))?.error ?? null
 }
 
 /**

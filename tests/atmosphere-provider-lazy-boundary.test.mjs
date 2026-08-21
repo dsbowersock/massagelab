@@ -27,4 +27,23 @@ describe("Atmosphere provider lazy-loading boundary", () => {
       )
     }
   })
+
+  it("loads AtmoShaper through its single composition root only", () => {
+    assert.doesNotMatch(
+      providerSource,
+      /^import\s+(?!type\b)[^;\n]*from\s+["'](?:tone(?:\/[^"']*)?|@\/lib\/atmoshaper\/(?:runtime|generated-audio-runtime))["']/m,
+    )
+    assert.doesNotMatch(providerSource, /^import .*@\/lib\/atmoshaper\/runtime/m)
+    assert.equal(
+      (providerSource.match(/import\("@\/lib\/atmoshaper\/runtime"\)/g) ?? []).length,
+      1,
+      "the provider should dynamically import exactly the AtmoShaper composition root",
+    )
+    assert.doesNotMatch(providerSource, /@generative-music\//)
+    assert.doesNotMatch(
+      providerSource,
+      /^import .*@\/lib\/atmosphere\/(?:generative-fm-runtime|tone-proof-runtime)/m,
+      "generator runtime modules must have no static provider imports, including type-only imports",
+    )
+  })
 })
