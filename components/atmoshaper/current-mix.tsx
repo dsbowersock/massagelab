@@ -24,9 +24,11 @@ type VisibleMixRow = {
 
 export function CurrentMix({
   actions,
+  headingId = "atmoshaper-current-mix-title",
   recipe,
 }: {
   actions: AtmoShaperRecipeActions
+  headingId?: string
   recipe: AtmoShaperRecipe
 }) {
   const music = useMusic()
@@ -56,14 +58,6 @@ export function CurrentMix({
   ]
   const rowKeys = visibleRows.map(({ key }) => key)
   const rowKeySignature = rowKeys.join("\u0000")
-  const transportAction = atmoShaperWorkspaceTransportAction({
-    activePlaybackKind: music.activePlaybackKind,
-    localRecipeId: recipe.id,
-    playbackState: music.playbackState,
-    providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
-  })
-  const isPlayingThisRecipe = transportAction === "pause"
-
   useLayoutEffect(() => {
     const focusTarget = pendingFocusTargetRef.current
     if (focusTarget === undefined) return
@@ -77,16 +71,6 @@ export function CurrentMix({
     else headingRef.current?.focus()
   }, [rowKeySignature])
 
-  function handlePlayPause() {
-    if (transportAction === "pause") {
-      void music.pauseCurrent()
-    } else if (transportAction === "restart") {
-      void music.restartCurrent()
-    } else {
-      void music.playAtmoShaper(recipe)
-    }
-  }
-
   /** Defers focus until React commits the recipe state without the removed row. */
   function removeRow(row: VisibleMixRow) {
     pendingFocusTargetRef.current = focusTargetAfterAtmoShaperVisibleRowRemoval(visibleRows, row.key)
@@ -95,11 +79,11 @@ export function CurrentMix({
   }
 
   return (
-    <section className="ml-atmoshaper-current-mix min-w-0" aria-labelledby="atmoshaper-current-mix-title">
+    <section className="ml-atmoshaper-current-mix min-w-0" aria-labelledby={headingId}>
       <div className="space-y-1">
         <h2
           ref={headingRef}
-          id="atmoshaper-current-mix-title"
+          id={headingId}
           className="text-xl font-semibold"
           tabIndex={-1}
         >
@@ -211,20 +195,7 @@ export function CurrentMix({
       </ol>
 
       <div className="ml-atmoshaper-master-controls mt-4 grid gap-3" aria-label="AtmoShaper playback controls">
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" disabled={recipe.layers.length === 0} onClick={handlePlayPause}>
-            {isPlayingThisRecipe ? "Pause AtmoShaper" : "Play AtmoShaper"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            aria-label="Stop AtmoShaper"
-            disabled={music.playbackState === "stopped"}
-            onClick={() => void music.stopCurrent()}
-          >
-            Stop
-          </Button>
-        </div>
+        <AtmoShaperTransportButtons recipe={recipe} />
         <Slider
           aria-label="AtmoShaper master volume"
           min={0}
@@ -235,6 +206,71 @@ export function CurrentMix({
         />
       </div>
     </section>
+  )
+}
+
+/** Keeps the narrow tray useful without duplicating the full layer editor. */
+export function CurrentMixTray({ recipe }: { recipe: AtmoShaperRecipe }) {
+  return (
+    <section className="ml-atmoshaper-current-mix-tray-summary" aria-label="Compact Current Mix">
+      <div className="min-w-0">
+        <strong>Current Mix</strong>
+        <p className="truncate text-xs text-muted-foreground">
+          {recipe.layers.length === 0
+            ? "Add a sound to begin."
+            : `${recipe.layers.length} layer${recipe.layers.length === 1 ? "" : "s"}`}
+        </p>
+      </div>
+      <AtmoShaperTransportButtons compact recipe={recipe} />
+    </section>
+  )
+}
+
+function AtmoShaperTransportButtons({
+  compact = false,
+  recipe,
+}: {
+  compact?: boolean
+  recipe: AtmoShaperRecipe
+}) {
+  const music = useMusic()
+  const transportAction = atmoShaperWorkspaceTransportAction({
+    activePlaybackKind: music.activePlaybackKind,
+    localRecipeId: recipe.id,
+    playbackState: music.playbackState,
+    providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
+  })
+  const isPlayingThisRecipe = transportAction === "pause"
+
+  // The provider owns source replacement; this surface only selects the
+  // correct pause, retained-restart, or explicit ownership-transfer action.
+  function handlePlayPause() {
+    if (transportAction === "pause") void music.pauseCurrent()
+    else if (transportAction === "restart") void music.restartCurrent()
+    else void music.playAtmoShaper(recipe)
+  }
+
+  return (
+    <div className={compact ? "ml-atmoshaper-tray-transport flex flex-wrap gap-2" : "flex flex-wrap gap-2"}>
+      <Button
+        type="button"
+        size={compact ? "sm" : "default"}
+        disabled={recipe.layers.length === 0}
+        onClick={handlePlayPause}
+      >
+        {isPlayingThisRecipe ? "Pause AtmoShaper" : "Play AtmoShaper"}
+      </Button>
+      <Button
+        type="button"
+        size={compact ? "sm" : "default"}
+        variant="outline"
+        aria-label="Stop AtmoShaper"
+        disabled={music.playbackState === "stopped"}
+        onClick={() => void music.stopCurrent()}
+      >
+        Stop
+      </Button>
+    </div>
   )
 }
 

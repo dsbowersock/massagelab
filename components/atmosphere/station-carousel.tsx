@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { StepBack, StepForward } from "lucide-react"
 import { AtmosphereStationCarouselCard } from "@/components/atmosphere/station-carousel-card"
+import { AtmoShaperWorkspace } from "@/components/atmoshaper/atmoshaper-workspace"
 import { AdaptiveCarouselStage } from "@/components/carousels/adaptive-carousel-stage"
 import {
   getResponsiveStationCarouselTuning,
@@ -311,12 +312,7 @@ export function AtmosphereStationCarousel({
             </div>
           </div>
         ) : isAtmoshaperCategory ? (
-          <div
-            className="ml-atmosphere-station-special-state"
-            data-testid="atmoshaper-coming-soon"
-          >
-            <strong>Coming soon</strong>
-          </div>
+          <AtmoShaperWorkspace />
         ) : (
           <AdaptiveCarouselStage
             key={group.id}
