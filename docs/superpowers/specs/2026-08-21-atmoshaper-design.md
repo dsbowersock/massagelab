@@ -2,7 +2,7 @@
 
 Date: 2026-08-21
 
-Status: Approved in product brainstorming; awaiting written-spec review before implementation planning.
+Status: Approved for implementation planning.
 
 ## Context
 
