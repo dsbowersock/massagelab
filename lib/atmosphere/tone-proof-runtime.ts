@@ -4,15 +4,21 @@
 import { Volume } from "tone/build/esm/component/channel/Volume"
 import { Filter } from "tone/build/esm/component/filter/Filter"
 import { start } from "tone/build/esm/core/Global"
+import type { InputNode } from "tone/build/esm/core/context/ToneAudioNode"
 import { Oscillator } from "tone/build/esm/source/oscillator/Oscillator"
 
 type ToneProofDroneOptions = {
   baseFrequency?: number
+  destination?: InputNode
   detuneCents?: number
   fadeSeconds?: number
   /** False once a newer request owns shared audio; stale starts must stay inert. */
   isCurrent?: () => boolean
   volume?: number
+}
+
+type ToneProofDronePlaybackHandle = (() => void) & {
+  setVolume(nextVolume: number, seconds?: number): void
 }
 
 let activeVolumeNode: Volume | null = null
@@ -58,11 +64,12 @@ export function getToneProofDroneDiagnostics(): ToneProofDroneDiagnostics | null
  */
 export async function startToneProofDrone({
   baseFrequency = 110,
+  destination,
   detuneCents = 7,
   fadeSeconds = 1.2,
   isCurrent = () => true,
   volume = 0.75,
-}: ToneProofDroneOptions = {}) {
+}: ToneProofDroneOptions = {}): Promise<ToneProofDronePlaybackHandle> {
   if (typeof window === "undefined") {
     throw new Error("Tone proof stations can only start in the browser.")
   }
@@ -71,18 +78,21 @@ export async function startToneProofDrone({
 
   // Activation is asynchronous, so confirm ownership before allocating nodes.
   if (!isCurrent()) {
-    return () => undefined
+    return createSilentToneProofHandle()
   }
 
   const safeBaseFrequency = toFinitePositive(baseFrequency, 110)
   const detuneRatio = Math.pow(2, toFiniteNumber(detuneCents, 7) / 1200)
   const safeFadeSeconds = toFiniteNonNegative(fadeSeconds, 1.2)
-  const output = new Volume(volumeToDecibels(0)).toDestination()
+  const output = new Volume(volumeToDecibels(0))
+  if (destination) output.connect(destination)
+  else output.toDestination()
   const filter = new Filter(620, "lowpass", -12).connect(output)
   const baseOscillator = new Oscillator(safeBaseFrequency, "sine").connect(filter)
   const detunedOscillator = new Oscillator(safeBaseFrequency * detuneRatio, "sine").connect(filter)
   const lowOscillator = new Oscillator(safeBaseFrequency / 2, "triangle").connect(filter)
   let disposed = false
+  let stopping = false
 
   activeVolumeNode = output
   activeProofSession = {
@@ -97,7 +107,12 @@ export async function startToneProofDrone({
   lowOscillator.start("+0.08")
   output.volume.rampTo(volumeToDecibels(volume), safeFadeSeconds)
 
-  return () => {
+  const stopPlayback = (() => {
+    if (stopping) {
+      return
+    }
+    stopping = true
+
     if (activeVolumeNode === output) {
       activeVolumeNode = null
     }
@@ -126,7 +141,11 @@ export async function startToneProofDrone({
     }
 
     window.setTimeout(disposeToneGraph, Math.ceil(safeFadeSeconds * 1000))
+  }) as ToneProofDronePlaybackHandle
+  stopPlayback.setVolume = (nextVolume: number, seconds = 0.08) => {
+    output.volume.rampTo(volumeToDecibels(nextVolume), seconds)
   }
+  return stopPlayback
 }
 
 export function setToneProofDroneVolume(volume: number) {
@@ -135,6 +154,13 @@ export function setToneProofDroneVolume(volume: number) {
   }
 
   activeVolumeNode.volume.value = volumeToDecibels(volume)
+}
+
+/** Preserves callable cleanup compatibility for starts invalidated before graph allocation. */
+function createSilentToneProofHandle(): ToneProofDronePlaybackHandle {
+  const stopPlayback = (() => undefined) as ToneProofDronePlaybackHandle
+  stopPlayback.setVolume = () => undefined
+  return stopPlayback
 }
 
 function volumeToDecibels(volume: number) {

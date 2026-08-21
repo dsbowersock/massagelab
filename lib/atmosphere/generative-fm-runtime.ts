@@ -12,6 +12,7 @@ import {
   loadGenerativeFmPieceModule,
   prepareGenerativeFmPlayback,
 } from "./generative-fm-piece-loader"
+import type { InputNode } from "tone/build/esm/core/context/ToneAudioNode"
 
 type HostedCompressedSampleFormat = "opus" | "aac" | "mp3"
 type HostedSampleFormat = HostedCompressedSampleFormat | "wav"
@@ -27,10 +28,15 @@ type GenerativeFmRuntimeStation = {
 }
 
 type GenerativeFmRuntimeOptions = {
+  destination?: InputNode
   station: GenerativeFmRuntimeStation
   volume?: number
   onLoadProgress?: (progress: number) => void
   isCurrent?: () => boolean
+}
+
+type GenerativeFmPlaybackHandle = (() => void) & {
+  setVolume(nextVolume: number, seconds?: number): void
 }
 
 type GenerativeFmPrewarmOptions = {
@@ -118,11 +124,12 @@ const HOSTED_SAMPLE_FORMAT_PREFERENCE: ReadonlyArray<{
  * Tone activation immediately from the user-initiated playback path.
  */
 export async function startGenerativeFmPiece({
+  destination,
   isCurrent = () => true,
   onLoadProgress,
   station,
   volume = 0.75,
-}: GenerativeFmRuntimeOptions) {
+}: GenerativeFmRuntimeOptions): Promise<GenerativeFmPlaybackHandle> {
   if (typeof window === "undefined") {
     throw new Error("Generative.fm stations can only start in the browser.")
   }
@@ -153,7 +160,9 @@ export async function startGenerativeFmPiece({
     },
   }) as ReturnType<WebProviderFactory>
   const sampleLibrary = createWebLibrary({ sampleIndex, provider })
-  const output = new Tone.Volume(volumeToDecibels(0)).toDestination()
+  const output = new Tone.Volume(volumeToDecibels(0))
+  if (destination) output.connect(destination)
+  else output.toDestination()
   let deactivate: () => unknown
   let schedule: () => (() => unknown) | undefined
   try {
@@ -175,7 +184,7 @@ export async function startGenerativeFmPiece({
   if (!isCurrent()) {
     deactivate()
     output.dispose()
-    return () => undefined
+    return createSilentGenerativeFmHandle()
   }
   const activatedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.9)
@@ -228,7 +237,7 @@ export async function startGenerativeFmPiece({
   output.volume.rampTo?.(volumeToDecibels(volume), GENERATIVE_FM_HANDOFF_FADE_SECONDS)
 
   let disposed = false
-  return () => {
+  const stop = (() => {
     if (disposed) {
       return
     }
@@ -257,7 +266,11 @@ export async function startGenerativeFmPiece({
       deactivate()
       output.dispose()
     }, Math.ceil(GENERATIVE_FM_HANDOFF_FADE_SECONDS * 1000))
+  }) as GenerativeFmPlaybackHandle
+  stop.setVolume = (nextVolume: number, seconds = 0.08) => {
+    output.volume.rampTo?.(volumeToDecibels(nextVolume), seconds)
   }
+  return stop
 }
 
 /**
@@ -290,6 +303,13 @@ export function setGenerativeFmPieceVolume(volume: number) {
   }
 
   activeVolumeNode.volume.value = volumeToDecibels(volume)
+}
+
+/** Returns the callable legacy shape even when an obsolete start allocates no live graph. */
+function createSilentGenerativeFmHandle(): GenerativeFmPlaybackHandle {
+  const stop = (() => undefined) as GenerativeFmPlaybackHandle
+  stop.setVolume = () => undefined
+  return stop
 }
 
 async function getPreparedGenerativeFmRuntime(
