@@ -87,13 +87,7 @@ function subscribeToRightInset(listener: InsetListener) {
 export function usePlayerViewportInsets() {
   const right = useSyncExternalStore(
     subscribeToRightInset,
-    () => {
-      // Portal content can mount after the rail class is already present. Read
-      // the live CSS value on that first render so Radix receives the correct
-      // collision boundary before it performs its initial placement.
-      cachedRightInset = readRightInset()
-      return cachedRightInset
-    },
+    () => cachedRightInset,
     () => 0,
   )
   return { right }
