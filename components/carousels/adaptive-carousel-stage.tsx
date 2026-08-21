@@ -274,7 +274,7 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
                 <div className={styles.presentation} data-carousel-transform="true">
                   {detailLevel === "shell" ? (
                     <div className={styles.shell} aria-hidden="true" />
-                  ) : centered ? (
+                  ) : centered && !item.loopClone ? (
                     <div className={styles.renderer}>
                       {renderItem(sourceItem, { centered, nearby, detailLevel })}
                     </div>

@@ -20,6 +20,8 @@ const stations = getVisibleAtmosphereStations()
 const stationGroups = groupAtmosphereStations(stations)
 const FAVORITES_CATEGORY_ID = "favorites"
 const ATMOSHAPER_CATEGORY_ID = "atmoshaper"
+// Reserve the overlaid station-control row without changing card geometry.
+const STATION_CONTROLS_RESERVE_PX = 60
 
 export type AtmosphereStationCarouselView = "stations" | "favorites" | "atmoshaper"
 
@@ -196,7 +198,7 @@ export function AtmosphereStationCarousel({
   )
   const showStationControls = reducedMotion || hasFineHoverPointer
   const carouselStyle: AtmosphereStationCarouselStyle = {
-    "--ml-atmosphere-station-stage-block-size": `${Number(tuning.cardHeight) + (showStationControls ? 60 : 0)}px`,
+    "--ml-atmosphere-station-stage-block-size": `${Number(tuning.cardHeight) + (showStationControls ? STATION_CONTROLS_RESERVE_PX : 0)}px`,
   }
 
   if (!group) {
@@ -226,7 +228,7 @@ export function AtmosphereStationCarousel({
             <Button
               type="button"
               aria-pressed={isFavoritesCategory}
-              className={cn("shrink-0", purpleGlowClassName)}
+              className={cn("shrink-0", isFavoritesCategory && purpleGlowClassName)}
               onClick={() => handleGroupChange(FAVORITES_CATEGORY_ID)}
               size="compact"
               variant="glow"

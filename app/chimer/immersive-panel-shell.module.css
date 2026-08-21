@@ -174,9 +174,9 @@
 .dock {
   position: fixed;
   right: calc(
-    var(--immersive-visual-viewport-right, 0px)
-    + var(--ml-player-right-safe, 0px)
-    + max(0.75rem, env(safe-area-inset-right, 0px))
+    var(--immersive-visual-viewport-right, 0px) +
+    var(--ml-player-right-safe, 0px) +
+    max(0.75rem, env(safe-area-inset-right, 0px))
   );
   left: calc(
     var(--immersive-visual-viewport-left, 0px)
@@ -235,9 +235,9 @@
     + var(--immersive-dock-top-inset)
   );
   right: calc(
-    var(--immersive-visual-viewport-right, 0px)
-    + max(0.75rem, env(safe-area-inset-right, 0px))
-    + var(--ml-player-right-safe, 0px)
+    var(--immersive-visual-viewport-right, 0px) +
+    max(0.75rem, env(safe-area-inset-right, 0px)) +
+    var(--ml-player-right-safe, 0px)
   );
   bottom: calc(
     var(--immersive-visual-viewport-bottom, 0px)
@@ -520,8 +520,9 @@
 
   .dock {
     right: calc(
-      var(--immersive-visual-viewport-right, 0px)
-      + max(0.4rem, env(safe-area-inset-right, 0px))
+      var(--immersive-visual-viewport-right, 0px) +
+      var(--ml-player-right-safe, 0px) +
+      max(0.4rem, env(safe-area-inset-right, 0px))
     );
     left: calc(
       var(--immersive-visual-viewport-left, 0px)

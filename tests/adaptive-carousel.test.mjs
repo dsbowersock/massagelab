@@ -308,7 +308,10 @@ describe("production adaptive carousel", () => {
       containerHeight: 96,
       constrainedLandscape: true,
     })
-    assert.equal(severeHeight.cardWidth, Math.round(96 * 192 / 224))
+    assert.equal(
+      severeHeight.cardWidth,
+      Math.round(96 * STATION_CAROUSEL_TUNING.cardWidth / STATION_CAROUSEL_TUNING.cardHeight),
+    )
     assert.equal(severeHeight.cardHeight, 96)
     assert.equal(severeHeight.visibleRadius, 4)
   })

@@ -51,6 +51,7 @@ describe("Carousel Lab source boundaries", () => {
     const presentationRule = css.match(/\.presentation\s*\{([\s\S]*?)\n\}/)?.[1] ?? ""
 
     assert.match(stage, /data-carousel-transform="true"/)
+    assert.match(stage, /centered && !item\.loopClone/)
     assert.doesNotMatch(slideRule, /(?:^|\s)transform\s*:/)
     assert.match(presentationRule, /transform:\s*[\s\S]*?translate3d/)
     assert.match(slideRule, /z-index:\s*var\(--carousel-z-index, 1\)/)
@@ -72,6 +73,15 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(controller, /const lastItemId = surface === "stations"[\s\S]*?logicalItems\.at\(-1\)\?\.id/)
     assert.match(controller, /items\.findIndex\(\(item\) => item\.id === firstItemId\)/)
     assert.match(controller, /items\.findIndex\(\(item\) => item\.id === lastItemId\)/)
+  })
+
+  it("preserves the player rail reservation in narrow immersive layouts", () => {
+    const immersiveStyles = read("app/chimer/immersive-panel-shell.module.css")
+    const narrowDockRule = immersiveStyles.match(
+      /@media \(max-width: 36rem\) \{[\s\S]*?\.dock \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? ""
+
+    assert.match(narrowDockRule, /var\(--ml-player-right-safe, 0px\)/)
   })
 
   it("starts Embla at the reconciled mount identity before its first select", () => {
@@ -118,10 +128,14 @@ describe("Carousel Lab source boundaries", () => {
       listenerEffect,
       /api\.off\("scroll", scheduleTransformWrite\)[\s\S]*?if \(frameRef\.current !== null\) \{[\s\S]*?cancelAnimationFrame\(frameRef\.current\)[\s\S]*?frameRef\.current = null/,
     )
-    assert.match(
-      controller,
-      /\}, \[\s+api,[\s\S]*?bufferedLoop,[\s\S]*?emblaLoop,[\s\S]*?visibleRadius,[\s\S]*?\]\)[\s\S]*?\}, \[writeTransforms\]\)/,
-    )
+    const writeTransformDependencies = controller.match(
+      /const writeTransforms = useCallback\([\s\S]*?\}, \[([\s\S]*?)\]\)\s+const scheduleTransformWrite/,
+    )?.[1]
+    assert.ok(writeTransformDependencies, "expected the transform callback dependencies")
+    for (const dependency of ["api", "bufferedLoop", "emblaLoop", "visibleRadius"]) {
+      assert.match(writeTransformDependencies, new RegExp(`\\b${dependency}\\b`))
+    }
+    assert.match(controller, /\}, \[writeTransforms\]\)/)
   })
 
   it("does not turn an in-progress Embla selection into an instant jump", () => {
@@ -344,6 +358,10 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(styles, /inline-size: min\(100cqi, 100cqb, var\(--ml-atmosphere-favorites-edge\)\)/)
     assert.match(styles, /place-self: start center/)
     assert.match(styles, /\.ml-atmosphere-favorites-mosaic[\s\S]*?overflow:\s*visible/)
+    assert.match(
+      styles,
+      /@container \(min-width: 32rem\) \{\s+\.ml-atmosphere-all-favorites-sheet \.ml-atmosphere-all-favorites-grid/,
+    )
     assert.match(styles, /\.ml-atmosphere-rail-content[\s\S]*max-inline-size: none/)
     assert.match(styles, /var\(--ml-atmosphere-workspace-scale-rem\)/)
     assert.match(responsiveModel, /referenceWidth:\s*960/)
@@ -379,6 +397,7 @@ describe("Carousel Lab source boundaries", () => {
     assert.ok(favoritesButton >= 0 && favoritesButton < stationButtons)
     assert.ok(atmoshaperButton > stationButtons)
     assert.match(carousel, /<MetalFavoriteIcon kind="heart" selected \/>/)
+    assert.match(carousel, /className=\{cn\("shrink-0", isFavoritesCategory && purpleGlowClassName\)\}/)
     assert.match(carousel, /buildAtmosphereFavoritesSpeedDialModel\(music\.favorites, stations\)\.allFavorites/)
     assert.match(carousel, /Heart a station and it will appear here\./)
     assert.match(carousel, /ml-atmosphere-station-special-icon/)

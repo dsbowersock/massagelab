@@ -10,6 +10,7 @@ type ToneProofDroneOptions = {
   baseFrequency?: number
   detuneCents?: number
   fadeSeconds?: number
+  /** False once a newer request owns shared audio; stale starts must stay inert. */
   isCurrent?: () => boolean
   volume?: number
 }
@@ -68,6 +69,7 @@ export async function startToneProofDrone({
 
   await start()
 
+  // Activation is asynchronous, so confirm ownership before allocating nodes.
   if (!isCurrent()) {
     return () => undefined
   }

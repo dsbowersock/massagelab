@@ -141,10 +141,12 @@ export function getResponsiveStationCarouselTuning({
         heightScale,
       ))
   const cardHeight = constrainedLandscape
-    ? Math.max(72, Math.min(224, Math.floor(safeHeight)))
+    ? Math.max(72, Math.min(STATION_CAROUSEL_TUNING.cardHeight, Math.floor(safeHeight)))
     : Math.round(STATION_CAROUSEL_TUNING.cardHeight * roomyScale)
   const cardWidth = constrainedLandscape
-    ? Math.round(cardHeight * 192 / 224)
+    ? Math.round(
+        cardHeight * STATION_CAROUSEL_TUNING.cardWidth / STATION_CAROUSEL_TUNING.cardHeight,
+      )
     : Math.round(STATION_CAROUSEL_TUNING.cardWidth * roomyScale)
   return {
     ...STATION_CAROUSEL_TUNING,
