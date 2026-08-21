@@ -5,6 +5,7 @@ import { Noise } from "tone/build/esm/source/Noise"
 import { LFO } from "tone/build/esm/source/oscillator/LFO"
 import { Oscillator } from "tone/build/esm/source/oscillator/Oscillator"
 
+import { AtmoShaperNodeScope, withAtmoShaperNodeScope } from "./audio-node-scope.js"
 import { binauralChannelFrequencies, rampSeconds } from "./audio-parameters.js"
 import type { AtmoShaperLayer } from "./recipe.js"
 
@@ -18,13 +19,7 @@ export type AtmoShaperAudioLayerHandle = {
   fadeOutAndDispose(): Promise<void>
 }
 
-type DisposableToneNode = {
-  dispose(): unknown
-  stop?: () => unknown
-}
-
 type GeneratedSourceGraph = {
-  nodes: DisposableToneNode[]
   updateParameters(layer: AtmoShaperAudioLayer, seconds: number): void
 }
 
@@ -39,8 +34,11 @@ export function createGeneratedAtmoShaperAdapter({
   destination: InputNode
   layer: AtmoShaperAudioLayer
 }): AtmoShaperAudioLayerHandle {
-  const output = new Gain(0).connect(destination)
-  const graph = createSourceGraph(initialLayer, output)
+  const { value: { graph, output }, disposeAll } = withAtmoShaperNodeScope((nodeScope) => {
+    const output = nodeScope.track(new Gain(0))
+    output.connect(destination)
+    return { graph: createSourceGraph(initialLayer, output, nodeScope), output }
+  })
   let layer = initialLayer
   let paused = true
   let disposing: Promise<void> | null = null
@@ -90,10 +88,12 @@ export function createGeneratedAtmoShaperAdapter({
         disposing = (async () => {
           paused = true
           const seconds = transitionSeconds()
-          rampOutput(seconds)
-          await waitForRamp(seconds)
-          for (const node of graph.nodes) disposeToneNode(node)
-          output.dispose()
+          try {
+            rampOutput(seconds)
+            await waitForRamp(seconds)
+          } finally {
+            disposeAll()
+          }
         })()
       }
       await disposing
@@ -101,32 +101,46 @@ export function createGeneratedAtmoShaperAdapter({
   }
 }
 
-function createSourceGraph(layer: AtmoShaperAudioLayer, output: Gain): GeneratedSourceGraph {
-  if (layer.kind === "noise") return createNoiseGraph(layer, output)
-  if (layer.kind === "binaural") return createBinauralGraph(layer, output)
-  if (layer.kind === "isochronic") return createIsochronicGraph(layer, output)
+function createSourceGraph(
+  layer: AtmoShaperAudioLayer,
+  output: Gain,
+  nodeScope: AtmoShaperNodeScope,
+): GeneratedSourceGraph {
+  if (layer.kind === "noise") return createNoiseGraph(layer, output, nodeScope)
+  if (layer.kind === "binaural") return createBinauralGraph(layer, output, nodeScope)
+  if (layer.kind === "isochronic") return createIsochronicGraph(layer, output, nodeScope)
   throw new Error(`Unsupported generated AtmoShaper layer kind: ${layer.kind}`)
 }
 
-function createNoiseGraph(layer: AtmoShaperAudioLayer, output: Gain): GeneratedSourceGraph {
-  const noise = new Noise(readNoiseType(layer)).connect(output).start()
+function createNoiseGraph(layer: AtmoShaperAudioLayer, output: Gain, nodeScope: AtmoShaperNodeScope): GeneratedSourceGraph {
+  const noise = nodeScope.track(new Noise(readNoiseType(layer)))
+  noise.connect(output)
+  noise.start()
   return {
-    nodes: [noise],
     updateParameters(nextLayer) {
       noise.type = readNoiseType(nextLayer)
     },
   }
 }
 
-function createBinauralGraph(layer: AtmoShaperAudioLayer, output: Gain): GeneratedSourceGraph {
+function createBinauralGraph(
+  layer: AtmoShaperAudioLayer,
+  output: Gain,
+  nodeScope: AtmoShaperNodeScope,
+): GeneratedSourceGraph {
   const frequencies = readBinauralFrequencies(layer)
-  const leftPanner = new Panner(-1).connect(output)
-  const rightPanner = new Panner(1).connect(output)
-  const leftOscillator = new Oscillator(frequencies.leftHz, "sine").connect(leftPanner).start()
-  const rightOscillator = new Oscillator(frequencies.rightHz, "sine").connect(rightPanner).start()
+  const leftPanner = nodeScope.track(new Panner(-1))
+  leftPanner.connect(output)
+  const rightPanner = nodeScope.track(new Panner(1))
+  rightPanner.connect(output)
+  const leftOscillator = nodeScope.track(new Oscillator(frequencies.leftHz, "sine"))
+  leftOscillator.connect(leftPanner)
+  leftOscillator.start()
+  const rightOscillator = nodeScope.track(new Oscillator(frequencies.rightHz, "sine"))
+  rightOscillator.connect(rightPanner)
+  rightOscillator.start()
 
   return {
-    nodes: [leftOscillator, rightOscillator, leftPanner, rightPanner],
     updateParameters(nextLayer, seconds) {
       const next = readBinauralFrequencies(nextLayer)
       leftOscillator.frequency.rampTo(next.leftHz, seconds)
@@ -135,17 +149,25 @@ function createBinauralGraph(layer: AtmoShaperAudioLayer, output: Gain): Generat
   }
 }
 
-function createIsochronicGraph(layer: AtmoShaperAudioLayer, output: Gain): GeneratedSourceGraph {
+function createIsochronicGraph(
+  layer: AtmoShaperAudioLayer,
+  output: Gain,
+  nodeScope: AtmoShaperNodeScope,
+): GeneratedSourceGraph {
   const carrierHz = readSetting(layer, "carrierHz", 220)
   const pulseHz = readSetting(layer, "pulseHz", 10)
   // A sine LFO keeps the gate above silence so the pulse remains pronounced
   // without introducing hard square-wave edges or zero-crossing clicks.
-  const pulseGain = new Gain(0.08).connect(output)
-  const carrier = new Oscillator(carrierHz, "sine").connect(pulseGain).start()
-  const pulse = new LFO(pulseHz, 0.08, 1).connect(pulseGain.gain).start()
+  const pulseGain = nodeScope.track(new Gain(0.08))
+  pulseGain.connect(output)
+  const carrier = nodeScope.track(new Oscillator(carrierHz, "sine"))
+  carrier.connect(pulseGain)
+  carrier.start()
+  const pulse = nodeScope.track(new LFO(pulseHz, 0.08, 1))
+  pulse.connect(pulseGain.gain)
+  pulse.start()
 
   return {
-    nodes: [carrier, pulse, pulseGain],
     updateParameters(nextLayer, seconds) {
       carrier.frequency.rampTo(readSetting(nextLayer, "carrierHz", 220), seconds)
       pulse.frequency.rampTo(readSetting(nextLayer, "pulseHz", 10), seconds)
@@ -173,12 +195,4 @@ function readSetting(layer: AtmoShaperAudioLayer, key: string, fallback: number)
 
 function waitForRamp(seconds: number) {
   return new Promise<void>((resolve) => globalThis.setTimeout(resolve, Math.ceil(seconds * 1000)))
-}
-
-function disposeToneNode(node: DisposableToneNode) {
-  try {
-    node.stop?.()
-  } finally {
-    node.dispose()
-  }
 }

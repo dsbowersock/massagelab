@@ -14,6 +14,7 @@ import { rampSeconds } from "./audio-parameters.js"
 import type { AtmoShaperLayer, AtmoShaperRecipe } from "./recipe.js"
 
 type StationPlaybackHandle = (() => void) & {
+  dispose(): Promise<void>
   setVolume(nextVolume: number, seconds?: number): void
 }
 
@@ -50,12 +51,12 @@ export async function createAtmoShaperRuntime({
     onSnapshot(snapshot) {
       onSnapshot(snapshot as AtmoShaperRuntimeSnapshot)
     },
-    createAdapter(layer) {
+    createAdapter(layer, isCurrent) {
       if (layer.kind === "noise" || layer.kind === "binaural" || layer.kind === "isochronic") {
         return createGeneratedAtmoShaperAdapter({ layer, destination: master })
       }
       if (layer.kind === "station") {
-        return createStationFoundationAdapter({ layer, destination: master })
+        return createStationFoundationAdapter({ layer, destination: master, isCurrent })
       }
       throw new Error(`Unsupported AtmoShaper layer kind: ${layer.kind}`)
     },
@@ -76,9 +77,11 @@ export async function createAtmoShaperRuntime({
 /** Adapts one catalog station without pausing its private generator schedule. */
 async function createStationFoundationAdapter({
   destination,
+  isCurrent,
   layer: initialLayer,
 }: {
   destination: InputNode
+  isCurrent: () => boolean
   layer: AtmoShaperLayer
 }): Promise<AtmoShaperAudioLayerHandle> {
   const station = getAtmosphereStationById(initialLayer.sourceId)
@@ -92,10 +95,11 @@ async function createStationFoundationAdapter({
     playback = await startToneProofDrone({
       ...(station.runtime?.defaultOptions ?? {}),
       destination,
+      isCurrent,
       volume: 0,
     })
   } else if (adapterId === "generative-fm-piece") {
-    playback = await startGenerativeFmPiece({ station, destination, volume: 0 })
+    playback = await startGenerativeFmPiece({ station, destination, volume: 0, isCurrent })
   } else {
     throw new Error(`Unsupported Atmosphere station adapter: ${String(adapterId)}`)
   }
@@ -139,7 +143,7 @@ async function createStationFoundationAdapter({
     async fadeOutAndDispose() {
       if (disposed) return
       disposed = true
-      playback()
+      await playback.dispose()
     },
   }
 }

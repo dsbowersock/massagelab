@@ -174,6 +174,56 @@ test("a stale activation disposes only its private handle after a newer request"
   assert.deepEqual(controller.getSnapshot().layers, { rain: { status: "playing" } })
 })
 
+test("a newer start invalidates the ownership predicate of a deferred adapter", async () => {
+  const ownership = []
+  let releaseFirst
+  let firstEntered
+  const firstReady = new Promise((resolve) => { releaseFirst = resolve })
+  const firstWasEntered = new Promise((resolve) => { firstEntered = resolve })
+  const controller = createAtmoShaperMixController({
+    async createAdapter(nextLayer, isCurrent) {
+      if (nextLayer.id === "first") {
+        firstEntered()
+        await firstReady
+      }
+      ownership.push([nextLayer.id, typeof isCurrent === "function" ? isCurrent() : "missing"])
+      return createFakeHandle([], nextLayer)
+    },
+  })
+
+  const firstStart = controller.start(recipe([layer("first", "station")]))
+  await firstWasEntered
+  await controller.start(recipe([layer("second", "station")]))
+  releaseFirst()
+  await firstStart
+
+  assert.deepEqual(ownership, [["second", true], ["first", false]])
+})
+
+test("stop invalidates the ownership predicate of a deferred adapter", async () => {
+  const ownership = []
+  let releaseAdapter
+  let adapterEntered
+  const adapterReady = new Promise((resolve) => { releaseAdapter = resolve })
+  const adapterWasEntered = new Promise((resolve) => { adapterEntered = resolve })
+  const controller = createAtmoShaperMixController({
+    async createAdapter(nextLayer, isCurrent) {
+      adapterEntered()
+      await adapterReady
+      ownership.push(typeof isCurrent === "function" ? isCurrent() : "missing")
+      return createFakeHandle([], nextLayer)
+    },
+  })
+
+  const starting = controller.start(recipe([layer("deferred", "station")]))
+  await adapterWasEntered
+  await controller.stop()
+  releaseAdapter()
+  await starting
+
+  assert.deepEqual(ownership, [false])
+})
+
 test("a layer added while paused prepares silently and enters paused state", async () => {
   const log = []
   const controller = createAtmoShaperMixController({

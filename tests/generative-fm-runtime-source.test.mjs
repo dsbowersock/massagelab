@@ -18,8 +18,10 @@ test("Generative.fm accepts a typed optional destination without breaking destin
 
 test("Generative.fm returns a callable handle with private ramped volume control", () => {
   assert.match(source, /type\s+GenerativeFmPlaybackHandle\s*=\s*\(\(\)\s*=>\s*void\)\s*&/)
+  assert.match(source, /dispose\(\):\s*Promise<void>/)
   assert.match(source, /stop\.setVolume\s*=\s*\(nextVolume[^)]*seconds\s*=\s*0\.08\)/)
   assert.match(source, /output\.volume\.rampTo\?*\.\(volumeToDecibels\(nextVolume\),\s*seconds\)/)
+  assert.match(source, /stop\.dispose\s*=\s*beginCleanup/)
   assert.match(source, /return\s+stop\b/)
 })
 

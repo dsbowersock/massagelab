@@ -18,6 +18,7 @@ type ToneProofDroneOptions = {
 }
 
 type ToneProofDronePlaybackHandle = (() => void) & {
+  dispose(): Promise<void>
   setVolume(nextVolume: number, seconds?: number): void
 }
 
@@ -92,7 +93,7 @@ export async function startToneProofDrone({
   const detunedOscillator = new Oscillator(safeBaseFrequency * detuneRatio, "sine").connect(filter)
   const lowOscillator = new Oscillator(safeBaseFrequency / 2, "triangle").connect(filter)
   let disposed = false
-  let stopping = false
+  let cleanupPromise: Promise<void> | null = null
 
   activeVolumeNode = output
   activeProofSession = {
@@ -107,12 +108,8 @@ export async function startToneProofDrone({
   lowOscillator.start("+0.08")
   output.volume.rampTo(volumeToDecibels(volume), safeFadeSeconds)
 
-  const stopPlayback = (() => {
-    if (stopping) {
-      return
-    }
-    stopping = true
-
+  const beginCleanup = () => {
+    if (cleanupPromise) return cleanupPromise
     if (activeVolumeNode === output) {
       activeVolumeNode = null
     }
@@ -120,31 +117,45 @@ export async function startToneProofDrone({
       activeProofSession = null
     }
 
-    output.volume.rampTo(volumeToDecibels(0), safeFadeSeconds)
+    try {
+      output.volume.rampTo(volumeToDecibels(0), safeFadeSeconds)
+    } catch {
+      // A failed fade must not prevent terminal graph cleanup.
+    }
 
-    const disposeToneGraph = () => {
-      if (disposed) {
+    cleanupPromise = new Promise((resolve) => {
+      const disposeToneGraph = () => {
+        if (disposed) {
+          resolve()
+          return
+        }
+        disposed = true
+
+        disposeToneNode(baseOscillator)
+        disposeToneNode(detunedOscillator)
+        disposeToneNode(lowOscillator)
+        disposeToneNode(filter)
+        disposeToneNode(output)
+        resolve()
+      }
+
+      if (safeFadeSeconds === 0) {
+        disposeToneGraph()
         return
       }
-      disposed = true
 
-      disposeToneNode(baseOscillator)
-      disposeToneNode(detunedOscillator)
-      disposeToneNode(lowOscillator)
-      disposeToneNode(filter)
-      disposeToneNode(output)
-    }
-
-    if (safeFadeSeconds === 0) {
-      disposeToneGraph()
-      return
-    }
-
-    window.setTimeout(disposeToneGraph, Math.ceil(safeFadeSeconds * 1000))
+      window.setTimeout(disposeToneGraph, Math.ceil(safeFadeSeconds * 1000))
+    })
+    return cleanupPromise
+  }
+  const stopPlayback = (() => {
+    void beginCleanup()
   }) as ToneProofDronePlaybackHandle
   stopPlayback.setVolume = (nextVolume: number, seconds = 0.08) => {
+    if (cleanupPromise) return
     output.volume.rampTo(volumeToDecibels(nextVolume), seconds)
   }
+  stopPlayback.dispose = beginCleanup
   return stopPlayback
 }
 
@@ -160,6 +171,7 @@ export function setToneProofDroneVolume(volume: number) {
 function createSilentToneProofHandle(): ToneProofDronePlaybackHandle {
   const stopPlayback = (() => undefined) as ToneProofDronePlaybackHandle
   stopPlayback.setVolume = () => undefined
+  stopPlayback.dispose = async () => undefined
   return stopPlayback
 }
 
@@ -183,7 +195,12 @@ function toFiniteNonNegative(value: number, fallback: number) {
 function disposeToneNode(node: { stop?: () => unknown; dispose: () => unknown }) {
   try {
     node.stop?.()
-  } finally {
+  } catch {
+    // Terminal cleanup continues through the rest of the private graph.
+  }
+  try {
     node.dispose()
+  } catch {
+    // Terminal cleanup has no live recovery path for an individual node.
   }
 }

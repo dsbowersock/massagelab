@@ -36,6 +36,7 @@ type GenerativeFmRuntimeOptions = {
 }
 
 type GenerativeFmPlaybackHandle = (() => void) & {
+  dispose(): Promise<void>
   setVolume(nextVolume: number, seconds?: number): void
 }
 
@@ -236,40 +237,49 @@ export async function startGenerativeFmPiece({
   activeTransportOwner = transportOwner
   output.volume.rampTo?.(volumeToDecibels(volume), GENERATIVE_FM_HANDOFF_FADE_SECONDS)
 
-  let disposed = false
-  const stop = (() => {
-    if (disposed) {
-      return
-    }
-    disposed = true
-
+  let cleanupPromise: Promise<void> | null = null
+  const beginCleanup = () => {
+    if (cleanupPromise) return cleanupPromise
     if (activeVolumeNode === output) {
       activeVolumeNode = null
     }
 
-    output.volume.rampTo?.(volumeToDecibels(0), GENERATIVE_FM_HANDOFF_FADE_SECONDS)
+    try {
+      output.volume.rampTo?.(volumeToDecibels(0), GENERATIVE_FM_HANDOFF_FADE_SECONDS)
+    } catch {
+      // A failed fade must not prevent terminal graph cleanup.
+    }
 
     // Let the old piece fade under the next station. If no newer station has
     // claimed the shared Transport by the end of the fade, stop it as part of
     // the normal user-visible stop path.
-    window.setTimeout(() => {
-      const ownsTransport = activeTransportOwner === transportOwner
-      if (ownsTransport) {
-        activeTransportOwner = null
-        // Cancel queued package events before disposing samplers so a late
-        // Transport callback cannot trigger a released buffer.
-        Tone.Transport.stop()
-        Tone.Transport.cancel()
-      }
+    cleanupPromise = new Promise((resolve) => {
+      window.setTimeout(() => {
+        const ownsTransport = activeTransportOwner === transportOwner
+        if (ownsTransport) {
+          activeTransportOwner = null
+          // Cancel queued package events before disposing samplers so a late
+          // Transport callback cannot trigger a released buffer.
+          runCleanupStep(() => Tone.Transport.stop())
+          runCleanupStep(() => Tone.Transport.cancel())
+        }
 
-      endStage?.()
-      deactivate()
-      output.dispose()
-    }, Math.ceil(GENERATIVE_FM_HANDOFF_FADE_SECONDS * 1000))
+        runCleanupStep(() => endStage?.())
+        runCleanupStep(deactivate)
+        runCleanupStep(() => output.dispose())
+        resolve()
+      }, Math.ceil(GENERATIVE_FM_HANDOFF_FADE_SECONDS * 1000))
+    })
+    return cleanupPromise
+  }
+  const stop = (() => {
+    void beginCleanup()
   }) as GenerativeFmPlaybackHandle
   stop.setVolume = (nextVolume: number, seconds = 0.08) => {
+    if (cleanupPromise) return
     output.volume.rampTo?.(volumeToDecibels(nextVolume), seconds)
   }
+  stop.dispose = beginCleanup
   return stop
 }
 
@@ -309,7 +319,17 @@ export function setGenerativeFmPieceVolume(volume: number) {
 function createSilentGenerativeFmHandle(): GenerativeFmPlaybackHandle {
   const stop = (() => undefined) as GenerativeFmPlaybackHandle
   stop.setVolume = () => undefined
+  stop.dispose = async () => undefined
   return stop
+}
+
+/** Runs terminal cleanup best-effort so a package callback cannot strand later owners. */
+function runCleanupStep(step: () => unknown) {
+  try {
+    step()
+  } catch {
+    // The graph is already terminal; continue releasing the remaining owners.
+  }
 }
 
 async function getPreparedGenerativeFmRuntime(

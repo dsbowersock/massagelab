@@ -18,8 +18,10 @@ test("the proof drone accepts a typed optional destination without changing lazy
 
 test("the proof drone returns a callable handle with private ramped volume control", () => {
   assert.match(source, /type\s+ToneProofDronePlaybackHandle\s*=\s*\(\(\)\s*=>\s*void\)\s*&/)
+  assert.match(source, /dispose\(\):\s*Promise<void>/)
   assert.match(source, /stopPlayback\.setVolume\s*=\s*\(nextVolume[^)]*seconds\s*=\s*0\.08\)/)
   assert.match(source, /output\.volume\.rampTo\(volumeToDecibels\(nextVolume\),\s*seconds\)/)
+  assert.match(source, /stopPlayback\.dispose\s*=\s*beginCleanup/)
   assert.match(source, /return\s+stopPlayback\b/)
 })
 

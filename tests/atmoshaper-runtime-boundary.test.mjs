@@ -70,8 +70,25 @@ test("generated adapters expose the complete controller lifecycle and reject amb
   }
   assert.match(generatedRuntime, /binauralChannelFrequencies/)
   assert.match(generatedRuntime, /rampSeconds/)
+  assert.match(generatedRuntime, /withAtmoShaperNodeScope/)
+  for (const constructorName of ["Gain", "Noise", "Panner", "Oscillator", "LFO"]) {
+    assert.match(
+      generatedRuntime,
+      new RegExp(`nodeScope\\.track\\(new ${constructorName}\\(`),
+      `${constructorName} allocations must be tracked before connection or start`,
+    )
+  }
 
   const runtime = readRequiredSource("lib/atmoshaper/runtime.ts")
   assert.match(runtime, /createStationFoundationAdapter/)
   assert.match(runtime, /Unsupported AtmoShaper layer kind/)
+})
+
+test("station composition forwards controller ownership and awaits terminal cleanup", () => {
+  const runtime = readRequiredSource("lib/atmoshaper/runtime.ts")
+  assert.match(runtime, /createAdapter\(layer,\s*isCurrent\)/)
+  assert.match(runtime, /createStationFoundationAdapter\(\{\s*layer,\s*destination:\s*master,\s*isCurrent\s*\}\)/)
+  assert.match(runtime, /startToneProofDrone\(\{[\s\S]*?isCurrent,[\s\S]*?\}\)/)
+  assert.match(runtime, /startGenerativeFmPiece\(\{[^}]*isCurrent[^}]*\}\)/)
+  assert.match(runtime, /await\s+playback\.dispose\(\)/)
 })
