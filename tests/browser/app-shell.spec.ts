@@ -4482,24 +4482,31 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
   await expect.poll(readCenterOffset).toBeLessThanOrEqual(0.5)
   await assertResponsiveCenteredCard()
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
-  expect(await page.evaluate(() => {
+  const mountedObserverRecords = await page.evaluate(() => {
     const records = Reflect.get(window, "__stationCarouselObserverRecords") as Array<{
       targets: string[]
       disconnected: boolean
     }>
     return records.filter(({ targets }) => targets.includes("station-carousel-stage"))
-  })).toEqual([{ targets: ["station-carousel-stage"], disconnected: false }])
+  })
+  // A delayed capability-query update may legitimately replace the observer;
+  // require every superseded instance to disconnect and exactly one to remain.
+  expect(mountedObserverRecords.length).toBeGreaterThanOrEqual(1)
+  expect(mountedObserverRecords.filter(({ disconnected }) => !disconnected)).toHaveLength(1)
+  expect(mountedObserverRecords.slice(0, -1).every(({ disconnected }) => disconnected)).toBe(true)
 
   await page.getByRole("button", { name: "About", exact: true }).click()
   await page.getByRole("link", { name: "About MassageLab" }).click()
   await expect(page).toHaveURL(/\/about$/)
-  expect(await page.evaluate(() => {
+  const unmountedObserverRecords = await page.evaluate(() => {
     const records = Reflect.get(window, "__stationCarouselObserverRecords") as Array<{
       targets: string[]
       disconnected: boolean
     }>
     return records.filter(({ targets }) => targets.includes("station-carousel-stage"))
-  })).toEqual([{ targets: ["station-carousel-stage"], disconnected: true }])
+  })
+  expect(unmountedObserverRecords).toHaveLength(mountedObserverRecords.length)
+  expect(unmountedObserverRecords.every(({ disconnected }) => disconnected)).toBe(true)
 })
 
 test("Atmosphere expanded player actions expose session and saved interruption preferences", async ({ page }) => {
