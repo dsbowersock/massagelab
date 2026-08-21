@@ -27,6 +27,7 @@ export type AtmoShaperRuntimeSnapshot = {
   status: string
   recipe: AtmoShaperRecipe | null
   layers: Record<string, AtmoShaperLayerState>
+  activeLayers: Record<string, AtmoShaperLayer>
 }
 
 /**

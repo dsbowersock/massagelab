@@ -39,6 +39,8 @@ describe("AtmoShaper live-session workspace source contract", () => {
       /useReducer/,
       /crypto\.randomUUID\(\)/,
       /updateAtmoShaper\(recipe\)/,
+      /initializeAtmoShaperWorkspaceRecipe/,
+      /shouldSyncAtmoShaperWorkspaceRecipe/,
     ]) assert.match(hookSource, contract)
 
     assert.doesNotMatch(packageSource, /localStorage|sessionStorage|document\.cookie|cookies\(|server action|use server|account api/i)
@@ -110,12 +112,24 @@ describe("AtmoShaper live-session workspace source contract", () => {
       /music\.playAtmoShaper\(recipe\)/,
       /music\.pauseCurrent/,
       /music\.stopCurrent/,
+      /projectRetainedAtmoShaperLayers/,
+      /restoreRetainedLayer/,
+      /removeRetainedLayer/,
     ]) assert.match(mixSource, contract)
 
     assert.match(mixSource, /disabled=\{recipe\.layers\.length === 0\}/)
     assert.match(mixSource, /min=\{0\}/)
     assert.match(mixSource, /max=\{1\}/)
     assert.match(mixSource, /step=\{0\.05\}/)
+    assert.match(mixSource, /Still playing during replacement/)
+  })
+
+  it("restores focus after removal through stable row refs", () => {
+    assert.match(mixSource, /focusTargetAfterAtmoShaperLayerRemoval/)
+    assert.match(mixSource, /useLayoutEffect/)
+    assert.match(mixSource, /rowRefs/)
+    assert.match(mixSource, /headingRef/)
+    assert.match(mixSource, /tabIndex=\{-1\}/)
   })
 
   it("announces discrete changes without narrating sliders", () => {

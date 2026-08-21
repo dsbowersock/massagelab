@@ -23,6 +23,7 @@ describe("AtmoShaper provider ownership contract", () => {
       /activeStationId: string \| null/,
       /canNavigateStations: boolean/,
       /atmoShaperSnapshot: AtmoShaperRuntimeSnapshot \| null/,
+      /activeLayers: Record<string, AtmoShaperLayer>/,
       /playAtmoShaper: \(recipe: AtmoShaperRecipe\) => Promise<void>/,
       /updateAtmoShaper: \(recipe: AtmoShaperRecipe\) => Promise<void>/,
       /retryAtmoShaperLayer: \(layerId: string\) => Promise<void>/,
@@ -89,6 +90,7 @@ describe("AtmoShaper provider ownership contract", () => {
     assert.match(updatePath, /atmoShaperRecipeRevisionRef\.current \+= 1/)
     assert.match(updatePath, /if \(activePlaybackKindRef\.current !== "atmoshaper"\) return/)
     assert.match(updatePath, /await runtime\.applyRecipe\(recipe\)/)
+    assert.match(updatePath, /activeLayers: currentSnapshot\?\.activeLayers \?\? \{\}/)
     assert.match(retryPath, /snapshot\.status === "failed"/)
     assert.match(
       retryPath,

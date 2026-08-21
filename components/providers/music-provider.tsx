@@ -42,7 +42,7 @@ import {
   normalizeMusicVisualizerAccountPreferences,
   normalizeMusicVisualizerDevicePreferences,
 } from "@/lib/music-visualizer"
-import type { AtmoShaperRecipe } from "@/lib/atmoshaper/recipe.js"
+import type { AtmoShaperLayer, AtmoShaperRecipe } from "@/lib/atmoshaper/recipe.js"
 
 type PlaybackState = "stopped" | "loading" | "playing" | "interrupted" | "paused" | "failed"
 export type MusicPlaybackKind = "station" | "atmoshaper" | null
@@ -87,6 +87,7 @@ type AtmoShaperRuntimeSnapshot = {
     status: "loading" | "playing" | "paused" | "failed"
     error?: string
   }>
+  activeLayers: Record<string, AtmoShaperLayer>
 }
 
 type LoadedAtmoShaperRuntime = {
@@ -1233,7 +1234,7 @@ export function MusicProvider({
     setActiveStationId(null)
     setActiveStationTitle(title)
     setActiveStationArtwork(artwork)
-    setAtmoShaperSnapshot({ status: "loading", recipe, layers: {} })
+    setAtmoShaperSnapshot({ status: "loading", recipe, layers: {}, activeLayers: {} })
     setLoadingProgress(null)
     setLoadingStartedAt(Date.now())
     loadingStationIdRef.current = null
@@ -1404,6 +1405,7 @@ export function MusicProvider({
         status: pendingStatus,
         recipe,
         layers: currentSnapshot?.layers ?? {},
+        activeLayers: currentSnapshot?.activeLayers ?? {},
       })
       return
     }
@@ -1526,7 +1528,12 @@ export function MusicProvider({
         const recipe = atmoShaperRecipeRef.current
         const snapshot = runtime?.getSnapshot()
         setAtmoShaperSnapshot(recipe
-          ? { status: "paused", recipe, layers: snapshot?.layers ?? {} }
+          ? {
+              status: "paused",
+              recipe,
+              layers: snapshot?.layers ?? {},
+              activeLayers: snapshot?.activeLayers ?? {},
+            }
           : null)
       } else if (activePlaybackKindRef.current === "station") {
         // Ordinary station pause intentionally retains its established
@@ -1643,7 +1650,12 @@ export function MusicProvider({
           ),
           commit: () => {
             setAtmoShaperSnapshot(atmoShaperRecipeRef.current
-              ? { status: "stopped", recipe: atmoShaperRecipeRef.current, layers: {} }
+              ? {
+                  status: "stopped",
+                  recipe: atmoShaperRecipeRef.current,
+                  layers: {},
+                  activeLayers: {},
+                }
               : null)
           },
         })

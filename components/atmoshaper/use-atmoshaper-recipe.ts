@@ -12,6 +12,12 @@ import {
   type AtmoShaperLayer,
   type AtmoShaperRecipe,
 } from "@/lib/atmoshaper/recipe.js"
+import {
+  initializeAtmoShaperWorkspaceRecipe,
+  removeRetainedAtmoShaperLayer,
+  restoreRetainedAtmoShaperLayer,
+  shouldSyncAtmoShaperWorkspaceRecipe,
+} from "./workspace-model.js"
 
 export type AtmoShaperLayerPatch = Partial<AtmoShaperLayer>
 
@@ -20,7 +26,9 @@ export type AtmoShaperRecipeActions = {
   updateLayer(layerId: string, patch: AtmoShaperLayerPatch): void
   removeLayer(layerId: string): void
   moveLayer(layerId: string, toIndex: number): void
+  removeRetainedLayer(layer: AtmoShaperLayer): void
   reset(): void
+  restoreRetainedLayer(layer: AtmoShaperLayer, patch: AtmoShaperLayerPatch): void
 }
 
 type RecipeOwnerState = {
@@ -33,7 +41,9 @@ type RecipeOwnerAction =
   | { type: "announce", message: string }
   | { type: "move", layerId: string, toIndex: number }
   | { type: "remove", layerId: string }
+  | { type: "remove-retained", layer: AtmoShaperLayer }
   | { type: "reset" }
+  | { type: "restore-retained", layer: AtmoShaperLayer, patch: AtmoShaperLayerPatch }
   | { type: "update", layerId: string, patch: AtmoShaperLayerPatch }
 
 function nextAnnouncement(state: RecipeOwnerState, message: string) {
@@ -67,6 +77,16 @@ function recipeOwnerReducer(state: RecipeOwnerState, action: RecipeOwnerAction):
         ...state,
         recipe: moveAtmoShaperLayer(state.recipe, action.layerId, action.toIndex),
       }
+    case "restore-retained":
+      return {
+        ...state,
+        recipe: restoreRetainedAtmoShaperLayer(state.recipe, action.layer, action.patch),
+      }
+    case "remove-retained":
+      return {
+        recipe: removeRetainedAtmoShaperLayer(state.recipe, action.layer),
+        announcement: nextAnnouncement(state, "Layer removed."),
+      }
     case "reset":
       return {
         recipe: createAtmoShaperRecipe({ id: state.recipe.id }),
@@ -81,14 +101,23 @@ export function useAtmoShaperRecipe() {
   const music = useMusic()
   const { updateAtmoShaper } = music
   const [state, dispatch] = useReducer(recipeOwnerReducer, undefined, () => ({
-    recipe: createAtmoShaperRecipe({ id: crypto.randomUUID() }),
+    recipe: initializeAtmoShaperWorkspaceRecipe({
+      activePlaybackKind: music.activePlaybackKind,
+      retainedRecipe: music.atmoShaperSnapshot?.recipe ?? null,
+      createId: () => crypto.randomUUID(),
+    }),
     announcement: null,
   }))
   const { recipe } = state
 
   useEffect(() => {
+    if (!shouldSyncAtmoShaperWorkspaceRecipe({
+      activePlaybackKind: music.activePlaybackKind,
+      localRecipeId: recipe.id,
+      providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
+    })) return
     void updateAtmoShaper(recipe)
-  }, [recipe, updateAtmoShaper])
+  }, [music.activePlaybackKind, music.atmoShaperSnapshot?.recipe?.id, recipe, updateAtmoShaper])
 
   const actions: AtmoShaperRecipeActions = {
     addLayer(layer) {
@@ -102,6 +131,12 @@ export function useAtmoShaperRecipe() {
     },
     moveLayer(layerId, toIndex) {
       dispatch({ type: "move", layerId, toIndex })
+    },
+    restoreRetainedLayer(layer, patch) {
+      dispatch({ type: "restore-retained", layer, patch })
+    },
+    removeRetainedLayer(layer) {
+      dispatch({ type: "remove-retained", layer })
     },
     reset() {
       dispatch({ type: "reset" })

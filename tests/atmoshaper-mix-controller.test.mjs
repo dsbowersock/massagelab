@@ -131,6 +131,9 @@ test("a failed exclusive replacement retains its healthy predecessor at runtime"
     "station-old": { status: "playing" },
     "station-new": { status: "failed", error: "station unavailable" },
   })
+  assert.deepEqual(controller.getSnapshot().activeLayers, {
+    "station-old": layer("station-old", "station"),
+  })
 })
 
 test("a stale activation disposes only its private handle after a newer request", async () => {
