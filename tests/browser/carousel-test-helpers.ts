@@ -1,11 +1,13 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
-async function waitForStableSlideGeometry(slide: Locator, label: string) {
+export async function waitForStableSlideGeometry(slide: Locator, label: string) {
   let previousBox: Awaited<ReturnType<Locator["boundingBox"]>> = null
   let stableComparisons = 0
   await expect.poll(async () => {
     const box = await slide.boundingBox()
     if (!box) {
+      // Discard pre-detachment samples so a reconnected slide must establish
+      // fresh consecutive geometry before it can be considered settled.
       previousBox = null
       stableComparisons = 0
       return false

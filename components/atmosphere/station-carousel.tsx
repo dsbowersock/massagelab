@@ -69,7 +69,11 @@ export function AtmosphereStationCarousel({
   const [reducedMotion, setReducedMotion] = useState(false)
   const [hasFineHoverPointer, setHasFineHoverPointer] = useState(false)
   const [constrainedLandscape, setConstrainedLandscape] = useState(false)
-  const [stageSize, setStageSize] = useState({ width: 0, height: 0 })
+  const [tuning, setTuning] = useState(() => getResponsiveStationCarouselTuning({
+    containerWidth: 0,
+    containerHeight: 0,
+    constrainedLandscape: false,
+  }))
   const stageAllocationRef = useRef<HTMLDivElement | null>(null)
   const stageRef = useRef<HTMLElement | null>(null)
   const positionsRef = useRef(new Map<string, string>())
@@ -136,14 +140,26 @@ export function AtmosphereStationCarousel({
     if (!stage) return
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return
-      setStageSize({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
+      const measuredTuning = getResponsiveStationCarouselTuning({
+        containerWidth: entry.contentRect.width,
+        containerHeight: entry.contentRect.height,
+        constrainedLandscape,
+      })
+      setTuning((current) => {
+        const adjacentRoundedSize = !constrainedLandscape
+          && Math.abs(current.cardWidth - measuredTuning.cardWidth) <= 1
+          && Math.abs(current.cardHeight - measuredTuning.cardHeight) <= 1
+        if (adjacentRoundedSize) return current
+
+        // A one-pixel card change can alter the remaining stage height enough
+        // to request the previous rounded size on the next frame. Preserve the
+        // last stable tuning while allowing larger viewport changes through.
+        return measuredTuning
       })
     })
     observer.observe(stage)
     return () => observer.disconnect()
-  }, [group?.id, stationItems.length])
+  }, [constrainedLandscape, group?.id, stationItems.length])
 
   const prewarmStation = useCallback((
     stationId: string,
@@ -188,14 +204,6 @@ export function AtmosphereStationCarousel({
     setGroupId(nextGroupId)
   }, [favoriteStations, music.activeStationId, onViewChange])
 
-  const tuning = useMemo(
-    () => getResponsiveStationCarouselTuning({
-      containerWidth: stageSize.width,
-      containerHeight: stageSize.height,
-      constrainedLandscape,
-    }),
-    [constrainedLandscape, stageSize.height, stageSize.width],
-  )
   const showStationControls = reducedMotion || hasFineHoverPointer
   const carouselStyle: AtmosphereStationCarouselStyle = {
     "--ml-atmosphere-station-stage-block-size": `${Number(tuning.cardHeight) + (showStationControls ? STATION_CONTROLS_RESERVE_PX : 0)}px`,

@@ -68,6 +68,8 @@ function updateRightInset() {
 function subscribeToRightInset(listener: InsetListener) {
   insetListeners.add(listener)
   if (insetListeners.size === 1) {
+    // The first consumer owns the shared observers and initializes the cache
+    // before overlays read it for collision padding.
     insetObserver = new MutationObserver(updateRightInset)
     insetObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] })
     window.addEventListener("resize", updateRightInset)
@@ -76,6 +78,8 @@ function subscribeToRightInset(listener: InsetListener) {
   return () => {
     insetListeners.delete(listener)
     if (insetListeners.size === 0) {
+      // The last consumer releases the global observers so this shared helper
+      // does not retain document or window listeners while overlays are idle.
       insetObserver?.disconnect()
       insetObserver = null
       window.removeEventListener("resize", updateRightInset)

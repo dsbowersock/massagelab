@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 import { withPlayerViewportCollisionPadding } from "../../components/ui/use-player-viewport-insets"
-import { centerCarouselItem } from "./carousel-test-helpers"
+import { centerCarouselItem, waitForStableSlideGeometry } from "./carousel-test-helpers"
 
 const desktopProject = "desktop-chromium"
 const mobileProject = "mobile-chromium"
@@ -2923,6 +2923,10 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
         centerBox.left + (centerBox.width / 2) - (stageBox.left + (stageBox.width / 2)),
       )
     })).toBeLessThanOrEqual(1)
+    await waitForStableSlideGeometry(
+      carousel.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]'),
+      `Roomy Station center at ${viewport.width}x${viewport.height}`,
+    )
 
     const carouselGeometry = await carousel.evaluate((region) => {
       const stage = region.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')
