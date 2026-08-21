@@ -41,6 +41,7 @@ export async function centerCarouselItem(
   const carousel = page.getByRole("region", {
     name: nextButtonName === "Next station" ? "Station carousel" : "Background carousel",
   })
+  const stage = carousel.locator('div[tabindex="0"]').first()
   const slide = page.locator(
     `[data-carousel-slide="true"][data-carousel-item-id="${itemId}"]:not([data-carousel-loop-clone="true"])`,
   )
@@ -50,13 +51,22 @@ export async function centerCarouselItem(
     carousel.locator('[data-carousel-slide="true"][data-centered="true"]'),
     `${nextButtonName} current slide`,
   )
+  if (
+    nextButtonName === "Next station"
+    && (await carousel.getByRole("button", { name: nextButtonName }).count()) === 0
+  ) {
+    // Touch-only Station navigation is keyboard-accessible through the stage.
+    // Keep the helper's historical focus contract so rerenders caused by a
+    // favorite change restore focus to the still-connected carousel surface.
+    await stage.focus()
+  }
   if ((await slide.getAttribute("data-centered")) !== "true") {
     const accessibleLabel = await slide.getAttribute("aria-label")
     if (accessibleLabel?.match(/item 1 of \d+/)) {
       // Home is an intentional instant jump in the production carousel. It is
       // deterministic even immediately after a user swipe, unlike starting a
       // second animated scroll while Embla is completing momentum cleanup.
-      await carousel.locator('div[tabindex="0"]').first().press("Home")
+      await stage.press("Home")
     } else {
       await slide.dispatchEvent("click")
     }

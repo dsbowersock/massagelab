@@ -4882,10 +4882,13 @@ test("Atmosphere interruption notice counts only active unhovered and unfocused 
   await expect(notice).toBeVisible()
 
   await page.clock.fastForward("00:10")
-  await notice.hover()
+  // Dispatch the boundary events directly. Pointer coordinates can be
+  // recomputed while fake time advances and make a real hover leave early on
+  // slower CI runners, even though the notice itself has not moved.
+  await notice.dispatchEvent("mouseover")
   await page.clock.fastForward("00:40")
   await expect(notice).toBeVisible()
-  await page.mouse.move(1, 1)
+  await notice.dispatchEvent("mouseout")
   await page.clock.fastForward(13_500)
   await expect(notice).toBeVisible()
   await page.clock.fastForward(500)
