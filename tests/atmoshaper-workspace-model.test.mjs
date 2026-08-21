@@ -99,7 +99,7 @@ describe("AtmoShaper workspace ownership model", () => {
   })
 
   it("projects and restores a retained audible predecessor after replacement failure", async () => {
-    const projectRetained = requireModelFunction("projectRetainedAtmoShaperLayers")
+    const projectRetained = requireModelFunction("projectRetainedAtmoShaperLayersForWorkspace")
     const restoreRetained = requireModelFunction("restoreRetainedAtmoShaperLayer")
     const log = []
     const oldStation = layer("station-old", "station")
@@ -115,7 +115,12 @@ describe("AtmoShaper workspace ownership model", () => {
     await controller.applyRecipe(recipe("mix", [failedStation]))
 
     const failedSnapshot = controller.getSnapshot()
-    const retained = projectRetained(failedSnapshot.recipe, failedSnapshot.activeLayers)
+    const retained = projectRetained({
+      activePlaybackKind: "atmoshaper",
+      activeLayers: failedSnapshot.activeLayers,
+      localRecipe: failedSnapshot.recipe,
+      providerRecipeId: failedSnapshot.recipe.id,
+    })
     assert.deepEqual(retained, [oldStation])
 
     const restoredRecipe = restoreRetained(failedSnapshot.recipe, retained[0], {
@@ -132,7 +137,7 @@ describe("AtmoShaper workspace ownership model", () => {
   })
 
   it("removes the retained audible predecessor through a canonical exclusive-kind recipe", async () => {
-    const projectRetained = requireModelFunction("projectRetainedAtmoShaperLayers")
+    const projectRetained = requireModelFunction("projectRetainedAtmoShaperLayersForWorkspace")
     const removeRetained = requireModelFunction("removeRetainedAtmoShaperLayer")
     const log = []
     const oldStation = layer("station-old", "station")
@@ -147,7 +152,12 @@ describe("AtmoShaper workspace ownership model", () => {
     log.length = 0
     await controller.applyRecipe(recipe("mix", [failedStation]))
     const failedSnapshot = controller.getSnapshot()
-    const [retained] = projectRetained(failedSnapshot.recipe, failedSnapshot.activeLayers)
+    const [retained] = projectRetained({
+      activePlaybackKind: "atmoshaper",
+      activeLayers: failedSnapshot.activeLayers,
+      localRecipe: failedSnapshot.recipe,
+      providerRecipeId: failedSnapshot.recipe.id,
+    })
 
     const removalRecipe = removeRetained(failedSnapshot.recipe, retained)
     await controller.applyRecipe(removalRecipe)
@@ -171,5 +181,46 @@ describe("AtmoShaper workspace ownership model", () => {
       ),
       "noise",
     )
+  })
+
+  it("excludes either half of a failed exclusive replacement pair from the removal focus target", () => {
+    const focusAfterVisibleRemoval = requireModelFunction(
+      "focusTargetAfterAtmoShaperVisibleRowRemoval",
+    )
+    const noise = layer("noise")
+    const failedStation = layer("failed-station", "station")
+    const retainedStation = layer("retained-station", "station")
+    const rows = [
+      { key: noise.id, layer: noise, retained: false },
+      { key: failedStation.id, layer: failedStation, retained: false },
+      { key: retainedStation.id, layer: retainedStation, retained: true },
+    ]
+
+    assert.equal(focusAfterVisibleRemoval(rows, failedStation.id), noise.id)
+    assert.equal(focusAfterVisibleRemoval(rows, retainedStation.id), noise.id)
+  })
+
+  it("does not project retained rows from a foreign provider owner", () => {
+    const projectRetained = requireModelFunction("projectRetainedAtmoShaperLayersForWorkspace")
+    const retainedStation = layer("retained-station", "station")
+
+    assert.deepEqual(projectRetained({
+      activePlaybackKind: "atmoshaper",
+      activeLayers: { [retainedStation.id]: retainedStation },
+      localRecipe: recipe("local", [layer("local-noise")]),
+      providerRecipeId: "foreign",
+    }), [])
+  })
+
+  it("compares a stale post-restore provider snapshot with the current local recipe", () => {
+    const projectRetained = requireModelFunction("projectRetainedAtmoShaperLayersForWorkspace")
+    const restoredStation = layer("retained-station", "station")
+
+    assert.deepEqual(projectRetained({
+      activePlaybackKind: "atmoshaper",
+      activeLayers: { [restoredStation.id]: restoredStation },
+      localRecipe: recipe("mix", [restoredStation]),
+      providerRecipeId: "mix",
+    }), [])
   })
 })

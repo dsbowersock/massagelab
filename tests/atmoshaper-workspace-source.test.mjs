@@ -125,11 +125,18 @@ describe("AtmoShaper live-session workspace source contract", () => {
   })
 
   it("restores focus after removal through stable row refs", () => {
-    assert.match(mixSource, /focusTargetAfterAtmoShaperLayerRemoval/)
+    assert.match(mixSource, /focusTargetAfterAtmoShaperVisibleRowRemoval/)
     assert.match(mixSource, /useLayoutEffect/)
     assert.match(mixSource, /rowRefs/)
     assert.match(mixSource, /headingRef/)
     assert.match(mixSource, /tabIndex=\{-1\}/)
+  })
+
+  it("projects retained runtime rows only for the current local recipe owner", () => {
+    assert.match(mixSource, /projectRetainedAtmoShaperLayersForWorkspace/)
+    assert.match(mixSource, /activePlaybackKind:\s*music\.activePlaybackKind/)
+    assert.match(mixSource, /localRecipe:\s*recipe/)
+    assert.match(mixSource, /providerRecipeId:/)
   })
 
   it("announces discrete changes without narrating sliders", () => {

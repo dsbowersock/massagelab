@@ -9,6 +9,7 @@ import {
 
 /** @typedef {import("../../lib/atmoshaper/recipe.js").AtmoShaperLayer} AtmoShaperLayer */
 /** @typedef {import("../../lib/atmoshaper/recipe.js").AtmoShaperRecipe} AtmoShaperRecipe */
+/** @typedef {{ key: string, layer: AtmoShaperLayer, retained: boolean }} AtmoShaperVisibleRow */
 
 /**
  * Reuses the provider-owned live recipe on a conditional workspace remount.
@@ -59,13 +60,19 @@ export function atmoShaperWorkspaceTransportAction({
 
 /**
  * Finds runtime-active sources whose exact identity is no longer represented
- * by the desired recipe, as happens after a failed exclusive replacement.
+ * by this workspace's current recipe. Foreign and stale provider snapshots
+ * must not introduce rows into a recipe they do not own.
  *
- * @param {AtmoShaperRecipe | null} recipe
- * @param {Record<string, AtmoShaperLayer>} activeLayers
+ * @param {{ activePlaybackKind: "station" | "atmoshaper" | null, activeLayers: Record<string, AtmoShaperLayer>, localRecipe: AtmoShaperRecipe, providerRecipeId: string | null }} input
  */
-export function projectRetainedAtmoShaperLayers(recipe, activeLayers) {
-  const desiredLayers = recipe?.layers ?? []
+export function projectRetainedAtmoShaperLayersForWorkspace({
+  activePlaybackKind,
+  activeLayers,
+  localRecipe,
+  providerRecipeId,
+}) {
+  if (activePlaybackKind !== "atmoshaper" || providerRecipeId !== localRecipe.id) return []
+  const desiredLayers = localRecipe.layers
   return Object.values(activeLayers).filter((activeLayer) => {
     const desiredLayer = desiredLayers.find(({ id }) => id === activeLayer.id)
     return !desiredLayer
@@ -131,4 +138,30 @@ export function focusTargetAfterAtmoShaperLayerRemoval(rowIds, removedId, alsoRe
     if (!removedIds.has(rowIds[index])) return rowIds[index]
   }
   return null
+}
+
+/**
+ * Excludes both members of a failed exclusive replacement when either Remove
+ * action will cause reconciliation to remove the pair.
+ *
+ * @param {AtmoShaperVisibleRow[]} rows
+ * @param {string} removedKey
+ */
+export function focusTargetAfterAtmoShaperVisibleRowRemoval(rows, removedKey) {
+  const removedRow = rows.find(({ key }) => key === removedKey)
+  if (!removedRow) return null
+  const coupledRemovalKeys = ATMOSHAPER_EXCLUSIVE_KINDS.has(removedRow.layer.kind)
+    ? rows
+        .filter((candidate) => (
+          candidate.key !== removedKey
+          && candidate.retained !== removedRow.retained
+          && candidate.layer.kind === removedRow.layer.kind
+        ))
+        .map(({ key }) => key)
+    : []
+  return focusTargetAfterAtmoShaperLayerRemoval(
+    rows.map(({ key }) => key),
+    removedKey,
+    coupledRemovalKeys,
+  )
 }

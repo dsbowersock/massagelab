@@ -11,8 +11,8 @@ import { getAtmosphereStationById } from "@/lib/atmosphere/stations.js"
 import type { AtmoShaperRecipeActions } from "./use-atmoshaper-recipe"
 import {
   atmoShaperWorkspaceTransportAction,
-  focusTargetAfterAtmoShaperLayerRemoval,
-  projectRetainedAtmoShaperLayers,
+  focusTargetAfterAtmoShaperVisibleRowRemoval,
+  projectRetainedAtmoShaperLayersForWorkspace,
 } from "./workspace-model.js"
 
 type VisibleMixRow = {
@@ -33,10 +33,12 @@ export function CurrentMix({
   const headingRef = useRef<HTMLHeadingElement | null>(null)
   const rowRefs = useRef(new Map<string, HTMLLIElement>())
   const pendingFocusTargetRef = useRef<string | null | undefined>(undefined)
-  const retainedLayers = projectRetainedAtmoShaperLayers(
-    music.atmoShaperSnapshot?.recipe ?? null,
-    music.atmoShaperSnapshot?.activeLayers ?? {},
-  )
+  const retainedLayers = projectRetainedAtmoShaperLayersForWorkspace({
+    activePlaybackKind: music.activePlaybackKind,
+    activeLayers: music.atmoShaperSnapshot?.activeLayers ?? {},
+    localRecipe: recipe,
+    providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
+  })
   const recipeLayerIds = useMemo(() => new Set(recipe.layers.map(({ id }) => id)), [recipe.layers])
   const visibleRows: VisibleMixRow[] = [
     ...recipe.layers.map((layer, recipeIndex) => ({
@@ -87,16 +89,7 @@ export function CurrentMix({
 
   /** Defers focus until React commits the recipe state without the removed row. */
   function removeRow(row: VisibleMixRow) {
-    const coupledRemovalKeys = row.retained
-      ? visibleRows
-          .filter((candidate) => !candidate.retained && candidate.layer.kind === row.layer.kind)
-          .map(({ key }) => key)
-      : []
-    pendingFocusTargetRef.current = focusTargetAfterAtmoShaperLayerRemoval(
-      rowKeys,
-      row.key,
-      coupledRemovalKeys,
-    )
+    pendingFocusTargetRef.current = focusTargetAfterAtmoShaperVisibleRowRemoval(visibleRows, row.key)
     if (row.retained) actions.removeRetainedLayer(row.layer)
     else actions.removeLayer(row.layer.id)
   }
