@@ -200,6 +200,52 @@ test("a layer added while paused prepares silently and enters paused state", asy
   })
 })
 
+test("a same-id kind change stages a replacement instead of updating the old adapter", async () => {
+  const log = []
+  let stationAttempts = 0
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      if (nextLayer.kind === "noise") {
+        return {
+          async fadeIn() { log.push(["fadeIn", "noise"]) },
+          async update(updatedLayer) { log.push(["update", "noise", updatedLayer.kind]) },
+          async pause() { log.push(["pause", "noise"]) },
+          async resume() { log.push(["resume", "noise"]) },
+          async fadeOutAndDispose() { log.push(["dispose", "noise"]) },
+        }
+      }
+
+      stationAttempts += 1
+      const attempt = stationAttempts
+      return {
+        async fadeIn() {
+          log.push(["fadeIn", `station-${attempt}`])
+          if (attempt === 1) throw new Error("station unavailable")
+        },
+        async update(updatedLayer) { log.push(["update", `station-${attempt}`, updatedLayer.kind]) },
+        async pause() { log.push(["pause", `station-${attempt}`]) },
+        async resume() { log.push(["resume", `station-${attempt}`]) },
+        async fadeOutAndDispose() { log.push(["dispose", `station-${attempt}`]) },
+      }
+    },
+  })
+  await controller.start(recipe([layer("shared", "noise")]))
+  log.length = 0
+
+  await controller.applyRecipe(recipe([layer("shared", "station")]))
+
+  assert.deepEqual(log, [["fadeIn", "station-1"], ["dispose", "station-1"]])
+  assert.deepEqual(controller.getSnapshot().layers, {
+    shared: { status: "playing", error: "station unavailable" },
+  })
+  log.length = 0
+
+  await controller.applyRecipe(recipe([layer("shared", "station")]))
+
+  assert.deepEqual(log, [["fadeIn", "station-2"], ["dispose", "noise"]])
+  assert.deepEqual(controller.getSnapshot().layers, { shared: { status: "playing" } })
+})
+
 test("stop and dispose clean active and late-arriving handles", async () => {
   const log = []
   let resolveLate
