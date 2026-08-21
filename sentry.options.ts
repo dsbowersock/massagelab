@@ -1,5 +1,9 @@
 import type { Breadcrumb, ErrorEvent, Options, SpanJSON, TransactionEvent } from "@sentry/core"
 import {
+  filterAnonymousSentryIntegrations,
+  getAnonymousSentryDataCollection,
+} from "./lib/sentry-options"
+import {
   getSentryEnvironment,
   getSentryTracesSampleRate,
   sanitizeSentryBreadcrumb,
@@ -17,8 +21,14 @@ export function getSentryOptions(): Options {
     environment: getSentryEnvironment(),
     sampleRate: 1.0,
     sendDefaultPii: false,
+    dataCollection: getAnonymousSentryDataCollection(),
+    enableLogs: false,
+    enableMetrics: false,
     tracesSampleRate: getSentryTracesSampleRate(),
-    maxBreadcrumbs: 20,
+    maxBreadcrumbs: 0,
+    integrations(defaultIntegrations) {
+      return filterAnonymousSentryIntegrations(defaultIntegrations)
+    },
     beforeSend(event: ErrorEvent) {
       return sanitizeSentryEvent(event) as ErrorEvent
     },

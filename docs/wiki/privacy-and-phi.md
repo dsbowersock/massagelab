@@ -38,9 +38,16 @@ Client wellness entries must stay out of account preferences, calendar payloads,
 
 ## Support And Diagnostics Boundary
 
-Sentry may receive sanitized automatic errors, traces, and user-initiated diagnostic reports. The approved diagnostic report path is `/api/support/problem-report`; it sends only predefined issue categories, coarse tool areas, safe route buckets, browser family, display mode, network state, viewport bucket, and an optional linked Sentry event id.
+Sentry may receive sanitized automatic errors, traces, and user-initiated diagnostic reports for anonymous operational monitoring, not product analytics. Sentry receives no account, user, visitor, or session identifier. Automatic click, input, navigation, console, and network breadcrumbs are disabled. Event-scoped trace and diagnostic IDs may remain only to correlate an operational failure; they are not used to build a person or browser history.
+The approved diagnostic report path is `/api/support/problem-report`; it sends
+only predefined issue categories, coarse tool areas, safe route buckets,
+browser family, display mode, network state, viewport bucket, and an optional
+linked Sentry event id.
 
 Diagnostic reports must not upload screenshots, Session Replay, typed support messages, full URLs, query strings, SOAP text, intake answers, journal text, ROM notes, local professional-record vault contents, wellness entries, account contact details, or user-provided freeform descriptions. Human support messages remain in the user-controlled email flow, with repeated PHI warnings in the support UI.
+
+Public legal-document version changes are deferred to the later feedback rollout,
+where disclosure and reacceptance can be decided together.
 
 ## PWA Cache Boundary
 
