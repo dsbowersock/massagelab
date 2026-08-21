@@ -332,7 +332,7 @@ export function AtmosphereStationCarousel({
                 </Button>
               </div>
             )}
-            renderItem={(station, { detailLevel }) => {
+            renderItem={(station, { detailLevel, loopClone }) => {
               if (detailLevel === "shell") return null
               return (
                 <AtmosphereStationCarouselCard
@@ -343,6 +343,7 @@ export function AtmosphereStationCarousel({
                   detailLevel={detailLevel}
                   displayMode="carousel"
                   favoriteClassName={purpleGlowClassName}
+                  suppressDomId={loopClone}
                 />
               )
             }}

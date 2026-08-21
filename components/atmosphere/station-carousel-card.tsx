@@ -39,6 +39,7 @@ export interface AtmosphereStationCarouselCardProps {
   detailLevel?: "full" | "summary"
   displayMode?: "production" | "carousel"
   favoriteClassName?: string
+  suppressDomId?: boolean
 }
 
 type PrimaryPointerIntent = {
@@ -71,6 +72,7 @@ export function AtmosphereStationCarouselCard({
   detailLevel = "full",
   displayMode = "production",
   favoriteClassName,
+  suppressDomId = false,
 }: AtmosphereStationCarouselCardProps) {
   const isActive = music.activeStationId === station.id
   const isPrimaryActionActive = isActive
@@ -225,7 +227,7 @@ export function AtmosphereStationCarouselCard({
   if (displayMode === "carousel" && detailLevel === "summary") {
     return (
       <article
-        id={`station-${station.id}`}
+        id={suppressDomId ? undefined : `station-${station.id}`}
         className={cn(
           appMediaTileClassName,
           "relative flex h-full min-w-0 overflow-hidden transition-colors",
@@ -248,7 +250,7 @@ export function AtmosphereStationCarouselCard({
     return (
       <Dialog>
         <article
-          id={`station-${station.id}`}
+          id={suppressDomId ? undefined : `station-${station.id}`}
           className={cn(
             appMediaTileClassName,
             "relative flex h-full min-w-0 overflow-hidden transition-colors",
@@ -384,7 +386,7 @@ export function AtmosphereStationCarouselCard({
   if (detailLevel === "summary") {
     return (
       <article
-        id={`station-${station.id}`}
+        id={suppressDomId ? undefined : `station-${station.id}`}
         className={cn(
           appMediaTileClassName,
           "flex min-w-[min(58vw,10.75rem)] snap-start flex-col overflow-hidden transition-colors sm:min-w-[10.875rem] lg:min-w-[11.25rem] xl:min-w-[11.625rem]",
@@ -405,7 +407,7 @@ export function AtmosphereStationCarouselCard({
 
   return (
     <article
-      id={`station-${station.id}`}
+      id={suppressDomId ? undefined : `station-${station.id}`}
       className={cn(
         appMediaTileClassName,
         "flex min-w-[min(58vw,10.75rem)] snap-start flex-col overflow-hidden transition-colors sm:min-w-[10.875rem] lg:min-w-[11.25rem] xl:min-w-[11.625rem]",

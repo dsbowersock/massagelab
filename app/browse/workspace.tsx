@@ -242,7 +242,7 @@ function useAtmosphereFavoritesLayout(centeredStationId: string | null, enabled:
     const measure = () => {
       const stationCarousel = slot.querySelector<HTMLElement>(".ml-atmosphere-station-carousel")
       const centeredCard = slot.querySelector<HTMLElement>(
-        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+        '[data-carousel-slide][data-centered="true"]',
       )
       if (!stationCarousel || !centeredCard) return
 
@@ -296,7 +296,7 @@ function useAtmosphereFavoritesLayout(centeredStationId: string | null, enabled:
     resizeObserver.observe(slot)
     const stationCarousel = slot.querySelector<HTMLElement>(".ml-atmosphere-station-carousel")
     const centeredCard = slot.querySelector<HTMLElement>(
-      '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      '[data-carousel-slide][data-centered="true"]',
     )
     if (stationCarousel) resizeObserver.observe(stationCarousel)
     if (centeredCard) resizeObserver.observe(centeredCard)

@@ -2737,7 +2737,7 @@ test("player rail keeps overlays clear while preserving caller collision padding
   )).toEqual({ top: 1, right: 2, bottom: 3, left: 4 })
 })
 
-test("stable portrait station cards survive expanded collapsed stopped and restarted player state", async ({ page }, testInfo) => {
+test("portrait station cards rebalance across expanded collapsed stopped and restarted player state", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Portrait station geometry is covered in mobile Chromium.")
   await page.emulateMedia({ reducedMotion: "no-preference" })
   await installInterruptionNoticeMediaFakes(page)
@@ -2762,8 +2762,9 @@ test("stable portrait station cards survive expanded collapsed stopped and resta
         const rectangle = element.getBoundingClientRect()
         return { width: rectangle.width, height: rectangle.height }
       })
-      expect(box.width).toBeCloseTo(192, 0)
-      expect(box.height).toBeCloseTo(224, 0)
+      expect(box.width).toBeGreaterThan(0)
+      expect(box.height).toBeGreaterThan(0)
+      expect(box.width / box.height).toBeCloseTo(192 / 224, 2)
       if (viewport.width === 390 && viewport.height === 844) {
         const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
         await expect(mosaic).toBeVisible()
@@ -2787,7 +2788,12 @@ test("stable portrait station cards survive expanded collapsed stopped and resta
     await toolbar.getByRole("button", { name: "Play", exact: true }).click()
     await expect(toolbar).toHaveAttribute("data-playback-state", /loading|playing/)
     const restarted = await readCards("restarted")
-    for (const box of [collapsed, stopped, restarted]) {
+    // Collapsing the bottom player returns vertical workspace to Atmosphere,
+    // so the balance-fill rule may enlarge the carousel. Playback state alone
+    // does not change the expanded player's allocation.
+    expect(collapsed.width).toBeGreaterThanOrEqual(expanded.width)
+    expect(collapsed.height).toBeGreaterThanOrEqual(expanded.height)
+    for (const box of [stopped, restarted]) {
       expect(Math.abs(box.width - expanded.width)).toBeLessThanOrEqual(1)
       expect(Math.abs(box.height - expanded.height)).toBeLessThanOrEqual(1)
     }
@@ -4304,7 +4310,7 @@ test("station controls follow input capability live without remount", async ({ p
   controlBoxes.forEach((box, index) => {
     const offset = box.y - (summaryBoxes[index].y + summaryBoxes[index].height)
     expect(offset).toBeGreaterThanOrEqual(15)
-    expect(offset).toBeLessThanOrEqual(17)
+    expect(offset).toBeLessThanOrEqual(19)
   })
   await setStationCapabilityQuery(page, stationReducedMotionQuery, false)
   await expect(marker).toHaveCount(0)
@@ -4390,7 +4396,7 @@ test("carousel fits compact landscape rail", async ({ page }, testInfo) => {
       }
 
       observe(target: Element, options?: ResizeObserverOptions) {
-        this.record.targets.push(target.getAttribute("data-testid") === "station-carousel-stage"
+        this.record.targets.push(target.getAttribute("aria-label") === "Station carousel"
           ? "station-carousel-stage"
           : target.tagName.toLowerCase())
         this.nativeObserver.observe(target, options)

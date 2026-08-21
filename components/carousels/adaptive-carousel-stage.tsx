@@ -19,6 +19,7 @@ interface AdaptiveCarouselItemRenderState {
   centered: boolean
   nearby: boolean
   detailLevel: AdaptiveCarouselDetailLevel
+  loopClone: boolean
 }
 
 /**
@@ -274,13 +275,27 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
                 <div className={styles.presentation} data-carousel-transform="true">
                   {detailLevel === "shell" ? (
                     <div className={styles.shell} aria-hidden="true" />
-                  ) : centered && !item.loopClone ? (
-                    <div className={styles.renderer}>
-                      {renderItem(sourceItem, { centered, nearby, detailLevel })}
+                  ) : centered ? (
+                    <div
+                      className={styles.renderer}
+                      aria-hidden={item.loopClone ? "true" : undefined}
+                      inert={item.loopClone ? true : undefined}
+                    >
+                      {renderItem(sourceItem, {
+                        centered,
+                        nearby,
+                        detailLevel,
+                        loopClone: Boolean(item.loopClone),
+                      })}
                     </div>
                   ) : (
                     <div className={styles.summary} aria-hidden="true" inert>
-                      {renderItem(sourceItem, { centered, nearby, detailLevel })}
+                      {renderItem(sourceItem, {
+                        centered,
+                        nearby,
+                        detailLevel,
+                        loopClone: Boolean(item.loopClone),
+                      })}
                     </div>
                   )}
                 </div>

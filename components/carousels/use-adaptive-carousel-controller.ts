@@ -109,7 +109,6 @@ export function useAdaptiveCarouselController(
   })
   const itemElements = useRef(new Map<string, HTMLElement>())
   const frameRef = useRef<number | null>(null)
-  const pendingLoopRecenterIndexRef = useRef<number | null>(null)
   const onCenteredItemChangeRef = useRef(options.onCenteredItemChange)
   const [centeredId, setCenteredId] = useState<string | null>(initialCenter.id)
   const [canGoPrevious, setCanGoPrevious] = useState(false)
@@ -191,14 +190,8 @@ export function useAdaptiveCarouselController(
 
   useEffect(() => {
     if (!api) return
-    const settle = () => {
-      const canonicalIndex = pendingLoopRecenterIndexRef.current
-      pendingLoopRecenterIndexRef.current = null
-      if (canonicalIndex !== null) api.scrollTo(canonicalIndex, true)
-    }
     const select = () => {
       const item = items[api.selectedScrollSnap()]
-      setCenteredId(item?.id ?? null)
       setCanGoPrevious(effectiveLoop || api.canScrollPrev())
       setCanGoNext(effectiveLoop || api.canScrollNext())
       if (item?.loopClone) {
@@ -206,25 +199,29 @@ export function useAdaptiveCarouselController(
           !candidate.loopClone && candidate.id === item.canonicalId
         ))
         if (canonicalIndex >= 0) {
-          // Wait until Embla has finished an arrow, button, or pointer snap;
-          // otherwise its remaining motion can overwrite the invisible-copy
-          // handoff back to the corresponding real station.
-          pendingLoopRecenterIndexRef.current = canonicalIndex
+          const canonicalItem = items[canonicalIndex]
+          // The copy and its real slide are visually identical. Jump to the
+          // real slide in the same selection turn so a transient clone never
+          // owns focus, controls, IDs, or the accessible current state.
+          api.scrollTo(canonicalIndex, true)
+          setCenteredId(canonicalItem.id)
+          onCenteredItemChangeRef.current?.(
+            canonicalItem.canonicalId ?? canonicalItem.id,
+          )
+          scheduleTransformWrite()
           return
         }
       }
-      pendingLoopRecenterIndexRef.current = null
+      setCenteredId(item?.id ?? null)
       if (item) onCenteredItemChangeRef.current?.(item.canonicalId ?? item.id)
       scheduleTransformWrite()
     }
     select()
     api.on("select", select)
-    api.on("settle", settle)
     api.on("reInit", select)
     api.on("scroll", scheduleTransformWrite)
     return () => {
       api.off("select", select)
-      api.off("settle", settle)
       api.off("reInit", select)
       api.off("scroll", scheduleTransformWrite)
       if (frameRef.current !== null) {

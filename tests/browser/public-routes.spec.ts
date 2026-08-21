@@ -1334,8 +1334,8 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   await expect(treatmentRoomCategory).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByRole("heading", { name: /Treatment room starters/i })).toBeVisible()
 
-  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
-  const proofCard = page.locator("#station-mlab-proof-drone")
+  const proofSlide = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  const proofCard = proofSlide.locator("#station-mlab-proof-drone")
   const [proofBox, stageBox] = await Promise.all([
     proofCard.boundingBox(),
     page.getByTestId("station-carousel-stage").boundingBox(),
@@ -1353,8 +1353,14 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
     (stageBox?.y ?? 0) + (stageBox?.height ?? 0) + 1,
   )
 
-  await centerCarouselItem(page, "observable-streams-probe", "Next station")
-  const observableStreamsStation = page.locator("#station-observable-streams-probe")
+  const observableStreamsSlide = await centerCarouselItem(
+    page,
+    "observable-streams-probe",
+    "Next station",
+  )
+  const observableStreamsStation = observableStreamsSlide.locator(
+    "#station-observable-streams-probe",
+  )
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
   await expect(observableStreamsStation.getByRole("img", { name: /Observable Streams station artwork/i })).toBeVisible()
   await expect(observableStreamsStation.getByText(/Piano, violin, and oboe-like tones/i)).toBeVisible()

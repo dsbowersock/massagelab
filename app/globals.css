@@ -2613,7 +2613,7 @@
     max-width: min(32rem, max(0px, calc(100dvw - var(--ml-player-right-safe)))) !important;
   }
 
-  body.ml-music-player-rail .ml-player-viewport-safe-sheet[data-ml-player-viewport-side="right"] {
+  .ml-player-viewport-safe-sheet[data-ml-player-viewport-side="right"] {
     max-width: max(0px, calc(100dvw - var(--ml-player-right-safe))) !important;
     right: var(--ml-player-right-safe) !important;
   }

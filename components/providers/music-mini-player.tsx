@@ -255,7 +255,15 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
         </TooltipTrigger>
         <TooltipContent>Player settings</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="start" side="left" className="min-w-56 border-border bg-card">
+      <DropdownMenuContent
+        align="start"
+        side="left"
+        // The trigger lives inside the right-side player rail. Give the menu
+        // enough anchor clearance to finish to the left of the entire rail,
+        // rather than merely to the left of the trigger button.
+        sideOffset={isCompactLandscape ? 80 : undefined}
+        className="min-w-56 border-border bg-card"
+      >
         <DropdownMenuCheckboxItem
           checked={music.resumeAfterInterruptionDefault}
           disabled={!music.mediaIntegrationAvailable}

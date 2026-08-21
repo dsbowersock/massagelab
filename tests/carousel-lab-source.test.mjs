@@ -51,7 +51,9 @@ describe("Carousel Lab source boundaries", () => {
     const presentationRule = css.match(/\.presentation\s*\{([\s\S]*?)\n\}/)?.[1] ?? ""
 
     assert.match(stage, /data-carousel-transform="true"/)
-    assert.match(stage, /centered && !item\.loopClone/)
+    assert.match(stage, /\) : centered \? \(/)
+    assert.match(stage, /aria-hidden=\{item\.loopClone \? "true" : undefined\}/)
+    assert.match(stage, /inert=\{item\.loopClone \? true : undefined\}/)
     assert.doesNotMatch(slideRule, /(?:^|\s)transform\s*:/)
     assert.match(presentationRule, /transform:\s*[\s\S]*?translate3d/)
     assert.match(slideRule, /z-index:\s*var\(--carousel-z-index, 1\)/)
