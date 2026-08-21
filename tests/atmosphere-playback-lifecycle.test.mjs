@@ -24,8 +24,16 @@ test("external sessions copy the saved default and never inherit the prior sessi
 
 test("successful and failed starts settle only an active loading session", () => {
   const loading = transitionAtmospherePlayback(createAtmospherePlaybackLifecycle(true), { type: "BEGIN_IN_APP_SESSION", savedDefault: true }).state
-  assert.equal(transitionAtmospherePlayback(loading, { type: "START_SUCCEEDED" }).state.status, "playing")
-  assert.equal(transitionAtmospherePlayback(loading, { type: "START_FAILED" }).state.status, "failed")
+  assert.equal(transitionAtmospherePlayback(loading, { type: "START_SUCCEEDED", sessionId: loading.sessionId }).state.status, "playing")
+  assert.equal(transitionAtmospherePlayback(loading, { type: "START_FAILED", sessionId: loading.sessionId }).state.status, "failed")
+})
+
+test("late completion from session A cannot settle newer session B", () => {
+  const sessionA = transitionAtmospherePlayback(createAtmospherePlaybackLifecycle(true), { type: "BEGIN_IN_APP_SESSION" }).state
+  const sessionB = transitionAtmospherePlayback(sessionA, { type: "BEGIN_IN_APP_SESSION" }).state
+  assert.equal(transitionAtmospherePlayback(sessionB, { type: "START_SUCCEEDED", sessionId: sessionA.sessionId }).state.status, "loading")
+  assert.equal(transitionAtmospherePlayback(sessionB, { type: "START_FAILED", sessionId: sessionA.sessionId }).state.status, "loading")
+  assert.equal(transitionAtmospherePlayback(sessionB, { type: "START_SUCCEEDED", sessionId: sessionB.sessionId }).state.status, "playing")
 })
 
 test("interruption resumes when enabled and pauses when disabled", () => {
@@ -49,9 +57,9 @@ test("explicit stop wins over late recovery", () => {
 test("explicit pause and stop win over delayed start completion", () => {
   const loading = transitionAtmospherePlayback(createAtmospherePlaybackLifecycle(true), { type: "BEGIN_IN_APP_SESSION", savedDefault: true }).state
   const paused = transitionAtmospherePlayback(loading, { type: "EXPLICIT_PAUSE" }).state
-  assert.equal(transitionAtmospherePlayback(paused, { type: "START_SUCCEEDED" }).state.status, "paused")
+  assert.equal(transitionAtmospherePlayback(paused, { type: "START_SUCCEEDED", sessionId: loading.sessionId }).state.status, "paused")
   const stopped = transitionAtmospherePlayback(loading, { type: "EXPLICIT_STOP" }).state
-  assert.equal(transitionAtmospherePlayback(stopped, { type: "START_SUCCEEDED" }).state.status, "stopped")
+  assert.equal(transitionAtmospherePlayback(stopped, { type: "START_SUCCEEDED", sessionId: loading.sessionId }).state.status, "stopped")
 })
 
 test("ambiguous pause remains paused and session setting changes do not alter saved defaults", () => {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
 
 type CollisionPadding = number | Partial<Record<"top" | "right" | "bottom" | "left", number>>
 
@@ -33,35 +33,62 @@ export function withPlayerViewportCollisionPadding(
   }
 }
 
-/** Reads the CSS-owned player exclusion inset for Radix collision padding. */
+type InsetListener = () => void
+
+const insetListeners = new Set<InsetListener>()
+let cachedRightInset = 0
+let insetObserver: MutationObserver | null = null
+
+function readRightInset() {
+  const serializedValue = getComputedStyle(document.body)
+    .getPropertyValue("--ml-player-right-safe")
+    .trim()
+  let value = /^-?(?:\d+|\d*\.\d+)px$/i.test(serializedValue)
+    ? Number.parseFloat(serializedValue)
+    : Number.NaN
+  if (!Number.isFinite(value)) {
+    // Computed custom properties retain calc()/clamp() tokens. A temporary
+    // layout probe resolves that CSS-owned expression to physical pixels.
+    const probe = document.createElement("div")
+    probe.style.cssText = "position:fixed;visibility:hidden;width:var(--ml-player-right-safe);"
+    document.body.appendChild(probe)
+    value = probe.getBoundingClientRect().width
+    probe.remove()
+  }
+  return Number.isFinite(value) ? value : 0
+}
+
+function updateRightInset() {
+  const nextRight = readRightInset()
+  if (nextRight === cachedRightInset) return
+  cachedRightInset = nextRight
+  for (const listener of insetListeners) listener()
+}
+
+function subscribeToRightInset(listener: InsetListener) {
+  insetListeners.add(listener)
+  if (insetListeners.size === 1) {
+    insetObserver = new MutationObserver(updateRightInset)
+    insetObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] })
+    window.addEventListener("resize", updateRightInset)
+    updateRightInset()
+  }
+  return () => {
+    insetListeners.delete(listener)
+    if (insetListeners.size === 0) {
+      insetObserver?.disconnect()
+      insetObserver = null
+      window.removeEventListener("resize", updateRightInset)
+    }
+  }
+}
+
+/** Reads the shared CSS-owned player exclusion inset for Radix collision padding. */
 export function usePlayerViewportInsets() {
-  const [right, setRight] = useState(0)
-
-  useEffect(() => {
-    const update = () => {
-      const serializedValue = getComputedStyle(document.body)
-        .getPropertyValue("--ml-player-right-safe")
-      let value = Number.parseFloat(serializedValue)
-      if (!Number.isFinite(value)) {
-        // Computed custom properties retain calc()/clamp() tokens. A temporary
-        // layout probe resolves that CSS-owned expression to physical pixels.
-        const probe = document.createElement("div")
-        probe.style.cssText = "position:fixed;visibility:hidden;width:var(--ml-player-right-safe);"
-        document.body.appendChild(probe)
-        value = probe.getBoundingClientRect().width
-        probe.remove()
-      }
-      setRight(Number.isFinite(value) ? value : 0)
-    }
-    const observer = new MutationObserver(update)
-    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] })
-    window.addEventListener("resize", update)
-    update()
-    return () => {
-      observer.disconnect()
-      window.removeEventListener("resize", update)
-    }
-  }, [])
-
+  const right = useSyncExternalStore(
+    subscribeToRightInset,
+    () => cachedRightInset,
+    () => 0,
+  )
   return { right }
 }

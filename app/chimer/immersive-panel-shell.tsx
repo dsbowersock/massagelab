@@ -329,6 +329,9 @@ export function ImmersivePanelShell({
           const dockBounds = dock.getBoundingClientRect()
           const sidebarIsRight = document.documentElement.dataset.sidebarPosition === "right"
           const playerRightSafe = Number.parseFloat(getComputedStyle(dockInsetProbe).paddingRight) || 0
+          // The dock already consumes the player-safe inset. Remove it from the
+          // measured edge and let composeStageRightReservation restore it once,
+          // so the timer stage never reserves the player rail twice.
           const edgeInset = sidebarIsRight
             ? Math.max(0, dockBounds.left - viewportLeft)
             : Math.max(0, viewportRight - dockBounds.right - playerRightSafe)

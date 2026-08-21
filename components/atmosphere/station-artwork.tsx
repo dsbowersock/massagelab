@@ -26,6 +26,7 @@ export function AtmosphereStationArtwork({
   if (!resolvedInput) {
     return (
       <div
+        aria-hidden={decorative ? "true" : undefined}
         aria-label={decorative ? undefined : "MassageLab station artwork unavailable"}
         className={cn(
           "grid h-full w-full place-items-center rounded-[9px] bg-muted px-3 text-center text-xs font-medium text-muted-foreground",
@@ -40,6 +41,7 @@ export function AtmosphereStationArtwork({
 
   return (
     <div
+      aria-hidden={decorative ? "true" : undefined}
       aria-label={decorative ? undefined : `${resolvedInput.title} station artwork`}
       className={cn("h-full w-full overflow-hidden rounded-[9px] [&_svg]:block [&_svg]:h-full [&_svg]:w-full", className)}
       data-artwork-station-id={resolvedInput.stationId}

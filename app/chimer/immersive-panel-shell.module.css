@@ -175,6 +175,7 @@
   position: fixed;
   right: calc(
     var(--immersive-visual-viewport-right, 0px)
+    + var(--ml-player-right-safe, 0px)
     + max(0.75rem, env(safe-area-inset-right, 0px))
   );
   left: calc(

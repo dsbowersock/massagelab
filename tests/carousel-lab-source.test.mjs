@@ -65,8 +65,13 @@ describe("Carousel Lab source boundaries", () => {
       /const effectiveLoop = surface === "stations" \|\| !staticPresentation[\s\S]*?\? resolveEffectiveCarouselLoop\([\s\S]*?: false/,
     )
     assert.match(controller, /duration: staticPresentation \? 0 : 45/)
-    assert.match(controller, /if \(!effectiveLoop && event\.key === "Home"\)/)
-    assert.match(controller, /if \(!effectiveLoop && event\.key === "End"\)/)
+    assert.match(controller, /const edgeShortcutsEnabled = !effectiveLoop \|\| surface === "stations"/)
+    assert.match(controller, /if \(edgeShortcutsEnabled && event\.key === "Home"\)/)
+    assert.match(controller, /if \(edgeShortcutsEnabled && event\.key === "End"\)/)
+    assert.match(controller, /const firstItemId = surface === "stations"[\s\S]*?logicalItems\[0\]\?\.id/)
+    assert.match(controller, /const lastItemId = surface === "stations"[\s\S]*?logicalItems\.at\(-1\)\?\.id/)
+    assert.match(controller, /items\.findIndex\(\(item\) => item\.id === firstItemId\)/)
+    assert.match(controller, /items\.findIndex\(\(item\) => item\.id === lastItemId\)/)
   })
 
   it("starts Embla at the reconciled mount identity before its first select", () => {
@@ -103,7 +108,7 @@ describe("Carousel Lab source boundaries", () => {
   it("cancels stale dependency frames before scheduling current transforms", () => {
     const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
     const listenerEffect = controller.match(
-      /useEffect\(\(\) => \{\s+if \(!api\) return\s+const select = \(\) => \{[\s\S]*?\n  \}, \[api, effectiveLoop, items, scheduleTransformWrite\]\)/,
+      /useEffect\(\(\) => \{\s+if \(!api\) return[\s\S]*?const select = \(\) => \{[\s\S]*?\n  \}, \[api, effectiveLoop, items, scheduleTransformWrite\]\)/,
     )?.[0]
 
     assert.ok(listenerEffect, "expected the Embla listener effect")

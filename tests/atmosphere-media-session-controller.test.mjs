@@ -58,7 +58,7 @@ test("reports unavailable and remains inert when Media Session is absent", () =>
   assert.equal(metadataConstructions, 0)
 })
 
-test("publishes constructed station metadata, indefinite position state, and all five controls", () => {
+test("publishes constructed station metadata and all five controls without a fabricated timeline", () => {
   const mediaSession = createFakeMediaSession()
   const metadataInputs = []
   const createMetadata = (init) => {
@@ -101,11 +101,7 @@ test("publishes constructed station metadata, indefinite position state, and all
     ],
   })
   assert.equal(mediaSession.playbackState, "paused")
-  assert.deepEqual(mediaSession.setPositionStateCalls[0], {
-    duration: Number.POSITIVE_INFINITY,
-    playbackRate: 1,
-    position: 0,
-  })
+  assert.deepEqual(mediaSession.setPositionStateCalls, [])
   assert.deepEqual([...mediaSession.handlers.keys()].sort(), [...actions].sort())
   for (const action of actions) assert.equal(mediaSession.handlers.get(action), handlers[action])
 
@@ -160,7 +156,7 @@ test("keeps one revisioned 512 artwork candidate stable per station and replaces
   ])
 })
 
-test("publishes a fresh indefinite position state and clears it on ownership clear", () => {
+test("leaves the unbounded generator timeline absent and clears prior platform state on ownership clear", () => {
   const mediaSession = createFakeMediaSession()
   const controller = createAtmosphereMediaSessionController({
     mediaSession,
@@ -179,14 +175,10 @@ test("publishes a fresh indefinite position state and clears it on ownership cle
   })
   controller.clear()
 
-  assert.deepEqual(mediaSession.setPositionStateCalls, [
-    { duration: Number.POSITIVE_INFINITY, playbackRate: 1, position: 0 },
-    { duration: Number.POSITIVE_INFINITY, playbackRate: 1, position: 0 },
-    undefined,
-  ])
+  assert.deepEqual(mediaSession.setPositionStateCalls, [undefined])
 })
 
-test("guards rejected live position publication without losing metadata or controls", () => {
+test("does not publish a position state while retaining metadata and controls", () => {
   const mediaSession = createFakeMediaSession({ rejectLivePositionState: true })
   const controller = createAtmosphereMediaSessionController({
     mediaSession,
@@ -199,10 +191,7 @@ test("guards rejected live position publication without losing metadata or contr
     playbackState: "playing",
     handlers,
   }))
-  assert.deepEqual(mediaSession.setPositionStateCalls, [
-    { duration: Number.POSITIVE_INFINITY, playbackRate: 1, position: 0 },
-    undefined,
-  ])
+  assert.deepEqual(mediaSession.setPositionStateCalls, [])
   assert.equal(mediaSession.metadata.title, "Quiet Current")
   assert.equal(mediaSession.playbackState, "playing")
   for (const action of actions) assert.equal(mediaSession.handlers.get(action), handlers[action])

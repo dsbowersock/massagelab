@@ -89,6 +89,43 @@ describe("Atmosphere runtime controller", () => {
     assert.deepEqual(events, ["start:one", "start:two", "dispose:one"])
   })
 
+  it("lets a stale adapter verify ownership before mutating shared audio state", async () => {
+    const events = []
+    let releaseFirst
+    let firstAdapterEntered
+    const firstReady = new Promise((resolve) => {
+      releaseFirst = resolve
+    })
+    const firstEntered = new Promise((resolve) => {
+      firstAdapterEntered = resolve
+    })
+    const controller = createAtmosphereRuntimeController({
+      adapters: {
+        a: async ({ station, isCurrent }) => {
+          if (station.id === "one") {
+            firstAdapterEntered()
+            await firstReady
+          }
+          if (isCurrent()) {
+            events.push(`claim:${station.id}`)
+          }
+          return () => events.push(`dispose:${station.id}`)
+        },
+      },
+    })
+
+    const firstStart = controller.start({ id: "one", runtime: { adapterId: "a" } })
+    await firstEntered
+    assert.deepEqual(
+      await controller.start({ id: "two", runtime: { adapterId: "a" } }),
+      { status: "active", requestId: 2 },
+    )
+    releaseFirst()
+    assert.deepEqual(await firstStart, { status: "stale", requestId: 1 })
+
+    assert.deepEqual(events, ["claim:two", "dispose:one"])
+  })
+
   it("returns from stop while adapter preparation remains unresolved", async () => {
     const events = []
     let releaseStart

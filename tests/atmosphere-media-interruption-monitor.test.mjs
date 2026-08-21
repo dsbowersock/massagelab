@@ -228,8 +228,9 @@ test("carrier external pause is ambiguous without a current specific signal", ()
 
   monitor.start()
   carrier.emit("pause", { origin: "external" })
+  carrier.emit("pause", { detail: { origin: "external" } })
 
-  assert.deepEqual(callbacks.calls, { interrupted: 0, recovered: 0, ambiguous: 1 })
+  assert.deepEqual(callbacks.calls, { interrupted: 0, recovered: 0, ambiguous: 2 })
   assert.equal(monitor.isInterrupted(), false)
 })
 
@@ -246,7 +247,7 @@ test("carrier internal pause events from app pause or stop do nothing", () => {
 
   monitor.start()
   carrier.emit("pause", { origin: "internal" })
-  carrier.emit("pause", { origin: "internal" })
+  carrier.emit("pause", { detail: { origin: "internal" } })
 
   assert.deepEqual(callbacks.calls, { interrupted: 0, recovered: 0, ambiguous: 0 })
   assert.equal(monitor.isInterrupted(), false)

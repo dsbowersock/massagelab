@@ -69,6 +69,7 @@ export function AtmosphereStationCarousel({
   const [constrainedLandscape, setConstrainedLandscape] = useState(false)
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 })
   const stageAllocationRef = useRef<HTMLDivElement | null>(null)
+  const stageRef = useRef<HTMLElement | null>(null)
   const positionsRef = useRef(new Map<string, string>())
   const prewarmAbortRef = useRef<AbortController | null>(null)
   const favoriteStations = useMemo(
@@ -129,9 +130,7 @@ export function AtmosphereStationCarousel({
   // Category changes remount the keyed stage, so rebind measurement to the
   // current stage row rather than retaining a disconnected zero-sized node.
   useEffect(() => {
-    const allocation = stageAllocationRef.current
-    if (!allocation) return
-    const stage = allocation.querySelector<HTMLElement>('[data-testid="station-carousel-stage"]')
+    const stage = stageRef.current
     if (!stage) return
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return
@@ -301,6 +300,7 @@ export function AtmosphereStationCarousel({
             tuning={tuning}
             reducedMotion={reducedMotion}
             customControlsVisible={showStationControls}
+            stageRef={stageRef}
             testId="station-carousel-stage"
             viewportProfile="music-fit"
             onCenteredItemChange={handleCenteredItemChange}

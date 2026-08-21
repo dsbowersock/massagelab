@@ -77,6 +77,8 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
       })
 
   useEffect(() => {
+    // This capability query drives shell-wide player reservations, not just
+    // this toolbar's rendering.
     const mediaQuery = window.matchMedia(compactLandscapePlayerQuery)
     const updateLayout = () => setIsCompactLandscape(mediaQuery.matches)
     updateLayout()
@@ -85,6 +87,8 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
   }, [])
 
   useEffect(() => {
+    // These body classes are global layout state. This component is their sole
+    // owner and must remove every class it adds when it unmounts.
     const { body } = document
     body.classList.toggle("ml-music-player-active", showPlayer)
     body.classList.toggle("ml-music-player-top", showPlayer && placement === "top")

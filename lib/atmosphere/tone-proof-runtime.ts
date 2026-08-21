@@ -10,6 +10,7 @@ type ToneProofDroneOptions = {
   baseFrequency?: number
   detuneCents?: number
   fadeSeconds?: number
+  isCurrent?: () => boolean
   volume?: number
 }
 
@@ -58,6 +59,7 @@ export async function startToneProofDrone({
   baseFrequency = 110,
   detuneCents = 7,
   fadeSeconds = 1.2,
+  isCurrent = () => true,
   volume = 0.75,
 }: ToneProofDroneOptions = {}) {
   if (typeof window === "undefined") {
@@ -65,6 +67,10 @@ export async function startToneProofDrone({
   }
 
   await start()
+
+  if (!isCurrent()) {
+    return () => undefined
+  }
 
   const safeBaseFrequency = toFinitePositive(baseFrequency, 110)
   const detuneRatio = Math.pow(2, toFiniteNumber(detuneCents, 7) / 1200)

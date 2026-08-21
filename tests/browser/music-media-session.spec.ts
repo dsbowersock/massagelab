@@ -2052,7 +2052,7 @@ for (const station of startupMeasurementStations) {
   })
 }
 
-test("Live position stays published while Playing and clears after Stop", async ({ page }) => {
+test("unbounded playback keeps position absent while Playing and clears prior state after Stop", async ({ page }) => {
   const health = capturePageHealth(page)
   await installMediaOwnershipFakes(page)
   const player = await startProofStation(page)
@@ -2067,7 +2067,7 @@ test("Live position stays published while Playing and clears after Stop", async 
         .map(([action]) => action)
         .sort(),
       playbackState: probe.mediaSession.playbackState,
-      livePositionPublished: probe.mediaSession.livePositionPublished,
+      positionStateCallCount: probe.mediaSession.positionStateCalls.length,
       album: probe.mediaSession.metadata?.album,
       artist: probe.mediaSession.metadata?.artist,
       artwork: probe.mediaSession.metadata?.artwork,
@@ -2084,7 +2084,7 @@ test("Live position stays published while Playing and clears after Stop", async 
         type: "image/png",
       },
     ],
-    livePositionPublished: true,
+    positionStateCallCount: 0,
     playbackState: "playing",
     title: "MassageLab Proof Drone",
   })
@@ -2128,7 +2128,7 @@ test("Live position stays published while Playing and clears after Stop", async 
   expect(health.pageErrors).toEqual([])
 })
 
-test("Live position rejection preserves Playing metadata and all five handlers", async ({ page }) => {
+test("an implementation that rejects position state still receives no fabricated timeline", async ({ page }) => {
   await installMediaOwnershipFakes(page, { rejectLivePositionState: true })
   const player = await startProofStation(page)
 
@@ -2141,12 +2141,14 @@ test("Live position rejection preserves Playing metadata and all five handlers",
         .map(([action]) => action)
         .sort(),
       livePositionPublished: probe.mediaSession.livePositionPublished,
+      positionStateCallCount: probe.mediaSession.positionStateCalls.length,
       playbackState: probe.mediaSession.playbackState,
       title: probe.mediaSession.metadata?.title,
     }
   })).toEqual({
     actions: ["nexttrack", "pause", "play", "previoustrack", "stop"],
     livePositionPublished: false,
+    positionStateCallCount: 0,
     playbackState: "playing",
     title: "MassageLab Proof Drone",
   })
@@ -2314,7 +2316,7 @@ test("platform artwork route failure cannot break inline canonical art or playba
   expect(artworkApiRequests).toBe(0)
 })
 
-test("Live position publishes while Loading and an external carrier Pause cancels held startup", async ({ page }) => {
+test("position stays absent while Loading and an external carrier Pause cancels held startup", async ({ page }) => {
   await installMediaOwnershipFakes(page, { holdCarrierPlay: true })
   let stateHistoryStarted = false
   try {
@@ -2325,13 +2327,13 @@ test("Live position publishes while Loading and an external carrier Pause cancel
     await expect.poll(async () => page.evaluate(() => {
       const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
       return {
-        livePositionPublished: probe.mediaSession.livePositionPublished,
+        positionStateCallCount: probe.mediaSession.positionStateCalls.length,
         pauseHandler: typeof probe.mediaSession.handlers.pause,
         playbackState: probe.mediaSession.playbackState,
         title: probe.mediaSession.metadata?.title,
       }
     })).toEqual({
-      livePositionPublished: true,
+      positionStateCallCount: 0,
       pauseHandler: "function",
       playbackState: "playing",
       title: "MassageLab Proof Drone",

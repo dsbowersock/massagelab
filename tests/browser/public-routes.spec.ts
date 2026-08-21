@@ -49,12 +49,12 @@ async function swipeCarouselStage(
 ) {
   const stage = page.getByTestId(testId)
   const box = await stage.boundingBox()
-  if (!box) throw new Error("Station carousel stage has no touch bounds")
+  if (!box) throw new Error(`${testId} has no touch bounds`)
 
   const session = await page.context().newCDPSession(page)
-  const y = box.y + box.height * 0.5
-  const startX = box.x + box.width * (direction === "next" ? 0.68 : 0.32)
-  const endX = box.x + box.width * (direction === "next" ? 0.32 : 0.68)
+  const y = box.y + box.height * 0.25
+  const startX = box.x + box.width * 0.5
+  const endX = box.x + box.width * (direction === "next" ? 0.1 : 0.9)
   const touchPoint = (x: number) => ({
     x,
     y,
@@ -92,9 +92,9 @@ async function dragCarouselStageWithMouse(
 ) {
   const box = await page.getByTestId(testId).boundingBox()
   if (!box) throw new Error("Adaptive carousel stage has no mouse-drag bounds")
-  const y = box.y + box.height * 0.5
-  const startX = box.x + box.width * (direction === "next" ? 0.68 : 0.32)
-  const endX = box.x + box.width * (direction === "next" ? 0.32 : 0.68)
+  const y = box.y + box.height * 0.25
+  const startX = box.x + box.width * 0.5
+  const endX = box.x + box.width * (direction === "next" ? 0.1 : 0.9)
   await page.mouse.move(startX, y)
   await page.mouse.down()
   await page.mouse.move(endX, y, { steps: 8 })
@@ -1144,27 +1144,32 @@ for (const reducedMotion of [false, true] as const) {
 
     const carousel = page.getByRole("region", { name: "Station carousel" })
     const stage = page.getByTestId("station-carousel-stage")
-    const slides = carousel.locator('[data-carousel-slide="true"]')
+    const slides = carousel.locator('[data-carousel-slide="true"]:not([data-carousel-loop-clone="true"])')
     await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
     await expect(carousel).toHaveAttribute("data-reduced-motion", String(reducedMotion))
     const ids = await slides.evaluateAll((elements) => elements
-      .map((element) => element.getAttribute("data-carousel-item-id"))
+      .map((element) => element.getAttribute("data-carousel-canonical-id"))
       .filter((id): id is string => Boolean(id)))
     expect(ids.length).toBeGreaterThan(2)
     const firstId = ids[0]
     const lastId = ids[ids.length - 1]
     const centeredId = () => carousel
       .locator('[data-carousel-slide="true"][data-centered="true"]')
-      .getAttribute("data-carousel-item-id")
+      .getAttribute("data-carousel-canonical-id")
     const previous = carousel.getByRole("button", { name: "Previous station" })
     const next = carousel.getByRole("button", { name: "Next station" })
     const customControlMarker = carousel.locator('[data-station-carousel-controls="true"]')
-    const controlsExpected = reducedMotion || testInfo.project.name === "desktop-chromium"
+    const hasFineHoverPointer = await page.evaluate(() => (
+      window.matchMedia("(any-hover: hover) and (any-pointer: fine)").matches
+    ))
+    const controlsExpected = reducedMotion || hasFineHoverPointer
 
     await expect(previous).toHaveCount(controlsExpected ? 1 : 0)
     await expect(next).toHaveCount(controlsExpected ? 1 : 0)
     await expect(customControlMarker).toHaveCount(controlsExpected ? 1 : 0)
     await stage.focus()
+    await page.keyboard.press("Home")
+    await expect.poll(centeredId).toBe(firstId)
     await page.keyboard.press("ArrowLeft")
     await expect.poll(centeredId).toBe(lastId)
     await page.keyboard.press("ArrowRight")
@@ -1186,14 +1191,12 @@ for (const reducedMotion of [false, true] as const) {
     await expect.poll(centeredId).toBe(firstId)
     await waitForCarouselMotionToSettle(page, "station-carousel-stage")
 
-    const lastSideCard = carousel.locator(`[data-carousel-item-id="${lastId}"]`)
-    await expect(lastSideCard).toHaveAttribute("data-detail-level", "summary")
+    const lastSideCard = carousel.locator(`[data-carousel-canonical-id="${lastId}"][data-detail-level="summary"]`).first()
     await clickVisibleCarouselSideCard(page, stage, lastSideCard)
     await expect.poll(centeredId).toBe(lastId)
     await waitForCarouselMotionToSettle(page, "station-carousel-stage")
 
-    const firstSideCard = carousel.locator(`[data-carousel-item-id="${firstId}"]`)
-    await expect(firstSideCard).toHaveAttribute("data-detail-level", "summary")
+    const firstSideCard = carousel.locator(`[data-carousel-canonical-id="${firstId}"][data-detail-level="summary"]`).first()
     await clickVisibleCarouselSideCard(page, stage, firstSideCard)
     await expect.poll(centeredId).toBe(firstId)
     await waitForCarouselMotionToSettle(page, "station-carousel-stage")

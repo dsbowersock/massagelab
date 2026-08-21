@@ -235,7 +235,8 @@
   }
 
   body.ml-music-player-active:not(.ml-music-player-collapsed) {
-    --ml-audio-toolbar-content-height: 10rem;
+    --ml-audio-toolbar-expanded-content-height: 10rem;
+    --ml-audio-toolbar-content-height: var(--ml-audio-toolbar-expanded-content-height);
   }
 
   body.ml-music-player-active.ml-music-player-collapsed {
@@ -261,7 +262,7 @@
 
   @media (min-width: 36.0625rem) and (max-height: 44rem) {
     body.ml-music-player-active:not(.ml-music-player-collapsed) {
-      --ml-audio-toolbar-content-height: 8rem;
+      --ml-audio-toolbar-expanded-content-height: 8rem;
     }
   }
 
@@ -2307,15 +2308,7 @@
 
   @media (max-height: 36rem) {
     .ml-atmosphere-category-label {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
+      @apply sr-only;
     }
 
     .ml-atmosphere-category-picker,
@@ -2327,7 +2320,7 @@
 
   .ml-music-player-toolbar {
     --ml-station-vinyl-size: 8rem;
-    --ml-music-player-expanded-content-height: 10rem;
+    --ml-music-player-expanded-content-height: var(--ml-audio-toolbar-expanded-content-height, 10rem);
     --ml-music-player-inline-padding: 0.75rem;
     --ml-music-player-safe-offset: 0px;
   }
@@ -2552,7 +2545,6 @@
   @media (min-width: 36.0625rem) and (max-height: 44rem) {
     .ml-music-player-toolbar {
       --ml-station-vinyl-size: 6rem;
-      --ml-music-player-expanded-content-height: 8rem;
     }
   }
 
@@ -2608,12 +2600,12 @@
 
   /* Shared overlays use the CSS-owned rail inset while it is nonzero. The
      default keeps existing viewport centering and right-edge placement. */
-  .ml-player-viewport-safe-modal {
+  body.ml-music-player-rail .ml-player-viewport-safe-modal {
     left: calc((100dvw - var(--ml-player-right-safe)) / 2) !important;
     max-width: min(32rem, max(0px, calc(100dvw - var(--ml-player-right-safe)))) !important;
   }
 
-  .ml-player-viewport-safe-sheet[data-ml-player-viewport-side="right"] {
+  body.ml-music-player-rail .ml-player-viewport-safe-sheet[data-ml-player-viewport-side="right"] {
     max-width: max(0px, calc(100dvw - var(--ml-player-right-safe))) !important;
     right: var(--ml-player-right-safe) !important;
   }

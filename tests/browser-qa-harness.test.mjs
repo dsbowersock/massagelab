@@ -35,8 +35,12 @@ test("install-prompt QA dispatches only while the provider listener is proven ac
 
   assert.equal((appShellSpec.match(/await installPwaPromptListenerProbe\(page\)/g) ?? []).length, 2)
   assert.equal((appShellSpec.match(/await dispatchPwaInstallPromptWhenReady\(page,/g) ?? []).length, 2)
+  const dispatchStart = appShellSpec.indexOf("async function dispatchPwaInstallPromptWhenReady")
+  const dispatchEnd = appShellSpec.indexOf("\nasync function ", dispatchStart + 1)
+  const dispatchSource = appShellSpec.slice(dispatchStart, dispatchEnd === -1 ? undefined : dispatchEnd)
+  assert.notEqual(dispatchStart, -1)
   assert.match(
-    appShellSpec,
+    dispatchSource,
     /if \(!Reflect\.get\(window, "__massagelabPwaInstallPromptListenerReady"\)\) return false[\s\S]*window\.dispatchEvent\(event\)/,
   )
 })

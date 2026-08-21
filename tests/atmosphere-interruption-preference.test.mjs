@@ -36,6 +36,6 @@ test("writes the versioned preference", () => {
   assert.equal(DEFAULT_RESUME_AFTER_INTERRUPTION, true)
 })
 
-test("blocked storage write uses the enabled default", () => {
-  assert.deepEqual(writeAtmosphereInterruptionPreference(() => ({ setItem: () => { throw new Error("blocked") } }), false), { value: true, available: false })
+test("blocked storage write preserves the requested in-memory preference", () => {
+  assert.deepEqual(writeAtmosphereInterruptionPreference(() => ({ setItem: () => { throw new Error("blocked") } }), false), { value: false, available: false })
 })

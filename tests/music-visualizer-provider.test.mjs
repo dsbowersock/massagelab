@@ -115,6 +115,9 @@ describe("Music visualizer provider contract", () => {
     assert.equal((providerSource.match(/scheduleStoppedPlayerRetirement\(/g) ?? []).length, 1)
     assert.match(providerSource, /const playStation = useCallback\(async \([\s\S]*?\) => \{\s*cancelStoppedPlayerRetirement\(\)/)
     assert.match(providerSource, /const playAdjacentStation = useCallback\(async \(direction: 1 \| -1\) => \{\s*cancelStoppedPlayerRetirement\(\)/)
+    assert.match(providerSource, /const navigationRequestId = playbackRequestIdRef\.current/)
+    assert.match(providerSource, /navigationRequestId !== playbackRequestIdRef\.current/)
+    assert.match(providerSource, /navigationSessionGeneration !== playbackSessionGenerationRef\.current/)
     assert.match(providerSource, /useEffect\(\(\) => \(\) => \{\s*cancelStoppedPlayerRetirement\(\)/)
   })
 

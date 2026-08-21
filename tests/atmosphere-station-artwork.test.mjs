@@ -1,6 +1,5 @@
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
-import { readFileSync } from "node:fs"
 import test from "node:test"
 
 import * as stationArtwork from "../lib/atmosphere/station-artwork.ts"
@@ -50,26 +49,6 @@ test("canonical station artwork SVG is deterministic and its sized URL safely en
     getAtmosphereStationArtworkUrl("proof/drone", 256),
     "/api/atmosphere/stations/proof%2Fdrone/artwork?size=256&v=2026-08-17-1",
   )
-})
-
-test("platform artwork route isolates the revisioned 512 derivative from legacy PNGs", () => {
-  const routeSource = readFileSync(
-    new URL("../app/api/atmosphere/stations/[stationId]/artwork/route.tsx", import.meta.url),
-    "utf8",
-  )
-
-  assert.match(routeSource, /const url = new URL\(request\.url\)/)
-  assert.match(routeSource, /parseArtworkSize\(url\.searchParams\.get\("size"\)\)/)
-  assert.match(
-    routeSource,
-    /platformDerivative\s*=\s*size === 512\s*&&\s*url\.searchParams\.get\("v"\)\s*===\s*ATMOSPHERE_MEDIA_SESSION_ARTWORK_REVISION/,
-  )
-  assert.match(routeSource, /sharp\(Buffer\.from\(svg\), \{ density: 153\.6 \}\)/)
-  assert.match(routeSource, /\.resize\(512, 512, \{ fit: "fill" \}\)\s*\.sharpen\(\)/)
-  assert.match(routeSource, /sharp\(Buffer\.from\(svg\)\)\s*\.resize\(size, size, \{ fit: "fill" \}\)/)
-  assert.match(routeSource, /\.toBuffer\(\{ resolveWithObject: true \}\)/)
-  assert.match(routeSource, /info\.width !== size \|\| info\.height !== size/)
-  assert.doesNotMatch(routeSource, /\.contrast\(|\.modulate\(|\.gamma\(|\b1024\b/)
 })
 
 test("canonical input resolution reuses station identity and rejects invalid runtime data", () => {

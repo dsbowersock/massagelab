@@ -42,6 +42,20 @@ const stationCarouselSource = readFileSync(
 )
 
 describe("production adaptive carousel", () => {
+  it("uses documented fallback dimensions for non-positive Station measurements", () => {
+    assert.deepEqual(
+      getResponsiveStationCarouselTuning({
+        containerWidth: 0,
+        containerHeight: -1,
+        constrainedLandscape: false,
+      }),
+      getResponsiveStationCarouselTuning({
+        containerWidth: 740,
+        containerHeight: 224,
+        constrainedLandscape: false,
+      }),
+    )
+  })
   it("uses three Background renderers only in short landscape", () => {
     const cases = [
       [{ containerWidth: 479, viewportWidth: 390, viewportHeight: 844 }, "phone-portrait", 164, 312, 22, 2],
@@ -77,11 +91,11 @@ describe("production adaptive carousel", () => {
     assert.match(stageSource, /data-has-custom-controls=/)
     assert.match(
       stageSource,
-      /data-station-carousel-controls=\{surface === "stations" && renderControls && customControlsVisible[\s\S]*viewportProfile === "music-fit"/,
+      /data-station-carousel-controls=\{stationControlsVisible && viewportProfile === "music-fit"/,
     )
     assert.match(
       stageSource,
-      /surface === "stations" && renderControls && customControlsVisible/,
+      /const stationControlsVisible = surface === "stations"[\s\S]*Boolean\(renderControls\)[\s\S]*customControlsVisible/,
     )
     assert.doesNotMatch(stageSource, /data-carousel-controls="true"/)
   })
@@ -311,7 +325,10 @@ describe("production adaptive carousel", () => {
     )
     assert.match(stationCarouselSource, /const showStationControls = reducedMotion \|\| hasFineHoverPointer/)
     assert.match(stationCarouselSource, /customControlsVisible=\{showStationControls\}/)
-    assert.match(stationCarouselSource, /constrainedLandscape/)
+    assert.match(
+      stationCarouselSource,
+      /getResponsiveStationCarouselTuning\(\{[\s\S]*?constrainedLandscape,?[\s\S]*?\}\)/,
+    )
     assert.doesNotMatch(stationCarouselSource, /maxTouchPoints/)
   })
 

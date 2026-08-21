@@ -30,6 +30,7 @@ type GenerativeFmRuntimeOptions = {
   station: GenerativeFmRuntimeStation
   volume?: number
   onLoadProgress?: (progress: number) => void
+  isCurrent?: () => boolean
 }
 
 type GenerativeFmPrewarmOptions = {
@@ -117,6 +118,7 @@ const HOSTED_SAMPLE_FORMAT_PREFERENCE: ReadonlyArray<{
  * Tone activation immediately from the user-initiated playback path.
  */
 export async function startGenerativeFmPiece({
+  isCurrent = () => true,
   onLoadProgress,
   station,
   volume = 0.75,
@@ -167,6 +169,14 @@ export async function startGenerativeFmPiece({
     output.dispose()
     throw error
   }
+
+  // A newer request may finish while this piece is preparing. Do not let this
+  // stale graph cancel or claim the newer request's shared Tone.Transport.
+  if (!isCurrent()) {
+    deactivate()
+    output.dispose()
+    return () => undefined
+  }
   const activatedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.9)
 
@@ -207,9 +217,9 @@ export async function startGenerativeFmPiece({
     sampleRequestMemoryHitUrlCount: providerRequestStats.memoryHitUrlCount,
     sampleRequestUniqueUrlCount: providerRequestStats.uniqueUrlCount,
     sampleRequestUrlCount: providerRequestStats.requestedUrlCount,
-    prepareWaitMs: preparedAt - startedAt,
-    toneStartMs: toneStartedAt - preparedAt,
-    pieceActivateMs: activatedAt - toneStartedAt,
+    prepareWaitMs: Math.max(0, preparedAt - toneStartedAt),
+    toneStartMs: Math.max(0, toneStartedAt - startedAt),
+    pieceActivateMs: Math.max(0, activatedAt - Math.max(preparedAt, toneStartedAt)),
     scheduleMs: scheduledAt - activatedAt,
     totalMs: scheduledAt - startedAt,
   })

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, type CSSProperties, type ReactNode } from "react"
+import { useEffect, useMemo, type CSSProperties, type ReactNode, type Ref } from "react"
 import { StepBack, StepForward } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -49,6 +49,7 @@ export interface AdaptiveCarouselStageProps<T extends AdaptiveCarouselItem> {
   viewportProfile?: string
   renderControls?: (state: AdaptiveCarouselControlState) => ReactNode
   customControlsVisible?: boolean
+  stageRef?: Ref<HTMLElement>
 }
 
 type BufferedAdaptiveCarouselItem<T extends AdaptiveCarouselItem> = T & {
@@ -89,6 +90,7 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
   viewportProfile,
   renderControls,
   customControlsVisible = true,
+  stageRef,
 }: AdaptiveCarouselStageProps<T>) {
   const sourceItems = useMemo(
     () => normalizeAdaptiveCarouselItems(sourceItemInput) as T[],
@@ -165,6 +167,9 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
       goNext()
     },
   }
+  const stationControlsVisible = surface === "stations"
+    && Boolean(renderControls)
+    && customControlsVisible
   const defaultNavigation = (
     <div className={styles.navigation}>
       <Button
@@ -201,6 +206,7 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
 
   return (
     <section
+      ref={stageRef}
       className={styles.root}
       data-surface={surface}
       data-presentation={presentation}
@@ -216,7 +222,7 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
         className={styles.stage}
         data-testid={testId}
         tabIndex={0}
-        onKeyDown={(event) => {
+        onKeyDownCapture={(event) => {
           if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) {
             onNavigate?.()
           }
@@ -287,8 +293,7 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
       {renderedControls ? (
         <div
           className={styles.controls}
-          data-station-carousel-controls={surface === "stations" && renderControls && customControlsVisible
-            && viewportProfile === "music-fit"
+          data-station-carousel-controls={stationControlsVisible && viewportProfile === "music-fit"
             ? "true"
             : undefined}
         >

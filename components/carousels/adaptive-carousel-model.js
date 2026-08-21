@@ -92,8 +92,8 @@ export function getResponsiveStationCarouselTuning({
   containerHeight,
   constrainedLandscape,
 }) {
-  const safeWidth = Number.isFinite(containerWidth) ? containerWidth : 740
-  const safeHeight = Number.isFinite(containerHeight) ? containerHeight : 224
+  const safeWidth = Number.isFinite(containerWidth) && containerWidth > 0 ? containerWidth : 740
+  const safeHeight = Number.isFinite(containerHeight) && containerHeight > 0 ? containerHeight : 224
   const compactWidthProgress = Math.max(0, Math.min(1, (
     safeWidth - STATION_CAROUSEL_LARGE_SCREEN_TUNING.compactReferenceWidth
   ) / (

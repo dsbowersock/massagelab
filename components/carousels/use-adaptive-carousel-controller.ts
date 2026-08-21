@@ -109,6 +109,7 @@ export function useAdaptiveCarouselController(
   })
   const itemElements = useRef(new Map<string, HTMLElement>())
   const frameRef = useRef<number | null>(null)
+  const pendingLoopRecenterIndexRef = useRef<number | null>(null)
   const onCenteredItemChangeRef = useRef(options.onCenteredItemChange)
   const [centeredId, setCenteredId] = useState<string | null>(initialCenter.id)
   const [canGoPrevious, setCanGoPrevious] = useState(false)
@@ -190,6 +191,11 @@ export function useAdaptiveCarouselController(
 
   useEffect(() => {
     if (!api) return
+    const settle = () => {
+      const canonicalIndex = pendingLoopRecenterIndexRef.current
+      pendingLoopRecenterIndexRef.current = null
+      if (canonicalIndex !== null) api.scrollTo(canonicalIndex, true)
+    }
     const select = () => {
       const item = items[api.selectedScrollSnap()]
       setCenteredId(item?.id ?? null)
@@ -200,19 +206,25 @@ export function useAdaptiveCarouselController(
           !candidate.loopClone && candidate.id === item.canonicalId
         ))
         if (canonicalIndex >= 0) {
-          api.scrollTo(canonicalIndex, true)
+          // Wait until Embla has finished an arrow, button, or pointer snap;
+          // otherwise its remaining motion can overwrite the invisible-copy
+          // handoff back to the corresponding real station.
+          pendingLoopRecenterIndexRef.current = canonicalIndex
           return
         }
       }
+      pendingLoopRecenterIndexRef.current = null
       if (item) onCenteredItemChangeRef.current?.(item.canonicalId ?? item.id)
       scheduleTransformWrite()
     }
     select()
     api.on("select", select)
+    api.on("settle", settle)
     api.on("reInit", select)
     api.on("scroll", scheduleTransformWrite)
     return () => {
       api.off("select", select)
+      api.off("settle", settle)
       api.off("reInit", select)
       api.off("scroll", scheduleTransformWrite)
       if (frameRef.current !== null) {
@@ -255,15 +267,24 @@ export function useAdaptiveCarouselController(
       event.preventDefault()
       api?.scrollNext()
     }
-    if (!effectiveLoop && event.key === "Home") {
+    const edgeShortcutsEnabled = !effectiveLoop || surface === "stations"
+    if (edgeShortcutsEnabled && event.key === "Home") {
       event.preventDefault()
-      api?.scrollTo(0)
+      const firstItemId = surface === "stations"
+        ? logicalItems[0]?.id
+        : items[0]?.id
+      const firstItemIndex = items.findIndex((item) => item.id === firstItemId)
+      if (firstItemIndex >= 0) api?.scrollTo(firstItemIndex, true)
     }
-    if (!effectiveLoop && event.key === "End") {
+    if (edgeShortcutsEnabled && event.key === "End") {
       event.preventDefault()
-      api?.scrollTo(items.length - 1)
+      const lastItemId = surface === "stations"
+        ? logicalItems.at(-1)?.id
+        : items.at(-1)?.id
+      const lastItemIndex = items.findIndex((item) => item.id === lastItemId)
+      if (lastItemIndex >= 0) api?.scrollTo(lastItemIndex, true)
     }
-  }, [api, effectiveLoop, items.length])
+  }, [api, effectiveLoop, items, logicalItems, surface])
 
   return {
     viewportRef,

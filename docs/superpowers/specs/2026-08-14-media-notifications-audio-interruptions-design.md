@@ -96,7 +96,7 @@ Carrier failure must not prevent ordinary in-app generator playback. When media 
 
 ### Media Session semantics
 
-Media Session metadata uses the current station title, `Massage Lab` as the source, suitable existing station artwork, and app artwork as fallback.
+Media Session metadata uses the current station title, `MassageLab` as the source, suitable existing station artwork, and app artwork as fallback.
 
 Actions have these meanings:
 

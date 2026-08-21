@@ -4,7 +4,7 @@
 
 **Goal:** Make Atmosphere artwork identical across carousel, player, notification, and lock screen; publish the generator as Live; make the first Play activation authoritative; and add the approved decorative vinyl player-bar presentation.
 
-**Architecture:** A pure station-art module owns deterministic SVG generation and canonical artwork URLs, while one Node route rasterizes that SVG to a cacheable 512 by 512 PNG used by every surface. `MusicProvider` remains the only playback owner; Media Session gains a guarded indefinite position publication, and the Componentry registry output is reduced to a pointer-inert CSS vinyl driven entirely by provider state.
+**Architecture:** A pure station-art module owns deterministic SVG generation and canonical artwork URLs, while one Node route rasterizes that SVG to a cacheable 512 by 512 PNG used by every surface. `MusicProvider` remains the only playback owner; Media Session leaves the unbounded generator timeline absent, and the Componentry registry output is reduced to a pointer-inert CSS vinyl driven entirely by provider state.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript/JavaScript, Sharp 0.35.3, Tailwind CSS 3, existing MassageLab button variants, Media Session API, Node test runner, Playwright desktop/mobile Chromium and scoped WebKit, Vercel preview deployment.
 
@@ -73,13 +73,13 @@ export function renderAtmosphereStationArtworkSvg(
   input: AtmosphereStationArtworkInput,
 ): string
 
-export function getAtmosphereStationArtworkUrl(stationId: string): string
+export function getAtmosphereStationArtworkUrl(stationId: string, size: 256 | 512): string
 ```
 
 `renderAtmosphereStationArtworkSvg` serializes the current 240 by 240 SVG, including gradient, clip, border, and all six seeded motifs. Escape all text/identifier input before including it in XML. `getAtmosphereStationArtworkUrl` returns:
 
 ```ts
-`/api/atmosphere/stations/${encodeURIComponent(stationId)}/artwork`
+`/api/atmosphere/stations/${encodeURIComponent(stationId)}/artwork?size=${size}&v=${ARTWORK_REVISION}`
 ```
 
 ### Artwork component
@@ -114,24 +114,7 @@ Add `sharp: "0.35.3"` as a direct exact dependency even though Next currently su
 
 ### Media Session position
 
-Keep `createAtmosphereMediaSessionController` public API unchanged. Internally add:
-
-```js
-function publishLivePositionState() {
-  if (!mediaSession || typeof mediaSession.setPositionState !== "function") return
-  try {
-    mediaSession.setPositionState({
-      duration: Number.POSITIVE_INFINITY,
-      playbackRate: 1,
-      position: 0,
-    })
-  } catch {
-    clearPositionState()
-  }
-}
-```
-
-`publish()` calls `publishLivePositionState()`. `clear()` continues to call the empty-state `clearPositionState()`.
+Keep `createAtmosphereMediaSessionController` public API unchanged. The unbounded generator does not publish a fabricated duration or position state. `clear()` still calls the empty-state `clearPositionState()` so any timeline left by prior media is removed when MassageLab releases ownership.
 
 ### Decorative vinyl
 
@@ -206,8 +189,8 @@ assert.equal(first, second)
 assert.match(first, /^<svg[^>]+viewBox="0 0 240 240"/)
 assert.match(first, /<circle/)
 assert.equal(
-  getAtmosphereStationArtworkUrl("proof/drone"),
-  "/api/atmosphere/stations/proof%2Fdrone/artwork",
+  getAtmosphereStationArtworkUrl("proof/drone", 512),
+  "/api/atmosphere/stations/proof%2Fdrone/artwork?size=512&v=2026-08-17-1",
 )
 ```
 
@@ -260,7 +243,7 @@ Replace inline motif ownership with the route-backed image. Track the failed URL
   alt={`${title} station artwork`}
   className={cn("h-full w-full rounded-[9px] object-cover", className)}
   height={512}
-  src={getAtmosphereStationArtworkUrl(stationId)}
+  src={getAtmosphereStationArtworkUrl(stationId, 512)}
   width={512}
 />
 ```
@@ -339,7 +322,7 @@ git commit -m "fix: unify atmosphere station artwork"
 **Interfaces:**
 
 - Consumes: existing `createAtmosphereMediaSessionController({ mediaSession, createMetadata })`.
-- Produces: no public API change; `publish()` attempts an infinite position state and `clear()` removes it.
+- Produces: no public API change; `publish()` leaves position absent and `clear()` removes prior platform state.
 
 - [ ] **Step 1: Add failing controller tests**
 
@@ -347,17 +330,13 @@ Record every `setPositionState` argument and assert:
 
 ```js
 controller.publish(publication)
-assert.deepEqual(positionCalls[0], {
-  duration: Number.POSITIVE_INFINITY,
-  playbackRate: 1,
-  position: 0,
-})
+assert.deepEqual(positionCalls, [])
 
 controller.clear()
 assert.equal(positionCalls.at(-1), undefined)
 ```
 
-Add a fake that throws on the infinite dictionary but accepts the no-argument clear. Assert `publish()` does not throw, the clear fallback occurs, metadata remains assigned, and all five handlers remain installed.
+Assert metadata remains assigned and all five handlers remain installed without a position-state call.
 
 - [ ] **Step 2: Run controller RED**
 
@@ -367,11 +346,11 @@ Run:
 node --test tests/atmosphere-media-session-controller.test.mjs
 ```
 
-Expected: fail because current `publish()` only clears position state.
+Expected: fail if `publish()` fabricates a finite or infinite position state.
 
-- [ ] **Step 3: Implement guarded Live publication**
+- [ ] **Step 3: Keep the unbounded timeline absent**
 
-Add `publishLivePositionState()` exactly as defined in the interface map. Call it from `publish()` after playback state and before handlers. Keep `clearPositionState()` for `clear()` and rejection fallback.
+Keep position state absent during `publish()`. Retain `clearPositionState()` for `clear()` so prior finite media timelines cannot leak into the dismissed card.
 
 - [ ] **Step 4: Run controller GREEN**
 
@@ -385,15 +364,13 @@ Expected: all controller and carrier tests pass.
 
 - [ ] **Step 5: Extend the rendered Media Session probe**
 
-In `music-media-session.spec.ts`, make the fake capture a boolean rather than JSON-serialize Infinity:
+In `music-media-session.spec.ts`, retain the fake call log and assert:
 
 ```ts
-probe.livePositionPublished = state?.duration === Number.POSITIVE_INFINITY
-  && state.position === 0
-  && state.playbackRate === 1
+expect(probe.mediaSession.positionStateCalls).toEqual([])
 ```
 
-Assert true while Loading/Playing, assert a clear call after Stop, and add a rejection case proving the generator still reaches Playing with metadata and handlers intact.
+Assert the call log stays empty while Loading/Playing, assert a clear call after Stop, and prove the generator still reaches Playing with metadata and handlers intact.
 
 - [ ] **Step 6: Run browser GREEN and commit**
 
@@ -617,7 +594,7 @@ Compute:
 
 ```tsx
 const activeArtworkSrc = music.activeStationId
-  ? getAtmosphereStationArtworkUrl(music.activeStationId)
+  ? getAtmosphereStationArtworkUrl(music.activeStationId, 512)
   : null
 const isVinylPlaying = music.playbackState === "playing"
 const isFavorite = music.activeStationId

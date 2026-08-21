@@ -137,6 +137,7 @@ type StoredAtmosphereHydration = {
 }
 
 interface RuntimeAdapterPayload {
+  isCurrent: () => boolean
   station: {
     id: string
     title?: string
@@ -213,6 +214,7 @@ type AtmosphereRuntimeModules = {
   getToneProofDroneDiagnostics: () => ToneProofDroneDiagnostics | null
   getAtmosphereAudioContext: () => EventTarget & { state: unknown }
   startGenerativeFmPiece: (options: {
+    isCurrent?: () => boolean
     onLoadProgress?: (progress: number) => void
     station: RuntimeAdapterPayload["station"]
     volume?: number
@@ -222,6 +224,7 @@ type AtmosphereRuntimeModules = {
     detuneCents?: number
     fadeSeconds?: number
     volume?: number
+    isCurrent?: () => boolean
   }) => Promise<void | (() => void)>
 }
 
@@ -475,11 +478,13 @@ export function MusicProvider({
       runtimeLoadPromiseRef.current = loadAtmosphereRuntimeModules().then((modules) => {
         const controller = modules.createAtmosphereRuntimeController({
           adapters: {
-            "tone-proof-drone": async ({ station }) => modules.startToneProofDrone({
+            "tone-proof-drone": async ({ station, isCurrent }) => modules.startToneProofDrone({
               ...station.runtime?.defaultOptions,
+              isCurrent,
               volume: volumeRef.current,
             }),
-            "generative-fm-piece": async ({ station }) => modules.startGenerativeFmPiece({
+            "generative-fm-piece": async ({ station, isCurrent }) => modules.startGenerativeFmPiece({
+              isCurrent,
               onLoadProgress: (progress) => reportStationLoadProgress(station.id, progress),
               station,
               volume: volumeRef.current,
@@ -883,6 +888,7 @@ export function MusicProvider({
       })
     }
     const sessionGeneration = playbackSessionGenerationRef.current
+    const lifecycleSessionId = playbackLifecycleRef.current.sessionId
     const retainedMetadata = activeStationIdRef.current === stationId
       ? activeStationMetadataRef.current
       : null
@@ -936,7 +942,7 @@ export function MusicProvider({
       loadingStationIdRef.current = null
       setLoadingProgress(null)
       setLoadingStartedAt(null)
-      commitPlaybackLifecycle({ type: "START_FAILED" })
+      commitPlaybackLifecycle({ type: "START_FAILED", sessionId: lifecycleSessionId })
       mediaCarrierRef.current?.stopAndDismiss()
       mediaSessionControllerRef.current?.clear()
       setError(caughtError instanceof Error ? caughtError.message : "Audio runtime could not load.")
@@ -974,7 +980,7 @@ export function MusicProvider({
         title: station.title,
         artist: getStationArtist(station),
       }
-      commitPlaybackLifecycle({ type: "START_FAILED" })
+      commitPlaybackLifecycle({ type: "START_FAILED", sessionId: lifecycleSessionId })
       setLoadingProgress(null)
       setLoadingStartedAt(null)
       loadingStationIdRef.current = null
@@ -1012,7 +1018,7 @@ export function MusicProvider({
       loadingStationIdRef.current = null
       setLoadingProgress(null)
       setLoadingStartedAt(null)
-      commitPlaybackLifecycle({ type: "START_SUCCEEDED" })
+      commitPlaybackLifecycle({ type: "START_SUCCEEDED", sessionId: lifecycleSessionId })
       publishMediaSession(stationMetadata, "playing")
       setStorageState((current) => ({
         ...current,
@@ -1029,7 +1035,7 @@ export function MusicProvider({
       loadingStationIdRef.current = null
       setLoadingProgress(null)
       setLoadingStartedAt(null)
-      commitPlaybackLifecycle({ type: "START_FAILED" })
+      commitPlaybackLifecycle({ type: "START_FAILED", sessionId: lifecycleSessionId })
       mediaCarrierRef.current?.pauseRetained()
       publishMediaSession(stationMetadata, "paused")
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not start.")
@@ -1046,7 +1052,15 @@ export function MusicProvider({
 
   const playAdjacentStation = useCallback(async (direction: 1 | -1) => {
     cancelStoppedPlayerRetirement()
+    const navigationRequestId = playbackRequestIdRef.current
+    const navigationSessionGeneration = playbackSessionGenerationRef.current
     const runtime = await getRuntime()
+    if (
+      navigationRequestId !== playbackRequestIdRef.current
+      || navigationSessionGeneration !== playbackSessionGenerationRef.current
+    ) {
+      return
+    }
     const playableStationIds = runtime.playableStationIds
     if (playableStationIds.length === 0) {
       return
