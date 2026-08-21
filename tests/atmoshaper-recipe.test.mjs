@@ -83,6 +83,27 @@ test("updates, removal, and ordering are immutable", () => {
   assert.deepEqual(removed.layers.map(({ id }) => id), ["b"])
 })
 
+test("normalization rejects duplicate exclusive layers and updates cannot change kinds", () => {
+  assert.throws(() => normalizeAtmoShaperRecipe({
+    version: 1,
+    id: "mix-exclusive",
+    name: "Exclusive",
+    layers: [
+      stationLayer("station-a", "station:trees"),
+      stationLayer("station-b", "station:peace"),
+    ],
+  }), /exclusive.*station/i)
+
+  const recipe = addAtmoShaperLayer(
+    createAtmoShaperRecipe({ id: "mix-update", name: "Update" }),
+    noiseLayer("noise"),
+  )
+  assert.throws(
+    () => updateAtmoShaperLayer(recipe, "noise", { kind: "station" }),
+    /layer kind cannot change/i,
+  )
+})
+
 test("all named brainwave presets stay inside the documented safe bounds", () => {
   assert.deepEqual(Object.keys(ATMOSHAPER_PRESETS), ["delta", "theta", "alpha", "beta", "gamma"])
   for (const preset of Object.values(ATMOSHAPER_PRESETS)) {
