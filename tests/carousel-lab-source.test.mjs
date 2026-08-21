@@ -409,7 +409,7 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(carousel, /Layer ambient sounds into your own soundscape\./)
     assert.match(carousel, /<strong>Coming soon<\/strong>/)
     assert.match(carousel, /stationGroupIdByStationId\.get\(station\.id\) \?\? group\.id/)
-    assert.match(carousel, /\[group\?\.id, stationItems\.length\]/)
+    assert.match(carousel, /\[constrainedLandscape, group\?\.id, stationItems\.length\]/)
     assert.match(carousel, /onViewChange\?\.\(nextView\)[\s\S]*?setGroupId\(nextGroupId\)/)
     assert.match(workspace, /atmosphereCarouselView === "stations"/)
     assert.match(workspace, /onViewChange=\{setAtmosphereCarouselView\}/)
