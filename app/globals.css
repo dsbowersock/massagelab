@@ -2000,6 +2000,70 @@
     min-height: 0;
   }
 
+  .ml-atmosphere-station-special-state {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    align-content: center;
+    justify-items: center;
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 1.25);
+    padding: 1rem;
+    color: hsl(var(--muted-foreground));
+    text-align: center;
+  }
+
+  .ml-atmosphere-station-special-state > strong {
+    color: hsl(var(--foreground));
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 1.1);
+    line-height: 1.25;
+  }
+
+  .ml-atmosphere-station-special-state[data-special-state="favorites"] {
+    position: relative;
+    display: block;
+  }
+
+  .ml-atmosphere-station-special-content {
+    position: absolute;
+    inset-block-start: 33.333%;
+    inset-inline-start: 50%;
+    display: grid;
+    inline-size: calc(100% - 2rem);
+    justify-items: center;
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 1.25);
+    translate: -50% -50%;
+  }
+
+  .ml-atmosphere-station-special-content > strong {
+    max-inline-size: 28ch;
+    color: hsl(var(--foreground));
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 1.45);
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  .ml-atmosphere-station-special-icon {
+    display: grid;
+    inline-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 5);
+    aspect-ratio: 1;
+    place-items: center;
+    border: 1px solid hsl(var(--button-cta-face-bright) / 0.75);
+    border-radius: 9999px;
+    color: hsl(var(--foreground));
+    background:
+      radial-gradient(circle at 35% 25%, hsl(var(--button-cta-face) / 0.28), transparent 52%),
+      hsl(var(--button-cta-face-depth) / 0.84);
+    box-shadow:
+      0 0 calc(var(--ml-atmosphere-workspace-scale-rem) * 1.5) hsl(var(--button-cta-face) / 0.72),
+      inset 0 1px 0 hsl(0 0% 100% / 0.22);
+  }
+
+  .ml-atmosphere-station-special-icon > svg {
+    inline-size: 52%;
+    block-size: 52%;
+  }
+
   .ml-atmosphere-rail-content {
     gap: 0;
     max-inline-size: none !important;
@@ -3860,9 +3924,9 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   display: block;
 }
 
-/* JavaScript measures the actual centered card and assigns a 130% visual
-   counterpart. Roomy layouts retain the preferred 30px gap; boundary layouts
-   may use the measured 8px floor rather than hiding a complete fitting square. */
+/* JavaScript prefers 130% of the centered card, then lets the square consume
+   surplus portrait room. Tight boundaries use the largest useful fit; the top
+   offset still divides the remaining room evenly with a 4px-per-side floor. */
 .ml-atmosphere-carousel-workspace[data-favorites-fit="true"] {
     .ml-atmosphere-favorites-region {
       display: grid;
@@ -3876,12 +3940,14 @@ html[data-theme-transition-fallback="toggle-light"]::before {
       grid-auto-rows: minmax(0, 1fr);
       gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.2);
       aspect-ratio: 1;
-      /* The centered carousel card is the visual scale anchor; Favorites is
-         intentionally 30% larger when the complete square fits. */
+      /* The centered card supplies the preferred 130% baseline; measured room
+         may grow it or, at a tight boundary, choose the largest safe fit. */
       inline-size: min(100cqi, 100cqb, var(--ml-atmosphere-favorites-edge));
       place-self: start center;
       min-block-size: 0;
-      overflow: hidden;
+      /* Tiles clip their own artwork; the mosaic must leave their shared card
+         shadow visible beyond the square's edge. */
+      overflow: visible;
     }
 
     .ml-atmosphere-favorites-mosaic > div {

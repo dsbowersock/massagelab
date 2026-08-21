@@ -190,6 +190,52 @@ describe("production adaptive carousel", () => {
     assert.equal(narrow.cardHeight, 224)
   })
 
+  it("uses measured phone and tablet room without changing the approved endpoints", () => {
+    const iphoneSe = getResponsiveStationCarouselTuning({
+      containerWidth: 375,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    const galaxyS24 = getResponsiveStationCarouselTuning({
+      containerWidth: 384,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    const pixel8 = getResponsiveStationCarouselTuning({
+      containerWidth: 412,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    const iphone15ProMax = getResponsiveStationCarouselTuning({
+      containerWidth: 430,
+      containerHeight: 800,
+      constrainedLandscape: false,
+    })
+    const tallTablet = getResponsiveStationCarouselTuning({
+      containerWidth: 768,
+      containerHeight: 1200,
+      constrainedLandscape: false,
+    })
+    const rotated4k = getResponsiveStationCarouselTuning({
+      containerWidth: 1368,
+      containerHeight: 2300,
+      constrainedLandscape: false,
+    })
+    const heightLimitedSurfaceDuo = getResponsiveStationCarouselTuning({
+      containerWidth: 540,
+      containerHeight: 500,
+      constrainedLandscape: false,
+    })
+
+    assert.equal(iphoneSe.cardWidth, STATION_CAROUSEL_TUNING.cardWidth)
+    assert.ok(galaxyS24.cardWidth > iphoneSe.cardWidth)
+    assert.ok(pixel8.cardWidth > galaxyS24.cardWidth)
+    assert.ok(iphone15ProMax.cardWidth > pixel8.cardWidth)
+    assert.ok(tallTablet.cardWidth >= 380 && tallTablet.cardWidth <= 390)
+    assert.equal(rotated4k.cardWidth, 480)
+    assert.ok(heightLimitedSurfaceDuo.cardWidth <= 200)
+  })
+
   it("fluidly scales the complete Station composition on laptop and TV-sized stages", () => {
     const laptop = getResponsiveStationCarouselTuning({
       containerWidth: 1368,

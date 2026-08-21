@@ -10,14 +10,28 @@ import {
 import { useMusic } from "@/components/providers/music-provider"
 import { Button } from "@/components/ui/button"
 import { purpleGlowClassName } from "@/components/ui/carousel-button-classes"
+import { MetalFavoriteIcon } from "@/components/ui/metal-favorite-icon"
+import { buildAtmosphereFavoritesSpeedDialModel } from "@/lib/atmosphere/favorites-speed-dial"
 import { groupAtmosphereStations } from "@/lib/atmosphere/station-groups"
 import { getVisibleAtmosphereStations } from "@/lib/atmosphere/stations"
 import { cn } from "@/lib/utils"
 
-const stationGroups = groupAtmosphereStations(getVisibleAtmosphereStations())
+const stations = getVisibleAtmosphereStations()
+const stationGroups = groupAtmosphereStations(stations)
+const FAVORITES_CATEGORY_ID = "favorites"
+const ATMOSHAPER_CATEGORY_ID = "atmoshaper"
+
+export type AtmosphereStationCarouselView = "stations" | "favorites" | "atmoshaper"
+
+// A Favorites carousel still renders each station with the artwork family from
+// its catalog category rather than inventing a separate Favorites art style.
+const stationGroupIdByStationId = new Map(stationGroups.flatMap((group) => (
+  group.stations.map((station) => [station.id, group.id] as const)
+)))
 
 type AtmosphereStationCarouselProps = {
   onCenteredStationChange?: (stationId: string) => void
+  onViewChange?: (view: AtmosphereStationCarouselView) => void
 }
 
 type AtmosphereStationCarouselStyle = CSSProperties & {
@@ -39,6 +53,7 @@ function getInitialStationGroup(activeStationId: string | null) {
  */
 export function AtmosphereStationCarousel({
   onCenteredStationChange,
+  onViewChange,
 }: AtmosphereStationCarouselProps = {}) {
   const music = useMusic()
   const [groupId, setGroupId] = useState(() => getInitialStationGroup(music.activeStationId)?.id ?? "")
@@ -56,7 +71,29 @@ export function AtmosphereStationCarousel({
   const stageAllocationRef = useRef<HTMLDivElement | null>(null)
   const positionsRef = useRef(new Map<string, string>())
   const prewarmAbortRef = useRef<AbortController | null>(null)
-  const group = stationGroups.find(({ id }) => id === groupId) ?? stationGroups[0]
+  const favoriteStations = useMemo(
+    () => buildAtmosphereFavoritesSpeedDialModel(music.favorites, stations).allFavorites,
+    [music.favorites],
+  )
+  const isFavoritesCategory = groupId === FAVORITES_CATEGORY_ID
+  const isAtmoshaperCategory = groupId === ATMOSHAPER_CATEGORY_ID
+  const group = useMemo(() => (
+    isFavoritesCategory
+      ? {
+          id: FAVORITES_CATEGORY_ID,
+          title: "Favorites",
+          description: "Your saved Atmosphere stations.",
+          stations: favoriteStations,
+        }
+      : isAtmoshaperCategory
+        ? {
+            id: ATMOSHAPER_CATEGORY_ID,
+            title: "Atmoshaper",
+            description: "Layer ambient sounds into your own soundscape.",
+            stations: [],
+          }
+        : stationGroups.find(({ id }) => id === groupId) ?? stationGroups[0]
+  ), [favoriteStations, groupId, isAtmoshaperCategory, isFavoritesCategory])
   const stationItems = useMemo(
     () => (group?.stations ?? []).map((station) => ({
       ...station,
@@ -105,7 +142,7 @@ export function AtmosphereStationCarousel({
     })
     observer.observe(stage)
     return () => observer.disconnect()
-  }, [group?.id])
+  }, [group?.id, stationItems.length])
 
   const prewarmStation = useCallback((
     stationId: string,
@@ -129,16 +166,26 @@ export function AtmosphereStationCarousel({
   const handleGroupChange = useCallback((nextGroupId: string) => {
     prewarmAbortRef.current?.abort()
     prewarmAbortRef.current = null
-    const nextGroup = stationGroups.find(({ id }) => id === nextGroupId) ?? stationGroups[0]
-    const nextInitialItemId = nextGroup
-      ? positionsRef.current.get(nextGroup.id)
-        ?? (nextGroup.stations.some(({ id }) => id === music.activeStationId)
+    const nextView: AtmosphereStationCarouselView = nextGroupId === FAVORITES_CATEGORY_ID
+      ? "favorites"
+      : nextGroupId === ATMOSHAPER_CATEGORY_ID
+        ? "atmoshaper"
+        : "stations"
+    const nextStations = nextGroupId === FAVORITES_CATEGORY_ID
+      ? favoriteStations
+      : nextGroupId === ATMOSHAPER_CATEGORY_ID
+        ? []
+        : stationGroups.find(({ id }) => id === nextGroupId)?.stations ?? stationGroups[0]?.stations ?? []
+    const nextInitialItemId = nextStations.length > 0
+      ? positionsRef.current.get(nextGroupId)
+        ?? (nextStations.some(({ id }) => id === music.activeStationId)
           ? music.activeStationId ?? undefined
-          : nextGroup.stations[0]?.id)
+          : nextStations[0]?.id)
       : undefined
     setInitialItemId(nextInitialItemId)
+    onViewChange?.(nextView)
     setGroupId(nextGroupId)
-  }, [music.activeStationId])
+  }, [favoriteStations, music.activeStationId, onViewChange])
 
   const tuning = useMemo(
     () => getResponsiveStationCarouselTuning({
@@ -177,8 +224,19 @@ export function AtmosphereStationCarousel({
             role="group"
             aria-label="Station category"
           >
+            <Button
+              type="button"
+              aria-pressed={isFavoritesCategory}
+              className={cn("shrink-0", purpleGlowClassName)}
+              onClick={() => handleGroupChange(FAVORITES_CATEGORY_ID)}
+              size="compact"
+              variant="glow"
+            >
+              <MetalFavoriteIcon kind="heart" selected />
+              Favorites
+            </Button>
             {stationGroups.map((candidate) => {
-              const selected = candidate.id === group.id
+              const selected = candidate.id === groupId
               return (
                 <Button
                   key={candidate.id}
@@ -193,6 +251,16 @@ export function AtmosphereStationCarousel({
                 </Button>
               )
             })}
+            <Button
+              type="button"
+              aria-pressed={isAtmoshaperCategory}
+              className={cn("shrink-0", isAtmoshaperCategory && purpleGlowClassName)}
+              onClick={() => handleGroupChange(ATMOSHAPER_CATEGORY_ID)}
+              size="compact"
+              variant="glow"
+            >
+              Atmoshaper
+            </Button>
           </div>
         </div>
 
@@ -203,59 +271,81 @@ export function AtmosphereStationCarousel({
       </div>
 
       <div ref={stageAllocationRef} className="ml-atmosphere-station-stage-allocation">
-        <AdaptiveCarouselStage
-          key={group.id}
-          items={stationItems}
-          initialItemId={initialItemId}
-          surface="stations"
-          presentation="background-picker"
-          tuning={tuning}
-          reducedMotion={reducedMotion}
-          customControlsVisible={showStationControls}
-          testId="station-carousel-stage"
-          viewportProfile="music-fit"
-          onCenteredItemChange={handleCenteredItemChange}
-          renderControls={({ canGoPrevious, canGoNext, goPrevious, goNext }) => (
-            <div className="ml-atmosphere-station-controls" data-testid="station-carousel-controls">
-              <Button
-                type="button"
-                aria-label="Previous station"
-                className="ml-atmosphere-station-control ml-atmosphere-station-control-previous"
-                disabled={!canGoPrevious}
-                onClick={goPrevious}
-                size="icon"
-                variant="glow"
-              >
-                <StepBack aria-hidden="true" />
-              </Button>
-              <Button
-                type="button"
-                aria-label="Next station"
-                className="ml-atmosphere-station-control ml-atmosphere-station-control-next"
-                disabled={!canGoNext}
-                onClick={goNext}
-                size="icon"
-                variant="glow"
-              >
-                <StepForward aria-hidden="true" />
-              </Button>
+        {isFavoritesCategory && stationItems.length === 0 ? (
+          <div
+            className="ml-atmosphere-station-special-state"
+            data-special-state="favorites"
+            data-testid="atmosphere-favorites-category-empty"
+          >
+            <div className="ml-atmosphere-station-special-content">
+              <span className="ml-atmosphere-station-special-icon" aria-hidden="true">
+                <MetalFavoriteIcon kind="heart" selected />
+              </span>
+              <strong>Heart a station and it will appear here.</strong>
             </div>
-          )}
-          renderItem={(station, { detailLevel }) => {
-            if (detailLevel === "shell") return null
-            return (
-              <AtmosphereStationCarouselCard
-                groupId={group.id}
-                station={station}
-                music={music}
-                prewarmStation={prewarmStation}
-                detailLevel={detailLevel}
-                displayMode="carousel"
-                favoriteClassName={purpleGlowClassName}
-              />
-            )
-          }}
-        />
+          </div>
+        ) : isAtmoshaperCategory ? (
+          <div
+            className="ml-atmosphere-station-special-state"
+            data-testid="atmoshaper-coming-soon"
+          >
+            <strong>Coming soon</strong>
+          </div>
+        ) : (
+          <AdaptiveCarouselStage
+            key={group.id}
+            items={stationItems}
+            initialItemId={initialItemId}
+            surface="stations"
+            presentation="background-picker"
+            tuning={tuning}
+            reducedMotion={reducedMotion}
+            customControlsVisible={showStationControls}
+            testId="station-carousel-stage"
+            viewportProfile="music-fit"
+            onCenteredItemChange={handleCenteredItemChange}
+            renderControls={({ canGoPrevious, canGoNext, goPrevious, goNext }) => (
+              <div className="ml-atmosphere-station-controls" data-testid="station-carousel-controls">
+                <Button
+                  type="button"
+                  aria-label="Previous station"
+                  className="ml-atmosphere-station-control ml-atmosphere-station-control-previous"
+                  disabled={!canGoPrevious}
+                  onClick={goPrevious}
+                  size="icon"
+                  variant="glow"
+                >
+                  <StepBack aria-hidden="true" />
+                </Button>
+                <Button
+                  type="button"
+                  aria-label="Next station"
+                  className="ml-atmosphere-station-control ml-atmosphere-station-control-next"
+                  disabled={!canGoNext}
+                  onClick={goNext}
+                  size="icon"
+                  variant="glow"
+                >
+                  <StepForward aria-hidden="true" />
+                </Button>
+              </div>
+            )}
+            renderItem={(station, { detailLevel }) => {
+              if (detailLevel === "shell") return null
+              return (
+                <AtmosphereStationCarouselCard
+                  groupId={stationGroupIdByStationId.get(station.id) ?? group.id}
+                  station={station}
+                  music={music}
+                  prewarmStation={prewarmStation}
+                  detailLevel={detailLevel}
+                  displayMode="carousel"
+                  favoriteClassName={purpleGlowClassName}
+                />
+              )
+            }}
+          />
+        )}
       </div>
     </section>
   )

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { AtmosphereStationArtwork } from "@/components/atmosphere/station-artwork"
+import { appMediaTileClassName } from "@/components/ui/app-surface"
 import {
   Sheet,
   SheetContent,
@@ -19,6 +20,7 @@ import { getVisibleAtmosphereStations } from "@/lib/atmosphere/stations"
 
 const stations = getVisibleAtmosphereStations()
 type AtmosphereFavoriteStation = (typeof stations)[number]
+const favoriteTileClassName = `${appMediaTileClassName} ml-atmosphere-favorite-tile`
 
 export type AtmosphereFavoritesSpeedDialProps = {
   favoriteIds: string[]
@@ -87,7 +89,7 @@ export function AtmosphereFavoritesSpeedDial({
                   <SheetTrigger asChild>
                     <button
                       aria-label={`All favorites, ${destination.count} stations`}
-                      className="ml-atmosphere-favorite-tile ml-atmosphere-favorite-collection"
+                      className={`${favoriteTileClassName} ml-atmosphere-favorite-collection`}
                       data-favorite-destination="all-favorites"
                       type="button"
                     >
@@ -141,7 +143,7 @@ function FavoriteStationTile({
       aria-current={playing ? "true" : undefined}
       aria-disabled={tileState.ariaDisabled}
       aria-label={tileState.ariaLabel}
-      className="ml-atmosphere-favorite-tile"
+      className={favoriteTileClassName}
       data-all-favorite-station={collection ? "" : undefined}
       data-favorite-destination="station"
       data-station-id={collection ? station.id : undefined}
@@ -160,7 +162,7 @@ function FavoriteStationTile({
 
 function EmptyFavoriteTile() {
   return (
-    <div className="ml-atmosphere-favorite-tile ml-atmosphere-favorite-empty" data-favorite-destination="empty">
+    <div className={`${favoriteTileClassName} ml-atmosphere-favorite-empty`} data-favorite-destination="empty">
       <strong>Add favorites to make your speed dial</strong>
       <span>Heart a station and it will appear here.</span>
     </div>

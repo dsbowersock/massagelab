@@ -4,16 +4,49 @@ import { centerCarouselItem } from "./carousel-test-helpers"
 
 const desktopProject = "desktop-chromium"
 const mobileProject = "mobile-chromium"
-const FAVORITES_TO_CENTER_CARD_RATIO = 1.3
+const FAVORITES_MIN_TO_CENTER_CARD_RATIO = 1.3
+const FAVORITES_BALANCED_FILL_RATIO = 0.8
 
 async function expectFavoritesMosaicTracksCenteredCard(mosaic: Locator, centeredCard: Locator) {
   await expect.poll(async () => {
     const mosaicBox = await mosaic.boundingBox()
     const centeredCardBox = await centeredCard.boundingBox()
-    if (!mosaicBox || !centeredCardBox) return Number.POSITIVE_INFINITY
-    return Math.abs(mosaicBox.width / centeredCardBox.width - FAVORITES_TO_CENTER_CARD_RATIO)
-  }, { message: "Favorites mosaic should settle at 1.3x the centered station card" })
-    .toBeLessThanOrEqual(0.01)
+    if (!mosaicBox || !centeredCardBox) return false
+    if (mosaicBox.width / centeredCardBox.width >= FAVORITES_MIN_TO_CENTER_CARD_RATIO - 0.01) {
+      return true
+    }
+    return mosaic.evaluate((element) => {
+      const workspace = element.closest<HTMLElement>(".ml-atmosphere-carousel-workspace")
+      const slot = workspace?.parentElement?.getBoundingClientRect()
+      const center = workspace?.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+      )?.getBoundingClientRect()
+      const mosaic = element.getBoundingClientRect()
+      if (!slot || !center) return false
+      const maximumFittingEdge = Math.min(slot.width * 0.8, slot.bottom - center.bottom - 8)
+      return Math.abs(mosaic.width - maximumFittingEdge) <= 1
+    })
+  }, { message: "Favorites should prefer 1.3x or use the largest safe boundary fit" })
+    .toBe(true)
+}
+
+async function expectFavoritesMosaicUsesBalancedFill(mosaic: Locator) {
+  await expect.poll(async () => mosaic.evaluate((element) => {
+    const mosaic = element.getBoundingClientRect()
+    const workspace = element.closest<HTMLElement>(".ml-atmosphere-carousel-workspace")
+    const slot = workspace?.parentElement?.getBoundingClientRect()
+    const center = workspace
+      ?.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+    )
+      ?.getBoundingClientRect()
+    if (!slot || !center) return Number.NEGATIVE_INFINITY
+    const usableDimension = Math.min(slot.width, slot.bottom - center.bottom)
+    return mosaic.width / usableDimension
+  }), {
+    message: "Favorites mosaic should use at least about 80% of the limiting portrait dimension",
+  })
+    .toBeGreaterThanOrEqual(FAVORITES_BALANCED_FILL_RATIO - 0.02)
 }
 
 async function gotoShell(page: Page, path: string) {
@@ -2065,7 +2098,10 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
         const category = categoryGroup.getByRole("button", { name: categoryName })
         await category.click()
         await expect(category).toHaveAttribute("aria-pressed", "true")
-        await expect(nonShellCards).toHaveCount(Math.min(9, await carouselRegion.locator('[data-carousel-slide]').count()))
+        const logicalCardCount = await carouselRegion.locator(
+          '[data-carousel-slide][role="group"]',
+        ).count()
+        await expect(nonShellCards).toHaveCount(logicalCardCount)
         await expect(carouselRegion).toHaveAttribute("data-carousel-ready", "true")
         const remountLabel = `${viewport.width}x${viewport.height} ${categoryName}`
         await assertStationControlGeometry(remountLabel)
@@ -2099,7 +2135,7 @@ test("full constrained landscape four-view matrix plus S24 class keeps controls 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.locator("html").evaluate((root) => { root.style.fontSize = "20px" })
   await expect(categoryGroup).toBeVisible()
-  await expect(categoryGroup.getByRole("button")).toHaveCount(5)
+  await expect(categoryGroup.getByRole("button")).toHaveCount(7)
   const increasedTextPillGeometry = await assertPillHaloPaintSpace("390x844 increased text", true)
   expect(increasedTextPillGeometry.paddingTop).toBeGreaterThanOrEqual(40)
   expect(increasedTextPillGeometry.paddingBottom).toBeGreaterThanOrEqual(40)
@@ -2791,8 +2827,9 @@ test("roomy portrait composes a square Favorites mosaic without changing the sta
   await expectFavoritesMosaicTracksCenteredCard(mosaic, centered)
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
   const approvedCardBox = await centered.boundingBox()
-  expect(approvedCardBox?.width).toBeCloseTo(192, 0)
-  expect(approvedCardBox?.height).toBeCloseTo(224, 0)
+  expect(approvedCardBox?.width ?? 0).toBeGreaterThanOrEqual(204)
+  expect(approvedCardBox?.width ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(218)
+  expect((approvedCardBox?.width ?? 0) / (approvedCardBox?.height ?? 1)).toBeCloseTo(192 / 224, 2)
 
   await page.setViewportSize({ width: 844, height: 390 })
   await expect(page.getByTestId("atmosphere-favorites-region")).toBeHidden()
@@ -2829,7 +2866,7 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
     await expect(toolbar).toHaveAttribute("data-layout", "bottom")
     await expect(favorites).toBeVisible()
     await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
-    const geometry = await mosaic.evaluate((element) => {
+    const readMosaicGeometry = () => mosaic.evaluate((element) => {
       const mosaic = element.getBoundingClientRect()
       const slot = element.parentElement?.parentElement?.getBoundingClientRect()
       const center = element.closest(".ml-atmosphere-carousel-workspace")
@@ -2846,8 +2883,21 @@ test("Favorites use measured remaining space across roomy bottom-rail workspaces
         width: mosaic.width,
       }
     })
-    expect(geometry.centerGap).toBeGreaterThanOrEqual(29)
-    expect(geometry.slotBottomGap).toBeGreaterThanOrEqual(-1)
+    let geometry = await readMosaicGeometry()
+    await expect.poll(async () => {
+      geometry = await readMosaicGeometry()
+      return geometry.centerGap >= 1
+        && geometry.slotBottomGap >= 1
+        && geometry.centerGap + geometry.slotBottomGap >= 7
+        && Math.abs(geometry.centerGap - geometry.slotBottomGap) <= 3
+    }).toBe(true)
+    expect(geometry.centerGap).toBeGreaterThanOrEqual(1)
+    expect(geometry.slotBottomGap).toBeGreaterThanOrEqual(1)
+    expect(geometry.centerGap + geometry.slotBottomGap).toBeGreaterThanOrEqual(7)
+    expect(
+      Math.abs(geometry.centerGap - geometry.slotBottomGap),
+      JSON.stringify({ viewport, ...geometry }),
+    ).toBeLessThanOrEqual(3)
     expect(geometry.width).toBeCloseTo(geometry.height, 0)
     expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
@@ -2990,7 +3040,7 @@ test("Favorites use measured remaining space before any player rail exists", asy
   for (const viewport of roomyViewports) {
     await page.setViewportSize(viewport)
     await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
-    const fitGeometry = await carousel.evaluate((region) => {
+    const fitGeometry = await carousel.evaluate((region, balancedFillRatio) => {
       const slot = region.closest<HTMLElement>(".ml-atmosphere-carousel-slot")
       const stationSurface = region.closest<HTMLElement>(".ml-atmosphere-station-carousel")
       const workspace = region.closest<HTMLElement>(".ml-atmosphere-carousel-workspace")
@@ -3002,16 +3052,18 @@ test("Favorites use measured remaining space before any player rail exists", asy
       }
       const slotBox = slot.getBoundingClientRect()
       const centerBox = center.getBoundingClientRect()
-      const edge = centerBox.width * 1.3
       const centeredCardBottom = centerBox.bottom - slotBox.top
       return {
-        availableGap: slotBox.height - centeredCardBottom - edge,
+        maximumFittingEdge: Math.min(
+          slotBox.width * balancedFillRatio,
+          slotBox.height - centeredCardBottom - 8,
+        ),
         constrainedLandscape: stationSurface.dataset.constrainedLandscape,
         fitState: workspace.dataset.favoritesFit,
       }
-    })
+    }, FAVORITES_BALANCED_FILL_RATIO)
     expect(fitGeometry.constrainedLandscape, JSON.stringify(fitGeometry)).toBe("false")
-    expect(fitGeometry.availableGap, JSON.stringify(fitGeometry)).toBeGreaterThanOrEqual(8)
+    expect(fitGeometry.maximumFittingEdge, JSON.stringify(fitGeometry)).toBeGreaterThanOrEqual(192)
     expect(fitGeometry.fitState, JSON.stringify(fitGeometry)).toBe("true")
     await expect(favorites).toBeVisible()
     await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
@@ -3046,13 +3098,16 @@ test("Favorites use measured remaining space before any player rail exists", asy
       }
     })
     await expect.poll(async () => {
-      const gap = (await readMosaicGeometry()).centerGap
-      return gap >= 7.5 && gap <= 30.5
+      const geometry = await readMosaicGeometry()
+      return Math.abs(geometry.centerGap - geometry.slotBottomGap) <= 1
     }).toBe(true)
     const geometry = await readMosaicGeometry()
-    expect(geometry.centerGap).toBeGreaterThanOrEqual(7.5)
-    expect(geometry.centerGap).toBeLessThanOrEqual(30.5)
-    expect(geometry.slotBottomGap).toBeGreaterThanOrEqual(-1)
+    expect(geometry.centerGap).toBeGreaterThanOrEqual(4)
+    expect(geometry.slotBottomGap).toBeGreaterThanOrEqual(4)
+    expect(
+      Math.abs(geometry.centerGap - geometry.slotBottomGap),
+      JSON.stringify({ viewport, ...geometry }),
+    ).toBeLessThanOrEqual(1)
     expect(geometry.width).toBeCloseTo(geometry.height, 0)
     expect(geometry.left + (geometry.width / 2)).toBeCloseTo(geometry.slotCenter, 0)
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
@@ -3172,7 +3227,7 @@ test("Favorites use slot measurement below the legacy viewport-height cutoff", a
   await expect(favorites).toBeVisible()
   await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
   await expect(mosaic.locator('[data-favorite-destination="station"]')).toHaveCount(4)
-  const geometry = await mosaic.evaluate((element) => {
+  const readGeometry = () => mosaic.evaluate((element) => {
     const mosaic = element.getBoundingClientRect()
     const slot = element.parentElement?.parentElement?.getBoundingClientRect()
     return {
@@ -3182,6 +3237,11 @@ test("Favorites use slot measurement below the legacy viewport-height cutoff", a
       width: mosaic.width,
     }
   })
+  await expect.poll(async () => {
+    const geometry = await readGeometry()
+    return geometry.slotHeight >= geometry.requiredHeight && geometry.width > 0
+  }).toBe(true)
+  const geometry = await readGeometry()
   expect(geometry.slotHeight).toBeGreaterThanOrEqual(geometry.requiredHeight)
   expect(geometry.width).toBeCloseTo(geometry.height, 0)
   await expectFavoritesMosaicTracksCenteredCard(
@@ -3205,6 +3265,16 @@ test("Favorites empty state explains the speed dial without duplicating station 
   await expect(favorites.getByText("Heart a station and it will appear here.")).toBeVisible()
   await expect(favorites.getByRole("button")).toHaveCount(0)
   await expect(favorites.locator('[role="img"]')).toHaveCount(0)
+
+  const emptyTile = favorites.locator('[data-favorite-destination="empty"]')
+  const centeredCard = page.locator('[data-carousel-slide][data-centered="true"] article')
+  const centeredCardShadow = await centeredCard.evaluate((element) => getComputedStyle(element).boxShadow)
+  expect(centeredCardShadow).not.toBe("none")
+  await expect.poll(() => emptyTile.evaluate((element) => getComputedStyle(element).boxShadow))
+    .toBe(centeredCardShadow)
+  await expect.poll(() => favorites.getByTestId("atmosphere-favorites-mosaic")
+    .evaluate((element) => getComputedStyle(element).overflow))
+    .toBe("visible")
 
   const favorite = page.getByRole("button", { name: "Favorite MassageLab Proof Drone" })
   await favorite.click()
@@ -3241,6 +3311,159 @@ test("Favorites empty state explains the speed dial without duplicating station 
   await expect(page.getByTestId("music-player-toolbar")).toHaveCount(0)
 })
 
+test("Favorites and Atmoshaper bookend Station categories without duplicating the speed dial", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== mobileProject && testInfo.project.name !== desktopProject,
+    "Special Station categories are covered in mobile and desktop Chromium.",
+  )
+  await installAtmosphereFavorites(page, [])
+  await page.setViewportSize({ width: 390, height: 844 })
+  await gotoShell(page, "/music")
+
+  const categoryGroup = page.getByRole("group", { name: "Station category" })
+  const categoryButtons = categoryGroup.getByRole("button")
+  await expect(categoryButtons).toHaveCount(7)
+  await expect(categoryButtons.first()).toHaveText("Favorites")
+  await expect(categoryButtons.last()).toHaveText("Atmoshaper")
+
+  const favoritesButton = categoryGroup.getByRole("button", { name: "Favorites", exact: true })
+  await expect(favoritesButton.locator('[data-metal-icon-trace="true"]')).toHaveCount(1)
+  await favoritesButton.click()
+  await expect(favoritesButton).toHaveAttribute("aria-pressed", "true")
+  const favoritesEmpty = page.getByTestId("atmosphere-favorites-category-empty")
+  await expect(favoritesEmpty).toHaveText(
+    "Heart a station and it will appear here.",
+  )
+  await expect.poll(() => favoritesEmpty.evaluate((empty) => {
+    const state = empty.getBoundingClientRect()
+    const content = empty.querySelector<HTMLElement>(".ml-atmosphere-station-special-content")
+      ?.getBoundingClientRect()
+    return content
+      ? Math.abs(content.top + content.height / 2 - (state.top + state.height / 3))
+      : Number.POSITIVE_INFINITY
+  })).toBeLessThanOrEqual(1)
+  await expect(page.getByTestId("atmosphere-favorites-region")).toBeHidden()
+
+  const atmoshaperButton = categoryGroup.getByRole("button", { name: "Atmoshaper", exact: true })
+  await atmoshaperButton.click()
+  await expect(atmoshaperButton).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByRole("heading", { name: "Atmoshaper", exact: true })).toBeVisible()
+  await expect(page.getByText("Layer ambient sounds into your own soundscape.", { exact: true })).toBeVisible()
+  await expect(page.getByTestId("atmoshaper-coming-soon")).toHaveText("Coming soon")
+  await expect(page.getByTestId("atmosphere-favorites-region")).toBeHidden()
+
+  await page.setViewportSize({ width: 844, height: 390 })
+  await expect(page.getByTestId("atmoshaper-coming-soon")).toBeVisible()
+  expect(await page.evaluate(() => ({
+    horizontal: document.documentElement.scrollWidth <= innerWidth,
+    vertical: document.documentElement.scrollHeight <= innerHeight,
+  }))).toEqual({ horizontal: true, vertical: true })
+
+  const treatmentButton = categoryGroup.getByRole("button", { name: "Treatment room starters", exact: true })
+  await treatmentButton.click()
+  await expect(treatmentButton).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByTestId("station-carousel-stage")).toBeVisible()
+  await expect(page.getByTestId("atmosphere-favorites-region")).toBeHidden()
+})
+
+test("Favorites category presents the saved stations as a carousel", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Saved Favorites carousel behavior is covered in mobile Chromium.")
+  await installAtmosphereFavorites(page, ["generative-fm-trees", "mlab-proof-drone"])
+  await page.setViewportSize({ width: 430, height: 932 })
+  await gotoShell(page, "/music")
+
+  await page.getByRole("group", { name: "Station category" })
+    .getByRole("button", { name: "Favorites", exact: true })
+    .click()
+
+  const stage = page.getByTestId("station-carousel-stage")
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  await expect(stage).toBeVisible()
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  const logicalSlides = stage.locator('[data-carousel-slide][role="group"]')
+  await expect(logicalSlides).toHaveCount(2)
+  expect(await logicalSlides
+    .evaluateAll((slides) => slides.map((slide) => slide.getAttribute("data-carousel-item-id"))))
+    .toEqual(["generative-fm-trees", "mlab-proof-drone"])
+  await expect(stage.locator('[data-carousel-slide][data-centered="true"]'))
+    .toHaveAttribute("data-carousel-item-id", "generative-fm-trees")
+  await stage.press("ArrowRight")
+  await expect(stage.locator('[data-carousel-slide][data-centered="true"]'))
+    .toHaveAttribute("data-carousel-item-id", "mlab-proof-drone")
+  await expect(page.getByTestId("atmosphere-favorites-region")).toBeHidden()
+  expect(await page.evaluate(() => ({
+    horizontal: document.documentElement.scrollWidth <= innerWidth,
+    vertical: document.documentElement.scrollHeight <= innerHeight,
+  }))).toEqual({ horizontal: true, vertical: true })
+})
+
+test("selected Favorites remeasures as live favorites move between empty and populated", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Live Favorites transitions are covered in mobile Chromium.")
+  await installAtmosphereFavorites(page, [])
+  await installInterruptionNoticeMediaFakes(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  const toolbar = await startProofDrone(page)
+  const notice = page.getByRole("region", { name: "Interruption preference" })
+  if (await notice.isVisible()) await notice.getByRole("button", { name: "Close" }).click()
+
+  await page.getByRole("group", { name: "Station category" })
+    .getByRole("button", { name: "Favorites", exact: true })
+    .click()
+  const empty = page.getByTestId("atmosphere-favorites-category-empty")
+  await expect(empty).toBeVisible()
+  await expect(page.getByTestId("atmosphere-favorites-region")).toBeHidden()
+
+  await toolbar.getByRole("button", { name: "Favorite MassageLab Proof Drone" }).click()
+  const stage = page.getByTestId("station-carousel-stage")
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const surface = page.locator(".ml-atmosphere-station-carousel")
+  await expect(stage).toBeVisible()
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  await expect(stage.locator('[data-carousel-slide][data-centered="true"]'))
+    .toHaveAttribute("data-carousel-item-id", "mlab-proof-drone")
+  const portraitStageSize = await surface.evaluate((element) => (
+    element.style.getPropertyValue("--ml-atmosphere-station-stage-block-size")
+  ))
+
+  await page.setViewportSize({ width: 820, height: 1180 })
+  await expect.poll(() => surface.evaluate((element) => (
+    element.style.getPropertyValue("--ml-atmosphere-station-stage-block-size")
+  ))).not.toBe(portraitStageSize)
+
+  await toolbar.getByRole("button", { name: "Remove MassageLab Proof Drone from favorites" }).click()
+  await expect(empty).toBeVisible()
+  await expect(stage).toHaveCount(0)
+
+  await page.setViewportSize({ width: 844, height: 390 })
+  await expect(empty).toBeVisible()
+  await expect.poll(() => empty.evaluate((element) => {
+    const state = element.getBoundingClientRect()
+    const content = element.querySelector<HTMLElement>(".ml-atmosphere-station-special-content")
+      ?.getBoundingClientRect()
+    return content
+      ? Math.abs(content.top + content.height / 2 - (state.top + state.height / 3))
+      : Number.POSITIVE_INFINITY
+  })).toBeLessThanOrEqual(1)
+  expect(await page.evaluate(() => ({
+    horizontal: document.documentElement.scrollWidth <= innerWidth,
+    vertical: document.documentElement.scrollHeight <= innerHeight,
+  }))).toEqual({ horizontal: true, vertical: true })
+
+  await toolbar.getByRole("button", { name: "Favorite MassageLab Proof Drone" }).click()
+  await expect(stage).toBeVisible()
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  const compactStageSize = await surface.evaluate((element) => (
+    element.style.getPropertyValue("--ml-atmosphere-station-stage-block-size")
+  ))
+  await page.setViewportSize({ width: 820, height: 1180 })
+  await expect.poll(() => surface.evaluate((element) => (
+    element.style.getPropertyValue("--ml-atmosphere-station-stage-block-size")
+  ))).not.toBe(compactStageSize)
+  await expect(stage.locator('[data-carousel-slide][data-centered="true"]'))
+    .toHaveAttribute("data-carousel-item-id", "mlab-proof-drone")
+  await expect(page.getByTestId("atmosphere-favorites-region")).toBeHidden()
+})
+
 test("Favorites empty mosaic remains visible at reported device and zoom boundaries", async ({ page }, testInfo) => {
   test.skip(
     testInfo.project.name !== mobileProject && testInfo.project.name !== desktopProject,
@@ -3264,19 +3487,77 @@ test("Favorites empty mosaic remains visible at reported device and zoom boundar
     await expect(favorites.getByRole("button")).toHaveCount(0)
     await expect.poll(() => mosaic.evaluate((element) => {
       const mosaic = element.getBoundingClientRect()
+      const slot = element.parentElement?.parentElement?.getBoundingClientRect()
       const center = element.closest(".ml-atmosphere-carousel-workspace")
         ?.querySelector<HTMLElement>(
           '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
         )
         ?.getBoundingClientRect()
-      const gap = center ? mosaic.top - center.bottom : Number.NEGATIVE_INFINITY
-      return gap >= 7.5 && gap <= 30.5
+      const centerGap = center ? mosaic.top - center.bottom : Number.NEGATIVE_INFINITY
+      const bottomGap = slot ? slot.bottom - mosaic.bottom : Number.NEGATIVE_INFINITY
+      return centerGap >= 3.5
+        && bottomGap >= 3.5
+        && Math.abs(centerGap - bottomGap) <= 3
     })).toBe(true)
     await expectFavoritesMosaicTracksCenteredCard(
       mosaic,
       carousel.locator('[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]'),
     )
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+  }
+})
+
+test("Station composition uses measured room across approved phone and tablet viewports", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== mobileProject && testInfo.project.name !== desktopProject,
+    "Responsive Station geometry is covered in desktop and mobile Chromium.",
+  )
+  const cases = testInfo.project.name === mobileProject
+    ? [
+        { viewport: { width: 375, height: 667 }, minCardWidth: 190, maxCardWidth: 194 },
+        { viewport: { width: 384, height: 824 }, minCardWidth: 200, maxCardWidth: 218 },
+        { viewport: { width: 393, height: 852 }, minCardWidth: 204, maxCardWidth: 222 },
+        { viewport: { width: 412, height: 915 }, minCardWidth: 218, maxCardWidth: 230 },
+        { viewport: { width: 430, height: 932 }, minCardWidth: 225, maxCardWidth: 245 },
+        { viewport: { width: 540, height: 720 }, minCardWidth: 190, maxCardWidth: 205 },
+      ]
+    : [
+        { viewport: { width: 768, height: 1024 }, minCardWidth: 255, maxCardWidth: 275 },
+        { viewport: { width: 820, height: 1180 }, minCardWidth: 265, maxCardWidth: 285 },
+        { viewport: { width: 900, height: 1440 }, minCardWidth: 360, maxCardWidth: 375 },
+        { viewport: { width: 912, height: 1368 }, minCardWidth: 325, maxCardWidth: 340 },
+        { viewport: { width: 1440, height: 2560 }, minCardWidth: 470, maxCardWidth: 481 },
+      ]
+  await installAtmosphereFavorites(page, [])
+  await page.setViewportSize(cases[0].viewport)
+  await gotoShell(page, "/music")
+
+  const carousel = page.getByRole("region", { name: "Station carousel" })
+  const favorites = page.getByRole("region", { name: "Favorites" })
+  const centered = carousel.locator(
+    '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
+  )
+  const mosaic = page.getByTestId("atmosphere-favorites-mosaic")
+
+  for (const responsiveCase of cases) {
+    await page.setViewportSize(responsiveCase.viewport)
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+    await expect(favorites).toBeVisible()
+    await expect.poll(async () => (await centered.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(
+      responsiveCase.minCardWidth,
+    )
+    await expect.poll(async () => (await centered.boundingBox())?.width ?? Number.POSITIVE_INFINITY)
+      .toBeLessThanOrEqual(responsiveCase.maxCardWidth)
+    const centerBox = await centered.boundingBox()
+    expect(centerBox).not.toBeNull()
+    await expectFavoritesMosaicTracksCenteredCard(mosaic, centered)
+    if (testInfo.project.name === desktopProject) {
+      await expectFavoritesMosaicUsesBalancedFill(mosaic)
+    }
+    expect(await page.evaluate(() => ({
+      horizontal: document.documentElement.scrollWidth <= innerWidth,
+      vertical: document.documentElement.scrollHeight <= innerHeight,
+    }))).toEqual({ horizontal: true, vertical: true })
   }
 })
 
@@ -3335,6 +3616,9 @@ test("Atmosphere workspace fluidly scales from Laptop L through 4K", async ({ pa
       )
       return center?.getBoundingClientRect().width ?? 0
     })).toBeGreaterThanOrEqual(largeScreen.minCardWidth)
+    await expect.poll(() => page.locator('[aria-label="Previous station"]').evaluate(
+      (control) => control.getBoundingClientRect().width,
+    )).toBeGreaterThanOrEqual(largeScreen.minControlWidth)
     await expect.poll(() => page.evaluate(() => {
       const center = document.querySelector<HTMLElement>(
         '[data-carousel-slide][data-centered="true"] [data-carousel-transform="true"]',
@@ -3343,9 +3627,9 @@ test("Atmosphere workspace fluidly scales from Laptop L through 4K", async ({ pa
         '[data-testid="atmosphere-favorites-mosaic"]',
       )?.getBoundingClientRect()
       return center && mosaic
-        ? Math.abs(mosaic.width / center.width - 1.3)
-        : Number.POSITIVE_INFINITY
-    })).toBeLessThanOrEqual(0.01)
+        ? mosaic.width / center.width
+        : Number.NEGATIVE_INFINITY
+    })).toBeGreaterThanOrEqual(FAVORITES_MIN_TO_CENTER_CARD_RATIO - 0.01)
 
     const geometry = await page.evaluate(() => {
       const usable = document.querySelector<HTMLElement>(".ml-app-scroll")?.getBoundingClientRect()
@@ -3379,7 +3663,7 @@ test("Atmosphere workspace fluidly scales from Laptop L through 4K", async ({ pa
     expect(geometry.controlWidth).toBeGreaterThanOrEqual(largeScreen.minControlWidth)
     expect(geometry.emptyTitleFontSize).toBeGreaterThanOrEqual(largeScreen.minEmptyTitleSize)
     expect(geometry.labelFontSize).toBeGreaterThanOrEqual(largeScreen.minLabelSize)
-    expect(Math.abs(geometry.mosaicRatio - 1.3)).toBeLessThanOrEqual(0.01)
+    expect(geometry.mosaicRatio).toBeGreaterThanOrEqual(FAVORITES_MIN_TO_CENTER_CARD_RATIO - 0.01)
     expect(geometry.stageLeftDelta).toBeLessThanOrEqual(1)
     expect(geometry.stageRightDelta).toBeLessThanOrEqual(1)
     expect(geometry.noHorizontalOverflow).toBe(true)
@@ -3395,7 +3679,7 @@ test("Atmosphere carousel shows equal visible station wings at each responsive s
   const carousel = page.getByRole("region", { name: "Station carousel" })
   const cases = [
     { viewport: { width: 540, height: 720 }, minimumPerSide: 2 },
-    { viewport: { width: 1024, height: 768 }, minimumPerSide: 4 },
+    { viewport: { width: 1024, height: 768 }, minimumPerSide: 3 },
     { viewport: { width: 1440, height: 900 }, minimumPerSide: 3 },
     { viewport: { width: 2560, height: 1440 }, minimumPerSide: 4 },
   ]
@@ -3608,7 +3892,12 @@ test("All favorites opens a complete newest-first Sheet with focus restoration",
   await expect(firstCollectionStation).toBeFocused()
 
   await page.setViewportSize({ width: 674, height: 331 })
-  await page.evaluate(() => document.body.classList.add("ml-music-player-active", "ml-music-player-rail"))
+  await page.evaluate(() => {
+    document.body.classList.add("ml-music-player-active", "ml-music-player-rail")
+    // This test isolates the Sheet's inherited exclusion contract. Actual rail
+    // activation and responsive width are covered by the player-rail matrix.
+    document.body.style.setProperty("--ml-player-right-safe", "256px")
+  })
   await page.waitForTimeout(600)
   await expect(sheet).toBeVisible()
   const sheetGeometry = await sheet.evaluate((element) => {
@@ -3638,7 +3927,10 @@ test("All favorites opens a complete newest-first Sheet with focus restoration",
   ))).toBe(2)
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.evaluate(() => document.body.classList.remove("ml-music-player-active", "ml-music-player-rail"))
+  await page.evaluate(() => {
+    document.body.classList.remove("ml-music-player-active", "ml-music-player-rail")
+    document.body.style.removeProperty("--ml-player-right-safe")
+  })
   await page.waitForTimeout(600)
   await page.keyboard.press("Escape")
   await expect(sheet).toBeHidden()

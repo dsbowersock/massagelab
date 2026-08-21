@@ -62,6 +62,12 @@ export const STATION_CAROUSEL_TUNING = Object.freeze({
 })
 
 export const STATION_CAROUSEL_LARGE_SCREEN_TUNING = Object.freeze({
+  compactReferenceWidth: 375,
+  compactMaxWidth: 768,
+  compactMaxScale: 1.4,
+  balancedFillHeightShare: 2 / 3,
+  balancedFillAspectStart: 1,
+  balancedFillAspectFull: 1.3,
   referenceWidth: 960,
   maxScale: 2.5,
   maxHeaderScale: 1.5,
@@ -72,10 +78,12 @@ export const STATION_CAROUSEL_LARGE_SCREEN_TUNING = Object.freeze({
 })
 
 /**
- * Preserves the approved Station composition while allowing roomy laptop and
- * television stages to scale it as one unit. Width proposes the scale and the
- * live block allocation bounds it so the 1.3x Favorites square can still fit;
- * constrained landscape retains its separate height-first compact behavior.
+ * Preserves the approved Station composition while allowing roomy phones,
+ * tablets, laptops, and televisions to scale it as one unit. Width establishes
+ * the baseline while increasingly tall stages blend in two-thirds of their
+ * additional vertical opportunity. Inline and block fit remain hard bounds so
+ * the 1.3x Favorites square stays complete. Constrained landscape retains its
+ * separate height-first behavior.
  * @param {{ containerWidth: number, containerHeight: number, constrainedLandscape: boolean }} dimensions
  * @returns {AdaptiveCarouselTuning}
  */
@@ -86,7 +94,19 @@ export function getResponsiveStationCarouselTuning({
 }) {
   const safeWidth = Number.isFinite(containerWidth) ? containerWidth : 740
   const safeHeight = Number.isFinite(containerHeight) ? containerHeight : 224
-  const widthScale = safeWidth / STATION_CAROUSEL_LARGE_SCREEN_TUNING.referenceWidth
+  const compactWidthProgress = Math.max(0, Math.min(1, (
+    safeWidth - STATION_CAROUSEL_LARGE_SCREEN_TUNING.compactReferenceWidth
+  ) / (
+    STATION_CAROUSEL_LARGE_SCREEN_TUNING.compactMaxWidth
+      - STATION_CAROUSEL_LARGE_SCREEN_TUNING.compactReferenceWidth
+  )))
+  const compactWidthInfluence = Math.sqrt(compactWidthProgress)
+  const compactWidthScale = 1 + (
+    STATION_CAROUSEL_LARGE_SCREEN_TUNING.compactMaxScale - 1
+  ) * compactWidthInfluence
+  const largeScreenWidthScale = safeWidth
+    / STATION_CAROUSEL_LARGE_SCREEN_TUNING.referenceWidth
+  const widthScale = Math.max(compactWidthScale, largeScreenWidthScale)
   const stackedBaseHeight = STATION_CAROUSEL_TUNING.cardHeight
     + STATION_CAROUSEL_TUNING.cardWidth * STATION_CAROUSEL_LARGE_SCREEN_TUNING.favoritesRatio
   const heightScale = (
@@ -94,11 +114,30 @@ export function getResponsiveStationCarouselTuning({
       - STATION_CAROUSEL_LARGE_SCREEN_TUNING.minimumFavoritesGap
       - STATION_CAROUSEL_LARGE_SCREEN_TUNING.fitRoundingBuffer
   ) / stackedBaseHeight
+  const tallStageInfluence = Math.max(0, Math.min(1, (
+    safeHeight / Math.max(1, safeWidth)
+      - STATION_CAROUSEL_LARGE_SCREEN_TUNING.balancedFillAspectStart
+  ) / (
+    STATION_CAROUSEL_LARGE_SCREEN_TUNING.balancedFillAspectFull
+      - STATION_CAROUSEL_LARGE_SCREEN_TUNING.balancedFillAspectStart
+  )))
+  const balancedHeightScale = 1 + Math.max(0, heightScale - 1)
+    * STATION_CAROUSEL_LARGE_SCREEN_TUNING.balancedFillHeightShare
+  const balancedFillScale = widthScale + Math.max(0, balancedHeightScale - widthScale)
+    * tallStageInfluence
+    * compactWidthInfluence
+  const inlineFitScale = (
+    safeWidth - STATION_CAROUSEL_LARGE_SCREEN_TUNING.fitRoundingBuffer
+  ) / (
+    STATION_CAROUSEL_TUNING.cardWidth
+      * STATION_CAROUSEL_LARGE_SCREEN_TUNING.favoritesRatio
+  )
   const roomyScale = constrainedLandscape
     ? 1
     : Math.max(1, Math.min(
         STATION_CAROUSEL_LARGE_SCREEN_TUNING.maxScale,
-        widthScale,
+        balancedFillScale,
+        inlineFitScale,
         heightScale,
       ))
   const cardHeight = constrainedLandscape

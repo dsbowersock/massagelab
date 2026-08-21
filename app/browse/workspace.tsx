@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react"
 import Link from "next/link"
 import { Heart, Play, Radio, Square, Wind } from "lucide-react"
-import { AtmosphereStationCarousel } from "@/components/atmosphere/station-carousel"
+import {
+  AtmosphereStationCarousel,
+  type AtmosphereStationCarouselView,
+} from "@/components/atmosphere/station-carousel"
 import { AtmosphereFavoritesSpeedDial } from "@/components/atmosphere/favorites-speed-dial"
 import {
   STATION_CAROUSEL_LARGE_SCREEN_TUNING,
@@ -51,8 +54,9 @@ const initialPayloadPrewarmStationIdSet = new Set([
 ])
 
 const FAVORITES_TO_CENTER_CARD_RATIO = STATION_CAROUSEL_LARGE_SCREEN_TUNING.favoritesRatio
-const FAVORITES_PREFERRED_CENTER_CARD_GAP_PX = STATION_CAROUSEL_LARGE_SCREEN_TUNING.preferredFavoritesGap
-const FAVORITES_MIN_CENTER_CARD_GAP_PX = 8
+const FAVORITES_MIN_SURROUNDING_GAP_PX = 4
+const FAVORITES_BALANCED_FILL_RATIO = 0.8
+const FAVORITES_MIN_USEFUL_EDGE_PX = STATION_CAROUSEL_TUNING.cardWidth
 
 type AtmosphereFavoritesLayout = {
   edge: number
@@ -67,9 +71,13 @@ type AtmosphereWorkspaceLayout = "grid" | "rails"
 export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWorkspaceLayout } = {}) {
   const music = useMusic()
   const [centeredStationId, setCenteredStationId] = useState<string | null>(stations[0]?.id ?? null)
+  const [atmosphereCarouselView, setAtmosphereCarouselView] = useState<AtmosphereStationCarouselView>("stations")
   const { prewarmStation: prewarmMusicStation } = music
   const isRailLayout = layout === "rails"
-  const [carouselSlotRef, favoritesLayout] = useAtmosphereFavoritesLayout(centeredStationId)
+  const [carouselSlotRef, favoritesLayout] = useAtmosphereFavoritesLayout(
+    centeredStationId,
+    atmosphereCarouselView === "stations",
+  )
   const prewarmStation = useCallback((stationId: string, options: { includeSamplePayloads?: boolean } = {}) => {
     void prewarmMusicStation(stationId, options)
   }, [prewarmMusicStation])
@@ -182,7 +190,10 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
               "--ml-atmosphere-workspace-scale-rem": `${favoritesLayout.scale}rem`,
             } as CSSProperties}
           >
-            <AtmosphereStationCarousel onCenteredStationChange={setCenteredStationId} />
+            <AtmosphereStationCarousel
+              onCenteredStationChange={setCenteredStationId}
+              onViewChange={setAtmosphereCarouselView}
+            />
             <div className="ml-atmosphere-favorites-slot">
               <AtmosphereFavoritesSpeedDial
                 busy={music.playbackState === "loading"}
@@ -213,13 +224,17 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
  * text scaling, player rails, and device emulation all change this same measured
  * space, so none of them needs a separate breakpoint or browser-specific rule.
  */
-function useAtmosphereFavoritesLayout(centeredStationId: string | null) {
+function useAtmosphereFavoritesLayout(centeredStationId: string | null, enabled: boolean) {
   const carouselSlotRef = useRef<HTMLDivElement>(null)
   const [layout, setLayout] = useState<AtmosphereFavoritesLayout>({ edge: 0, fit: false, scale: 1, top: 0 })
 
   useEffect(() => {
     const slot = carouselSlotRef.current
     if (!slot) return undefined
+    if (!enabled) {
+      setLayout((current) => current.fit ? { ...current, fit: false } : current)
+      return undefined
+    }
 
     let animationFrame = 0
     let resizeObserver: ResizeObserver | null = null
@@ -233,20 +248,34 @@ function useAtmosphereFavoritesLayout(centeredStationId: string | null) {
 
       const slotRect = slot.getBoundingClientRect()
       const centeredCardRect = centeredCard.getBoundingClientRect()
-      const edge = centeredCardRect.width * FAVORITES_TO_CENTER_CARD_RATIO
+      const minimumEdge = centeredCardRect.width * FAVORITES_TO_CENTER_CARD_RATIO
       const scale = Math.max(1, centeredCardRect.width / STATION_CAROUSEL_TUNING.cardWidth)
       const centeredCardBottom = centeredCardRect.bottom - slotRect.top
-      const availableGap = slotRect.height - centeredCardBottom - edge
-      const centerCardGap = Math.max(
-        FAVORITES_MIN_CENTER_CARD_GAP_PX,
-        Math.min(FAVORITES_PREFERRED_CENTER_CARD_GAP_PX, availableGap),
+      const availableBelowCarousel = slotRect.height - centeredCardBottom
+      const preferredEdge = Math.min(
+        slotRect.width * FAVORITES_BALANCED_FILL_RATIO,
+        availableBelowCarousel * FAVORITES_BALANCED_FILL_RATIO,
       )
-      const top = centeredCardBottom + centerCardGap
+      const maximumFittingEdge = Math.min(
+        slotRect.width * FAVORITES_BALANCED_FILL_RATIO,
+        availableBelowCarousel - FAVORITES_MIN_SURROUNDING_GAP_PX * 2,
+      )
       const constrainedLandscape = stationCarousel.dataset.constrainedLandscape === "true"
-      const fit = edge > 0
+      const fit = maximumFittingEdge >= FAVORITES_MIN_USEFUL_EDGE_PX
         && !constrainedLandscape
-        && slotRect.width >= edge
-        && availableGap >= FAVORITES_MIN_CENTER_CARD_GAP_PX
+      // Prefer 1.3x, then spend surplus portrait room on the mosaic. At a tight
+      // boundary, use the largest useful square that preserves all four gaps.
+      const edge = fit
+        ? Math.min(
+            maximumFittingEdge,
+            Math.max(minimumEdge, preferredEdge),
+          )
+        : minimumEdge
+      const remainingVerticalSpace = availableBelowCarousel - edge
+      // Divide the live leftover workspace equally so the mosaic sits midway
+      // between the carousel and the usable viewport bottom above the app rail.
+      const surroundingGap = Math.max(0, remainingVerticalSpace / 2)
+      const top = centeredCardBottom + surroundingGap
 
       setLayout((current) => (
         current.fit === fit
@@ -288,7 +317,7 @@ function useAtmosphereFavoritesLayout(centeredStationId: string | null) {
       mutationObserver.disconnect()
       window.removeEventListener("resize", scheduleMeasurement)
     }
-  }, [centeredStationId])
+  }, [centeredStationId, enabled])
 
   return [carouselSlotRef, layout] as const
 }

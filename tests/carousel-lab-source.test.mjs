@@ -115,7 +115,7 @@ describe("Carousel Lab source boundaries", () => {
     )
     assert.match(
       controller,
-      /\}, \[api, effectiveLoop, items, presentation, reducedMotion, surface, tuning\]\)[\s\S]*?\}, \[writeTransforms\]\)/,
+      /\}, \[\s+api,[\s\S]*?bufferedLoop,[\s\S]*?emblaLoop,[\s\S]*?visibleRadius,[\s\S]*?\]\)[\s\S]*?\}, \[writeTransforms\]\)/,
     )
   })
 
@@ -315,15 +315,19 @@ describe("Carousel Lab source boundaries", () => {
 
     assert.match(workspace, /AtmosphereFavoritesSpeedDial/)
     assert.match(workspace, /STATION_CAROUSEL_LARGE_SCREEN_TUNING\.favoritesRatio/)
-    assert.match(workspace, /STATION_CAROUSEL_LARGE_SCREEN_TUNING\.preferredFavoritesGap/)
-    assert.match(workspace, /FAVORITES_MIN_CENTER_CARD_GAP_PX\s*=\s*8/)
+    assert.match(workspace, /FAVORITES_MIN_SURROUNDING_GAP_PX\s*=\s*4/)
+    assert.match(workspace, /FAVORITES_BALANCED_FILL_RATIO\s*=\s*0\.8/)
+    assert.match(workspace, /FAVORITES_MIN_USEFUL_EDGE_PX\s*=\s*STATION_CAROUSEL_TUNING\.cardWidth/)
     assert.match(workspace, /ResizeObserver/)
     assert.match(workspace, /data-favorites-fit/)
     assert.match(workspace, /data-carousel-slide.*data-centered/)
     assert.match(workspace, /--ml-atmosphere-favorites-edge/)
     assert.match(workspace, /--ml-atmosphere-workspace-scale-rem/)
-    assert.match(workspace, /centeredCardRect\.width\s*\*\s*FAVORITES_TO_CENTER_CARD_RATIO/)
-    assert.match(workspace, /availableGap\s*>=\s*FAVORITES_MIN_CENTER_CARD_GAP_PX/)
+    assert.match(workspace, /minimumEdge\s*=\s*centeredCardRect\.width\s*\*\s*FAVORITES_TO_CENTER_CARD_RATIO/)
+    assert.match(workspace, /preferredEdge\s*=\s*Math\.min/)
+    assert.match(workspace, /Math\.min\([\s\S]*?maximumFittingEdge,[\s\S]*?Math\.max\(minimumEdge, preferredEdge\)/)
+    assert.match(workspace, /remainingVerticalSpace\s*\/\s*2/)
+    assert.match(workspace, /maximumFittingEdge\s*>=\s*FAVORITES_MIN_USEFUL_EDGE_PX/)
     assert.match(workspace, /--ml-atmosphere-favorites-edge/)
     assert.match(workspace, /favoriteIds=\{music\.favorites\}/)
     assert.match(productionCarousel, /onCenteredStationChange\?\./)
@@ -334,6 +338,7 @@ describe("Carousel Lab source boundaries", () => {
     assert.doesNotMatch(styles, /@container ml-atmosphere-favorites-slot \(min-width:/)
     assert.match(styles, /inline-size: min\(100cqi, 100cqb, var\(--ml-atmosphere-favorites-edge\)\)/)
     assert.match(styles, /place-self: start center/)
+    assert.match(styles, /\.ml-atmosphere-favorites-mosaic[\s\S]*?overflow:\s*visible/)
     assert.match(styles, /\.ml-atmosphere-rail-content[\s\S]*max-inline-size: none/)
     assert.match(styles, /var\(--ml-atmosphere-workspace-scale-rem\)/)
     assert.match(responsiveModel, /referenceWidth:\s*960/)
@@ -344,6 +349,8 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(responsiveModel, /minimumFavoritesGap:\s*8/)
     assert.match(responsiveModel, /safeHeight[\s\S]*stackedBaseHeight/)
     assert.match(favoritesSurface, /aria-label="Favorites"/)
+    assert.match(favoritesSurface, /appMediaTileClassName/)
+    assert.match(favoritesSurface, /favoriteTileClassName[\s\S]*?ml-atmosphere-favorite-tile/)
     assert.doesNotMatch(favoritesSurface, /<h2|atmosphere-favorites-heading/)
     assert.doesNotMatch(workspace, /devicePixelRatio|visualViewport\.scale|userAgent/)
   })
@@ -355,6 +362,31 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(favoritesSurface, /Heart a station and it will appear here\./)
     assert.doesNotMatch(favoritesSurface, /onAddFavorite/)
     assert.doesNotMatch(favoritesSurface, /Add \{centeredStation\.title\} to favorites/)
+  })
+
+  it("bookends the Station categories with Favorites and the branded Atmoshaper preview", () => {
+    const carousel = read("components/atmosphere/station-carousel.tsx")
+    const workspace = read("app/browse/workspace.tsx")
+
+    const favoritesButton = carousel.indexOf("handleGroupChange(FAVORITES_CATEGORY_ID)")
+    const stationButtons = carousel.indexOf("stationGroups.map((candidate)")
+    const atmoshaperButton = carousel.indexOf("handleGroupChange(ATMOSHAPER_CATEGORY_ID)")
+    assert.ok(favoritesButton >= 0 && favoritesButton < stationButtons)
+    assert.ok(atmoshaperButton > stationButtons)
+    assert.match(carousel, /<MetalFavoriteIcon kind="heart" selected \/>/)
+    assert.match(carousel, /buildAtmosphereFavoritesSpeedDialModel\(music\.favorites, stations\)\.allFavorites/)
+    assert.match(carousel, /Heart a station and it will appear here\./)
+    assert.match(carousel, /ml-atmosphere-station-special-icon/)
+    assert.match(carousel, /ml-atmosphere-station-special-content/)
+    assert.match(carousel, /data-special-state="favorites"/)
+    assert.match(carousel, /title: "Atmoshaper"/)
+    assert.match(carousel, /Layer ambient sounds into your own soundscape\./)
+    assert.match(carousel, /<strong>Coming soon<\/strong>/)
+    assert.match(carousel, /stationGroupIdByStationId\.get\(station\.id\) \?\? group\.id/)
+    assert.match(carousel, /\[group\?\.id, stationItems\.length\]/)
+    assert.match(carousel, /onViewChange\?\.\(nextView\)[\s\S]*?setGroupId\(nextGroupId\)/)
+    assert.match(workspace, /atmosphereCarouselView === "stations"/)
+    assert.match(workspace, /onViewChange=\{setAtmosphereCarouselView\}/)
   })
 
   it("renders unavailable Favorites through the shared inert tile state", () => {
