@@ -355,7 +355,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
 
             {isCollapsed ? (
               <>
-                <div className={cn("flex gap-1", isCompactLandscape && "flex-col")}>
+                <div className={cn("flex items-center self-center gap-1", isCompactLandscape && "flex-col")}>
                   {playPauseAction}
                   {stopAction}
                 </div>

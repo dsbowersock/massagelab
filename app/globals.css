@@ -2761,7 +2761,7 @@
     }
 
     body.ml-music-player-rail [data-testid="music-player-toolbar-rail-transport"] {
-      grid-template-columns: repeat(3, auto);
+      grid-template-columns: repeat(4, auto);
     }
 
     body.ml-music-player-rail [data-testid="music-player-toolbar-rail-options"] {
