@@ -88,6 +88,8 @@ export function AtmosphereStationCarousel({
   )
   const isFavoritesCategory = groupId === FAVORITES_CATEGORY_ID
   const isAtmoshaperCategory = groupId === ATMOSHAPER_CATEGORY_ID
+  // Favorites and Atmoshaper are pseudo-categories: resolve them into synthetic
+  // groups so their headings and the shared stage retain one data shape.
   const group = useMemo(() => (
     isFavoritesCategory
       ? {
@@ -195,6 +197,8 @@ export function AtmosphereStationCarousel({
   const handleGroupChange = useCallback((nextGroupId: string) => {
     prewarmAbortRef.current?.abort()
     prewarmAbortRef.current = null
+    // Map pseudo-categories to workspace views, then restore the next carousel
+    // from its saved center, the active station, or the first station.
     const nextView: AtmosphereStationCarouselView = nextGroupId === FAVORITES_CATEGORY_ID
       ? "favorites"
       : nextGroupId === ATMOSHAPER_CATEGORY_ID
