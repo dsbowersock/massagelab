@@ -315,7 +315,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
 
   return (
     <div
-      className="ml-music-player-toolbar pointer-events-none absolute inset-x-0 z-[10020]"
+      className="ml-music-player ml-music-player-toolbar pointer-events-none absolute inset-x-0 z-[10020]"
       data-placement={placement}
       data-layout={isCompactLandscape ? "rail" : "bottom"}
       data-music-route={isMusicRoute}

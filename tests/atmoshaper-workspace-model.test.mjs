@@ -252,4 +252,33 @@ describe("AtmoShaper workspace ownership model", () => {
       providerRecipeId: "mix",
     }), [])
   })
+
+  it("uses truthful loading or provider-failed fallback for an owned layer missing runtime state", () => {
+    const resolveState = requireModelFunction("resolveAtmoShaperVisibleLayerState")
+
+    assert.deepEqual(resolveState({
+      activePlaybackKind: "atmoshaper",
+      layerState: undefined,
+      localRecipeId: "mix",
+      providerError: null,
+      providerRecipeId: "mix",
+      snapshotStatus: "loading",
+    }), { status: "loading" })
+    assert.deepEqual(resolveState({
+      activePlaybackKind: "atmoshaper",
+      layerState: undefined,
+      localRecipeId: "mix",
+      providerError: "Audio policy denied this layer.",
+      providerRecipeId: "mix",
+      snapshotStatus: "failed",
+    }), { status: "failed", error: "Audio policy denied this layer." })
+    assert.deepEqual(resolveState({
+      activePlaybackKind: "station",
+      layerState: undefined,
+      localRecipeId: "mix",
+      providerError: "Foreign error",
+      providerRecipeId: null,
+      snapshotStatus: "failed",
+    }), { status: "ready" })
+  })
 })

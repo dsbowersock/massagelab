@@ -76,6 +76,34 @@ export function canStopAtmoShaperWorkspaceRecipe({
 }
 
 /**
+ * Keeps a row honest while the provider owns the recipe but has not published
+ * its per-layer entry yet. Foreign or inactive recipes remain ready to edit.
+ *
+ * @param {{ activePlaybackKind: "station" | "atmoshaper" | null, layerState?: { status: string, error?: string }, localRecipeId: string, providerError: string | null, providerRecipeId: string | null, snapshotStatus?: string }} input
+ */
+export function resolveAtmoShaperVisibleLayerState({
+  activePlaybackKind,
+  layerState,
+  localRecipeId,
+  providerError,
+  providerRecipeId,
+  snapshotStatus,
+}) {
+  if (layerState) return layerState
+  const providerOwnsRecipe = activePlaybackKind === "atmoshaper"
+    && providerRecipeId === localRecipeId
+  if (!providerOwnsRecipe) return { status: "ready" }
+  if (snapshotStatus === "loading") return { status: "loading" }
+  if (snapshotStatus === "failed") {
+    return {
+      status: "failed",
+      ...(providerError ? { error: providerError } : {}),
+    }
+  }
+  return { status: "ready" }
+}
+
+/**
  * Finds runtime-active sources whose exact identity is no longer represented
  * by this workspace's current recipe. Foreign and stale provider snapshots
  * must not introduce rows into a recipe they do not own.

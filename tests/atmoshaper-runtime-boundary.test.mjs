@@ -92,3 +92,16 @@ test("station composition forwards controller ownership and awaits terminal clea
   assert.match(runtime, /startGenerativeFmPiece\(\{[^}]*isCurrent[^}]*\}\)/)
   assert.match(runtime, /await\s+playback\.dispose\(\)/)
 })
+
+test("browser failure injection is a one-shot loopback-only adapter hook", () => {
+  const runtime = readRequiredSource("lib/atmoshaper/runtime.ts")
+  assert.match(runtime, /consumeAtmoShaperBrowserQaFailure/)
+  assert.match(runtime, /(?:localhost|127\.0\.0\.1|::1)/)
+  assert.match(runtime, /failNextSourceIds/)
+  assert.match(runtime, /splice\(failureIndex, 1\)/)
+  assert.ok(
+    runtime.indexOf("consumeAtmoShaperBrowserQaFailure(layer)")
+      < runtime.indexOf("return createGeneratedAtmoShaperAdapter"),
+    "the test-only failure must be injected at the adapter composition boundary",
+  )
+})

@@ -12,7 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 
-import { CurrentMix, CurrentMixTray } from "./current-mix"
+import { atmoShaperLayerSourceName, CurrentMix, CurrentMixTray } from "./current-mix"
 import { SoundLibrary } from "./sound-library"
 import { useAtmoShaperRecipe } from "./use-atmoshaper-recipe"
 
@@ -24,14 +24,23 @@ export function AtmoShaperWorkspace() {
     const failedLayers = Object.entries(music.atmoShaperSnapshot?.layers ?? {})
       .filter(([, state]) => state.status === "failed")
     const currentFailedIds = new Set(failedLayers.map(([layerId]) => layerId))
-    const newlyFailed = failedLayers.find(([layerId]) => !failedLayerIdsRef.current.has(layerId))
+    const newlyFailedLayers = failedLayers.filter(([layerId]) => !failedLayerIdsRef.current.has(layerId))
     failedLayerIdsRef.current = currentFailedIds
 
-    if (newlyFailed) {
-      const [, state] = newlyFailed
-      announce(`Layer failed${state.error ? `: ${state.error}` : "."}`)
+    if (newlyFailedLayers.length > 0) {
+      const recipeLayers = new Map([
+        ...recipe.layers,
+        ...Object.values(music.atmoShaperSnapshot?.activeLayers ?? {}),
+      ].map((layer) => [layer.id, layer]))
+      announce(newlyFailedLayers
+        .map(([layerId, state]) => {
+          const layer = recipeLayers.get(layerId)
+          const sourceName = layer ? atmoShaperLayerSourceName(layer) : "Layer"
+          return `${sourceName} failed${state.error ? `: ${state.error}` : "."}`
+        })
+        .join(" "))
     }
-  }, [announce, music.atmoShaperSnapshot?.layers])
+  }, [announce, music.atmoShaperSnapshot?.activeLayers, music.atmoShaperSnapshot?.layers, recipe.layers])
 
   return (
     <div className="ml-atmoshaper-workspace min-w-0" aria-label="AtmoShaper live mixer">
@@ -68,7 +77,6 @@ export function AtmoShaperWorkspace() {
         </Sheet>
       </div>
       <p
-        key={announcement?.id}
         role="status"
         aria-live="polite"
         aria-atomic="true"

@@ -90,6 +90,15 @@ type AtmoShaperRuntimeSnapshot = {
   activeLayers: Record<string, AtmoShaperLayer>
 }
 
+type AtmoShaperBrowserQaDiagnostics = {
+  activePlaybackKind: PlaybackKind
+  activeStationId: string | null
+  error: string | null
+  playbackState: PlaybackState
+  recipe: AtmoShaperRecipe | null
+  runtime: AtmoShaperRuntimeSnapshot | null
+}
+
 type LoadedAtmoShaperRuntime = {
   start: (recipe: AtmoShaperRecipe) => Promise<void>
   applyRecipe: (recipe: AtmoShaperRecipe) => Promise<void>
@@ -355,6 +364,7 @@ export function MusicProvider({
   const [loadingProgress, setLoadingProgress] = useState<number | null>(null)
   const [loadingStartedAt, setLoadingStartedAt] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const errorRef = useRef<string | null>(null)
   const [runtimeReadiness, setRuntimeReadiness] = useState<RuntimeReadinessState>({
     status: "idle",
     error: null,
@@ -958,6 +968,8 @@ export function MusicProvider({
       || sessionGeneration !== playbackSessionGenerationRef.current
     ) return
 
+    const lifecycleStatus = playbackLifecycleRef.current.status
+    const canPublishNotice = lifecycleStatus !== "failed" && lifecycleStatus !== "stopped"
     const integrationAvailable = Boolean(
       available
       && mediaSessionControllerRef.current?.isAvailable()
@@ -966,6 +978,7 @@ export function MusicProvider({
     setMediaIntegrationAvailable(integrationAvailable)
     if (
       integrationAvailable
+      && canPublishNotice
       && origin !== "media-session"
       && !continueSession
       && document.visibilityState !== "hidden"
@@ -975,12 +988,39 @@ export function MusicProvider({
         noticeSessionId: playbackLifecycleRef.current.sessionId,
       }
       setInterruptionNoticeSessionId(playbackLifecycleRef.current.sessionId)
-    } else if (!integrationAvailable && !continueSession) {
+    } else if ((!integrationAvailable || !canPublishNotice) && !continueSession) {
       playbackLifecycleRef.current = {
         ...playbackLifecycleRef.current,
         noticeSessionId: null,
       }
       setInterruptionNoticeSessionId(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    errorRef.current = error
+  }, [error])
+
+  // A preinstalled loopback-only browser-QA request receives provider-owned
+  // snapshots without exposing audio nodes or a deployed production hook.
+  useEffect(() => {
+    if (!["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)) return
+    const bridge = Reflect.get(window, "__massagelabAtmoShaperBrowserQa") as {
+      enabled?: unknown
+      getDiagnostics?: () => AtmoShaperBrowserQaDiagnostics
+    } | undefined
+    if (bridge?.enabled !== true) return
+    const getDiagnostics = (): AtmoShaperBrowserQaDiagnostics => ({
+      activePlaybackKind: activePlaybackKindRef.current,
+      activeStationId: activeStationIdRef.current,
+      error: errorRef.current,
+      playbackState: playbackLifecycleRef.current.status as PlaybackState,
+      recipe: atmoShaperRecipeRef.current,
+      runtime: atmoShaperRuntimeRef.current?.getSnapshot() ?? null,
+    })
+    bridge.getDiagnostics = getDiagnostics
+    return () => {
+      if (bridge.getDiagnostics === getDiagnostics) delete bridge.getDiagnostics
     }
   }, [])
 

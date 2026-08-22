@@ -14,6 +14,7 @@ import {
   canStopAtmoShaperWorkspaceRecipe,
   focusTargetAfterAtmoShaperVisibleRowRemoval,
   projectRetainedAtmoShaperLayersForWorkspace,
+  resolveAtmoShaperVisibleLayerState,
 } from "./workspace-model.js"
 
 type VisibleMixRow = {
@@ -98,9 +99,18 @@ export function CurrentMix({
       <ol className="mt-4 space-y-3">
         {visibleRows.map((row) => {
           const { layer, recipeIndex, retained } = row
-          const sourceName = layerSourceName(layer)
-          const runtimeState = music.atmoShaperSnapshot?.layers[layer.id]
-          const status = runtimeState?.status ?? (retained ? "playing" : "ready")
+          const sourceName = atmoShaperLayerSourceName(layer)
+          const runtimeState = retained
+            ? { status: "playing" }
+            : resolveAtmoShaperVisibleLayerState({
+                activePlaybackKind: music.activePlaybackKind,
+                layerState: music.atmoShaperSnapshot?.layers[layer.id],
+                localRecipeId: recipe.id,
+                providerError: music.error,
+                providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
+                snapshotStatus: music.atmoShaperSnapshot?.status,
+              })
+          const status = runtimeState.status
 
           return (
             <li
@@ -126,6 +136,7 @@ export function CurrentMix({
                   type="button"
                   size="sm"
                   variant="outline"
+                  aria-label={`${layer.muted ? "Unmute" : "Mute"} ${sourceName}`}
                   aria-pressed={layer.muted}
                   onClick={() => {
                     if (retained) actions.restoreRetainedLayer(layer, { muted: !layer.muted })
@@ -176,7 +187,12 @@ export function CurrentMix({
                   </>
                 ) : null}
                 {!retained && status === "failed" ? (
-                  <Button type="button" size="sm" onClick={() => void music.retryAtmoShaperLayer(layer.id)}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    aria-label={`Retry ${sourceName}`}
+                    onClick={() => void music.retryAtmoShaperLayer(layer.id)}
+                  >
                     Retry
                   </Button>
                 ) : null}
@@ -286,7 +302,7 @@ function AtmoShaperTransportButtons({
   )
 }
 
-function layerSourceName(layer: AtmoShaperLayer) {
+export function atmoShaperLayerSourceName(layer: AtmoShaperLayer) {
   if (layer.kind === "station") {
     try {
       return getAtmosphereStationById(layer.sourceId).title

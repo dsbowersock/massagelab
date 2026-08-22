@@ -82,6 +82,7 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
   const expectedSpecs = [
     "admin-user-operations.spec.ts",
     "app-shell.spec.ts",
+    "atmoshaper.spec.ts",
     "background-commerce.spec.ts",
     "control-system-review.spec.ts",
     "immersive-panel-shell.spec.ts",
@@ -107,7 +108,7 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
   const expectedPairs = new Set(
     expectedProjects.flatMap((projectName) => expectedSpecs.map((spec) => `${projectName}:${spec}`)),
   )
-  assert.equal(expectedPairs.size, 20)
+  assert.equal(expectedPairs.size, 22)
 
   const actualPairs = []
   for (const lane of Object.values(BROWSER_QA_LANES)) {
@@ -185,6 +186,7 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
       {
         name: "desktop-chromium",
         testMatch: [
+          "**/atmoshaper.spec.ts",
           "**/music-media-session.spec.ts",
           "**/admin-user-operations.spec.ts",
         ],
@@ -192,6 +194,7 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
       {
         name: "mobile-chromium",
         testMatch: [
+          "**/atmoshaper.spec.ts",
           "**/music-media-session.spec.ts",
         ],
       },

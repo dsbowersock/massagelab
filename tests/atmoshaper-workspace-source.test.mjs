@@ -147,9 +147,18 @@ describe("AtmoShaper live-session workspace source contract", () => {
     assert.match(workspaceSource, /aria-live="polite"/)
     assert.match(hookSource, /Layer added/)
     assert.match(hookSource, /Layer removed/)
-    assert.match(workspaceSource, /Layer failed/)
+    assert.match(workspaceSource, /sourceName} failed/)
     assert.doesNotMatch(controlsSource, /aria-live/)
     assert.doesNotMatch(mixSource, /aria-live/)
+  })
+
+  it("names source actions and announces every new failure through a stable live region", () => {
+    assert.match(mixSource, /aria-label=\{`\$\{layer\.muted \? "Unmute" : "Mute"\} \$\{sourceName\}`\}/)
+    assert.match(mixSource, /aria-label=\{`Retry \$\{sourceName\}`\}/)
+    assert.match(workspaceSource, /newlyFailedLayers/)
+    assert.match(workspaceSource, /\.map\(\(\[layerId, state\]\)/)
+    assert.match(workspaceSource, /atmoShaperLayerSourceName/)
+    assert.doesNotMatch(workspaceSource, /key=\{announcement\?\.id\}/)
   })
 
   it("gives honest brainwave guidance without health claims or persistence UI", () => {

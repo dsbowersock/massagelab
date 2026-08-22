@@ -53,6 +53,9 @@ export async function createAtmoShaperRuntime({
       onSnapshot(snapshot as AtmoShaperRuntimeSnapshot)
     },
     createAdapter(layer, isCurrent) {
+      if (consumeAtmoShaperBrowserQaFailure(layer)) {
+        throw new Error(`Browser QA injected failure for ${layer.sourceId}.`)
+      }
       if (layer.kind === "noise" || layer.kind === "binaural" || layer.kind === "isochronic") {
         return createGeneratedAtmoShaperAdapter({ layer, destination: master })
       }
@@ -73,6 +76,23 @@ export async function createAtmoShaperRuntime({
       master.dispose()
     },
   }
+}
+
+/**
+ * Consumes one requested adapter failure only on loopback browser-QA hosts.
+ * Deployed production origins cannot reach this injected failure path.
+ */
+function consumeAtmoShaperBrowserQaFailure(layer: AtmoShaperLayer) {
+  if (!["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)) return false
+  const request = Reflect.get(window, "__massagelabAtmoShaperBrowserQa") as {
+    enabled?: unknown
+    failNextSourceIds?: unknown
+  } | undefined
+  if (request?.enabled !== true || !Array.isArray(request.failNextSourceIds)) return false
+  const failureIndex = request.failNextSourceIds.indexOf(layer.sourceId)
+  if (failureIndex === -1) return false
+  request.failNextSourceIds.splice(failureIndex, 1)
+  return true
 }
 
 /** Adapts one catalog station without pausing its private generator schedule. */

@@ -1,5 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import {
   ATMOSHAPER_PRESETS,
   addAtmoShaperLayer,
@@ -110,6 +111,16 @@ test("all named brainwave presets stay inside the documented safe bounds", () =>
     assert.ok(preset.carrierHz >= 80 && preset.carrierHz <= 600)
     assert.ok(preset.rateHz >= 0.5 && preset.rateHz <= 50)
   }
+})
+
+test("public recipe JSDoc explains replacement, immutability, missing-layer, and safety intent", () => {
+  const source = readFileSync(new URL("../lib/atmoshaper/recipe.js", import.meta.url), "utf8")
+  for (const intent of [
+    /exclusive[\s\S]*replace/i,
+    /normalized new recipe[\s\S]*without mutating/i,
+    /missing layer[\s\S]*normalized copy/i,
+    /clamps?[\s\S]*runtime-safe bounds/i,
+  ]) assert.match(source, intent)
 })
 
 test("normalization rejects malformed recipe and layer data", () => {

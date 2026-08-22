@@ -155,4 +155,15 @@ describe("AtmoShaper provider ownership contract", () => {
     assert.match(stopPath, /mediaCarrierRef\.current\?\.stopAndDismiss\(\)/)
     assert.match(stopPath, /mediaSessionControllerRef\.current\?\.clear\(\)/)
   })
+
+  it("cannot retain or republish the interruption notice after terminal failure", () => {
+    const settlePath = sourceBetween(
+      "const settleMediaIntegrationAvailability = useCallback",
+      "const playStation = useCallback",
+    )
+    assert.match(settlePath, /playbackLifecycleRef\.current\.status/)
+    assert.match(settlePath, /lifecycleStatus !== "failed"/)
+    assert.match(settlePath, /lifecycleStatus !== "stopped"/)
+    assert.match(settlePath, /setInterruptionNoticeSessionId\(null\)/)
+  })
 })
