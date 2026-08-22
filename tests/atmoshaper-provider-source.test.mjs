@@ -150,7 +150,12 @@ describe("AtmoShaper provider ownership contract", () => {
     assert.match(mediaPath, /state === "failed" \|\| state === "stopped"/)
     assert.match(mediaPath, /\? "none"\s*:\s*"playing"/)
     assert.match(atmoPath, /nextSnapshot\.status === "failed"[\s\S]*?stopAndDismiss\(\)[\s\S]*?publishMediaSession\([^,]+, "failed"\)/)
-    assert.match(atmoPath, /snapshot\.status === "playing"[\s\S]*?else[\s\S]*?stopAndDismiss\(\)[\s\S]*?publishMediaSession\(latestMetadata, "failed"\)/)
+    assert.match(atmoPath, /nextSnapshot\.status === "stopped"[\s\S]*?commitPlaybackLifecycle\(\{ type: "EXPLICIT_STOP" \}\)[\s\S]*?stopAndDismiss\(\)[\s\S]*?clear\(\)/)
+    assert.match(
+      atmoPath,
+      /snapshot\.status === "playing"[\s\S]*?else if \(snapshot\.status === "stopped"\)[\s\S]*?commitPlaybackLifecycle\(\{ type: "EXPLICIT_STOP" \}\)[\s\S]*?setError\(null\)[\s\S]*?stopAndDismiss\(\)[\s\S]*?clear\(\)[\s\S]*?else[\s\S]*?publishMediaSession\(latestMetadata, "failed"\)/,
+      "startup settlement must preserve an async remove-last stop instead of republishing failure",
+    )
     assert.match(restartPath, /snapshot\.status === "playing"[\s\S]*?else[\s\S]*?stopAndDismiss\(\)/)
     assert.match(stopPath, /mediaCarrierRef\.current\?\.stopAndDismiss\(\)/)
     assert.match(stopPath, /mediaSessionControllerRef\.current\?\.clear\(\)/)

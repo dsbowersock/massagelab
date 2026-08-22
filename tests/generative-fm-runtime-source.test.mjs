@@ -27,10 +27,11 @@ test("Generative.fm returns a callable handle with private ramped volume control
 
 test("Generative.fm retains global volume updates and owner-aware deferred cleanup", () => {
   assert.match(source, /activeVolumeNode\.volume\.value\s*=\s*volumeToDecibels\(volume\)/)
-  assert.match(source, /activeTransportOwner\s*===\s*transportOwner/)
+  assert.match(source, /generativeFmTransportOwner\.replace\(/)
+  assert.match(source, /generativeFmTransportOwner\.release\(transportSession/)
+  assert.match(source, /generativeFmTransportOwner\.endSchedule\(transportSession\)/)
   assert.match(source, /Tone\.Transport\.stop\(\)/)
   assert.match(source, /Tone\.Transport\.cancel\(\)/)
-  assert.match(source, /endStage\?\.\(\)/)
   assert.match(source, /deactivate\(\)/)
   assert.match(source, /output\.dispose\(\)/)
   assert.match(source, /window\.setTimeout/)

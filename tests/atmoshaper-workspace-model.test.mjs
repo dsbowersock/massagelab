@@ -253,7 +253,7 @@ describe("AtmoShaper workspace ownership model", () => {
     }), [])
   })
 
-  it("uses truthful loading or provider-failed fallback for an owned layer missing runtime state", () => {
+  it("shows Retry only for an actual failed layer state, not an overall failed missing state", () => {
     const resolveState = requireModelFunction("resolveAtmoShaperVisibleLayerState")
 
     assert.deepEqual(resolveState({
@@ -271,7 +271,15 @@ describe("AtmoShaper workspace ownership model", () => {
       providerError: "Audio policy denied this layer.",
       providerRecipeId: "mix",
       snapshotStatus: "failed",
-    }), { status: "failed", error: "Audio policy denied this layer." })
+    }), { status: "ready" })
+    assert.deepEqual(resolveState({
+      activePlaybackKind: "atmoshaper",
+      layerState: { status: "failed", error: "Brown noise failed." },
+      localRecipeId: "mix",
+      providerError: "AtmoShaper could not start any layer.",
+      providerRecipeId: "mix",
+      snapshotStatus: "failed",
+    }), { status: "failed", error: "Brown noise failed." })
     assert.deepEqual(resolveState({
       activePlaybackKind: "station",
       layerState: undefined,

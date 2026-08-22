@@ -1333,6 +1333,14 @@ export function MusicProvider({
               mediaCarrierRef.current?.stopAndDismiss()
               const metadata = activeStationMetadataRef.current
               if (metadata) publishMediaSession(metadata, "failed")
+            } else if (nextSnapshot.status === "stopped") {
+              // Removing the final live layer is an ordinary stopped edit, not
+              // a failed source. Retain the recipe identity but release media
+              // ownership so Play can establish a fresh complete session.
+              commitPlaybackLifecycle({ type: "EXPLICIT_STOP" })
+              setError(null)
+              mediaCarrierRef.current?.stopAndDismiss()
+              mediaSessionControllerRef.current?.clear()
             }
           },
         })
@@ -1384,6 +1392,12 @@ export function MusicProvider({
         setError(null)
         mediaCarrierRef.current?.pauseRetained()
         publishMediaSession(latestMetadata, "paused")
+      } else if (snapshot.status === "stopped") {
+        // A remove-last edit can settle while carrier startup is still pending.
+        commitPlaybackLifecycle({ type: "EXPLICIT_STOP" })
+        setError(null)
+        mediaCarrierRef.current?.stopAndDismiss()
+        mediaSessionControllerRef.current?.clear()
       } else {
         commitPlaybackLifecycle({ type: "START_FAILED", sessionId: lifecycleSessionId })
         setError(firstAtmoShaperError(snapshot) ?? "AtmoShaper could not start any layer.")
@@ -1460,7 +1474,9 @@ export function MusicProvider({
         runtimeLease !== atmoShaperRuntimeLeaseRef.current
         || activePlaybackKindRef.current !== "atmoshaper"
       ) return
-      publishMediaSession(metadata, playbackLifecycleRef.current.status as PlaybackState)
+      if (runtime.getSnapshot().status !== "stopped") {
+        publishMediaSession(metadata, playbackLifecycleRef.current.status as PlaybackState)
+      }
     } catch (caughtError) {
       if (runtimeLease !== atmoShaperRuntimeLeaseRef.current) return
       setError(caughtError instanceof Error ? caughtError.message : "AtmoShaper could not update.")

@@ -404,3 +404,34 @@ test("stopped recipe edits publish without creating an adapter", async () => {
   assert.deepEqual(controller.getSnapshot().layers, {})
   assert.equal(snapshots.at(-1).status, "stopped")
 })
+
+test("removing the last live layer stops cleanly and a later explicit start creates the new layer", async () => {
+  const log = []
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      log.push(["create", nextLayer.id])
+      return createFakeHandle(log, nextLayer)
+    },
+  })
+  await controller.start(recipe([layer("pink")]))
+  log.length = 0
+
+  await controller.applyRecipe(recipe([]))
+
+  assert.equal(controller.getSnapshot().status, "stopped")
+  assert.deepEqual(controller.getSnapshot().layers, {})
+  assert.deepEqual(controller.getSnapshot().activeLayers, {})
+  assert.deepEqual(log, [["dispose", "pink"]])
+
+  await controller.applyRecipe(recipe([layer("brown")]))
+  assert.deepEqual(log, [["dispose", "pink"]], "stopped edits stay silent")
+  assert.equal(controller.getSnapshot().status, "stopped")
+
+  await controller.start(recipe([layer("brown")]))
+  assert.deepEqual(log, [
+    ["dispose", "pink"],
+    ["create", "brown"],
+    ["fadeIn", "brown"],
+  ])
+  assert.equal(controller.getSnapshot().status, "playing")
+})

@@ -148,6 +148,60 @@ test("deferred runtime startup reconciles the latest recipe and desired paused t
   assert.deepEqual(log, [["start", "old"], ["apply", "latest"], ["pause"]])
 })
 
+test("deferred runtime startup preserves an explicit stop when the latest recipe becomes empty", async () => {
+  let lifecycle = transitionAtmospherePlayback(
+    createAtmospherePlaybackLifecycle(true),
+    { type: "BEGIN_IN_APP_SESSION" },
+  ).state
+  let releaseStart
+  let startEntered
+  const startReady = new Promise((resolve) => { releaseStart = resolve })
+  const startWasEntered = new Promise((resolve) => { startEntered = resolve })
+  let state = {
+    recipe: { id: "mix", layers: [{ id: "pink" }] },
+    revision: 1,
+    desiredTransport: "playing",
+  }
+  let status = "stopped"
+  const runtime = {
+    async start() {
+      status = "loading"
+      startEntered()
+      await startReady
+      status = "playing"
+    },
+    async applyRecipe(recipe) {
+      if (recipe.layers.length === 0) {
+        status = "stopped"
+        lifecycle = transitionAtmospherePlayback(lifecycle, { type: "EXPLICIT_STOP" }).state
+      }
+    },
+    async pause() { status = "paused" },
+    async resume() { status = "playing" },
+    getSnapshot() { return { status } },
+  }
+
+  const settling = playbackLifecycle.settleSourceRuntimeStartup({
+    runtime,
+    isCurrent: () => true,
+    readState: () => state,
+  })
+  await startWasEntered
+  state = { ...state, recipe: { id: "mix", layers: [] }, revision: 2 }
+  releaseStart()
+
+  assert.equal((await settling).status, "current")
+  assert.equal(runtime.getSnapshot().status, "stopped")
+  assert.equal(lifecycle.status, "stopped")
+  assert.equal(
+    transitionAtmospherePlayback(lifecycle, {
+      type: "START_FAILED",
+      sessionId: lifecycle.sessionId,
+    }).state.status,
+    "stopped",
+  )
+})
+
 test("startup uses a recovered play intent that changes before runtime adoption", async () => {
   assert.equal(typeof playbackLifecycle.settleSourceRuntimeStartup, "function")
   const log = []

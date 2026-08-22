@@ -37,6 +37,7 @@ type MediaSessionProbe = {
     artwork?: Array<{ sizes?: string, src?: string, type?: string }>
     title?: string
   } | null
+  mutationCount: number
   playbackState: string
 }
 
@@ -82,20 +83,24 @@ async function installAtmoShaperBrowserQa(page: Page, failNextSourceIds: string[
     Reflect.set(window, "__massagelabAtmoShaperBrowserQa", {
       enabled: true,
       failNextSourceIds: [...sourceIds],
+      holdNextCarrierStart: false,
     })
 
     const mediaSession: {
       handlers: Record<string, (() => void) | null>
       metadata: MediaSessionProbe["metadata"]
+      mutationCount: number
       playbackState: string
       setActionHandler(action: string, handler: (() => void) | null): void
       setPositionState(): void
     } = {
       handlers: {},
       metadata: null,
+      mutationCount: 0,
       playbackState: "none",
       setActionHandler(action, handler) {
         this.handlers[action] = handler
+        this.mutationCount += 1
       },
       setPositionState() {},
     }
@@ -115,6 +120,11 @@ async function installAtmoShaperBrowserQa(page: Page, failNextSourceIds: string[
       preload = ""
       src = ""
 
+      constructor() {
+        super()
+        Reflect.set(window, "__massagelabAtmoCarrierAudio", this)
+      }
+
       getAttribute(name: string) {
         return name === "src" && this.src ? this.src : null
       }
@@ -124,6 +134,15 @@ async function installAtmoShaperBrowserQa(page: Page, failNextSourceIds: string[
       }
 
       async play() {
+        const qa = Reflect.get(window, "__massagelabAtmoShaperBrowserQa") as {
+          holdNextCarrierStart?: boolean
+          releaseCarrierStart?: () => void
+        }
+        if (qa.holdNextCarrierStart) {
+          qa.holdNextCarrierStart = false
+          await new Promise<void>((resolve) => { qa.releaseCarrierStart = resolve })
+          delete qa.releaseCarrierStart
+        }
         this.paused = false
         queueMicrotask(() => this.dispatchEvent(new Event("play")))
       }
@@ -190,6 +209,7 @@ async function readMediaSession(page: Page) {
     const probe = Reflect.get(window, "__massagelabAtmoMediaSession") as {
       handlers: Record<string, (() => void) | null>
       metadata: MediaSessionProbe["metadata"]
+      mutationCount: number
       playbackState: string
     }
     return {
@@ -198,8 +218,38 @@ async function readMediaSession(page: Page) {
           .map((action) => [action, typeof probe.handlers[action]]),
       ),
       metadata: probe.metadata,
+      mutationCount: probe.mutationCount,
       playbackState: probe.playbackState,
     } as MediaSessionProbe
+  })
+}
+
+async function holdNextCarrierStart(page: Page) {
+  await page.evaluate(() => {
+    const bridge = Reflect.get(window, "__massagelabAtmoShaperBrowserQa") as {
+      holdNextCarrierStart: boolean
+    }
+    bridge.holdNextCarrierStart = true
+  })
+}
+
+async function releaseCarrierStart(page: Page) {
+  await page.evaluate(() => {
+    const bridge = Reflect.get(window, "__massagelabAtmoShaperBrowserQa") as {
+      releaseCarrierStart?: () => void
+    }
+    if (!bridge.releaseCarrierStart) throw new Error("Carrier start is not held.")
+    bridge.releaseCarrierStart()
+  })
+}
+
+async function readCarrier(page: Page) {
+  return page.evaluate(() => {
+    const carrier = Reflect.get(window, "__massagelabAtmoCarrierAudio") as {
+      paused: boolean
+      src: string
+    }
+    return { paused: carrier.paused, src: carrier.src }
   })
 }
 
@@ -417,6 +467,72 @@ test("keeps stopped edits silent and live edits preserve healthy layer ids", asy
   await page.getByRole("button", { name: "Play AtmoShaper" }).first().click()
   await waitForAtmoStatus(page, "playing")
   expect(Object.keys((await readDiagnostics(page)).runtime?.activeLayers ?? {})).toHaveLength(2)
+})
+
+test("removing the last live layer leaves a new layer ready for Play rather than false Retry", async ({ page }) => {
+  await openAtmoShaper(page)
+  await addNoise(page, "Pink")
+  await page.getByRole("button", { name: "Play AtmoShaper" }).first().click()
+  await waitForAtmoStatus(page, "playing")
+
+  const { scope: currentMix, sheetWasOpened } = await openFullMix(page)
+  await press(currentMix.getByRole("button", { name: "Remove Pink noise" }))
+  await expect.poll(async () => (await readDiagnostics(page)).runtime?.status).toBe("stopped")
+  if (sheetWasOpened) await page.keyboard.press("Escape")
+
+  await addNoise(page, "Brown")
+  const { scope: updatedMix } = await openFullMix(page)
+  await expect(updatedMix.getByRole("button", { name: "Retry Brown noise" })).toHaveCount(0)
+  await expect(updatedMix.getByText("ready", { exact: true })).toBeVisible()
+  if (await page.getByRole("dialog", { name: "Full Current Mix controls" }).isVisible()) {
+    await page.keyboard.press("Escape")
+  }
+
+  await page.getByRole("button", { name: "Play AtmoShaper" }).first().click()
+  await waitForAtmoStatus(page, "playing")
+  const restarted = await readDiagnostics(page)
+  expect(Object.values(restarted.runtime?.activeLayers ?? {}).map(({ sourceId }) => sourceId))
+    .toEqual(["noise:brown"])
+})
+
+test("removing the last layer during startup settles stopped and remains restartable", async ({ page }) => {
+  await openAtmoShaper(page)
+  await addNoise(page, "Pink")
+  await holdNextCarrierStart(page)
+  await page.getByRole("button", { name: "Play AtmoShaper" }).first().click()
+  await expect.poll(async () => (await readDiagnostics(page)).playbackState).toBe("loading")
+  await waitForAtmoStatus(page, "playing")
+
+  const { scope: currentMix, sheetWasOpened } = await openFullMix(page)
+  await press(currentMix.getByRole("button", { name: "Remove Pink noise" }))
+  await expect.poll(async () => (await readDiagnostics(page)).runtime?.status).toBe("stopped")
+  await expect.poll(async () => (await readDiagnostics(page)).playbackState).toBe("stopped")
+  const mediaMutationBeforeSettlement = (await readMediaSession(page)).mutationCount
+
+  await releaseCarrierStart(page)
+  await expect.poll(async () => (await readMediaSession(page)).mutationCount)
+    .toBeGreaterThan(mediaMutationBeforeSettlement)
+  expect((await readDiagnostics(page)).error).toBeNull()
+  expect(await readMediaSession(page)).toMatchObject({
+    metadata: null,
+    playbackState: "none",
+  })
+  expect(await readCarrier(page)).toEqual({ paused: true, src: "" })
+  if (sheetWasOpened) await page.keyboard.press("Escape")
+
+  await addNoise(page, "Brown")
+  const { scope: updatedMix } = await openFullMix(page)
+  await expect(updatedMix.getByRole("button", { name: "Retry Brown noise" })).toHaveCount(0)
+  await expect(updatedMix.getByText("ready", { exact: true })).toBeVisible()
+  if (await page.getByRole("dialog", { name: "Full Current Mix controls" }).isVisible()) {
+    await page.keyboard.press("Escape")
+  }
+
+  await page.getByRole("button", { name: "Play AtmoShaper" }).first().click()
+  await waitForAtmoStatus(page, "playing")
+  const restarted = await readDiagnostics(page)
+  expect(Object.values(restarted.runtime?.activeLayers ?? {}).map(({ sourceId }) => sourceId))
+    .toEqual(["noise:brown"])
 })
 
 test("keyboard controls isolate one failed layer and support retry, reorder, mute, and remove", async ({ page }) => {

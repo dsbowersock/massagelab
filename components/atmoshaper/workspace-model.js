@@ -85,7 +85,6 @@ export function resolveAtmoShaperVisibleLayerState({
   activePlaybackKind,
   layerState,
   localRecipeId,
-  providerError,
   providerRecipeId,
   snapshotStatus,
 }) {
@@ -94,12 +93,8 @@ export function resolveAtmoShaperVisibleLayerState({
     && providerRecipeId === localRecipeId
   if (!providerOwnsRecipe) return { status: "ready" }
   if (snapshotStatus === "loading") return { status: "loading" }
-  if (snapshotStatus === "failed") {
-    return {
-      status: "failed",
-      ...(providerError ? { error: providerError } : {}),
-    }
-  }
+  // Overall failure is not evidence that a newly added, absent layer failed.
+  // Retry belongs only to a concrete per-layer failure published above.
   return { status: "ready" }
 }
 
