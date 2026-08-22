@@ -86,11 +86,23 @@ test("generated adapters expose the complete controller lifecycle and reject amb
 
 test("station composition forwards controller ownership and awaits terminal cleanup", () => {
   const runtime = readRequiredSource("lib/atmoshaper/runtime.ts")
-  assert.match(runtime, /createAdapter\(layer,\s*isCurrent\)/)
+  assert.match(runtime, /function createAdapter\(layer:\s*AtmoShaperLayer,\s*isCurrent:\s*\(\)\s*=>\s*boolean\)/)
+  assert.match(runtime, /createAtmoShaperMixController\(\{[\s\S]*?createAdapter,\s*\}\)/)
   assert.match(runtime, /createStationFoundationAdapter\(\{\s*layer,\s*destination:\s*master,\s*isCurrent\s*\}\)/)
   assert.match(runtime, /startToneProofDrone\(\{[\s\S]*?isCurrent,[\s\S]*?\}\)/)
   assert.match(runtime, /startGenerativeFmPiece\(\{[^}]*isCurrent[^}]*\}\)/)
   assert.match(runtime, /await\s+playback\.dispose\(\)/)
+})
+
+test("the lazy runtime snapshot and controller expose the single preview slot", () => {
+  const runtime = readRequiredSource("lib/atmoshaper/runtime.ts")
+  const controller = readRequiredSource("lib/atmoshaper/mix-controller.js")
+
+  assert.match(runtime, /preview:\s*AtmoShaperPreviewState\s*\|\s*null/)
+  for (const method of ["startPreview", "setPreviewVolume", "stopPreview", "promotePreview"]) {
+    assert.match(controller, new RegExp(`\\b${method}\\b`), `missing preview runtime method ${method}`)
+  }
+  assert.match(runtime, /return\s*\{\s*\.\.\.controller,/)
 })
 
 test("browser failure injection is a one-shot loopback-only adapter hook", () => {

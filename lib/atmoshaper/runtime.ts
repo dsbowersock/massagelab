@@ -23,11 +23,16 @@ type AtmoShaperLayerState = {
   error?: string
 }
 
+type AtmoShaperPreviewState = AtmoShaperLayerState & {
+  layer: AtmoShaperLayer
+}
+
 export type AtmoShaperRuntimeSnapshot = {
   status: string
   recipe: AtmoShaperRecipe | null
   layers: Record<string, AtmoShaperLayerState>
   activeLayers: Record<string, AtmoShaperLayer>
+  preview: AtmoShaperPreviewState | null
 }
 
 /**
@@ -51,20 +56,24 @@ export async function createAtmoShaperRuntime({
     ? (await import("@/lib/atmoshaper/browser-qa")).injectAtmoShaperBrowserQaFailure
     : () => undefined
   const master = new Volume(volumeToDecibels(initialMasterVolume)).toDestination()
+
+  /** Keeps committed layers and ephemeral previews on the same master output and adapter boundary. */
+  function createAdapter(layer: AtmoShaperLayer, isCurrent: () => boolean) {
+    injectBrowserQaFailure(layer)
+    if (layer.kind === "noise" || layer.kind === "binaural" || layer.kind === "isochronic") {
+      return createGeneratedAtmoShaperAdapter({ layer, destination: master })
+    }
+    if (layer.kind === "station") {
+      return createStationFoundationAdapter({ layer, destination: master, isCurrent })
+    }
+    throw new Error(`Unsupported AtmoShaper layer kind: ${layer.kind}`)
+  }
+
   const controller = createAtmoShaperMixController({
     onSnapshot(snapshot) {
       onSnapshot(snapshot as AtmoShaperRuntimeSnapshot)
     },
-    createAdapter(layer, isCurrent) {
-      injectBrowserQaFailure(layer)
-      if (layer.kind === "noise" || layer.kind === "binaural" || layer.kind === "isochronic") {
-        return createGeneratedAtmoShaperAdapter({ layer, destination: master })
-      }
-      if (layer.kind === "station") {
-        return createStationFoundationAdapter({ layer, destination: master, isCurrent })
-      }
-      throw new Error(`Unsupported AtmoShaper layer kind: ${layer.kind}`)
-    },
+    createAdapter,
   })
 
   return {

@@ -435,3 +435,327 @@ test("removing the last live layer stops cleanly and a later explicit start crea
   ])
   assert.equal(controller.getSnapshot().status, "playing")
 })
+
+test("a preview can play alone without entering the committed recipe or status", async () => {
+  const log = []
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      log.push(["create", nextLayer.id])
+      return createFakeHandle(log, nextLayer)
+    },
+  })
+  const previewLayer = layer("pink-preview", "noise", 0.35)
+
+  await controller.startPreview(previewLayer)
+
+  assert.deepEqual(log, [["create", "pink-preview"], ["fadeIn", "pink-preview"]])
+  assert.equal(controller.getSnapshot().status, "stopped")
+  assert.equal(controller.getSnapshot().recipe, null)
+  assert.deepEqual(controller.getSnapshot().layers, {})
+  assert.deepEqual(controller.getSnapshot().activeLayers, {})
+  assert.deepEqual(controller.getSnapshot().preview, {
+    layer: previewLayer,
+    status: "playing",
+  })
+})
+
+test("preview replacement disposes the prior source before the prepared replacement becomes audible", async () => {
+  const log = []
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      log.push(["create", nextLayer.id])
+      return createFakeHandle(log, nextLayer)
+    },
+  })
+  await controller.startPreview(layer("first-preview"))
+  log.length = 0
+
+  await controller.startPreview(layer("second-preview", "ambient"))
+
+  assert.deepEqual(log, [
+    ["create", "second-preview"],
+    ["dispose", "first-preview"],
+    ["fadeIn", "second-preview"],
+  ])
+  assert.equal(controller.getSnapshot().preview?.layer.id, "second-preview")
+})
+
+test("preview volume updates only the preview layer and handle", async () => {
+  const log = []
+  const committedLayer = layer("committed")
+  const previewLayer = layer("preview", "ambient", 0.25)
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) { return createFakeHandle(log, nextLayer) },
+  })
+  await controller.start(recipe([committedLayer]))
+  await controller.startPreview(previewLayer)
+  log.length = 0
+
+  await controller.setPreviewVolume(0.9)
+
+  assert.deepEqual(log, [["update", "preview", 0.9]])
+  assert.equal(controller.getSnapshot().preview?.layer.id, previewLayer.id)
+  assert.equal(controller.getSnapshot().preview?.layer.volume, 0.9)
+  assert.deepEqual(controller.getSnapshot().activeLayers, { committed: committedLayer })
+})
+
+test("stopPreview retires only the preview and leaves a committed mix playing", async () => {
+  const log = []
+  const committedLayer = layer("committed")
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) { return createFakeHandle(log, nextLayer) },
+  })
+  await controller.start(recipe([committedLayer]))
+  await controller.startPreview(layer("preview"))
+  log.length = 0
+
+  await controller.stopPreview()
+
+  assert.deepEqual(log, [["dispose", "preview"]])
+  assert.equal(controller.getSnapshot().status, "playing")
+  assert.equal(controller.getSnapshot().preview, null)
+  assert.deepEqual(controller.getSnapshot().activeLayers, { committed: committedLayer })
+})
+
+test("a preview failure is isolated from committed handles and status", async () => {
+  const log = []
+  const committedLayer = layer("healthy")
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      if (nextLayer.id === "broken-preview") throw new Error("preview unavailable")
+      return createFakeHandle(log, nextLayer)
+    },
+  })
+  await controller.start(recipe([committedLayer]))
+  log.length = 0
+
+  await controller.startPreview(layer("broken-preview", "ambient"))
+
+  assert.deepEqual(log, [])
+  assert.equal(controller.getSnapshot().status, "playing")
+  assert.deepEqual(controller.getSnapshot().layers, { healthy: { status: "playing" } })
+  assert.deepEqual(controller.getSnapshot().activeLayers, { healthy: committedLayer })
+  assert.deepEqual(controller.getSnapshot().preview, {
+    layer: layer("broken-preview", "ambient"),
+    status: "failed",
+    error: "preview unavailable",
+  })
+})
+
+test("pause and resume include a preview-only handle without changing committed status", async () => {
+  const log = []
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) { return createFakeHandle(log, nextLayer) },
+  })
+  await controller.startPreview(layer("preview-only"))
+  log.length = 0
+
+  await controller.pause()
+  assert.deepEqual(log, [["pause", "preview-only"]])
+  assert.equal(controller.getSnapshot().status, "stopped")
+  assert.equal(controller.getSnapshot().preview?.status, "paused")
+
+  await controller.resume()
+  assert.deepEqual(log, [["pause", "preview-only"], ["resume", "preview-only"]])
+  assert.equal(controller.getSnapshot().status, "stopped")
+  assert.equal(controller.getSnapshot().preview?.status, "playing")
+})
+
+test("stop and dispose retire preview handles alongside committed audio", async () => {
+  const log = []
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) { return createFakeHandle(log, nextLayer) },
+  })
+  await controller.start(recipe([layer("committed")]))
+  await controller.startPreview(layer("preview"))
+  log.length = 0
+
+  await controller.stop()
+
+  assert.deepEqual(log, [["dispose", "committed"], ["dispose", "preview"]])
+  assert.equal(controller.getSnapshot().status, "stopped")
+  assert.equal(controller.getSnapshot().preview, null)
+
+  const disposedLog = []
+  const disposedController = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      disposedLog.push(["create", nextLayer.id])
+      return createFakeHandle(disposedLog, nextLayer)
+    },
+  })
+  await disposedController.startPreview(layer("dispose-preview"))
+  await disposedController.dispose()
+  await disposedController.startPreview(layer("must-not-start"))
+
+  assert.deepEqual(disposedLog, [
+    ["create", "dispose-preview"],
+    ["fadeIn", "dispose-preview"],
+    ["dispose", "dispose-preview"],
+  ])
+})
+
+test("a stale preview adapter self-disposes without replacing the newer preview", async () => {
+  const log = []
+  const ownership = []
+  let resolveStale
+  let staleRequested
+  const staleAdapter = new Promise((resolve) => { resolveStale = resolve })
+  const staleWasRequested = new Promise((resolve) => { staleRequested = resolve })
+  const controller = createAtmoShaperMixController({
+    async createAdapter(nextLayer, isCurrent) {
+      log.push(["create", nextLayer.id])
+      if (nextLayer.id === "stale") {
+        staleRequested()
+        const handle = await staleAdapter
+        ownership.push([nextLayer.id, isCurrent()])
+        return handle
+      }
+      ownership.push([nextLayer.id, isCurrent()])
+      return createFakeHandle(log, nextLayer)
+    },
+  })
+
+  const staleStart = controller.startPreview(layer("stale"))
+  await staleWasRequested
+  await controller.startPreview(layer("current"))
+  resolveStale(createFakeHandle(log, layer("stale")))
+  await staleStart
+
+  assert.deepEqual(ownership, [["current", true], ["stale", false]])
+  assert.deepEqual(log, [
+    ["create", "stale"],
+    ["create", "current"],
+    ["fadeIn", "current"],
+    ["dispose", "stale"],
+  ])
+  assert.equal(controller.getSnapshot().preview?.layer.id, "current")
+})
+
+test("promotion adopts the exact preview handle and reconciles remaining recipe layers", async () => {
+  const log = []
+  const createCounts = new Map()
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      createCounts.set(nextLayer.id, (createCounts.get(nextLayer.id) ?? 0) + 1)
+      log.push(["create", nextLayer.id])
+      return createFakeHandle(log, nextLayer)
+    },
+  })
+  const previewLayer = layer("promoted", "ambient", 0.3)
+  await controller.startPreview(previewLayer)
+  log.length = 0
+  const committedPreviewLayer = { ...previewLayer, volume: 0.8 }
+  const extraLayer = layer("extra", "noise", 0.4)
+
+  await controller.promotePreview(recipe([committedPreviewLayer, extraLayer]))
+
+  assert.equal(createCounts.get("promoted"), 1)
+  assert.deepEqual(log, [
+    ["resume", "promoted"],
+    ["update", "promoted", 0.8],
+    ["create", "extra"],
+    ["fadeIn", "extra"],
+  ])
+  assert.equal(controller.getSnapshot().preview, null)
+  assert.equal(controller.getSnapshot().status, "playing")
+  assert.deepEqual(controller.getSnapshot().activeLayers, {
+    promoted: committedPreviewLayer,
+    extra: extraLayer,
+  })
+})
+
+test("promotion converges its adopted handle while pause is blocked on a committed handle", async () => {
+  const log = []
+  let previewTransport = "stopped"
+  let releaseCommittedPause
+  let committedPauseEntered
+  const committedPauseGate = new Promise((resolve) => { releaseCommittedPause = resolve })
+  const committedPauseWasEntered = new Promise((resolve) => { committedPauseEntered = resolve })
+  const committedLayer = layer("committed")
+  const previewLayer = layer("preview", "ambient")
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      if (nextLayer.id === committedLayer.id) {
+        return {
+          ...createFakeHandle(log, nextLayer),
+          async pause() {
+            log.push(["pause", nextLayer.id])
+            committedPauseEntered()
+            await committedPauseGate
+          },
+        }
+      }
+      return {
+        async fadeIn() { previewTransport = "playing"; log.push(["fadeIn", nextLayer.id]) },
+        async update(updatedLayer) { log.push(["update", nextLayer.id, updatedLayer.volume]) },
+        async pause() { previewTransport = "paused"; log.push(["pause", nextLayer.id]) },
+        async resume() { previewTransport = "playing"; log.push(["resume", nextLayer.id]) },
+        async fadeOutAndDispose() { previewTransport = "disposed"; log.push(["dispose", nextLayer.id]) },
+      }
+    },
+  })
+  await controller.start(recipe([committedLayer]))
+  await controller.startPreview(previewLayer)
+  log.length = 0
+
+  const pausing = controller.pause()
+  await committedPauseWasEntered
+  await controller.promotePreview(recipe([committedLayer, previewLayer]))
+  releaseCommittedPause()
+  await pausing
+
+  assert.equal(previewTransport, "paused")
+  assert.equal(log.filter(([action, id]) => action === "pause" && id === previewLayer.id).length, 1)
+  assert.equal(controller.getSnapshot().status, "paused")
+  assert.equal(controller.getSnapshot().layers.preview.status, "paused")
+})
+
+test("promotion converges its adopted handle while resume is blocked on a committed handle", async () => {
+  const log = []
+  let previewTransport = "stopped"
+  let blockCommittedResume = false
+  let releaseCommittedResume
+  let committedResumeEntered
+  const committedResumeGate = new Promise((resolve) => { releaseCommittedResume = resolve })
+  const committedResumeWasEntered = new Promise((resolve) => { committedResumeEntered = resolve })
+  const committedLayer = layer("committed")
+  const previewLayer = layer("preview", "ambient")
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer) {
+      if (nextLayer.id === committedLayer.id) {
+        return {
+          ...createFakeHandle(log, nextLayer),
+          async resume() {
+            log.push(["resume", nextLayer.id])
+            if (!blockCommittedResume) return
+            committedResumeEntered()
+            await committedResumeGate
+          },
+        }
+      }
+      return {
+        async fadeIn() { previewTransport = "playing"; log.push(["fadeIn", nextLayer.id]) },
+        async update(updatedLayer) { log.push(["update", nextLayer.id, updatedLayer.volume]) },
+        async pause() { previewTransport = "paused"; log.push(["pause", nextLayer.id]) },
+        async resume() { previewTransport = "playing"; log.push(["resume", nextLayer.id]) },
+        async fadeOutAndDispose() { previewTransport = "disposed"; log.push(["dispose", nextLayer.id]) },
+      }
+    },
+  })
+  await controller.start(recipe([committedLayer]))
+  await controller.startPreview(previewLayer)
+  await controller.pause()
+  blockCommittedResume = true
+  log.length = 0
+
+  const resuming = controller.resume()
+  await committedResumeWasEntered
+  await controller.promotePreview(recipe([committedLayer, previewLayer]))
+  releaseCommittedResume()
+  await resuming
+
+  assert.equal(previewTransport, "playing")
+  assert.equal(log.filter(([action, id]) => action === "resume" && id === previewLayer.id).length, 1)
+  assert.equal(controller.getSnapshot().status, "playing")
+  assert.equal(controller.getSnapshot().layers.preview.status, "playing")
+})
