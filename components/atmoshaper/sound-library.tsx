@@ -114,7 +114,11 @@ export function SoundLibrary({
   recipe,
 }: {
   actions: AtmoShaperRecipeActions
-  onSelectLayer(layerId: string): void
+  onSelectLayer(
+    layerId: string,
+    opener: HTMLElement,
+    reason: "commit" | "select-existing",
+  ): void
   recipe: AtmoShaperRecipe
 }) {
   const music = useMusic()
@@ -122,7 +126,10 @@ export function SoundLibrary({
   const stationCandidates = useMemo(() => new Map(stations.map((station) => (
     [station.id, createStationCandidate(station)]
   ))), [stations])
-  const [pendingStationCandidate, setPendingStationCandidate] = useState<AtmoShaperLayer | null>(null)
+  const [pendingStationCommit, setPendingStationCommit] = useState<{
+    candidate: AtmoShaperLayer
+    opener: HTMLElement
+  } | null>(null)
   const pendingCommitGenerationRef = useRef(0)
   const pendingCommitsRef = useRef<AtmoShaperPromotionTransaction[]>([])
   const mountedRef = useRef(true)
@@ -174,7 +181,11 @@ export function SoundLibrary({
    * Resolves duplicate selection before station replacement, then adopts a
    * matching live preview or performs a silent immutable recipe edit.
    */
-  async function commitCandidate(candidate: AtmoShaperLayer, stationReplacementConfirmed = false) {
+  async function commitCandidate(
+    candidate: AtmoShaperLayer,
+    opener: HTMLElement,
+    stationReplacementConfirmed = false,
+  ) {
     const sourceKey = getAtmoShaperSourceConfigurationKey(candidate)
     // This guard intentionally precedes duplicate selection. The optimistic
     // row may already be rendered while its provider transfer is still live.
@@ -189,7 +200,7 @@ export function SoundLibrary({
 
     if (resolution.type === "select-existing") {
       if (previewMatches) await music.stopAtmoShaperPreview()
-      onSelectLayer(resolution.layerId)
+      onSelectLayer(resolution.layerId, opener, "select-existing")
       return
     }
 
@@ -199,7 +210,7 @@ export function SoundLibrary({
       && stationLayerIsCustomized(currentStationLayer)
       && !stationReplacementConfirmed
     ) {
-      setPendingStationCandidate(candidate)
+      setPendingStationCommit({ candidate, opener })
       return
     }
 
@@ -210,7 +221,7 @@ export function SoundLibrary({
     }
     if (!previewCanPromote || !preview) {
       actions.addLayer(resolution.layer)
-      onSelectLayer(resolution.layer.id)
+      onSelectLayer(resolution.layer.id, opener, "commit")
       return
     }
 
@@ -226,7 +237,7 @@ export function SoundLibrary({
     const started = beginSoundLibraryPendingCommit(pendingCommitsRef.current, transaction)
     if (started.status !== "started") return
     replacePendingCommits(started.pendingTransactions)
-    onSelectLayer(preview.layer.id)
+    onSelectLayer(preview.layer.id, opener, "commit")
 
     let settlement
     try {
@@ -301,7 +312,7 @@ export function SoundLibrary({
                   candidate={candidate}
                   commitPending={pendingSourceKeys.has(getAtmoShaperSourceConfigurationKey(candidate))}
                   sourceName={label}
-                  onAdd={() => void commitCandidate(candidate)}
+                  onAdd={(opener) => void commitCandidate(candidate, opener)}
                 />
               </article>
             )
@@ -328,7 +339,7 @@ export function SoundLibrary({
                   candidate={candidate}
                   commitPending={pendingSourceKeys.has(getAtmoShaperSourceConfigurationKey(candidate))}
                   sourceName={`${station.title} station`}
-                  onAdd={() => void commitCandidate(candidate)}
+                  onAdd={(opener) => void commitCandidate(candidate, opener)}
                 />
               </article>
             )
@@ -344,7 +355,7 @@ export function SoundLibrary({
             commitPending={pendingSourceKeys.has(getAtmoShaperSourceConfigurationKey(binauralCandidate))}
             kind="binaural"
             selection={binauralSelection}
-            onAdd={() => void commitCandidate(binauralCandidate)}
+            onAdd={(opener) => void commitCandidate(binauralCandidate, opener)}
             onSelectionChange={setBinauralSelection}
           />
         </TabsContent>
@@ -358,7 +369,7 @@ export function SoundLibrary({
             commitPending={pendingSourceKeys.has(getAtmoShaperSourceConfigurationKey(isochronicCandidate))}
             kind="isochronic"
             selection={isochronicSelection}
-            onAdd={() => void commitCandidate(isochronicCandidate)}
+            onAdd={(opener) => void commitCandidate(isochronicCandidate, opener)}
             onSelectionChange={setIsochronicSelection}
           />
         </TabsContent>
@@ -370,8 +381,8 @@ export function SoundLibrary({
         </TabsContent>
       </Tabs>
 
-      <AlertDialog open={pendingStationCandidate !== null} onOpenChange={(open) => {
-        if (!open) setPendingStationCandidate(null)
+      <AlertDialog open={pendingStationCommit !== null} onOpenChange={(open) => {
+        if (!open) setPendingStationCommit(null)
       }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -383,9 +394,9 @@ export function SoundLibrary({
           <AlertDialogFooter>
             <AlertDialogCancel>Keep current station</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
-              const candidate = pendingStationCandidate
-              setPendingStationCandidate(null)
-              if (candidate) void commitCandidate(candidate, true)
+              const pending = pendingStationCommit
+              setPendingStationCommit(null)
+              if (pending) void commitCandidate(pending.candidate, pending.opener, true)
             }}>
               Replace station
             </AlertDialogAction>
@@ -404,7 +415,7 @@ function LibraryCardActions({
 }: {
   candidate: AtmoShaperLayer
   commitPending: boolean
-  onAdd(): void
+  onAdd(opener: HTMLButtonElement): void
   sourceName: string
 }) {
   const music = useMusic()
@@ -439,7 +450,7 @@ function LibraryCardActions({
         aria-label={`Add ${sourceName}`}
         aria-busy={commitPending || undefined}
         disabled={commitPending || (previewMatches && previewStatus === "loading")}
-        onClick={onAdd}
+        onClick={(event) => onAdd(event.currentTarget)}
       >
         {commitPending ? "Adding…" : "Add"}
       </Button>
@@ -458,7 +469,7 @@ function BrainwaveLibraryCard({
   candidate: AtmoShaperLayer
   commitPending: boolean
   kind: BrainwaveKind
-  onAdd(): void
+  onAdd(opener: HTMLButtonElement): void
   onSelectionChange(selection: BrainwaveSelection): void
   selection: BrainwaveSelection
 }) {

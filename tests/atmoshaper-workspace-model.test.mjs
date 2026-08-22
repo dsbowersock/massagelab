@@ -37,6 +37,68 @@ function fakeHandle(log, initialLayer) {
 }
 
 describe("AtmoShaper workspace ownership model", () => {
+  it("rejects disabled and disconnected drawer focus restore targets", () => {
+    const isFocusRestoreTarget = requireModelFunction("isAtmoShaperFocusRestoreTarget")
+    const candidate = (overrides = {}) => ({
+      isConnected: true,
+      disabled: false,
+      getAttribute: () => null,
+      closest: () => null,
+      getClientRects: () => [{}],
+      matches: () => false,
+      ownerDocument: {
+        defaultView: {
+          getComputedStyle: () => ({ display: "block", visibility: "visible" }),
+        },
+      },
+      ...overrides,
+    })
+
+    assert.equal(isFocusRestoreTarget(candidate()), true)
+    assert.equal(isFocusRestoreTarget(candidate({ disabled: true })), false)
+    assert.equal(isFocusRestoreTarget(candidate({ matches: (selector) => selector === ":disabled" })), false)
+    assert.equal(isFocusRestoreTarget(candidate({ isConnected: false })), false)
+    assert.equal(isFocusRestoreTarget(candidate({
+      getAttribute: (name) => name === "aria-disabled" ? "true" : null,
+    })), false)
+    assert.equal(isFocusRestoreTarget(candidate({ closest: () => ({}) })), false)
+    assert.equal(isFocusRestoreTarget(candidate({
+      ownerDocument: {
+        defaultView: {
+          getComputedStyle: () => ({ display: "block", visibility: "hidden" }),
+        },
+      },
+    })), false)
+    assert.equal(isFocusRestoreTarget(candidate({ getClientRects: () => [] })), false)
+  })
+
+  it("places the mix surface opposite the saved sidebar edge", () => {
+    const oppositeEdge = requireModelFunction("oppositeAtmoShaperEdge")
+
+    assert.equal(oppositeEdge("left"), "right")
+    assert.equal(oppositeEdge("right"), "left")
+  })
+
+  it("uses both measured rem thresholds to classify the drawer", () => {
+    const resolveDrawerMode = requireModelFunction("resolveAtmoShaperDrawerMode")
+
+    assert.equal(resolveDrawerMode({ inlineSize: 42 * 16, blockSize: 32 * 16 }), "roomy")
+    assert.equal(resolveDrawerMode({ inlineSize: 41.99 * 16, blockSize: 32 * 16 }), "narrow")
+    assert.equal(resolveDrawerMode({ inlineSize: 42 * 16, blockSize: 31.99 * 16 }), "narrow")
+    assert.equal(resolveDrawerMode({ inlineSize: 42 * 20, blockSize: 32 * 20, rootFontSize: 20 }), "roomy")
+    assert.equal(resolveDrawerMode({ inlineSize: 42 * 16, blockSize: 32 * 16, rootFontSize: 20 }), "narrow")
+  })
+
+  it("auto-opens discovery only for the zero-to-one committed transition", () => {
+    const shouldAutoOpen = requireModelFunction("shouldAutoOpenAtmoShaperDrawer")
+
+    assert.equal(shouldAutoOpen(0, 1), true)
+    assert.equal(shouldAutoOpen(0, 2), false)
+    assert.equal(shouldAutoOpen(1, 2), false)
+    assert.equal(shouldAutoOpen(1, 1), false)
+    assert.equal(shouldAutoOpen(2, 1), false)
+  })
+
   it("adopts a retained provider recipe on remount without allocating a replacement id", () => {
     const initialize = requireModelFunction("initializeAtmoShaperWorkspaceRecipe")
     const retainedRecipe = recipe("retained", [layer("rain")])
@@ -210,6 +272,19 @@ describe("AtmoShaper workspace ownership model", () => {
       ),
       "noise",
     )
+  })
+
+  it("recovers focus only when the focused row disappears during reconciliation", () => {
+    const focusAfterReconcile = requireModelFunction("focusTargetAfterAtmoShaperRowsReconcile")
+
+    assert.equal(
+      focusAfterReconcile(["rain", "optimistic", "birds"], ["rain", "birds"], "optimistic"),
+      "birds",
+    )
+    assert.equal(focusAfterReconcile(["rain", "optimistic"], ["rain"], "optimistic"), "rain")
+    assert.equal(focusAfterReconcile(["optimistic"], [], "optimistic"), null)
+    assert.equal(focusAfterReconcile(["rain", "birds"], ["rain", "birds"], "rain"), undefined)
+    assert.equal(focusAfterReconcile(["rain", "optimistic"], ["rain"], null), undefined)
   })
 
   it("excludes either half of a failed exclusive replacement pair from the removal focus target", () => {

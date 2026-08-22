@@ -10,8 +10,25 @@ const carousel = read("components/atmosphere/station-carousel.tsx")
 const browseWorkspace = read("app/browse/workspace.tsx")
 const atmoWorkspace = read("components/atmoshaper/atmoshaper-workspace.tsx")
 const currentMix = read("components/atmoshaper/current-mix.tsx")
+const currentMixRail = read("components/atmoshaper/current-mix-rail.tsx")
+const sortableRow = read("components/atmoshaper/sortable-layer-row.tsx")
+const workspaceModel = read("components/atmoshaper/workspace-model.js")
 const styles = read("app/globals.css")
-const productionSource = [carousel, browseWorkspace, atmoWorkspace, currentMix, styles].join("\n")
+const atmoStylesStart = styles.indexOf("/* AtmoShaper receives")
+const atmoStyles = styles.slice(
+  atmoStylesStart,
+  styles.indexOf("  .ml-music-player-toolbar", atmoStylesStart),
+)
+const productionSource = [
+  carousel,
+  browseWorkspace,
+  atmoWorkspace,
+  currentMix,
+  currentMixRail,
+  sortableRow,
+  workspaceModel,
+  atmoStyles,
+].join("\n")
 
 describe("AtmoShaper responsive integration source contract", () => {
   it("mounts only the mixer at the AtmoShaper category integration point", () => {
@@ -24,90 +41,78 @@ describe("AtmoShaper responsive integration source contract", () => {
     assert.match(browseWorkspace, /atmosphereCarouselView === "stations"[\s\S]*?<AtmosphereFavoritesSpeedDial/)
   })
 
-  it("allocates wide library and Current Mix columns from the measured workspace", () => {
-    assert.match(atmoWorkspace, /ml-atmoshaper-layout/)
-    assert.match(styles, /\.ml-atmoshaper-workspace\s*\{[\s\S]*?container-type:\s*size/)
-    assert.match(
-      styles,
-      /\.ml-atmoshaper-layout\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)\s+minmax\(clamp\(/,
-    )
-    assert.match(styles, /gap:\s*clamp\(/)
-    assert.match(styles, /\.ml-atmoshaper-library[\s\S]*?min-width:\s*0[\s\S]*?min-height:\s*0/)
-    assert.match(styles, /\.ml-atmoshaper-current-mix-desktop[\s\S]*?overflow-y:\s*auto/)
-    assert.match(styles, /cqh/)
+  it("reserves only one edge rail while the library owns the remaining width", () => {
+    assert.match(atmoWorkspace, /<CurrentMixRail[\s\S]*?<SoundLibrary/)
+    assert.match(atmoWorkspace, /data-current-mix-side=\{drawerSide\}/)
+    assert.match(atmoStyles, /--ml-atmoshaper-rail-width:\s*clamp\(/)
+    assert.match(atmoStyles, /grid-template-areas:\s*"library rail"/)
+    assert.match(atmoStyles, /grid-template-columns:\s*minmax\(0, 1fr\) var\(--ml-atmoshaper-rail-width\)/)
+    assert.match(atmoStyles, /\[data-current-mix-side="left"\][\s\S]*?grid-template-areas:\s*"rail library"/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-library\s*\{[\s\S]*?grid-area:\s*library/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-rail\s*\{[\s\S]*?grid-area:\s*rail/)
   })
 
-  it("uses a sticky compact tray and focus-restoring full-mix Sheet when narrow", () => {
-    assert.match(atmoWorkspace, /SheetTrigger/)
-    assert.match(atmoWorkspace, /SheetContent[\s\S]*?side="bottom"/)
-    assert.match(atmoWorkspace, /SheetTitle/)
-    assert.match(atmoWorkspace, /SheetDescription/)
-    assert.match(atmoWorkspace, /<CurrentMixTray/)
-    assert.match(atmoWorkspace, /Open full Current Mix/)
-    assert.match(styles, /@container\s*\(max-width:\s*46rem\)/)
-    assert.match(styles, /\.ml-atmoshaper-layout\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/)
-    assert.match(styles, /\.ml-atmoshaper-current-mix-desktop\s*\{[\s\S]*?display:\s*none/)
-    assert.match(styles, /\.ml-atmoshaper-mix-tray\s*\{[\s\S]*?position:\s*sticky/)
-  })
-
-  it("bounds internal overflow and gives portaled Sheets a root-owned navigation reservation", () => {
-    assert.match(styles, /\.ml-atmoshaper-library\s*\{[\s\S]*?overflow-y:\s*auto/)
-    assert.match(styles, /overscroll-behavior:\s*contain/)
-    assert.match(styles, /overflow-x:\s*hidden/)
-    assert.match(styles, /--ml-portal-bottom-stack-height:\s*var\(--ml-safe-bottom\)/)
-    assert.match(
-      styles,
-      /html\[data-app-bar-position="bottom"\][\s\S]*?--ml-portal-bottom-stack-height:\s*calc\(var\(--ml-safe-bottom\) \+ var\(--ml-(?:desktop-app-bar|main-bar)-height\)\)/,
-    )
-    assert.match(styles, /\.ml-atmoshaper-current-mix-sheet[\s\S]*?max-block-size:\s*calc\(100dvh/)
-  })
-
-  it("adds audio height only for an active bottom player and keeps top or rail navigation-safe", () => {
-    const inactiveSheetRule = styles.match(
-      /\.ml-atmoshaper-current-mix-sheet \{([\s\S]*?)\n  \}/,
-    )?.[1] ?? ""
-    const activeBottomRule = styles.match(
-      /body\.ml-music-player-active\.ml-music-player-bottom:not\(\.ml-music-player-rail\)\s+\.ml-atmoshaper-current-mix-sheet \{([\s\S]*?)\n  \}/,
-    )?.[1] ?? ""
-    const topAndRailRule = styles.match(
-      /body\.ml-music-player-active\.ml-music-player-top \.ml-atmoshaper-current-mix-sheet,\s*body\.ml-music-player-active\.ml-music-player-rail \.ml-atmoshaper-current-mix-sheet \{([\s\S]*?)\n  \}/,
-    )?.[1] ?? ""
-
-    assert.match(inactiveSheetRule, /--ml-atmoshaper-sheet-bottom-reserve:\s*var\(--ml-portal-bottom-stack-height\)/)
-    assert.doesNotMatch(inactiveSheetRule, /--ml-audio-toolbar-height/)
-    assert.match(activeBottomRule, /var\(--ml-portal-bottom-stack-height\)[\s\S]*?var\(--ml-audio-toolbar-height\)/)
-    assert.match(topAndRailRule, /--ml-atmoshaper-sheet-bottom-reserve:\s*var\(--ml-portal-bottom-stack-height\)/)
-    assert.doesNotMatch(topAndRailRule, /--ml-audio-toolbar-height/)
-  })
-
-  it("keeps the tray and transport reachable in constrained landscape", () => {
-    const constrainedLandscape = styles.match(
-      /@media \(orientation:\s*landscape\) and \(max-width:\s*60rem\) and \(max-height:\s*31\.25rem\) \{([\s\S]*?)\n  \}/,
-    )?.[1] ?? ""
-
-    assert.match(constrainedLandscape, /\.ml-atmoshaper-layout[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/)
-    assert.match(constrainedLandscape, /\.ml-atmoshaper-current-mix-desktop[\s\S]*?display:\s*none/)
-    assert.match(constrainedLandscape, /\.ml-atmoshaper-mix-tray[\s\S]*?display:\s*grid/)
-    assert.match(styles, /\.ml-atmoshaper-mix-tray[\s\S]*?max-block-size/)
-    assert.match(currentMix, /ml-atmoshaper-tray-transport/)
-    assert.match(currentMix, /Play AtmoShaper|Pause AtmoShaper/)
-    assert.match(currentMix, /Stop AtmoShaper/)
-  })
-
-  it("stacks the compact tray controls when enlarged text leaves very little inline room", () => {
-    const narrowestContainer = styles.match(
-      /@container \(max-width:\s*26rem\) \{([\s\S]*?)\n  \}/,
-    )?.[1] ?? ""
-
-    assert.match(narrowestContainer, /\.ml-atmoshaper-mix-tray[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/)
-    assert.match(narrowestContainer, /\.ml-atmoshaper-current-mix-tray-summary[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/)
-  })
-
-  it("removes decorative motion without detecting devices, user agents, or zoom", () => {
-    assert.match(styles, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ml-atmoshaper/)
+  it("uses measured rem geometry with no device, orientation, or zoom branch", () => {
+    assert.match(workspaceModel, /ATMOSHAPER_ROOMY_INLINE_REM = 42/)
+    assert.match(workspaceModel, /ATMOSHAPER_ROOMY_BLOCK_REM = 32/)
+    assert.match(workspaceModel, /inlineSize >= ATMOSHAPER_ROOMY_INLINE_REM \* rootFontSize/)
+    assert.match(workspaceModel, /blockSize >= ATMOSHAPER_ROOMY_BLOCK_REM \* rootFontSize/)
+    assert.match(atmoWorkspace, /new ResizeObserver/)
+    assert.match(atmoWorkspace, /entry\.contentRect\.width, entry\.contentRect\.height/)
     assert.doesNotMatch(
       productionSource,
-      /devicePixelRatio|visualViewport(?:\.scale)?|navigator\.userAgent|userAgentData|@media[^\n{]*zoom|\bzoom\s*:|\b(?:iPhone|iPad|Android|SmartTV)\b/,
+      /devicePixelRatio|visualViewport(?:\.scale)?|navigator\.userAgent|userAgentData|@media[^\n{]*orientation|@media[^\n{]*zoom|\bzoom\s*:|\b(?:iPhone|iPad|Android|SmartTV)\b/,
+    )
+  })
+
+  it("ports one side drawer without linking drawer state to library sizing", () => {
+    assert.equal(atmoWorkspace.match(/<Sheet\s/g)?.length, 1)
+    assert.match(atmoWorkspace, /modal=\{drawerMode === "narrow"\}/)
+    assert.match(atmoWorkspace, /side=\{drawerSide\}/)
+    assert.match(atmoWorkspace, /ml-atmoshaper-current-mix-overlay-roomy/)
+    assert.match(atmoWorkspace, /ml-atmoshaper-current-mix-overlay-narrow/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-overlay-roomy\s*\{[\s\S]*?display:\s*none/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-overlay-narrow\s*\{[\s\S]*?background:/)
+    assert.match(atmoStyles, /\[data-drawer-mode="roomy"\][\s\S]*?inline-size:\s*min\(30rem/)
+    assert.match(atmoStyles, /\[data-drawer-mode="narrow"\][\s\S]*?inline-size:\s*min\(40rem/)
+    assert.doesNotMatch(atmoStyles, /data-(?:drawer|sheet)-open[\s\S]*?ml-atmoshaper-library/)
+  })
+
+  it("bounds library, rail, and drawer overflow inside their own surfaces", () => {
+    assert.match(atmoStyles, /\.ml-atmoshaper-workspace\s*\{[\s\S]*?overflow:\s*hidden/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-layout\s*\{[\s\S]*?overflow:\s*hidden/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-library\s*\{[\s\S]*?overflow-x:\s*hidden[\s\S]*?overflow-y:\s*auto/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-rail\s*\{[\s\S]*?overflow-x:\s*hidden[\s\S]*?overflow-y:\s*auto/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-drawer-body\s*\{[\s\S]*?overflow-x:\s*hidden[\s\S]*?overflow-y:\s*auto/)
+    assert.match(atmoStyles, /overscroll-behavior:\s*contain/)
+  })
+
+  it("reconstructs app-bar, player, and safe-area exclusions for the portal", () => {
+    assert.match(atmoStyles, /--ml-atmoshaper-drawer-bottom-reserve:\s*var\(--ml-portal-bottom-stack-height\)/)
+    assert.match(atmoStyles, /--ml-atmoshaper-drawer-right-reserve:\s*max\(var\(--ml-player-right-safe\), var\(--ml-safe-right\)\)/)
+    assert.match(atmoStyles, /data-ml-player-viewport-side="left"[\s\S]*?var\(--ml-safe-left\)/)
+    assert.match(atmoStyles, /data-ml-player-viewport-side="right"[\s\S]*?var\(--ml-atmoshaper-drawer-right-reserve\)/)
+    assert.match(atmoStyles, /ml-music-player-bottom:not\(\.ml-music-player-rail\)[\s\S]*?var\(--ml-audio-toolbar-height\)/)
+    assert.match(atmoStyles, /ml-music-player-top[\s\S]*?--ml-atmoshaper-drawer-top-reserve:[\s\S]*?var\(--ml-audio-toolbar-height\)/)
+    assert.match(atmoStyles, /data-app-bar-position="top"[\s\S]*?--ml-atmoshaper-shell-top-reserve/)
+  })
+
+  it("keeps sorting on handles and retained rows outside sortable behavior", () => {
+    assert.match(currentMix, /class AtmoShaperPointerSensor extends PointerSensor/)
+    assert.match(currentMix, /pointerType === "touch"[\s\S]*?distance: 6/)
+    assert.match(currentMix, /TouchSensor[\s\S]*?delay: 180, tolerance: 8/)
+    assert.match(currentMix, /KeyboardSensor[\s\S]*?sortableKeyboardCoordinates/)
+    assert.match(sortableRow, /ml-atmoshaper-layer-drag-handle/)
+    assert.match(sortableRow, /\{\.\.\.attributes\}[\s\S]*?\{\.\.\.listeners\}/)
+    assert.match(currentMix, /data-sortable="false"/)
+  })
+
+  it("removes side motion under reduced motion and retires old layout contracts", () => {
+    assert.match(atmoStyles, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ml-atmoshaper-current-mix-drawer/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-layer-row[\s\S]*?animation:\s*none !important[\s\S]*?transition:\s*none !important/)
+    assert.doesNotMatch(
+      productionSource,
+      /CurrentMixTray|Move earlier|Move later|ml-atmoshaper-mix-tray|ml-atmoshaper-current-mix-desktop/,
     )
   })
 })

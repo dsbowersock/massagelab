@@ -1,17 +1,42 @@
 "use client"
 
-import { useLayoutEffect, useMemo, useRef } from "react"
+import { useLayoutEffect, useMemo, useRef, type PointerEvent as ReactPointerEvent } from "react"
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type Announcements,
+  type DragEndEvent,
+  type PointerSensorOptions,
+  type ScreenReaderInstructions,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
 
 import { useMusic } from "@/components/providers/music-provider"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import type { AtmoShaperLayer, AtmoShaperRecipe } from "@/lib/atmoshaper/recipe.js"
+import {
+  ATMOSHAPER_PRESETS,
+  type AtmoShaperLayer,
+  type AtmoShaperRecipe,
+} from "@/lib/atmoshaper/recipe.js"
 import { getAtmosphereStationById } from "@/lib/atmosphere/stations.js"
 
+import { BrainwaveLayerControls } from "./brainwave-layer-controls"
+import { SortableLayerRow } from "./sortable-layer-row"
 import type { AtmoShaperRecipeActions } from "./use-atmoshaper-recipe"
 import {
   atmoShaperWorkspaceTransportAction,
   canStopAtmoShaperWorkspaceRecipe,
+  focusTargetAfterAtmoShaperRowsReconcile,
   focusTargetAfterAtmoShaperVisibleRowRemoval,
   projectRetainedAtmoShaperLayersForWorkspace,
   resolveAtmoShaperVisibleLayerState,
@@ -20,8 +45,27 @@ import {
 type VisibleMixRow = {
   key: string
   layer: AtmoShaperLayer
-  recipeIndex: number | null
   retained: boolean
+}
+
+type VisibleLayerRuntimeState = {
+  status: string
+  error?: string
+}
+
+const sortableScreenReaderInstructions: ScreenReaderInstructions = {
+  draggable: "To grab a layer, press Space or Enter. Use the arrow keys to change its position. Press Space or Enter to drop it, or Escape to cancel.",
+}
+
+/** Lets the delayed TouchSensor own touch while PointerSensor handles mouse/pen. */
+class AtmoShaperPointerSensor extends PointerSensor {
+  static activators = [{
+    eventName: "onPointerDown" as const,
+    handler(event: ReactPointerEvent, options: PointerSensorOptions) {
+      if (event.nativeEvent.pointerType === "touch") return false
+      return PointerSensor.activators[0].handler(event, options)
+    },
+  }]
 }
 
 export function CurrentMix({
@@ -41,7 +85,13 @@ export function CurrentMix({
   const headingRef = useRef<HTMLHeadingElement | null>(null)
   const rowRefs = useRef(new Map<string, HTMLLIElement>())
   const pendingFocusTargetRef = useRef<string | null | undefined>(undefined)
+  const focusedUnmountedRowKeyRef = useRef<string | null>(null)
   const lastHandledSelectionRequestKeyRef = useRef<number | null>(null)
+  const sensors = useSensors(
+    useSensor(AtmoShaperPointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
   const retainedLayers = projectRetainedAtmoShaperLayersForWorkspace({
     activePlaybackKind: music.activePlaybackKind,
     activeLayers: music.atmoShaperSnapshot?.activeLayers ?? {},
@@ -50,26 +100,62 @@ export function CurrentMix({
   })
   const recipeLayerIds = useMemo(() => new Set(recipe.layers.map(({ id }) => id)), [recipe.layers])
   const visibleRows: VisibleMixRow[] = [
-    ...recipe.layers.map((layer, recipeIndex) => ({
+    ...recipe.layers.map((layer) => ({
       key: layer.id,
       layer,
-      recipeIndex,
       retained: false,
     })),
     ...retainedLayers.map((layer) => ({
       key: recipeLayerIds.has(layer.id) ? `retained:${layer.id}` : layer.id,
       layer,
-      recipeIndex: null,
       retained: true,
     })),
   ]
   const rowKeys = visibleRows.map(({ key }) => key)
   const rowKeySignature = rowKeys.join("\u0000")
+  const previousRowKeysRef = useRef(rowKeys)
   const activeRowKey = activeLayerId
     ? visibleRows.find(({ layer }) => layer.id === activeLayerId)?.key ?? null
     : null
+  const sourceNamesById = useMemo(() => new Map(recipe.layers.map((layer) => (
+    [layer.id, atmoShaperLayerSourceName(layer)]
+  ))), [recipe.layers])
+  const sortableAnnouncements = useMemo<Announcements>(() => {
+    const itemPosition = (id: string | number) => recipe.layers.findIndex((layer) => layer.id === String(id)) + 1
+    const itemName = (id: string | number) => sourceNamesById.get(String(id)) ?? "Layer"
+    const total = recipe.layers.length
+    return {
+      onDragStart({ active }) {
+        return `Grabbed ${itemName(active.id)}. Position ${itemPosition(active.id)} of ${total}.`
+      },
+      onDragOver({ active, over }) {
+        if (!over) return `${itemName(active.id)} is no longer over a valid position.`
+        return `${itemName(active.id)} is over position ${itemPosition(over.id)} of ${total}.`
+      },
+      onDragEnd({ active, over }) {
+        if (!over) return `${itemName(active.id)} was not moved.`
+        return `Dropped ${itemName(active.id)} at position ${itemPosition(over.id)} of ${total}.`
+      },
+      onDragCancel({ active }) {
+        return `Cancelled sorting ${itemName(active.id)}. It remains at position ${itemPosition(active.id)} of ${total}.`
+      },
+    }
+  }, [recipe.layers, sourceNamesById])
+
   useLayoutEffect(() => {
-    const focusTarget = pendingFocusTargetRef.current
+    const previousRowKeys = previousRowKeysRef.current
+    const nextRowKeys = rowKeySignature === "" ? [] : rowKeySignature.split("\u0000")
+    previousRowKeysRef.current = nextRowKeys
+    const focusedUnmountedRowKey = focusedUnmountedRowKeyRef.current
+    focusedUnmountedRowKeyRef.current = null
+    const requestedFocusTarget = pendingFocusTargetRef.current
+    const focusTarget = requestedFocusTarget !== undefined
+      ? requestedFocusTarget
+      : focusTargetAfterAtmoShaperRowsReconcile(
+          previousRowKeys,
+          nextRowKeys,
+          focusedUnmountedRowKey,
+        )
     if (focusTarget === undefined) return
     pendingFocusTargetRef.current = undefined
     if (focusTarget === null) {
@@ -90,8 +176,8 @@ export function CurrentMix({
     const activeRow = rowRefs.current.get(activeRowKey)
     if (!activeRow) return
     lastHandledSelectionRequestKeyRef.current = activeLayerRequestKey
-    activeRow?.focus({ preventScroll: true })
-    activeRow?.scrollIntoView({ block: "nearest", inline: "nearest" })
+    activeRow.focus({ preventScroll: true })
+    activeRow.scrollIntoView({ block: "nearest", inline: "nearest" })
   }, [activeLayerRequestKey, activeRowKey, rowKeySignature])
 
   /** Defers focus until React commits the recipe state without the removed row. */
@@ -99,6 +185,60 @@ export function CurrentMix({
     pendingFocusTargetRef.current = focusTargetAfterAtmoShaperVisibleRowRemoval(visibleRows, row.key)
     if (row.retained) actions.removeRetainedLayer(row.layer)
     else actions.removeLayer(row.layer.id)
+  }
+
+  /** Captures focus ownership before React detaches a row during reconciliation. */
+  function registerRowNode(rowKey: string, node: HTMLLIElement | null) {
+    const previousNode = rowRefs.current.get(rowKey)
+    if (!node) {
+      if (previousNode && previousNode.contains(previousNode.ownerDocument.activeElement)) {
+        focusedUnmountedRowKeyRef.current = rowKey
+      }
+      rowRefs.current.delete(rowKey)
+      return
+    }
+    // Ref callback churn reattaches surviving rows; it is not a removal.
+    if (focusedUnmountedRowKeyRef.current === rowKey) focusedUnmountedRowKeyRef.current = null
+    rowRefs.current.set(rowKey, node)
+  }
+
+  /** Reordering remains organizational; the recipe helper changes no audio routing. */
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return
+    const activeId = String(active.id)
+    const targetIndex = recipe.layers.findIndex(({ id }) => id === String(over.id))
+    if (targetIndex < 0 || !recipe.layers.some(({ id }) => id === activeId)) return
+    actions.moveLayer(
+      activeId,
+      targetIndex,
+      sourceNamesById.get(activeId) ?? "Layer",
+    )
+  }
+
+  function renderRowControls(row: VisibleMixRow) {
+    const { layer, retained } = row
+    const sourceName = atmoShaperLayerSourceName(layer)
+    const runtimeState: VisibleLayerRuntimeState = retained
+      ? { status: "playing" }
+      : resolveAtmoShaperVisibleLayerState({
+          activePlaybackKind: music.activePlaybackKind,
+          layerState: music.atmoShaperSnapshot?.layers[layer.id],
+          localRecipeId: recipe.id,
+          providerError: music.error,
+          providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
+          snapshotStatus: music.atmoShaperSnapshot?.status,
+        })
+
+    return (
+      <MixLayerControls
+        actions={actions}
+        layer={layer}
+        onRemove={() => removeRow(row)}
+        retained={retained}
+        runtimeState={runtimeState}
+        sourceName={sourceName}
+      />
+    )
   }
 
   return (
@@ -117,122 +257,52 @@ export function CurrentMix({
         </p>
       </div>
 
-      <ol className="mt-4 space-y-3">
-        {visibleRows.map((row) => {
-          const { layer, recipeIndex, retained } = row
-          const sourceName = atmoShaperLayerSourceName(layer)
-          const runtimeState = retained
-            ? { status: "playing" }
-            : resolveAtmoShaperVisibleLayerState({
-                activePlaybackKind: music.activePlaybackKind,
-                layerState: music.atmoShaperSnapshot?.layers[layer.id],
-                localRecipeId: recipe.id,
-                providerError: music.error,
-                providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
-                snapshotStatus: music.atmoShaperSnapshot?.status,
-              })
-          const status = runtimeState.status
-
-          return (
-            <li
-              key={row.key}
-              ref={(node) => {
-                if (node) rowRefs.current.set(row.key, node)
-                else rowRefs.current.delete(row.key)
-              }}
-              className="rounded-lg border bg-card p-3 text-card-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 data-[active-layer=true]:border-primary/60"
-              aria-current={activeLayerId === layer.id ? "true" : undefined}
-              data-active-layer={activeLayerId === layer.id ? "true" : "false"}
-              tabIndex={-1}
-            >
-              <div className="flex min-w-0 items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="truncate font-medium">{sourceName}</h3>
-                  <p className="text-sm capitalize text-muted-foreground">
-                    {retained ? `Still playing during replacement · ${status}` : status}
-                  </p>
-                  {!retained && runtimeState?.error ? (
-                    <p className="mt-1 text-sm text-destructive">{runtimeState.error}</p>
-                  ) : null}
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  aria-label={`${layer.muted ? "Unmute" : "Mute"} ${sourceName}`}
-                  aria-pressed={layer.muted}
-                  onClick={() => {
-                    if (retained) actions.restoreRetainedLayer(layer, { muted: !layer.muted })
-                    else actions.updateLayer(layer.id, { muted: !layer.muted })
-                  }}
-                >
-                  {layer.muted ? "Unmute" : "Mute"}
-                </Button>
-              </div>
-
-              <div className="mt-3">
-                <Slider
-                  aria-label={`Volume for ${sourceName}`}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={[layer.volume]}
-                  onValueChange={([volume]) => {
-                    if (retained) actions.restoreRetainedLayer(layer, { volume })
-                    else actions.updateLayer(layer.id, { volume })
-                  }}
-                />
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {!retained && recipeIndex !== null ? (
-                  <>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      aria-label={`Move earlier: ${sourceName}`}
-                      disabled={recipeIndex === 0}
-                      onClick={() => actions.moveLayer(layer.id, recipeIndex - 1, sourceName)}
-                    >
-                      Move earlier
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      aria-label={`Move later: ${sourceName}`}
-                      disabled={recipeIndex === recipe.layers.length - 1}
-                      onClick={() => actions.moveLayer(layer.id, recipeIndex + 1, sourceName)}
-                    >
-                      Move later
-                    </Button>
-                  </>
-                ) : null}
-                {!retained && status === "failed" ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    aria-label={`Retry ${sourceName}`}
-                    onClick={() => void music.retryAtmoShaperLayer(layer.id)}
+      <DndContext
+        accessibility={{
+          announcements: sortableAnnouncements,
+          screenReaderInstructions: sortableScreenReaderInstructions,
+        }}
+        collisionDetection={closestCenter}
+        sensors={sensors}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={recipe.layers.map(({ id }) => id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <ol className="mt-4 space-y-3">
+            {visibleRows.map((row) => {
+              const sourceName = atmoShaperLayerSourceName(row.layer)
+              if (row.retained) {
+                return (
+                  <li
+                    key={row.key}
+                    ref={(node) => registerRowNode(row.key, node)}
+                    className="ml-atmoshaper-layer-row rounded-lg border bg-card p-3 text-card-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 data-[active-layer=true]:border-primary/60"
+                    aria-current={activeLayerId === row.layer.id ? "true" : undefined}
+                    data-active-layer={activeLayerId === row.layer.id ? "true" : "false"}
+                    data-sortable="false"
+                    tabIndex={-1}
                   >
-                    Retry
-                  </Button>
-                ) : null}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  aria-label={`Remove ${sourceName}`}
-                  onClick={() => removeRow(row)}
+                    {renderRowControls(row)}
+                  </li>
+                )
+              }
+              return (
+                <SortableLayerRow
+                  key={row.key}
+                  active={activeLayerId === row.layer.id}
+                  id={row.layer.id}
+                  sourceName={sourceName}
+                  onNodeChange={(node) => registerRowNode(row.key, node)}
                 >
-                  Remove
-                </Button>
-              </div>
-            </li>
-          )
-        })}
-      </ol>
+                  {renderRowControls(row)}
+                </SortableLayerRow>
+              )
+            })}
+          </ol>
+        </SortableContext>
+      </DndContext>
 
       <div className="ml-atmoshaper-master-controls mt-4 grid gap-3" aria-label="AtmoShaper playback controls">
         <AtmoShaperTransportButtons recipe={recipe} />
@@ -249,30 +319,119 @@ export function CurrentMix({
   )
 }
 
-/** Keeps the narrow tray useful without duplicating the full layer editor. */
-export function CurrentMixTray({ recipe }: { recipe: AtmoShaperRecipe }) {
+function MixLayerControls({
+  actions,
+  layer,
+  onRemove,
+  retained,
+  runtimeState,
+  sourceName,
+}: {
+  actions: AtmoShaperRecipeActions
+  layer: AtmoShaperLayer
+  onRemove(): void
+  retained: boolean
+  runtimeState: VisibleLayerRuntimeState
+  sourceName: string
+}) {
+  const music = useMusic()
+  const status = runtimeState.status
+
+  function updateLayer(patch: Partial<AtmoShaperLayer>) {
+    if (retained) actions.restoreRetainedLayer(layer, patch)
+    else actions.updateLayer(layer.id, patch)
+  }
+
+  const brainwaveRateKey = layer.kind === "binaural"
+    ? "beatHz"
+    : layer.kind === "isochronic"
+      ? "pulseHz"
+      : null
+  const carrierHz = typeof layer.settings.carrierHz === "number"
+    ? layer.settings.carrierHz
+    : ATMOSHAPER_PRESETS.alpha.carrierHz
+  const rateHz = brainwaveRateKey && typeof layer.settings[brainwaveRateKey] === "number"
+    ? layer.settings[brainwaveRateKey]
+    : ATMOSHAPER_PRESETS.alpha.rateHz
+
   return (
-    <section className="ml-atmoshaper-current-mix-tray-summary" aria-label="Compact Current Mix">
-      <div className="min-w-0">
-        <strong>Current Mix</strong>
-        <p className="truncate text-xs text-muted-foreground">
-          {recipe.layers.length === 0
-            ? "Add a sound to begin."
-            : `${recipe.layers.length} layer${recipe.layers.length === 1 ? "" : "s"}`}
-        </p>
+    <>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate font-medium">{sourceName}</h3>
+          <p className="text-sm capitalize text-muted-foreground">
+            {retained ? `Still playing during replacement · ${status}` : status}
+          </p>
+          {!retained && runtimeState.error ? (
+            <p className="mt-1 text-sm text-destructive">{runtimeState.error}</p>
+          ) : null}
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          aria-label={`${layer.muted ? "Unmute" : "Mute"} ${sourceName}`}
+          aria-pressed={layer.muted}
+          onClick={() => updateLayer({ muted: !layer.muted })}
+        >
+          {layer.muted ? "Unmute" : "Mute"}
+        </Button>
       </div>
-      <AtmoShaperTransportButtons compact recipe={recipe} />
-    </section>
+
+      <div className="mt-3">
+        <Slider
+          aria-label={`Volume for ${sourceName}`}
+          min={0}
+          max={1}
+          step={0.05}
+          value={[layer.volume]}
+          onValueChange={([volume]) => updateLayer({ volume })}
+        />
+      </div>
+
+      {brainwaveRateKey ? (
+        <section className="ml-atmoshaper-layer-brainwave-controls" aria-label={`${sourceName} live settings`}>
+          <BrainwaveLayerControls
+            kind={layer.kind === "binaural" ? "binaural" : "isochronic"}
+            values={{ carrierHz, rateHz }}
+            onChange={(values) => updateLayer({
+              settings: {
+                ...layer.settings,
+                carrierHz: values.carrierHz,
+                [brainwaveRateKey]: values.rateHz,
+              },
+            })}
+          />
+        </section>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {!retained && status === "failed" ? (
+          <Button
+            type="button"
+            size="sm"
+            aria-label={`Retry ${sourceName}`}
+            onClick={() => void music.retryAtmoShaperLayer(layer.id)}
+          >
+            Retry
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          aria-label={`Remove ${sourceName}`}
+          onClick={onRemove}
+        >
+          Remove
+        </Button>
+      </div>
+    </>
   )
 }
 
-function AtmoShaperTransportButtons({
-  compact = false,
-  recipe,
-}: {
-  compact?: boolean
-  recipe: AtmoShaperRecipe
-}) {
+/** Shared transport intent keeps expanded and rail controls behavior-identical. */
+export function useAtmoShaperTransportControls(recipe: AtmoShaperRecipe) {
   const music = useMusic()
   const transportAction = atmoShaperWorkspaceTransportAction({
     activePlaybackKind: music.activePlaybackKind,
@@ -280,16 +439,14 @@ function AtmoShaperTransportButtons({
     playbackState: music.playbackState,
     providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
   })
-  const isPlayingThisRecipe = transportAction === "pause"
-  const canStopThisRecipe = canStopAtmoShaperWorkspaceRecipe({
+  const isPlaying = transportAction === "pause"
+  const canStop = music.atmoShaperPreview !== null || canStopAtmoShaperWorkspaceRecipe({
     activePlaybackKind: music.activePlaybackKind,
     localRecipeId: recipe.id,
     playbackState: music.playbackState,
     providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
   })
 
-  // The provider owns source replacement; this surface only selects the
-  // correct pause, retained-restart, or explicit ownership-transfer action.
   function handlePlayPause() {
     if (transportAction === "pause") void music.pauseCurrent()
     else if (transportAction === "restart") void music.restartCurrent()
@@ -297,28 +454,32 @@ function AtmoShaperTransportButtons({
   }
 
   function handleStop() {
-    if (!canStopThisRecipe) return
+    if (!canStop) return
     void music.stopCurrent()
   }
 
+  return { canStop, handlePlayPause, handleStop, isPlaying }
+}
+
+function AtmoShaperTransportButtons({ recipe }: { recipe: AtmoShaperRecipe }) {
+  const transport = useAtmoShaperTransportControls(recipe)
+
   return (
-    <div className={compact ? "ml-atmoshaper-tray-transport flex flex-wrap gap-2" : "flex flex-wrap gap-2"}>
+    <div className="flex flex-wrap gap-2">
       <Button
         type="button"
-        size={compact ? "sm" : "default"}
         variant="success"
         disabled={recipe.layers.length === 0}
-        onClick={handlePlayPause}
+        onClick={transport.handlePlayPause}
       >
-        {isPlayingThisRecipe ? "Pause AtmoShaper" : "Play AtmoShaper"}
+        {transport.isPlaying ? "Pause AtmoShaper" : "Play AtmoShaper"}
       </Button>
       <Button
         type="button"
-        size={compact ? "sm" : "default"}
         variant="outline"
         aria-label="Stop AtmoShaper"
-        disabled={!canStopThisRecipe}
-        onClick={handleStop}
+        disabled={!transport.canStop}
+        onClick={transport.handleStop}
       >
         Stop
       </Button>

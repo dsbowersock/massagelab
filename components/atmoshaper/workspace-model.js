@@ -11,6 +11,59 @@ import {
 /** @typedef {import("../../lib/atmoshaper/recipe.js").AtmoShaperRecipe} AtmoShaperRecipe */
 /** @typedef {{ key: string, layer: AtmoShaperLayer, retained: boolean }} AtmoShaperVisibleRow */
 
+export const ATMOSHAPER_ROOMY_INLINE_REM = 42
+export const ATMOSHAPER_ROOMY_BLOCK_REM = 32
+
+/** Places Current Mix away from the configured application sidebar. @param {"left" | "right"} sidebarPosition */
+export function oppositeAtmoShaperEdge(sidebarPosition) {
+  return sidebarPosition === "right" ? "left" : "right"
+}
+
+/**
+ * Uses only measured workspace geometry. Root font size keeps the rem contract
+ * honest when text enlargement changes the usable threshold in CSS pixels.
+ *
+ * @param {{ inlineSize: number, blockSize: number, rootFontSize?: number }} input
+ * @returns {"roomy" | "narrow"}
+ */
+export function resolveAtmoShaperDrawerMode({
+  inlineSize,
+  blockSize,
+  rootFontSize = 16,
+}) {
+  return inlineSize >= ATMOSHAPER_ROOMY_INLINE_REM * rootFontSize
+    && blockSize >= ATMOSHAPER_ROOMY_BLOCK_REM * rootFontSize
+    ? "roomy"
+    : "narrow"
+}
+
+/** Opens discovery only for the first committed layer transition. @param {number} previousLayerCount @param {number} nextLayerCount */
+export function shouldAutoOpenAtmoShaperDrawer(previousLayerCount, nextLayerCount) {
+  return previousLayerCount === 0 && nextLayerCount === 1
+}
+
+/**
+ * Revalidates a drawer opener at the moment focus will be restored. A button
+ * can become disabled, hidden, inert, or detached while an async Add settles.
+ *
+ * @param {HTMLElement | null | undefined} element
+ */
+export function isAtmoShaperFocusRestoreTarget(element) {
+  if (!element?.isConnected) return false
+  if (element.matches(":disabled")
+    || ("disabled" in element && element.disabled === true)
+    || element.getAttribute("aria-disabled") === "true") return false
+  if (element.closest("[inert], [hidden], [aria-hidden='true'], [aria-disabled='true']")) return false
+
+  const view = element.ownerDocument.defaultView
+  if (!view) return false
+  const style = view.getComputedStyle(element)
+  if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse") {
+    return false
+  }
+  return element.getClientRects().length > 0
+}
+
 /**
  * Reuses the provider-owned live recipe on a conditional workspace remount.
  * A new id is allocated only when there is no retained AtmoShaper owner.
@@ -178,6 +231,31 @@ export function focusTargetAfterAtmoShaperLayerRemoval(rowIds, removedId, alsoRe
     if (!removedIds.has(rowIds[index])) return rowIds[index]
   }
   return null
+}
+
+/**
+ * Recovers focus only when the row that owned it disappeared during an
+ * asynchronous reconciliation. Undefined means focus was elsewhere or the
+ * focused row survived, so the component must not move it.
+ *
+ * @param {string[]} previousRowIds
+ * @param {string[]} nextRowIds
+ * @param {string | null | undefined} focusedRowId
+ * @returns {string | null | undefined}
+ */
+export function focusTargetAfterAtmoShaperRowsReconcile(
+  previousRowIds,
+  nextRowIds,
+  focusedRowId,
+) {
+  if (!focusedRowId
+    || !previousRowIds.includes(focusedRowId)
+    || nextRowIds.includes(focusedRowId)) return undefined
+  const nextRowIdSet = new Set(nextRowIds)
+  const alsoRemovedIds = previousRowIds.filter((rowId) => (
+    rowId !== focusedRowId && !nextRowIdSet.has(rowId)
+  ))
+  return focusTargetAfterAtmoShaperLayerRemoval(previousRowIds, focusedRowId, alsoRemovedIds)
 }
 
 /**

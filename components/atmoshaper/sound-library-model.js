@@ -3,7 +3,8 @@
 /** @typedef {import("../../lib/atmoshaper/recipe.js").AtmoShaperLayer} AtmoShaperLayer */
 /** @typedef {import("../../lib/atmoshaper/recipe.js").AtmoShaperRecipe} AtmoShaperRecipe */
 /** @typedef {{ layer: AtmoShaperLayer, status: "loading" | "playing" | "paused" | "failed", error?: string } | null} AtmoShaperPreview */
-/** @typedef {{ layerId: string, requestKey: number }} AtmoShaperLayerSelectionRequest */
+/** @typedef {"commit" | "select-existing" | "rail"} AtmoShaperLayerSelectionReason */
+/** @typedef {{ layerId: string, requestKey: number, opener: HTMLElement | null, reason: AtmoShaperLayerSelectionReason }} AtmoShaperLayerSelectionRequest */
 /** @typedef {{ status: "promoted" } | { status: "failed", error: string } | { status: "superseded" }} AtmoShaperPromotionResult */
 /** @typedef {{ generation: number, sourceKey: string, sourceName: string, priorRecipe: AtmoShaperRecipe, optimisticRecipe: AtmoShaperRecipe }} SoundLibraryPendingCommit */
 /** @typedef {{ sourceKey: string, sourceName: string, status: "loading" | "playing" | "paused" | "failed" }} SoundLibraryPreviewAnnouncementState */
@@ -15,12 +16,15 @@
  *
  * @param {AtmoShaperLayerSelectionRequest | null} previousRequest
  * @param {string} layerId
+ * @param {{ opener?: HTMLElement | null, reason?: AtmoShaperLayerSelectionReason }} [options]
  * @returns {AtmoShaperLayerSelectionRequest}
  */
-export function createAtmoShaperLayerSelectionRequest(previousRequest, layerId) {
+export function createAtmoShaperLayerSelectionRequest(previousRequest, layerId, options = {}) {
   return {
     layerId,
     requestKey: (previousRequest?.requestKey ?? 0) + 1,
+    opener: options.opener ?? null,
+    reason: options.reason ?? "commit",
   }
 }
 

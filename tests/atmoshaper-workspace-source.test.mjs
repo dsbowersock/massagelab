@@ -9,7 +9,9 @@ const componentUrls = {
   library: new URL("../components/atmoshaper/sound-library.tsx", import.meta.url),
   model: new URL("../components/atmoshaper/sound-library-model.js", import.meta.url),
   mix: new URL("../components/atmoshaper/current-mix.tsx", import.meta.url),
+  rail: new URL("../components/atmoshaper/current-mix-rail.tsx", import.meta.url),
   noiseArtwork: new URL("../components/atmoshaper/noise-artwork.tsx", import.meta.url),
+  sortableRow: new URL("../components/atmoshaper/sortable-layer-row.tsx", import.meta.url),
   workspace: new URL("../components/atmoshaper/atmoshaper-workspace.tsx", import.meta.url),
 }
 
@@ -29,7 +31,9 @@ const [
   librarySource,
   modelSource,
   mixSource,
+  railSource,
   noiseArtworkSource,
+  sortableRowSource,
   workspaceSource,
 ] = await Promise.all([
   readSource(componentUrls.brainwaveArtwork),
@@ -38,7 +42,9 @@ const [
   readSource(componentUrls.library),
   readSource(componentUrls.model),
   readSource(componentUrls.mix),
+  readSource(componentUrls.rail),
   readSource(componentUrls.noiseArtwork),
+  readSource(componentUrls.sortableRow),
   readSource(componentUrls.workspace),
 ])
 const packageSource = [
@@ -48,7 +54,9 @@ const packageSource = [
   librarySource,
   modelSource,
   mixSource,
+  railSource,
   noiseArtworkSource,
+  sortableRowSource,
   workspaceSource,
 ].join("\n")
 
@@ -121,8 +129,7 @@ describe("AtmoShaper live-session workspace source contract", () => {
       /recipe\.layers\.map/,
       /Volume for/,
       /aria-pressed=\{layer\.muted\}/,
-      /Move earlier/,
-      /Move later/,
+      /SortableLayerRow/,
       /Retry/,
       /Remove/,
       /Play AtmoShaper/,
@@ -145,20 +152,24 @@ describe("AtmoShaper live-session workspace source contract", () => {
     assert.match(mixSource, /max=\{1\}/)
     assert.match(mixSource, /step=\{0\.05\}/)
     assert.match(mixSource, /Still playing during replacement/)
-    assert.match(mixSource, /if \(!canStopThisRecipe\) return/)
-    assert.match(mixSource, /disabled=\{!canStopThisRecipe\}/)
+    assert.match(mixSource, /music\.atmoShaperPreview !== null \|\| canStopAtmoShaperWorkspaceRecipe/)
+    assert.match(mixSource, /if \(!canStop\) return/)
+    assert.match(mixSource, /disabled=\{!transport\.canStop\}/)
   })
 
-  it("restores focus after removal through stable row refs", () => {
+  it("restores focus after explicit removal and focused-row reconciliation", () => {
     assert.match(mixSource, /focusTargetAfterAtmoShaperVisibleRowRemoval/)
+    assert.match(mixSource, /focusTargetAfterAtmoShaperRowsReconcile/)
     assert.match(mixSource, /useLayoutEffect/)
     assert.match(mixSource, /rowRefs/)
+    assert.match(mixSource, /previousNode\.contains\(previousNode\.ownerDocument\.activeElement\)/)
+    assert.match(mixSource, /focusedUnmountedRowKeyRef/)
     assert.match(mixSource, /headingRef/)
     assert.match(mixSource, /tabIndex=\{-1\}/)
   })
 
   it("consumes selection focus once without replaying it after row removal", () => {
-    const removalFocusEffect = mixSource.indexOf("const focusTarget = pendingFocusTargetRef.current")
+    const removalFocusEffect = mixSource.indexOf("const requestedFocusTarget = pendingFocusTargetRef.current")
     const alreadyHandledGuard = mixSource.indexOf(
       "lastHandledSelectionRequestKeyRef.current === activeLayerRequestKey",
     )
@@ -232,16 +243,16 @@ describe("AtmoShaper live-session workspace source contract", () => {
       /settleSoundLibraryPendingCommit/,
       /actions\.settleLayerPromotion\(transaction, settlement\)/,
       /aria-busy=\{commitPending \|\| undefined\}/,
-      /onSelectLayer\(resolution\.layerId\)/,
+      /onSelectLayer\(resolution\.layerId, opener, "select-existing"\)/,
       /Previewing/,
       /Retry/,
       /Stop Preview/,
     ]) assert.match(librarySource, contract)
 
     assert.match(workspaceSource, /layerSelectionRequest/)
-    assert.match(workspaceSource, /createAtmoShaperLayerSelectionRequest\(current, layerId\)/)
+    assert.match(workspaceSource, /createAtmoShaperLayerSelectionRequest\(current, layerId, \{ opener, reason \}\)/)
     assert.match(workspaceSource, /activeLayerRequestKey=\{layerSelectionRequest\?\.requestKey \?\? 0\}/)
-    assert.match(workspaceSource, /onSelectLayer=\{selectLayer\}/)
+    assert.match(workspaceSource, /onSelectLayer=\{selectLibraryLayer\}/)
     assert.match(workspaceSource, /void stopAtmoShaperPreview\(\)/)
     assert.match(mixSource, /activeLayerId/)
     assert.match(mixSource, /activeLayerRequestKey/)
@@ -256,10 +267,81 @@ describe("AtmoShaper live-session workspace source contract", () => {
       mixSource,
       /lastHandledSelectionRequestKeyRef\.current = activeLayerRequestKey/,
     )
-    assert.match(mixSource, /activeRow\?\.focus\(\{ preventScroll: true \}\)/)
-    assert.match(mixSource, /activeRow\?\.scrollIntoView/)
+    assert.match(mixSource, /activeRow\.focus\(\{ preventScroll: true \}\)/)
+    assert.match(mixSource, /activeRow\.scrollIntoView/)
     assert.match(mixSource, /\[activeLayerRequestKey, activeRowKey, rowKeySignature\]/)
 
+  })
+
+  it("uses one measured opposite-edge Sheet and restores its exact opener", () => {
+    assert.match(workspaceSource, /useSettings\(\)/)
+    assert.match(workspaceSource, /new ResizeObserver/)
+    assert.match(workspaceSource, /resolveAtmoShaperDrawerMode/)
+    assert.match(workspaceSource, /oppositeAtmoShaperEdge\(settings\.sidebarPosition\)/)
+    assert.match(workspaceSource, /shouldAutoOpenAtmoShaperDrawer/)
+    assert.match(workspaceSource, /modal=\{drawerMode === "narrow"\}/)
+    assert.match(workspaceSource, /side=\{drawerSide\}/)
+    assert.match(workspaceSource, /ml-atmoshaper-current-mix-overlay-roomy/)
+    assert.match(workspaceSource, /if \(drawerMode === "roomy"\) event\.preventDefault\(\)/)
+    assert.equal(workspaceSource.match(/<Sheet\s/g)?.length, 1)
+
+    assert.match(librarySource, /onAdd\(event\.currentTarget\)/)
+    assert.match(librarySource, /pendingStationCommit/)
+    assert.match(librarySource, /opener:\s*HTMLElement/)
+    assert.match(workspaceSource, /opener\?\.isConnected \? opener : primaryRailToggleRef\.current/)
+    assert.match(
+      workspaceSource,
+      /window\.requestAnimationFrame\(\(\) => \{[\s\S]*?primaryRailToggleRef\.current[\s\S]*?isAtmoShaperFocusRestoreTarget\(exactOpener\)/,
+    )
+    assert.doesNotMatch(workspaceSource, /const focusTarget = exactOpener\?\.isConnected/)
+    assert.match(workspaceSource, /focusTarget\.focus\(\{ preventScroll: true \}\)/)
+  })
+
+  it("renders committed layers only in the persistent rail", () => {
+    assert.match(workspaceSource, /<CurrentMixRail/)
+    assert.match(railSource, /recipe\.layers\.map/)
+    assert.doesNotMatch(railSource, /atmoShaperPreview\.layer|preview\.layer/)
+    assert.match(railSource, /Open \$\{sourceName\} controls, \$\{state\}/)
+    assert.match(railSource, /aria-pressed=\{layer\.muted\}/)
+    assert.match(railSource, /data-layer-state=\{state\}/)
+    assert.match(railSource, /status === "loading"/)
+    assert.match(railSource, /status === "failed"/)
+    assert.match(railSource, /variant="success"/)
+    assert.match(mixSource, /music\.stopCurrent/)
+  })
+
+  it("sorts from visible handles with pointer, touch, keyboard, and announcements", () => {
+    assert.match(mixSource, /class AtmoShaperPointerSensor extends PointerSensor/)
+    assert.match(mixSource, /pointerType === "touch"\) return false/)
+    assert.match(mixSource, /useSensor\(AtmoShaperPointerSensor, \{ activationConstraint: \{ distance: 6 \} \}\)/)
+    assert.match(mixSource, /useSensor\(TouchSensor, \{ activationConstraint: \{ delay: 180, tolerance: 8 \} \}\)/)
+    assert.match(mixSource, /useSensor\(KeyboardSensor, \{ coordinateGetter: sortableKeyboardCoordinates \}\)/)
+    assert.match(mixSource, /screenReaderInstructions: sortableScreenReaderInstructions/)
+    for (const announcement of ["Grabbed", "over position", "Dropped", "Cancelled sorting"]) {
+      assert.match(mixSource, new RegExp(announcement))
+    }
+    assert.match(mixSource, /actions\.moveLayer\([\s\S]*?activeId,[\s\S]*?targetIndex/)
+    assert.match(sortableRowSource, /useSortable\(\{ id \}\)/)
+    assert.match(sortableRowSource, /ml-atmoshaper-layer-drag-handle/)
+    assert.match(sortableRowSource, /\{\.\.\.attributes\}[\s\S]*?\{\.\.\.listeners\}/)
+    assert.match(mixSource, /data-sortable="false"/)
+    assert.doesNotMatch(packageSource, /Move earlier|Move later/)
+  })
+
+  it("maps live brainwave settings without inventing station or noise controls", () => {
+    assert.match(mixSource, /<BrainwaveLayerControls/)
+    assert.match(mixSource, /kind=\{layer\.kind === "binaural" \? "binaural" : "isochronic"\}/)
+    assert.match(mixSource, /carrierHz: values\.carrierHz/)
+    assert.match(mixSource, /\[brainwaveRateKey\]: values\.rateHz/)
+    assert.match(mixSource, /if \(retained\) actions\.restoreRetainedLayer/)
+    assert.match(mixSource, /layer\.kind === "binaural"[\s\S]*?layer\.kind === "isochronic"/)
+  })
+
+  it("retires the prior column, tray, and positional controls", () => {
+    assert.doesNotMatch(
+      packageSource,
+      /CurrentMixTray|Move earlier|Move later|ml-atmoshaper-mix-tray|ml-atmoshaper-current-mix-desktop/,
+    )
   })
 
   it("composes semantic glow and success controls without nested buttons", () => {

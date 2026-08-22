@@ -58,11 +58,28 @@ function deferred() {
 
 describe("AtmoShaper Sound Library decisions", () => {
   it("keeps consecutive focus requests for the same layer distinct", () => {
-    const first = createAtmoShaperLayerSelectionRequest(null, "pink-noise")
-    const second = createAtmoShaperLayerSelectionRequest(first, "pink-noise")
+    const opener = { isConnected: true }
+    const first = createAtmoShaperLayerSelectionRequest(null, "pink-noise", {
+      opener,
+      reason: "select-existing",
+    })
+    const second = createAtmoShaperLayerSelectionRequest(first, "pink-noise", {
+      opener,
+      reason: "rail",
+    })
 
-    assert.deepEqual(first, { layerId: "pink-noise", requestKey: 1 })
-    assert.deepEqual(second, { layerId: "pink-noise", requestKey: 2 })
+    assert.deepEqual(first, {
+      layerId: "pink-noise",
+      requestKey: 1,
+      opener,
+      reason: "select-existing",
+    })
+    assert.deepEqual(second, {
+      layerId: "pink-noise",
+      requestKey: 2,
+      opener,
+      reason: "rail",
+    })
     assert.notDeepEqual(first, second)
   })
 
