@@ -99,6 +99,8 @@ type AtmoShaperBrowserQaDiagnostics = {
   runtime: AtmoShaperRuntimeSnapshot | null
 }
 
+const atmoShaperBrowserQaBuild = process.env.NEXT_PUBLIC_ATMOSHAPER_BROWSER_QA === "1"
+
 type LoadedAtmoShaperRuntime = {
   start: (recipe: AtmoShaperRecipe) => Promise<void>
   applyRecipe: (recipe: AtmoShaperRecipe) => Promise<void>
@@ -1002,14 +1004,10 @@ export function MusicProvider({
   }, [error])
 
   // A preinstalled loopback-only browser-QA request receives provider-owned
-  // snapshots without exposing audio nodes or a deployed production hook.
+  // snapshots without exposing audio nodes. The dynamic module is compiled
+  // only into the dedicated QA build and remains loopback/request guarded.
   useEffect(() => {
-    if (!["localhost", "127.0.0.1", "::1"].includes(window.location.hostname)) return
-    const bridge = Reflect.get(window, "__massagelabAtmoShaperBrowserQa") as {
-      enabled?: unknown
-      getDiagnostics?: () => AtmoShaperBrowserQaDiagnostics
-    } | undefined
-    if (bridge?.enabled !== true) return
+    if (!atmoShaperBrowserQaBuild) return
     const getDiagnostics = (): AtmoShaperBrowserQaDiagnostics => ({
       activePlaybackKind: activePlaybackKindRef.current,
       activeStationId: activeStationIdRef.current,
@@ -1018,9 +1016,15 @@ export function MusicProvider({
       recipe: atmoShaperRecipeRef.current,
       runtime: atmoShaperRuntimeRef.current?.getSnapshot() ?? null,
     })
-    bridge.getDiagnostics = getDiagnostics
+    let cancelled = false
+    let dispose: () => void = () => undefined
+    void import("@/lib/atmoshaper/browser-qa").then(({ installAtmoShaperBrowserQaDiagnostics }) => {
+      if (cancelled) return
+      dispose = installAtmoShaperBrowserQaDiagnostics(getDiagnostics)
+    })
     return () => {
-      if (bridge.getDiagnostics === getDiagnostics) delete bridge.getDiagnostics
+      cancelled = true
+      dispose()
     }
   }, [])
 

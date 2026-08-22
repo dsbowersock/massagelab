@@ -269,6 +269,10 @@
   }
 
   @media (max-width: 39.999rem) {
+    body.ml-music-player-active:not(.ml-music-player-collapsed) {
+      --ml-audio-toolbar-expanded-content-height: min(10rem, 24dvh);
+    }
+
     /* Loading keeps one visible identity line plus the accessible progress bar,
        avoiding duplicate status copy inside the bounded narrow grid. */
     .ml-music-player-toolbar[data-playback-state="loading"] .ml-music-player-toolbar-status,
@@ -2518,6 +2522,21 @@
 
     .ml-atmoshaper-mix-tray > button {
       width: 100%;
+    }
+  }
+
+  /* When enlarged text and the persistent player leave a very short mixer,
+     keep the full editor in its bounded Sheet and expose only that entry point. */
+  @container (max-height: 250px) {
+    .ml-atmoshaper-mix-tray {
+      grid-template-columns: minmax(0, 1fr);
+      max-block-size: 100cqh;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    .ml-atmoshaper-current-mix-tray-summary {
+      display: none;
     }
   }
 

@@ -240,7 +240,7 @@ async function openFullMix(page: Page) {
 
 async function closeInterruptionNoticeIfVisible(page: Page) {
   const notice = page.getByRole("region", { name: "Interruption preference" })
-  if (await notice.isVisible()) await notice.getByRole("button", { name: "Close" }).click()
+  if (await notice.isVisible()) await press(notice.getByRole("button", { name: "Close" }))
 }
 
 async function measureGeometry(page: Page): Promise<GeometryReceipt> {
@@ -283,6 +283,23 @@ function expectNoDocumentOverflow(receipt: GeometryReceipt) {
   expect(receipt.workspace, message).not.toBeNull()
   expect(receipt.library, message).not.toBeNull()
   expect(receipt.currentMix, message).not.toBeNull()
+}
+
+function expectRectsNotToOverlap(first: DOMRectReceipt, second: DOMRectReceipt, message: string) {
+  const separated = first.right <= second.left + 1
+    || second.right <= first.left + 1
+    || first.bottom <= second.top + 1
+    || second.bottom <= first.top + 1
+  expect(separated, message).toBe(true)
+}
+
+async function expectHitTarget(page: Page, locator: Locator, message: string) {
+  const receivesHit = await locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect()
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+    return hit === element || element.contains(hit)
+  })
+  expect(receivesHit, message).toBe(true)
 }
 
 test.beforeEach(async ({ page }) => {
@@ -366,10 +383,17 @@ test("keeps stopped edits silent and live edits preserve healthy layer ids", asy
   const brownId = initial.recipe?.layers.find(({ sourceId }) => sourceId === "noise:brown")?.id
   expect(pinkId).toBeTruthy()
   expect(brownId).toBeTruthy()
+  const initialPinkVolume = initial.runtime?.activeLayers[pinkId!]?.volume
+  expect(initialPinkVolume).toBeTruthy()
 
   const { scope: currentMix, sheetWasOpened } = await openFullMix(page)
   const pinkVolume = currentMix.getByLabel("Volume for Pink noise")
   await press(pinkVolume, "ArrowLeft")
+  await expect.poll(async () => (await readDiagnostics(page)).runtime?.activeLayers[pinkId!]?.volume)
+    .toBeLessThan(initialPinkVolume!)
+  expect(Object.keys((await readDiagnostics(page)).runtime?.activeLayers ?? {})).toEqual(
+    expect.arrayContaining([pinkId!, brownId!]),
+  )
   await press(currentMix.getByRole("button", { name: "Mute Pink noise" }))
   await expect.poll(async () => (await readDiagnostics(page)).runtime?.activeLayers[pinkId!]?.muted)
     .toBe(true)
@@ -425,9 +449,24 @@ test("keyboard controls isolate one failed layer and support retry, reorder, mut
     return alphaId ? next.runtime?.layers[alphaId]?.status : null
   }).toBe("playing")
   await press(currentMix.getByRole("button", { name: "Move earlier: Brown noise" }))
+  await expect.poll(async () => (await readDiagnostics(page)).recipe?.layers.map(({ sourceId }) => sourceId))
+    .toEqual(["noise:brown", "noise:pink", "binaural:alpha"])
   await press(currentMix.getByRole("button", { name: "Mute Pink noise" }))
+  const beforeRemoval = await readDiagnostics(page)
+  const pinkId = beforeRemoval.recipe?.layers.find(({ sourceId }) => sourceId === "noise:pink")?.id
+  const brownId = beforeRemoval.recipe?.layers.find(({ sourceId }) => sourceId === "noise:brown")?.id
+  const alphaId = beforeRemoval.recipe?.layers.find(({ sourceId }) => sourceId === "binaural:alpha")?.id
+  expect(pinkId).toBeTruthy()
+  expect(brownId).toBeTruthy()
+  expect(alphaId).toBeTruthy()
+  await expect.poll(async () => (await readDiagnostics(page)).runtime?.activeLayers[pinkId!]?.muted)
+    .toBe(true)
   await press(currentMix.getByRole("button", { name: "Remove Alpha binaural beat" }))
   await expect(page.getByText("Alpha binaural beat")).toHaveCount(0)
+  await expect.poll(async () => (await readDiagnostics(page)).runtime?.activeLayers[alphaId!])
+    .toBeUndefined()
+  expect(Object.keys((await readDiagnostics(page)).runtime?.activeLayers ?? {}).sort())
+    .toEqual([brownId!, pinkId!].sort())
 })
 
 test("announces every simultaneous failure through one stable live region", async ({ page }) => {
@@ -480,16 +519,29 @@ test("reduced motion removes decoration while preserving usable controls", async
   await expect(page.getByRole("button", { name: "Open full Current Mix" })).toBeVisible()
 })
 
-test("200% text remains reachable without document overflow", async ({ page }) => {
+test("200% text keeps Sheet controls operable, unobscured, and clear of the player", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 })
   await openAtmoShaper(page)
   await page.evaluate(() => {
     document.documentElement.style.fontSize = "200%"
   })
   await addNoise(page, "Pink")
-  await expect(page.getByRole("button", { name: "Play AtmoShaper" }).first()).toBeVisible()
-  await expect(page.getByRole("button", { name: "Open full Current Mix" })).toBeVisible()
-  expectNoDocumentOverflow(await measureGeometry(page))
+  await press(page.getByRole("button", { name: "Play AtmoShaper" }).first())
+  await waitForAtmoStatus(page, "playing")
+  await closeInterruptionNoticeIfVisible(page)
+  const trigger = page.getByRole("button", { name: "Open full Current Mix" })
+  await press(trigger)
+  const dialog = page.getByRole("dialog", { name: "Full Current Mix controls" })
+  await expect(dialog).toBeVisible()
+  await press(dialog.getByLabel("Volume for Pink noise"), "ArrowLeft")
+  await press(dialog.getByRole("button", { name: "Mute Pink noise" }))
+  await page.keyboard.press("Escape")
+  await expect(trigger).toBeFocused()
+
+  const receipt = await measureGeometry(page)
+  expectNoDocumentOverflow(receipt)
+  expectRectsNotToOverlap(receipt.currentMix!, receipt.player!, `200% geometry: ${JSON.stringify(receipt)}`)
+  await expectHitTarget(page, trigger, `200% full-mix trigger: ${JSON.stringify(receipt)}`)
 })
 
 test("viewport matrix has no document overflow and grows usefully on large displays", async ({ page }) => {
@@ -515,9 +567,11 @@ test("viewport matrix has no document overflow and grows usefully on large displ
   expect(tv.workspace!.height, message).toBeGreaterThan(laptop.workspace!.height + 300)
   expect(tv.library!.width, message).toBeGreaterThan(laptop.library!.width + 250)
   expect(tv.library!.height, message).toBeGreaterThan(laptop.library!.height + 250)
+  expect(tv.currentMix!.width, message).toBeGreaterThan(laptop.currentMix!.width + 400)
+  expect(tv.currentMix!.height, message).toBeGreaterThan(laptop.currentMix!.height + 300)
 })
 
-test("Media Session represents the mix with Play, Pause, Stop, and no station navigation", async ({ page }) => {
+test("Media Session represents the mix with artwork, Play, Pause, Stop, and no station navigation", async ({ page, request }) => {
   await openAtmoShaper(page)
   await addNoise(page, "Pink")
   await page.getByRole("button", { name: "Play AtmoShaper" }).first().click()
@@ -529,7 +583,17 @@ test("Media Session represents the mix with Play, Pause, Stop, and no station na
     artist: "MassageLab",
     title: "AtmoShaper",
   })
-  expect(media.metadata?.artwork).toBeUndefined()
+  expect(media.metadata?.artwork).toEqual([{
+    src: "/icons/icon-512.png",
+    sizes: "512x512",
+    type: "image/png",
+  }])
+  const artwork = await request.get(media.metadata!.artwork![0].src!)
+  expect(artwork.ok()).toBe(true)
+  expect(artwork.headers()["content-type"]).toContain("image/png")
+  const artworkBody = await artwork.body()
+  expect(artworkBody.readUInt32BE(16)).toBe(512)
+  expect(artworkBody.readUInt32BE(20)).toBe(512)
   expect(media.actions.play).toBe("function")
   expect(media.actions.pause).toBe("function")
   expect(media.actions.stop).toBe("function")

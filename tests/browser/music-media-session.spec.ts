@@ -150,7 +150,13 @@ async function canonicalArtworkHash(page: Page, stationId: string) {
 
 let actualRuntimeModulePathPromise: Promise<string> | null = null
 
-/** Resolves the current production chunk that owns the activation-sensitive proof runtime. */
+/**
+ * Resolves the dedicated activation-sensitive proof-runtime chunk.
+ *
+ * AtmoShaper's station adapter also embeds these proof-runtime exports, so the
+ * negative export check prevents filesystem enumeration order from selecting
+ * the larger mixer chunk that is not loaded by ordinary station startup.
+ */
 async function getActualRuntimeModulePath() {
   actualRuntimeModulePathPromise = actualRuntimeModulePathPromise ?? (async () => {
     const chunkDirectory = new URL("../../.next/static/chunks/", import.meta.url)
@@ -161,6 +167,7 @@ async function getActualRuntimeModulePath() {
       if (
         source.includes('"startToneProofDrone",0')
         && source.includes('"getToneProofDroneDiagnostics",0')
+        && !source.includes('"createAtmoShaperRuntime",0')
       ) {
         return `/_next/static/chunks/${entry.name}`
       }

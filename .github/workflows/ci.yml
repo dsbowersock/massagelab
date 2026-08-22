@@ -64,6 +64,7 @@ jobs:
       NEXTAUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only
       AUTH_URL: http://127.0.0.1:3010
       NEXTAUTH_URL: http://127.0.0.1:3010
+      NEXT_PUBLIC_ATMOSHAPER_BROWSER_QA: "1"
 
     steps:
       - name: Check out repository

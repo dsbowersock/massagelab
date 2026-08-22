@@ -156,7 +156,7 @@ test("keeps one revisioned 512 artwork candidate stable per station and replaces
   ])
 })
 
-test("omits ordinary-station artwork routes for AtmoShaper metadata", () => {
+test("publishes the standard platform-safe MassageLab artwork for AtmoShaper metadata", () => {
   const mediaSession = createFakeMediaSession()
   const metadataInputs = []
   const controller = createAtmosphereMediaSessionController({
@@ -181,8 +181,12 @@ test("omits ordinary-station artwork routes for AtmoShaper metadata", () => {
     title: "Quiet Focus",
     artist: "MassageLab",
     album: "MassageLab Atmosphere",
+    artwork: [{
+      src: "/icons/icon-512.png",
+      sizes: "512x512",
+      type: "image/png",
+    }],
   }])
-  assert.equal("artwork" in mediaSession.metadata, false)
 })
 
 test("leaves the unbounded generator timeline absent and clears prior platform state on ownership clear", () => {

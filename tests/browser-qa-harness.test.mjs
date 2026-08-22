@@ -376,7 +376,7 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
 
   assert.match(packageData.devDependencies["@playwright/test"], /^\^\d+\.\d+\.\d+$/)
   assert.equal(packageData.scripts["test:browser"], "playwright test")
-  assert.equal(packageData.scripts["test:browser:build"], "npm run build && npm run test:browser")
+  assert.equal(packageData.scripts["test:browser:build"], "npm run build:browser-qa && npm run test:browser")
 
   assert.match(config, /webServer/)
   assert.match(config, /localhost:3010/)
@@ -442,6 +442,14 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(ciWorkflow, /npx playwright install --with-deps chromium/)
   assert.match(ciWorkflow, /^permissions:\r?\n  contents: read$/m)
   assertWorkflowStepBefore(ciWorkflow, "npm run prisma:generate", "npm run typecheck")
+})
+
+test("media readiness QA targets the dedicated proof runtime when mixer bundles share its exports", async () => {
+  const mediaSessionSpec = await readProjectFile("tests/browser/music-media-session.spec.ts")
+
+  assert.match(mediaSessionSpec, /source\.includes\('\"startToneProofDrone\",0'\)/)
+  assert.match(mediaSessionSpec, /source\.includes\('\"getToneProofDroneDiagnostics\",0'\)/)
+  assert.match(mediaSessionSpec, /!source\.includes\('\"createAtmoShaperRuntime\",0'\)/)
 })
 
 test("CI workflow parallelizes browser QA and aggregates every upstream result", async () => {
