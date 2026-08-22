@@ -25,10 +25,14 @@ type VisibleMixRow = {
 }
 
 export function CurrentMix({
+  activeLayerId = null,
+  activeLayerRequestKey = 0,
   actions,
   headingId = "atmoshaper-current-mix-title",
   recipe,
 }: {
+  activeLayerId?: string | null
+  activeLayerRequestKey?: number
   actions: AtmoShaperRecipeActions
   headingId?: string
   recipe: AtmoShaperRecipe
@@ -37,6 +41,7 @@ export function CurrentMix({
   const headingRef = useRef<HTMLHeadingElement | null>(null)
   const rowRefs = useRef(new Map<string, HTMLLIElement>())
   const pendingFocusTargetRef = useRef<string | null | undefined>(undefined)
+  const lastHandledSelectionRequestKeyRef = useRef<number | null>(null)
   const retainedLayers = projectRetainedAtmoShaperLayersForWorkspace({
     activePlaybackKind: music.activePlaybackKind,
     activeLayers: music.atmoShaperSnapshot?.activeLayers ?? {},
@@ -60,6 +65,9 @@ export function CurrentMix({
   ]
   const rowKeys = visibleRows.map(({ key }) => key)
   const rowKeySignature = rowKeys.join("\u0000")
+  const activeRowKey = activeLayerId
+    ? visibleRows.find(({ layer }) => layer.id === activeLayerId)?.key ?? null
+    : null
   useLayoutEffect(() => {
     const focusTarget = pendingFocusTargetRef.current
     if (focusTarget === undefined) return
@@ -72,6 +80,19 @@ export function CurrentMix({
     if (nextRow) nextRow.focus()
     else headingRef.current?.focus()
   }, [rowKeySignature])
+
+  useLayoutEffect(() => {
+    if (activeLayerRequestKey <= 0) return
+    if (lastHandledSelectionRequestKeyRef.current === activeLayerRequestKey) return
+    // A new-layer request may arrive in the same render batch as the recipe
+    // update. Leave it unconsumed until rowKeySignature exposes the real row.
+    if (!activeRowKey) return
+    const activeRow = rowRefs.current.get(activeRowKey)
+    if (!activeRow) return
+    lastHandledSelectionRequestKeyRef.current = activeLayerRequestKey
+    activeRow?.focus({ preventScroll: true })
+    activeRow?.scrollIntoView({ block: "nearest", inline: "nearest" })
+  }, [activeLayerRequestKey, activeRowKey, rowKeySignature])
 
   /** Defers focus until React commits the recipe state without the removed row. */
   function removeRow(row: VisibleMixRow) {
@@ -119,7 +140,9 @@ export function CurrentMix({
                 if (node) rowRefs.current.set(row.key, node)
                 else rowRefs.current.delete(row.key)
               }}
-              className="rounded-lg border bg-card p-3 text-card-foreground"
+              className="rounded-lg border bg-card p-3 text-card-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 data-[active-layer=true]:border-primary/60"
+              aria-current={activeLayerId === layer.id ? "true" : undefined}
+              data-active-layer={activeLayerId === layer.id ? "true" : "false"}
               tabIndex={-1}
             >
               <div className="flex min-w-0 items-start justify-between gap-3">
@@ -170,7 +193,7 @@ export function CurrentMix({
                       variant="outline"
                       aria-label={`Move earlier: ${sourceName}`}
                       disabled={recipeIndex === 0}
-                      onClick={() => actions.moveLayer(layer.id, recipeIndex - 1)}
+                      onClick={() => actions.moveLayer(layer.id, recipeIndex - 1, sourceName)}
                     >
                       Move earlier
                     </Button>
@@ -180,7 +203,7 @@ export function CurrentMix({
                       variant="outline"
                       aria-label={`Move later: ${sourceName}`}
                       disabled={recipeIndex === recipe.layers.length - 1}
-                      onClick={() => actions.moveLayer(layer.id, recipeIndex + 1)}
+                      onClick={() => actions.moveLayer(layer.id, recipeIndex + 1, sourceName)}
                     >
                       Move later
                     </Button>
@@ -283,6 +306,7 @@ function AtmoShaperTransportButtons({
       <Button
         type="button"
         size={compact ? "sm" : "default"}
+        variant="success"
         disabled={recipe.layers.length === 0}
         onClick={handlePlayPause}
       >

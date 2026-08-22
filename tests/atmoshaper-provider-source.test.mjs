@@ -41,8 +41,8 @@ function loadPromotionOwnershipHelpers() {
   const helperSource = sourceBetween(
     "type AtmoShaperPromotionSettlement =",
     "type ToneProofDroneDiagnostics =",
-  )
-  const compiled = ts.transpileModule(`${helperSource}\n;globalThis.__promotionHelpers = {\n  hasCommittedAtmoShaperMediaOwnership,\n  settleAtmoShaperPromotion,\n  canContinueAtmoShaperPreviewRequest,\n  isAtmoShaperPreviewOnlyPlayback,\n}`, {
+  ).replace(/^export /gm, "")
+  const compiled = ts.transpileModule(`${helperSource}\n;globalThis.__promotionHelpers = {\n  hasCommittedAtmoShaperMediaOwnership,\n  settleAtmoShaperPromotion,\n  toAtmoShaperPromotionResult,\n  canContinueAtmoShaperPreviewRequest,\n  isAtmoShaperPreviewOnlyPlayback,\n}`, {
     compilerOptions: {
       module: ts.ModuleKind.None,
       target: ts.ScriptTarget.ES2022,
@@ -114,10 +114,43 @@ describe("AtmoShaper provider ownership contract", () => {
       /previewAtmoShaperLayer: \(layer: AtmoShaperLayer\) => Promise<void>/,
       /setAtmoShaperPreviewVolume: \(volume: number\) => Promise<void>/,
       /stopAtmoShaperPreview: \(\) => Promise<void>/,
-      /promoteAtmoShaperPreview: \(recipe: AtmoShaperRecipe\) => Promise<void>/,
+      /export type AtmoShaperPromotionResult =/,
+      /promoteAtmoShaperPreview: \(recipe: AtmoShaperRecipe\) => Promise<AtmoShaperPromotionResult>/,
+      /promoteAtmoShaperPreview: async \(\) => \(\{ status: "superseded" \}\)/,
       /pauseCurrent: \(\) => Promise<void>/,
       /restartCurrent: \(\) => Promise<void>/,
     ]) assert.match(providerSource, contract)
+  })
+
+  it("maps every private promotion settlement to a public transaction result", () => {
+    const plain = (value) => JSON.parse(JSON.stringify(value))
+
+    assert.deepEqual(
+      plain(promotionOwnership.toAtmoShaperPromotionResult("commit")),
+      { status: "promoted" },
+    )
+    for (const settlement of ["restore-committed", "retire-unowned", "superseded"]) {
+      assert.deepEqual(
+        plain(promotionOwnership.toAtmoShaperPromotionResult(settlement)),
+        { status: "superseded" },
+      )
+    }
+    assert.deepEqual(
+      plain(promotionOwnership.toAtmoShaperPromotionResult("commit", "Transfer failed.")),
+      { status: "failed", error: "Transfer failed." },
+    )
+
+    const promotionPath = sourceBetween(
+      "const promoteAtmoShaperPreview = useCallback",
+      "const updateAtmoShaper = useCallback",
+    )
+    assert.match(promotionPath, /toAtmoShaperPromotionResult\(settlement\)/)
+    assert.match(promotionPath, /toAtmoShaperPromotionResult\("commit", failureMessage\)/)
+    assert.match(promotionPath, /toAtmoShaperPromotionResult\("commit", message\)/)
+    assert.match(
+      promotionPath,
+      /promotionGeneration !== atmoShaperPromotionGenerationRef\.current[\s\S]*?!isGlobalTransactionCurrent\(\)[\s\S]*?return toAtmoShaperPromotionResult\("superseded"\)/,
+    )
   })
 
   it("replaces the old owner before starting the next owner", () => {
@@ -601,7 +634,7 @@ describe("AtmoShaper provider ownership contract", () => {
     )
     assert.match(
       catchPath,
-      /if \(!isPromotionTransactionCurrent\(\) \|\| !isGlobalTransactionCurrent\(\)\) return/,
+      /if \(!isPromotionTransactionCurrent\(\) \|\| !isGlobalTransactionCurrent\(\)\) \{[\s\S]*?return toAtmoShaperPromotionResult\("superseded"\)/,
       "an older rejected promotion must not restore over the newer transaction",
     )
   })

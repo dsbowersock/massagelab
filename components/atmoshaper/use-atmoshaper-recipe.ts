@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useReducer } from "react"
 
-import { useMusic } from "@/components/providers/music-provider"
+import {
+  useMusic,
+  type AtmoShaperPromotionResult,
+} from "@/components/providers/music-provider"
 import {
   addAtmoShaperLayer,
   createAtmoShaperRecipe,
@@ -18,32 +21,51 @@ import {
   restoreRetainedAtmoShaperLayer,
   shouldSyncAtmoShaperWorkspaceRecipe,
 } from "./workspace-model.js"
+import { resolveSoundLibraryPromotionSettlement } from "./sound-library-model.js"
 
 export type AtmoShaperLayerPatch = Partial<AtmoShaperLayer>
 
+export type AtmoShaperPromotionTransaction = {
+  generation: number
+  sourceKey: string
+  sourceName: string
+  priorRecipe: AtmoShaperRecipe
+  optimisticRecipe: AtmoShaperRecipe
+}
+
 export type AtmoShaperRecipeActions = {
-  addLayer(layer: AtmoShaperLayer): void
+  addLayer(layer: AtmoShaperLayer, options?: { announce?: boolean }): AtmoShaperRecipe
   updateLayer(layerId: string, patch: AtmoShaperLayerPatch): void
   removeLayer(layerId: string): void
-  moveLayer(layerId: string, toIndex: number): void
+  moveLayer(layerId: string, toIndex: number, layerName: string): void
   removeRetainedLayer(layer: AtmoShaperLayer): void
   reset(): void
   restoreRetainedLayer(layer: AtmoShaperLayer, patch: AtmoShaperLayerPatch): void
+  settleLayerPromotion(
+    transaction: AtmoShaperPromotionTransaction,
+    settlement: AtmoShaperPromotionResult,
+  ): void
 }
 
 type RecipeOwnerState = {
   announcement: { id: number, message: string } | null
   recipe: AtmoShaperRecipe
+  syncRevision: number
 }
 
 type RecipeOwnerAction =
-  | { type: "add", layer: AtmoShaperLayer }
+  | { type: "add", recipe: AtmoShaperRecipe, announce: boolean }
   | { type: "announce", message: string }
-  | { type: "move", layerId: string, toIndex: number }
+  | { type: "move", layerId: string, toIndex: number, layerName: string }
   | { type: "remove", layerId: string }
   | { type: "remove-retained", layer: AtmoShaperLayer }
   | { type: "reset" }
   | { type: "restore-retained", layer: AtmoShaperLayer, patch: AtmoShaperLayerPatch }
+  | {
+    type: "settle-promotion"
+    transaction: AtmoShaperPromotionTransaction
+    settlement: AtmoShaperPromotionResult
+  }
   | { type: "update", layerId: string, patch: AtmoShaperLayerPatch }
 
 function nextAnnouncement(state: RecipeOwnerState, message: string) {
@@ -59,9 +81,27 @@ function recipeOwnerReducer(state: RecipeOwnerState, action: RecipeOwnerAction):
   switch (action.type) {
     case "add":
       return {
-        recipe: addAtmoShaperLayer(state.recipe, action.layer),
-        announcement: nextAnnouncement(state, "Layer added."),
+        ...state,
+        recipe: action.recipe,
+        announcement: action.announce
+          ? nextAnnouncement(state, "Layer added.")
+          : state.announcement,
       }
+    case "settle-promotion": {
+      const resolution = resolveSoundLibraryPromotionSettlement(
+        state.recipe,
+        action.transaction,
+        action.settlement,
+      )
+      return {
+        ...state,
+        recipe: resolution.recipe,
+        announcement: resolution.announcement
+          ? nextAnnouncement(state, resolution.announcement)
+          : state.announcement,
+        syncRevision: state.syncRevision + resolution.syncRevisionDelta,
+      }
+    }
     case "update":
       return {
         ...state,
@@ -69,6 +109,7 @@ function recipeOwnerReducer(state: RecipeOwnerState, action: RecipeOwnerAction):
       }
     case "remove":
       return {
+        ...state,
         recipe: removeAtmoShaperLayer(state.recipe, action.layerId),
         announcement: nextAnnouncement(state, "Layer removed."),
       }
@@ -76,6 +117,10 @@ function recipeOwnerReducer(state: RecipeOwnerState, action: RecipeOwnerAction):
       return {
         ...state,
         recipe: moveAtmoShaperLayer(state.recipe, action.layerId, action.toIndex),
+        announcement: nextAnnouncement(
+          state,
+          `${action.layerName} moved to position ${action.toIndex + 1}.`,
+        ),
       }
     case "restore-retained":
       return {
@@ -84,11 +129,13 @@ function recipeOwnerReducer(state: RecipeOwnerState, action: RecipeOwnerAction):
       }
     case "remove-retained":
       return {
+        ...state,
         recipe: removeRetainedAtmoShaperLayer(state.recipe, action.layer),
         announcement: nextAnnouncement(state, "Layer removed."),
       }
     case "reset":
       return {
+        ...state,
         recipe: createAtmoShaperRecipe({ id: state.recipe.id }),
         announcement: nextAnnouncement(state, "Current mix cleared."),
       }
@@ -107,8 +154,9 @@ export function useAtmoShaperRecipe() {
       createId: () => crypto.randomUUID(),
     }),
     announcement: null,
+    syncRevision: 0,
   }))
-  const { recipe } = state
+  const { recipe, syncRevision } = state
 
   useEffect(() => {
     if (!shouldSyncAtmoShaperWorkspaceRecipe({
@@ -117,11 +165,19 @@ export function useAtmoShaperRecipe() {
       providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
     })) return
     void updateAtmoShaper(recipe)
-  }, [music.activePlaybackKind, music.atmoShaperSnapshot?.recipe?.id, recipe, updateAtmoShaper])
+  }, [
+    music.activePlaybackKind,
+    music.atmoShaperSnapshot?.recipe?.id,
+    recipe,
+    syncRevision,
+    updateAtmoShaper,
+  ])
 
   const actions: AtmoShaperRecipeActions = {
-    addLayer(layer) {
-      dispatch({ type: "add", layer })
+    addLayer(layer, options) {
+      const nextRecipe = addAtmoShaperLayer(recipe, layer)
+      dispatch({ type: "add", recipe: nextRecipe, announce: options?.announce !== false })
+      return nextRecipe
     },
     updateLayer(layerId, patch) {
       dispatch({ type: "update", layerId, patch })
@@ -129,8 +185,8 @@ export function useAtmoShaperRecipe() {
     removeLayer(layerId) {
       dispatch({ type: "remove", layerId })
     },
-    moveLayer(layerId, toIndex) {
-      dispatch({ type: "move", layerId, toIndex })
+    moveLayer(layerId, toIndex, layerName) {
+      dispatch({ type: "move", layerId, toIndex, layerName })
     },
     restoreRetainedLayer(layer, patch) {
       dispatch({ type: "restore-retained", layer, patch })
@@ -140,6 +196,9 @@ export function useAtmoShaperRecipe() {
     },
     reset() {
       dispatch({ type: "reset" })
+    },
+    settleLayerPromotion(transaction, settlement) {
+      dispatch({ type: "settle-promotion", transaction, settlement })
     },
   }
 

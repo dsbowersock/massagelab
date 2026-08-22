@@ -3,10 +3,13 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 const componentUrls = {
+  brainwaveArtwork: new URL("../components/atmoshaper/brainwave-artwork.tsx", import.meta.url),
   controls: new URL("../components/atmoshaper/brainwave-layer-controls.tsx", import.meta.url),
   hook: new URL("../components/atmoshaper/use-atmoshaper-recipe.ts", import.meta.url),
   library: new URL("../components/atmoshaper/sound-library.tsx", import.meta.url),
+  model: new URL("../components/atmoshaper/sound-library-model.js", import.meta.url),
   mix: new URL("../components/atmoshaper/current-mix.tsx", import.meta.url),
+  noiseArtwork: new URL("../components/atmoshaper/noise-artwork.tsx", import.meta.url),
   workspace: new URL("../components/atmoshaper/atmoshaper-workspace.tsx", import.meta.url),
 }
 
@@ -19,14 +22,35 @@ async function readSource(url) {
   }
 }
 
-const [controlsSource, hookSource, librarySource, mixSource, workspaceSource] = await Promise.all([
+const [
+  brainwaveArtworkSource,
+  controlsSource,
+  hookSource,
+  librarySource,
+  modelSource,
+  mixSource,
+  noiseArtworkSource,
+  workspaceSource,
+] = await Promise.all([
+  readSource(componentUrls.brainwaveArtwork),
   readSource(componentUrls.controls),
   readSource(componentUrls.hook),
   readSource(componentUrls.library),
+  readSource(componentUrls.model),
   readSource(componentUrls.mix),
+  readSource(componentUrls.noiseArtwork),
   readSource(componentUrls.workspace),
 ])
-const packageSource = [controlsSource, hookSource, librarySource, mixSource, workspaceSource].join("\n")
+const packageSource = [
+  brainwaveArtworkSource,
+  controlsSource,
+  hookSource,
+  librarySource,
+  modelSource,
+  mixSource,
+  noiseArtworkSource,
+  workspaceSource,
+].join("\n")
 
 describe("AtmoShaper live-session workspace source contract", () => {
   it("owns one session recipe through the canonical pure helpers", () => {
@@ -86,12 +110,10 @@ describe("AtmoShaper live-session workspace source contract", () => {
     assert.match(librarySource, /setPendingStation/)
     assert.match(librarySource, /AlertDialog/)
     assert.match(librarySource, /Replace station foundation/)
-    assert.match(librarySource, /addLayer\(createStationLayer/)
-    assert.doesNotMatch(
-      librarySource,
-      /currentStationLayer\.sourceId !== station\.id/,
-      "customized station replacement needs confirmation even when the selected source is unchanged",
-    )
+    assert.match(librarySource, /resolveSoundLibraryCommit/)
+    assert.match(librarySource, /resolution\.type === "select-existing"/)
+    assert.match(librarySource, /stationReplacementConfirmed/)
+    assert.doesNotMatch(librarySource, /currentStationLayer\.sourceId !==/)
   })
 
   it("renders ordered layer controls and source-aware transport", () => {
@@ -135,6 +157,25 @@ describe("AtmoShaper live-session workspace source contract", () => {
     assert.match(mixSource, /tabIndex=\{-1\}/)
   })
 
+  it("consumes selection focus once without replaying it after row removal", () => {
+    const removalFocusEffect = mixSource.indexOf("const focusTarget = pendingFocusTargetRef.current")
+    const alreadyHandledGuard = mixSource.indexOf(
+      "lastHandledSelectionRequestKeyRef.current === activeLayerRequestKey",
+    )
+    const missingRowGuard = mixSource.indexOf("if (!activeRow) return")
+    const consumeRequest = mixSource.indexOf(
+      "lastHandledSelectionRequestKeyRef.current = activeLayerRequestKey",
+    )
+
+    assert.ok(removalFocusEffect >= 0 && alreadyHandledGuard > removalFocusEffect)
+    assert.ok(missingRowGuard >= 0 && consumeRequest > missingRowGuard)
+    assert.equal(
+      mixSource.match(/lastHandledSelectionRequestKeyRef\.current = activeLayerRequestKey/g)?.length,
+      1,
+    )
+    assert.match(mixSource, /\[activeLayerRequestKey, activeRowKey, rowKeySignature\]/)
+  })
+
   it("projects retained runtime rows only for the current local recipe owner", () => {
     assert.match(mixSource, /projectRetainedAtmoShaperLayersForWorkspace/)
     assert.match(mixSource, /activePlaybackKind:\s*music\.activePlaybackKind/)
@@ -147,9 +188,19 @@ describe("AtmoShaper live-session workspace source contract", () => {
     assert.match(workspaceSource, /aria-live="polite"/)
     assert.match(hookSource, /Layer added/)
     assert.match(hookSource, /Layer removed/)
+    assert.match(hookSource, /moved to position/)
+    assert.match(hookSource, /action\.toIndex \+ 1/)
+    assert.match(hookSource, /return nextRecipe/)
+    assert.match(hookSource, /syncRevision: state\.syncRevision \+ resolution\.syncRevisionDelta/)
+    assert.match(hookSource, /const \{ recipe, syncRevision \} = state/)
+    assert.match(hookSource, /recipe,\s*syncRevision,\s*updateAtmoShaper,/)
     assert.match(workspaceSource, /sourceName} failed/)
+    assert.match(workspaceSource, /resolveSoundLibraryPreviewAnnouncement/)
+    assert.match(modelSource, /previousState\?\.sourceKey === nextState\.sourceKey/)
+    assert.match(modelSource, /previousState\.status === nextState\.status/)
     assert.doesNotMatch(controlsSource, /aria-live/)
     assert.doesNotMatch(mixSource, /aria-live/)
+    assert.doesNotMatch(librarySource, /role="alert"/)
   })
 
   it("names source actions and announces every new failure through a stable live region", () => {
@@ -166,5 +217,84 @@ describe("AtmoShaper live-session workspace source contract", () => {
     assert.match(librarySource, /intentionally pulsing/i)
     assert.doesNotMatch(packageSource, /treat|therap|diagnos|cognitive|brain health|sleep treatment/i)
     assert.doesNotMatch(packageSource, /Save As|My Mixes|Paywall|Supporter|purchase|checkout/i)
+  })
+
+  it("wires card preview, promotion, duplicate selection, and route cleanup", () => {
+    for (const contract of [
+      /previewAtmoShaperLayer/,
+      /stopAtmoShaperPreview/,
+      /setAtmoShaperPreviewVolume/,
+      /promoteAtmoShaperPreview\(optimisticRecipe\)/,
+      /actions\.addLayer\(preview\.layer, \{ announce: false \}\)/,
+      /actions\.addLayer\(resolution\.layer\)/,
+      /soundLibraryCommitIsPending/,
+      /beginSoundLibraryPendingCommit/,
+      /settleSoundLibraryPendingCommit/,
+      /actions\.settleLayerPromotion\(transaction, settlement\)/,
+      /aria-busy=\{commitPending \|\| undefined\}/,
+      /onSelectLayer\(resolution\.layerId\)/,
+      /Previewing/,
+      /Retry/,
+      /Stop Preview/,
+    ]) assert.match(librarySource, contract)
+
+    assert.match(workspaceSource, /layerSelectionRequest/)
+    assert.match(workspaceSource, /createAtmoShaperLayerSelectionRequest\(current, layerId\)/)
+    assert.match(workspaceSource, /activeLayerRequestKey=\{layerSelectionRequest\?\.requestKey \?\? 0\}/)
+    assert.match(workspaceSource, /onSelectLayer=\{selectLayer\}/)
+    assert.match(workspaceSource, /void stopAtmoShaperPreview\(\)/)
+    assert.match(mixSource, /activeLayerId/)
+    assert.match(mixSource, /activeLayerRequestKey/)
+    assert.match(mixSource, /lastHandledSelectionRequestKeyRef/)
+    assert.match(
+      mixSource,
+      /lastHandledSelectionRequestKeyRef\.current === activeLayerRequestKey\) return/,
+    )
+    assert.match(mixSource, /if \(!activeRowKey\) return/)
+    assert.match(mixSource, /if \(!activeRow\) return/)
+    assert.match(
+      mixSource,
+      /lastHandledSelectionRequestKeyRef\.current = activeLayerRequestKey/,
+    )
+    assert.match(mixSource, /activeRow\?\.focus\(\{ preventScroll: true \}\)/)
+    assert.match(mixSource, /activeRow\?\.scrollIntoView/)
+    assert.match(mixSource, /\[activeLayerRequestKey, activeRowKey, rowKeySignature\]/)
+
+  })
+
+  it("composes semantic glow and success controls without nested buttons", () => {
+    assert.match(librarySource, /<TabsTrigger key=\{value\} value=\{value\} asChild>/)
+    assert.match(librarySource, /variant="glow"/)
+    assert.match(librarySource, /size="compact"/)
+    assert.match(librarySource, /variant="success"/)
+    assert.match(mixSource, /variant="success"/)
+    assert.doesNotMatch(librarySource, /<TabsTrigger[^>]*>\s*<button/)
+  })
+
+  it("uses canonical station art and decorative static source artwork", () => {
+    assert.match(librarySource, /AtmosphereStationArtwork/)
+    assert.match(librarySource, /resolveAtmosphereStationArtworkInput\(station\)/)
+    assert.doesNotMatch(librarySource, /\/api\/atmosphere\/stations|renderAtmosphereStationArtworkSvg/)
+
+    assert.match(noiseArtworkSource, /feTurbulence/)
+    assert.match(noiseArtworkSource, /aria-hidden="true"/)
+    for (const color of ["white", "pink", "brown"]) {
+      assert.match(noiseArtworkSource, new RegExp(`${color}:`))
+    }
+
+    assert.match(brainwaveArtworkSource, /data-wave-channel="left"/)
+    assert.match(brainwaveArtworkSource, /data-wave-channel="right"/)
+    assert.match(brainwaveArtworkSource, /data-pulse-envelope="true"/)
+    assert.match(brainwaveArtworkSource, /aria-hidden="true"/)
+    assert.doesNotMatch(brainwaveArtworkSource, /requestAnimationFrame|setInterval|useEffect/)
+  })
+
+  it("keeps source identity decisions pure and outside persistence", () => {
+    assert.match(modelSource, /createSoundLibraryCandidateLayer/)
+    assert.match(modelSource, /getAtmoShaperSourceConfigurationKey/)
+    assert.match(modelSource, /atmoShaperPreviewMatchesCandidate/)
+    assert.match(modelSource, /resolveSoundLibraryCommit/)
+    assert.match(modelSource, /type: "select-existing"/)
+    assert.doesNotMatch(modelSource, /localStorage|sessionStorage|fetch\(|use server/i)
   })
 })

@@ -62,6 +62,11 @@ type AtmoShaperPromotionSettlement =
   | "retire-unowned"
   | "superseded"
 
+export type AtmoShaperPromotionResult =
+  | { status: "promoted" }
+  | { status: "failed", error: string }
+  | { status: "superseded" }
+
 /** Pure ownership predicates used by the async promotion transaction. */
 function hasCommittedAtmoShaperMediaOwnership(
   runtimeOwner: "committed" | "preview" | null,
@@ -95,6 +100,17 @@ function settleAtmoShaperPromotion(input: {
     return input.hadMediaOwnership ? "restore-committed" : "retire-unowned"
   }
   return input.runtimeCurrent ? "commit" : "superseded"
+}
+
+/** Maps private ownership cleanup to the stable UI-facing transaction result. */
+function toAtmoShaperPromotionResult(
+  settlement: AtmoShaperPromotionSettlement,
+  error?: string,
+): AtmoShaperPromotionResult {
+  if (error) return { status: "failed", error }
+  return settlement === "commit"
+    ? { status: "promoted" }
+    : { status: "superseded" }
 }
 
 /** Admits an awaited preview only while its exact local and global intent remains current. */
@@ -221,7 +237,7 @@ interface MusicContextType {
   previewAtmoShaperLayer: (layer: AtmoShaperLayer) => Promise<void>
   setAtmoShaperPreviewVolume: (volume: number) => Promise<void>
   stopAtmoShaperPreview: () => Promise<void>
-  promoteAtmoShaperPreview: (recipe: AtmoShaperRecipe) => Promise<void>
+  promoteAtmoShaperPreview: (recipe: AtmoShaperRecipe) => Promise<AtmoShaperPromotionResult>
   playNextStation: () => Promise<void>
   playPreviousStation: () => Promise<void>
   prewarmStation: (
@@ -416,7 +432,7 @@ const defaultMusicContext: MusicContextType = {
   previewAtmoShaperLayer: async () => undefined,
   setAtmoShaperPreviewVolume: async () => undefined,
   stopAtmoShaperPreview: async () => undefined,
-  promoteAtmoShaperPreview: async () => undefined,
+  promoteAtmoShaperPreview: async () => ({ status: "superseded" }),
   playNextStation: async () => undefined,
   playPreviousStation: async () => undefined,
   prewarmStation: async () => undefined,
@@ -505,7 +521,7 @@ export function MusicProvider({
     runtimeLease: number
   } | null>(null)
   const atmoShaperPromotionGenerationRef = useRef(0)
-  const atmoShaperPromotionPromiseRef = useRef<Promise<void> | null>(null)
+  const atmoShaperPromotionPromiseRef = useRef<Promise<AtmoShaperPromotionResult> | null>(null)
   const atmoShaperPromotedPreviewRef = useRef<AtmoShaperPromotionAdoptionReceipt | null>(null)
   const atmoShaperCommandGateRef = useRef<ReturnType<typeof createAtmoShaperProviderCommandGate> | null>(null)
   if (atmoShaperCommandGateRef.current === null) {
@@ -1814,12 +1830,17 @@ export function MusicProvider({
     const preview = atmoShaperPreviewRef.current
     const runtimeLease = atmoShaperRuntimeLeaseRef.current
     const commandGate = atmoShaperCommandGateRef.current
-    if (
-      !runtime
-      || !preview
-      || !commandGate
-      || (preview.status !== "playing" && preview.status !== "paused")
-    ) return
+    if (!runtime || !preview || !commandGate) {
+      return toAtmoShaperPromotionResult("superseded")
+    }
+    if (preview.status !== "playing" && preview.status !== "paused") {
+      return preview.status === "failed"
+        ? toAtmoShaperPromotionResult(
+          "commit",
+          preview.error ?? "This preview could not be promoted.",
+        )
+        : toAtmoShaperPromotionResult("superseded")
+    }
 
     atmoShaperPreviewRequestLeaseRef.current += 1
     const promotionGeneration = ++atmoShaperPromotionGenerationRef.current
@@ -1935,7 +1956,7 @@ export function MusicProvider({
       if (failureMessage) setError(failureMessage)
     }
 
-    const promotionPromise = (async () => {
+    const promotionPromise = (async (): Promise<AtmoShaperPromotionResult> => {
       try {
         let promotionCommand: {
           recipe: AtmoShaperRecipe
@@ -1995,20 +2016,22 @@ export function MusicProvider({
           sessionCurrent: sessionGeneration === playbackSessionGenerationRef.current,
           hadMediaOwnership,
         })
-        if (settlement === "superseded") return
+        if (settlement === "superseded") return toAtmoShaperPromotionResult(settlement)
         if (settlement === "retire-unowned") {
           await retireUnownedPromotion()
-          return
+          return toAtmoShaperPromotionResult(settlement)
         }
         if (settlement === "restore-committed") {
           await restoreCommittedPromotion()
-          return
+          return toAtmoShaperPromotionResult(settlement)
         }
         if (
           !promotionCommand
           || !areAtmoShaperRecipesEqual(readDesiredPromotionRecipe(), promotionCommand.recipe)
         ) {
-          throw new Error("The preview promotion was superseded before adoption.")
+          if (hadMediaOwnership) await restoreCommittedPromotion()
+          else await retireUnownedPromotion()
+          return toAtmoShaperPromotionResult("superseded")
         }
 
         const committedRecipe = promotionCommand.recipe
@@ -2077,13 +2100,19 @@ export function MusicProvider({
           if (!hadMediaOwnership) {
             commitPlaybackLifecycle({ type: "START_FAILED", sessionId: lifecycleSessionId })
           }
-          setError(firstAtmoShaperError(snapshot) ?? "AtmoShaper could not promote this preview.")
+          const failureMessage = firstAtmoShaperError(snapshot)
+            ?? "AtmoShaper could not promote this preview."
+          setError(failureMessage)
           mediaCarrierRef.current?.stopAndDismiss()
           publishMediaSession(metadata, "failed")
+          return toAtmoShaperPromotionResult("commit", failureMessage)
         }
+        return toAtmoShaperPromotionResult("commit")
       } catch (caughtError) {
         if (carrierStartPromise) await carrierStartPromise.catch(() => ({ available: false }))
-        if (!isPromotionTransactionCurrent() || !isGlobalTransactionCurrent()) return
+        if (!isPromotionTransactionCurrent() || !isGlobalTransactionCurrent()) {
+          return toAtmoShaperPromotionResult("superseded")
+        }
         const message = caughtError instanceof Error
           ? caughtError.message
           : "AtmoShaper preview could not be promoted."
@@ -2092,6 +2121,11 @@ export function MusicProvider({
         } else {
           await retireUnownedPromotion(message)
         }
+        if (
+          promotionGeneration !== atmoShaperPromotionGenerationRef.current
+          || !isGlobalTransactionCurrent()
+        ) return toAtmoShaperPromotionResult("superseded")
+        return toAtmoShaperPromotionResult("commit", message)
       } finally {
         if (atmoShaperPromotionRef.current === promotionTransaction) {
           atmoShaperPromotionRef.current = null
@@ -2099,8 +2133,9 @@ export function MusicProvider({
       }
     })()
     atmoShaperPromotionPromiseRef.current = promotionPromise
+    let promotionResult: AtmoShaperPromotionResult
     try {
-      await promotionPromise
+      promotionResult = await promotionPromise
     } finally {
       if (atmoShaperPromotionPromiseRef.current === promotionPromise) {
         atmoShaperPromotionPromiseRef.current = null
@@ -2118,6 +2153,7 @@ export function MusicProvider({
           sessionGeneration,
         }))
     }
+    return promotionResult
   }, [
     cancelStoppedPlayerRetirement,
     commitPlaybackLifecycle,
