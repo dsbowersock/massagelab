@@ -2,7 +2,7 @@
 
 Date: 2026-08-21
 
-Status: Approved for implementation planning.
+Status: Core mixer approved and implemented; AtmoShaper UI redesign approved for implementation planning on 2026-08-22.
 
 ## Context
 
@@ -64,6 +64,16 @@ Starting an ordinary station stops and disposes the active AtmoShaper session be
 
 The bottom player represents the complete active mix, not its individual layers. It displays the mix name, AtmoShaper artwork, loading or failure state, play/pause, stop, and master volume. It must not create a second player bar.
 
+### Temporary Sound Preview
+
+AtmoShaper owns one optional temporary preview source in addition to its committed recipe layers. Preview uses the same global playback-ownership and shared-output contracts as the mix controller; it is never allowed to create an independent player or an unmanaged second audio owner.
+
+Only one preview may exist at a time. Starting another preview fades out and disposes the first before the replacement becomes audible. When a mix is playing, preview layers over that mix. When no mix is playing, preview plays alone. Starting a preview while an ordinary Atmosphere station owns playback stops that station first. A user who wants an Atmosphere station combined with other sources adds the station as AtmoShaper's foundation layer.
+
+Preview remains outside the recipe, collapsed Current Mix rail, persistence, player metadata, and saved-mix model. Adding the previewed source promotes it into a committed layer with a smooth handoff that neither duplicates the sound nor produces an obvious stop-and-restart. Preview stops on explicit Stop Preview, leaving AtmoShaper, starting ordinary playback, stopping all AtmoShaper audio, or unrecoverable preview failure.
+
+The Sound Library exposes a persistent Previewing status strip whenever a preview is active. It identifies the source and provides preview volume and Stop Preview controls so the user does not need to find the original card again. Binaural and isochronic previews use the currently selected waveform and frequency configuration.
+
 ### AtmoShaper Mix Controller
 
 A dedicated browser-only mix controller sits behind a small interface consumed by `MusicProvider` and the workspace. It owns layer creation, connection to a shared mix output, parameter changes, start/pause/resume/stop, and disposal.
@@ -98,21 +108,43 @@ The workspace contains:
 
 Master controls include Play/Pause, Stop, master volume, Save, and Save As. The current mix remains visible while the user explores the library.
 
-On wide viewports, the sound library and current mix sit side by side and use the available width and height. On narrow viewports, Current Mix becomes a persistent compact tray that expands into an accessible sheet. The tray and sheet account for the bottom navigation and global player bar rather than overlapping them.
+The Sound Library is the primary full-width workspace. Current Mix is represented by a persistent narrow rail placed on the side opposite the configured application sidebar. A left application sidebar produces a right Current Mix rail; a right application sidebar produces a left rail. This remains true on phones and larger geometries.
+
+The rail reserves only its narrow strip. Opening Current Mix slides an overlay drawer above the Sound Library without resizing, shifting, or squashing the library. On roomy tablet, laptop, desktop, and television geometries, the drawer has a bounded width and is modeless: the uncovered library remains visible and interactive. On narrow phone geometries, it uses nearly the full available content width, applies a subtle backdrop, contains keyboard focus, and restores focus to the opening control when closed.
+
+The collapsed rail contains the drawer toggle, master Play/Pause and Stop controls, and one ordered icon for every committed layer. Each layer icon communicates loading, muted, and failed states, provides Mute/Unmute, and opens the drawer directly to that layer. The collapsed rail reflects recipe order but is not itself a drag surface.
+
+The expanded drawer contains the complete master transport and every layer's volume, mute, retry, remove, and source-specific controls. Each layer row has a drag handle for pointer and touch reordering plus a keyboard alternative that supports grab, arrow movement, drop, and cancel. Reordering is organizational only and does not change audio routing or sound.
+
+Adding the first committed layer opens the drawer directly to that layer and leaves it open until the user closes it. Later additions respect the user's current drawer state and do not force it open. Adding a source that is already present selects its existing layer instead of silently duplicating it, except for source types explicitly designed to support independently configured duplicates.
 
 Layout thresholds derive from measured workspace geometry and CSS capabilities, not device labels, user-agent detection, or browser-zoom detection. The page must avoid document-level horizontal scrolling, keep controls reachable under enlarged text, preserve touch targets, and remain usable in constrained phone landscape. More space should reveal or enlarge useful content rather than leaving the core experience TV-small.
+
+The rail and drawer account for the persistent global player, bottom navigation, application sidebar, and device safe-area insets. They must never cover those controls or create document-level overflow. Opening and closing use a side-aware transition that becomes immediate or minimal under reduced motion.
+
+### Sound Library Visual Language
+
+Sound Library categories use the same horizontally scrollable glow-pill language as the Atmosphere Station category rail. The selected category uses the purple selected glow; unselected categories use the warm orange glow. Endpoint padding preserves the full glow without masks or hard clipping, and keyboard selection scrolls the active pill into view.
+
+Library cards use a fluid container-responsive grid. Collapsing Current Mix naturally gives the grid more usable space, while opening the overlay drawer does not recalculate or compress it.
+
+Generated white, pink, and brown noise cards show deterministic decorative noise textures in their named color families, with sufficient contrast for text and controls. Any subtle decorative animation stops under reduced motion. Existing Atmosphere station cards use canonical station artwork. Binaural and isochronic cards use relevant wave or frequency imagery rather than generic empty panels. Future ambient catalog entries use licensed artwork or a cohesive generated illustration when no source artwork exists.
+
+Add actions and Play AtmoShaper use the semantic forest/leaf-green success treatment. Preview remains a visually distinct secondary action. Binaural and isochronic waveform choices use glow buttons: purple for the current selection and warm orange for alternatives. Stop, Remove, Retry, and Mute retain their neutral, warning, or destructive semantics. Loading and unavailable states preserve control geometry to prevent layout shifts.
 
 ## Layer Controls
 
 ### Ambient And Noise Layers
 
-Ambient catalog entries expose Add, preview where appropriate, source details, and credit/license details. Added layers expose volume, mute, replace, remove, loading, error, and retry controls.
+Ambient catalog entries expose Add, Preview, source details, and credit/license details. Added layers expose volume, mute, replace, remove, loading, error, and retry controls.
 
 Generated white, pink, and brown noise use native generation rather than loop assets when the implementation proves stable and efficient. They follow the same layer contract as catalog audio.
 
 ### Existing Station Foundation
 
 The station library exposes the playable MassageLab generator catalog. Adding a station replaces any existing station foundation after confirmation when replacement would discard unsaved foundation-specific settings. The foundation retains safe station/runtime options supported by the existing adapter; AtmoShaper does not expose arbitrary generator internals in version one.
+
+Station browsing and Preview use the same canonical artwork resolver as the ordinary Atmosphere station experience. Previewing a station does not start it through the ordinary station controller; it uses AtmoShaper's temporary-preview ownership path.
 
 ### Binaural And Isochronic Layers
 
@@ -221,6 +253,8 @@ Lossless masters, downloads, and license evidence remain outside Git. The reposi
 ## Error Handling
 
 - A single layer load, decode, generator, or playback failure does not stop healthy layers.
+- A preview failure leaves the committed recipe and healthy mix playback unchanged, reports the problem in the Previewing status area, and returns the source card to a retryable state.
+- Loading guards prevent duplicate Preview or Add requests for the same source.
 - A failed addition leaves the existing mix unchanged and provides Retry, Replace, and Remove actions.
 - Replacing a layer does not dispose the working source until the replacement is ready to fade in.
 - If every selected source fails, the mix enters a clear failed state while preserving the recipe.
@@ -234,11 +268,13 @@ Lossless masters, downloads, and license evidence remain outside Git. The reposi
 ## Accessibility And Motion
 
 - Every layer and master control has a visible label, keyboard operation, and screen-reader name/value/state.
+- Drawer toggle, Preview, Add, transport, mute, remove, and collapsed layer icons have explicit accessible names, visible focus states, and practical touch targets.
 - Volume and frequency controls use bounded ranges, useful steps, arrow-key support, and readable values.
 - Mute, remove, retry, and locked states do not rely on color alone.
-- Focus returns predictably when sheets close, layers are removed, or checkout/authentication returns.
+- The narrow drawer contains focus while open. The roomy modeless drawer permits focus movement between the drawer and visible Sound Library. Both restore focus predictably when closed; focus also remains predictable when layers are removed or checkout/authentication returns.
+- Drag handles support pointer and touch input plus keyboard grab, move, drop, and cancel. Reordering announces the layer's new position, and layer order is available as text rather than only spatial position.
 - Reduced motion removes decorative movement while retaining short audio ramps needed to prevent clicks.
-- Error, save, purchase, and playback changes use appropriate live-region announcements without narrating continuous slider movement.
+- Error, add, remove, reorder, preview, save, purchase, and playback changes use appropriate live-region announcements without narrating continuous slider movement.
 
 ## Testing And Validation
 
@@ -247,6 +283,8 @@ Lossless masters, downloads, and license evidence remain outside Git. The reposi
 - Recipe creation, validation, versioning, and migration.
 - One-per-type station, binaural, and isochronic constraints.
 - Layer ordering, mute, volume, replace, and removal state transitions.
+- Temporary preview ownership, one-preview replacement, volume, promotion into a committed layer, cleanup, and ordinary-station replacement.
+- Drawer side derivation from the configured application sidebar, first-layer discovery behavior, later-addition stability, and organizational-only reordering.
 - Global ordinary-station versus AtmoShaper ownership and cleanup.
 - Save/Save As, unlimited locked records, slot assignment, rename, duplicate, favorite, clear, and delete behavior.
 - Feature-key access, subscription lapse, permanent slot persistence, and server-authoritative checkout fulfillment.
@@ -257,13 +295,17 @@ Lossless masters, downloads, and license evidence remain outside Git. The reposi
 ### Browser Tests
 
 - Free construction and playback without authentication.
+- Preview plays without committing a layer, layers over an active AtmoShaper mix, replaces a previous preview smoothly, promotes through Add without duplication, and stops at every defined lifecycle boundary.
 - Clear pre-save disclosure and locked recall behavior.
 - Supporter recall and permanent-slot recall.
 - Auth and checkout round trips preserve the intended mix.
 - Active mix state and one player bar survive internal route navigation.
 - Starting ordinary playback and AtmoShaper replace each other correctly.
 - Partial layer failures preserve other playback and expose recovery.
-- Wide, narrow, portrait, landscape, enlarged-text, reduced-motion, keyboard, and touch layouts remain usable without document overflow or bottom-control collisions.
+- The opposite-edge rail and overlay drawer behave correctly for both sidebar positions; roomy drawers leave the visible library interactive while narrow drawers contain and restore focus.
+- Wide, narrow, portrait, landscape, enlarged-text, reduced-motion, keyboard, and touch layouts remain usable without library squashing, document overflow, or bottom-control collisions.
+- Drag-handle reordering works by pointer, touch, and keyboard while collapsed rail ordering remains accurate.
+- Glow-pill categories preserve endpoint glow; noise visuals, canonical station artwork, waveform glow controls, and semantic forest-green Add/Play actions render with accessible contrast.
 - Browser reload, interrupted load, offline/slow media, storage denial, and unsupported recipe cases fail safely.
 
 ### Audio And Performance QA
@@ -278,14 +320,13 @@ Standard repository validation remains required: Prisma validation/generation wh
 
 ## Delivery Structure
 
-Implementation proceeds through separately reviewable work packages while preserving one coherent product contract:
+Implementation proceeds through separately reviewable work packages while preserving one coherent product contract. The core recipe model, mix controller, representative generated sources, optional station foundation, player integration, initial workspace, and first acceptance gate are implemented. Remaining work proceeds in this order:
 
-1. Recipe model, controller contracts, representative adapters, and responsive workspace shell.
-2. Ambient/noise playback plus optional station foundation and generated binaural/isochronic layers.
-3. Moodist-first catalog audit, production processing pipeline, hosted catalog, and recording-gap list.
-4. Local/account persistence, guest import, non-destructive sync, and locked My Mixes experience.
-5. Supporter feature entitlement and one-dollar permanent-slot commerce with separate provider/tax readiness.
-6. Integrated failure recovery, accessibility, performance, browser matrix, audio QA, and release evidence.
+1. Opposite-edge Current Mix rail and overlay drawer, temporary preview lifecycle, drag-handle reordering, and cohesive Sound Library visual redesign.
+2. Moodist-first catalog audit, production processing pipeline, hosted catalog, and recording-gap list.
+3. Local/account persistence, guest import, non-destructive sync, and locked My Mixes experience.
+4. Supporter feature entitlement and one-dollar permanent-slot commerce with separate provider/tax readiness.
+5. Integrated catalog failure recovery, accessibility, performance, browser matrix, audio QA, and release evidence.
 
 Internal work may land incrementally behind an inaccessible or explicit development gate. The public category should not expose an incoherent half-built workflow.
 
@@ -294,7 +335,12 @@ Internal work may land incrementally behind an inaccessible or explicit developm
 - A visitor can build and play a valid AtmoShaper mix from one source or any supported combination without paying or signing in.
 - AtmoShaper and ordinary Atmosphere stations never play unintentionally at the same time.
 - Layer addition, removal, replacement, volume, mute, and source-specific changes are smooth and independently recoverable.
+- Every library source can be previewed without committing it; only one temporary preview exists, and Add promotes it without audible duplication.
 - The global player represents the complete AtmoShaper mix and no second player bar appears.
+- Current Mix remains available as an opposite-edge collapsed rail and opens as an overlay drawer without squashing the Sound Library.
+- Roomy overlay drawers leave the uncovered library usable; narrow drawers manage and restore focus.
+- Layer order can be changed with accessible drag handles, and the collapsed rail reflects that order without implying an audio-routing change.
+- The Sound Library uses Atmosphere-style glow category pills, generated color-appropriate noise art, canonical station art, glow waveform controls, and semantic forest-green Add/Play actions.
 - The workspace responds to available geometry across supported viewport shapes without device-name or zoom branches.
 - Free users can create unlimited clearly disclosed locked saves.
 - Active Supporter access recalls all mixes; inactive access relocks non-purchased mixes without deleting them.
