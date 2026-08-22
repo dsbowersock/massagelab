@@ -344,19 +344,19 @@ Expected: tests pass; old Current Mix desktop-column, bottom-tray, bottom-Sheet,
 
 **Verification:** Use the full command block from the plan header.
 
-- [ ] **Step 1:** Consume the provider-owned public preview diagnostics added in Task 2 and confirm the existing failure injection remains guarded, loopback-only, consumed once, and removed from ordinary production bundles. Do not add another browser global or private Tone-node inspection.
-- [ ] **Step 2:** Add desktop and mobile Chromium cases for preview alone without a global player, preview layered over a committed mix, smooth preview replacement, volume change, failed preview recovery, Stop Preview, and Add promotion retaining one audible handle/id and producing exactly one global player.
-- [ ] **Step 3:** Add ordinary-station-to-preview replacement, preview-to-ordinary replacement, leaving AtmoShaper cleanup, interruption pause/recovery, and explicit Stop-all cleanup cases.
-- [ ] **Step 4:** For both sidebar positions, assert rail and drawer appear on the opposite side. On roomy geometry, open the drawer, confirm Sound Library width does not change, and operate a visible library Add control while the drawer stays open. On narrow geometry, prove backdrop, focus containment, Escape close, and focus restoration to the exact opener, including an individual rail layer tile.
-- [ ] **Step 5:** Prove first-layer auto-open and later-addition stability, layer-icon open/focus/mute, rail loading/failure indicators, and accurate rail order after sorting.
-- [ ] **Step 6:** Prove pointer/touch handle sorting plus keyboard grab/arrow/drop/cancel. Assert recipe order changes but active layer ids and playback remain stable.
-- [ ] **Step 7:** Assert glow-pill endpoint visibility and keyboard behavior, selected purple/inactive warm glow, forest-green Add/Play, white/pink/brown procedural art, canonical station art ids, static binaural wave/isochronic pulse imagery, selected brainwave glow, accessible labels, and reduced-motion behavior.
-- [ ] **Step 8:** Run geometry/no-overflow cases at 375×667, 412×915, 844×390, 768×1024, 912×1368, 1440×900, and 2560×1440, plus 200% text. Record workspace, library, rail, drawer, app bar, player, and document scroll rectangles in assertion messages; assert the measured threshold formula and expected roomy/narrow classification rather than device labels.
-- [ ] **Step 9:** Run the full QA browser gate. Fix product code only for failures that contradict the approved specification; do not weaken prior core-mixer or Media Session assertions.
-- [ ] **Step 10:** Run the ordinary production build and `npm run atmoshaper:assert-production-bundle` after the QA run so no QA marker remains in final artifacts.
-- [ ] **Step 11:** Update `docs/wiki/atmosphere-audio.md` with the rail/drawer, preview ownership, promotion, reorder semantics, and retained future-scope boundary. Append a dated `docs/project-log.md` entry containing only verified results.
-- [ ] **Step 12:** Run the complete validation block and `git diff --check` from a fresh ordinary build.
-- [ ] **Step 13:** Self-review against every UI acceptance criterion and scan production scope with:
+- [x] **Step 1:** Consume the provider-owned public preview diagnostics added in Task 2 and confirm the existing failure injection remains guarded, loopback-only, consumed once, and removed from ordinary production bundles. Do not add another browser global or private Tone-node inspection.
+- [x] **Step 2:** Add desktop and mobile Chromium cases for preview alone without a global player, preview layered over a committed mix, smooth preview replacement, volume change, failed preview recovery, Stop Preview, and Add promotion retaining one audible handle/id and producing exactly one global player.
+- [x] **Step 3:** Add ordinary-station-to-preview replacement, preview-to-ordinary replacement, leaving AtmoShaper cleanup, interruption pause/recovery, and explicit Stop-all cleanup cases.
+- [x] **Step 4:** For both sidebar positions, assert rail and drawer appear on the opposite side. On roomy geometry, open the drawer, confirm Sound Library width does not change, and operate a visible library Add control while the drawer stays open. On narrow geometry, prove backdrop, focus containment, Escape close, and focus restoration to the exact opener, including an individual rail layer tile.
+- [x] **Step 5:** Prove first-layer auto-open and later-addition stability, layer-icon open/focus/mute, rail loading/failure indicators, and accurate rail order after sorting.
+- [x] **Step 6:** Prove pointer/touch handle sorting plus keyboard grab/arrow/drop/cancel. Assert recipe order changes but active layer ids and playback remain stable.
+- [x] **Step 7:** Assert glow-pill endpoint visibility and keyboard behavior, selected purple/inactive warm glow, forest-green Add/Play, white/pink/brown procedural art, canonical station art ids, static binaural wave/isochronic pulse imagery, selected brainwave glow, accessible labels, and reduced-motion behavior.
+- [x] **Step 8:** Run geometry/no-overflow cases at 375×667, 412×915, 844×390, 768×1024, 912×1368, 1440×900, and 2560×1440, plus 200% text. Record workspace, library, rail, drawer, app bar, player, and document scroll rectangles in assertion messages; assert the measured threshold formula and expected roomy/narrow classification rather than device labels.
+- [x] **Step 9:** Run the full QA browser gate. Fix product code only for failures that contradict the approved specification; do not weaken prior core-mixer or Media Session assertions.
+- [x] **Step 10:** Run the ordinary production build and `npm run atmoshaper:assert-production-bundle` after the QA run so no QA marker remains in final artifacts.
+- [x] **Step 11:** Update `docs/wiki/atmosphere-audio.md` with the rail/drawer, preview ownership, promotion, reorder semantics, and retained future-scope boundary. Append a dated `docs/project-log.md` entry containing only verified results.
+- [x] **Step 12:** Run the complete validation block and `git diff --check` from a fresh ordinary build.
+- [x] **Step 13:** Self-review against every UI acceptance criterion and scan production scope with:
 
 ```powershell
 rg -n "CurrentMixTray|Move earlier|Move later|ml-atmoshaper-mix-tray|ml-atmoshaper-current-mix-desktop|TODO|FIXME|Not implemented" components/atmoshaper lib/atmoshaper components/providers/music-provider.tsx app/globals.css
@@ -364,7 +364,7 @@ rg -n "CurrentMixTray|Move earlier|Move later|ml-atmoshaper-mix-tray|ml-atmoshap
 
 Expected: no retired Current Mix implementation and no incomplete redesign marker. Existing deliberate ambient-catalog follow-up copy is permitted when it does not match an implementation marker.
 
-- [ ] **Step 14:** Commit the verified acceptance/docs slice as `test(atmoshaper): verify redesigned mixer`.
+- [x] **Step 14:** Commit the verified acceptance/docs slice as `test(atmoshaper): verify redesigned mixer`.
 
 ## Risks and Mitigations
 

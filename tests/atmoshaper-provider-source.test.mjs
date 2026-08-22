@@ -371,11 +371,111 @@ describe("AtmoShaper provider ownership contract", () => {
     )
     assert.match(stopPath, /await stopAtmoShaperPreview\(\)/)
     assert.match(stopPath, /await atmoShaperPreviewStop/)
-    assert.match(stopPath, /await disposeAtmoShaperRuntime\(\)/)
+    assert.match(stopPath, /const runtimeDisposal = disposeAtmoShaperRuntime\(\)/)
+    assert.match(stopPath, /await runtimeDisposal/)
     assert.match(stopPath, /commitOwnedPlaybackEffect/)
     assert.match(stopPath, /requestId === playbackRequestIdRef\.current/)
     assert.match(stopPath, /activePlaybackKindRef\.current === stoppedPlaybackKind/)
+    assert.match(stopPath, /let stopCleanupOwned = false/)
+    assert.match(stopPath, /stopCleanupOwned = true[\s\S]*?const runtimeDisposal/)
+    assert.match(
+      stopPath,
+      /isCurrent:\s*\(\)\s*=>\s*\(\s*stopCleanupOwned/,
+      "only a Stop that passed the post-await owner check may publish its stopped snapshot",
+    )
     assert.match(stopPath, /scheduleStoppedPlayerRetirement/)
+    const explicitStopIndex = stopPath.indexOf('commitPlaybackLifecycle({ type: "EXPLICIT_STOP" })')
+    const deadlineIndex = stopPath.indexOf("scheduleStoppedPlayerRetirement(")
+    const firstAsyncTeardownIndex = stopPath.indexOf("const atmoShaperPreviewStop = stopAtmoShaperPreview()")
+    assert.ok(explicitStopIndex !== -1)
+    assert.ok(
+      explicitStopIndex < deadlineIndex && deadlineIndex < firstAsyncTeardownIndex,
+      "the 60-second deadline must anchor to explicit Stop before async preview/runtime teardown",
+    )
+    assert.equal(
+      (stopPath.match(/scheduleStoppedPlayerRetirement\(/g) ?? []).length,
+      1,
+      "station and AtmoShaper Stop share one intent-anchored deadline",
+    )
+    assert.match(restartPath, /^([\s\S]*?)cancelStoppedPlayerRetirement\(\)/)
+
+    const stationPath = sourceBetween("const playStation = useCallback", "const updateAtmoShaper = useCallback")
+    assert.match(stationPath, /^([\s\S]*?)cancelStoppedPlayerRetirement\(\)/)
+    const retirementPath = sourceBetween(
+      "const retireStoppedPlayer = useCallback",
+      "/** Replaces the prior Stop deadline",
+    )
+    assert.match(retirementPath, /sessionGeneration !== playbackSessionGenerationRef\.current/)
+    assert.match(retirementPath, /activePlaybackKindRef\.current !== stoppedPlaybackKind/)
+    assert.match(retirementPath, /activeStationIdRef\.current !== stoppedStationId/)
+  })
+
+  it("does not let delayed Stop teardown dispose a retained-player restart", async () => {
+    const stopPath = sourceBetween("const stopCurrent = useCallback", "const handleInterruptionStarted = useCallback")
+    const previewAwaitIndex = stopPath.indexOf("await atmoShaperPreviewStop")
+    const cleanupGuardIndex = stopPath.indexOf("if (", previewAwaitIndex)
+    const runtimeDisposalIndex = stopPath.indexOf("const runtimeDisposal = disposeAtmoShaperRuntime()")
+    assert.ok(previewAwaitIndex !== -1)
+    assert.ok(
+      previewAwaitIndex < cleanupGuardIndex && cleanupGuardIndex < runtimeDisposalIndex,
+      "Stop must recheck its captured owner after preview teardown and before invalidating the runtime lease",
+    )
+    const cleanupBoundary = stopPath.slice(cleanupGuardIndex, runtimeDisposalIndex)
+    assert.match(cleanupBoundary, /requestId !== playbackRequestIdRef\.current/)
+    assert.match(cleanupBoundary, /sessionGeneration !== playbackSessionGenerationRef\.current/)
+    assert.match(cleanupBoundary, /activePlaybackKindRef\.current !== stoppedPlaybackKind/)
+    assert.match(cleanupBoundary, /atmoShaperRuntimeOwnerRef\.current !== "committed"/)
+    assert.doesNotMatch(
+      cleanupBoundary,
+      /await\s/,
+      "nothing may yield between the current-owner check and synchronous lease invalidation",
+    )
+
+    const previewTeardown = deferred()
+    const oldRuntime = { id: "retained-atmoshaper-runtime", status: "stopped", disposed: false }
+    const state = {
+      activePlaybackKind: "atmoshaper",
+      owner: "committed",
+      playbackSessionGeneration: 7,
+      requestId: 12,
+      runtime: oldRuntime,
+      runtimeLease: 4,
+      retirementArmed: true,
+    }
+    const stoppedCapture = {
+      playbackKind: state.activePlaybackKind,
+      requestId: state.requestId,
+      sessionGeneration: state.playbackSessionGeneration,
+    }
+    const staleStopContinuation = (async () => {
+      await previewTeardown.promise
+      if (
+        stoppedCapture.requestId !== state.requestId
+        || stoppedCapture.sessionGeneration !== state.playbackSessionGeneration
+        || state.activePlaybackKind !== stoppedCapture.playbackKind
+        || state.owner !== "committed"
+      ) return false
+      state.runtimeLease += 1
+      state.runtime.disposed = true
+      state.runtime = null
+      state.owner = null
+      return true
+    })()
+
+    // Retained-player Play takes authority while Stop is still waiting for the
+    // held preview teardown. The same live runtime is resumed in place.
+    state.requestId += 1
+    state.retirementArmed = false
+    state.runtime.status = "playing"
+    previewTeardown.resolve()
+
+    assert.equal(await staleStopContinuation, false)
+    assert.equal(state.runtime, oldRuntime)
+    assert.equal(state.runtime.status, "playing")
+    assert.equal(state.runtime.disposed, false)
+    assert.equal(state.owner, "committed")
+    assert.equal(state.runtimeLease, 4)
+    assert.equal(state.retirementArmed, false)
   })
 
   it("routes volume, Media Session, interruption, and navigation by current owner", () => {
@@ -924,6 +1024,140 @@ describe("AtmoShaper provider ownership contract", () => {
     assert.match(restartPath, /snapshot\.status === "playing"[\s\S]*?else[\s\S]*?stopAndDismiss\(\)/)
     assert.match(stopPath, /mediaCarrierRef\.current\?\.stopAndDismiss\(\)/)
     assert.match(stopPath, /mediaSessionControllerRef\.current\?\.clear\(\)/)
+  })
+
+  it("keeps explicit Stop authoritative over delayed committed runtime callbacks", () => {
+    const snapshotPath = sourceBetween(
+      "const publishAtmoShaperRuntimeSnapshot = useCallback",
+      "const loadAtmoShaperRuntime = useCallback",
+    )
+    assert.match(providerSource, /function canPublishAtmoShaperCommittedSnapshot\(/)
+    const stopGuard = snapshotPath.indexOf("canPublishAtmoShaperCommittedSnapshot({")
+    assert.ok(stopGuard !== -1, "committed callbacks must pass the explicit-Stop policy")
+    for (const sideEffect of [
+      "atmoShaperPreviewRef.current = snapshot.preview",
+      "setAtmoShaperPreview(snapshot.preview)",
+      "atmoShaperPreviewInterruptedRef.current = false",
+      "setAtmoShaperSnapshot(nextSnapshot)",
+      'if (nextSnapshot.status === "failed")',
+      "setError(firstAtmoShaperError(nextSnapshot)",
+      'publishMediaSession(metadata, "failed")',
+    ]) {
+      assert.ok(
+        stopGuard < snapshotPath.indexOf(sideEffect),
+        `the explicit-Stop policy must run before: ${sideEffect}`,
+      )
+    }
+    assert.match(snapshotPath, /snapshotStatus:\s*snapshot\.status/)
+    assert.match(snapshotPath, /runtimeOwner:\s*atmoShaperRuntimeOwnerRef\.current/)
+    assert.match(snapshotPath, /explicitIntent:\s*playbackLifecycleRef\.current\.explicitIntent/)
+    assert.match(snapshotPath, /if \(!canPublishAtmoShaperCommittedSnapshot\([\s\S]*?\)\) return/)
+
+    const helperSource = sourceBetween(
+      "function canPublishAtmoShaperCommittedSnapshot",
+      "type ToneProofDroneDiagnostics =",
+    )
+    const compiled = ts.transpileModule(`${helperSource}\n;globalThis.__snapshotPolicy = canPublishAtmoShaperCommittedSnapshot`, {
+      compilerOptions: {
+        module: ts.ModuleKind.None,
+        target: ts.ScriptTarget.ES2022,
+      },
+    })
+    const context = {}
+    runInNewContext(compiled.outputText, context)
+    const canPublish = context.__snapshotPolicy
+
+    const publishModel = (state, input) => {
+      if (!canPublish(input)) return
+      state.preview = input.preview
+      if (!input.preview || input.preview.status === "failed") state.previewInterrupted = false
+      if (input.runtimeOwner !== "committed") return
+      state.snapshotStatus = input.snapshotStatus
+      if (input.snapshotStatus === "playing") {
+        state.playbackState = "playing"
+        state.playerRetained = true
+        state.mediaState = "playing"
+      } else if (input.snapshotStatus === "failed") {
+        state.playbackState = "failed"
+        state.error = "late failure"
+        state.mediaState = "failed"
+      } else if (input.snapshotStatus === "stopped") {
+        state.playbackState = "stopped"
+        state.error = null
+        state.mediaState = "none"
+      }
+    }
+    const stoppedProviderState = {
+      snapshotStatus: "stopped",
+      playbackState: "stopped",
+      playerRetained: true,
+      error: null,
+      mediaState: "none",
+      preview: null,
+      previewInterrupted: false,
+    }
+    const expectedStoppedState = structuredClone(stoppedProviderState)
+    for (const snapshotStatus of ["playing", "failed"]) {
+      publishModel(stoppedProviderState, {
+        explicitIntent: "stop",
+        preview: { status: snapshotStatus },
+        runtimeOwner: "committed",
+        snapshotStatus,
+      })
+      assert.deepEqual(
+        stoppedProviderState,
+        expectedStoppedState,
+        `delayed ${snapshotStatus} must not mutate lifecycle, player, error, media, snapshot, or preview state`,
+      )
+    }
+    assert.equal(
+      canPublish({ explicitIntent: "stop", runtimeOwner: "committed", snapshotStatus: "stopped" }),
+      true,
+      "the committed runtime may publish its authoritative stopped snapshot",
+    )
+    assert.equal(
+      canPublish({ explicitIntent: "stop", runtimeOwner: "preview", snapshotStatus: "playing" }),
+      true,
+      "a preview-only runtime uses its distinct publication path",
+    )
+    publishModel(stoppedProviderState, {
+      explicitIntent: "stop",
+      preview: { status: "playing" },
+      runtimeOwner: "preview",
+      snapshotStatus: "playing",
+    })
+    assert.deepEqual(stoppedProviderState, {
+      ...expectedStoppedState,
+      preview: { status: "playing" },
+    }, "preview-only publication updates preview state without reviving the global owner")
+
+    publishModel(stoppedProviderState, {
+      explicitIntent: "stop",
+      preview: null,
+      runtimeOwner: "committed",
+      snapshotStatus: "stopped",
+    })
+    assert.deepEqual(stoppedProviderState, expectedStoppedState)
+    assert.equal(
+      canPublish({ explicitIntent: "play", runtimeOwner: "committed", snapshotStatus: "playing" }),
+      true,
+      "a later explicit Play/restart admits the new runtime snapshot",
+    )
+    publishModel(stoppedProviderState, {
+      explicitIntent: "play",
+      preview: null,
+      runtimeOwner: "committed",
+      snapshotStatus: "playing",
+    })
+    assert.deepEqual(stoppedProviderState, {
+      ...expectedStoppedState,
+      mediaState: "playing",
+      playbackState: "playing",
+      snapshotStatus: "playing",
+    })
+
+    const restartPath = sourceBetween("const restartCurrent = useCallback", "const stopCurrent = useCallback")
+    assert.match(restartPath, /explicitIntent:\s*"play"/)
   })
 
   it("cannot retain or republish the interruption notice after terminal failure", () => {

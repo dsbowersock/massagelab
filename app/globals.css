@@ -3100,7 +3100,13 @@
   .ml-music-interruption-notice {
     left: max(0.75rem, env(safe-area-inset-left, 0px));
     margin-inline: auto;
+    /* Enlarged text can make this nonmodal notice taller than the space above
+       the player. Keep its dismissal control inside that reserved viewport. */
+    max-height: calc(
+      100dvh - var(--ml-safe-top) - var(--ml-portal-bottom-stack-height) - var(--ml-audio-toolbar-height) - 1rem
+    );
     max-width: min(28rem, calc(100vw - 1.5rem));
+    overflow-y: auto;
     position: absolute;
     right: max(0.75rem, env(safe-area-inset-right, 0px));
     width: auto;

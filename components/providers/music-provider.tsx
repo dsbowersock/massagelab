@@ -136,6 +136,25 @@ function isAtmoShaperPreviewOnlyPlayback(
   )
 }
 
+/**
+ * Keeps explicit Stop authoritative until a new Play intent is recorded. The
+ * runtime may still publish its final stopped snapshot, but late playing or
+ * failed callbacks from the disposing committed graph are stale.
+ */
+type AtmoShaperRuntimeOwner = "committed" | "preview" | null
+
+function canPublishAtmoShaperCommittedSnapshot(input: {
+  explicitIntent: "play" | "pause" | "stop" | null
+  runtimeOwner: AtmoShaperRuntimeOwner
+  snapshotStatus: AtmoShaperRuntimeSnapshot["status"]
+}) {
+  return (
+    input.runtimeOwner !== "committed"
+    || input.explicitIntent !== "stop"
+    || input.snapshotStatus === "stopped"
+  )
+}
+
 type ToneProofDroneDiagnostics = {
   sessionId: number
   audioContextState: string
@@ -508,7 +527,7 @@ export function MusicProvider({
   const atmoShaperPreviewLeaseRef = useRef(0)
   const atmoShaperPreviewRequestLeaseRef = useRef(0)
   const atmoShaperPreviewRef = useRef<AtmoShaperPreviewSnapshot | null>(null)
-  const atmoShaperRuntimeOwnerRef = useRef<"committed" | "preview" | null>(null)
+  const atmoShaperRuntimeOwnerRef = useRef<AtmoShaperRuntimeOwner>(null)
   const atmoShaperPreviewInterruptedRef = useRef(false)
   const atmoShaperRecipeRef = useRef<AtmoShaperRecipe | null>(null)
   const atmoShaperDesiredRecipeRef = useRef<AtmoShaperRecipe | null>(null)
@@ -580,6 +599,8 @@ export function MusicProvider({
     stoppedPlaybackKind: Exclude<PlaybackKind, null>,
   ) => {
     stoppedPlayerRetentionTimeoutRef.current = null
+    // A restart or replacement advances the captured generation/owner. Retire
+    // only the exact source that remained stopped for the complete deadline.
     if (
       sessionGeneration !== playbackSessionGenerationRef.current
       || playbackLifecycleRef.current.status !== "stopped"
@@ -1154,6 +1175,14 @@ export function MusicProvider({
     // the cancellable preview before the transaction settles.
     if (atmoShaperPromotionRef.current?.runtimeLease === runtimeLease) return
 
+    // A disposing committed graph may report late playing/failed state after
+    // explicit Stop. Reject it before preview-facing or global publication.
+    if (!canPublishAtmoShaperCommittedSnapshot({
+      explicitIntent: playbackLifecycleRef.current.explicitIntent,
+      runtimeOwner: atmoShaperRuntimeOwnerRef.current,
+      snapshotStatus: snapshot.status,
+    })) return
+
     atmoShaperPreviewRef.current = snapshot.preview
     setAtmoShaperPreview(snapshot.preview)
     if (snapshot.preview?.status === "failed" || !snapshot.preview) {
@@ -1171,7 +1200,10 @@ export function MusicProvider({
     } as AtmoShaperRuntimeSnapshot
     setAtmoShaperSnapshot(nextSnapshot)
     const lifecycle = playbackLifecycleRef.current
-    if (lifecycle.status !== "loading" && lifecycle.status !== "interrupted") {
+    if (
+      lifecycle.status !== "loading"
+      && lifecycle.status !== "interrupted"
+    ) {
       if (
         nextSnapshot.status === "playing"
         || nextSnapshot.status === "paused"
@@ -2462,8 +2494,9 @@ export function MusicProvider({
     const sessionGeneration = playbackSessionGenerationRef.current
     const stoppedPlaybackKind = activePlaybackKindRef.current
     const stoppedStationId = activeStationIdRef.current
-    const atmoShaperPreviewStop = stopAtmoShaperPreview()
     commitPlaybackLifecycle({ type: "EXPLICIT_STOP" })
+    scheduleStoppedPlayerRetirement(sessionGeneration, stoppedStationId, stoppedPlaybackKind)
+    const atmoShaperPreviewStop = stopAtmoShaperPreview()
     setLoadingProgress(null)
     setLoadingStartedAt(null)
     loadingStationIdRef.current = null
@@ -2474,13 +2507,25 @@ export function MusicProvider({
     try {
       if (stoppedPlaybackKind === "atmoshaper") {
         atmoShaperDesiredTransportRef.current = "paused"
+        let stopCleanupOwned = false
         const committed = await commitOwnedPlaybackEffect({
           effect: async () => {
             await atmoShaperPreviewStop
-            await disposeAtmoShaperRuntime()
+            if (
+              requestId !== playbackRequestIdRef.current
+              || sessionGeneration !== playbackSessionGenerationRef.current
+              || activePlaybackKindRef.current !== stoppedPlaybackKind
+              || atmoShaperRuntimeOwnerRef.current !== "committed"
+            ) return
+            stopCleanupOwned = true
+            // disposeAtmoShaperRuntime invalidates the runtime lease
+            // synchronously; invoke it without yielding after the owner check.
+            const runtimeDisposal = disposeAtmoShaperRuntime()
+            await runtimeDisposal
           },
           isCurrent: () => (
-            requestId === playbackRequestIdRef.current
+            stopCleanupOwned
+            && requestId === playbackRequestIdRef.current
             && sessionGeneration === playbackSessionGenerationRef.current
             && activePlaybackKindRef.current === stoppedPlaybackKind
           ),
@@ -2507,12 +2552,6 @@ export function MusicProvider({
       if (requestId !== playbackRequestIdRef.current) return
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not stop.")
     }
-    if (
-      requestId !== playbackRequestIdRef.current
-      || sessionGeneration !== playbackSessionGenerationRef.current
-      || activePlaybackKindRef.current !== stoppedPlaybackKind
-    ) return
-    scheduleStoppedPlayerRetirement(sessionGeneration, stoppedStationId, stoppedPlaybackKind)
   }, [
     cancelStoppedPlayerRetirement,
     commitPlaybackLifecycle,
