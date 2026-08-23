@@ -240,6 +240,240 @@ describe("Signature sound declaration resolution", () => {
     assert.doesNotMatch(JSON.stringify(audit), new RegExp(root.replaceAll("\\", "\\\\"), "i"))
   })
 
+  it("exposes processing-plan candidates as machine metadata before runtime qualification", async (t) => {
+    const createSignatureSoundAudit = requireExport(scannerModule, "createSignatureSoundAudit")
+    const validateSignatureSoundAudit = requireExport(scannerModule, "validateSignatureSoundAudit")
+    const root = await createFixture(t, {
+      "Pack/Tone.WAV": "wave-audio",
+      "Pack/LICENSE.txt": "CC0 1.0 Universal",
+    })
+    const candidate = pendingMoodistCandidate({
+      technicalState: "pass",
+      listeningState: "pass",
+      processingState: "pending",
+    })
+
+    const audit = await createSignatureSoundAudit({
+      rootPath: root,
+      moodistConcepts,
+      signatureDeclaration: declaration(candidate),
+    })
+
+    assert.deepEqual(audit.outcomes.qualifiedMoodistMatches, [])
+    assert.deepEqual(audit.outcomes.needsAuditionOrProcessing.map(({ id }) => id), [candidate.id])
+    assert.deepEqual(
+      audit.machineMetadata.processingPlanEligibleCandidates.map(({ id }) => id),
+      [candidate.id],
+    )
+    assert.deepEqual(validateSignatureSoundAudit(audit), audit)
+  })
+
+  it("normalizes the complete closed audit and rejects inconsistent planning metadata", async (t) => {
+    const createSignatureSoundAudit = requireExport(scannerModule, "createSignatureSoundAudit")
+    const validateSignatureSoundAudit = requireExport(scannerModule, "validateSignatureSoundAudit")
+    const root = await createFixture(t, {
+      "Pack/Tone.WAV": "wave-audio",
+      "Pack/LICENSE.txt": "CC0 1.0 Universal",
+    })
+    const audit = await createSignatureSoundAudit({
+      rootPath: root,
+      moodistConcepts,
+      signatureDeclaration: declaration(pendingMoodistCandidate({
+        technicalState: "pass",
+        listeningState: "pass",
+        processingState: "pending",
+      })),
+    })
+    const mutations = [
+      ["audit", (value) => { value.extra = true }],
+      ["fingerprint", (value) => { value.fingerprints.extra = true }],
+      ["scan", (value) => { value.scan.extra = true }],
+      ["audio", (value) => { value.scan.audioFiles[0].extra = true }],
+      ["machine metadata", (value) => { value.machineMetadata.extra = true }],
+      ["planning candidate", (value) => { value.machineMetadata.processingPlanEligibleCandidates[0].extra = true }],
+      ["outcomes", (value) => { value.outcomes.extra = true }],
+      ["outcome candidate", (value) => { value.outcomes.needsAuditionOrProcessing[0].extra = true }],
+      ["source gap", (value) => { value.outcomes.recordingOrSourceGaps[0].extra = true }],
+      ["control", (value) => { value.outcomes.needsAuditionOrProcessing[0].conceptName = "Waves\nInjected" }],
+      ["control", (value) => { value.outcomes.needsAuditionOrProcessing[0].category = "nature\u0000" }],
+      ["safe", (value) => { value.outcomes.needsAuditionOrProcessing[0].discoveryPath = "Pack/../Tone.WAV" }],
+      ["duplicate", (value) => { value.outcomes.qualifiedMoodistMatches.push(value.outcomes.needsAuditionOrProcessing[0]) }],
+      ["duplicate", (value) => { value.outcomes.needsAuditionOrProcessing.push(value.outcomes.needsAuditionOrProcessing[0]) }],
+      ["gap", (value) => { value.outcomes.recordingOrSourceGaps.push(value.outcomes.recordingOrSourceGaps[0]) }],
+      ["conflict", (value) => {
+        const waves = moodistConcepts.find(({ id }) => id === "waves")
+        value.outcomes.recordingOrSourceGaps.push({
+          id: waves.id,
+          label: waves.label,
+          category: waves.category,
+          upstreamAssetRef: waves.upstreamAssetRef,
+        })
+      }],
+      ["planning", (value) => { value.machineMetadata.processingPlanEligibleCandidates = [] }],
+      ["planning", (value) => { value.machineMetadata.processingPlanEligibleCandidates[0].sha256 = "f".repeat(64) }],
+      ["duplicate", (value) => { value.machineMetadata.processingPlanEligibleCandidates.push(value.machineMetadata.processingPlanEligibleCandidates[0]) }],
+    ]
+
+    for (const [label, mutate] of mutations) {
+      const changed = structuredClone(audit)
+      mutate(changed)
+      assert.throws(() => validateSignatureSoundAudit(changed), new RegExp(`unknown|${label}|invariant`, "i"), label)
+    }
+  })
+
+  it("binds mapped candidates, extras, and gaps to Task 1 canonical concept identity", async (t) => {
+    const createSignatureSoundAudit = requireExport(scannerModule, "createSignatureSoundAudit")
+    const validateSignatureSoundAudit = requireExport(scannerModule, "validateSignatureSoundAudit")
+    const root = await createFixture(t, {
+      "Pack/Tone.WAV": "wave-audio",
+      "Pack/LICENSE.txt": "CC0 1.0 Universal",
+    })
+    const audit = await createSignatureSoundAudit({
+      rootPath: root,
+      moodistConcepts,
+      signatureDeclaration: declaration(pendingMoodistCandidate({
+        technicalState: "pass",
+        listeningState: "pass",
+        processingState: "pending",
+      })),
+    })
+
+    const mappedMutations = [
+      ["unknown concept", { conceptId: "fabricated-cave", conceptName: "Fabricated Cave", category: "nature" }],
+      ["concept name", { conceptName: "Fabricated Waves" }],
+      ["concept category", { category: "rain" }],
+      ["native concept", { conceptId: "white-noise", conceptName: "White Noise", category: "noise" }],
+    ]
+    for (const [label, replacement] of mappedMutations) {
+      const changed = structuredClone(audit)
+      Object.assign(changed.outcomes.needsAuditionOrProcessing[0], replacement)
+      Object.assign(changed.machineMetadata.processingPlanEligibleCandidates[0], replacement)
+      assert.throws(() => validateSignatureSoundAudit(changed), /canonical|Moodist|identity/i, label)
+    }
+
+    for (const replacement of [
+      { conceptId: "waves", conceptName: "Cave Room Tone" },
+      { conceptId: "cave-room-tone", conceptName: "Waves" },
+    ]) {
+      const changed = structuredClone(audit)
+      const masqueradingExtra = {
+        ...changed.outcomes.needsAuditionOrProcessing[0],
+        ...replacement,
+        category: null,
+      }
+      changed.outcomes.needsAuditionOrProcessing = []
+      changed.outcomes.signatureOnlyConceptCandidates = [masqueradingExtra]
+      changed.machineMetadata.processingPlanEligibleCandidates = []
+      assert.throws(() => validateSignatureSoundAudit(changed), /canonical|Moodist|extra|identity/i)
+    }
+
+    const gapMutations = [
+      ["unknown gap", { id: "fabricated-cave", label: "Fabricated Cave", category: "nature", upstreamAssetRef: "/sounds/nature/fabricated-cave.mp3" }],
+      ["gap label", { label: "Fabricated Birds" }],
+      ["gap category", { category: "rain" }],
+      ["gap upstream", { upstreamAssetRef: "/sounds/nature/not-birds.mp3" }],
+      ["native gap", { id: "white-noise", label: "White Noise", category: "noise", upstreamAssetRef: "/sounds/noise/white-noise.wav" }],
+    ]
+    for (const [label, replacement] of gapMutations) {
+      const changed = structuredClone(audit)
+      Object.assign(changed.outcomes.recordingOrSourceGaps[0], replacement)
+      assert.throws(() => validateSignatureSoundAudit(changed), /canonical|Moodist|identity/i, label)
+    }
+  })
+
+  it("enforces Task 1 evidence references, gate order, rejection, and outcome classification", async (t) => {
+    const createSignatureSoundAudit = requireExport(scannerModule, "createSignatureSoundAudit")
+    const validateSignatureSoundAudit = requireExport(scannerModule, "validateSignatureSoundAudit")
+    const root = await createFixture(t, {
+      "Pack/Tone.WAV": "wave-audio",
+      "Pack/LICENSE.txt": "CC0 1.0 Universal",
+    })
+    const audit = await createSignatureSoundAudit({
+      rootPath: root,
+      moodistConcepts,
+      signatureDeclaration: declaration(pendingMoodistCandidate()),
+    })
+    const candidateCases = [
+      ["sitewide", { evidenceTier: "signature-sitewide-cc0", evidenceRef: "https://signaturesounds.org/about" }],
+      ["sitewide", { evidenceTier: "signature-sitewide-cc0", evidenceRef: "C:\\evidence\\LICENSE.txt" }],
+      ["pack-relative", { evidenceTier: "explicit-pack-cc0", evidenceRef: "/tmp/LICENSE.txt" }],
+      ["pack-relative", { evidenceTier: "explicit-pack-cc0", evidenceRef: "C:\\evidence\\LICENSE.txt" }],
+      ["pack-relative", { evidenceTier: "explicit-pack-cc0", evidenceRef: "Pack/../LICENSE.txt" }],
+      ["non-audio", { evidenceTier: "explicit-pack-cc0", evidenceRef: "Pack/LICENSE.wav" }],
+      ["technical pass", { technicalState: "pending", listeningState: "pass", processingState: "verified" }],
+      ["failed gate", { technicalState: "fail", listeningState: "pending", processingState: "pending" }],
+      ["failed gate", { technicalState: "pass", listeningState: "fail", processingState: "pending" }],
+      ["failed gate", { technicalState: "pass", listeningState: "pass", processingState: "failed" }],
+      ["rejected", { rejectionState: "rejected", rejectionReason: "Rejected after review." }],
+    ]
+    for (const [label, replacement] of candidateCases) {
+      const changed = structuredClone(audit)
+      Object.assign(changed.outcomes.needsAuditionOrProcessing[0], replacement)
+      assert.throws(() => validateSignatureSoundAudit(changed), new RegExp(label, "i"), label)
+    }
+
+    const qualifiedInPending = structuredClone(audit)
+    Object.assign(qualifiedInPending.outcomes.needsAuditionOrProcessing[0], {
+      technicalState: "pass",
+      listeningState: "pass",
+      processingState: "verified",
+    })
+    assert.throws(() => validateSignatureSoundAudit(qualifiedInPending), /qualified|pending.*outcome|invariant/i)
+  })
+
+  it("rejects a completely empty canonical source-coverage audit", async (t) => {
+    const createSignatureSoundAudit = requireExport(scannerModule, "createSignatureSoundAudit")
+    const validateSignatureSoundAudit = requireExport(scannerModule, "validateSignatureSoundAudit")
+    const root = await createFixture(t)
+    const audit = await createSignatureSoundAudit({
+      rootPath: root,
+      moodistConcepts,
+      signatureDeclaration: declaration(),
+    })
+    audit.outcomes.recordingOrSourceGaps = []
+
+    assert.throws(() => validateSignatureSoundAudit(audit), /canonical.*coverage|missing.*concept/i)
+  })
+
+  it("rejects a birds-only gap audit as incomplete canonical coverage", async (t) => {
+    const createSignatureSoundAudit = requireExport(scannerModule, "createSignatureSoundAudit")
+    const validateSignatureSoundAudit = requireExport(scannerModule, "validateSignatureSoundAudit")
+    const root = await createFixture(t)
+    const audit = await createSignatureSoundAudit({
+      rootPath: root,
+      moodistConcepts,
+      signatureDeclaration: declaration(),
+    })
+    audit.outcomes.recordingOrSourceGaps = audit.outcomes.recordingOrSourceGaps.filter(({ id }) => id === "birds")
+
+    assert.throws(() => validateSignatureSoundAudit(audit), /canonical.*coverage|missing.*concept/i)
+  })
+
+  it("allows distinct alternate candidates for one canonical concept and counts that concept once", async (t) => {
+    const createSignatureSoundAudit = requireExport(scannerModule, "createSignatureSoundAudit")
+    const validateSignatureSoundAudit = requireExport(scannerModule, "validateSignatureSoundAudit")
+    const root = await createFixture(t, {
+      "Pack/Calm Waves.WAV": "calm-wave-audio",
+      "Pack/Rolling Waves.WAV": "rolling-wave-audio",
+      "Pack/LICENSE.txt": "CC0 1.0 Universal",
+    })
+    const audit = await createSignatureSoundAudit({
+      rootPath: root,
+      moodistConcepts,
+      signatureDeclaration: declaration(
+        pendingMoodistCandidate({ id: "calm-waves-candidate", discoveryPath: "Pack/Calm Waves.WAV" }),
+        pendingMoodistCandidate({ id: "rolling-waves-candidate", discoveryPath: "Pack/Rolling Waves.WAV" }),
+      ),
+    })
+
+    assert.deepEqual(
+      audit.outcomes.needsAuditionOrProcessing.map(({ id }) => id),
+      ["calm-waves-candidate", "rolling-waves-candidate"],
+    )
+    assert.equal(audit.outcomes.recordingOrSourceGaps.some(({ id }) => id === "waves"), false)
+    assert.deepEqual(validateSignatureSoundAudit(audit), audit)
+  })
+
   it("rejects missing discovery paths and case-insensitive ambiguous collisions", async (t) => {
     const createSignatureSoundAudit = requireExport(scannerModule, "createSignatureSoundAudit")
     const buildSignatureSoundAudit = requireExport(scannerModule, "buildSignatureSoundAudit")

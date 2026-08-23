@@ -18,6 +18,7 @@
     "test:browser:build": "npm run build:browser-qa && npm run test:browser",
     "atmoshaper:assert-production-bundle": "node scripts/assert-atmoshaper-production-bundle.mjs",
     "atmoshaper:sounds:audit": "node scripts/atmoshaper-signature-sound-audit.mjs",
+    "atmoshaper:sounds:process-plan": "node scripts/atmoshaper-sound-processing-plan.mjs",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "prisma:migrate": "prisma migrate dev",

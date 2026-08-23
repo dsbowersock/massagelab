@@ -1,11 +1,13 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
-import {
+import * as soundCatalogModule from "../lib/atmoshaper/sound-catalog.js"
+
+const {
   deriveSignatureSoundCatalog,
   validateMoodistConcepts,
   validateSignatureSoundCandidates,
-} from "../lib/atmoshaper/sound-catalog.js"
+} = soundCatalogModule
 
 const moodistConcepts = readJson("../data/atmoshaper/moodist-concepts.json")
 const signatureDeclaration = readJson("../data/atmoshaper/signature-sound-candidates.json")
@@ -459,7 +461,7 @@ test("derivation qualifies only licensed candidates with every required gate com
     moodistConceptId: "heavy-rain",
     discoveryPath: "Weather Pack/heavy-rain.wav",
     evidenceTier: "signature-sitewide-cc0",
-    evidenceRef: "Signature Sounds/About.html",
+    evidenceRef: "https://signaturesounds.org/about-",
   })
   const originReview = moodistCandidate({
     id: "signature-origin-review",
@@ -486,6 +488,75 @@ test("derivation qualifies only licensed candidates with every required gate com
     "signature-origin-review",
     "signature-pending",
   ])
+})
+
+test("processing-plan eligibility precedes processing verification without changing runtime outcomes", () => {
+  const deriveProcessingCandidates = soundCatalogModule.deriveSignatureSoundProcessingPlanCandidates
+  assert.equal(typeof deriveProcessingCandidates, "function", "Task 1 must own processing-plan eligibility")
+  const processingPending = moodistCandidate({ processingState: "pending" })
+  const extra = extraCandidate({
+    technicalState: "pass",
+    listeningState: "pass",
+    processingState: "verified",
+  })
+  const ineligible = [
+    pendingCandidate({ id: "technical-pending", technicalState: "pending" }),
+    moodistCandidate({ id: "listening-pending", moodistConceptId: "heavy-rain", listeningState: "pending", processingState: "pending" }),
+    moodistCandidate({ id: "origin-review", moodistConceptId: "thunder", evidenceTier: "needs-origin-review" }),
+    moodistCandidate({
+      id: "rejected-processing",
+      moodistConceptId: "rain-on-window",
+      processingState: "failed",
+      rejectionState: "rejected",
+      rejectionReason: "Processing failed.",
+    }),
+  ]
+  const candidates = [processingPending, extra, ...ineligible]
+
+  const runtime = deriveSignatureSoundCatalog(moodistConcepts, declaration(candidates))
+  const plannable = deriveProcessingCandidates(moodistConcepts, declaration(candidates))
+
+  assert.deepEqual(runtime.qualifiedMoodistMatches, [])
+  assert.deepEqual(plannable.map(({ id }) => id), [processingPending.id])
+  assert.deepEqual(runtime.signatureExtraConcepts, [extra])
+})
+
+test("Task 1 owns pure candidate evidence, gate, and outcome classification semantics", () => {
+  const classify = soundCatalogModule.classifySignatureSoundCandidateSemantics
+  assert.equal(typeof classify, "function", "Task 1 must export candidate semantic classification")
+  assert.equal(classify(moodistCandidate()), "qualified-moodist")
+  assert.equal(classify(pendingCandidate()), "pending-moodist")
+  assert.equal(classify(extraCandidate()), "signature-extra")
+  assert.equal(classify(rejectedCandidate()), "rejected")
+  assert.throws(
+    () => classify(pendingCandidate({ listeningState: "pass" })),
+    /listening.*technical pass/i,
+  )
+  assert.throws(
+    () => classify(pendingCandidate({ evidenceTier: "signature-sitewide-cc0", evidenceRef: "C:\\proof.txt" })),
+    /sitewide|evidence/i,
+  )
+})
+
+test("canonical Moodist identity projection returns fresh copies owned by Task 1", () => {
+  const getCanonicalProjection = soundCatalogModule.getCanonicalMoodistConceptProjection
+  assert.equal(typeof getCanonicalProjection, "function", "Task 1 must export canonical identity safely")
+
+  const first = getCanonicalProjection()
+  const second = getCanonicalProjection()
+  assert.equal(first.length, 84)
+  assert.notStrictEqual(first, second)
+  assert.notStrictEqual(first[0], second[0])
+  const waves = first.find(({ id }) => id === "waves")
+  assert.deepEqual(waves, {
+    id: "waves",
+    label: "Waves",
+    category: "nature",
+    upstreamAssetRef: "/sounds/nature/waves.mp3",
+    sourceStrategy: "signature-required",
+  })
+  waves.label = "Fabricated Waves"
+  assert.equal(getCanonicalProjection().find(({ id }) => id === "waves").label, "Waves")
 })
 
 test("derivation keeps extras as candidates and never automatically production-qualifies them", () => {
