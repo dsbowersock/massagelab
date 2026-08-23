@@ -6,7 +6,7 @@
 
 **Tech Stack:** Node.js ES modules, JSON catalogs, Node's built-in test runner, existing MassageLab AtmoShaper contracts, and external audio tools only when explicitly discovered and invoked by a named processing command.
 
-**Baseline/Authority Refs:** `AGENTS.md`; `docs/project-state.md`; `docs/project-log.md`; `docs/wiki/index.md`; `docs/superpowers/specs/2026-08-21-atmoshaper-design.md` lines 200-251; `docs/wiki/atmosphere-audio.md`; `docs/superpowers/plans/2026-08-22-atmoshaper-overlay-drawer-preview-ui.md`; Moodist repository commit `983f7412e8cd054e76d156977c563da2028e4428`; Signature Sounds About page captured 2026-08-23; local Signature Sounds license files and inventory at `C:\Users\derri\code\audio\Signature Samples`.
+**Baseline/Authority Refs:** `AGENTS.md`; `docs/project-state.md`; `docs/project-log.md`; `docs/wiki/index.md`; `docs/superpowers/specs/2026-08-21-atmoshaper-design.md` lines 200-251; `docs/wiki/atmosphere-audio.md`; `docs/superpowers/plans/2026-08-22-atmoshaper-overlay-drawer-preview-ui.md`; Moodist repository commit `983f7412e8cd054e76d156977c563da2028e4428`; Signature Sounds About page captured 2026-08-23; local Signature Sounds license files and inventory at `<signature-root>`.
 
 **Compatibility Boundary:** Preserve the accepted AtmoShaper UI/runtime at `63385adf`; do not edit the accepted design worktree or its reserved `debug.log`; do not add raw media or license captures to Git; do not use Moodist audio binaries; do not upload, deploy, push, merge, mutate R2/provider state, or restart the serving port 3012 process. Existing generated white/pink/brown noise stays native rather than becoming downloaded media.
 
@@ -176,7 +176,7 @@ The critical pressure is not UI complexity; it is keeping provenance, listening 
 
 **Impact/Compatibility:** Scanner is read-only unless an explicit `--report-json` or `--report-markdown` destination is supplied. Repository documentation is updated through reviewed patches, not silently rewritten by ordinary scans.
 
-**Verification:** `node --test tests/atmoshaper-signature-sound-audit.test.mjs`; `npm run atmoshaper:sounds:audit -- "C:\Users\derri\code\audio\Signature Samples"`.
+**Verification:** `node --test tests/atmoshaper-signature-sound-audit.test.mjs`; `npm run atmoshaper:sounds:audit -- "<signature-root>"`.
 
 1. Write RED fixture tests for root validation, extension allowlisting, `__MACOSX`/resource-fork exclusion, normalized relative paths, SHA-256 identity, declared pack/pattern resolution, duplicate detection, license-evidence tier summaries, and the four headings.
 2. Run the focused test and record the expected missing-module/behavior failure.

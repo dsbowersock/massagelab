@@ -654,13 +654,21 @@ describe("AtmoShaper sound processing planner", () => {
   it("fails closed for relative, repository-contained, aliased, and filesystem-root outputs", async (t) => {
     const createPlan = requireExport(plannerModule, "createSoundProcessingPlan")
     const worktreeRoot = await createDirectoryFixture(t, "ml-processing-repo-")
+    const mainCheckoutRoot = await createDirectoryFixture(t, "ml-processing-main-")
     const outside = await createDirectoryFixture(t, "ml-processing-outside-")
     const base = { audit: syntheticAudit(), processingDeclaration: processingDeclaration(), repoRoot: worktreeRoot }
+
+    const linkedGitDir = join(mainCheckoutRoot, ".git", "worktrees", "linked")
+    await mkdir(linkedGitDir, { recursive: true })
+    await writeFile(join(linkedGitDir, "commondir"), "../..\n")
+    await writeFile(join(worktreeRoot, ".git"), `gitdir: ${linkedGitDir}\n`)
 
     await assert.rejects(createPlan(base), /output root.*required|explicit/i)
     await assert.rejects(createPlan({ ...base, outputRoot: "relative-output" }), /absolute/i)
     await assert.rejects(createPlan({ ...base, outputRoot: worktreeRoot }), /outside|repository|worktree/i)
     await assert.rejects(createPlan({ ...base, outputRoot: join(worktreeRoot, "outputs") }), /outside|repository|worktree/i)
+    await assert.rejects(createPlan({ ...base, outputRoot: mainCheckoutRoot }), /outside|repository|worktree/i)
+    await assert.rejects(createPlan({ ...base, outputRoot: join(mainCheckoutRoot, "outputs") }), /outside|repository|worktree/i)
     await assert.rejects(createPlan({ ...base, outputRoot: parse(outside).root }), /filesystem root/i)
     if (process.platform === "win32") {
       await assert.rejects(createPlan({ ...base, outputRoot: join(worktreeRoot.toUpperCase(), "CASE-ALIAS") }), /outside|repository|worktree/i)

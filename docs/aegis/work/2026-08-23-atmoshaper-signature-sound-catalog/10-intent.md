@@ -11,12 +11,12 @@
 
 ## TaskStartSnapshot
 
-- Worktree: `C:\Users\derri\code\my_projects\massagelab\.worktrees\atmoshaper-catalog-audit`
+- Worktree: linked worktree `.worktrees/atmoshaper-catalog-audit`
 - Branch: `codex/atmoshaper-catalog-audit`
 - HEAD: `63385adfb12e04fcf07d8679516124a055305832`
 - Status: clean immediately before the first task-owned write.
 - Accepted UI server: `http://localhost:3012/music` returned 200 and remains untouched.
-- Reserved unrelated residue: `C:\Users\derri\code\my_projects\massagelab\.worktrees\atmoshaper-design\debug.log`; never touch.
+- Reserved unrelated residue: the accepted design worktree's `debug.log`; never touch.
 
 ## BaselineReadSetHint
 
