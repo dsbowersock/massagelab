@@ -53,4 +53,15 @@
 - Independent quality review: APPROVED after pre-verification eligibility, checksum-bound measurements, true cyclic seam construction, two-pass loudness placeholders, full content-addressed output identity, no-overwrite argv, anchored append-only history, and strict serialized-audit semantics were verified.
 - No ffmpeg command ran; no audio was copied, edited, encoded, written, or uploaded; no output directory was created.
 - Whole-worktree typecheck note: remains blocked by the pre-existing absent `@dnd-kit/*` installs used by unchanged accepted UI files; no Task 3-owned error was reported.
-- Commit receipt: pending coordinator commit.
+- Commit receipt: `75b0f4226b5ad6b3d55e492c5d3879ca9cc8ea78` (`feat(atmoshaper): plan sound processing pipeline`).
+
+### Final correction and Task 4 handoff
+
+- Linked-worktree confinement RED: the focused planner suite passed 18 tests and failed the new main-checkout output-root case before the correction.
+- Linked-worktree confinement GREEN: the focused planner suite passed 19/19 after the planner began resolving both the active worktree and its linked main checkout from Git's gitfile/commondir metadata.
+- Final focused and adjacent verification: 136 passed, 0 failed, 1 existing Windows file-symlink capability skip.
+- Final full-suite verification: 2,824 passed, 0 failed, 2 existing skips. Lint exited 0 with the same unrelated existing unused-variable warning.
+- Complete task-owned path review: no user-specific machine-absolute path remains in the catalog data, work records, plan, report, owners, CLIs, or focused tests; no audio-extension file or binary diff entry exists in the change range.
+- Task 4 synchronized `docs/wiki/atmosphere-audio.md`, `docs/project-state.md`, and `docs/project-log.md`; report links resolve, Markdown fences are balanced, and `git diff --check` passes.
+- Correction commit: `afb4e30c1d3846fc47729cc8d87548fab63bc2e0` (`fix(atmoshaper): fence linked-worktree output roots`).
+- Final independent range re-review: APPROVED with no Critical or Important findings after the linked-main-checkout probe, portable-path scan, no-media/binary check, report/data reconciliation, source syntax checks, link/fence checks, and committed-plus-dirty diff checks passed.

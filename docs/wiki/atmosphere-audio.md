@@ -26,6 +26,69 @@ Provider diagnostics and one-shot adapter failure injection exist only in the is
 
 The ambient sound catalog and licensed media pipeline, saved mixes, Supporter feature-key recall, one-dollar permanent slots, user artwork, public sharing, and lo-fi tools remain separate later packages. The mixer redesign and preview acceptance are not evidence that those media, entitlement, commerce, sharing, or deployment gates are complete.
 
+## AtmoShaper Sound Catalog Audit and Processing Workflow
+
+Moodist media is retired and is not an audio source or fallback for AtmoShaper. The repository retains only Moodist's exact 84 non-binaural concept identities and upstream asset references as research evidence. AtmoShaper's five binaural presets are a separate generated-audio catalog and are not included in those 84 concepts. No Moodist binary may be copied, processed, published, or used as a fallback.
+
+The user accepts the [Signature Sounds site-wide CC0 statement](https://signaturesounds.org/about-) as license evidence for this downloaded library. A pack-specific CC0 file remains stronger evidence when one exists. Either evidence tier records provenance only: it does not satisfy the independent technical, full-listening, processing, publication, or runtime gates.
+
+The repo-relative [2026-08-23 catalog audit](../superpowers/reports/2026-08-23-atmoshaper-signature-sound-catalog-audit.md) records the full read-only local scan:
+
+- 100 top-level packs and 3,693 audio files totaling 9,995,726,103 bytes.
+- 3,587 WAV, 69 MP3, 35 AIF, and 2 AIFF files. MIDI is excluded.
+- 239 groups in which two or more files have the same audio-file checksum.
+
+The catalog has four decision lists:
+
+| List | Current result | Meaning |
+| --- | --- | --- |
+| Qualified Moodist matches | 0 | No Signature Sounds candidate has passed technical review, full listening, and verified processing. |
+| Needs audition or processing | 7 | Campfire, Cafe, Crowd, Road, Traffic, Waves, and Wind Chimes are mapped to Moodist concepts but still have pending technical, listening, and processing gates. |
+| Recording or source gaps | 74 | These exact Moodist concepts have no active Signature Sounds candidate; the dated report is the recording queue. Native white, pink, and brown noise are generated and are never recording gaps. |
+| Signature-only concept candidates | 9 | Air Traffic Control, Cave Room Tone, Church Bells, Lunar Wind, Male Choir, Open Field Ambience, Room Tone, Stadium Crowd, and Train Station Announcement are exploratory ideas outside the 84-concept taxonomy and production catalog. Product approval would be required before treating an extra concept as a catalog assignment. |
+
+All 16 declared candidates are active, but every one remains technical-pending, listening-pending, and processing-pending. Filename similarity and accepted license evidence do not amount to listening approval or production qualification.
+
+### Repeatable read-only audit
+
+Run the catalog audit against the Signature Sounds library with:
+
+```powershell
+npm run atmoshaper:sounds:audit -- "<signature-root>"
+```
+
+The default command prints stable Markdown to stdout and writes nothing. `--format json` prints the machine-readable form. Reports are written only when `--report-markdown <in-repo-destination>` or `--report-json <in-repo-destination>` is explicitly supplied; report targets are confined to the current repository or worktree. Neither stdout format exposes the machine-specific source root.
+
+The audit fingerprints three independent inputs: the checksum-bearing scanned audio inventory, the canonical Moodist concept inventory, and the declared Signature Sounds candidates and gate states. A changed fingerprint means that input changed and the prior audit must not be treated as current. The Markdown output always keeps the four decision headings distinct: `Qualified Moodist matches`, `Needs audition or processing`, `Recording or source gaps`, and `Signature-only concept candidates`.
+
+### Processing-plan boundary
+
+After gate decisions and checksum-bound source measurements have been recorded, create an inert plan with:
+
+```powershell
+npm run atmoshaper:sounds:process-plan -- "<signature-root>" --output-root "<absolute-external-output-root>"
+```
+
+The output root must be an explicit absolute directory outside the repository or worktree. The planner resolves it only to prove that boundary; it does not create the directory. The current real catalog result is `state: no-qualified-assignments`, `processingVerification: not-run`, and zero sources.
+
+Planning eligibility is intentionally narrower than runtime qualification. A candidate may enter planning only when it is mapped to a Moodist concept, uses accepted evidence, remains active, has passed technical and listening review, and has processing pending or verified. Signature-only extras remain ideas until separate product approval. A production-qualified Moodist match additionally requires processing to be verified.
+
+The planner validates each assignment against the fresh audit checksum and a source measurement bound to that same candidate and checksum. Measurements record duration, channel count, sample rate, and a measurement-method version. The current profile plans a non-repeated source window of target duration `T` plus crossfade duration `X`, crossfades the tail into the head so the cyclic seam sits inside the asset, and emits WebM/Opus and M4A/AAC recipes. It emits inert `ffmpeg` argument arrays only and never invokes `ffmpeg`. Two-pass loudness values remain explicit placeholders until an authorized first-pass measurement fills them. Output identities include the candidate, full source checksum, full profile checksum, algorithm version, output version, and format. `-n` no-overwrite arguments, monotonically newer output versions, and the anchored publication ledger protect prior output identities and publication history.
+
+Actual encoding, decoded-output seam inspection, and decoded loudness/true-peak verification remain future authorized work. A plan is not evidence that any media was processed or approved.
+
+### Candidate listening and qualification sequence
+
+1. Run the read-only audit and confirm its fingerprints and four decision lists.
+2. Inspect the declared license evidence. Prefer a pack-specific CC0 file when present; otherwise apply the accepted Signature Sounds site-wide statement only to this downloaded library.
+3. Listen to the entire candidate, not a filename excerpt or a short spot-check. Record whether it contains speech or announcements, distracting events, poor concept fit, or material that will not tolerate looping.
+4. Record the technical measurement and the separate technical and listening gate decisions. A listening pass requires a technical pass; any failed gate requires an explicit rejection and reason.
+5. Add a checksum-bound processing assignment only after technical and listening pass, then rerun the processing planner.
+6. In a separately authorized external workspace, execute the reviewed recipe and verify the decoded seam, integrated loudness, true peak, duration, channels, sample rate, and both browser delivery formats.
+7. Mark processing verified and production-qualified only after those decoded-output checks pass.
+
+Stop at that point unless the next scope is separately authorized. Git media, a hosted manifest, R2 or other uploads, runtime wiring, deployment, push, and merge are separate changes and are not authorized by an audit, listening decision, or processing plan.
+
 ## Physical Android verification
 
 The affected media/player behavior passed physical review on a Samsung Galaxy
