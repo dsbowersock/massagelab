@@ -138,10 +138,34 @@ test("inventory validation rejects malformed fields, unknown enums, duplicates, 
   )
 })
 
-test("the Signature declaration is versioned and begins without unverified claims", () => {
-  assert.deepEqual(signatureDeclaration, { version: 1, candidates: [] })
+test("the Signature declaration is versioned and keeps every discovered candidate unqualified", () => {
+  assert.equal(signatureDeclaration.version, 1)
+  assert.equal(signatureDeclaration.candidates.length, 16)
+  const validatedCandidates = validateSignatureSoundCandidates(
+    signatureDeclaration,
+    moodistConcepts,
+  )
+  assert.equal(validatedCandidates.length, signatureDeclaration.candidates.length)
+  assert.equal(validatedCandidates.filter(({ moodistConceptId }) => moodistConceptId !== undefined).length, 7)
+  assert.equal(validatedCandidates.filter(({ proposedExtraConceptId }) => proposedExtraConceptId !== undefined).length, 9)
+  assert.equal(validatedCandidates.filter(({ evidenceTier }) => evidenceTier === "needs-origin-review").length, 0)
+  for (const candidate of validatedCandidates) {
+    assert.ok(
+      candidate.evidenceTier === "explicit-pack-cc0"
+        || candidate.evidenceTier === "signature-sitewide-cc0",
+      `candidate ${candidate.id} must use accepted CC0 evidence`,
+    )
+    if (candidate.evidenceTier === "signature-sitewide-cc0") {
+      assert.equal(candidate.evidenceRef, "https://signaturesounds.org/about-")
+    }
+    assert.equal(candidate.technicalState, "pending")
+    assert.equal(candidate.listeningState, "pending")
+    assert.equal(candidate.processingState, "pending")
+    assert.equal(candidate.rejectionState, "active")
+    assert.equal(candidate.rejectionReason, null)
+  }
   assert.deepEqual(
-    validateSignatureSoundCandidates(signatureDeclaration, moodistConcepts),
+    deriveSignatureSoundCatalog(moodistConcepts, signatureDeclaration).qualifiedMoodistMatches,
     [],
   )
 })
