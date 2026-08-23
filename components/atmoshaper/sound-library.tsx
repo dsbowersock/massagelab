@@ -267,9 +267,17 @@ export function SoundLibrary({
         <p className="text-sm text-muted-foreground">Preview generated sounds or an optional station foundation, then add what fits.</p>
       </div>
 
-      {music.atmoShaperPreview ? <PreviewingStrip /> : null}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 min-w-0">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="ml-atmoshaper-library-tabs-root mt-4 min-w-0"
+        data-active-library-tab={activeTab}
+      >
+        {activeTab === "isochronic" || activeTab === "binaural" ? (
+          <div className="ml-atmoshaper-library-brainwave-canvas" aria-hidden="true">
+            <BrainwaveArtwork kind={activeTab} />
+          </div>
+        ) : null}
         <TabsList
           ref={tabListRef}
           className="ml-atmoshaper-library-tabs-list"
@@ -424,6 +432,11 @@ function LibraryCardActions({
   const previewLabel = previewMatches
     ? previewStatus === "failed" ? "Retry Preview" : "Stop Preview"
     : "Preview"
+  const previewAriaLabel = previewMatches
+    ? previewStatus === "failed"
+      ? `Retry preview for ${sourceName}`
+      : `Stop preview for ${sourceName}`
+    : `Preview ${sourceName}`
 
   function handlePreview() {
     if (!previewMatches || previewStatus === "failed") {
@@ -434,26 +447,57 @@ function LibraryCardActions({
   }
 
   return (
-    <div className="ml-atmoshaper-library-card-actions">
-      <Button
-        type="button"
-        variant="outline"
-        aria-label={`${previewLabel} ${sourceName}`}
-        aria-pressed={previewMatches && previewStatus !== "failed"}
-        onClick={handlePreview}
+    <div className="ml-atmoshaper-library-card-actions" data-preview-active={previewMatches ? "true" : "false"}>
+      <div className="ml-atmoshaper-card-primary-actions">
+        <Button
+          type="button"
+          variant="outline"
+          aria-label={previewAriaLabel}
+          aria-pressed={previewMatches && previewStatus !== "failed"}
+          onClick={handlePreview}
+        >
+          {previewLabel}
+        </Button>
+        <Button
+          type="button"
+          variant="success"
+          aria-label={`Add ${sourceName}`}
+          aria-busy={commitPending || undefined}
+          disabled={commitPending || (previewMatches && previewStatus === "loading")}
+          onClick={(event) => onAdd(event.currentTarget)}
+        >
+          {commitPending ? "Adding…" : "Add"}
+        </Button>
+      </div>
+      <div
+        className="ml-atmoshaper-card-preview-controls"
+        aria-hidden={!previewMatches}
       >
-        {previewLabel}
-      </Button>
-      <Button
-        type="button"
-        variant="success"
-        aria-label={`Add ${sourceName}`}
-        aria-busy={commitPending || undefined}
-        disabled={commitPending || (previewMatches && previewStatus === "loading")}
-        onClick={(event) => onAdd(event.currentTarget)}
-      >
-        {commitPending ? "Adding…" : "Add"}
-      </Button>
+        <span
+          className={cn(
+            "ml-atmoshaper-card-preview-status text-xs text-muted-foreground",
+            previewMatches && previewStatus === "failed" && "text-destructive",
+          )}
+          title={previewMatches && previewStatus === "failed"
+            ? music.atmoShaperPreview?.error ?? "This preview could not start."
+            : undefined}
+        >
+          {previewMatches && previewStatus === "failed"
+            ? music.atmoShaperPreview?.error ?? "This preview could not start."
+            : previewMatches
+              ? previewStatus
+              : "ready to preview"}
+        </span>
+        <Slider
+          aria-label={`Preview volume for ${sourceName}`}
+          disabled={!previewMatches}
+          min={0}
+          max={1}
+          step={0.05}
+          value={[previewMatches ? (music.atmoShaperPreview?.layer.volume ?? candidate.volume) : candidate.volume]}
+          onValueChange={([volume]) => void music.setAtmoShaperPreviewVolume(volume)}
+        />
+      </div>
     </div>
   )
 }
@@ -478,103 +522,55 @@ function BrainwaveLibraryCard({
     ?? "Advanced"
 
   return (
-    <article className="ml-atmoshaper-library-card ml-atmoshaper-brainwave-card" data-library-source={candidate.sourceId}>
-      <div className="ml-atmoshaper-library-art" data-art-kind={kind}>
+    <article
+      className="ml-atmoshaper-brainwave-panel"
+      data-brainwave-kind={kind}
+      data-library-source={candidate.sourceId}
+    >
+      <div className="ml-atmoshaper-brainwave-backdrop" data-art-kind={kind} aria-hidden="true">
         <BrainwaveArtwork kind={kind} />
       </div>
-      <div className="ml-atmoshaper-library-card-copy">
-        <h3 className="font-semibold">{title}</h3>
-        <p>{selectedLabel} configuration · {selection.values.carrierHz} Hz carrier · {selection.values.rateHz} Hz {kind === "binaural" ? "difference" : "pulse"}</p>
-      </div>
+      <div className="ml-atmoshaper-brainwave-content">
+        <div className="ml-atmoshaper-library-card-copy">
+          <h3 className="font-semibold">{title}</h3>
+          <p>{selectedLabel} configuration · {selection.values.carrierHz} Hz carrier · {selection.values.rateHz} Hz {kind === "binaural" ? "difference" : "pulse"}</p>
+        </div>
 
-      <div className="ml-atmoshaper-preset-buttons" role="group" aria-label={`${title} presets`}>
-        {PRESET_ENTRIES.map(([presetId, label, values]) => {
-          const selected = presetId === selection.presetId
-          return (
-            <Button
-              key={presetId}
-              type="button"
-              aria-pressed={selected}
-              className={cn("shrink-0", selected && purpleGlowClassName)}
-              onClick={() => onSelectionChange({ presetId, values: { ...values } })}
-              size="compact"
-              variant="glow"
-            >
-              {label}
-            </Button>
-          )
-        })}
-      </div>
+        <div className="ml-atmoshaper-preset-buttons" role="group" aria-label={`${title} presets`}>
+          {PRESET_ENTRIES.map(([presetId, label, values]) => {
+            const selected = presetId === selection.presetId
+            return (
+              <Button
+                key={presetId}
+                type="button"
+                aria-pressed={selected}
+                className={cn("shrink-0", selected && purpleGlowClassName)}
+                onClick={() => onSelectionChange({ presetId, values: { ...values } })}
+                size="compact"
+                variant="glow"
+              >
+                {label}
+              </Button>
+            )
+          })}
+        </div>
 
-      <section className="ml-atmoshaper-advanced-controls" aria-label={`Advanced ${title} configuration`}>
-        <h4 className="font-medium">Advanced</h4>
-        <BrainwaveLayerControls
-          kind={kind}
-          values={selection.values}
-          onChange={(values) => onSelectionChange({ presetId: null, values })}
+        <section className="ml-atmoshaper-advanced-controls" aria-label={`Advanced ${title} configuration`}>
+          <h4 className="font-medium">Advanced</h4>
+          <BrainwaveLayerControls
+            kind={kind}
+            values={selection.values}
+            onChange={(values) => onSelectionChange({ presetId: null, values })}
+          />
+        </section>
+
+        <LibraryCardActions
+          candidate={candidate}
+          commitPending={commitPending}
+          sourceName={atmoShaperLayerSourceName(candidate)}
+          onAdd={onAdd}
         />
-      </section>
-
-      <LibraryCardActions
-        candidate={candidate}
-        commitPending={commitPending}
-        sourceName={atmoShaperLayerSourceName(candidate)}
-        onAdd={onAdd}
-      />
+      </div>
     </article>
-  )
-}
-
-function PreviewingStrip() {
-  const music = useMusic()
-  const preview = music.atmoShaperPreview
-  if (!preview) return null
-  const sourceName = atmoShaperLayerSourceName(preview.layer)
-
-  return (
-    <section className="ml-atmoshaper-preview-strip" aria-labelledby="atmoshaper-previewing-title">
-      <div className="ml-atmoshaper-preview-copy">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Previewing</p>
-        <h3 id="atmoshaper-previewing-title" className="font-semibold">{sourceName}</h3>
-        <p className="text-sm capitalize text-muted-foreground">{preview.status}</p>
-        {preview.status === "failed" ? (
-          <p className="text-sm text-destructive">
-            {preview.error ?? "This preview could not start."}
-          </p>
-        ) : null}
-      </div>
-      <div className="ml-atmoshaper-preview-volume">
-        <Slider
-          aria-label={`Preview volume for ${sourceName}`}
-          min={0}
-          max={1}
-          step={0.05}
-          value={[preview.layer.volume]}
-          onValueChange={([volume]) => void music.setAtmoShaperPreviewVolume(volume)}
-        />
-      </div>
-      <div className="ml-atmoshaper-preview-actions">
-        {preview.status === "failed" ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            aria-label={`Retry preview for ${sourceName}`}
-            onClick={() => void music.previewAtmoShaperLayer(preview.layer)}
-          >
-            Retry
-          </Button>
-        ) : null}
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          aria-label={`Stop preview for ${sourceName}`}
-          onClick={() => void music.stopAtmoShaperPreview()}
-        >
-          Stop Preview
-        </Button>
-      </div>
-    </section>
   )
 }

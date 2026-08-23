@@ -50,6 +50,15 @@ describe("AtmoShaper responsive integration source contract", () => {
     assert.match(atmoStyles, /\[data-current-mix-side="left"\][\s\S]*?grid-template-areas:\s*"rail library"/)
     assert.match(atmoStyles, /\.ml-atmoshaper-library\s*\{[\s\S]*?grid-area:\s*library/)
     assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-rail\s*\{[\s\S]*?grid-area:\s*rail/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-layout\s*\{[\s\S]*?padding-block:\s*0[\s\S]*?padding-inline-end:\s*0/)
+    assert.match(
+      atmoStyles,
+      /\.ml-atmoshaper-layout\[data-current-mix-side="left"\]\s*\{[\s\S]*?padding-inline-start:\s*0[\s\S]*?padding-inline-end:/,
+    )
+    assert.match(
+      atmoStyles,
+      /\.ml-atmoshaper-current-mix-rail\s*\{[\s\S]*?position:\s*fixed[\s\S]*?inset-block-start:\s*var\(--ml-atmoshaper-rail-top-reserve\)[\s\S]*?inset-block-end:\s*var\(--ml-atmoshaper-rail-bottom-reserve\)[\s\S]*?border-radius:\s*0[\s\S]*?box-shadow:\s*none/,
+    )
   })
 
   it("uses measured rem geometry with no device, orientation, or zoom branch", () => {
@@ -65,16 +74,31 @@ describe("AtmoShaper responsive integration source contract", () => {
     )
   })
 
-  it("ports one side drawer without linking drawer state to library sizing", () => {
-    assert.equal(atmoWorkspace.match(/<Sheet\s/g)?.length, 1)
-    assert.match(atmoWorkspace, /modal=\{drawerMode === "narrow"\}/)
-    assert.match(atmoWorkspace, /side=\{drawerSide\}/)
-    assert.match(atmoWorkspace, /ml-atmoshaper-current-mix-overlay-roomy/)
+  it("widens one fixed edge panel without linking open state to library sizing", () => {
+    assert.equal(atmoWorkspace.match(/<Sheet\s/g)?.length ?? 0, 0)
+    assert.match(atmoWorkspace, /<CurrentMixRail[\s\S]*?drawerMode=\{drawerMode\}[\s\S]*?drawerSide=\{drawerSide\}[\s\S]*?expanded=\{mixDrawerOpen\}/)
+    assert.match(currentMixRail, /data-drawer-mode=\{drawerMode\}/)
+    assert.match(currentMixRail, /data-expanded=\{expanded\}/)
+    assert.match(currentMixRail, /role=\{expanded \? "dialog" : undefined\}/)
     assert.match(atmoWorkspace, /ml-atmoshaper-current-mix-overlay-narrow/)
-    assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-overlay-roomy\s*\{[\s\S]*?display:\s*none/)
     assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-overlay-narrow\s*\{[\s\S]*?background:/)
-    assert.match(atmoStyles, /\[data-drawer-mode="roomy"\][\s\S]*?inline-size:\s*min\(30rem/)
-    assert.match(atmoStyles, /\[data-drawer-mode="narrow"\][\s\S]*?inline-size:\s*min\(40rem/)
+    assert.match(
+      atmoStyles,
+      /\.ml-atmoshaper-current-mix-rail\[data-expanded="true"\]\[data-drawer-mode="roomy"\][\s\S]*?inline-size:\s*min\(/,
+    )
+    assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-rail\[data-expanded="true"\]\[data-drawer-mode="narrow"\][\s\S]*?inline-size:\s*min\(40rem/)
+    assert.match(
+      atmoStyles,
+      /\.ml-atmoshaper-current-mix-rail\s*\{[\s\S]*?width:\s*var\(--ml-atmoshaper-fixed-rail-width\)[\s\S]*?transition:[\s\S]*?inline-size 240ms/,
+    )
+    assert.match(
+      atmoStyles,
+      /data-current-mix-side="right"[\s\S]*?\.ml-atmoshaper-current-mix-rail[\s\S]*?inset-inline-end:\s*var\(--ml-atmoshaper-rail-right-reserve\)/,
+    )
+    assert.match(
+      atmoStyles,
+      /data-current-mix-side="left"[\s\S]*?\.ml-atmoshaper-current-mix-rail[\s\S]*?inset-inline-start:\s*var\(--ml-safe-left\)/,
+    )
     assert.doesNotMatch(atmoStyles, /data-(?:drawer|sheet)-open[\s\S]*?ml-atmoshaper-library/)
   })
 
@@ -83,18 +107,19 @@ describe("AtmoShaper responsive integration source contract", () => {
     assert.match(atmoStyles, /\.ml-atmoshaper-layout\s*\{[\s\S]*?overflow:\s*hidden/)
     assert.match(atmoStyles, /\.ml-atmoshaper-library\s*\{[\s\S]*?overflow-x:\s*hidden[\s\S]*?overflow-y:\s*auto/)
     assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-rail\s*\{[\s\S]*?overflow-x:\s*hidden[\s\S]*?overflow-y:\s*auto/)
-    assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-drawer-body\s*\{[\s\S]*?overflow-x:\s*hidden[\s\S]*?overflow-y:\s*auto/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-current-mix-drawer-body\s*\{[\s\S]*?overflow:\s*hidden/)
+    assert.match(atmoStyles, /\.ml-atmoshaper-expanded-layers\s*\{[\s\S]*?overflow-x:\s*hidden[\s\S]*?overflow-y:\s*auto/)
     assert.match(atmoStyles, /overscroll-behavior:\s*contain/)
   })
 
-  it("reconstructs app-bar, player, and safe-area exclusions for the portal", () => {
-    assert.match(atmoStyles, /--ml-atmoshaper-drawer-bottom-reserve:\s*var\(--ml-portal-bottom-stack-height\)/)
-    assert.match(atmoStyles, /--ml-atmoshaper-drawer-right-reserve:\s*max\(var\(--ml-player-right-safe\), var\(--ml-safe-right\)\)/)
-    assert.match(atmoStyles, /data-ml-player-viewport-side="left"[\s\S]*?var\(--ml-safe-left\)/)
-    assert.match(atmoStyles, /data-ml-player-viewport-side="right"[\s\S]*?var\(--ml-atmoshaper-drawer-right-reserve\)/)
+  it("reconstructs app-bar, player, and safe-area exclusions for the fixed panel", () => {
+    assert.match(atmoStyles, /--ml-atmoshaper-rail-bottom-reserve:\s*var\(--ml-portal-bottom-stack-height\)/)
+    assert.match(atmoStyles, /--ml-atmoshaper-rail-right-reserve:\s*max\(var\(--ml-player-right-safe\), var\(--ml-safe-right\)\)/)
+    assert.match(atmoStyles, /data-current-mix-side="left"[\s\S]*?inset-inline-start:\s*var\(--ml-safe-left\)/)
+    assert.match(atmoStyles, /data-current-mix-side="right"[\s\S]*?inset-inline-end:\s*var\(--ml-atmoshaper-rail-right-reserve\)/)
     assert.match(atmoStyles, /ml-music-player-bottom:not\(\.ml-music-player-rail\)[\s\S]*?var\(--ml-audio-toolbar-height\)/)
-    assert.match(atmoStyles, /ml-music-player-top[\s\S]*?--ml-atmoshaper-drawer-top-reserve:[\s\S]*?var\(--ml-audio-toolbar-height\)/)
-    assert.match(atmoStyles, /data-app-bar-position="top"[\s\S]*?--ml-atmoshaper-shell-top-reserve/)
+    assert.match(atmoStyles, /ml-music-player-top[\s\S]*?--ml-atmoshaper-rail-top-reserve:[\s\S]*?var\(--ml-audio-toolbar-height\)/)
+    assert.match(atmoStyles, /data-app-bar-position="top"[\s\S]*?--ml-atmoshaper-rail-shell-top-reserve/)
   })
 
   it("keeps sorting on handles and retained rows outside sortable behavior", () => {

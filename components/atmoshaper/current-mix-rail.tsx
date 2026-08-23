@@ -1,155 +1,156 @@
 "use client"
 
-import type { RefObject } from "react"
+import { useRef, useState, type RefObject } from "react"
 import {
-  CircleAlert,
-  LoaderCircle,
+  PanelLeftClose,
   PanelLeftOpen,
+  PanelRightClose,
   PanelRightOpen,
-  Pause,
-  Play,
-  Square,
-  Volume2,
-  VolumeX,
 } from "lucide-react"
 
-import { useMusic } from "@/components/providers/music-provider"
 import { Button } from "@/components/ui/button"
 import type { AtmoShaperRecipe } from "@/lib/atmoshaper/recipe.js"
 
-import {
-  atmoShaperLayerSourceName,
-  useAtmoShaperTransportControls,
-} from "./current-mix"
+import { CurrentMix } from "./current-mix"
+import { resolveAtmoShaperSoloToggle } from "./current-mix-rail-model.js"
 import type { AtmoShaperRecipeActions } from "./use-atmoshaper-recipe"
-import { resolveAtmoShaperVisibleLayerState } from "./workspace-model.js"
 
-/** Persistent committed-layer navigation; temporary previews never enter it. */
+/**
+ * Keeps Solo reversible across the collapsed rail and expanded drawer.
+ * The workspace owns this state so widening the control stack does not reset it.
+ */
+export function useAtmoShaperSoloControls(
+  actions: AtmoShaperRecipeActions,
+  recipe: AtmoShaperRecipe,
+) {
+  const [activeSoloLayerId, setActiveSoloLayerId] = useState<string | null>(null)
+  const soloMuteSnapshotRef = useRef<Record<string, boolean> | null>(null)
+
+  function applyMutePattern(mutedByLayerId: Record<string, boolean>) {
+    Object.entries(mutedByLayerId).forEach(([layerId, muted]) => {
+      actions.updateLayer(layerId, { muted })
+    })
+  }
+
+  function toggleSoloLayer(layerId: string) {
+    const result = resolveAtmoShaperSoloToggle({
+      activeSoloLayerId,
+      layers: recipe.layers,
+      layerId,
+      muteSnapshot: soloMuteSnapshotRef.current,
+    })
+
+    applyMutePattern(result.mutedByLayerId)
+    soloMuteSnapshotRef.current = result.muteSnapshot
+    setActiveSoloLayerId(result.activeSoloLayerId)
+  }
+
+  function toggleMuteLayer(layerId: string, muted: boolean) {
+    if (activeSoloLayerId) {
+      const result = resolveAtmoShaperSoloToggle({
+        activeSoloLayerId,
+        layers: recipe.layers,
+        layerId: activeSoloLayerId,
+        muteSnapshot: soloMuteSnapshotRef.current,
+      })
+      applyMutePattern(result.mutedByLayerId)
+      soloMuteSnapshotRef.current = null
+      setActiveSoloLayerId(null)
+    }
+
+    actions.updateLayer(layerId, { muted: !muted })
+  }
+
+  return { activeSoloLayerId, toggleMuteLayer, toggleSoloLayer }
+}
+
+/**
+ * One edge-owned control tree that widens in place. Keeping this element and
+ * its controls mounted lets the rail read as one panel instead of a rail being
+ * replaced by an unrelated drawer.
+ */
 export function CurrentMixRail({
+  activeLayerId,
+  activeLayerRequestKey,
+  activeSoloLayerId,
   actions,
-  drawerOpen,
+  drawerMode,
   drawerSide,
+  expanded,
   onOpenLayer,
+  onToggleMuteLayer,
   onToggleDrawer,
+  onToggleSoloLayer,
+  panelRef,
   primaryToggleRef,
   recipe,
 }: {
+  activeLayerId: string | null
+  activeLayerRequestKey: number
+  activeSoloLayerId: string | null
   actions: AtmoShaperRecipeActions
-  drawerOpen: boolean
+  drawerMode: "roomy" | "narrow"
   drawerSide: "left" | "right"
+  expanded: boolean
   onOpenLayer(layerId: string, opener: HTMLElement): void
+  onToggleMuteLayer(layerId: string, muted: boolean): void
   onToggleDrawer(opener: HTMLElement): void
+  onToggleSoloLayer(layerId: string): void
+  panelRef: RefObject<HTMLElement | null>
   primaryToggleRef: RefObject<HTMLButtonElement | null>
   recipe: AtmoShaperRecipe
 }) {
-  const music = useMusic()
-  const transport = useAtmoShaperTransportControls(recipe)
-  const DrawerIcon = drawerSide === "left" ? PanelLeftOpen : PanelRightOpen
+  const DrawerIcon = expanded
+    ? drawerSide === "left" ? PanelLeftClose : PanelRightClose
+    : drawerSide === "left" ? PanelLeftOpen : PanelRightOpen
 
   return (
-    <aside className="ml-atmoshaper-current-mix-rail" aria-label="Current Mix rail">
-      <Button
-        ref={primaryToggleRef}
-        type="button"
-        size="sm"
-        variant="outline"
-        className="ml-atmoshaper-rail-button"
-        aria-controls="atmoshaper-current-mix-drawer"
-        aria-expanded={drawerOpen}
-        aria-label={`${drawerOpen ? "Close" : "Open"} Current Mix`}
-        onClick={(event) => onToggleDrawer(event.currentTarget)}
+    <aside
+      ref={panelRef}
+      className="ml-atmoshaper-current-mix-rail"
+      aria-label="Current Mix rail"
+      data-drawer-mode={drawerMode}
+      data-expanded={expanded}
+    >
+      <div
+        id="atmoshaper-current-mix-drawer"
+        className="ml-atmoshaper-current-mix-drawer"
+        role={expanded ? "dialog" : undefined}
+        aria-label={expanded ? "Current Mix controls" : undefined}
+        aria-modal={expanded && drawerMode === "narrow" ? "true" : undefined}
       >
-        <DrawerIcon aria-hidden="true" className="h-4 w-4" />
-        <span>Mix</span>
-      </Button>
-
-      <div className="ml-atmoshaper-rail-transport" aria-label="Current Mix playback">
         <Button
-          type="button"
-          size="sm"
-          variant="success"
-          className="ml-atmoshaper-rail-button"
-          aria-label={transport.isPlaying ? "Pause AtmoShaper" : "Play AtmoShaper"}
-          disabled={recipe.layers.length === 0}
-          onClick={transport.handlePlayPause}
-        >
-          {transport.isPlaying
-            ? <Pause aria-hidden="true" className="h-4 w-4" />
-            : <Play aria-hidden="true" className="h-4 w-4" />}
-          <span>{transport.isPlaying ? "Pause" : "Play"}</span>
-        </Button>
-        <Button
+          ref={primaryToggleRef}
           type="button"
           size="sm"
           variant="outline"
-          className="ml-atmoshaper-rail-button"
-          aria-label="Stop AtmoShaper"
-          disabled={!transport.canStop}
-          onClick={transport.handleStop}
+          className="ml-atmoshaper-rail-button ml-atmoshaper-mix-toggle"
+          aria-controls="atmoshaper-current-mix-drawer"
+          aria-expanded={expanded}
+          aria-label={`${expanded ? "Close" : "Open"} Current Mix`}
+          data-atmoshaper-focus-key="mix"
+          onClick={(event) => {
+            event.stopPropagation()
+            onToggleDrawer(event.currentTarget)
+          }}
         >
-          <Square aria-hidden="true" className="h-4 w-4" />
-          <span>Stop</span>
+          <DrawerIcon aria-hidden="true" className="h-4 w-4" />
+          <span>Mix</span>
         </Button>
+        <CurrentMix
+          activeLayerId={activeLayerId}
+          activeLayerRequestKey={activeLayerRequestKey}
+          activeSoloLayerId={activeSoloLayerId}
+          actions={actions}
+          expanded={expanded}
+          headingId="atmoshaper-current-mix-title"
+          onOpenLayer={onOpenLayer}
+          onRequestExpand={onToggleDrawer}
+          onToggleMuteLayer={onToggleMuteLayer}
+          onToggleSoloLayer={onToggleSoloLayer}
+          recipe={recipe}
+        />
       </div>
-
-      <ol className="ml-atmoshaper-rail-layers" aria-label="Committed layers in mix order">
-        {recipe.layers.map((layer) => {
-          const sourceName = atmoShaperLayerSourceName(layer)
-          const runtimeState = resolveAtmoShaperVisibleLayerState({
-            activePlaybackKind: music.activePlaybackKind,
-            layerState: music.atmoShaperSnapshot?.layers[layer.id],
-            localRecipeId: recipe.id,
-            providerError: music.error,
-            providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
-            snapshotStatus: music.atmoShaperSnapshot?.status,
-          })
-          const state = runtimeState.status === "failed"
-            ? "failed"
-            : runtimeState.status === "loading"
-              ? "loading"
-              : layer.muted
-                ? "muted"
-                : runtimeState.status
-          const StateIcon = state === "failed"
-            ? CircleAlert
-            : state === "loading"
-              ? LoaderCircle
-              : state === "muted"
-                ? VolumeX
-                : Volume2
-
-          return (
-            <li key={layer.id} className="ml-atmoshaper-rail-layer" data-layer-id={layer.id} data-layer-state={state}>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="ml-atmoshaper-rail-layer-open"
-                aria-label={`Open ${sourceName} controls, ${state}`}
-                onClick={(event) => onOpenLayer(layer.id, event.currentTarget)}
-              >
-                <StateIcon aria-hidden="true" className="ml-atmoshaper-rail-status-icon h-4 w-4" />
-                <span className="ml-atmoshaper-rail-layer-name">{sourceName}</span>
-                <span className="ml-atmoshaper-rail-layer-state">{state}</span>
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="ml-atmoshaper-rail-layer-mute"
-                aria-label={`${layer.muted ? "Unmute" : "Mute"} ${sourceName}`}
-                aria-pressed={layer.muted}
-                onClick={() => actions.updateLayer(layer.id, { muted: !layer.muted })}
-              >
-                {layer.muted
-                  ? <Volume2 aria-hidden="true" className="h-4 w-4" />
-                  : <VolumeX aria-hidden="true" className="h-4 w-4" />}
-                <span>{layer.muted ? "Unmute" : "Mute"}</span>
-              </Button>
-            </li>
-          )
-        })}
-      </ol>
     </aside>
   )
 }

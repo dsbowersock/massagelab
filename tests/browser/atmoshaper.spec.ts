@@ -243,7 +243,7 @@ async function readDiagnostics(page: Page) {
 async function expectRailOrderMatchesRecipe(page: Page) {
   const recipeOrder = (await readDiagnostics(page)).recipe?.layers.map(({ id }) => id) ?? []
   await expect.poll(async () => page
-    .locator(".ml-atmoshaper-current-mix-rail [data-layer-id]")
+    .locator(".ml-atmoshaper-current-mix-rail [data-layer-id]:visible, .ml-atmoshaper-expanded-layers [data-layer-id]:visible")
     .evaluateAll((rows) => rows.map((row) => row.getAttribute("data-layer-id"))))
     .toEqual(recipeOrder)
 }
@@ -406,7 +406,15 @@ async function readTouchActivationReceipt(page: Page, key: string) {
 async function openFullMix(page: Page) {
   const dialog = page.getByRole("dialog", { name: "Current Mix controls" })
   if (!await dialog.isVisible()) {
-    await press(page.getByRole("button", { name: "Open Current Mix" }))
+    // A zero-to-one Add schedules the approved discovery expansion on the
+    // next frame. Give that transaction a chance to win before targeting the
+    // same persistent rail control in its collapsed state.
+    await page.evaluate(() => new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))
+    }))
+    if (!await dialog.isVisible()) {
+      await press(page.getByRole("button", { name: "Open Current Mix" }))
+    }
   }
   await expect(dialog).toBeVisible()
   return { scope: dialog, sheetWasOpened: true }
@@ -419,12 +427,17 @@ async function closeFullMix(page: Page) {
       await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished.catch(() => undefined)))
     })
     if (await dialog.isVisible()) {
-      const close = dialog.getByRole("button", { name: "Close", exact: true })
+      const close = dialog.getByRole("button", { name: "Close Current Mix" })
       await close.focus()
       await page.keyboard.press("Escape")
     }
   }
   await expect(dialog).toHaveCount(0)
+  // Focus restoration runs on the following frame even though the persistent
+  // rail and its controls never unmount.
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))
+  }))
 }
 
 async function playAtmoShaper(page: Page) {
@@ -445,13 +458,42 @@ async function closeInterruptionNoticeIfVisible(page: Page) {
 }
 
 async function settleCurrentMixDrawer(page: Page) {
-  const drawer = page.locator(".ml-atmoshaper-current-mix-drawer")
-  if (await drawer.isVisible()) {
-    await drawer.evaluate(async (element) => {
+  const panel = page.locator(".ml-atmoshaper-current-mix-rail")
+  if (await panel.isVisible()) {
+    await panel.evaluate(async (element) => {
       await Promise.all(element.getAnimations({ subtree: true })
         .map((animation) => animation.finished.catch(() => undefined)))
     })
   }
+}
+
+/** Waits until ResizeObserver-driven drawer classification agrees for consecutive frames. */
+async function settleCurrentMixDrawerMode(page: Page) {
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    let stableFrames = 0
+    let previousMode: string | undefined
+    const sample = () => {
+      const workspace = document.querySelector<HTMLElement>(".ml-atmoshaper-workspace")
+      if (!workspace) {
+        window.requestAnimationFrame(sample)
+        return
+      }
+      const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+      const rect = workspace.getBoundingClientRect()
+      const expectedMode = rect.width >= 42 * rootFontSize && rect.height >= 32 * rootFontSize
+        ? "roomy"
+        : "narrow"
+      const mode = workspace.dataset.drawerMode
+      stableFrames = mode === expectedMode && mode === previousMode ? stableFrames + 1 : 0
+      previousMode = mode
+      if (stableFrames >= 3) {
+        resolve()
+        return
+      }
+      window.requestAnimationFrame(sample)
+    }
+    sample()
+  }))
 }
 
 async function measureGeometry(page: Page): Promise<GeometryReceipt> {
@@ -471,6 +513,9 @@ async function measureGeometry(page: Page): Promise<GeometryReceipt> {
     }
     const root = document.documentElement
     const rootStyles = getComputedStyle(root)
+    const currentMixRail = document.querySelector<HTMLElement>(".ml-atmoshaper-current-mix-rail")
+    const currentMixPanelReceipt = receipt(".ml-atmoshaper-current-mix-rail")
+    const currentMixIsExpanded = currentMixRail?.dataset.expanded === "true"
     const noticeElement = document.querySelector<HTMLElement>(".ml-music-interruption-notice")
     const reservationStyles = noticeElement ? getComputedStyle(noticeElement) : rootStyles
     const cssPixels = (property: string) => Number.parseFloat(reservationStyles.getPropertyValue(property)) || 0
@@ -479,7 +524,7 @@ async function measureGeometry(page: Page): Promise<GeometryReceipt> {
         ?? receipt(".ml-app-topbar")
         ?? receipt("[data-sidebar='sidebar']"),
       audioToolbarHeight: cssPixels("--ml-audio-toolbar-height"),
-      drawer: receipt(".ml-atmoshaper-current-mix-drawer"),
+      drawer: currentMixIsExpanded ? currentMixPanelReceipt : null,
       drawerMode: document.querySelector<HTMLElement>(".ml-atmoshaper-workspace")?.dataset.drawerMode ?? null,
       document: {
         clientHeight: root.clientHeight,
@@ -491,7 +536,7 @@ async function measureGeometry(page: Page): Promise<GeometryReceipt> {
       notice: receipt(".ml-music-interruption-notice"),
       player: receipt(".ml-music-player"),
       portalBottomStackHeight: cssPixels("--ml-portal-bottom-stack-height"),
-      rail: receipt(".ml-atmoshaper-current-mix-rail"),
+      rail: currentMixIsExpanded ? null : currentMixPanelReceipt,
       rootFontSize: Number.parseFloat(rootStyles.fontSize),
       safeAreaTop: cssPixels("--ml-safe-top"),
       viewport: { height: window.innerHeight, width: window.innerWidth },
@@ -506,7 +551,6 @@ function expectNoDocumentOverflow(receipt: GeometryReceipt) {
   expect(receipt.document.scrollHeight, message).toBeLessThanOrEqual(receipt.document.clientHeight + 1)
   expect(receipt.workspace, message).not.toBeNull()
   expect(receipt.library, message).not.toBeNull()
-  expect(receipt.rail, message).not.toBeNull()
   expect(receipt.appBar, message).not.toBeNull()
 }
 
@@ -529,6 +573,493 @@ async function expectHitTarget(page: Page, locator: Locator, message: string) {
 
 test.beforeEach(async ({ page }) => {
   await installAtmoShaperBrowserQa(page)
+})
+
+test("keeps preview controls on the active card without shifting the sound-group rail", async ({ page }) => {
+  await page.setViewportSize({ width: 1027, height: 1027 })
+  await openAtmoShaper(page)
+  const tabs = page.getByRole("tablist", { name: "AtmoShaper sound groups" })
+  const whiteCard = page.locator("[data-library-source='noise:white']")
+  const before = await Promise.all([tabs.boundingBox(), whiteCard.boundingBox()])
+  const tabStyles = await tabs.evaluate((element) => {
+    const styles = getComputedStyle(element)
+    return {
+      background: styles.backgroundColor,
+      marginBottom: Number.parseFloat(styles.marginBottom),
+      marginTop: Number.parseFloat(styles.marginTop),
+      paddingBottom: Number.parseFloat(styles.paddingBottom),
+      paddingTop: Number.parseFloat(styles.paddingTop),
+      height: element.getBoundingClientRect().height,
+      overflowY: styles.overflowY,
+    }
+  })
+  const activeTabHeight = await page.getByRole("tab", { name: "Noise" })
+    .evaluate((element) => element.getBoundingClientRect().height)
+  expect(tabStyles).toMatchObject({
+    background: "rgba(0, 0, 0, 0)",
+    marginBottom: 0,
+    marginTop: 0,
+    paddingBottom: 24,
+    paddingTop: 24,
+    overflowY: "visible",
+  })
+  expect(tabStyles.height).toBeGreaterThanOrEqual(activeTabHeight + 48)
+
+  await press(page.getByRole("button", { name: "Preview White noise" }))
+  const localPreview = whiteCard.locator(".ml-atmoshaper-card-preview-controls")
+  await expect(localPreview).toBeVisible()
+  await expect(page.locator(".ml-atmoshaper-preview-strip")).toHaveCount(0)
+  const after = await Promise.all([tabs.boundingBox(), whiteCard.boundingBox()])
+  expect(after[0]!.y).toBeCloseTo(before[0]!.y, 1)
+  expect(after[1]!.height).toBeCloseTo(before[1]!.height, 1)
+})
+
+test("flattens brainwave artwork behind the immediately reachable controls", async ({ page }) => {
+  await page.setViewportSize({ width: 1394, height: 1027 })
+  await openAtmoShaper(page)
+  await press(page.getByRole("tab", { name: "Isochronic tones" }))
+  const panel = page.locator(".ml-atmoshaper-brainwave-panel")
+  const library = page.locator(".ml-atmoshaper-library")
+  const tabsRoot = page.locator(".ml-atmoshaper-library-tabs-root")
+  const libraryBackdrop = tabsRoot.locator(".ml-atmoshaper-library-brainwave-canvas")
+  const tabPanel = page.getByRole("tabpanel", { name: "Isochronic tones" })
+  const backdrop = panel.locator(".ml-atmoshaper-brainwave-backdrop")
+  await expect(panel).toBeVisible()
+  await expect(page.getByRole("group", { name: "Isochronic tones presets" })).toBeVisible()
+  const visual = await Promise.all([
+    panel.evaluate((element) => ({
+      background: getComputedStyle(element).backgroundColor,
+      borderStyle: getComputedStyle(element).borderStyle,
+    })),
+    backdrop.evaluate((element) => ({
+      opacity: Number.parseFloat(getComputedStyle(element).opacity),
+      position: getComputedStyle(element).position,
+    })),
+  ])
+  expect(visual[0].borderStyle).toBe("none")
+  expect(visual[0].background).toBe("rgba(0, 0, 0, 0)")
+  expect(visual[1].position).toBe("absolute")
+  expect(visual[1].opacity).toBeLessThanOrEqual(0.3)
+  const [isochronicBox, tabPanelBox] = await Promise.all([panel.boundingBox(), tabPanel.boundingBox()])
+  expect(isochronicBox!.width).toBeGreaterThanOrEqual(tabPanelBox!.width * 0.95)
+  const [tabsRootBox, libraryBox, libraryBackdropBox] = await Promise.all([
+    tabsRoot.boundingBox(),
+    library.boundingBox(),
+    libraryBackdrop.boundingBox(),
+  ])
+  expect(libraryBackdropBox!.width / tabsRootBox!.width).toBeCloseTo(1.2, 2)
+  expect(
+    libraryBackdropBox!.width / libraryBox!.width,
+    "the decorative wave canvas should be at least 10% wider than the clipped Sound Library surface",
+  ).toBeGreaterThanOrEqual(1.1)
+  expect(libraryBackdropBox!.height).toBeGreaterThan(tabsRootBox!.height)
+  expect(libraryBackdropBox!.x).toBeLessThan(tabsRootBox!.x)
+  expect(libraryBackdropBox!.x + libraryBackdropBox!.width)
+    .toBeGreaterThan(tabsRootBox!.x + tabsRootBox!.width)
+  expect(libraryBackdropBox!.x + libraryBackdropBox!.width / 2)
+    .toBeCloseTo(tabsRootBox!.x + tabsRootBox!.width / 2, 1)
+  await expect(library).toHaveCSS("overflow-x", "hidden")
+  const backdropTreatment = await libraryBackdrop.evaluate((element) => ({
+    backgroundImage: getComputedStyle(element).backgroundImage,
+    maskImage: getComputedStyle(element).maskImage,
+    rectCount: element.querySelectorAll("svg rect").length,
+    pathCount: element.querySelectorAll("svg path").length,
+  }))
+  expect(backdropTreatment.backgroundImage).toContain("radial-gradient")
+  expect(backdropTreatment.maskImage).toContain("radial-gradient")
+  expect(backdropTreatment.rectCount).toBe(0)
+  expect(backdropTreatment.pathCount).toBeGreaterThanOrEqual(2)
+  await expect(panel).toHaveAttribute("data-brainwave-kind", "isochronic")
+  await expect(panel.locator(".ml-atmoshaper-advanced-controls"))
+    .toHaveCSS("border-top-style", "none")
+  await expect(backdrop).toBeHidden()
+  const isochronicPresets = panel.locator(".ml-atmoshaper-preset-buttons")
+  await expect(isochronicPresets).toHaveCSS("overflow", "visible")
+  expect(await isochronicPresets.evaluate((element) => ({
+    paddingBlock: Number.parseFloat(getComputedStyle(element).paddingBlockStart),
+    paddingInline: Number.parseFloat(getComputedStyle(element).paddingInlineStart),
+  }))).toEqual({ paddingBlock: 12, paddingInline: 4 })
+
+  await press(page.getByRole("tab", { name: "Binaural beats" }))
+  const binauralPanel = page.locator(".ml-atmoshaper-brainwave-panel")
+  const [binauralBox, binauralTabPanelBox] = await Promise.all([
+    binauralPanel.boundingBox(),
+    page.getByRole("tabpanel", { name: "Binaural beats" }).boundingBox(),
+  ])
+  expect(binauralBox!.width).toBeLessThan(binauralTabPanelBox!.width * 0.9)
+  await expect(libraryBackdrop).toHaveCount(1)
+  await expect(libraryBackdrop.locator("svg")).toHaveAttribute("data-brainwave-kind", "binaural")
+  const binauralBackdrop = binauralPanel.locator(".ml-atmoshaper-brainwave-backdrop")
+  await expect(binauralBackdrop).toBeHidden()
+  const binauralLibraryBox = await libraryBackdrop.boundingBox()
+  expect(binauralLibraryBox!.width / libraryBox!.width).toBeGreaterThanOrEqual(1.1)
+  expect(binauralLibraryBox!.x).toBeLessThan(libraryBox!.x)
+  expect(binauralLibraryBox!.x + binauralLibraryBox!.width)
+    .toBeGreaterThan(libraryBox!.x + libraryBox!.width)
+  await expect(binauralPanel.locator(".ml-atmoshaper-advanced-controls"))
+    .toHaveCSS("border-top-style", "none")
+  await expect(binauralPanel.locator(".ml-atmoshaper-preset-buttons")).toHaveCSS("overflow", "visible")
+})
+
+test("tones down white noise and refines the brown texture scale", async ({ page }) => {
+  await page.setViewportSize({ width: 1394, height: 1027 })
+  await openAtmoShaper(page)
+  const whiteArt = page.locator("[data-library-source='noise:white'] .ml-atmoshaper-noise-artwork")
+  const brownArt = page.locator("[data-library-source='noise:brown'] .ml-atmoshaper-noise-artwork")
+  await expect(whiteArt.locator("linearGradient stop").first()).toHaveAttribute("stop-color", "#b9bab5")
+  await expect(whiteArt.locator("linearGradient stop").nth(1)).toHaveAttribute("stop-color", "#777a76")
+  await expect(whiteArt.locator("linearGradient stop").last()).toHaveAttribute("stop-color", "#2f322f")
+  await expect(whiteArt.locator("path")).toHaveAttribute("stroke", "#f2f1ec")
+  await expect(whiteArt.locator("rect").nth(1)).toHaveAttribute("opacity", "0.92")
+  await expect(brownArt.locator("feTurbulence")).toHaveAttribute("baseFrequency", "0.58")
+})
+
+test("expands the one edge rail inward without moving its control anchors", async ({ page }) => {
+  await page.setViewportSize({ width: 1235, height: 1027 })
+  await openAtmoShaper(page)
+  await addNoise(page, "White")
+  const dialog = page.getByRole("dialog", { name: "Current Mix controls" })
+  await expect(dialog).toBeVisible()
+  await settleCurrentMixDrawer(page)
+  await page.getByRole("heading", { name: "Sound Library" }).click()
+  await expect(dialog).toHaveCount(0)
+  await settleCurrentMixDrawer(page)
+  const workspace = page.getByLabel("AtmoShaper live mixer")
+  const rail = page.getByLabel("Current Mix rail")
+  await expect(workspace).toHaveAttribute("data-drawer-mode", "roomy")
+  const measureControls = (root: typeof rail) => root.evaluate((element) => {
+    const receipt = (selector: string) => {
+      const target = selector === ":scope"
+        ? element
+        : element.querySelector<HTMLElement>(selector)
+      if (!target) return null
+      const rect = target.getBoundingClientRect()
+      return {
+        bottom: rect.bottom,
+        centerX: rect.left + rect.width / 2,
+        centerY: rect.top + rect.height / 2,
+        height: rect.height,
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        width: rect.width,
+      }
+    }
+    const style = getComputedStyle(element)
+    return {
+      mix: receipt(".ml-atmoshaper-mix-toggle"),
+      transport: receipt(".ml-atmoshaper-expanded-mix-transport"),
+      volume: receipt(".ml-atmoshaper-master-volume-slot"),
+      layer: receipt(".ml-atmoshaper-expanded-layers .ml-atmoshaper-layer-row"),
+      root: receipt(":scope"),
+      borderRadius: style.borderRadius,
+      boxShadow: style.boxShadow,
+    }
+  })
+  const collapsed = await measureControls(rail)
+  await rail.evaluate((element) => {
+    Reflect.set(window, "__mlAtmoShaperPersistentPanel", element)
+    Reflect.set(window, "__mlAtmoShaperPersistentControls", [
+      element.querySelector("[data-atmoshaper-focus-key='mix']"),
+      element.querySelector(".ml-atmoshaper-transport-button"),
+      element.querySelector(".ml-atmoshaper-master-volume-slot"),
+      element.querySelector(".ml-atmoshaper-layer-row"),
+    ])
+  })
+  expect(collapsed.borderRadius).toBe("0px")
+  expect(collapsed.boxShadow).toBe("none")
+  expect(Math.abs(collapsed.layer!.width - collapsed.layer!.height)).toBeLessThanOrEqual(1)
+  const compactVolume = rail.getByRole("button", { name: "Open whole mix volume controls" })
+  await expect(compactVolume).toBeVisible()
+  const compactVolumeTreatment = await compactVolume.evaluate((element) => {
+    const rect = element.getBoundingClientRect()
+    const slotRect = element.parentElement!.getBoundingClientRect()
+    const style = getComputedStyle(element)
+    return {
+      borderRadius: Number.parseFloat(style.borderRadius),
+      borderStyles: [style.borderTopStyle, style.borderRightStyle, style.borderBottomStyle, style.borderLeftStyle],
+      borderWidths: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth]
+        .map(Number.parseFloat),
+      leftInset: rect.left - slotRect.left,
+      rightInset: slotRect.right - rect.right,
+    }
+  })
+  expect(compactVolumeTreatment.borderRadius).toBeGreaterThan(0)
+  expect(compactVolumeTreatment.borderStyles).toEqual(["solid", "solid", "solid", "solid"])
+  expect(compactVolumeTreatment.borderWidths.every((width) => width >= 1)).toBe(true)
+  expect(compactVolumeTreatment.leftInset).toBeGreaterThanOrEqual(-0.5)
+  expect(compactVolumeTreatment.rightInset).toBeGreaterThanOrEqual(-0.5)
+
+  await press(rail.getByRole("button", { name: "Open Current Mix" }))
+  await expect(dialog).toBeVisible()
+  await settleCurrentMixDrawer(page)
+  await expect(rail).toBeVisible()
+  await expect(rail).toHaveAttribute("data-expanded", "true")
+  expect(await rail.evaluate((element) => (
+    element === Reflect.get(window, "__mlAtmoShaperPersistentPanel")
+    && [
+      element.querySelector("[data-atmoshaper-focus-key='mix']"),
+      element.querySelector(".ml-atmoshaper-transport-button"),
+      element.querySelector(".ml-atmoshaper-master-volume-slot"),
+      element.querySelector(".ml-atmoshaper-layer-row"),
+    ].every((control, index) => control === Reflect.get(window, "__mlAtmoShaperPersistentControls")[index])
+  ))).toBe(true)
+  const expanded = await measureControls(rail)
+  const expandedVolumeTreatment = await dialog.locator(".ml-atmoshaper-expanded-master-volume")
+    .evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      const slotRect = element.parentElement!.getBoundingClientRect()
+      const style = getComputedStyle(element)
+      return {
+        borderRadius: Number.parseFloat(style.borderRadius),
+        borderStyles: [style.borderTopStyle, style.borderRightStyle, style.borderBottomStyle, style.borderLeftStyle],
+        borderWidths: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth]
+          .map(Number.parseFloat),
+        leftInset: rect.left - slotRect.left,
+        rightInset: slotRect.right - rect.right,
+      }
+    })
+  expect(expandedVolumeTreatment.borderRadius).toBeGreaterThan(0)
+  expect(expandedVolumeTreatment.borderStyles).toEqual(["solid", "solid", "solid", "solid"])
+  expect(expandedVolumeTreatment.borderWidths.every((width) => width >= 1)).toBe(true)
+  expect(expandedVolumeTreatment.leftInset).toBeGreaterThanOrEqual(-0.5)
+  expect(expandedVolumeTreatment.rightInset).toBeGreaterThanOrEqual(-0.5)
+  expect(expanded.root!.right).toBeCloseTo(collapsed.root!.right, 1)
+  expect(expanded.root!.top).toBeCloseTo(collapsed.root!.top, 1)
+  expect(expanded.root!.bottom).toBeCloseTo(collapsed.root!.bottom, 1)
+  expect(expanded.layer!.width).toBeGreaterThan(collapsed.layer!.width * 3)
+  for (const control of ["mix", "transport", "volume", "layer"] as const) {
+    expect(
+      Math.abs(expanded[control]!.top - collapsed[control]!.top),
+      `${control} control should retain its vertical anchor`,
+    ).toBeLessThanOrEqual(1)
+  }
+  await expect(dialog.getByRole("button", { name: "Solo White noise" })).toHaveAttribute("aria-pressed", "false")
+  await press(dialog.getByRole("button", { name: "Solo White noise" }))
+  await expect(dialog.getByRole("button", { name: "Unsolo White noise" })).toHaveAttribute("aria-pressed", "true")
+
+  await page.getByRole("heading", { name: "Sound Library" }).click()
+  await expect(dialog).toHaveCount(0)
+  const restoredRail = page.getByLabel("Current Mix rail")
+  await expect(restoredRail).toBeVisible()
+  await expect(restoredRail).toHaveAttribute("data-expanded", "false")
+  expect(await restoredRail.evaluate((element) => (
+    element === Reflect.get(window, "__mlAtmoShaperPersistentPanel")
+  ))).toBe(true)
+  await expect(restoredRail.getByRole("button", { name: "Unsolo White noise" }))
+    .toHaveAttribute("aria-pressed", "true")
+})
+
+test("keeps the compact whole-mix volume outline closed in a short viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 950, height: 500 })
+  await openAtmoShaper(page)
+  const rail = page.getByLabel("Current Mix rail")
+  const compactVolume = rail.getByRole("button", { name: "Open whole mix volume controls" })
+  await expect(compactVolume).toBeVisible()
+  const treatment = await compactVolume.evaluate((element) => {
+    const rect = element.getBoundingClientRect()
+    const slotRect = element.parentElement!.getBoundingClientRect()
+    const railRect = element.closest(".ml-atmoshaper-current-mix-rail")!.getBoundingClientRect()
+    const style = getComputedStyle(element)
+    return {
+      borderStyles: [style.borderTopStyle, style.borderRightStyle, style.borderBottomStyle, style.borderLeftStyle],
+      borderWidths: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth]
+        .map(Number.parseFloat),
+      left: rect.left,
+      right: rect.right,
+      slotLeft: slotRect.left,
+      slotRight: slotRect.right,
+      railLeft: railRect.left,
+      railRight: railRect.right,
+    }
+  })
+  expect(treatment.borderStyles).toEqual(["solid", "solid", "solid", "solid"])
+  expect(treatment.borderWidths.every((width) => width >= 1)).toBe(true)
+  expect(treatment.left).toBeGreaterThanOrEqual(treatment.slotLeft - 0.5)
+  expect(treatment.right).toBeLessThanOrEqual(treatment.slotRight + 0.5)
+  expect(treatment.left).toBeGreaterThanOrEqual(treatment.railLeft - 0.5)
+  expect(treatment.right).toBeLessThanOrEqual(treatment.railRight + 0.5)
+})
+
+test("keeps the expanded volume outline and layer height aligned in a short viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 950, height: 500 })
+  await openAtmoShaper(page)
+  await addNoise(page, "White")
+
+  const dialog = page.getByRole("dialog", { name: "Current Mix controls" })
+  await expect(dialog).toBeVisible()
+  await settleCurrentMixDrawer(page)
+  await press(dialog.getByRole("button", { name: "Close Current Mix" }))
+  await expect(dialog).toHaveCount(0)
+  await settleCurrentMixDrawer(page)
+
+  const rail = page.getByLabel("Current Mix rail")
+  const compactVolume = rail.getByRole("button", { name: "Open whole mix volume controls" })
+  const collapsedLayer = rail.locator(".ml-atmoshaper-layer-row").filter({ hasText: "White noise" })
+  const [compactVolumeTreatment, collapsedLayerBox] = await Promise.all([
+    compactVolume.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return {
+        backgroundColor: style.backgroundColor,
+        borderColor: style.borderTopColor,
+        borderWidth: style.borderTopWidth,
+        boxShadow: style.boxShadow,
+      }
+    }),
+    collapsedLayer.boundingBox(),
+  ])
+
+  await press(rail.getByRole("button", { name: "Open Current Mix" }))
+  await expect(dialog).toBeVisible()
+  await settleCurrentMixDrawer(page)
+
+  const expandedVolume = dialog.locator(".ml-atmoshaper-expanded-master-volume")
+  const expandedLayer = dialog.locator(".ml-atmoshaper-layer-row").filter({ hasText: "White noise" })
+  const [expandedVolumeTreatment, expandedLayerBox] = await Promise.all([
+    expandedVolume.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return {
+        backgroundColor: style.backgroundColor,
+        borderColor: style.borderTopColor,
+        borderWidth: style.borderTopWidth,
+        boxShadow: style.boxShadow,
+      }
+    }),
+    expandedLayer.boundingBox(),
+  ])
+
+  expect(expandedVolumeTreatment).toEqual(compactVolumeTreatment)
+  expect(
+    Math.abs(expandedLayerBox!.height - collapsedLayerBox!.height),
+    "opening the rail should not increase a standard layer row's height",
+  ).toBeLessThanOrEqual(1)
+
+  const collapseSamples = await expandedLayer.evaluate(async (layer) => {
+    const rail = layer.closest<HTMLElement>(".ml-atmoshaper-current-mix-rail")!
+    const closeButton = rail.querySelector<HTMLButtonElement>("[aria-label='Close Current Mix']")!
+    const samples: Array<{ height: number; width: number }> = []
+
+    return new Promise<Array<{ height: number; width: number }>>((resolve, reject) => {
+      let frame = 0
+      const timeout = window.setTimeout(() => {
+        cancelAnimationFrame(frame)
+        reject(new Error("Current Mix collapse did not finish"))
+      }, 1_000)
+      const capture = () => {
+        const rect = layer.getBoundingClientRect()
+        samples.push({ height: rect.height, width: rect.width })
+        frame = requestAnimationFrame(capture)
+      }
+      const finish = (event: TransitionEvent) => {
+        if (event.target !== rail || event.propertyName !== "width") return
+        rail.removeEventListener("transitionend", finish)
+        window.clearTimeout(timeout)
+        cancelAnimationFrame(frame)
+        const rect = layer.getBoundingClientRect()
+        samples.push({ height: rect.height, width: rect.width })
+        resolve(samples)
+      }
+
+      rail.addEventListener("transitionend", finish)
+      frame = requestAnimationFrame(capture)
+      closeButton.click()
+    })
+  })
+  expect(Math.max(...collapseSamples.map(({ width }) => width)))
+    .toBeGreaterThan(Math.min(...collapseSamples.map(({ width }) => width)) * 3)
+  expect(
+    Math.max(...collapseSamples.map(({ height }) => height))
+      - Math.min(...collapseSamples.map(({ height }) => height)),
+    "a layer should contract horizontally without ballooning vertically during collapse",
+  ).toBeLessThanOrEqual(1)
+
+  await expect(dialog).toHaveCount(0)
+  const collapsedRow = rail.locator(".ml-atmoshaper-layer-row").filter({ hasText: "White noise" })
+  for (const name of ["Mute White noise", "Solo White noise"]) {
+    const treatment = await collapsedRow.getByRole("button", { name }).evaluate((button) => {
+      const rowRect = button.closest<HTMLElement>(".ml-atmoshaper-layer-row")!.getBoundingClientRect()
+      const rect = button.getBoundingClientRect()
+      const style = getComputedStyle(button)
+      return {
+        bottomInset: rowRect.bottom - rect.bottom,
+        leftInset: rect.left - rowRect.left,
+        radius: Number.parseFloat(style.borderTopLeftRadius),
+        rightInset: rowRect.right - rect.right,
+      }
+    })
+    expect(treatment.radius, `${name} should have rounded corners`).toBeGreaterThanOrEqual(4)
+    expect(
+      Math.min(treatment.bottomInset, treatment.leftInset, treatment.rightInset),
+      `${name} should sit inside the tile instead of being clipped by it`,
+    ).toBeGreaterThanOrEqual(1)
+  }
+})
+
+test("keeps every populated layer on one shared vertical track while the rail expands", async ({ page }) => {
+  await page.setViewportSize({ width: 1394, height: 1027 })
+  await openAtmoShaper(page)
+  await addNoise(page, "White")
+
+  const dialog = page.getByRole("dialog", { name: "Current Mix controls" })
+  await expect(dialog).toBeVisible()
+  await settleCurrentMixDrawer(page)
+  await press(dialog.getByRole("button", { name: "Close Current Mix" }))
+  await expect(dialog).toHaveCount(0)
+  await settleCurrentMixDrawer(page)
+  await addNoise(page, "Pink")
+  await addNoise(page, "Brown")
+
+  const rail = page.getByLabel("Current Mix rail")
+  const rows = rail.locator(".ml-atmoshaper-layer-row")
+  await expect(rows).toHaveCount(3)
+  const collapsedBoxes = await rows.evaluateAll((elements) => elements.map((element) => {
+    const rect = element.getBoundingClientRect()
+    return { height: rect.height, top: rect.top }
+  }))
+
+  await press(rail.getByRole("button", { name: "Open Current Mix" }))
+  await expect(dialog).toBeVisible()
+  await settleCurrentMixDrawer(page)
+  const expandedBoxes = await rows.evaluateAll((elements) => elements.map((element) => {
+    const rect = element.getBoundingClientRect()
+    return { height: rect.height, top: rect.top }
+  }))
+
+  const collapsedOffsets = collapsedBoxes.map(({ top }) => top - collapsedBoxes[0].top)
+  const expandedOffsets = expandedBoxes.map(({ top }) => top - expandedBoxes[0].top)
+  for (const [index, collapsedOffset] of collapsedOffsets.entries()) {
+    expect(
+      Math.abs(expandedOffsets[index] - collapsedOffset),
+      `layer ${index + 1} should retain its vertical track as the rail widens`,
+    ).toBeLessThanOrEqual(1)
+    expect(
+      Math.abs(expandedBoxes[index].height - collapsedBoxes[index].height),
+      `layer ${index + 1} should retain its height as the rail widens`,
+    ).toBeLessThanOrEqual(1)
+  }
+})
+
+test("solos a collapsed-rail layer and restores the exact prior mute pattern", async ({ page }) => {
+  await page.setViewportSize({ width: 1235, height: 1027 })
+  await openAtmoShaper(page)
+  await addNoise(page, "White")
+  await page.getByRole("heading", { name: "Sound Library" }).click()
+  await addNoise(page, "Pink")
+
+  const rail = page.getByLabel("Current Mix rail")
+  const white = rail.locator("[data-layer-id]").filter({ hasText: "White noise" })
+  const pink = rail.locator("[data-layer-id]").filter({ hasText: "Pink noise" })
+  await press(white.getByRole("button", { name: "Solo White noise" }))
+  await expect(white).not.toHaveAttribute("data-layer-state", "muted")
+  await expect(pink).toHaveAttribute("data-layer-state", "muted")
+  await expect(white.getByRole("button", { name: "Unsolo White noise" }))
+    .toHaveAttribute("aria-pressed", "true")
+
+  await press(white.getByRole("button", { name: "Unsolo White noise" }))
+  await expect(white).not.toHaveAttribute("data-layer-state", "muted")
+  await expect(pink).not.toHaveAttribute("data-layer-state", "muted")
+  await expect(white.getByRole("button", { name: "Solo White noise" }))
+    .toHaveAttribute("aria-pressed", "false")
 })
 
 test("previews one ephemeral source, replaces it, changes volume, recovers one failure, and stops cleanly", async ({ page }) => {
@@ -663,7 +1194,7 @@ test("leaving AtmoShaper independently retires preview-only playback", async ({ 
 })
 
 for (const sidebarPosition of ["left", "right"] as const) {
-  test(`places the roomy rail and overlay opposite a ${sidebarPosition} sidebar without changing library width`, async ({ page }) => {
+  test(`expands the roomy edge rail opposite a ${sidebarPosition} sidebar without changing library width`, async ({ page }) => {
     await page.addInitScript((position) => {
       localStorage.setItem("massage-lab-settings", JSON.stringify({ sidebarPosition: position }))
     }, sidebarPosition)
@@ -679,25 +1210,39 @@ for (const sidebarPosition of ["left", "right"] as const) {
     await press(trigger)
     const dialog = page.getByRole("dialog", { name: "Current Mix controls" })
     await expect(dialog).toBeVisible()
+    await settleCurrentMixDrawer(page)
     const open = await measureGeometry(page)
     const message = `${sidebarPosition} sidebar geometry: ${JSON.stringify({ closed, open })}`
     expect(open.library?.width, message).toBeCloseTo(closed.library!.width, 1)
     expect(open.drawerMode, message).toBe("roomy")
+    expect(closed.rail, message).not.toBeNull()
+    expect(closed.drawer, message).toBeNull()
+    expect(open.rail, message).toBeNull()
+    expect(open.drawer, message).not.toBeNull()
+    expect(open.drawer!.top, message).toBeCloseTo(closed.rail!.top, 1)
+    expect(open.drawer!.bottom, message).toBeCloseTo(closed.rail!.bottom, 1)
     if (drawerSide === "right") {
-      expect(open.rail!.left, message).toBeGreaterThan(open.library!.left)
       expect(open.drawer!.right, message).toBeGreaterThan(open.workspace!.left + open.workspace!.width / 2)
+      expect(open.drawer!.right, message).toBeCloseTo(closed.rail!.right, 1)
     } else {
-      expect(open.rail!.right, message).toBeLessThan(open.library!.right)
       expect(open.drawer!.left, message).toBeLessThan(open.workspace!.left + open.workspace!.width / 2)
+      expect(open.drawer!.left, message).toBeCloseTo(closed.rail!.left, 1)
     }
 
     const uncoveredSource = drawerSide === "right" ? "White" : "Brown"
     const uncoveredAdd = page.getByRole("button", { name: `Add ${uncoveredSource} noise` })
     await expectHitTarget(page, uncoveredAdd, message)
-    await press(uncoveredAdd)
+    await page.getByRole("heading", { name: "Sound Library" }).click()
+    await expect(dialog).toHaveCount(0)
+    await uncoveredAdd.click()
     await expect(dialog).toBeVisible()
-    expect((await readDiagnostics(page)).recipe?.layers.map(({ sourceId }) => sourceId))
-      .toEqual([`noise:${uncoveredSource.toLowerCase()}`])
+    await expect(dialog.getByText(`${uncoveredSource} noise`, { exact: true }))
+      .toBeVisible()
+    await expect(page.getByLabel("Current Mix rail")).toHaveAttribute("data-expanded", "true")
+    await closeFullMix(page)
+    await expect(page.getByLabel("Current Mix rail")
+      .getByRole("button", { name: new RegExp(`Open ${uncoveredSource} noise controls`) }))
+      .toBeVisible()
   })
 }
 
@@ -739,13 +1284,14 @@ test("first Add discovers the drawer while later Add stays closed and the rail r
   await expect(dialog).toHaveCount(0)
   const railRows = page.locator(".ml-atmoshaper-current-mix-rail [data-layer-id]")
   await expect(railRows).toHaveCount(2)
-  await expect(railRows.nth(0)).toContainText("Pink noise")
-  await expect(railRows.nth(1)).toContainText("Brown noise")
+  await expect(railRows.nth(0).getByRole("button", { name: /Open Pink noise controls/ })).toBeVisible()
+  await expect(railRows.nth(1).getByRole("button", { name: /Open Brown noise controls/ })).toBeVisible()
   await expectRailOrderMatchesRecipe(page)
 
   await press(page.getByRole("button", { name: "Mute Brown noise" }))
   await expect(railRows.nth(1)).toHaveAttribute("data-layer-state", "muted")
-  await expect(page.getByRole("button", { name: "Unmute Brown noise" })).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByRole("button", { name: "Unmute Brown noise" })).not.toHaveAttribute("aria-pressed")
+  await expect(page.getByRole("button", { name: "Unmute Brown noise" })).toHaveAttribute("title", "Unmute Brown noise")
 
   const observedLoading = railRows.nth(0).evaluate((row) => new Promise<boolean>((resolve) => {
     const finish = (value: boolean) => {
@@ -953,9 +1499,9 @@ test("Sound Library preserves glow semantics, meaningful art, success actions, a
   expect(glowTokens.selected).not.toBe(glowTokens.inactive)
 
   const noiseExpectations = {
-    white: { frequency: "0.92", seed: "17", stops: ["#ffffff", "#ece8df", "#8b8b86"] },
+    white: { frequency: "0.92", seed: "17", stops: ["#b9bab5", "#777a76", "#2f322f"] },
     pink: { frequency: "0.46", seed: "29", stops: ["#f2a0b8", "#4a2730", "#1f1017"] },
-    brown: { frequency: "0.24", seed: "41", stops: ["#c47c49", "#3a2318", "#150d08"] },
+    brown: { frequency: "0.58", seed: "41", stops: ["#c47c49", "#3a2318", "#150d08"] },
   } as const
   for (const [color, treatment] of Object.entries(noiseExpectations)) {
     const artwork = page.locator(`[data-noise-color='${color}']`)
@@ -999,7 +1545,9 @@ test("Sound Library preserves glow semantics, meaningful art, success actions, a
   expect(stationArtworkIds.every(({ artworkId, sourceId }) => artworkId === sourceId)).toBe(true)
 
   await press(page.getByRole("tab", { name: "Binaural beats" }))
-  const binauralArt = page.locator("[data-brainwave-kind='binaural']")
+  const binauralArt = page.locator(
+    ".ml-atmoshaper-library-brainwave-canvas [data-brainwave-kind='binaural']",
+  )
   await expect(binauralArt.locator("[data-wave-channel='left']")).toHaveAttribute("stroke", "#f0a04b")
   await expect(binauralArt.locator("[data-wave-channel='right']")).toHaveAttribute("stroke", "#b998ff")
   expect(await binauralArt.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0)
@@ -1014,7 +1562,9 @@ test("Sound Library preserves glow semantics, meaningful art, success actions, a
   expect(presetTokens[0]).toBe(glowTokens.cta)
   expect(presetTokens[1]).toBe(glowTokens.warm)
   await press(page.getByRole("tab", { name: "Isochronic tones" }))
-  const isochronicArt = page.locator("[data-brainwave-kind='isochronic']")
+  const isochronicArt = page.locator(
+    ".ml-atmoshaper-library-brainwave-canvas [data-brainwave-kind='isochronic']",
+  )
   await expect(isochronicArt.locator("[data-pulse-envelope='true']")).toHaveAttribute("stroke", "#f0a04b")
   expect(await isochronicArt.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0)
 
@@ -1043,9 +1593,9 @@ test("plays one free sound with no station through the single global player", as
   expect(diagnostics.activeStationId).toBeNull()
   expect(diagnostics.recipe?.layers.map(({ kind }) => kind)).toEqual(["noise"])
   expect(Object.keys(diagnostics.runtime?.activeLayers ?? {})).toHaveLength(1)
-  const fullControls = page.getByLabel("AtmoShaper playback controls")
-  const compactControls = page.getByLabel("Compact Current Mix")
-  expect(await fullControls.isVisible() || await compactControls.isVisible()).toBe(true)
+  const expandedControls = page.getByRole("dialog", { name: "Current Mix controls" })
+  const collapsedControls = page.getByLabel("Current Mix rail")
+  expect(await expandedControls.isVisible() || await collapsedControls.isVisible()).toBe(true)
   await expect(page.locator(".ml-music-player")).toHaveCount(1)
   await expect(page.getByRole("button", { name: "Favorite AtmoShaper" })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Previous station" })).toHaveCount(0)
@@ -1235,8 +1785,8 @@ test("keyboard controls isolate one failed layer and support retry, reorder, mut
     [failed.recipe!.layers.find(({ sourceId }) => sourceId === "binaural:alpha")!.id]: { status: "failed" },
   })
   const failedAlphaId = failed.recipe!.layers.find(({ sourceId }) => sourceId === "binaural:alpha")!.id
-  await expect(page.locator(`.ml-atmoshaper-current-mix-rail [data-layer-id='${failedAlphaId}']`))
-    .toHaveAttribute("data-layer-state", "failed")
+  await expect(currentMix.locator(`[data-layer-id='${failedAlphaId}']`).getByText("failed", { exact: true }))
+    .toBeVisible()
   expect(Object.values(failed.runtime?.activeLayers ?? {}).map(({ sourceId }) => sourceId))
     .toEqual(expect.arrayContaining(["noise:pink", "noise:brown"]))
 
@@ -1360,7 +1910,7 @@ test("reduced motion removes decoration while preserving usable controls", async
   await expect(page.getByRole("button", { name: /Current Mix/ })).toBeVisible()
 })
 
-test("200% text keeps open drawer, notice, rail, player, and safe-area chrome unobscured", async ({ page }) => {
+test("200% text keeps expanded Mix and interruption dismissal controls reachable", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 })
   await openAtmoShaper(page)
   await page.evaluate(() => {
@@ -1369,7 +1919,7 @@ test("200% text keeps open drawer, notice, rail, player, and safe-area chrome un
   })
   await addNoise(page, "Pink")
   await playAtmoShaper(page)
-  await waitForAtmoStatus(page, "playing")
+  await expect(page.locator(".ml-music-player")).toContainText("AtmoShaper", { timeout: 30_000 })
   const dialog = page.getByRole("dialog", { name: "Current Mix controls" })
   await expect(dialog).toBeVisible()
   await press(dialog.getByLabel("Volume for Pink noise"), "ArrowLeft")
@@ -1382,14 +1932,13 @@ test("200% text keeps open drawer, notice, rail, player, and safe-area chrome un
   const message = `200% safe-area geometry: ${JSON.stringify(receipt)}`
   expectNoDocumentOverflow(receipt)
   expect(receipt.drawer, message).not.toBeNull()
+  expect(receipt.rail, message).toBeNull()
   expect(receipt.notice, message).not.toBeNull()
   expect(receipt.player, message).not.toBeNull()
   expect(receipt.notice!.top, message).toBeGreaterThanOrEqual(receipt.safeAreaTop + 7)
   for (const [firstName, first, secondName, second] of [
     ["drawer", receipt.drawer!, "player", receipt.player!],
     ["drawer", receipt.drawer!, "app bar", receipt.appBar!],
-    ["rail", receipt.rail!, "player", receipt.player!],
-    ["rail", receipt.rail!, "app bar", receipt.appBar!],
     ["notice", receipt.notice!, "player", receipt.player!],
     ["notice", receipt.notice!, "app bar", receipt.appBar!],
   ] as const) {
@@ -1404,64 +1953,81 @@ test("200% text keeps open drawer, notice, rail, player, and safe-area chrome un
   )
   expect(maxHeightWithoutSafeTop - maxHeightWithSafeTop, message).toBeCloseTo(receipt.safeAreaTop, 1)
   await page.evaluate(() => document.documentElement.style.setProperty("--ml-safe-top", "18px"))
-  await expectHitTarget(page, dialog.getByRole("button", { name: "Close", exact: true }), message)
+  // The player-owned nonmodal notice intentionally paints above the mixer.
+  // Its dismissal must remain reachable first; the same persistent Mix toggle
+  // must then remain reachable after that outside click collapses the panel.
+  await expectHitTarget(page, notice.getByRole("button", { name: "Close" }), message)
+  await closeInterruptionNoticeIfVisible(page)
+  await expect(dialog).toHaveCount(0)
+  const collapsedRail = page.getByLabel("Current Mix rail")
+  await expect(collapsedRail).toHaveAttribute("data-expanded", "false")
+  await expectHitTarget(page, collapsedRail.getByRole("button", { name: "Open Current Mix" }), message)
 })
 
 test("viewport matrix has no document overflow and grows usefully on large displays", async ({ page }) => {
-  await openAtmoShaper(page)
-  await addNoise(page, "Pink")
-  await playAtmoShaper(page)
-  await waitForAtmoStatus(page, "playing")
+  test.setTimeout(180_000)
 
   const receipts = new Map<string, GeometryReceipt>()
   for (const viewport of viewports) {
     await page.setViewportSize(viewport)
+    // Start every receipt from a fresh page. Switching repeatedly between the
+    // roomy and narrow widths can otherwise let the previous rail transition
+    // race the next viewport's opening transition.
+    await openAtmoShaper(page)
+    await addNoise(page, "Pink")
+    await expect(page.getByRole("dialog", { name: "Current Mix controls" })).toBeVisible()
+    await closeFullMix(page)
+    await expect(page.getByLabel("Current Mix rail")).toBeVisible()
+    await playAtmoShaper(page)
+    await expect(page.locator(".ml-music-player")).toContainText("AtmoShaper", { timeout: 30_000 })
+    await expect(page.getByLabel("Current Mix rail")).toBeVisible()
     await expect(page.getByLabel("AtmoShaper live mixer")).toBeVisible()
-    await expect.poll(() => page.evaluate(() => {
-      const workspace = document.querySelector<HTMLElement>(".ml-atmoshaper-workspace")
-      if (!workspace) return false
-      const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
-      const rect = workspace.getBoundingClientRect()
-      const expected = rect.width >= 42 * rootFontSize && rect.height >= 32 * rootFontSize
-        ? "roomy"
-        : "narrow"
-      return workspace.dataset.drawerMode === expected
-    })).toBe(true)
-    // Changing viewport shape can switch the controlled Sheet between roomy
-    // and narrow modes. Measure only after that legitimate side transition.
-    await settleCurrentMixDrawer(page)
-    const receipt = await measureGeometry(page)
-    expectNoDocumentOverflow(receipt)
-    const expectedMode = receipt.workspace!.width >= 42 * receipt.rootFontSize
-      && receipt.workspace!.height >= 32 * receipt.rootFontSize
-      ? "roomy"
-      : "narrow"
-    expect(receipt.drawerMode, `AtmoShaper threshold receipt: ${JSON.stringify(receipt)}`)
-      .toBe(expectedMode)
-    expect(receipt.drawer, `AtmoShaper drawer receipt: ${JSON.stringify(receipt)}`).not.toBeNull()
+    await settleCurrentMixDrawerMode(page)
+    const closedReceipt = await measureGeometry(page)
+    expectNoDocumentOverflow(closedReceipt)
+    expect(closedReceipt.rail, `AtmoShaper closed-rail receipt for ${viewport.width}x${viewport.height}`)
+      .not.toBeNull()
+    expect(closedReceipt.drawer, `AtmoShaper closed-rail receipt for ${viewport.width}x${viewport.height}`)
+      .toBeNull()
     expectRectsNotToOverlap(
-      receipt.rail!,
-      receipt.appBar!,
-      `AtmoShaper rail/app-bar receipt: ${JSON.stringify(receipt)}`,
+      closedReceipt.rail!,
+      closedReceipt.appBar!,
+      `AtmoShaper closed rail/app-bar receipt: ${JSON.stringify(closedReceipt)}`,
     )
-    expectRectsNotToOverlap(
-      receipt.drawer!,
-      receipt.appBar!,
-      `AtmoShaper drawer/app-bar receipt: ${JSON.stringify(receipt)}`,
-    )
-    if (receipt.player) {
+    if (closedReceipt.player) {
       expectRectsNotToOverlap(
-        receipt.rail!,
-        receipt.player,
-        `AtmoShaper rail/player receipt: ${JSON.stringify(receipt)}`,
-      )
-      expectRectsNotToOverlap(
-        receipt.drawer!,
-        receipt.player,
-        `AtmoShaper drawer/player receipt: ${JSON.stringify(receipt)}`,
+        closedReceipt.rail!,
+        closedReceipt.player,
+        `AtmoShaper closed rail/player receipt: ${JSON.stringify(closedReceipt)}`,
       )
     }
-    receipts.set(`${viewport.width}x${viewport.height}`, receipt)
+    await openFullMix(page)
+    await settleCurrentMixDrawer(page)
+    const openReceipt = await measureGeometry(page)
+    expect(openReceipt.drawer, `AtmoShaper open-drawer receipt for ${viewport.width}x${viewport.height}`)
+      .not.toBeNull()
+    expect(openReceipt.rail, `AtmoShaper open-drawer receipt for ${viewport.width}x${viewport.height}`)
+      .toBeNull()
+    expectNoDocumentOverflow(openReceipt)
+    const expectedMode = openReceipt.workspace!.width >= 42 * openReceipt.rootFontSize
+      && openReceipt.workspace!.height >= 32 * openReceipt.rootFontSize
+      ? "roomy"
+      : "narrow"
+    expect(openReceipt.drawerMode, `AtmoShaper threshold receipt: ${JSON.stringify(openReceipt)}`)
+      .toBe(expectedMode)
+    expectRectsNotToOverlap(
+      openReceipt.drawer!,
+      openReceipt.appBar!,
+      `AtmoShaper drawer/app-bar receipt: ${JSON.stringify(openReceipt)}`,
+    )
+    if (openReceipt.player) {
+      expectRectsNotToOverlap(
+        openReceipt.drawer!,
+        openReceipt.player,
+        `AtmoShaper drawer/player receipt: ${JSON.stringify(openReceipt)}`,
+      )
+    }
+    receipts.set(`${viewport.width}x${viewport.height}`, openReceipt)
   }
   console.log(`[task-8-atmoshaper-geometry] ${JSON.stringify(Object.fromEntries(receipts))}`)
 
@@ -1472,7 +2038,7 @@ test("viewport matrix has no document overflow and grows usefully on large displ
   expect(tv.workspace!.height, message).toBeGreaterThan(laptop.workspace!.height + 300)
   expect(tv.library!.width, message).toBeGreaterThan(laptop.library!.width + 250)
   expect(tv.library!.height, message).toBeGreaterThan(laptop.library!.height + 250)
-  expect(tv.rail!.height, message).toBeGreaterThan(laptop.rail!.height + 300)
+  expect(tv.drawer!.height, message).toBeGreaterThan(laptop.drawer!.height + 300)
   expect(receipts.get("375x667")!.drawerMode).toBe("narrow")
   expect(receipts.get("412x915")!.drawerMode).toBe("narrow")
   expect(receipts.get("844x390")!.drawerMode).toBe("narrow")

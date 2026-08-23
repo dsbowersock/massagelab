@@ -3,16 +3,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 
 import { useSettings } from "@/components/providers/settings-provider"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
 
-import { atmoShaperLayerSourceName, CurrentMix } from "./current-mix"
-import { CurrentMixRail } from "./current-mix-rail"
+import { atmoShaperLayerSourceName } from "./current-mix"
+import { CurrentMixRail, useAtmoShaperSoloControls } from "./current-mix-rail"
 import { SoundLibrary } from "./sound-library"
 import {
   createAtmoShaperLayerSelectionRequest,
@@ -44,19 +37,51 @@ export function AtmoShaperWorkspace() {
     status: "loading" | "playing" | "paused" | "failed"
   } | null>(null)
   const workspaceRef = useRef<HTMLDivElement | null>(null)
+  const currentMixPanelRef = useRef<HTMLElement | null>(null)
   const primaryRailToggleRef = useRef<HTMLButtonElement | null>(null)
   const drawerOpenerRef = useRef<HTMLElement | null>(null)
+  const drawerOpenerKeyRef = useRef<string | null>(null)
   const previousLayerCountRef = useRef(recipe.layers.length)
   const [layerSelectionRequest, setLayerSelectionRequest] = useState<LayerSelectionRequest | null>(null)
   const [mixDrawerOpen, setMixDrawerOpen] = useState(false)
   const [drawerMode, setDrawerMode] = useState<"roomy" | "narrow">("narrow")
   const drawerSide = oppositeAtmoShaperEdge(settings.sidebarPosition)
+  const soloControls = useAtmoShaperSoloControls(actions, recipe)
 
   const requestDrawerOpen = useCallback((opener: HTMLElement | null) => {
     if (mixDrawerOpen) return
     drawerOpenerRef.current = opener?.isConnected ? opener : primaryRailToggleRef.current
+    drawerOpenerKeyRef.current = opener?.dataset.atmoshaperFocusKey ?? null
     setMixDrawerOpen(true)
   }, [mixDrawerOpen])
+
+  const closeDrawer = useCallback((restoreFocus: boolean) => {
+    setMixDrawerOpen(false)
+    const exactOpener = drawerOpenerRef.current
+    const openerKey = drawerOpenerKeyRef.current
+    drawerOpenerRef.current = null
+    drawerOpenerKeyRef.current = null
+    if (!restoreFocus) return
+    window.requestAnimationFrame(() => {
+      const semanticOpener = openerKey
+        ? Array.from(document.querySelectorAll<HTMLElement>("[data-atmoshaper-focus-key]"))
+            .find((candidate) => candidate.dataset.atmoshaperFocusKey === openerKey)
+        : null
+      const focusTarget = isAtmoShaperFocusRestoreTarget(exactOpener)
+        ? exactOpener
+        : isAtmoShaperFocusRestoreTarget(semanticOpener)
+          ? semanticOpener
+          : primaryRailToggleRef.current
+      if (focusTarget && isAtmoShaperFocusRestoreTarget(focusTarget)) {
+        focusTarget.focus({ preventScroll: true })
+      }
+    })
+  }, [])
+
+  const toggleDrawer = useCallback((opener: HTMLElement) => {
+    if (mixDrawerOpen) closeDrawer(true)
+    else requestDrawerOpen(opener)
+  }, [closeDrawer, mixDrawerOpen, requestDrawerOpen])
 
   const selectLibraryLayer = useCallback((
     layerId: string,
@@ -157,6 +182,54 @@ export function AtmoShaperWorkspace() {
     ),
   )
 
+  useLayoutEffect(() => {
+    if (!mixDrawerOpen || !requestedLayerIsVisible) return
+    currentMixPanelRef.current
+      ?.querySelector<HTMLElement>("[data-active-layer='true']")
+      ?.focus({ preventScroll: true })
+  }, [mixDrawerOpen, requestedLayerIsVisible, layerSelectionRequest?.requestKey])
+
+  useEffect(() => {
+    if (!mixDrawerOpen) return
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (target instanceof Node && currentMixPanelRef.current?.contains(target)) return
+      closeDrawer(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        closeDrawer(true)
+        return
+      }
+      if (event.key !== "Tab" || drawerMode !== "narrow") return
+      const panel = currentMixPanelRef.current
+      if (!panel) return
+      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+      )).filter((element) => element.getClientRects().length > 0)
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable.at(-1) ?? first
+      const active = document.activeElement
+      if (event.shiftKey && (active === first || !panel.contains(active))) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (active === last || !panel.contains(active))) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true)
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [closeDrawer, drawerMode, mixDrawerOpen])
+
   return (
     <div
       ref={workspaceRef}
@@ -167,74 +240,31 @@ export function AtmoShaperWorkspace() {
     >
       <div className="ml-atmoshaper-layout" data-current-mix-side={drawerSide}>
         <CurrentMixRail
+          activeLayerId={layerSelectionRequest?.layerId ?? null}
+          activeLayerRequestKey={layerSelectionRequest?.requestKey ?? 0}
+          activeSoloLayerId={soloControls.activeSoloLayerId}
           actions={actions}
-          drawerOpen={mixDrawerOpen}
+          drawerMode={drawerMode}
           drawerSide={drawerSide}
+          expanded={mixDrawerOpen}
           onOpenLayer={openRailLayer}
-          onToggleDrawer={(opener) => {
-            if (mixDrawerOpen) setMixDrawerOpen(false)
-            else requestDrawerOpen(opener)
-          }}
+          onToggleMuteLayer={soloControls.toggleMuteLayer}
+          onToggleDrawer={toggleDrawer}
+          onToggleSoloLayer={soloControls.toggleSoloLayer}
+          panelRef={currentMixPanelRef}
           primaryToggleRef={primaryRailToggleRef}
           recipe={recipe}
         />
         <SoundLibrary actions={actions} onSelectLayer={selectLibraryLayer} recipe={recipe} />
       </div>
 
-      <Sheet
-        modal={drawerMode === "narrow"}
-        open={mixDrawerOpen}
-        onOpenChange={(open) => {
-          if (open) requestDrawerOpen(primaryRailToggleRef.current)
-          else setMixDrawerOpen(false)
-        }}
-      >
-        <SheetContent
-          id="atmoshaper-current-mix-drawer"
-          side={drawerSide}
-          className="ml-atmoshaper-current-mix-drawer"
-          data-drawer-mode={drawerMode}
-          overlayClassName={drawerMode === "roomy"
-            ? "ml-atmoshaper-current-mix-overlay-roomy"
-            : "ml-atmoshaper-current-mix-overlay-narrow"}
-          onInteractOutside={(event) => {
-            if (drawerMode === "roomy") event.preventDefault()
-          }}
-          onOpenAutoFocus={(event) => {
-            if (requestedLayerIsVisible) event.preventDefault()
-          }}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault()
-            const exactOpener = drawerOpenerRef.current
-            drawerOpenerRef.current = null
-            window.requestAnimationFrame(() => {
-              const fallbackOpener = primaryRailToggleRef.current
-              const focusTarget = isAtmoShaperFocusRestoreTarget(exactOpener)
-                ? exactOpener
-                : fallbackOpener
-              if (focusTarget && isAtmoShaperFocusRestoreTarget(focusTarget)) {
-                focusTarget.focus({ preventScroll: true })
-              }
-            })
-          }}
-        >
-          <SheetHeader>
-            <SheetTitle>Current Mix controls</SheetTitle>
-            <SheetDescription>
-              Adjust, reorder, retry, or remove every layer in this live mix.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="ml-atmoshaper-current-mix-drawer-body">
-            <CurrentMix
-              activeLayerId={layerSelectionRequest?.layerId ?? null}
-              activeLayerRequestKey={layerSelectionRequest?.requestKey ?? 0}
-              actions={actions}
-              headingId="atmoshaper-current-mix-drawer-title"
-              recipe={recipe}
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
+      {mixDrawerOpen && drawerMode === "narrow" ? (
+        <div
+          className="ml-atmoshaper-current-mix-overlay-narrow"
+          aria-hidden="true"
+          data-state="open"
+        />
+      ) : null}
 
       <p
         role="status"

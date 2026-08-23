@@ -1,6 +1,12 @@
 "use client"
 
-import { useLayoutEffect, useMemo, useRef, type PointerEvent as ReactPointerEvent } from "react"
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react"
 import {
   closestCenter,
   DndContext,
@@ -19,6 +25,15 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
+import {
+  AudioLines,
+  CircleAlert,
+  LoaderCircle,
+  Play,
+  Square,
+  Volume2,
+  VolumeX,
+} from "lucide-react"
 
 import { useMusic } from "@/components/providers/music-provider"
 import { Button } from "@/components/ui/button"
@@ -71,14 +86,26 @@ class AtmoShaperPointerSensor extends PointerSensor {
 export function CurrentMix({
   activeLayerId = null,
   activeLayerRequestKey = 0,
+  activeSoloLayerId,
   actions,
+  expanded,
   headingId = "atmoshaper-current-mix-title",
+  onOpenLayer,
+  onRequestExpand,
+  onToggleMuteLayer,
+  onToggleSoloLayer,
   recipe,
 }: {
   activeLayerId?: string | null
   activeLayerRequestKey?: number
+  activeSoloLayerId: string | null
   actions: AtmoShaperRecipeActions
+  expanded: boolean
   headingId?: string
+  onOpenLayer(layerId: string, opener: HTMLElement): void
+  onRequestExpand(opener: HTMLElement): void
+  onToggleMuteLayer(layerId: string, muted: boolean): void
+  onToggleSoloLayer(layerId: string): void
   recipe: AtmoShaperRecipe
 }) {
   const music = useMusic()
@@ -215,25 +242,43 @@ export function CurrentMix({
     )
   }
 
-  function renderRowControls(row: VisibleMixRow) {
+  function resolveRuntimeState(row: VisibleMixRow): VisibleLayerRuntimeState {
+    if (row.retained) return { status: "playing" }
+    return resolveAtmoShaperVisibleLayerState({
+      activePlaybackKind: music.activePlaybackKind,
+      layerState: music.atmoShaperSnapshot?.layers[row.layer.id],
+      localRecipeId: recipe.id,
+      providerError: music.error,
+      providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
+      snapshotStatus: music.atmoShaperSnapshot?.status,
+    })
+  }
+
+  function resolveCompactLayerState(
+    layer: AtmoShaperLayer,
+    runtimeState: VisibleLayerRuntimeState,
+  ) {
+    if (runtimeState.status === "failed" || runtimeState.status === "loading") {
+      return runtimeState.status
+    }
+    return layer.muted ? "muted" : runtimeState.status
+  }
+
+  function renderRowControls(row: VisibleMixRow, reorderHandle: ReactNode = null) {
     const { layer, retained } = row
     const sourceName = atmoShaperLayerSourceName(layer)
-    const runtimeState: VisibleLayerRuntimeState = retained
-      ? { status: "playing" }
-      : resolveAtmoShaperVisibleLayerState({
-          activePlaybackKind: music.activePlaybackKind,
-          layerState: music.atmoShaperSnapshot?.layers[layer.id],
-          localRecipeId: recipe.id,
-          providerError: music.error,
-          providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
-          snapshotStatus: music.atmoShaperSnapshot?.status,
-        })
+    const runtimeState = resolveRuntimeState(row)
 
     return (
       <MixLayerControls
         actions={actions}
+        isSoloed={activeSoloLayerId === layer.id}
         layer={layer}
+        onOpenLayer={onOpenLayer}
         onRemove={() => removeRow(row)}
+        onToggleMuteLayer={onToggleMuteLayer}
+        onToggleSoloLayer={onToggleSoloLayer}
+        reorderHandle={reorderHandle}
         retained={retained}
         runtimeState={runtimeState}
         sourceName={sourceName}
@@ -242,8 +287,12 @@ export function CurrentMix({
   }
 
   return (
-    <section className="ml-atmoshaper-current-mix min-w-0" aria-labelledby={headingId}>
-      <div className="space-y-1">
+    <section
+      className="ml-atmoshaper-current-mix min-w-0"
+      aria-labelledby={headingId}
+      data-expanded={expanded}
+    >
+      <div className="sr-only">
         <h2
           ref={headingRef}
           id={headingId}
@@ -255,6 +304,36 @@ export function CurrentMix({
         <p className="text-sm text-muted-foreground">
           {visibleRows.length === 0 ? "Add a sound to begin." : `${visibleRows.length} visible layer${visibleRows.length === 1 ? "" : "s"}`}
         </p>
+      </div>
+
+      <div className="ml-atmoshaper-expanded-mix-transport" aria-label="Current Mix playback">
+        <AtmoShaperTransportButton recipe={recipe} />
+      </div>
+
+      <div className="ml-atmoshaper-master-volume-slot">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="ml-atmoshaper-rail-button ml-atmoshaper-rail-master-volume"
+          aria-label="Open whole mix volume controls"
+          data-atmoshaper-focus-key="whole-mix-volume"
+          onClick={(event) => onRequestExpand(event.currentTarget)}
+        >
+          <Volume2 aria-hidden="true" className="h-4 w-4" />
+          <span>Volume</span>
+        </Button>
+        <label className="ml-atmoshaper-expanded-master-volume">
+          <span className="text-sm font-medium">Whole mix volume</span>
+          <Slider
+            aria-label="Whole mix volume"
+            min={0}
+            max={1}
+            step={0.05}
+            value={[music.volume]}
+            onValueChange={([value]) => music.setVolume(value)}
+          />
+        </label>
       </div>
 
       <DndContext
@@ -270,7 +349,7 @@ export function CurrentMix({
           items={recipe.layers.map(({ id }) => id)}
           strategy={verticalListSortingStrategy}
         >
-          <ol className="mt-4 space-y-3">
+          <ol className="ml-atmoshaper-expanded-layers">
             {visibleRows.map((row) => {
               const sourceName = atmoShaperLayerSourceName(row.layer)
               if (row.retained) {
@@ -281,6 +360,8 @@ export function CurrentMix({
                     className="ml-atmoshaper-layer-row rounded-lg border bg-card p-3 text-card-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 data-[active-layer=true]:border-primary/60"
                     aria-current={activeLayerId === row.layer.id ? "true" : undefined}
                     data-active-layer={activeLayerId === row.layer.id ? "true" : "false"}
+                    data-layer-id={row.layer.id}
+                    data-layer-state="playing"
                     data-sortable="false"
                     tabIndex={-1}
                   >
@@ -293,43 +374,42 @@ export function CurrentMix({
                   key={row.key}
                   active={activeLayerId === row.layer.id}
                   id={row.layer.id}
+                  state={resolveCompactLayerState(row.layer, resolveRuntimeState(row))}
                   sourceName={sourceName}
                   onNodeChange={(node) => registerRowNode(row.key, node)}
                 >
-                  {renderRowControls(row)}
+                  {(reorderHandle) => renderRowControls(row, reorderHandle)}
                 </SortableLayerRow>
               )
             })}
           </ol>
         </SortableContext>
       </DndContext>
-
-      <div className="ml-atmoshaper-master-controls mt-4 grid gap-3" aria-label="AtmoShaper playback controls">
-        <AtmoShaperTransportButtons recipe={recipe} />
-        <Slider
-          aria-label="AtmoShaper master volume"
-          min={0}
-          max={1}
-          step={0.05}
-          value={[music.volume]}
-          onValueChange={([value]) => music.setVolume(value)}
-        />
-      </div>
     </section>
   )
 }
 
 function MixLayerControls({
   actions,
+  isSoloed,
   layer,
+  onOpenLayer,
   onRemove,
+  onToggleMuteLayer,
+  onToggleSoloLayer,
+  reorderHandle,
   retained,
   runtimeState,
   sourceName,
 }: {
   actions: AtmoShaperRecipeActions
+  isSoloed: boolean
   layer: AtmoShaperLayer
+  onOpenLayer(layerId: string, opener: HTMLElement): void
   onRemove(): void
+  onToggleMuteLayer(layerId: string, muted: boolean): void
+  onToggleSoloLayer(layerId: string): void
+  reorderHandle: ReactNode
   retained: boolean
   runtimeState: VisibleLayerRuntimeState
   sourceName: string
@@ -356,30 +436,51 @@ function MixLayerControls({
 
   return (
     <>
-      <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate font-medium">{sourceName}</h3>
-          <p className="text-sm capitalize text-muted-foreground">
+      <div className="ml-atmoshaper-layer-header flex min-w-0 items-start justify-between gap-3">
+        <div className="ml-atmoshaper-layer-identity min-w-0">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="ml-atmoshaper-layer-open"
+            aria-label={`Open ${sourceName} controls, ${status}`}
+            data-atmoshaper-focus-key={`layer:${layer.id}`}
+            onClick={(event) => onOpenLayer(layer.id, event.currentTarget)}
+          >
+            <span className="ml-atmoshaper-layer-name" title={sourceName}>{sourceName}</span>
+            {status === "failed" || status === "loading" ? (
+              <span className="ml-atmoshaper-layer-state-badge" aria-hidden="true">
+                {status === "failed"
+                  ? <CircleAlert className="ml-atmoshaper-rail-status-icon h-3.5 w-3.5" />
+                  : <LoaderCircle className="ml-atmoshaper-rail-status-icon h-3.5 w-3.5" />}
+              </span>
+            ) : null}
+          </Button>
+          <p className="ml-atmoshaper-layer-status text-sm capitalize text-muted-foreground">
             {retained ? `Still playing during replacement · ${status}` : status}
           </p>
           {!retained && runtimeState.error ? (
             <p className="mt-1 text-sm text-destructive">{runtimeState.error}</p>
           ) : null}
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          aria-label={`${layer.muted ? "Unmute" : "Mute"} ${sourceName}`}
-          aria-pressed={layer.muted}
-          onClick={() => updateLayer({ muted: !layer.muted })}
-        >
-          {layer.muted ? "Unmute" : "Mute"}
-        </Button>
+        <div className="ml-atmoshaper-layer-header-actions">
+          <Button
+            type="button"
+            size="icon"
+            variant="destructive"
+            aria-label={`Remove ${sourceName}`}
+            onClick={onRemove}
+          >
+            <span aria-hidden="true">×</span>
+            <span className="sr-only">Remove</span>
+          </Button>
+          {reorderHandle}
+        </div>
       </div>
 
-      <div className="mt-3">
+      <div className="ml-atmoshaper-layer-volume-row mt-3">
         <Slider
+          className="ml-atmoshaper-layer-volume-slider ml-slider-compact"
           aria-label={`Volume for ${sourceName}`}
           min={0}
           max={1}
@@ -387,6 +488,35 @@ function MixLayerControls({
           value={[layer.volume]}
           onValueChange={([volume]) => updateLayer({ volume })}
         />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          aria-label={`${layer.muted ? "Unmute" : "Mute"} ${sourceName}`}
+          title={`${layer.muted ? "Unmute" : "Mute"} ${sourceName}`}
+          onClick={() => {
+            if (retained) updateLayer({ muted: !layer.muted })
+            else onToggleMuteLayer(layer.id, layer.muted)
+          }}
+        >
+          {layer.muted
+            ? <Volume2 aria-hidden="true" className="h-4 w-4" />
+            : <VolumeX aria-hidden="true" className="h-4 w-4" />}
+          <span>{layer.muted ? "Unmute" : "Mute"}</span>
+        </Button>
+        {!retained ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            aria-label={`${isSoloed ? "Unsolo" : "Solo"} ${sourceName}`}
+            aria-pressed={isSoloed}
+            onClick={() => onToggleSoloLayer(layer.id)}
+          >
+            <AudioLines aria-hidden="true" className="h-4 w-4" />
+            <span>{isSoloed ? "Unsolo" : "Solo"}</span>
+          </Button>
+        ) : null}
       </div>
 
       {brainwaveRateKey ? (
@@ -405,8 +535,8 @@ function MixLayerControls({
         </section>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {!retained && status === "failed" ? (
+      {!retained && status === "failed" ? (
+        <div className="mt-3">
           <Button
             type="button"
             size="sm"
@@ -415,17 +545,8 @@ function MixLayerControls({
           >
             Retry
           </Button>
-        ) : null}
-        <Button
-          type="button"
-          size="sm"
-          variant="destructive"
-          aria-label={`Remove ${sourceName}`}
-          onClick={onRemove}
-        >
-          Remove
-        </Button>
-      </div>
+        </div>
+      ) : null}
     </>
   )
 }
@@ -439,51 +560,47 @@ export function useAtmoShaperTransportControls(recipe: AtmoShaperRecipe) {
     playbackState: music.playbackState,
     providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
   })
-  const isPlaying = transportAction === "pause"
   const canStop = music.atmoShaperPreview !== null || canStopAtmoShaperWorkspaceRecipe({
     activePlaybackKind: music.activePlaybackKind,
     localRecipeId: recipe.id,
     playbackState: music.playbackState,
     providerRecipeId: music.atmoShaperSnapshot?.recipe?.id ?? null,
   })
+  const shouldStop = music.atmoShaperPreview !== null
+    || (canStop && music.playbackState !== "paused")
 
-  function handlePlayPause() {
-    if (transportAction === "pause") void music.pauseCurrent()
+  function handlePrimary() {
+    if (shouldStop) void music.stopCurrent()
     else if (transportAction === "restart") void music.restartCurrent()
     else void music.playAtmoShaper(recipe)
   }
 
-  function handleStop() {
-    if (!canStop) return
-    void music.stopCurrent()
-  }
-
-  return { canStop, handlePlayPause, handleStop, isPlaying }
+  return { handlePrimary, shouldStop }
 }
 
-function AtmoShaperTransportButtons({ recipe }: { recipe: AtmoShaperRecipe }) {
+function AtmoShaperTransportButton({ recipe }: { recipe: AtmoShaperRecipe }) {
   const transport = useAtmoShaperTransportControls(recipe)
+  const label = transport.shouldStop ? "Stop AtmoShaper" : "Play AtmoShaper"
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        type="button"
-        variant="success"
-        disabled={recipe.layers.length === 0}
-        onClick={transport.handlePlayPause}
-      >
-        {transport.isPlaying ? "Pause AtmoShaper" : "Play AtmoShaper"}
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        aria-label="Stop AtmoShaper"
-        disabled={!transport.canStop}
-        onClick={transport.handleStop}
-      >
-        Stop
-      </Button>
-    </div>
+    <Button
+      type="button"
+      variant={transport.shouldStop ? "destructive" : "success"}
+      className="ml-atmoshaper-transport-button"
+      aria-label={label}
+      disabled={!transport.shouldStop && recipe.layers.length === 0}
+      onClick={transport.handlePrimary}
+    >
+      {transport.shouldStop
+        ? <Square aria-hidden="true" className="h-4 w-4" />
+        : <Play aria-hidden="true" className="h-4 w-4" />}
+      <span className="ml-atmoshaper-transport-label-full">
+        {transport.shouldStop ? "Stop AtmoShaper" : "Play AtmoShaper"}
+      </span>
+      <span className="ml-atmoshaper-transport-label-compact">
+        {transport.shouldStop ? "Stop" : "Play"}
+      </span>
+    </Button>
   )
 }
 
