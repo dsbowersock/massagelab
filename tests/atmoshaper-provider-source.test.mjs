@@ -175,9 +175,10 @@ describe("AtmoShaper provider ownership contract", () => {
       "station playback must stop preview before its adapter starts",
     )
     assert.match(atmoPath, /runtimeRef\.current\?\.controller\.stopAndWait\(\)/)
-    assert.match(atmoPath, /resumeAtmoShaperAudioContext\(runtimeRef\.current\)/)
+    assert.match(atmoPath, /resumeAtmoShaperAudioContext\(sharedRuntime\)/)
+    assert.match(atmoPath, /if \(sharedRuntime\) ensureInterruptionMonitor\(sharedRuntime\)/)
     assert.ok(
-      atmoPath.indexOf("resumeAtmoShaperAudioContext(runtimeRef.current)")
+      atmoPath.indexOf("resumeAtmoShaperAudioContext(sharedRuntime)")
         < atmoPath.indexOf("runtimeRef.current?.controller.stopAndWait()"),
       "AtmoShaper must request AudioContext resume in the initiating Play call stack",
     )
@@ -212,6 +213,7 @@ describe("AtmoShaper provider ownership contract", () => {
     )
 
     assert.match(previewPath, /runtimeRef\.current\?\.controller\.stopAndWait\(\)/)
+    assert.match(previewPath, /if \(sharedRuntime\) ensureInterruptionMonitor\(sharedRuntime\)/)
     assert.ok(
       previewPath.indexOf("await ordinaryStationDisposal")
         < previewPath.indexOf("loadAtmoShaperRuntime(runtimeLease)"),

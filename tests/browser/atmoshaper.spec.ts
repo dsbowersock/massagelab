@@ -30,6 +30,9 @@ type AtmoShaperBrowserDiagnostics = {
       id: string
       kind: string
       muted: boolean
+      settings?: {
+        selectedSourceId?: string
+      }
       sourceId: string
       volume: number
     }>
@@ -699,6 +702,32 @@ test("flattens brainwave artwork behind the immediately reachable controls", asy
   await expect(binauralPanel.locator(".ml-atmoshaper-advanced-controls"))
     .toHaveCSS("border-top-style", "none")
   await expect(binauralPanel.locator(".ml-atmoshaper-preset-buttons")).toHaveCSS("overflow", "visible")
+})
+
+test("changing the White Noise recording replaces its existing concept layer", async ({ page }) => {
+  await page.setViewportSize({ width: 1235, height: 1027 })
+  await openAtmoShaper(page)
+  await page.getByRole("tab", { name: "Ambient sounds" }).click()
+  const card = page.locator("[data-library-source='signature-expansion-white-noise-selection']")
+  const recording = card.getByRole("combobox")
+  const sourceIds = await recording.locator("option").evaluateAll((options) => (
+    options.slice(0, 2).map((option) => (option as HTMLOptionElement).value)
+  ))
+  expect(sourceIds).toHaveLength(2)
+
+  await card.getByRole("button", { name: /^Add White Noise/ }).click()
+  await settleCurrentMixDrawer(page)
+  await page.getByRole("heading", { name: "Sound Library" }).click()
+  await settleCurrentMixDrawer(page)
+  await recording.selectOption(sourceIds[1])
+  await card.getByRole("button", { name: /^Add White Noise/ }).click()
+
+  await expect.poll(async () => {
+    const recipe = (await readDiagnostics(page)).recipe
+    return recipe?.layers.filter(({ sourceId }) => (
+      sourceId === "signature-expansion-white-noise-selection"
+    )).map(({ settings }) => settings?.selectedSourceId)
+  }).toEqual([sourceIds[1]])
 })
 
 test("tones down white noise and refines the brown texture scale", async ({ page }) => {

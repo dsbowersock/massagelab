@@ -86,7 +86,10 @@ test("generated adapters expose the complete controller lifecycle and reject amb
 
 test("station composition forwards controller ownership and awaits terminal cleanup", () => {
   const runtime = readRequiredSource("lib/atmoshaper/runtime.ts")
-  assert.match(runtime, /function createAdapter\(layer:\s*AtmoShaperLayer,\s*isCurrent:\s*\(\)\s*=>\s*boolean\)/)
+  assert.match(
+    runtime,
+    /function createAdapter\([\s\S]*?layer:\s*AtmoShaperLayer,[\s\S]*?isCurrent:\s*\(\)\s*=>\s*boolean,[\s\S]*?reportFailure:\s*\(error:\s*unknown\)\s*=>\s*void/,
+  )
   assert.match(runtime, /createAtmoShaperMixController\(\{[\s\S]*?createAdapter,\s*\}\)/)
   assert.match(runtime, /createStationFoundationAdapter\(\{\s*layer,\s*destination:\s*master,\s*isCurrent\s*\}\)/)
   assert.match(runtime, /startToneProofDrone\(\{[\s\S]*?isCurrent,[\s\S]*?\}\)/)

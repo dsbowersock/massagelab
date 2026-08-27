@@ -23,9 +23,11 @@ type PreviewPlayer = ReturnType<typeof createSignatureSoundPreviewPlayer>
 export async function createAmbientAtmoShaperAdapter({
   destination,
   layer: initialLayer,
+  reportFailure,
 }: {
   destination: InputNode
   layer: AtmoShaperLayer
+  reportFailure: (error: unknown) => void
 }): Promise<AtmoShaperAudioLayerHandle> {
   if (initialLayer.kind !== "ambient") throw new Error("AtmoShaper ambient adapter needs an ambient layer")
   const concept = getAtmoShaperProductionConcept(initialLayer.sourceId)
@@ -34,7 +36,17 @@ export async function createAmbientAtmoShaperAdapter({
   let layer = initialLayer
   let paused = true
   let disposed = false
-  let engine = await startConceptEngine({ concept, layer, output })
+  let failed = false
+  let engine = await startConceptEngine({ concept, layer, output, reportFailure: handleEngineFailure })
+
+  /** Stops the failed scheduler before exposing the controller-owned retry state. */
+  function handleEngineFailure(error: unknown) {
+    if (disposed || failed) return
+    failed = true
+    paused = true
+    engine.stop()
+    reportFailure(error)
+  }
 
   function targetVolume() {
     return paused || layer.muted ? 0 : Math.min(1, Math.max(0, layer.volume))
@@ -60,7 +72,7 @@ export async function createAmbientAtmoShaperAdapter({
       layer = nextLayer
       if (priorSelectedSource !== nextSelectedSource) {
         engine.stop()
-        engine = await startConceptEngine({ concept, layer, output })
+        engine = await startConceptEngine({ concept, layer, output, reportFailure: handleEngineFailure })
       }
       rampOutput()
     },
@@ -94,10 +106,12 @@ async function startConceptEngine({
   concept,
   layer,
   output,
+  reportFailure,
 }: {
   concept: AtmoShaperProductionConcept
   layer: AtmoShaperLayer
   output: Gain
+  reportFailure: (error: unknown) => void
 }) {
   if (concept.playbackMode?.kind === "prebaked-intro-loop") {
     return startPrebakedLoop(concept, output)
@@ -105,6 +119,11 @@ async function startConceptEngine({
   const rawContext = requireRealtimeAudioContext(output)
   const capabilityProbe = document.createElement("audio")
   const player: PreviewPlayer = createSignatureSoundPreviewPlayer({
+    onStatus(status: { state: string, message?: string }) {
+      if (startupComplete && status.state === "error") {
+        reportFailure(new Error(status.message ?? "An ambient recording could not be played."))
+      }
+    },
     createAudio(url: string) {
       const audio = new Audio(url)
       audio.preload = "auto"
@@ -131,6 +150,7 @@ async function startConceptEngine({
       }
     },
   })
+  let startupComplete = false
   const selectedId = selectedSourceId(concept, layer)
   await player.start({
     groupId: concept.groupId,
@@ -142,6 +162,7 @@ async function startConceptEngine({
       : concept.sources,
     runtimePolicy: concept.runtimePolicy,
   })
+  startupComplete = true
   return { stop: () => player.stop() }
 }
 

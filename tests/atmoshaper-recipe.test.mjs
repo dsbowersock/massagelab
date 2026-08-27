@@ -31,6 +31,16 @@ test("a single sound is a valid mix and exclusive layer kinds replace their pred
   )
 })
 
+test("changing a single-selection ambient recording replaces the prior concept layer", () => {
+  const original = addAtmoShaperLayer(
+    createAtmoShaperRecipe({ id: "white-noise", name: "White noise" }),
+    selectedAmbientLayer("white-a", "recording-a"),
+  )
+  const changed = addAtmoShaperLayer(original, selectedAmbientLayer("white-b", "recording-b"))
+
+  assert.deepEqual(changed.layers, [selectedAmbientLayer("white-b", "recording-b")])
+})
+
 test("normalization rejects unsupported versions and clamps unsafe values", () => {
   assert.throws(
     () => normalizeAtmoShaperRecipe({ version: 99, id: "future", name: "Future", layers: [] }),
@@ -157,5 +167,16 @@ function stationLayer(id, sourceId) {
     volume: 1,
     muted: false,
     settings: {},
+  }
+}
+
+function selectedAmbientLayer(id, selectedSourceId) {
+  return {
+    id,
+    kind: "ambient",
+    sourceId: "ambient:white-noise",
+    volume: 1,
+    muted: false,
+    settings: { selectedSourceId },
   }
 }

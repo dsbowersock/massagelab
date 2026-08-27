@@ -95,6 +95,51 @@ test("an adapter rejection fails only its layer while healthy layers continue", 
   })
 })
 
+test("a post-start adapter failure becomes a retryable failed layer", async () => {
+  const log = []
+  let reportFailure
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer, _isCurrent, onFailure) {
+      reportFailure = onFailure
+      return createFakeHandle(log, nextLayer)
+    },
+  })
+  await controller.start(recipe([layer("rain", "ambient")]))
+
+  reportFailure(new Error("later recording unavailable"))
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.deepEqual(log.at(-1), ["dispose", "rain"])
+  assert.equal(controller.getSnapshot().status, "failed")
+  assert.deepEqual(controller.getSnapshot().layers, {
+    rain: { status: "failed", error: "later recording unavailable" },
+  })
+  assert.deepEqual(controller.getSnapshot().activeLayers, {})
+})
+
+test("a post-creation failure during fade-in cannot publish a silent layer as playing", async () => {
+  const log = []
+  const controller = createAtmoShaperMixController({
+    createAdapter(nextLayer, _isCurrent, reportFailure) {
+      const handle = createFakeHandle(log, nextLayer)
+      return {
+        ...handle,
+        async fadeIn() {
+          reportFailure(new Error("scheduled recording unavailable"))
+        },
+      }
+    },
+  })
+
+  await controller.start(recipe([layer("rain", "ambient")]))
+
+  assert.deepEqual(log, [["dispose", "rain"]])
+  assert.equal(controller.getSnapshot().status, "failed")
+  assert.deepEqual(controller.getSnapshot().layers, {
+    rain: { status: "failed", error: "scheduled recording unavailable" },
+  })
+})
+
 test("an exclusive replacement is prepared before its working predecessor fades out", async () => {
   const log = []
   const controller = createAtmoShaperMixController({
@@ -144,7 +189,7 @@ test("a stale activation disposes only its private handle after a newer request"
   const staleFadeHasStarted = new Promise((resolve) => { staleFadeStarted = resolve })
   let adapterCount = 0
   const controller = createAtmoShaperMixController({
-    createAdapter(nextLayer) {
+    createAdapter() {
       adapterCount += 1
       const handleName = adapterCount === 1 ? "stale-handle" : "newer-handle"
       return {

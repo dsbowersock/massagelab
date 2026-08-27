@@ -1357,10 +1357,12 @@ export function MusicProvider({
    * while an existing committed mixer runtime is reused for layered preview.
    */
   const previewAtmoShaperLayer = useCallback(async (layer: AtmoShaperLayer) => {
-    const audioContextUnlock = resumeAtmoShaperAudioContext(runtimeRef.current).then(
+    const sharedRuntime = runtimeRef.current
+    const audioContextUnlock = resumeAtmoShaperAudioContext(sharedRuntime).then(
       () => ({ status: "ready" as const }),
       (caughtError: unknown) => ({ status: "failed" as const, caughtError }),
     )
+    if (sharedRuntime) ensureInterruptionMonitor(sharedRuntime)
     const previewRequestLease = ++atmoShaperPreviewRequestLeaseRef.current
     const admittedPlaybackRequestId = playbackRequestIdRef.current
     const admittedSessionGeneration = playbackSessionGenerationRef.current
@@ -1488,6 +1490,7 @@ export function MusicProvider({
   }, [
     cancelStoppedPlayerRetirement,
     commitPlaybackLifecycle,
+    ensureInterruptionMonitor,
     loadAtmoShaperRuntime,
     stopAtmoShaperPreviewSlot,
   ])
@@ -1706,7 +1709,9 @@ export function MusicProvider({
     recipe: AtmoShaperRecipe,
     options: Pick<PlaybackStartOptions, "origin"> = {},
   ) => {
-    const audioContextUnlock = resumeAtmoShaperAudioContext(runtimeRef.current)
+    const sharedRuntime = runtimeRef.current
+    const audioContextUnlock = resumeAtmoShaperAudioContext(sharedRuntime)
+    if (sharedRuntime) ensureInterruptionMonitor(sharedRuntime)
     cancelStoppedPlayerRetirement()
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
@@ -1866,6 +1871,7 @@ export function MusicProvider({
     cancelStoppedPlayerRetirement,
     commitPlaybackLifecycle,
     disposeAtmoShaperRuntime,
+    ensureInterruptionMonitor,
     loadAtmoShaperRuntime,
     mediaIntegrationAvailable,
     publishMediaSession,

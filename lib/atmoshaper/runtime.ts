@@ -59,7 +59,11 @@ export async function createAtmoShaperRuntime({
   const master = new Volume(volumeToDecibels(initialMasterVolume)).toDestination()
 
   /** Keeps committed layers and ephemeral previews on the same master output and adapter boundary. */
-  function createAdapter(layer: AtmoShaperLayer, isCurrent: () => boolean) {
+  function createAdapter(
+    layer: AtmoShaperLayer,
+    isCurrent: () => boolean,
+    reportFailure: (error: unknown) => void,
+  ) {
     injectBrowserQaFailure(layer)
     if (layer.kind === "noise" || layer.kind === "binaural" || layer.kind === "isochronic") {
       return createGeneratedAtmoShaperAdapter({ layer, destination: master })
@@ -68,7 +72,7 @@ export async function createAtmoShaperRuntime({
       return createStationFoundationAdapter({ layer, destination: master, isCurrent })
     }
     if (layer.kind === "ambient") {
-      return createAmbientAtmoShaperAdapter({ layer, destination: master })
+      return createAmbientAtmoShaperAdapter({ layer, destination: master, reportFailure })
     }
     throw new Error(`Unsupported AtmoShaper layer kind: ${layer.kind}`)
   }
