@@ -148,7 +148,10 @@ describe("AtmoShaper live-session workspace source contract", () => {
       /removeRetainedLayer/,
     ]) assert.match(mixSource, contract)
 
-    assert.match(mixSource, /disabled=\{!transport\.shouldStop && recipe\.layers\.length === 0\}/)
+    assert.match(mixSource, /music\.runtimeReadiness\.status === "ready"/)
+    assert.match(mixSource, /!transport\.audioReady \|\| recipe\.layers\.length === 0/)
+    assert.match(workspaceSource, /prepareAtmoShaperAudio\(\)/)
+    assert.match(librarySource, /previewStatus === "failed"\) && !audioReady/)
     assert.match(mixSource, /min=\{0\}/)
     assert.match(mixSource, /max=\{1\}/)
     assert.match(mixSource, /step=\{0\.05\}/)

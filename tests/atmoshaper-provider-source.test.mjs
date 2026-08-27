@@ -175,6 +175,12 @@ describe("AtmoShaper provider ownership contract", () => {
       "station playback must stop preview before its adapter starts",
     )
     assert.match(atmoPath, /runtimeRef\.current\?\.controller\.stopAndWait\(\)/)
+    assert.match(atmoPath, /resumeAtmoShaperAudioContext\(runtimeRef\.current\)/)
+    assert.ok(
+      atmoPath.indexOf("resumeAtmoShaperAudioContext(runtimeRef.current)")
+        < atmoPath.indexOf("runtimeRef.current?.controller.stopAndWait()"),
+      "AtmoShaper must request AudioContext resume in the initiating Play call stack",
+    )
     assert.ok(
       atmoPath.indexOf("runtimeRef.current?.controller.stopAndWait()")
         < atmoPath.indexOf("loadAtmoShaperRuntime(runtimeLease)"),
@@ -182,8 +188,8 @@ describe("AtmoShaper provider ownership contract", () => {
     )
     assert.match(
       atmoPath,
-      /Promise\.all\(\[[\s\S]*?ordinaryStationDisposal,[\s\S]*?atmoShaperPreviewStop,[\s\S]*?priorAtmoShaperDisposal,[\s\S]*?\]\)\.then\(\(\) => loadAtmoShaperRuntime\(runtimeLease\)\)/,
-      "AtmoShaper must finish ordinary disposal and preview cleanup before creating its runtime",
+      /Promise\.all\(\[[\s\S]*?audioContextUnlock,[\s\S]*?ordinaryStationDisposal,[\s\S]*?atmoShaperPreviewStop,[\s\S]*?priorAtmoShaperDisposal,[\s\S]*?\]\)\.then\(\(\) => loadAtmoShaperRuntime\(runtimeLease\)\)/,
+      "AtmoShaper must unlock audio and finish prior-owner cleanup before creating its runtime",
     )
     assert.match(atmoPath, /sessionGeneration !== playbackSessionGenerationRef\.current/)
     assert.match(atmoPath, /runtimeLease !== atmoShaperRuntimeLeaseRef\.current/)

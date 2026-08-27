@@ -553,6 +553,7 @@ function LibraryCardActions({
   const music = useMusic()
   const previewMatches = atmoShaperPreviewMatchesCandidate(music.atmoShaperPreview, candidate)
   const previewStatus = previewMatches ? music.atmoShaperPreview?.status : null
+  const audioReady = music.runtimeReadiness.status === "ready"
   const previewLabel = previewMatches
     ? previewStatus === "failed" ? "Retry Preview" : "Stop Preview"
     : "Preview"
@@ -578,6 +579,8 @@ function LibraryCardActions({
           variant="outline"
           aria-label={previewAriaLabel}
           aria-pressed={previewMatches && previewStatus !== "failed"}
+          aria-busy={(!previewMatches && !audioReady) || undefined}
+          disabled={(!previewMatches || previewStatus === "failed") && !audioReady}
           onClick={handlePreview}
         >
           {previewLabel}

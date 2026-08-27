@@ -184,7 +184,7 @@ describe("AtmoShaper annotated UI refinement contract", () => {
     assert.match(currentMix, /function AtmoShaperTransportButton/)
     assert.doesNotMatch(currentMix, /function AtmoShaperTransportButtons/)
     assert.match(currentMix, /Whole mix volume/)
-    assert.match(currentMix, /transport\.shouldStop \? "Stop AtmoShaper" : "Play AtmoShaper"/)
+    assert.match(currentMix, /transport\.shouldStop[\s\S]*?transport\.audioReady[\s\S]*?"Play AtmoShaper"/)
     assert.match(currentMix, /variant=\{transport\.shouldStop \? "destructive" : "success"\}/)
     assert.doesNotMatch(rail, /Pause AtmoShaper/)
   })

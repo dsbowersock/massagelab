@@ -576,12 +576,20 @@ export function useAtmoShaperTransportControls(recipe: AtmoShaperRecipe) {
     else void music.playAtmoShaper(recipe)
   }
 
-  return { handlePrimary, shouldStop }
+  return {
+    audioReady: music.runtimeReadiness.status === "ready",
+    handlePrimary,
+    shouldStop,
+  }
 }
 
 function AtmoShaperTransportButton({ recipe }: { recipe: AtmoShaperRecipe }) {
   const transport = useAtmoShaperTransportControls(recipe)
-  const label = transport.shouldStop ? "Stop AtmoShaper" : "Play AtmoShaper"
+  const label = transport.shouldStop
+    ? "Stop AtmoShaper"
+    : transport.audioReady
+      ? "Play AtmoShaper"
+      : "Preparing AtmoShaper audio"
 
   return (
     <Button
@@ -589,17 +597,22 @@ function AtmoShaperTransportButton({ recipe }: { recipe: AtmoShaperRecipe }) {
       variant={transport.shouldStop ? "destructive" : "success"}
       className="ml-atmoshaper-transport-button"
       aria-label={label}
-      disabled={!transport.shouldStop && recipe.layers.length === 0}
+      aria-busy={(!transport.shouldStop && !transport.audioReady) || undefined}
+      disabled={!transport.shouldStop && (!transport.audioReady || recipe.layers.length === 0)}
       onClick={transport.handlePrimary}
     >
       {transport.shouldStop
         ? <Square aria-hidden="true" className="h-4 w-4" />
         : <Play aria-hidden="true" className="h-4 w-4" />}
       <span className="ml-atmoshaper-transport-label-full">
-        {transport.shouldStop ? "Stop AtmoShaper" : "Play AtmoShaper"}
+        {transport.shouldStop
+          ? "Stop AtmoShaper"
+          : transport.audioReady
+            ? "Play AtmoShaper"
+            : "Preparing audio…"}
       </span>
       <span className="ml-atmoshaper-transport-label-compact">
-        {transport.shouldStop ? "Stop" : "Play"}
+        {transport.shouldStop ? "Stop" : transport.audioReady ? "Play" : "Preparing…"}
       </span>
     </Button>
   )

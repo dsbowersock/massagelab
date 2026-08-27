@@ -43,6 +43,7 @@ import {
   normalizeMusicVisualizerDevicePreferences,
 } from "@/lib/music-visualizer"
 import type { AtmoShaperLayer, AtmoShaperRecipe } from "@/lib/atmoshaper/recipe.js"
+import { resumeAtmoShaperAudioContext } from "@/lib/atmoshaper/audio-activation.js"
 import {
   areAtmoShaperRecipesEqual,
   createAtmoShaperProviderCommandGate,
@@ -254,6 +255,7 @@ interface MusicContextType {
   updateAtmoShaper: (recipe: AtmoShaperRecipe) => Promise<void>
   retryAtmoShaperLayer: (layerId: string) => Promise<void>
   previewAtmoShaperLayer: (layer: AtmoShaperLayer) => Promise<void>
+  prepareAtmoShaperAudio: () => Promise<void>
   setAtmoShaperPreviewVolume: (volume: number) => Promise<void>
   stopAtmoShaperPreview: () => Promise<void>
   promoteAtmoShaperPreview: (recipe: AtmoShaperRecipe) => Promise<AtmoShaperPromotionResult>
@@ -396,6 +398,7 @@ type AtmosphereRuntimeModules = {
   setToneProofDroneVolume: (volume: number) => void
   getToneProofDroneDiagnostics: () => ToneProofDroneDiagnostics | null
   getAtmosphereAudioContext: () => EventTarget & { state: unknown }
+  startAtmosphereAudioContext: () => Promise<void>
   startGenerativeFmPiece: (options: {
     isCurrent?: () => boolean
     onLoadProgress?: (progress: number) => void
@@ -449,6 +452,7 @@ const defaultMusicContext: MusicContextType = {
   updateAtmoShaper: async () => undefined,
   retryAtmoShaperLayer: async () => undefined,
   previewAtmoShaperLayer: async () => undefined,
+  prepareAtmoShaperAudio: async () => undefined,
   setAtmoShaperPreviewVolume: async () => undefined,
   stopAtmoShaperPreview: async () => undefined,
   promoteAtmoShaperPreview: async () => ({ status: "superseded" }),
@@ -753,6 +757,15 @@ export function MusicProvider({
 
     return runtimeLoadPromiseRef.current
   }, [reportStationLoadProgress])
+
+  /** Loads the shared Tone context before AtmoShaper exposes an actionable audio control. */
+  const prepareAtmoShaperAudio = useCallback(async () => {
+    try {
+      await getRuntime()
+    } catch {
+      // The shared readiness state owns the visible retry path.
+    }
+  }, [getRuntime])
 
   /**
    * Invalidates AtmoShaper callbacks immediately, then serializes cleanup of
@@ -1344,6 +1357,10 @@ export function MusicProvider({
    * while an existing committed mixer runtime is reused for layered preview.
    */
   const previewAtmoShaperLayer = useCallback(async (layer: AtmoShaperLayer) => {
+    const audioContextUnlock = resumeAtmoShaperAudioContext(runtimeRef.current).then(
+      () => ({ status: "ready" as const }),
+      (caughtError: unknown) => ({ status: "failed" as const, caughtError }),
+    )
     const previewRequestLease = ++atmoShaperPreviewRequestLeaseRef.current
     const admittedPlaybackRequestId = playbackRequestIdRef.current
     const admittedSessionGeneration = playbackSessionGenerationRef.current
@@ -1407,6 +1424,8 @@ export function MusicProvider({
     )
 
     try {
+      const unlock = await audioContextUnlock
+      if (unlock.status === "failed") throw unlock.caughtError
       if (!canReuseRuntime) {
         await atmoShaperDisposalPromiseRef.current
         if (previewLease !== atmoShaperPreviewLeaseRef.current) return
@@ -1687,6 +1706,7 @@ export function MusicProvider({
     recipe: AtmoShaperRecipe,
     options: Pick<PlaybackStartOptions, "origin"> = {},
   ) => {
+    const audioContextUnlock = resumeAtmoShaperAudioContext(runtimeRef.current)
     cancelStoppedPlayerRetirement()
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
@@ -1710,6 +1730,7 @@ export function MusicProvider({
     const runtimeLease = ++atmoShaperRuntimeLeaseRef.current
     atmoShaperRuntimeOwnerRef.current = "committed"
     const pendingRuntime = Promise.all([
+      audioContextUnlock,
       ordinaryStationDisposal,
       atmoShaperPreviewStop,
       priorAtmoShaperDisposal,
@@ -2871,6 +2892,7 @@ export function MusicProvider({
     updateAtmoShaper,
     retryAtmoShaperLayer,
     previewAtmoShaperLayer,
+    prepareAtmoShaperAudio,
     setAtmoShaperPreviewVolume,
     stopAtmoShaperPreview,
     promoteAtmoShaperPreview,
@@ -2923,6 +2945,7 @@ export function MusicProvider({
     retryRuntimeReadiness,
     retryAtmoShaperLayer,
     previewAtmoShaperLayer,
+    prepareAtmoShaperAudio,
     promoteAtmoShaperPreview,
     runtimeReadiness,
     mediaIntegrationAvailable,
@@ -3062,7 +3085,10 @@ async function loadAtmosphereRuntimeModules(): Promise<AtmosphereRuntimeModules>
     setGenerativeFmPieceVolume: generativeRuntime.setGenerativeFmPieceVolume,
     setToneProofDroneVolume: toneProofRuntime.setToneProofDroneVolume,
     getToneProofDroneDiagnostics: toneProofRuntime.getToneProofDroneDiagnostics,
-    getAtmosphereAudioContext: () => toneGlobal.getContext().rawContext as EventTarget & { state: unknown },
+    startAtmosphereAudioContext: toneGlobal.start,
+    getAtmosphereAudioContext: () => toneGlobal.getContext().rawContext as EventTarget & {
+      state: unknown
+    },
     startGenerativeFmPiece: generativeRuntime.startGenerativeFmPiece,
     startToneProofDrone: toneProofRuntime.startToneProofDrone,
   }

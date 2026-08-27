@@ -527,7 +527,11 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
       if (typeof resume === "function") {
         replaceMethod(context, "resume", function (this: object, ...args: unknown[]) {
           recordAudioContextResumeAttempt()
-          if (fakeOptions.requireAudioContextResumeInPlayTurn && !initiatingPlayTurn) {
+          if (
+            fakeOptions.requireAudioContextResumeInPlayTurn
+            && Reflect.get(this, "state") !== "running"
+            && !initiatingPlayTurn
+          ) {
             return Promise.reject(new DOMException("AudioContext resume lost user activation", "NotAllowedError"))
           }
           forcedSuspendedContexts.set(this, false)
@@ -811,7 +815,11 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
         decodeAudioData() { return Promise.resolve(new FakeAudioBuffer({ length: 1, sampleRate: this.sampleRate })) }
         async resume() {
           recordAudioContextResumeAttempt()
-          if (fakeOptions.requireAudioContextResumeInPlayTurn && !initiatingPlayTurn) {
+          if (
+            fakeOptions.requireAudioContextResumeInPlayTurn
+            && this.state !== "running"
+            && !initiatingPlayTurn
+          ) {
             throw new DOMException("AudioContext resume lost user activation", "NotAllowedError")
           }
           this.state = "running"
@@ -1594,6 +1602,32 @@ test("one cold touch starts the generator while carrier readiness is held", asyn
   await releaseHeldCarrierPlay(page)
   await expect(page.getByTestId("music-player-toolbar")).toHaveAttribute("data-playback-state", "playing")
   expect((await readProbe(page)).audio.playCalls).toBe(1)
+})
+
+test("one cold AtmoShaper Play unlocks audio before lazy mixer startup", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Physical-touch activation is mobile-owned.")
+  await installMediaOwnershipFakes(page, {
+    requireAudioContextResumeInPlayTurn: true,
+  })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+
+  await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined)
+  const atmoShaperCategory = page.getByRole("group", { name: "Station category" })
+    .getByRole("button", { name: "Atmoshaper", exact: true })
+  await atmoShaperCategory.click()
+  await expect(atmoShaperCategory).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByRole("heading", { name: "Sound Library", exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Add White noise", exact: true }).click()
+
+  const play = page.getByRole("button", { name: "Play AtmoShaper", exact: true }).first()
+  await expect(play).toBeEnabled({ timeout: 30_000 })
+  const resumeAttemptsBeforePlay = (await readProbe(page)).audioContext.resumeAttempts.length
+  await play.tap()
+
+  await expect(page.getByTestId("music-player-toolbar")).toHaveAttribute("data-playback-state", "playing")
+  const newResumeAttempts = (await readProbe(page)).audioContext.resumeAttempts.slice(resumeAttemptsBeforePlay)
+  expect(newResumeAttempts.length).toBeGreaterThanOrEqual(1)
+  expect(newResumeAttempts[0]).toMatchObject({ sameInitiatingTurn: true })
 })
 
 test("fresh-page cold runtime exposes only an activation-safe centered Play action", async ({ page }, testInfo) => {
