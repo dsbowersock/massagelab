@@ -5069,7 +5069,7 @@ test("Atmosphere interruption notice clears the toolbar in short landscape", asy
   expect(geometry.noticeBottom).toBeLessThanOrEqual(geometry.viewportHeight)
   expect(geometry.noticeLeft).toBeGreaterThanOrEqual(0)
   expect(geometry.noticeRight).toBeLessThanOrEqual(geometry.viewportWidth)
-  await expect(controls.locator("[aria-label]")).toHaveCount(7)
+  await expect(controls.locator("[aria-label]")).toHaveCount(8)
 })
 
 test("Atmosphere interruption notice follows the actual rail edge with safe insets", async ({ page }, testInfo) => {
