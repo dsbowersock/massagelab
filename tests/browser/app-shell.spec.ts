@@ -3371,11 +3371,16 @@ test("Favorites and Atmoshaper bookend Station categories without duplicating th
   await expect(atmoshaperButton).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByRole("heading", { name: "Atmoshaper", exact: true })).toBeVisible()
   await expect(page.getByText("Layer ambient sounds into your own soundscape.", { exact: true })).toBeVisible()
-  await expect(page.getByTestId("atmoshaper-coming-soon")).toHaveText("Coming soon")
+  await expect(page.getByRole("heading", { name: "Sound Library", exact: true })).toBeVisible()
+  const ambientSoundsTab = page.getByRole("tab", { name: "Ambient sounds", exact: true })
+  await ambientSoundsTab.click()
+  await expect(ambientSoundsTab).toHaveAttribute("aria-selected", "true")
+  await expect(page.getByRole("searchbox", { name: "Search ambient sounds" })).toBeVisible()
+  await expect(page.getByText("51 of 51 reviewed concepts", { exact: true })).toBeVisible()
   await expect(page.getByTestId("atmosphere-favorites-region")).toBeHidden()
 
   await page.setViewportSize({ width: 844, height: 390 })
-  await expect(page.getByTestId("atmoshaper-coming-soon")).toBeVisible()
+  await expect(page.getByText("51 of 51 reviewed concepts", { exact: true })).toBeVisible()
   expect(await page.evaluate(() => ({
     horizontal: document.documentElement.scrollWidth <= innerWidth,
     vertical: document.documentElement.scrollHeight <= innerHeight,
