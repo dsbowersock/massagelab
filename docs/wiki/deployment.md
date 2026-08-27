@@ -323,3 +323,21 @@ npm run prisma:migrate:deploy
 ```
 
 Do not run migrations from `next build`.
+
+Every build runs `npm run production:migrations:check` before Prisma client
+generation. The command is a no-op unless `VERCEL_ENV=production`. In Vercel
+Production it requires `DIRECT_URL` or `DATABASE_URL_UNPOOLED` and runs only
+`prisma migrate status`; it never applies or resolves a migration. A missing
+direct connection, status failure, or pending migration fails the new build so
+the previous healthy Production deployment remains active.
+
+When the gate fails:
+
+1. Review the exact committed pending migrations.
+2. Obtain explicit authorization for the Production database write.
+3. Run `npm run prisma:migrate:deploy` through the direct maintenance
+   connection.
+4. Run `npm run production:migrations:check` with the Vercel Production
+   environment and confirm it passes.
+5. Redeploy the same reviewed commit and complete authentication plus affected
+   feature smoke checks.
