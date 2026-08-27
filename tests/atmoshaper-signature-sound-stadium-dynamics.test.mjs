@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 import { describe, it } from "node:test"
 
 const stadiumDynamics = await import("../lib/atmoshaper/signature-sound-stadium-dynamics.js").catch(() => ({}))
@@ -112,22 +112,26 @@ describe("AtmoShaper Stadium Crowd dynamics and leveling", () => {
   })
 
   it("parses only the closed CLI and the complete EBU R128 summary", () => {
+    const inputRoot = resolve(tmpdir(), "stadium-input")
+    const outputRoot = resolve(tmpdir(), "stadium-output")
+    const ffmpeg = resolve(tmpdir(), "tools", "ffmpeg")
+    const ffprobe = resolve(tmpdir(), "tools", "ffprobe")
     assert.deepEqual(cli.parseSignatureSoundStadiumDynamicsCliArguments(["--mode", "plan"]), { mode: "plan" })
     assert.deepEqual(cli.parseSignatureSoundStadiumDynamicsCliArguments([
       "--mode", "render",
-      "--input-root", "C:\\input",
-      "--output-root", "C:\\output",
-      "--ffmpeg", "C:\\tools\\ffmpeg.exe",
-      "--ffprobe", "C:\\tools\\ffprobe.exe",
+      "--input-root", inputRoot,
+      "--output-root", outputRoot,
+      "--ffmpeg", ffmpeg,
+      "--ffprobe", ffprobe,
     ]), {
       mode: "render",
-      inputRoot: "C:\\input",
-      outputRoot: "C:\\output",
-      ffmpeg: "C:\\tools\\ffmpeg.exe",
-      ffprobe: "C:\\tools\\ffprobe.exe",
+      inputRoot,
+      outputRoot,
+      ffmpeg,
+      ffprobe,
     })
     assert.throws(
-      () => cli.parseSignatureSoundStadiumDynamicsCliArguments(["--mode", "render", "--output-root", "C:\\output"]),
+      () => cli.parseSignatureSoundStadiumDynamicsCliArguments(["--mode", "render", "--output-root", outputRoot]),
       /input root|required/i,
     )
     assert.deepEqual(cli.parseSignatureSoundStadiumEbur128(`
