@@ -90,6 +90,8 @@ const DEV_CLOCK_STORAGE_KEY = "massagelab-dev-clock-settings"
 const DEV_CLOCK_FEATURE_KEYS = [
   FEATURE_KEYS.premiumBackgrounds,
 ]
+/** Allows cold Auth.js and entitlement lookups to finish before lifecycle retries take over. */
+const ACCOUNT_ACCESS_FETCH_TIMEOUT_MS = 10_000
 
 type ChimerPageProps = {
   /**
@@ -378,7 +380,11 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
 
     async function syncAccountSettings() {
       try {
-        const sessionResponse = await fetchWithTimeout("/api/auth/session")
+        const sessionResponse = await fetchWithTimeout(
+          "/api/auth/session",
+          {},
+          ACCOUNT_ACCESS_FETCH_TIMEOUT_MS,
+        )
 
         if (!isMounted) {
           return
@@ -425,7 +431,11 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
           return
         }
 
-        const response = await fetchWithTimeout("/api/account/preferences")
+        const response = await fetchWithTimeout(
+          "/api/account/preferences",
+          {},
+          ACCOUNT_ACCESS_FETCH_TIMEOUT_MS,
+        )
 
         if (!isMounted) {
           return

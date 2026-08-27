@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-08-27 — Clock subscription access hydration after login
+
+- Traced the premium-background lock after login to Clock's account-sync transport boundary. Both `/api/auth/session` and `/api/account/preferences` used the generic 1.5-second client timeout even though the session callback and entitlement response can require cold database-backed work. A successful but slower response was therefore aborted and the fresh Clock mount correctly remained fail-closed until Account navigation or a lifecycle retry warmed and repeated the same reads.
+- Kept the existing canonical session/preferences entitlement owner and focus, online, page-show, and visibility retries. Only Clock's two initial account-access reads now use a documented 10-second timeout; the generic fetch default, preference writes, entitlement computation, sign-out behavior, and fail-closed policy are unchanged.
+- Added strict RED/GREEN browser coverage for a newly signed-in Clock with a two-second cold session response and a separate two-second cold subscription response. Both tests failed against the 1.5-second boundary before the fix. After the repair, both pass without Account navigation, and the pre-existing returning-tab failure/retry regression remains green. Focused account-preference/Clock tests, Prisma validation, TypeScript, lint, `git diff --check`, and the 109-page Production build pass.
+
 ## 2026-08-27 — Approved AtmoShaper production catalog and public-media release
 
 - Captured the reviewer's approval of every concept currently in the prepared handoff, closing revised Batch 56 fingerprint `d8aca0fa338435811fb7f8aff453307552deb583a892efff57986672506da05d` and Batch 61 fingerprint `51f255a2bd993831479c0b8e65caa984ab9b711e22b534a3b4b22a6a0bf3f081`. The closed production boundary is 51 concepts: four processed and 47 dynamic. Retired/rejected batches, the source-insufficient hold, and the Moodist recording backlog remain excluded.
