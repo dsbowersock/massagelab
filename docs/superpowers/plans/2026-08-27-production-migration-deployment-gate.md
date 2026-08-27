@@ -39,10 +39,12 @@ dependency was restored.
 - The checker skips without database access outside Vercel Production and a
   live read-only Production rehearsal reports all 40 migrations current.
 - Prisma validation, typecheck, lint, the 109-page Production build, and
-  `git diff --check` pass. The repository-wide unit command reaches nine
-  pre-existing AtmoShaper construction-review failures because committed
-  authority fixtures do not match that test's pinned checksums; this branch
-  modifies neither the fixtures nor the failing test.
+  `git diff --check` pass. A local Windows repository-wide unit run reaches
+  nine AtmoShaper construction-review checksum failures because Git
+  materializes CRLF working-tree bytes for two immutable JSON fixtures. Their
+  committed Git blob hashes match the pinned SHA-256 values, hosted Linux unit
+  tests pass, and this branch modifies neither the fixtures nor the failing
+  test.
 - No second Production migration deploy was run as part of gate validation.
 
 ## Rollback
