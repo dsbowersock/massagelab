@@ -70,8 +70,29 @@ describe("Production migration deployment gate", () => {
     assert.deepEqual(result, { checked: true })
     assert.equal(invocation.command, process.execPath)
     assert.deepEqual(invocation.args.slice(-2), ["migrate", "status"])
-    assert.equal(invocation.options.env, env)
+    assert.deepEqual(invocation.options.env, env)
     assert.equal(invocation.options.stdio, "inherit")
+  })
+
+  it("passes the unpooled fallback to Prisma when DIRECT_URL is blank", () => {
+    const env = {
+      VERCEL_ENV: "production",
+      DIRECT_URL: "   ",
+      DATABASE_URL_UNPOOLED: "postgresql://unpooled.example/database",
+    }
+    let childEnv
+
+    runProductionMigrationGate({
+      env,
+      spawnSyncImpl: (_command, _args, options) => {
+        childEnv = options.env
+        return { status: 0 }
+      },
+      log: () => {},
+    })
+
+    assert.equal(childEnv.DIRECT_URL, env.DATABASE_URL_UNPOOLED)
+    assert.equal(env.DIRECT_URL, "   ")
   })
 
   it("fails closed when Prisma cannot run or reports pending migrations", () => {

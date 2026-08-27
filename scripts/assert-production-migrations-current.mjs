@@ -41,9 +41,13 @@ export function runProductionMigrationGate({
     return { checked: false }
   }
 
-  requireDirectProductionMigrationUrl(env)
+  const directUrl = requireDirectProductionMigrationUrl(env)
+  const migrationEnv = {
+    ...env,
+    DIRECT_URL: directUrl,
+  }
   const result = spawnSyncImpl(process.execPath, [prismaCliPath, "migrate", "status"], {
-    env,
+    env: migrationEnv,
     stdio: "inherit",
   })
 

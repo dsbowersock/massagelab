@@ -21,20 +21,21 @@ dependency was restored.
 2. Skip unless `VERCEL_ENV` is exactly `production`.
 3. In Production, require `DIRECT_URL` or `DATABASE_URL_UNPOOLED`; never fall
    back to the pooled runtime URL for the maintenance check.
-4. Run Prisma's read-only `migrate status` command and inherit its exit status.
-   Missing configuration, an execution error, or any nonzero status fails the
-   build without applying migrations.
+4. Run Prisma's read-only `migrate status` command. Missing configuration, an
+   execution error, or any nonzero status makes the wrapper fail the build; the
+   wrapper does not forward Prisma's original numeric exit code and never
+   applies migrations.
 5. Add the check to `prebuild` before Prisma client generation. A failed new
    Production build leaves the previously healthy deployment active until an
-   operator runs the separately authorized migration deploy and redeploys.
+   operator runs the separately authorized migration deployment and redeploys.
 6. Document the recovery sequence and record the incident in current-state and
    chronological documentation.
 
 ## Verification
 
-- Six focused unit tests pass for the non-Production skip, direct-URL
-  enforcement, passing status, execution failure, pending status, and
-  package-script wiring.
+- Seven focused unit tests pass for the non-Production skip, direct-URL
+  enforcement, unpooled fallback, passing status, execution failure, pending
+  status, and package-script wiring.
 - The checker skips without database access outside Vercel Production and a
   live read-only Production rehearsal reports all 40 migrations current.
 - Prisma validation, typecheck, lint, the 109-page Production build, and
