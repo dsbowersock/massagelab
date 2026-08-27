@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "constructionReviewSha256": "a3e782b6c1c2d808bd7e8214cb655163f1bdfbc473318ae0ac9c916ccb84954d",
+  "algorithmVersion": "signature-construction-audition-v1",
+  "updatedAt": "2026-08-25T21:55:20.456Z",
+  "groups": {
+    "moodist:dryer": {
+      "note": "",
+      "auditionedAt": "2026-08-25T21:50:55.739Z",
+      "configuration": {
+        "includedSourceIds": [
+          "a2cdc5b801058999b253de905dcdc45e612c5e944ef6e4202a0d815b91bf8d4f"
+        ],
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 3.75
+        },
+        "constructionPolicy": {
+          "minimumSelectionsBeforeRepeat": null,
+          "transitionDurationRange": {
+            "minimumSeconds": 3.75,
+            "maximumSeconds": 10
+          },
+          "cadenceBoundary": null,
+          "overlapNextEvent": false
+        }
+      },
+      "auditionKey": "construction-v1|a3e782b6c1c2d808bd7e8214cb655163f1bdfbc473318ae0ac9c916ccb84954d|signature-construction-audition-v1|moodist:dryer|adaptive-whole-source-sequence|{\"transitionMode\":\"crossfade\",\"transitionSeconds\":3.75}|{\"minimumSelectionsBeforeRepeat\":null,\"transitionDurationRange\":{\"minimumSeconds\":3.75,\"maximumSeconds\":10},\"cadenceBoundary\":null,\"overlapNextEvent\":false}|a2cdc5b801058999b253de905dcdc45e612c5e944ef6e4202a0d815b91bf8d4f",
+      "decision": "pass",
+      "scope": "playback-only"
+    },
+    "moodist:walk-on-gravel": {
+      "note": "Something sounds off with some of the sounds, they sound like they're reversed. I'll need to go back and review the included recordings.",
+      "decision": "needs-rework"
+    },
+    "moodist:walk-on-leaves": {
+      "note": "I need to review the included recordings here because some don't sound like footsteps",
+      "decision": "needs-rework"
+    },
+    "signature-extra:air-traffic-control": {
+      "note": "",
+      "auditionedAt": "2026-08-25T21:42:54.195Z",
+      "configuration": {
+        "includedSourceIds": [
+          "05643a43f00a7c589f0ec6196ce389c8d6aa3f61f2887fe4cccb4f544ae39020",
+          "0dfa49faff5e0abda72e75854cedd76ac1a7c27c79964fcbe19754cfcbfb6e14",
+          "1441c7bb09ef86bcc72e77ee1617e9dbd0b2fc27eecb80b9dad5ac132b1e08da",
+          "173e37ef2d88f5fb310af43d5b6be0ef6193ff9d3059f4b93320a4d859a18374",
+          "1be47f3cac37ab7dc1a344d92e138c6308fd1d2ab980b461f3a3b9ba7020d7e1",
+          "461c8069a3d3e903e694daddc1284c9bf8c6f120f4799c85bc7031eea9a072e2",
+          "541209811de7527e21204b8752e9b70d576325f8a877f78a1b0dc64915b65d57",
+          "aa1e391e9d1553dd09b466f3aa71a9e0a6161bba88b6d7d8dd589da50f15e196",
+          "bba9d2920ff397eee92189239b628bc1b9c60802453d57b492d72ff9c9153733",
+          "ceb8f9d2abd994234da85d56bc7e7143201fc0e02878d6df32a570a9a0df2df3",
+          "d27c7a2e2369bab1dafaec84f355ae93edb767df453923b78f0a331326fba342",
+          "ea1832efc52dc0248c2c80d5c1ebf8fabf77b78397c7f8b071a39a8ea0f1a179"
+        ],
+        "previewSettings": {
+          "minimumGapSeconds": 1,
+          "maximumGapSeconds": 7
+        },
+        "constructionPolicy": {
+          "minimumSelectionsBeforeRepeat": 4,
+          "transitionDurationRange": null,
+          "cadenceBoundary": null,
+          "overlapNextEvent": false
+        }
+      },
+      "auditionKey": "construction-v1|a3e782b6c1c2d808bd7e8214cb655163f1bdfbc473318ae0ac9c916ccb84954d|signature-construction-audition-v1|signature-extra:air-traffic-control|spaced-event-sequence|{\"minimumGapSeconds\":1,\"maximumGapSeconds\":7}|{\"minimumSelectionsBeforeRepeat\":4,\"transitionDurationRange\":null,\"cadenceBoundary\":null,\"overlapNextEvent\":false}|05643a43f00a7c589f0ec6196ce389c8d6aa3f61f2887fe4cccb4f544ae39020,0dfa49faff5e0abda72e75854cedd76ac1a7c27c79964fcbe19754cfcbfb6e14,1441c7bb09ef86bcc72e77ee1617e9dbd0b2fc27eecb80b9dad5ac132b1e08da,173e37ef2d88f5fb310af43d5b6be0ef6193ff9d3059f4b93320a4d859a18374,1be47f3cac37ab7dc1a344d92e138c6308fd1d2ab980b461f3a3b9ba7020d7e1,461c8069a3d3e903e694daddc1284c9bf8c6f120f4799c85bc7031eea9a072e2,541209811de7527e21204b8752e9b70d576325f8a877f78a1b0dc64915b65d57,aa1e391e9d1553dd09b466f3aa71a9e0a6161bba88b6d7d8dd589da50f15e196,bba9d2920ff397eee92189239b628bc1b9c60802453d57b492d72ff9c9153733,ceb8f9d2abd994234da85d56bc7e7143201fc0e02878d6df32a570a9a0df2df3,d27c7a2e2369bab1dafaec84f355ae93edb767df453923b78f0a331326fba342,ea1832efc52dc0248c2c80d5c1ebf8fabf77b78397c7f8b071a39a8ea0f1a179",
+      "decision": "pass",
+      "scope": "playback-only"
+    },
+    "signature-extra:horror-suspense": {
+      "note": "",
+      "auditionedAt": "2026-08-25T20:47:46.630Z",
+      "configuration": {
+        "includedSourceIds": [
+          "01050d0eccf817656e59bd7cd1a33f6ceba5281b839fe332d6ad15da1a790564",
+          "06cf2a2850ac1701e8b618de1029b08e816fa4d0740a852de266e6772fbeceb9",
+          "0d825e59a9b184a51ec1e08e32c1ac5dd37a1978c72dbff764045c8f9497a76e",
+          "0e77894e382c724baad6ad84e27cf6fb6790759f4dca11839fda6e8c9de3d954",
+          "2f2adfb84acd6f1e560070ef46e788553bb3f8ba126ac445daea1bec05b4a2d4",
+          "439c2c545b92147630a25bc341204583b30dda9ac9980800a1462b18082ad70a",
+          "58c5e1e891b765c294e3643f2314f4772d2a9641233d6942c450fbff5fd3c209",
+          "61e72a7ca686e54674da7dd46016f49c2b7eaf52c862b050f7fcf6a66b796276",
+          "62297419f588ce16e3dc3138e90c8cd9c62523c8c5c24526753fa79250961897",
+          "87283026d488a7c1dba66b5ddd5d86140c65877bd5180e2f5425099b605d2e32",
+          "9234020f44ebd8782909ee1555ab682c6dbe48a1315d6077dac7c1a2ac0a3aa1",
+          "9ef4f3086c8a72b6b59515107d6a09a1bad751cfc146e13e33dba1fb203da861",
+          "c02ccd3d3373a7680161ee3768154b334266855de43059044425b09d7aff5bc4",
+          "c59e42a477832cc99d06a08c12a20ef3c754ad233b85f2beefa76f4d85ac694f",
+          "d7da88b58b42e9fec29903baa51029a325753de1a448b93b8a69de78babc394f",
+          "d89895ae843b0d7b15f8a55006748ee68946932fcb0509d75060dd24111207db",
+          "d975d8c78bd3fc9269c84d20fdcf3acdbf27e8af68f00d526937168351ce8993",
+          "de2fd8aa274ac9ef96009ed0954eaa336995ea8500163340cc0c2ca63b4f8f12",
+          "e86711ba9f6957f04308452b8c40d00de201cd08221c0f2bbcb8384c8ff94de3",
+          "ecbd91f231afa1f4e62e37b8abbf5f41e20b332718a0fbcf14e19bca3e0185c3"
+        ],
+        "previewSettings": {
+          "minimumGapSeconds": 0,
+          "maximumGapSeconds": 16
+        },
+        "constructionPolicy": {
+          "minimumSelectionsBeforeRepeat": null,
+          "transitionDurationRange": null,
+          "cadenceBoundary": null,
+          "overlapNextEvent": false
+        }
+      },
+      "auditionKey": "construction-v1|a3e782b6c1c2d808bd7e8214cb655163f1bdfbc473318ae0ac9c916ccb84954d|signature-construction-audition-v1|signature-extra:horror-suspense|spaced-event-sequence|{\"minimumGapSeconds\":0,\"maximumGapSeconds\":16}|{\"minimumSelectionsBeforeRepeat\":null,\"transitionDurationRange\":null,\"cadenceBoundary\":null,\"overlapNextEvent\":false}|01050d0eccf817656e59bd7cd1a33f6ceba5281b839fe332d6ad15da1a790564,06cf2a2850ac1701e8b618de1029b08e816fa4d0740a852de266e6772fbeceb9,0d825e59a9b184a51ec1e08e32c1ac5dd37a1978c72dbff764045c8f9497a76e,0e77894e382c724baad6ad84e27cf6fb6790759f4dca11839fda6e8c9de3d954,2f2adfb84acd6f1e560070ef46e788553bb3f8ba126ac445daea1bec05b4a2d4,439c2c545b92147630a25bc341204583b30dda9ac9980800a1462b18082ad70a,58c5e1e891b765c294e3643f2314f4772d2a9641233d6942c450fbff5fd3c209,61e72a7ca686e54674da7dd46016f49c2b7eaf52c862b050f7fcf6a66b796276,62297419f588ce16e3dc3138e90c8cd9c62523c8c5c24526753fa79250961897,87283026d488a7c1dba66b5ddd5d86140c65877bd5180e2f5425099b605d2e32,9234020f44ebd8782909ee1555ab682c6dbe48a1315d6077dac7c1a2ac0a3aa1,9ef4f3086c8a72b6b59515107d6a09a1bad751cfc146e13e33dba1fb203da861,c02ccd3d3373a7680161ee3768154b334266855de43059044425b09d7aff5bc4,c59e42a477832cc99d06a08c12a20ef3c754ad233b85f2beefa76f4d85ac694f,d7da88b58b42e9fec29903baa51029a325753de1a448b93b8a69de78babc394f,d89895ae843b0d7b15f8a55006748ee68946932fcb0509d75060dd24111207db,d975d8c78bd3fc9269c84d20fdcf3acdbf27e8af68f00d526937168351ce8993,de2fd8aa274ac9ef96009ed0954eaa336995ea8500163340cc0c2ca63b4f8f12,e86711ba9f6957f04308452b8c40d00de201cd08221c0f2bbcb8384c8ff94de3,ecbd91f231afa1f4e62e37b8abbf5f41e20b332718a0fbcf14e19bca3e0185c3",
+      "decision": "pass",
+      "scope": "complete-construction"
+    },
+    "signature-extra:moon-footsteps": {
+      "note": "",
+      "auditionedAt": "2026-08-25T20:47:46.630Z",
+      "configuration": {
+        "includedSourceIds": [
+          "0070f0511b3ecdcb0abfbea7c6bbd4528d211c6db60bc437f1b1b03a4b6a9ee6",
+          "07e4aed962233ba2aabd120b0779d4245ac38fbfc844a1c2496fe56e61ece41a",
+          "19239b7066cb4f2a79c484d4ecbee4d4e891d69ff88eee670b21f907c79a17d8",
+          "2487aff6adb730092ef8bcfc5e9b6490f09e604a09a916d41dadfacfd553250a",
+          "350b67123d1aba5de2d591baa28fb34f5e5534e023e4c52356e68d812c82bdc0",
+          "4f95e1d8a6f039c631ae7db51a18a96827300ab21b28f4a9f2144ccd4506c19b",
+          "605d2e241d2651cccd8d7e1153d1383f962df24255d934a94c4f3654ffae77c7",
+          "aa9294e7c40ddc62c8e1e247c0bdd20a756c0898eaf9bb4baacddd11860b4a66",
+          "e29f9e1d629f83c8ad6e39d5cfb911776f696dd82f93e938e02f66f3187767f5"
+        ],
+        "previewSettings": {
+          "stepsPerMinute": 44,
+          "jitterPercent": 1
+        },
+        "constructionPolicy": {
+          "minimumSelectionsBeforeRepeat": null,
+          "transitionDurationRange": null,
+          "cadenceBoundary": null,
+          "overlapNextEvent": true
+        }
+      },
+      "auditionKey": "construction-v1|a3e782b6c1c2d808bd7e8214cb655163f1bdfbc473318ae0ac9c916ccb84954d|signature-construction-audition-v1|signature-extra:moon-footsteps|walking-cadence-sequence|{\"stepsPerMinute\":44,\"jitterPercent\":1}|{\"minimumSelectionsBeforeRepeat\":null,\"transitionDurationRange\":null,\"cadenceBoundary\":null,\"overlapNextEvent\":true}|0070f0511b3ecdcb0abfbea7c6bbd4528d211c6db60bc437f1b1b03a4b6a9ee6,07e4aed962233ba2aabd120b0779d4245ac38fbfc844a1c2496fe56e61ece41a,19239b7066cb4f2a79c484d4ecbee4d4e891d69ff88eee670b21f907c79a17d8,2487aff6adb730092ef8bcfc5e9b6490f09e604a09a916d41dadfacfd553250a,350b67123d1aba5de2d591baa28fb34f5e5534e023e4c52356e68d812c82bdc0,4f95e1d8a6f039c631ae7db51a18a96827300ab21b28f4a9f2144ccd4506c19b,605d2e241d2651cccd8d7e1153d1383f962df24255d934a94c4f3654ffae77c7,aa9294e7c40ddc62c8e1e247c0bdd20a756c0898eaf9bb4baacddd11860b4a66,e29f9e1d629f83c8ad6e39d5cfb911776f696dd82f93e938e02f66f3187767f5",
+      "decision": "pass",
+      "scope": "complete-construction"
+    },
+    "signature-extra:sci-fi-whistles": {
+      "note": "",
+      "auditionedAt": "2026-08-25T21:55:20.456Z",
+      "configuration": {
+        "includedSourceIds": [
+          "002f6d2278acada49b8b4401f77c308de4a78f2ac07e6bcfe4b2843d33d22cb2",
+          "1cbdc692dd6d3f03f031ce9dc54d6bcf36389f566fbcfff1d58739142e2e6428",
+          "22efc03d444a83d9a1c664df3c7c2dff905c9f9891437f5b783a4a8f6951f1d8",
+          "2dd3a27060e1b3eec93978435a3910395afef0821b87de5096d777a21ad6503b",
+          "403bf39bc55ec9848d099794ebddf7d2bcc27c1fe779bf7418376ecec41b251a",
+          "461fb9ef089624889b4918ce85e48f0e9f5286e0c63b7b4d2f09f26b205e64a6",
+          "4bf7ef3770393fe30965ee9cdd690c32bc57c46d871f0c09330b0c1a3481f184",
+          "4f55fbb424bf88643f4b4bb3b2d0274f1d4840020684db16a0767ddd60d449da",
+          "563a012cdca2a4e0ec3e749430d4647926adfe648978917f88f516029ffb3419",
+          "7cd1433c08643ab0517df04ed716b249804e494e4092944bd7fa9cab9eb998bc",
+          "98e80e8fdfbed2d456c5447f3afae5edeffbaa482de8fdecbe718257dde8c40c",
+          "a618652d0b5c88177175887969c7abc74b836a7cba80c203abb0d14ad275d01d",
+          "a7d159a17e36af8b813b054c4ae418974afcaab642bf56265834242fd3d55349",
+          "babaa4d713c95f6d5f61c09430eb7de6f189633757e73bd2e66ef39e7436015e",
+          "d905315904ab8b60e27284a69c324f87b825f0b9c8a1d09f1e9f1fcde4cb2921",
+          "ed14397250ac98f06bf86ef3da63a34da8a2421ab654c4572e9ed69e9715cbef",
+          "ef74b6538a6ef18a1604927c2223d3b34e5638fa68f4e0807c4d5b340377bf9a",
+          "f5e6abe07e98bc4fb28d3518048766204631272a9118e93b985f428ecb06c22c"
+        ],
+        "previewSettings": {
+          "minimumGapSeconds": 0,
+          "maximumGapSeconds": 8
+        },
+        "constructionPolicy": {
+          "minimumSelectionsBeforeRepeat": null,
+          "transitionDurationRange": null,
+          "cadenceBoundary": null,
+          "overlapNextEvent": false
+        }
+      },
+      "auditionKey": "construction-v1|a3e782b6c1c2d808bd7e8214cb655163f1bdfbc473318ae0ac9c916ccb84954d|signature-construction-audition-v1|signature-extra:sci-fi-whistles|spaced-event-sequence|{\"minimumGapSeconds\":0,\"maximumGapSeconds\":8}|{\"minimumSelectionsBeforeRepeat\":null,\"transitionDurationRange\":null,\"cadenceBoundary\":null,\"overlapNextEvent\":false}|002f6d2278acada49b8b4401f77c308de4a78f2ac07e6bcfe4b2843d33d22cb2,1cbdc692dd6d3f03f031ce9dc54d6bcf36389f566fbcfff1d58739142e2e6428,22efc03d444a83d9a1c664df3c7c2dff905c9f9891437f5b783a4a8f6951f1d8,2dd3a27060e1b3eec93978435a3910395afef0821b87de5096d777a21ad6503b,403bf39bc55ec9848d099794ebddf7d2bcc27c1fe779bf7418376ecec41b251a,461fb9ef089624889b4918ce85e48f0e9f5286e0c63b7b4d2f09f26b205e64a6,4bf7ef3770393fe30965ee9cdd690c32bc57c46d871f0c09330b0c1a3481f184,4f55fbb424bf88643f4b4bb3b2d0274f1d4840020684db16a0767ddd60d449da,563a012cdca2a4e0ec3e749430d4647926adfe648978917f88f516029ffb3419,7cd1433c08643ab0517df04ed716b249804e494e4092944bd7fa9cab9eb998bc,98e80e8fdfbed2d456c5447f3afae5edeffbaa482de8fdecbe718257dde8c40c,a618652d0b5c88177175887969c7abc74b836a7cba80c203abb0d14ad275d01d,a7d159a17e36af8b813b054c4ae418974afcaab642bf56265834242fd3d55349,babaa4d713c95f6d5f61c09430eb7de6f189633757e73bd2e66ef39e7436015e,d905315904ab8b60e27284a69c324f87b825f0b9c8a1d09f1e9f1fcde4cb2921,ed14397250ac98f06bf86ef3da63a34da8a2421ab654c4572e9ed69e9715cbef,ef74b6538a6ef18a1604927c2223d3b34e5638fa68f4e0807c4d5b340377bf9a,f5e6abe07e98bc4fb28d3518048766204631272a9118e93b985f428ecb06c22c",
+      "decision": "pass",
+      "scope": "playback-only"
+    },
+    "signature-extra:underwater-effects": {
+      "note": "",
+      "auditionedAt": "2026-08-25T20:47:46.630Z",
+      "configuration": {
+        "includedSourceIds": [
+          "0c0067f46f83d48355af14edfcbb391bbf1a1c6494379f3955e844a332cf4da1",
+          "13668a757bde6e6e73129147f1ffe616a65f6db15c99dbb88d7e19bdbb37c4c7",
+          "21b954544964f0f9e575f8fb8d1196fe92e8fcd712533731e0936e0875cec578",
+          "324e76ec8972d4168578a942949a44d67f88fa037d16286a58a183c95c24ad99",
+          "45a2abc39a6225b3fb9d29b78783610b9a4386778669007fe37ffbe66cf3db3b",
+          "4fe9e2d1f4fd79c039a722c9da4fbfea5b8acd5e41717488a075406082aad82a",
+          "511e3708544ec23d49a60bb25faddf47593f72bee74c83c11ff6d85ebe6fa4a3",
+          "77cadfb34b576e92e2e02a985c9fa371cc793a09c96409da46efac90ae9737d0",
+          "7996e608d0b13b54f16ffac8c42b3da0834af9acc14fa5157ba7dcc582c84e55",
+          "a0ff3a743a73443b6df167f80b6f1a034e096db90ed4a07bfad48448ae9b08ea",
+          "a8cdb6bc4cc9ed77b6cf002f5a0bede3a30a2c810f3a0156215f594b08f108d7",
+          "ad0b950d72129f602289abfce10b77748d527447c0709fb01cf20c22e94a56d6",
+          "bc87434505cf033fa622909e34c4ec2f5abd729103aef801e678e770c3192ac9",
+          "d1ce01e9e80133de21379d1d482606c10683138fc45d3a0c7763efe199e504dd",
+          "da0747827dd17cbfc3b99d22c356c9714c7aefc86e6e6ef0ecbf793f80853ab6",
+          "f2b5ce0be03022b309dc657ef19cc5d4405d23030a1563e53d9531d3c1a9beb2"
+        ],
+        "previewSettings": {
+          "stepsPerMinute": 105,
+          "jitterPercent": 8
+        },
+        "constructionPolicy": {
+          "minimumSelectionsBeforeRepeat": null,
+          "transitionDurationRange": null,
+          "cadenceBoundary": null,
+          "overlapNextEvent": false
+        }
+      },
+      "auditionKey": "construction-v1|a3e782b6c1c2d808bd7e8214cb655163f1bdfbc473318ae0ac9c916ccb84954d|signature-construction-audition-v1|signature-extra:underwater-effects|walking-cadence-sequence|{\"stepsPerMinute\":105,\"jitterPercent\":8}|{\"minimumSelectionsBeforeRepeat\":null,\"transitionDurationRange\":null,\"cadenceBoundary\":null,\"overlapNextEvent\":false}|0c0067f46f83d48355af14edfcbb391bbf1a1c6494379f3955e844a332cf4da1,13668a757bde6e6e73129147f1ffe616a65f6db15c99dbb88d7e19bdbb37c4c7,21b954544964f0f9e575f8fb8d1196fe92e8fcd712533731e0936e0875cec578,324e76ec8972d4168578a942949a44d67f88fa037d16286a58a183c95c24ad99,45a2abc39a6225b3fb9d29b78783610b9a4386778669007fe37ffbe66cf3db3b,4fe9e2d1f4fd79c039a722c9da4fbfea5b8acd5e41717488a075406082aad82a,511e3708544ec23d49a60bb25faddf47593f72bee74c83c11ff6d85ebe6fa4a3,77cadfb34b576e92e2e02a985c9fa371cc793a09c96409da46efac90ae9737d0,7996e608d0b13b54f16ffac8c42b3da0834af9acc14fa5157ba7dcc582c84e55,a0ff3a743a73443b6df167f80b6f1a034e096db90ed4a07bfad48448ae9b08ea,a8cdb6bc4cc9ed77b6cf002f5a0bede3a30a2c810f3a0156215f594b08f108d7,ad0b950d72129f602289abfce10b77748d527447c0709fb01cf20c22e94a56d6,bc87434505cf033fa622909e34c4ec2f5abd729103aef801e678e770c3192ac9,d1ce01e9e80133de21379d1d482606c10683138fc45d3a0c7763efe199e504dd,da0747827dd17cbfc3b99d22c356c9714c7aefc86e6e6ef0ecbf793f80853ab6,f2b5ce0be03022b309dc657ef19cc5d4405d23030a1563e53d9531d3c1a9beb2",
+      "decision": "pass",
+      "scope": "complete-construction"
+    }
+  }
+}

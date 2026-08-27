@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "reviewKind": "edit-concept-selection-qa",
+  "batchId": "batch-04-boiling-water-edit-audition",
+  "batchDeclarationSha256": "7ba27607e61fdd09f3cad2c6898fec8726dd9762d798ad1437ff8120ae6e16e4",
+  "manifestSha256": "dbbdb177e8cd47fa2923528f9de834a5ad1cdb87fe3c2cc3c780bf67a2a6c5c6",
+  "groupId": "moodist:boiling-water",
+  "selectedVariantId": "long-seam",
+  "selectedVariantLabel": "Long 8-second crossfade",
+  "outputIdentity": "d63ea4082951404502d5d48c3fdfc2df6af907ca897c06f95956f52b0b96bf04",
+  "decision": "pass",
+  "note": "Reviewer directly selected the 8-second crossfade as Pass.",
+  "reviewedAt": "2026-08-26T02:31:35.999Z"
+}

@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "algorithmVersion": "signature-speech-reduction-v1",
+  "outputVersion": 2,
+  "discoveryReviewSha256": "a22a9d19d8ae8353c32c7f8f7ca2be3e7de3b55cceb0e4d8df4f69b552e512bf",
+  "model": {
+    "name": "htdemucs",
+    "demucsVersion": "4.0.0",
+    "backend": "ripx-cpu",
+    "device": "cpu",
+    "twoStems": "vocals",
+    "weightFileName": "955717e8-8726e21a.th",
+    "weightSha256": "8726e21a993978c7ba086d3872e7608d7d5bfca646ca4aca459ffda844faa8b4",
+    "configurationFileName": "htdemucs.yaml",
+    "configurationSha256": "239c445d0b14454d541ad8bd9bb271c9e536d267e8a4625208744cbb2e7bb66c",
+    "adapterVersion": "atmoshaper-ripx-demucs-v1",
+    "adapterSha256": "fdb2a6a073f73a2644ebded765f18483eb2f7c672878d1714bb206484f45fbe5",
+    "pythonExecutableSha256": "6dec84f172d412942bf5492e7a965f13b15c7843e6485cb831c14b786aaf616a",
+    "demucsPackageSha256": "9ef77c767ccf41bc4890d6489cb9c88152408a79aa76c733c455179d8f74d880"
+  },
+  "format": {
+    "sampleRateHz": 48000,
+    "bitsPerSample": 24,
+    "channels": 2,
+    "codecName": "pcm_s24le",
+    "truePeakCeilingDbtp": -1,
+    "measurementMethod": "ffmpeg-ebur128-v1",
+    "requiredFfmpegVersion": "ffmpeg version 9.0-full_build-www.gyan.dev",
+    "requiredFfprobeVersion": "ffprobe version 9.0-full_build-www.gyan.dev",
+    "ffmpegExecutableSha256": "05f4251bce9293c2ab492cb17ca7724a0ffd0d06c881ba2ee83b82a89c2fc740",
+    "ffprobeExecutableSha256": "51e0780cd881f83749b029ed716cbb841c2eac6289f418050f2f2961b158896b"
+  },
+  "concepts": [
+    {
+      "batchId": "batch-21-traffic",
+      "groupId": "moodist:traffic",
+      "reviewFingerprint": "de6a7bac241f26a0375794384c88424461b05a96790e92bf055328dee578e995",
+      "outputSlug": "traffic",
+      "mixPolicy": "no-vocals-only",
+      "vocalsGainDb": null,
+      "sourceIds": [
+        "0f7b4cf9d8a3314c20a67e9f8032ac0a83b722d74fa961cdee521b9ea88a7bd2",
+        "4636604ef27073542a476156a4efe9da7b4ae481b4c6988db6e1b2a9779b1a78",
+        "502a7be39564828d0a73f4460755232e35e39207fa55442777407c0387a1f8a2",
+        "6008ddf4bc953b564f5e21766210ecb867ba71c53323d1028a369f1c3ccc4ae2",
+        "64538e1493a9eb2141af43b9c4637eff6e3382e244e7cde6b3cde2199e21815c",
+        "8edda7c92f169dab02e57698fa01ec0d7e793a1a235ed0cb7a65e401e4c32a3f",
+        "ba3e062a5813274e512245866ade18d5a9e7175af3a9345a67a5c50ed2ae9058",
+        "c26bed0a93a7a0e831df5d2bca0fcc4769dba961748638d32f61b3fc5b226611",
+        "fe3c86ffbed593999e9b52ffdf78730c92a8146d6ee8459c3ea6e0c5dfd0fb6f"
+      ]
+    },
+    {
+      "batchId": "batch-35-london-ambience",
+      "groupId": "signature-extra:london-ambience",
+      "reviewFingerprint": "f5b33159d0e70dabbe46e053139c0825573d5631272852c88246470992d45e52",
+      "outputSlug": "london-ambience",
+      "mixPolicy": "reduced-vocals-mix",
+      "vocalsGainDb": -20,
+      "sourceIds": [
+        "07595240444d1287ce90d36864896698e94da0a6c66e02ff06b91cec14e6945b",
+        "1e44aba164200c6cc2f173464210b3d1909422916b9eac98a4af7fa57a7ee431",
+        "4c019679fe4b69db1727ae1dbc507171c9ba63dc1914bb46760e0c4a0e369c96",
+        "7e0bbd6133e3b069eca12f55209fabc91189a82a259b9efb0b9639b02dbd8b4c",
+        "93010975b3db89bc156b296ff8cbc374f8ddd4fa9c1db2c39d505910a0217efa",
+        "9b5359cf906b737e700188169b00114c035d735dabd7db3c37650ee237d4dea5",
+        "aeb979c35a09179bb092f841dbbfcfea68b71e88099dff48496f3acf01538840",
+        "beaecefa8fecee0bde53981f743fd4aced5a4fdcd4b081eab9d40212aa47c87e",
+        "cb25f4651cd81f06a9ec6e84cacfa5ab50a122cef1b0b587369b3ca33462ae8e",
+        "f2dc2c83f9c91f657770794ad6fa385964c60d3b40f6cf19907cafbb198610cb",
+        "fbcddf034472ff20939f1e22f7d8816a9c22c11089ffe428945c686f409bd932",
+        "fe4c1ce7c1fad8e73f7ce0313a9b05f050e05fe77d24b59239bf43b8511074eb"
+      ]
+    },
+    {
+      "batchId": "batch-45-stadium-crowd",
+      "groupId": "signature-extra:stadium-crowd",
+      "reviewFingerprint": "2d09313556fbe74b651106b6526f3cfb26c57d0cf0c02d1c39946b7638d982c8",
+      "outputSlug": "stadium-crowd",
+      "mixPolicy": "reduced-vocals-mix",
+      "vocalsGainDb": -12,
+      "sourceIds": [
+        "438f04ade0d666c1c351613926c92dfc873dfe30e4867a402d87d1dfc376e2d6",
+        "4bcfcf11a547dca0b7448f987436a35e9a5c0c40ef98891b3c18a827c00f7815",
+        "4d145f82b53a11d844c79c482d238e538409f1f5eb5fe959b272d7b48ea0ada6",
+        "53195f13ffad544bd5a878393d2ea2ada208e0c90294caf9ca0ce71611fd61e6",
+        "8dc1b0729af7c229d54be7330232214e0ac498ecec9e9f24249f81464717bfc4",
+        "91299cb9cb8958b61cc16164d0b02d1a0c972fd13edc80ba40780ec2df2cd650"
+      ]
+    }
+  ]
+}

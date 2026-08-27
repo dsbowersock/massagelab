@@ -1,0 +1,132 @@
+.ingredients {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.85rem;
+  background: hsl(var(--background));
+}
+
+.ingredients > summary {
+  display: flex;
+  cursor: pointer;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem;
+  font-weight: 650;
+}
+
+.ingredients > summary small,
+.help,
+.row header p,
+.row label span {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.72rem;
+}
+
+.help {
+  padding: 0 0.85rem 0.85rem;
+  line-height: 1.5;
+}
+
+.list {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0 0.85rem 0.85rem;
+}
+
+.row {
+  display: grid;
+  gap: 0.7rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+}
+
+.row[data-decision="remove"] {
+  opacity: 0.74;
+}
+
+.row[data-playing="true"] {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px color-mix(in srgb, hsl(var(--primary)) 18%, transparent);
+}
+
+.row header,
+.badges,
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.row header {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.row header p {
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.badges {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.badges span {
+  border-radius: 999px;
+  background: hsl(var(--muted));
+  padding: 0.2rem 0.45rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.68rem;
+}
+
+.overallNote {
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.actions {
+  flex-wrap: wrap;
+}
+
+.actions > button {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.65rem;
+  background: transparent;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.actions > button[aria-pressed="true"] {
+  border-color: hsl(var(--primary));
+  background: color-mix(in srgb, hsl(var(--primary)) 14%, transparent);
+  color: hsl(var(--primary));
+}
+
+.row label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.row textarea {
+  min-height: 4rem;
+  resize: vertical;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.65rem;
+  background: hsl(var(--background));
+  padding: 0.6rem;
+  color: hsl(var(--foreground));
+}
+
+@media (max-width: 700px) {
+  .row header {
+    display: grid;
+  }
+
+  .badges {
+    justify-content: flex-start;
+  }
+}

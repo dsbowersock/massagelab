@@ -9,6 +9,7 @@ import {
   createGeneratedAtmoShaperAdapter,
   type AtmoShaperAudioLayerHandle,
 } from "./generated-audio-runtime"
+import { createAmbientAtmoShaperAdapter } from "./ambient-audio-runtime"
 import { createAtmoShaperMixController } from "./mix-controller.js"
 import { rampSeconds } from "./audio-parameters.js"
 import type { AtmoShaperLayer, AtmoShaperRecipe } from "./recipe.js"
@@ -37,8 +38,8 @@ export type AtmoShaperRuntimeSnapshot = {
 
 /**
  * Lazily creates the one master output and all source-specific mixer adapters.
- * Ambient media remains a recoverable per-layer error until its licensed
- * catalog pipeline is implemented by the follow-up package.
+ * Approved ambient concepts and generated sources share the same private
+ * master output and recoverable per-layer adapter boundary.
  */
 export async function createAtmoShaperRuntime({
   initialMasterVolume,
@@ -65,6 +66,9 @@ export async function createAtmoShaperRuntime({
     }
     if (layer.kind === "station") {
       return createStationFoundationAdapter({ layer, destination: master, isCurrent })
+    }
+    if (layer.kind === "ambient") {
+      return createAmbientAtmoShaperAdapter({ layer, destination: master })
     }
     throw new Error(`Unsupported AtmoShaper layer kind: ${layer.kind}`)
   }

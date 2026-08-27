@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "algorithmVersion": "signature-treatment-audition-v1",
+  "batchId": "batch-03-sci-fi-whistles-treatment-audition",
+  "outputVersion": 2,
+  "groupId": "signature-extra:sci-fi-whistles",
+  "processingIntentIds": [
+    "whistles-time-effect"
+  ],
+  "sources": [
+    {
+      "sourceId": "002f6d2278acada49b8b4401f77c308de4a78f2ac07e6bcfe4b2843d33d22cb2",
+      "sha256": "4c1827dcea90cd2f38f63acd055b55c466bf392dfd05e63374b0a305f89770d2",
+      "byteSize": 303896,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_17.wav"
+    },
+    {
+      "sourceId": "1cbdc692dd6d3f03f031ce9dc54d6bcf36389f566fbcfff1d58739142e2e6428",
+      "sha256": "6898bafcf4f9d2b7e2c150f8aee89738af3abe726ac81dd557de8883a3369933",
+      "byteSize": 438216,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_13.wav"
+    },
+    {
+      "sourceId": "22efc03d444a83d9a1c664df3c7c2dff905c9f9891437f5b783a4a8f6951f1d8",
+      "sha256": "3c7151b251c59c8e85f28501d129e000dc4b6ad74501020467b167cc89fb9795",
+      "byteSize": 780212,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_12.wav"
+    },
+    {
+      "sourceId": "2dd3a27060e1b3eec93978435a3910395afef0821b87de5096d777a21ad6503b",
+      "sha256": "be3e875afffda9aecbeefef5024db886a9ac5143210a162646966f9a468abd47",
+      "byteSize": 380356,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_16.wav"
+    },
+    {
+      "sourceId": "403bf39bc55ec9848d099794ebddf7d2bcc27c1fe779bf7418376ecec41b251a",
+      "sha256": "8f328aa702b59d98aba2b07b43d6e0fc762d403aed7b3d9b79958b1215915bcc",
+      "byteSize": 467148,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_11.wav"
+    },
+    {
+      "sourceId": "461fb9ef089624889b4918ce85e48f0e9f5286e0c63b7b4d2f09f26b205e64a6",
+      "sha256": "44c8aeee1885a30550e12a5c7d0faea165f5b686cec7ac12ef09ff0215a5b1af",
+      "byteSize": 943464,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_14.wav"
+    },
+    {
+      "sourceId": "4bf7ef3770393fe30965ee9cdd690c32bc57c46d871f0c09330b0c1a3481f184",
+      "sha256": "c7c8b59719976d70ba322ac23ecaebf3ff753f4dd0d366b239843a0ab80930ea",
+      "byteSize": 380354,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_07.wav"
+    },
+    {
+      "sourceId": "4f55fbb424bf88643f4b4bb3b2d0274f1d4840020684db16a0767ddd60d449da",
+      "sha256": "48567cb0a4451b711917eb4d5cb8a71d0133e50799eb881e3064e760c5d15a02",
+      "byteSize": 525006,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_06.wav"
+    },
+    {
+      "sourceId": "563a012cdca2a4e0ec3e749430d4647926adfe648978917f88f516029ffb3419",
+      "sha256": "04c254ccf4fa9e6e9dfb11b4eea0f4c1ff06550fe89df813c5b6fb8b88a93663",
+      "byteSize": 525008,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_15.wav"
+    },
+    {
+      "sourceId": "7cd1433c08643ab0517df04ed716b249804e494e4092944bd7fa9cab9eb998bc",
+      "sha256": "68ac2c84a888f8a37e056b427ea8557194ade7a8c6fc3a16fb123442b0188269",
+      "byteSize": 421684,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_18.wav"
+    },
+    {
+      "sourceId": "98e80e8fdfbed2d456c5447f3afae5edeffbaa482de8fdecbe718257dde8c40c",
+      "sha256": "18030922b2b49d161d52a781d8306c238309a7982ce27cf9361cebe0a76c8252",
+      "byteSize": 625228,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_10.wav"
+    },
+    {
+      "sourceId": "a618652d0b5c88177175887969c7abc74b836a7cba80c203abb0d14ad275d01d",
+      "sha256": "79da062336891dd8adbb8933a7dd8417020af01df5123d220984cb9a2436e01f",
+      "byteSize": 303894,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_08.wav"
+    },
+    {
+      "sourceId": "a7d159a17e36af8b813b054c4ae418974afcaab642bf56265834242fd3d55349",
+      "sha256": "bc90e3ccc53b2d62fdac2cff2d3046bed2df846da9d02c9049316806b6a5be32",
+      "byteSize": 780210,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_03.wav"
+    },
+    {
+      "sourceId": "babaa4d713c95f6d5f61c09430eb7de6f189633757e73bd2e66ef39e7436015e",
+      "sha256": "e2e2f7ec5a66b19771f0254ed7085eca96f6942bb361d0ef34b94f70fbc1efcf",
+      "byteSize": 467146,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_02.wav"
+    },
+    {
+      "sourceId": "d905315904ab8b60e27284a69c324f87b825f0b9c8a1d09f1e9f1fcde4cb2921",
+      "sha256": "f31f854d9167cf8b56614332a04bb7b1322bcae8de18074d670f9c265a2aeb38",
+      "byteSize": 421682,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_09.wav"
+    },
+    {
+      "sourceId": "ed14397250ac98f06bf86ef3da63a34da8a2421ab654c4572e9ed69e9715cbef",
+      "sha256": "a8b4d6c5185e2b15693f6d8b71ffe67ea819c6c36f650c7e5f24bf1d7a653000",
+      "byteSize": 438214,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_04.wav"
+    },
+    {
+      "sourceId": "ef74b6538a6ef18a1604927c2223d3b34e5638fa68f4e0807c4d5b340377bf9a",
+      "sha256": "94711fa23df99ee8db904016b5503353f1ec8471e9ffccaa5c9d1dac2e54aafa",
+      "byteSize": 625226,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_01.wav"
+    },
+    {
+      "sourceId": "f5e6abe07e98bc4fb28d3518048766204631272a9118e93b985f428ecb06c22c",
+      "sha256": "afdd86cb13ebcea04fefb2db95b1f50420e86dccbe1b14565ae30044115431cc",
+      "byteSize": 943462,
+      "relativePath": "SS_SciFi_Whistles_CC0_PRO/SS_SciFi_Whistles_CC0/SS_SciFi_Whistle_05.wav"
+    }
+  ],
+  "variants": [
+    {
+      "variantId": "short-delay",
+      "label": "Short delay",
+      "delaysMs": [120],
+      "decays": [0.3],
+      "inputGain": 0.92,
+      "outputGain": 0.82,
+      "safetyAttenuationDb": -1.5,
+      "tailSeconds": 0.12
+    },
+    {
+      "variantId": "medium-echo",
+      "label": "Medium echo",
+      "delaysMs": [180, 360],
+      "decays": [0.3, 0.15],
+      "inputGain": 0.9,
+      "outputGain": 0.72,
+      "safetyAttenuationDb": -1.5,
+      "tailSeconds": 0.36
+    },
+    {
+      "variantId": "wide-dual-echo",
+      "label": "Wide dual echo",
+      "delaysMs": [260, 520],
+      "decays": [0.34, 0.17],
+      "inputGain": 0.88,
+      "outputGain": 0.68,
+      "safetyAttenuationDb": -1.5,
+      "tailSeconds": 0.52
+    },
+    {
+      "variantId": "wide-dual-echo-x2",
+      "label": "Wide dual echo ×2",
+      "delaysMs": [260, 520],
+      "decays": [0.68, 0.34],
+      "inputGain": 0.88,
+      "outputGain": 0.68,
+      "safetyAttenuationDb": -3,
+      "tailSeconds": 0.52
+    }
+  ],
+  "outputFormat": {
+    "codec": "pcm_s24le",
+    "sampleRateHz": 48000,
+    "channels": "preserve",
+    "truePeakCeilingDbtp": -0.1
+  }
+}

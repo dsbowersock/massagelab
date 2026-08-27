@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "defaultStrategyId": "adaptive-whole-source-sequence",
+  "strategies": [
+    {
+      "id": "adaptive-whole-source-sequence",
+      "label": "Adaptive whole-source sequence",
+      "sourceUnit": "whole-source",
+      "ordering": "shuffle-no-immediate-repeat",
+      "timing": "continuous",
+      "transitions": [
+        "end-to-end",
+        "crossfade",
+        "overlap"
+      ],
+      "dynamic": true
+    },
+    {
+      "id": "adaptive-one-shot-sequence",
+      "label": "Adaptive one-shot sequence",
+      "sourceUnit": "one-shot",
+      "ordering": "shuffle-no-immediate-repeat",
+      "timing": "continuous",
+      "transitions": [
+        "end-to-end",
+        "crossfade",
+        "overlap"
+      ],
+      "dynamic": true
+    },
+    {
+      "id": "walking-cadence-sequence",
+      "label": "Walking cadence sequence",
+      "sourceUnit": "one-shot",
+      "ordering": "shuffle-no-immediate-repeat",
+      "timing": "walking-cadence",
+      "transitions": [
+        "end-to-end",
+        "overlap"
+      ],
+      "dynamic": true
+    },
+    {
+      "id": "spaced-event-sequence",
+      "label": "Spaced event sequence",
+      "sourceUnit": "one-shot",
+      "ordering": "shuffle-no-immediate-repeat",
+      "timing": "spaced-events",
+      "transitions": [
+        "end-to-end",
+        "crossfade",
+        "overlap"
+      ],
+      "dynamic": true
+    }
+  ],
+  "conceptOverrides": [
+    {
+      "conceptKind": "moodist",
+      "conceptId": "crowd",
+      "strategyId": "adaptive-whole-source-sequence",
+      "reason": "Crowd recordings should change order dynamically and use whole-source boundary treatments."
+    },
+    {
+      "conceptKind": "moodist",
+      "conceptId": "underwater",
+      "strategyId": "adaptive-one-shot-sequence",
+      "reason": "Underwater one-shots should form a changing continuous texture through boundary and overlap treatment."
+    },
+    {
+      "conceptKind": "moodist",
+      "conceptId": "walk-in-snow",
+      "strategyId": "walking-cadence-sequence",
+      "reason": "Snow footstep one-shots need natural walking cadence rather than a raw file loop."
+    },
+    {
+      "conceptKind": "moodist",
+      "conceptId": "walk-on-leaves",
+      "strategyId": "walking-cadence-sequence",
+      "reason": "Future usable leaf-footstep sources should form a natural walking cadence."
+    },
+    {
+      "conceptKind": "moodist",
+      "conceptId": "walk-on-gravel",
+      "strategyId": "walking-cadence-sequence",
+      "reason": "Gravel and stoney-path one-shots need natural walking cadence."
+    },
+    {
+      "conceptKind": "moodist",
+      "conceptId": "waves",
+      "strategyId": "adaptive-whole-source-sequence",
+      "reason": "Wave recordings should change order dynamically with group-appropriate boundary treatments."
+    },
+    {
+      "conceptKind": "signature-extra",
+      "conceptId": "beach-ambience",
+      "strategyId": "adaptive-whole-source-sequence",
+      "reason": "Beach ambience recordings should use their whole recordings in a changing sequence."
+    },
+    {
+      "conceptKind": "signature-extra",
+      "conceptId": "crowd-walla",
+      "strategyId": "adaptive-whole-source-sequence",
+      "reason": "Walla recordings should change order dynamically without an immediate repeat."
+    },
+    {
+      "conceptKind": "signature-extra",
+      "conceptId": "horror-suspense",
+      "strategyId": "adaptive-one-shot-sequence",
+      "reason": "Horror recordings should vary dynamically through end-to-end, crossfade, or overlap treatment."
+    },
+    {
+      "conceptKind": "signature-extra",
+      "conceptId": "keys-jingling",
+      "strategyId": "adaptive-one-shot-sequence",
+      "reason": "Keys one-shots should form a changing event sequence with end-to-end, crossfade, or overlap treatment."
+    },
+    {
+      "conceptKind": "signature-extra",
+      "conceptId": "underwater-effects",
+      "strategyId": "adaptive-one-shot-sequence",
+      "reason": "Underwater one-shots should form a changing continuous texture through boundary and overlap treatment."
+    },
+    {
+      "conceptKind": "signature-extra",
+      "conceptId": "light-waves",
+      "strategyId": "adaptive-whole-source-sequence",
+      "reason": "Light-wave recordings should change order dynamically with group-appropriate boundary treatments."
+    },
+    {
+      "conceptKind": "signature-extra",
+      "conceptId": "moon-footsteps",
+      "strategyId": "walking-cadence-sequence",
+      "reason": "Moon-footstep one-shots should form a natural walking cadence."
+    },
+    {
+      "conceptKind": "signature-extra",
+      "conceptId": "sci-fi-whistles",
+      "strategyId": "spaced-event-sequence",
+      "reason": "Whistle one-shots need dynamic ordering and natural spacing between events."
+    },
+    {
+      "conceptKind": "signature-extra",
+      "conceptId": "stadium-crowd",
+      "strategyId": "adaptive-whole-source-sequence",
+      "reason": "Stadium recordings should change order dynamically and retain whole-source crowd variation."
+    },
+    {
+      "conceptKind": "signature-extra",
+      "conceptId": "walk-on-stone",
+      "strategyId": "walking-cadence-sequence",
+      "reason": "Stoney-path one-shots should form a natural walking cadence."
+    }
+  ]
+}

@@ -1,0 +1,4858 @@
+{
+  "version": 1,
+  "fingerprints": {
+    "discoveryReviewSha256": "a22a9d19d8ae8353c32c7f8f7ca2be3e7de3b55cceb0e4d8df4f69b552e512bf",
+    "curationSha256": "dc3c8fe2b14dc7d2e29b8ed813e93f89f2ecd47c4a235a1c32dd5ed2beed8bee",
+    "workspaceSha256": "23b102e69850f6cd9d282f6520ff12d8f2ea42a4961a03b033bfa688f9fc8b5a",
+    "interpretationSha256": "e2d7d02024ad3a67325c8c87e36d923d6aa8f8aa8a8f0e4b4f9fbe8f169bdfdc",
+    "constructionReviewSha256": "a3e782b6c1c2d808bd7e8214cb655163f1bdfbc473318ae0ac9c916ccb84954d"
+  },
+  "sourceReview": {
+    "version": 3,
+    "updatedAt": "2026-08-25T05:24:26.928Z"
+  },
+  "summary": {
+    "projectedRecordingCount": 3693,
+    "groupCount": 93,
+    "noteDispositionCount": 38,
+    "structuredNoteCount": 36,
+    "deferredNoteCount": 0,
+    "needsDecisionNoteCount": 2
+  },
+  "resolutions": [
+    {
+      "id": "air-traffic-nonrepeat-window",
+      "type": "nonrepeat-window",
+      "groupId": "signature-extra:air-traffic-control",
+      "sourceId": null,
+      "interveningSelections": 4
+    },
+    {
+      "id": "air-traffic-normalize",
+      "type": "processing-intent",
+      "groupId": "signature-extra:air-traffic-control",
+      "sourceId": null,
+      "intentKind": "normalize-relative-level",
+      "desiredOutcome": "Align the radio recordings without removing their air-traffic-control speech.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "air-traffic-spaced-playback",
+      "type": "playback-override",
+      "groupId": "signature-extra:air-traffic-control",
+      "sourceId": null,
+      "strategyId": "spaced-event-sequence",
+      "previewSettings": {
+        "minimumGapSeconds": 1,
+        "maximumGapSeconds": 7
+      }
+    },
+    {
+      "id": "balcony-town-trim-intro",
+      "type": "processing-intent",
+      "groupId": "signature-extra:balcony-town",
+      "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+      "intentKind": "trim-segment",
+      "desiredOutcome": "Remove the spoken town and recording-title introduction at the beginning.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "birds-remove-voices",
+      "type": "processing-intent",
+      "groupId": "moodist:birds",
+      "sourceId": null,
+      "intentKind": "remove-human-voice",
+      "desiredOutcome": "Remove human speech while retaining the bird ambience.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "birds-trim-intro",
+      "type": "processing-intent",
+      "groupId": "moodist:birds",
+      "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+      "intentKind": "trim-segment",
+      "desiredOutcome": "Remove the spoken location introduction at the beginning.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "boiling-repair-loop",
+      "type": "processing-intent",
+      "groupId": "moodist:boiling-water",
+      "sourceId": null,
+      "intentKind": "repair-loop",
+      "desiredOutcome": "Build and audibly verify a consistent boiling-water loop after trimming.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "boiling-trim-clicks",
+      "type": "processing-intent",
+      "groupId": "moodist:boiling-water",
+      "sourceId": null,
+      "intentKind": "trim-segment",
+      "desiredOutcome": "Remove the stove ignition and shutdown clicks at the boundaries.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "busy-street-obscure-speech",
+      "type": "processing-intent",
+      "groupId": "moodist:busy-street",
+      "sourceId": null,
+      "intentKind": "obscure-speech-intelligibility",
+      "desiredOutcome": "Reduce speech intelligibility while preserving general street activity.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "busy-street-remove-source-64538e",
+      "type": "processing-intent",
+      "groupId": "moodist:busy-street",
+      "sourceId": "64538e1493a9eb2141af43b9c4637eff6e3382e244e7cde6b3cde2199e21815c",
+      "intentKind": "remove-human-voice",
+      "desiredOutcome": "Remove the loud child and human conversation from this included recording.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "busy-street-remove-source-f7e2c2",
+      "type": "processing-intent",
+      "groupId": "moodist:busy-street",
+      "sourceId": "f7e2c20668d276a4a125b189c7d44e845f20271e812f96c38405193d23a13e7d",
+      "intentKind": "remove-human-voice",
+      "desiredOutcome": "Remove the loud child and human conversation from this included recording.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "busy-street-removed-source-cf936a",
+      "type": "no-assignment",
+      "groupId": "moodist:busy-street",
+      "sourceId": "cf936ab0acc2f2af3be2b9458c6c740b150c9a185e43290aa1a25889a64e46c5",
+      "reason": "source-removed-from-concept"
+    },
+    {
+      "id": "cafe-obscure-speech",
+      "type": "processing-intent",
+      "groupId": "moodist:cafe",
+      "sourceId": null,
+      "intentKind": "obscure-speech-intelligibility",
+      "desiredOutcome": "Reduce intelligible voices and prominent child shouts while retaining cafe ambience.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "campfire-normalize",
+      "type": "processing-intent",
+      "groupId": "moodist:campfire",
+      "sourceId": null,
+      "intentKind": "normalize-relative-level",
+      "desiredOutcome": "Align source levels so the fire does not jump louder or quieter between recordings.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "cat-vocalizations-suppress-rub",
+      "type": "processing-intent",
+      "groupId": "signature-extra:cat-vocalizations",
+      "sourceId": "e10d824cc97dc53a4d6621ce582cd1754e3e1c91fdf7ffb1ec38e99620282e34",
+      "intentKind": "suppress-unwanted-element",
+      "desiredOutcome": "Reduce microphone-rub noise while retaining the cat vocalization.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "ceiling-fan-rename",
+      "type": "rename-concept",
+      "groupId": "moodist:ceiling-fan",
+      "sourceId": null,
+      "replacementLabel": null,
+      "state": "needs-user-decision"
+    },
+    {
+      "id": "church-normalize",
+      "type": "processing-intent",
+      "groupId": "moodist:church",
+      "sourceId": null,
+      "intentKind": "normalize-relative-level",
+      "desiredOutcome": "Align the church recordings to a consistent relative level.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "church-trim-intro",
+      "type": "processing-intent",
+      "groupId": "moodist:church",
+      "sourceId": "353fd1303f56fb2d0afcc8a7b0a48fdade14218cc1687ff5aab04e0ac05319c1",
+      "intentKind": "trim-segment",
+      "desiredOutcome": "Remove the spoken location introduction at the beginning.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "coffee-shop-obscure-speech",
+      "type": "processing-intent",
+      "groupId": "signature-extra:coffee-shop",
+      "sourceId": null,
+      "intentKind": "obscure-speech-intelligibility",
+      "desiredOutcome": "Reduce intelligible voices and conversations while retaining coffee-shop ambience.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "crickets-preview-diagnostic",
+      "type": "preview-diagnostic",
+      "groupId": "moodist:crickets",
+      "sourceId": null,
+      "diagnosticKind": "investigate-preview-failure",
+      "reason": "The retained development preview reported no supported source."
+    },
+    {
+      "id": "crowd-obscure-speech",
+      "type": "processing-intent",
+      "groupId": "moodist:crowd",
+      "sourceId": null,
+      "intentKind": "obscure-speech-intelligibility",
+      "desiredOutcome": "Reduce intelligible voices and conversations so the result reads as general crowd noise.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "crowd-walla-obscure-speech",
+      "type": "processing-intent",
+      "groupId": "signature-extra:crowd-walla",
+      "sourceId": null,
+      "intentKind": "obscure-speech-intelligibility",
+      "desiredOutcome": "Reduce intelligible voices and conversations while retaining crowd walla.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "dryer-transition-range",
+      "type": "transition-duration-range",
+      "groupId": "moodist:dryer",
+      "sourceId": null,
+      "minimumSeconds": 3.75,
+      "maximumSeconds": 10
+    },
+    {
+      "id": "dryer-trim-boundaries",
+      "type": "processing-intent",
+      "groupId": "moodist:dryer",
+      "sourceId": "a2cdc5b801058999b253de905dcdc45e612c5e944ef6e4202a0d815b91bf8d4f",
+      "intentKind": "trim-segment",
+      "desiredOutcome": "Remove the dryer start and stop artifacts from this recording.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "gravel-boundary-audition",
+      "type": "boundary-mode-audition",
+      "groupId": "moodist:walk-on-gravel",
+      "sourceId": null,
+      "modes": [
+        "crossfade",
+        "overlap"
+      ]
+    },
+    {
+      "id": "horror-spaced-playback",
+      "type": "playback-override",
+      "groupId": "signature-extra:horror-suspense",
+      "sourceId": null,
+      "strategyId": "spaced-event-sequence",
+      "previewSettings": {
+        "minimumGapSeconds": 0,
+        "maximumGapSeconds": 16
+      }
+    },
+    {
+      "id": "howling-wind-rename",
+      "type": "rename-concept",
+      "groupId": "moodist:howling-wind",
+      "sourceId": null,
+      "replacementLabel": "Lunar Wind",
+      "state": "required"
+    },
+    {
+      "id": "leaves-nonrepeat-window",
+      "type": "nonrepeat-window",
+      "groupId": "moodist:walk-on-leaves",
+      "sourceId": null,
+      "interveningSelections": 3
+    },
+    {
+      "id": "light-rain-emphasis-alternative",
+      "type": "processing-intent",
+      "groupId": "moodist:light-rain",
+      "sourceId": null,
+      "intentKind": "emphasize-target-element",
+      "desiredOutcome": "Audition emphasis of the light-rain texture without introducing artifacts.",
+      "state": "alternative",
+      "choiceSetId": "light-rain-emphasis-choice",
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "light-rain-level-alternative",
+      "type": "processing-intent",
+      "groupId": "moodist:light-rain",
+      "sourceId": null,
+      "intentKind": "normalize-relative-level",
+      "desiredOutcome": "Audition a louder relative level that keeps the rain natural.",
+      "state": "alternative",
+      "choiceSetId": "light-rain-emphasis-choice",
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "moon-overlap-next-event",
+      "type": "overlap-next-event",
+      "groupId": "signature-extra:moon-footsteps",
+      "sourceId": null
+    },
+    {
+      "id": "night-village-rename",
+      "type": "rename-concept",
+      "groupId": "moodist:night-village",
+      "sourceId": null,
+      "replacementLabel": "Countryside",
+      "state": "required"
+    },
+    {
+      "id": "road-rename",
+      "type": "rename-concept",
+      "groupId": "moodist:road",
+      "sourceId": null,
+      "replacementLabel": null,
+      "state": "needs-user-decision"
+    },
+    {
+      "id": "supermarket-removed-source-3ab747",
+      "type": "no-assignment",
+      "groupId": "moodist:supermarket",
+      "sourceId": "3ab747b3b6206274da0fe25d8fb3b61be2e64b77006cf2d63636646450a02787",
+      "reason": "source-removed-from-concept"
+    },
+    {
+      "id": "thunder-emphasize",
+      "type": "processing-intent",
+      "groupId": "moodist:thunder",
+      "sourceId": null,
+      "intentKind": "emphasize-target-element",
+      "desiredOutcome": "Emphasize thunder relative to the remaining rain ambience.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "thunder-suppress-rain",
+      "type": "processing-intent",
+      "groupId": "moodist:thunder",
+      "sourceId": null,
+      "intentKind": "suppress-unwanted-element",
+      "desiredOutcome": "Reduce the rain-heavy bed while preserving a natural thunder context.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "train-remove-voices",
+      "type": "processing-intent",
+      "groupId": "moodist:train",
+      "sourceId": null,
+      "intentKind": "remove-human-voice",
+      "desiredOutcome": "Remove human voices while retaining the train ambience.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "underwater-effects-reaudition",
+      "type": "audition-requirement",
+      "groupId": "signature-extra:underwater-effects",
+      "sourceId": null,
+      "outcome": "needs-rebuild-audition",
+      "reason": "The renamed cadence concept requires a rebuilt audible construction review."
+    },
+    {
+      "id": "underwater-effects-rename",
+      "type": "rename-concept",
+      "groupId": "signature-extra:underwater-effects",
+      "sourceId": null,
+      "replacementLabel": "Walking in Puddles",
+      "state": "required"
+    },
+    {
+      "id": "whistles-spaced-playback",
+      "type": "playback-override",
+      "groupId": "signature-extra:sci-fi-whistles",
+      "sourceId": null,
+      "strategyId": "spaced-event-sequence",
+      "previewSettings": {
+        "minimumGapSeconds": 0,
+        "maximumGapSeconds": 8
+      }
+    },
+    {
+      "id": "whistles-time-effect",
+      "type": "processing-intent",
+      "groupId": "signature-extra:sci-fi-whistles",
+      "sourceId": null,
+      "intentKind": "add-time-effect",
+      "desiredOutcome": "Audition echo or delay that supports the whistle events.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "wind-chimes-loop-alternative",
+      "type": "processing-intent",
+      "groupId": "moodist:wind-chimes",
+      "sourceId": null,
+      "intentKind": "repair-loop",
+      "desiredOutcome": "Audition a repaired loop from the current recording.",
+      "state": "alternative",
+      "choiceSetId": "wind-chimes-source-choice",
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "wind-chimes-source-alternative",
+      "type": "source-requirement",
+      "groupId": "moodist:wind-chimes",
+      "sourceId": null,
+      "requirementKind": "needs-additional-source",
+      "desiredSource": "Additional wind-chime recordings suitable for dynamic sequencing.",
+      "state": "alternative",
+      "choiceSetId": "wind-chimes-source-choice"
+    },
+    {
+      "id": "wind-in-trees-source-requirement",
+      "type": "source-requirement",
+      "groupId": "moodist:wind-in-trees",
+      "sourceId": null,
+      "requirementKind": "needs-additional-source",
+      "desiredSource": "A user-made wind-in-trees field recording.",
+      "state": "required",
+      "choiceSetId": null
+    }
+  ],
+  "noteDispositions": [
+    {
+      "id": "note-09f403c20395bd16447979e3515b1f581345c67be4ba2e7f60226eb46371e2ec",
+      "scope": "group",
+      "groupId": "signature-extra:air-traffic-control",
+      "sourceId": null,
+      "originalNote": "these recordings need to have their volume normalized against each other and we need to make sure that a recording doesn't repeat for at least 4 turns. Because this is mimicing air-traffic-control there needs to be random pauses between the recording that vary from 1 to 7 seconds",
+      "classification": "audio-and-playback",
+      "resolutionIds": [
+        "air-traffic-nonrepeat-window",
+        "air-traffic-normalize",
+        "air-traffic-spaced-playback"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "air-traffic-nonrepeat-window",
+          "type": "nonrepeat-window",
+          "groupId": "signature-extra:air-traffic-control",
+          "sourceId": null,
+          "interveningSelections": 4
+        },
+        {
+          "id": "air-traffic-normalize",
+          "type": "processing-intent",
+          "groupId": "signature-extra:air-traffic-control",
+          "sourceId": null,
+          "intentKind": "normalize-relative-level",
+          "desiredOutcome": "Align the radio recordings without removing their air-traffic-control speech.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        },
+        {
+          "id": "air-traffic-spaced-playback",
+          "type": "playback-override",
+          "groupId": "signature-extra:air-traffic-control",
+          "sourceId": null,
+          "strategyId": "spaced-event-sequence",
+          "previewSettings": {
+            "minimumGapSeconds": 1,
+            "maximumGapSeconds": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "note-1e431123cf5fc42b86ae266dbfcaaa5c091e87b4c9c70ca67ee00d596b5d2788",
+      "scope": "group",
+      "groupId": "signature-extra:underwater-effects",
+      "sourceId": null,
+      "originalNote": "I want to rename this to Walking in puddles",
+      "classification": "concept-metadata",
+      "resolutionIds": [
+        "underwater-effects-reaudition",
+        "underwater-effects-rename"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "underwater-effects-reaudition",
+          "type": "audition-requirement",
+          "groupId": "signature-extra:underwater-effects",
+          "sourceId": null,
+          "outcome": "needs-rebuild-audition",
+          "reason": "The renamed cadence concept requires a rebuilt audible construction review."
+        },
+        {
+          "id": "underwater-effects-rename",
+          "type": "rename-concept",
+          "groupId": "signature-extra:underwater-effects",
+          "sourceId": null,
+          "replacementLabel": "Walking in Puddles",
+          "state": "required"
+        }
+      ]
+    },
+    {
+      "id": "note-252ce72455108126f67d2c613661a3312ae1dbab055ef5da96716127ce24cb06",
+      "scope": "ingredient",
+      "groupId": "moodist:crickets",
+      "sourceId": "2c7748c1d22f5f77731e27f3775cb30504d6957bd1efb0a02b94e820b57e3d9b",
+      "originalNote": "Preview failed: Failed to load because no supported source was found.",
+      "classification": "preview-diagnostic",
+      "resolutionIds": [
+        "crickets-preview-diagnostic"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "crickets-preview-diagnostic",
+          "type": "preview-diagnostic",
+          "groupId": "moodist:crickets",
+          "sourceId": null,
+          "diagnosticKind": "investigate-preview-failure",
+          "reason": "The retained development preview reported no supported source."
+        }
+      ]
+    },
+    {
+      "id": "note-2e7e39a69ca25da6760360b5eae3cf7c081cde2438949f7460d6390d766e65a7",
+      "scope": "group",
+      "groupId": "moodist:wind-in-trees",
+      "sourceId": null,
+      "originalNote": "need to record this myself",
+      "classification": "source-availability",
+      "resolutionIds": [
+        "wind-in-trees-source-requirement"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "wind-in-trees-source-requirement",
+          "type": "source-requirement",
+          "groupId": "moodist:wind-in-trees",
+          "sourceId": null,
+          "requirementKind": "needs-additional-source",
+          "desiredSource": "A user-made wind-in-trees field recording.",
+          "state": "required",
+          "choiceSetId": null
+        }
+      ]
+    },
+    {
+      "id": "note-3cf117525d1f8b9b68f0da939560312cf8cef851b04e315d5f28960d661b1a44",
+      "scope": "group",
+      "groupId": "signature-extra:moon-footsteps",
+      "sourceId": null,
+      "originalNote": "the sound of a recording should continue to play and be heard when the next recording starts",
+      "classification": "playback",
+      "resolutionIds": [
+        "moon-overlap-next-event"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "moon-overlap-next-event",
+          "type": "overlap-next-event",
+          "groupId": "signature-extra:moon-footsteps",
+          "sourceId": null
+        }
+      ]
+    },
+    {
+      "id": "note-42eee6636032a334440ef1437071714489e8005c9f7f7597b3fa864287fd6bbc",
+      "scope": "ingredient",
+      "groupId": "moodist:church",
+      "sourceId": "353fd1303f56fb2d0afcc8a7b0a48fdade14218cc1687ff5aab04e0ac05319c1",
+      "originalNote": "The beginning of this recording has the author saying the location, that will need to be cut out",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "church-trim-intro"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "church-trim-intro",
+          "type": "processing-intent",
+          "groupId": "moodist:church",
+          "sourceId": "353fd1303f56fb2d0afcc8a7b0a48fdade14218cc1687ff5aab04e0ac05319c1",
+          "intentKind": "trim-segment",
+          "desiredOutcome": "Remove the spoken location introduction at the beginning.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-462e0ee86c203f220770306ff40a9a04eee2162d21f20433d030d0227d467a39",
+      "scope": "group",
+      "groupId": "moodist:busy-street",
+      "sourceId": null,
+      "originalNote": " If we could run all of these through a filter that could limit and dull speaking voices it would improve this concept a lot.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "busy-street-obscure-speech"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "busy-street-obscure-speech",
+          "type": "processing-intent",
+          "groupId": "moodist:busy-street",
+          "sourceId": null,
+          "intentKind": "obscure-speech-intelligibility",
+          "desiredOutcome": "Reduce speech intelligibility while preserving general street activity.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-4eab7c7885aa8a0773eee0cfff54866c58a455de15ff8f0ae0e2f2adac4eccaa",
+      "scope": "ingredient",
+      "groupId": "moodist:busy-street",
+      "sourceId": "64538e1493a9eb2141af43b9c4637eff6e3382e244e7cde6b3cde2199e21815c",
+      "originalNote": "has a loud child and people talking that needs removed from the audio",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "busy-street-remove-source-64538e"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "busy-street-remove-source-64538e",
+          "type": "processing-intent",
+          "groupId": "moodist:busy-street",
+          "sourceId": "64538e1493a9eb2141af43b9c4637eff6e3382e244e7cde6b3cde2199e21815c",
+          "intentKind": "remove-human-voice",
+          "desiredOutcome": "Remove the loud child and human conversation from this included recording.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-5e9b367f15ddc1827f40a5035cea7a75772491698ab46b785a08dedc08100174",
+      "scope": "group",
+      "groupId": "signature-extra:coffee-shop",
+      "sourceId": null,
+      "originalNote": "voices and conversations need to be filtered out of these recordings",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "coffee-shop-obscure-speech"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "coffee-shop-obscure-speech",
+          "type": "processing-intent",
+          "groupId": "signature-extra:coffee-shop",
+          "sourceId": null,
+          "intentKind": "obscure-speech-intelligibility",
+          "desiredOutcome": "Reduce intelligible voices and conversations while retaining coffee-shop ambience.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-61dfe6c5ba9ab58ebffb2daa86812a5271c2d21e5847eaa91e6d2c25bc177e2e",
+      "scope": "group",
+      "groupId": "signature-extra:horror-suspense",
+      "sourceId": null,
+      "originalNote": "this concept should randomly pause from 0second to 16seconds in-between each recording",
+      "classification": "playback",
+      "resolutionIds": [
+        "horror-spaced-playback"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "horror-spaced-playback",
+          "type": "playback-override",
+          "groupId": "signature-extra:horror-suspense",
+          "sourceId": null,
+          "strategyId": "spaced-event-sequence",
+          "previewSettings": {
+            "minimumGapSeconds": 0,
+            "maximumGapSeconds": 16
+          }
+        }
+      ]
+    },
+    {
+      "id": "note-71df0cf1f4a470d11291657e8ec8bafe006bf81ec5535fa62ad0abb1aa3c6a6e",
+      "scope": "group",
+      "groupId": "moodist:night-village",
+      "sourceId": null,
+      "originalNote": "This concept needs its named changed to Countryside",
+      "classification": "concept-metadata",
+      "resolutionIds": [
+        "night-village-rename"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "night-village-rename",
+          "type": "rename-concept",
+          "groupId": "moodist:night-village",
+          "sourceId": null,
+          "replacementLabel": "Countryside",
+          "state": "required"
+        }
+      ]
+    },
+    {
+      "id": "note-798ce18dfbbadd37a3c6d0e931676591815324f31d3de10fe94043706e14a9bc",
+      "scope": "ingredient",
+      "groupId": "moodist:dryer",
+      "sourceId": "a2cdc5b801058999b253de905dcdc45e612c5e944ef6e4202a0d815b91bf8d4f",
+      "originalNote": "The dryer turning on and off at the beginning and end need to be cut from the recoding",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "dryer-trim-boundaries"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "dryer-trim-boundaries",
+          "type": "processing-intent",
+          "groupId": "moodist:dryer",
+          "sourceId": "a2cdc5b801058999b253de905dcdc45e612c5e944ef6e4202a0d815b91bf8d4f",
+          "intentKind": "trim-segment",
+          "desiredOutcome": "Remove the dryer start and stop artifacts from this recording.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-7bdd0c7bd99b2002b315b3fd4f9d68c165d2a86f535f7516c95077657217fa03",
+      "scope": "group",
+      "groupId": "moodist:thunder",
+      "sourceId": null,
+      "originalNote": "These are too rain heavy. We need to filter out the rain sound and emphasise the thunder.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "thunder-emphasize",
+        "thunder-suppress-rain"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "thunder-emphasize",
+          "type": "processing-intent",
+          "groupId": "moodist:thunder",
+          "sourceId": null,
+          "intentKind": "emphasize-target-element",
+          "desiredOutcome": "Emphasize thunder relative to the remaining rain ambience.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        },
+        {
+          "id": "thunder-suppress-rain",
+          "type": "processing-intent",
+          "groupId": "moodist:thunder",
+          "sourceId": null,
+          "intentKind": "suppress-unwanted-element",
+          "desiredOutcome": "Reduce the rain-heavy bed while preserving a natural thunder context.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-7d334f2b141a926700e150123f249a2f55faac553602efacde930175cea4fd21",
+      "scope": "ingredient",
+      "groupId": "moodist:busy-street",
+      "sourceId": "cf936ab0acc2f2af3be2b9458c6c740b150c9a185e43290aa1a25889a64e46c5",
+      "originalNote": "has a loud child and people talking that needs removed from the audio",
+      "classification": "removed-source-observation",
+      "resolutionIds": [
+        "busy-street-removed-source-cf936a"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "busy-street-removed-source-cf936a",
+          "type": "no-assignment",
+          "groupId": "moodist:busy-street",
+          "sourceId": "cf936ab0acc2f2af3be2b9458c6c740b150c9a185e43290aa1a25889a64e46c5",
+          "reason": "source-removed-from-concept"
+        }
+      ]
+    },
+    {
+      "id": "note-8bba99ef8e4d7a90696b80cc4078b4dd049d9e07cd352a357e728c78c682f158",
+      "scope": "ingredient",
+      "groupId": "signature-extra:balcony-town",
+      "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+      "originalNote": "The author speaks the name of the the town and title of the recording at the beginning, that will need to be cut out",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "balcony-town-trim-intro"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "balcony-town-trim-intro",
+          "type": "processing-intent",
+          "groupId": "signature-extra:balcony-town",
+          "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+          "intentKind": "trim-segment",
+          "desiredOutcome": "Remove the spoken town and recording-title introduction at the beginning.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-946deb50bbd988874c1e103d755611dcfa36ac4717236cf323a3377b98f22021",
+      "scope": "group",
+      "groupId": "moodist:church",
+      "sourceId": null,
+      "originalNote": "The volume of these needs to be normalized against each other",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "church-normalize"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "church-normalize",
+          "type": "processing-intent",
+          "groupId": "moodist:church",
+          "sourceId": null,
+          "intentKind": "normalize-relative-level",
+          "desiredOutcome": "Align the church recordings to a consistent relative level.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-a59632e697889e080cf58c612b2a29fe67f01667a2010b717e30168026f5d2f5",
+      "scope": "ingredient",
+      "groupId": "moodist:busy-street",
+      "sourceId": "f7e2c20668d276a4a125b189c7d44e845f20271e812f96c38405193d23a13e7d",
+      "originalNote": "has a loud child and people talking that needs removed from the audio",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "busy-street-remove-source-f7e2c2"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "busy-street-remove-source-f7e2c2",
+          "type": "processing-intent",
+          "groupId": "moodist:busy-street",
+          "sourceId": "f7e2c20668d276a4a125b189c7d44e845f20271e812f96c38405193d23a13e7d",
+          "intentKind": "remove-human-voice",
+          "desiredOutcome": "Remove the loud child and human conversation from this included recording.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-aa94a3861dedd569e2084fd4c0568bd2e6a1ddd715c9fb4f8591e425d08ac6fa",
+      "scope": "group",
+      "groupId": "signature-extra:crowd-walla",
+      "sourceId": null,
+      "originalNote": "voices and conversations need to be filtered out of these recordings",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "crowd-walla-obscure-speech"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "crowd-walla-obscure-speech",
+          "type": "processing-intent",
+          "groupId": "signature-extra:crowd-walla",
+          "sourceId": null,
+          "intentKind": "obscure-speech-intelligibility",
+          "desiredOutcome": "Reduce intelligible voices and conversations while retaining crowd walla.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-b099740292fecd072f1d5627f2dcc5bc524074ee34091b93d7b4f13ee4f36a2f",
+      "scope": "group",
+      "groupId": "moodist:road",
+      "sourceId": null,
+      "originalNote": "These recordings are of  cars passing by, not road-noise from tires",
+      "classification": "concept-metadata",
+      "resolutionIds": [
+        "road-rename"
+      ],
+      "state": "needs-user-decision",
+      "resolutions": [
+        {
+          "id": "road-rename",
+          "type": "rename-concept",
+          "groupId": "moodist:road",
+          "sourceId": null,
+          "replacementLabel": null,
+          "state": "needs-user-decision"
+        }
+      ]
+    },
+    {
+      "id": "note-b6a5c9d87f29ae493bbe64c9fb576661d1f33be98fe9b6b4a4b960b9b0032a6c",
+      "scope": "group",
+      "groupId": "moodist:walk-on-gravel",
+      "sourceId": null,
+      "originalNote": "we need like a crossfade or something between the steps. something sounds off",
+      "classification": "playback",
+      "resolutionIds": [
+        "gravel-boundary-audition"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "gravel-boundary-audition",
+          "type": "boundary-mode-audition",
+          "groupId": "moodist:walk-on-gravel",
+          "sourceId": null,
+          "modes": [
+            "crossfade",
+            "overlap"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "note-b78f32364318700318f7d09061a16a0439915abe87a2aa7907dc8e2f5b7024c3",
+      "scope": "group",
+      "groupId": "signature-extra:sci-fi-whistles",
+      "sourceId": null,
+      "originalNote": "the recordings need an echo or delay",
+      "classification": "audio-and-playback",
+      "resolutionIds": [
+        "whistles-spaced-playback",
+        "whistles-time-effect"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "whistles-spaced-playback",
+          "type": "playback-override",
+          "groupId": "signature-extra:sci-fi-whistles",
+          "sourceId": null,
+          "strategyId": "spaced-event-sequence",
+          "previewSettings": {
+            "minimumGapSeconds": 0,
+            "maximumGapSeconds": 8
+          }
+        },
+        {
+          "id": "whistles-time-effect",
+          "type": "processing-intent",
+          "groupId": "signature-extra:sci-fi-whistles",
+          "sourceId": null,
+          "intentKind": "add-time-effect",
+          "desiredOutcome": "Audition echo or delay that supports the whistle events.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-b983abda9e458e2e4bf0bf5c61fcb8d1ebd3ba8205fb9c0e6aa24e765dd61bc3",
+      "scope": "group",
+      "groupId": "moodist:birds",
+      "sourceId": null,
+      "originalNote": "Vocals need to be removed",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "birds-remove-voices"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "birds-remove-voices",
+          "type": "processing-intent",
+          "groupId": "moodist:birds",
+          "sourceId": null,
+          "intentKind": "remove-human-voice",
+          "desiredOutcome": "Remove human speech while retaining the bird ambience.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-bbfd67ac97468daf47662e7d2901d49a68fdb12a1ddc70fa0b96e3c530893ffa",
+      "scope": "group",
+      "groupId": "moodist:crickets",
+      "sourceId": null,
+      "originalNote": "Preview failed: Failed to load because no supported source was found.",
+      "classification": "preview-diagnostic",
+      "resolutionIds": [
+        "crickets-preview-diagnostic"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "crickets-preview-diagnostic",
+          "type": "preview-diagnostic",
+          "groupId": "moodist:crickets",
+          "sourceId": null,
+          "diagnosticKind": "investigate-preview-failure",
+          "reason": "The retained development preview reported no supported source."
+        }
+      ]
+    },
+    {
+      "id": "note-c2ea95b42d4c2eb0190ef1d2671b2907e4f99753b554e4b405308909a370f747",
+      "scope": "group",
+      "groupId": "moodist:cafe",
+      "sourceId": null,
+      "originalNote": "Generally these need run through a filter that can limit and dull voices, especially shouts from children.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "cafe-obscure-speech"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "cafe-obscure-speech",
+          "type": "processing-intent",
+          "groupId": "moodist:cafe",
+          "sourceId": null,
+          "intentKind": "obscure-speech-intelligibility",
+          "desiredOutcome": "Reduce intelligible voices and prominent child shouts while retaining cafe ambience.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-c3d2fcde4aa90a3a44469a4eda1d78847d77eae63f51cace522f6aaaa9f421c1",
+      "scope": "ingredient",
+      "groupId": "moodist:supermarket",
+      "sourceId": "3ab747b3b6206274da0fe25d8fb3b61be2e64b77006cf2d63636646450a02787",
+      "originalNote": "The sounds of thuds on the counter and something sliding across the microphone need removed.",
+      "classification": "removed-source-observation",
+      "resolutionIds": [
+        "supermarket-removed-source-3ab747"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "supermarket-removed-source-3ab747",
+          "type": "no-assignment",
+          "groupId": "moodist:supermarket",
+          "sourceId": "3ab747b3b6206274da0fe25d8fb3b61be2e64b77006cf2d63636646450a02787",
+          "reason": "source-removed-from-concept"
+        }
+      ]
+    },
+    {
+      "id": "note-cb1e30cf2701f9fa65acd913bf9993057815e850404fc41f051c709e10ebbfb4",
+      "scope": "group",
+      "groupId": "moodist:walk-on-leaves",
+      "sourceId": null,
+      "originalNote": "the recordings shouldn't repeat for at least 3 turns",
+      "classification": "playback",
+      "resolutionIds": [
+        "leaves-nonrepeat-window"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "leaves-nonrepeat-window",
+          "type": "nonrepeat-window",
+          "groupId": "moodist:walk-on-leaves",
+          "sourceId": null,
+          "interveningSelections": 3
+        }
+      ]
+    },
+    {
+      "id": "note-cc46bfda420f0a1de3fd149e49b1936a4a86bc05d899d12963d0fa188e506650",
+      "scope": "group",
+      "groupId": "moodist:dryer",
+      "sourceId": null,
+      "originalNote": "I want the transition time of this concept to vary from 3.75seconds to 10seconds to give it variety",
+      "classification": "playback",
+      "resolutionIds": [
+        "dryer-transition-range"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "dryer-transition-range",
+          "type": "transition-duration-range",
+          "groupId": "moodist:dryer",
+          "sourceId": null,
+          "minimumSeconds": 3.75,
+          "maximumSeconds": 10
+        }
+      ]
+    },
+    {
+      "id": "note-dcd048a2ca6b7b5c49eb96165dcf1b1b3a50b84558834dec7bf7630d8d5f4490",
+      "scope": "group",
+      "groupId": "moodist:crowd",
+      "sourceId": null,
+      "originalNote": "This sounds generally as I'd expect it to, but it needs a filter on voices and conversations so that it just sounds like crowd noise",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "crowd-obscure-speech"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "crowd-obscure-speech",
+          "type": "processing-intent",
+          "groupId": "moodist:crowd",
+          "sourceId": null,
+          "intentKind": "obscure-speech-intelligibility",
+          "desiredOutcome": "Reduce intelligible voices and conversations so the result reads as general crowd noise.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-e0c8dbaab978d360c3e7cd48adae8b8a0233e22f669057f3879e6f01a232b983",
+      "scope": "ingredient",
+      "groupId": "signature-extra:cat-vocalizations",
+      "sourceId": "e10d824cc97dc53a4d6621ce582cd1754e3e1c91fdf7ffb1ec38e99620282e34",
+      "originalNote": "there is rubbing noise against the microphone that needs filtered out",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "cat-vocalizations-suppress-rub"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "cat-vocalizations-suppress-rub",
+          "type": "processing-intent",
+          "groupId": "signature-extra:cat-vocalizations",
+          "sourceId": "e10d824cc97dc53a4d6621ce582cd1754e3e1c91fdf7ffb1ec38e99620282e34",
+          "intentKind": "suppress-unwanted-element",
+          "desiredOutcome": "Reduce microphone-rub noise while retaining the cat vocalization.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-e182e4e5ab9577507e7312f2f5a5d532d28eab1cc518b352bb70487f22dd3ac1",
+      "scope": "group",
+      "groupId": "moodist:wind-chimes",
+      "sourceId": null,
+      "originalNote": "we need to edit the recording for a better loop or find additional wind chime recordings to add",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "wind-chimes-loop-alternative",
+        "wind-chimes-source-alternative"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "wind-chimes-loop-alternative",
+          "type": "processing-intent",
+          "groupId": "moodist:wind-chimes",
+          "sourceId": null,
+          "intentKind": "repair-loop",
+          "desiredOutcome": "Audition a repaired loop from the current recording.",
+          "state": "alternative",
+          "choiceSetId": "wind-chimes-source-choice",
+          "qa": "audible-qa-required"
+        },
+        {
+          "id": "wind-chimes-source-alternative",
+          "type": "source-requirement",
+          "groupId": "moodist:wind-chimes",
+          "sourceId": null,
+          "requirementKind": "needs-additional-source",
+          "desiredSource": "Additional wind-chime recordings suitable for dynamic sequencing.",
+          "state": "alternative",
+          "choiceSetId": "wind-chimes-source-choice"
+        }
+      ]
+    },
+    {
+      "id": "note-e40419289fb111a7a8dffc825e100d0ee16a3b65d415693001b08d60c680df3e",
+      "scope": "group",
+      "groupId": "moodist:boiling-water",
+      "sourceId": null,
+      "originalNote": "At the beginning and end I can hear the stove clicking on/off. It would be best to cut those out for a consistent loop.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "boiling-repair-loop",
+        "boiling-trim-clicks"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "boiling-repair-loop",
+          "type": "processing-intent",
+          "groupId": "moodist:boiling-water",
+          "sourceId": null,
+          "intentKind": "repair-loop",
+          "desiredOutcome": "Build and audibly verify a consistent boiling-water loop after trimming.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        },
+        {
+          "id": "boiling-trim-clicks",
+          "type": "processing-intent",
+          "groupId": "moodist:boiling-water",
+          "sourceId": null,
+          "intentKind": "trim-segment",
+          "desiredOutcome": "Remove the stove ignition and shutdown clicks at the boundaries.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-e4d14c7dc4aa875ee30446385181736307dcfe10baef355297629a39918909f3",
+      "scope": "ingredient",
+      "groupId": "moodist:boiling-water",
+      "sourceId": "d4d3d8e79de008a42450e8835383fd2255a801cd29a15f10386fe6cbdab1349c",
+      "originalNote": "At the beginning and end I can hear the stove clicking on/off. It would be best to cut those out for a consistent loop.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "boiling-repair-loop",
+        "boiling-trim-clicks"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "boiling-repair-loop",
+          "type": "processing-intent",
+          "groupId": "moodist:boiling-water",
+          "sourceId": null,
+          "intentKind": "repair-loop",
+          "desiredOutcome": "Build and audibly verify a consistent boiling-water loop after trimming.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        },
+        {
+          "id": "boiling-trim-clicks",
+          "type": "processing-intent",
+          "groupId": "moodist:boiling-water",
+          "sourceId": null,
+          "intentKind": "trim-segment",
+          "desiredOutcome": "Remove the stove ignition and shutdown clicks at the boundaries.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-f0c673ef6725f83a1941d07155f50dadf47226966afc1547a0f998d80e1dc0e7",
+      "scope": "group",
+      "groupId": "moodist:ceiling-fan",
+      "sourceId": null,
+      "originalNote": "We just need to rename this concept to reflect the file description because it's clearly not a ceiling fan",
+      "classification": "concept-metadata",
+      "resolutionIds": [
+        "ceiling-fan-rename"
+      ],
+      "state": "needs-user-decision",
+      "resolutions": [
+        {
+          "id": "ceiling-fan-rename",
+          "type": "rename-concept",
+          "groupId": "moodist:ceiling-fan",
+          "sourceId": null,
+          "replacementLabel": null,
+          "state": "needs-user-decision"
+        }
+      ]
+    },
+    {
+      "id": "note-f0c860a8ad4e1fcf5fdb1d00d7f682e924252e6fd6fb81fda257831b1caa5ca9",
+      "scope": "group",
+      "groupId": "moodist:light-rain",
+      "sourceId": null,
+      "originalNote": "Since the rain is light it's harder to hear. I'm not sure if we should have their audio be louder or filter them somehow to highlight/emphasize the rain",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "light-rain-emphasis-alternative",
+        "light-rain-level-alternative"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "light-rain-emphasis-alternative",
+          "type": "processing-intent",
+          "groupId": "moodist:light-rain",
+          "sourceId": null,
+          "intentKind": "emphasize-target-element",
+          "desiredOutcome": "Audition emphasis of the light-rain texture without introducing artifacts.",
+          "state": "alternative",
+          "choiceSetId": "light-rain-emphasis-choice",
+          "qa": "audible-qa-required"
+        },
+        {
+          "id": "light-rain-level-alternative",
+          "type": "processing-intent",
+          "groupId": "moodist:light-rain",
+          "sourceId": null,
+          "intentKind": "normalize-relative-level",
+          "desiredOutcome": "Audition a louder relative level that keeps the rain natural.",
+          "state": "alternative",
+          "choiceSetId": "light-rain-emphasis-choice",
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-f2f7b02f90e6d8b37a6feb38c5fbd26c48a87df73157ee6f5a1d83312996bbc1",
+      "scope": "group",
+      "groupId": "moodist:train",
+      "sourceId": null,
+      "originalNote": "these need a filter to remove the voices",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "train-remove-voices"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "train-remove-voices",
+          "type": "processing-intent",
+          "groupId": "moodist:train",
+          "sourceId": null,
+          "intentKind": "remove-human-voice",
+          "desiredOutcome": "Remove human voices while retaining the train ambience.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-f469fcce337c5d02853606b78eea8c3e5ce4eb9517069aa4afbe461098c70861",
+      "scope": "ingredient",
+      "groupId": "moodist:birds",
+      "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+      "originalNote": "This recording has the author saying the name of the location at the beginning. that will need to be cut out before production.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "birds-trim-intro"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "birds-trim-intro",
+          "type": "processing-intent",
+          "groupId": "moodist:birds",
+          "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+          "intentKind": "trim-segment",
+          "desiredOutcome": "Remove the spoken location introduction at the beginning.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-f85b78b36aae99ca7b8c2a2fcf1d6e9413fd2670ca0608d1964884d5e1d77872",
+      "scope": "group",
+      "groupId": "moodist:campfire",
+      "sourceId": null,
+      "originalNote": "This all sounds good but the volume level of each needs to be normalized so that the fire doesn't sound like it gets louder and quieter",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "campfire-normalize"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "campfire-normalize",
+          "type": "processing-intent",
+          "groupId": "moodist:campfire",
+          "sourceId": null,
+          "intentKind": "normalize-relative-level",
+          "desiredOutcome": "Align source levels so the fire does not jump louder or quieter between recordings.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ]
+    },
+    {
+      "id": "note-fd4ae51e8f389e4ea021dcb8e22bb4a175977342c0f56cbb5ac190968674c0d8",
+      "scope": "group",
+      "groupId": "moodist:howling-wind",
+      "sourceId": null,
+      "originalNote": "The name of this concept needs to be changed to lunar wind",
+      "classification": "concept-metadata",
+      "resolutionIds": [
+        "howling-wind-rename"
+      ],
+      "state": "structured",
+      "resolutions": [
+        {
+          "id": "howling-wind-rename",
+          "type": "rename-concept",
+          "groupId": "moodist:howling-wind",
+          "sourceId": null,
+          "replacementLabel": "Lunar Wind",
+          "state": "required"
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "groupId": "moodist:birds",
+      "conceptKind": "moodist",
+      "conceptId": "birds",
+      "label": "Birds",
+      "category": "animals",
+      "status": "active",
+      "includedSourceIds": [
+        "73ad30222aa8af81c8a901cd4c65de0056fc74e7cf3ae1385e22e08102f4eb87",
+        "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "birds-remove-voices",
+          "type": "processing-intent",
+          "groupId": "moodist:birds",
+          "sourceId": null,
+          "intentKind": "remove-human-voice",
+          "desiredOutcome": "Remove human speech while retaining the bird ambience.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {
+        "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f": [
+          {
+            "id": "birds-remove-voices",
+            "type": "processing-intent",
+            "groupId": "moodist:birds",
+            "sourceId": null,
+            "intentKind": "remove-human-voice",
+            "desiredOutcome": "Remove human speech while retaining the bird ambience.",
+            "state": "required",
+            "choiceSetId": null,
+            "qa": "audible-qa-required"
+          },
+          {
+            "id": "birds-trim-intro",
+            "type": "processing-intent",
+            "groupId": "moodist:birds",
+            "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+            "intentKind": "trim-segment",
+            "desiredOutcome": "Remove the spoken location introduction at the beginning.",
+            "state": "required",
+            "choiceSetId": null,
+            "qa": "audible-qa-required"
+          }
+        ]
+      },
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-b983abda9e458e2e4bf0bf5c61fcb8d1ebd3ba8205fb9c0e6aa24e765dd61bc3",
+        "note-f469fcce337c5d02853606b78eea8c3e5ce4eb9517069aa4afbe461098c70861"
+      ]
+    },
+    {
+      "groupId": "moodist:boiling-water",
+      "conceptKind": "moodist",
+      "conceptId": "boiling-water",
+      "label": "Boiling Water",
+      "category": "things",
+      "status": "active",
+      "includedSourceIds": [
+        "d4d3d8e79de008a42450e8835383fd2255a801cd29a15f10386fe6cbdab1349c"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "boiling-repair-loop",
+          "type": "processing-intent",
+          "groupId": "moodist:boiling-water",
+          "sourceId": null,
+          "intentKind": "repair-loop",
+          "desiredOutcome": "Build and audibly verify a consistent boiling-water loop after trimming.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        },
+        {
+          "id": "boiling-trim-clicks",
+          "type": "processing-intent",
+          "groupId": "moodist:boiling-water",
+          "sourceId": null,
+          "intentKind": "trim-segment",
+          "desiredOutcome": "Remove the stove ignition and shutdown clicks at the boundaries.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-e40419289fb111a7a8dffc825e100d0ee16a3b65d415693001b08d60c680df3e",
+        "note-e4d14c7dc4aa875ee30446385181736307dcfe10baef355297629a39918909f3"
+      ]
+    },
+    {
+      "groupId": "moodist:busy-street",
+      "conceptKind": "moodist",
+      "conceptId": "busy-street",
+      "label": "Busy Street",
+      "category": "urban",
+      "status": "active",
+      "includedSourceIds": [
+        "07595240444d1287ce90d36864896698e94da0a6c66e02ff06b91cec14e6945b",
+        "4c019679fe4b69db1727ae1dbc507171c9ba63dc1914bb46760e0c4a0e369c96",
+        "64538e1493a9eb2141af43b9c4637eff6e3382e244e7cde6b3cde2199e21815c",
+        "7604b4c5624dc24a2e9fa8187c035a1c25d9ab926fc8048820e8fff251255125",
+        "7e0bbd6133e3b069eca12f55209fabc91189a82a259b9efb0b9639b02dbd8b4c",
+        "93010975b3db89bc156b296ff8cbc374f8ddd4fa9c1db2c39d505910a0217efa",
+        "9b5359cf906b737e700188169b00114c035d735dabd7db3c37650ee237d4dea5",
+        "aeb979c35a09179bb092f841dbbfcfea68b71e88099dff48496f3acf01538840",
+        "cb25f4651cd81f06a9ec6e84cacfa5ab50a122cef1b0b587369b3ca33462ae8e",
+        "f2dc2c83f9c91f657770794ad6fa385964c60d3b40f6cf19907cafbb198610cb",
+        "f7e2c20668d276a4a125b189c7d44e845f20271e812f96c38405193d23a13e7d",
+        "fbcddf034472ff20939f1e22f7d8816a9c22c11089ffe428945c686f409bd932",
+        "fe4c1ce7c1fad8e73f7ce0313a9b05f050e05fe77d24b59239bf43b8511074eb"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 4
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "busy-street-obscure-speech",
+          "type": "processing-intent",
+          "groupId": "moodist:busy-street",
+          "sourceId": null,
+          "intentKind": "obscure-speech-intelligibility",
+          "desiredOutcome": "Reduce speech intelligibility while preserving general street activity.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {
+        "64538e1493a9eb2141af43b9c4637eff6e3382e244e7cde6b3cde2199e21815c": [
+          {
+            "id": "busy-street-remove-source-64538e",
+            "type": "processing-intent",
+            "groupId": "moodist:busy-street",
+            "sourceId": "64538e1493a9eb2141af43b9c4637eff6e3382e244e7cde6b3cde2199e21815c",
+            "intentKind": "remove-human-voice",
+            "desiredOutcome": "Remove the loud child and human conversation from this included recording.",
+            "state": "required",
+            "choiceSetId": null,
+            "qa": "audible-qa-required"
+          }
+        ],
+        "f7e2c20668d276a4a125b189c7d44e845f20271e812f96c38405193d23a13e7d": [
+          {
+            "id": "busy-street-remove-source-f7e2c2",
+            "type": "processing-intent",
+            "groupId": "moodist:busy-street",
+            "sourceId": "f7e2c20668d276a4a125b189c7d44e845f20271e812f96c38405193d23a13e7d",
+            "intentKind": "remove-human-voice",
+            "desiredOutcome": "Remove the loud child and human conversation from this included recording.",
+            "state": "required",
+            "choiceSetId": null,
+            "qa": "audible-qa-required"
+          }
+        ]
+      },
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-462e0ee86c203f220770306ff40a9a04eee2162d21f20433d030d0227d467a39",
+        "note-4eab7c7885aa8a0773eee0cfff54866c58a455de15ff8f0ae0e2f2adac4eccaa",
+        "note-7d334f2b141a926700e150123f249a2f55faac553602efacde930175cea4fd21",
+        "note-a59632e697889e080cf58c612b2a29fe67f01667a2010b717e30168026f5d2f5"
+      ]
+    },
+    {
+      "groupId": "moodist:cafe",
+      "conceptKind": "moodist",
+      "conceptId": "cafe",
+      "label": "Cafe",
+      "category": "places",
+      "status": "active",
+      "includedSourceIds": [
+        "17d01fa507a01d1f8a86a1580db19dafedf6291a9775fe69eeba8926b3b4c597",
+        "30f08a8683ba8bb1b1bdf7edca0e5e319607cc6ca44d6d7d8d5d69360de6a5d4",
+        "35c084c98fa70b6072cc41301b14740473e6343a7f72ea11c668e4b3dda509f1",
+        "467d0a32fecad9424a50b0fe7ee64c890c96e3114f7b78fa5a1e32c0be6754f2",
+        "4c6634f4a82b4924d0200a29d5bcc15b1d09d3215b7a663c8453c3ab53f79529",
+        "51b5ca435708cec85d4f3aa03adba7a9d7c2ef32248929eacac727bca94fd4e0",
+        "53235b9cac47a57766e04088f2fd43141eed6e8273e2193b66a8ea988286a558",
+        "537125517e4cb657255f6344546cd62328e6153b04a928b423ab56d8cb41e5d6",
+        "5907d1c19f20818a12c3eb7cc90b1f02ead2168761a41d28ddfe4f9d8ad03ee8",
+        "a98ea0faaf211fe402300efe918c282bc6f2332415ecb66790c29fbc7ac409a0",
+        "b3ce9c331b118358b167bd9bfb7ff94046c68fe1375b2231f1167795a93fe943",
+        "ba16ced73c6948952c466691d2a6618e032098407b28b8691dd3d4b456671be9",
+        "bb1f61567513063b22ca600fdb1b463d5d846cf24c7da1e23566e3fc6b81425a",
+        "ed7b2b9ef00ca15ea9ab268079cc37d18d467c85fc3146720d64e4ecdc142b45"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "cafe-obscure-speech",
+          "type": "processing-intent",
+          "groupId": "moodist:cafe",
+          "sourceId": null,
+          "intentKind": "obscure-speech-intelligibility",
+          "desiredOutcome": "Reduce intelligible voices and prominent child shouts while retaining cafe ambience.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-c2ea95b42d4c2eb0190ef1d2671b2907e4f99753b554e4b405308909a370f747"
+      ]
+    },
+    {
+      "groupId": "moodist:campfire",
+      "conceptKind": "moodist",
+      "conceptId": "campfire",
+      "label": "Campfire",
+      "category": "nature",
+      "status": "active",
+      "includedSourceIds": [
+        "1b729e655032b74bbb2abe98314dedbad38f581e9f8affc3bc4d586efad179b4",
+        "76c84c498de97afbcd9c16c3e6a1a98ea45be3e1f4bfe6c941f6b8e63abfc62b",
+        "a491785403c37b68d4843a959a86063dd1e09cf602604c76870d7aa2f532bbec",
+        "dc203f5a87481e5e24a616181b86c905b3c2d6ce81300065576d450e0798f1b9"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 4
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "campfire-normalize",
+          "type": "processing-intent",
+          "groupId": "moodist:campfire",
+          "sourceId": null,
+          "intentKind": "normalize-relative-level",
+          "desiredOutcome": "Align source levels so the fire does not jump louder or quieter between recordings.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-f85b78b36aae99ca7b8c2a2fcf1d6e9413fd2670ca0608d1964884d5e1d77872"
+      ]
+    },
+    {
+      "groupId": "moodist:ceiling-fan",
+      "conceptKind": "moodist",
+      "conceptId": "ceiling-fan",
+      "label": "Ceiling Fan",
+      "category": "things",
+      "status": "active",
+      "includedSourceIds": [
+        "2222284ee5df23629f32c74c7f4b760488732a5b6353054f6dce9b22654b6c15"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 4
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": [
+        "note-f0c673ef6725f83a1941d07155f50dadf47226966afc1547a0f998d80e1dc0e7"
+      ]
+    },
+    {
+      "groupId": "moodist:church",
+      "conceptKind": "moodist",
+      "conceptId": "church",
+      "label": "Church",
+      "category": "places",
+      "status": "active",
+      "includedSourceIds": [
+        "03c2d284a781b73ea143190f4e14a61a69601bc21c083a22411e3883c074c96e",
+        "0ced4cf5ee3e01941402190bfc2ee8a8d3a1a022dedf4a2e97239e5e291690a8",
+        "353fd1303f56fb2d0afcc8a7b0a48fdade14218cc1687ff5aab04e0ac05319c1",
+        "63dd7314ba97cc2863910428c47ed590af3d6ec576022e0c642b470493147715",
+        "d2a1cb02caef8f026deb614026f912e4e19ae4d32427fa18fe8cf3553f79249c",
+        "e920a690083d3682c416a03867108a47809c49c53a609c3001b9288c1524a666"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 6
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "church-normalize",
+          "type": "processing-intent",
+          "groupId": "moodist:church",
+          "sourceId": null,
+          "intentKind": "normalize-relative-level",
+          "desiredOutcome": "Align the church recordings to a consistent relative level.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {
+        "353fd1303f56fb2d0afcc8a7b0a48fdade14218cc1687ff5aab04e0ac05319c1": [
+          {
+            "id": "church-normalize",
+            "type": "processing-intent",
+            "groupId": "moodist:church",
+            "sourceId": null,
+            "intentKind": "normalize-relative-level",
+            "desiredOutcome": "Align the church recordings to a consistent relative level.",
+            "state": "required",
+            "choiceSetId": null,
+            "qa": "audible-qa-required"
+          },
+          {
+            "id": "church-trim-intro",
+            "type": "processing-intent",
+            "groupId": "moodist:church",
+            "sourceId": "353fd1303f56fb2d0afcc8a7b0a48fdade14218cc1687ff5aab04e0ac05319c1",
+            "intentKind": "trim-segment",
+            "desiredOutcome": "Remove the spoken location introduction at the beginning.",
+            "state": "required",
+            "choiceSetId": null,
+            "qa": "audible-qa-required"
+          }
+        ]
+      },
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-42eee6636032a334440ef1437071714489e8005c9f7f7597b3fa864287fd6bbc",
+        "note-946deb50bbd988874c1e103d755611dcfa36ac4717236cf323a3377b98f22021"
+      ]
+    },
+    {
+      "groupId": "moodist:crickets",
+      "conceptKind": "moodist",
+      "conceptId": "crickets",
+      "label": "Crickets",
+      "category": "animals",
+      "status": "active",
+      "includedSourceIds": [
+        "2c7748c1d22f5f77731e27f3775cb30504d6957bd1efb0a02b94e820b57e3d9b"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 4
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": [
+        "note-252ce72455108126f67d2c613661a3312ae1dbab055ef5da96716127ce24cb06",
+        "note-bbfd67ac97468daf47662e7d2901d49a68fdb12a1ddc70fa0b96e3c530893ffa"
+      ]
+    },
+    {
+      "groupId": "moodist:crowd",
+      "conceptKind": "moodist",
+      "conceptId": "crowd",
+      "label": "Crowd",
+      "category": "urban",
+      "status": "active",
+      "includedSourceIds": [
+        "1a3a2ba3012cf3ba9671291a1ba4d1839517c370d583dc83ee248041fd71b78e",
+        "2f8734db09ddc344c0a7b435535672f011a6952326a0e628f6c35f8b16c297b8",
+        "307a4b02ba5c3bd537fd4bb4ceae050c728ea3b75e10f9c19b3851f3497ac488",
+        "3e1d0f34a186bc7555a2e3255f8b16461c4a86ed4812985c0ef27345f8acd9d3",
+        "438f04ade0d666c1c351613926c92dfc873dfe30e4867a402d87d1dfc376e2d6",
+        "4bcfcf11a547dca0b7448f987436a35e9a5c0c40ef98891b3c18a827c00f7815",
+        "4d145f82b53a11d844c79c482d238e538409f1f5eb5fe959b272d7b48ea0ada6",
+        "50705600c3dd4a680456e93bbd82f9e84d5b87067a8291b99a75975c5105260f",
+        "53195f13ffad544bd5a878393d2ea2ada208e0c90294caf9ca0ce71611fd61e6",
+        "68409b5b06660847be903d1500c6221485d980e458caa5e6c1f83721adea949a",
+        "78b22a2ef2033336eb8c34429892350d8d48ba3e4ac1640771358f4414909c9f",
+        "8dc1b0729af7c229d54be7330232214e0ac498ecec9e9f24249f81464717bfc4",
+        "91299cb9cb8958b61cc16164d0b02d1a0c972fd13edc80ba40780ec2df2cd650",
+        "9784bdfff22009d9fe8046facb2f086a8bb8da8f954e41979b39c30c04f596b0",
+        "b4f2d468ad979f46224d74a71f75204fabebc5764f13cc1d111b56225439e2c2",
+        "b7f52b87a7716fb0bba817fa2eb77fbe68fc61d9a48d66ca51f6541af1bab0fb",
+        "bb1f61567513063b22ca600fdb1b463d5d846cf24c7da1e23566e3fc6b81425a",
+        "bbffc2e7be9dade6849b4fb513e2ad2f7f0800d06f8d0488d017c89d20090336",
+        "bd9f1eff4e878002ddfe55ac0654b5adb25e9393793fc6fdd643695dbdc41832",
+        "cfe5d2487ea8d858bc6716ce4f050abf0ce295f584c7d3b78fc892e7426e5df4",
+        "d460cad46f1caaa4fef970863b1058e9933830c08d89a42ad8891934d04ab186",
+        "e819fd0cba7e7756be37a98fa2e9229a9ad5db2fc6d6cc8a6b95e036215ed4ec"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "crowd-obscure-speech",
+          "type": "processing-intent",
+          "groupId": "moodist:crowd",
+          "sourceId": null,
+          "intentKind": "obscure-speech-intelligibility",
+          "desiredOutcome": "Reduce intelligible voices and conversations so the result reads as general crowd noise.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-dcd048a2ca6b7b5c49eb96165dcf1b1b3a50b84558834dec7bf7630d8d5f4490"
+      ]
+    },
+    {
+      "groupId": "moodist:droplets",
+      "conceptKind": "moodist",
+      "conceptId": "droplets",
+      "label": "Droplets",
+      "category": "nature",
+      "status": "active",
+      "includedSourceIds": [
+        "c2bd195cd786bd101e0effc49b458da6ec19ba649714dce36157d68bba2eef2a"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:dryer",
+      "conceptKind": "moodist",
+      "conceptId": "dryer",
+      "label": "Dryer",
+      "category": "things",
+      "status": "active",
+      "includedSourceIds": [
+        "a2cdc5b801058999b253de905dcdc45e612c5e944ef6e4202a0d815b91bf8d4f"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 3.75
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": [
+          {
+            "type": "transition-duration-range",
+            "minimumSeconds": 3.75,
+            "maximumSeconds": 10
+          }
+        ]
+      },
+      "processingIntents": [],
+      "sourceOverrides": {
+        "a2cdc5b801058999b253de905dcdc45e612c5e944ef6e4202a0d815b91bf8d4f": [
+          {
+            "id": "dryer-trim-boundaries",
+            "type": "processing-intent",
+            "groupId": "moodist:dryer",
+            "sourceId": "a2cdc5b801058999b253de905dcdc45e612c5e944ef6e4202a0d815b91bf8d4f",
+            "intentKind": "trim-segment",
+            "desiredOutcome": "Remove the dryer start and stop artifacts from this recording.",
+            "state": "required",
+            "choiceSetId": null,
+            "qa": "audible-qa-required"
+          }
+        ]
+      },
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-798ce18dfbbadd37a3c6d0e931676591815324f31d3de10fe94043706e14a9bc",
+        "note-cc46bfda420f0a1de3fd149e49b1936a4a86bc05d899d12963d0fa188e506650"
+      ]
+    },
+    {
+      "groupId": "moodist:fireworks",
+      "conceptKind": "moodist",
+      "conceptId": "fireworks",
+      "label": "Fireworks",
+      "category": "urban",
+      "status": "active",
+      "includedSourceIds": [
+        "41faed125c2b69f2d161f51edc31f1e577f20053e15deb6e0d33750b7ad0315a",
+        "63545ff4d8f3c4205f0cac4714de273601abd1717dac61da6eb5ed8e6c654a71",
+        "69604c9519eb30822c0eb75295ddd60faa62dcb66941f1822107960566939258",
+        "996531432a7c8d3e3efe1e8d318884d5c7b644332e51d370e58ddff441bdb716",
+        "a23cea183b19d2593073c95b5e4a62fc348b14ff6b090413f1355bec6221bbf5",
+        "abb3b9e4ab6ee0923f79dea229beafc990995be4dc5d49f58ba82ddfdb6c15c7",
+        "dd376a47dea03e436f25bea486e1d9d9f00cfd16f21ff60a98ac3bde2f5d20d1",
+        "fea2f229102301001f0a1f07c8d2c9970b760128bd4ecacdd785abd36b494757"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:heavy-rain",
+      "conceptKind": "moodist",
+      "conceptId": "heavy-rain",
+      "label": "Heavy Rain",
+      "category": "rain",
+      "status": "active",
+      "includedSourceIds": [
+        "123a84d5d4eaac16697b9407ec7d4937af8c0fdf56ee3297f0f8d5f3a083fd3d",
+        "1f84ee5ff4d59a66e36dd1f0e846f308901151663fb72b4cb379a57aba11f3f8",
+        "2c47839748b532523795e547575a34caa4e37a34d85f4b32d60fbbfc7328fa0c",
+        "7252f07eb4e19273096130ea46488f7d7ae4ffbb5d8618fd1ea21fc502b442f4",
+        "84779927d13d4dd79806ef7cba53237b2f835e3391dd915cb28ddd160e1609d8",
+        "860ab42b98aa95c2a16b21eb040540faaf112058bf130519d5d60a25a1a0972b",
+        "a1a7d33c44b65c565970b78afa1c8aee334afb874dd26f9f242d4abfac437cff",
+        "be5a93b15429bb266949c9b0dc3f172c6d097100714ac6398c2d1e7e28657561",
+        "d9e63d54fa3bf3e3162cee27ee8d152eca8685c09122ca8109bfc13bb3406e5c",
+        "df7d5148d3833c8af60d32b38f7c6429dc7bd73ec2ecb6e1d8899e2ee2046609",
+        "e70951900d44af15d28ae886b7b3b7a4b6e1f9b9d03dd30d7a8e85abf1ae10bf",
+        "f212cdee620dd88f0982a6f2e46a25a0960c74f68b9432b0d4203d1620f9f40d"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:highway",
+      "conceptKind": "moodist",
+      "conceptId": "highway",
+      "label": "Highway",
+      "category": "urban",
+      "status": "active",
+      "includedSourceIds": [
+        "0f7b4cf9d8a3314c20a67e9f8032ac0a83b722d74fa961cdee521b9ea88a7bd2",
+        "4636604ef27073542a476156a4efe9da7b4ae481b4c6988db6e1b2a9779b1a78",
+        "502a7be39564828d0a73f4460755232e35e39207fa55442777407c0387a1f8a2",
+        "6008ddf4bc953b564f5e21766210ecb867ba71c53323d1028a369f1c3ccc4ae2",
+        "8edda7c92f169dab02e57698fa01ec0d7e793a1a235ed0cb7a65e401e4c32a3f",
+        "92ba95d7acfcf002d181399712ce0e29f8d48372064c7425c0be05d70f3cea4a",
+        "ba3e062a5813274e512245866ade18d5a9e7175af3a9345a67a5c50ed2ae9058",
+        "c26bed0a93a7a0e831df5d2bca0fcc4769dba961748638d32f61b3fc5b226611",
+        "fe3c86ffbed593999e9b52ffdf78730c92a8146d6ee8459c3ea6e0c5dfd0fb6f"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:howling-wind",
+      "conceptKind": "moodist",
+      "conceptId": "howling-wind",
+      "label": "Lunar Wind",
+      "category": "nature",
+      "status": "active",
+      "includedSourceIds": [
+        "062cda89f1c1cb2002232f10db76176d7914e44e7e69e4910f8e802bfc833847",
+        "1b9df702f1ebe8bb6a3b4bfde973c402c173d7acb72eadb149a6c99b23742e22",
+        "25c81826a3b8558aba2a06a4d00e8a48d0d2c2f261ac1d99a8deac95fcb96075",
+        "36bfd2605f3d997e9eb7fe9bfd8baa2fcffab90d37708abde2a93f30161a49f4",
+        "55606d7684393a236fb3cc4b7d6a3c201e56e50d82788a95b74b61832728e64b",
+        "77fb20f16875bada5c88efdd3558e25ef05dc9049ecc8cc5e1ef2056bd8a6c4b",
+        "93b906478eea3052ec57c738277bbf89a30d4af2849f9a58fe228ee93dfd4b25",
+        "da0a134785ec138b4dc6e1def25faad026c0e194de96db434a24f0627468391d",
+        "db97fec4c7d20591976848d0458c3d5413011a4a94bcb1505f40030894936529",
+        "dcf18e33df97bf438f3b3a29c8955970e7e9f4dac172d8e9090a49b32803b404",
+        "ed902c896a29851839229336117ddc0127e45e14b3d1d4200eb974114d8e252e"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-fd4ae51e8f389e4ea021dcb8e22bb4a175977342c0f56cbb5ac190968674c0d8"
+      ]
+    },
+    {
+      "groupId": "moodist:inside-a-train",
+      "conceptKind": "moodist",
+      "conceptId": "inside-a-train",
+      "label": "Inside a Train",
+      "category": "transport",
+      "status": "active",
+      "includedSourceIds": [
+        "096d89f80c1630dba85ff2c284ffed38e48b4164a6255f47ad18039b747b9247",
+        "b48242fb86e004219d230b26ac0a5aefa57eb21c51154ebb3c271b78cc757cbe",
+        "c1ad29ea523f4357d714dd0aff6ecf11b4ec0807a57187e60bc4bf9c151e366a",
+        "c2e529e6b1240104a2eea842f28e5ea468b45a86f0d0eabe7d9931c2d82b7d0f",
+        "c5d8a0ae34b8971187833c9597d35dfef74293618ce4fd9e00a000b462e79611"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:light-rain",
+      "conceptKind": "moodist",
+      "conceptId": "light-rain",
+      "label": "Light Rain",
+      "category": "rain",
+      "status": "active",
+      "includedSourceIds": [
+        "2336051bddce5d7bfda279877916b9f96e4c087c08a02d79d1aa04ba7b3963b4",
+        "4122281c1656127f54c55770fd4985f84408d4fc479a4013168dc0dc47844055",
+        "5c525901f74eb9ab09d7b89e751576ed686adf9ee94117f48463f864a87ea40e",
+        "7d00eb8b6c0ed56d9752e0e4f5919f4f4c1c2ac8a0eca479e0e32f159cae7684",
+        "bdc7c177dfee3326d1435430f1d65d8f6f8e62f1c77b37198258670fd31bed62",
+        "cd876ad82d298ca4785ac3e187b84d2eccbeb54579c5ecb6b67aa599281a2ec8",
+        "f0cc406652f1ab5f4b732515909299959aed9baeab33bce2e517f336fb980424"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "light-rain-emphasis-alternative",
+          "type": "processing-intent",
+          "groupId": "moodist:light-rain",
+          "sourceId": null,
+          "intentKind": "emphasize-target-element",
+          "desiredOutcome": "Audition emphasis of the light-rain texture without introducing artifacts.",
+          "state": "alternative",
+          "choiceSetId": "light-rain-emphasis-choice",
+          "qa": "audible-qa-required"
+        },
+        {
+          "id": "light-rain-level-alternative",
+          "type": "processing-intent",
+          "groupId": "moodist:light-rain",
+          "sourceId": null,
+          "intentKind": "normalize-relative-level",
+          "desiredOutcome": "Audition a louder relative level that keeps the rain natural.",
+          "state": "alternative",
+          "choiceSetId": "light-rain-emphasis-choice",
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": [
+        "note-f0c860a8ad4e1fcf5fdb1d00d7f682e924252e6fd6fb81fda257831b1caa5ca9"
+      ]
+    },
+    {
+      "groupId": "moodist:night-village",
+      "conceptKind": "moodist",
+      "conceptId": "night-village",
+      "label": "Countryside",
+      "category": "places",
+      "status": "active",
+      "includedSourceIds": [
+        "1795c5cc759d1fa3c92536cfc7e175fd3ff9a4d794404259cf2c0d9563e022a6",
+        "198317478a76634bf070496e070b5ff5eaac9c4fce82542e9c16a4e45bb87149",
+        "27141eb566651d98dfc80868dec57702c5fa8656cb7b4ac1ec35a79c63ee8dcb",
+        "819bdb1e35b1bd2d2990b3c0f6962aa55aa54fba2af5ca278c9c3719f48db4b5",
+        "8f68248b7288881f1f85c118d9dc8aebafb2b331f0927e263ac79dc8b6f8d42a",
+        "98955b33d99c92b98fcaf688c415940764cfdbe0ceeefeaeb37824347830b935",
+        "9bca7c2030a8117c14307526e0a3f33a4d6f55cacb16c31e4ca44936f3e1bc28",
+        "a42152dc231187245474c434befc517b71360baf2f18b8fa85f925c783808976",
+        "b7b0f18881c31382087a127acaf1850c57d5f3839d6b1e6ff9a923ee8a0d217c",
+        "bda22643c825db0b27227539a1a7c0ddd227ef3612f24073c92a9b97d14de5b8"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-71df0cf1f4a470d11291657e8ec8bafe006bf81ec5535fa62ad0abb1aa3c6a6e"
+      ]
+    },
+    {
+      "groupId": "moodist:road",
+      "conceptKind": "moodist",
+      "conceptId": "road",
+      "label": "Road",
+      "category": "urban",
+      "status": "active",
+      "includedSourceIds": [
+        "0f7b4cf9d8a3314c20a67e9f8032ac0a83b722d74fa961cdee521b9ea88a7bd2",
+        "4636604ef27073542a476156a4efe9da7b4ae481b4c6988db6e1b2a9779b1a78",
+        "502a7be39564828d0a73f4460755232e35e39207fa55442777407c0387a1f8a2",
+        "6008ddf4bc953b564f5e21766210ecb867ba71c53323d1028a369f1c3ccc4ae2",
+        "8edda7c92f169dab02e57698fa01ec0d7e793a1a235ed0cb7a65e401e4c32a3f",
+        "92ba95d7acfcf002d181399712ce0e29f8d48372064c7425c0be05d70f3cea4a",
+        "ba3e062a5813274e512245866ade18d5a9e7175af3a9345a67a5c50ed2ae9058",
+        "c26bed0a93a7a0e831df5d2bca0fcc4769dba961748638d32f61b3fc5b226611",
+        "fe3c86ffbed593999e9b52ffdf78730c92a8146d6ee8459c3ea6e0c5dfd0fb6f"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": [
+        "note-b099740292fecd072f1d5627f2dcc5bc524074ee34091b93d7b4f13ee4f36a2f"
+      ]
+    },
+    {
+      "groupId": "moodist:subway-station",
+      "conceptKind": "moodist",
+      "conceptId": "subway-station",
+      "label": "Subway Station",
+      "category": "places",
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:supermarket",
+      "conceptKind": "moodist",
+      "conceptId": "supermarket",
+      "label": "Supermarket",
+      "category": "places",
+      "status": "active",
+      "includedSourceIds": [
+        "0f1ff0b9e4399dcc7391b2112a35d29978fe93c35c426b494bea19605c8d0d83",
+        "6e13a12ce31a4f69528d302ac8cad0e528a33a56d6e486854ee0a3237066ecf8",
+        "76cab04689a057b80462f9b49eedfb5e0e034935ac97a6527e55dda25ebe1b5b",
+        "ae113b9182edf065ad7682d630fa3db4976339062c63c146e856cb371fecfebe"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": [
+        "note-c3d2fcde4aa90a3a44469a4eda1d78847d77eae63f51cace522f6aaaa9f421c1"
+      ]
+    },
+    {
+      "groupId": "moodist:thunder",
+      "conceptKind": "moodist",
+      "conceptId": "thunder",
+      "label": "Thunder",
+      "category": "rain",
+      "status": "active",
+      "includedSourceIds": [
+        "123a84d5d4eaac16697b9407ec7d4937af8c0fdf56ee3297f0f8d5f3a083fd3d",
+        "2c47839748b532523795e547575a34caa4e37a34d85f4b32d60fbbfc7328fa0c",
+        "7252f07eb4e19273096130ea46488f7d7ae4ffbb5d8618fd1ea21fc502b442f4",
+        "84779927d13d4dd79806ef7cba53237b2f835e3391dd915cb28ddd160e1609d8",
+        "860ab42b98aa95c2a16b21eb040540faaf112058bf130519d5d60a25a1a0972b",
+        "a1a7d33c44b65c565970b78afa1c8aee334afb874dd26f9f242d4abfac437cff",
+        "be5a93b15429bb266949c9b0dc3f172c6d097100714ac6398c2d1e7e28657561",
+        "d9e63d54fa3bf3e3162cee27ee8d152eca8685c09122ca8109bfc13bb3406e5c",
+        "df7d5148d3833c8af60d32b38f7c6429dc7bd73ec2ecb6e1d8899e2ee2046609",
+        "e70951900d44af15d28ae886b7b3b7a4b6e1f9b9d03dd30d7a8e85abf1ae10bf",
+        "f212cdee620dd88f0982a6f2e46a25a0960c74f68b9432b0d4203d1620f9f40d"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "thunder-emphasize",
+          "type": "processing-intent",
+          "groupId": "moodist:thunder",
+          "sourceId": null,
+          "intentKind": "emphasize-target-element",
+          "desiredOutcome": "Emphasize thunder relative to the remaining rain ambience.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        },
+        {
+          "id": "thunder-suppress-rain",
+          "type": "processing-intent",
+          "groupId": "moodist:thunder",
+          "sourceId": null,
+          "intentKind": "suppress-unwanted-element",
+          "desiredOutcome": "Reduce the rain-heavy bed while preserving a natural thunder context.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-7bdd0c7bd99b2002b315b3fd4f9d68c165d2a86f535f7516c95077657217fa03"
+      ]
+    },
+    {
+      "groupId": "moodist:traffic",
+      "conceptKind": "moodist",
+      "conceptId": "traffic",
+      "label": "Traffic",
+      "category": "urban",
+      "status": "active",
+      "includedSourceIds": [
+        "0f7b4cf9d8a3314c20a67e9f8032ac0a83b722d74fa961cdee521b9ea88a7bd2",
+        "4636604ef27073542a476156a4efe9da7b4ae481b4c6988db6e1b2a9779b1a78",
+        "502a7be39564828d0a73f4460755232e35e39207fa55442777407c0387a1f8a2",
+        "6008ddf4bc953b564f5e21766210ecb867ba71c53323d1028a369f1c3ccc4ae2",
+        "64538e1493a9eb2141af43b9c4637eff6e3382e244e7cde6b3cde2199e21815c",
+        "8edda7c92f169dab02e57698fa01ec0d7e793a1a235ed0cb7a65e401e4c32a3f",
+        "92ba95d7acfcf002d181399712ce0e29f8d48372064c7425c0be05d70f3cea4a",
+        "ba3e062a5813274e512245866ade18d5a9e7175af3a9345a67a5c50ed2ae9058",
+        "c26bed0a93a7a0e831df5d2bca0fcc4769dba961748638d32f61b3fc5b226611",
+        "cf936ab0acc2f2af3be2b9458c6c740b150c9a185e43290aa1a25889a64e46c5",
+        "f7e2c20668d276a4a125b189c7d44e845f20271e812f96c38405193d23a13e7d",
+        "fe3c86ffbed593999e9b52ffdf78730c92a8146d6ee8459c3ea6e0c5dfd0fb6f"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:train",
+      "conceptKind": "moodist",
+      "conceptId": "train",
+      "label": "Train",
+      "category": "transport",
+      "status": "active",
+      "includedSourceIds": [
+        "096d89f80c1630dba85ff2c284ffed38e48b4164a6255f47ad18039b747b9247",
+        "198980a96176d7b05ad63aa7e1fb25dbf0e3569839d97f1fa29910f17d922e43",
+        "2beed46c7929f8e100c21dc6b706457c5b9ccfda8466e7f1dcbb83c39ab6debc",
+        "672cbe97eafb6d269f5e2421637e379c8ffaa3ea031bd873bf10417a815394c3",
+        "697b05dcc55435420a072954ce02f74d33cda0f07729a5039091d1d07c81dfb4",
+        "8ced3bce58c9f2090a25e1844d7bcd8ad2aab879efc85ebd4a8555e95bfb2b1c",
+        "af172677d72ab08a0f770e1ab666f6adfda30d3478978fcc051ae5172f2acad4",
+        "b40cd81a54daf9272cada5e9f539a9e7ddd86ebca50dbf91e5b39238e4d67df9"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "train-remove-voices",
+          "type": "processing-intent",
+          "groupId": "moodist:train",
+          "sourceId": null,
+          "intentKind": "remove-human-voice",
+          "desiredOutcome": "Remove human voices while retaining the train ambience.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-f2f7b02f90e6d8b37a6feb38c5fbd26c48a87df73157ee6f5a1d83312996bbc1"
+      ]
+    },
+    {
+      "groupId": "moodist:tuning-radio",
+      "conceptKind": "moodist",
+      "conceptId": "tuning-radio",
+      "label": "Tuning Radio",
+      "category": "things",
+      "status": "active",
+      "includedSourceIds": [
+        "0a37b8e960e83d131efa3bfee874a2412e389179b0330ce15eaa212e42c15f9d"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 3.25
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:underwater",
+      "conceptKind": "moodist",
+      "conceptId": "underwater",
+      "label": "Underwater",
+      "category": "places",
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-one-shot-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 0.25
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:walk-in-snow",
+      "conceptKind": "moodist",
+      "conceptId": "walk-in-snow",
+      "label": "Walk in Snow",
+      "category": "nature",
+      "status": "active",
+      "includedSourceIds": [
+        "03ae1d8e5d18476e407e6162e6f13d8094e2497ee2e79681f785791e1f93e57e",
+        "11b8910660415e956c22519878235b222f1e86dc697a16a7495eb4e7a4b3e11c",
+        "2bc54da676ad44f8dabfcf4d292512ca4075b4f57f2a5084a8bc5fd21c799344",
+        "34ea9531c5972c3322828421e384c33e6cf0e58a6ec44938b38fee2b9d905ffd",
+        "6bb1b1763306b928aa4c6f9b1dba2db8b1026a60a82e2f547ab522c447081693",
+        "7c34d28da3e99e25f087ddc7d35d42c7d6bf74d7db93f3f8fa2a7bd775743df3",
+        "cac4e653215ea60e286bc2a7771991c05683ce724e335098294887c4faec5999",
+        "fc275b694fa3e2f84d600338e6391d16369b41dadb6ad1eda1cc33a56d961b61"
+      ],
+      "playback": {
+        "strategyId": "walking-cadence-sequence",
+        "previewSettings": {
+          "stepsPerMinute": 62,
+          "jitterPercent": 30
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:walk-on-gravel",
+      "conceptKind": "moodist",
+      "conceptId": "walk-on-gravel",
+      "label": "Walk on Gravel",
+      "category": "nature",
+      "status": "active",
+      "includedSourceIds": [
+        "021a854046f594d174e43a72a4fda2ca4ad6a6691a270d77d17117953895be57",
+        "04d46ad29c0a38de723cd14babe093dae22ca116a2e76e42ce72e9ebe4b3ca3c",
+        "063b0d32d1565dc96f0060b529cc7c7dbbcbc7f6da408e5ebf2de16cdca85903",
+        "085074fbb571ecf2f3db316b71eb4a90187b09020b8a178a62fe1b23da10fed4",
+        "086cc3301cbb6c5bc3a7aa7605194aab1e19d5029cab67eac9df2a4646510c7c",
+        "0cf42570f83a4c69c4e017f8f2fc5d130ec5b8400dc77f4defcbda4f2fcfcab4",
+        "0ec7107a3f6806dd5d048768923e1d4f4bc3d17ac119231ac76c6db571525e4c",
+        "19e9b86e26254471089ed35952b39c85930581eefcb609e6e62f38df757fbeed",
+        "2048269ef1723fb06b954a8dc5d7024e83f8c1972a5da78d5ea9de2b8d7b6958",
+        "3a3de0686a5d58caba9c17e3278e08d9993c2d58cdaf863a0b5def85221b6cd4",
+        "3cd518979d1e982a40609eec090d1a9d6c5d7241794227ed25e62e4e455eff91",
+        "4212d8d0058833a6e5792ef86407e727c2b73fd531af8df84752bbbb8b961932",
+        "427ed8da209b092d372845a8348d1d2c7dd61d470f8ccaf0d398abe07d955f27",
+        "42ca7a3b36918f044edf5015f80c3599d4d33f211c9b61a8e27d6fa10ee82624",
+        "4627bf6500395fcded0d03098bd0068d408ccdf6a17b1dca601230d7213ab630",
+        "471f56a2ed28f45487f47742c2cfa67f68169e8d43bfbb9e8b78f168c3217e83",
+        "47444af2bb16fbd37eefb289fdd6bbccda5a89f3e3835147c3a7515d939dfda9",
+        "489a9c6173fba22cab6e33f776f66d61acefbc019f871b36d28eb5e73ed10b64",
+        "4c8cd09323ec3478bc1b4a81d012654a2af5ad839d5f540148cbd9ec8e0aa8a0",
+        "4eced03c64e2f5d0f1dd1a0895e57f0f1f7725e44c504bf39ad193900cbac412",
+        "4f11c3ed46e1faf24a9be79dad47d514b18709186d5c39baab1f84bc0c186b52",
+        "5656aaa64c2c325d46f4ff134fc22d1734d348854f48c23a5868baba6192a061",
+        "5bd6b00308a2ff5b43e08a88ab77883da148d287c408245c7384d6b5ebc8b4d8",
+        "5ed2fb870adea7ceb8715ef3e70af4cb12c2b1701ee30d46731195c6d4ec2e98",
+        "625364f89a78dd94a9bb9e9a3a8595c380e11b35c812636814e65898906f4eef",
+        "63eb8820a6c9dbc73ca0032f542a4713b88202a0e41b38481d2be1a579c1f100",
+        "651e4018dab07ce45d541b160c513779d361e120ae2587486d7602270320bdfa",
+        "6a01390d91e1830ba8b4f405d593e09af5930bf146d584b736318a95fa157bea",
+        "6a7666e960e58d289ba9ea8cb97ade7b3362e3b857b6c4b10f2d920652264439",
+        "6b3fe364c3294c8ac52d236f4e54e2e708c0e09d29f7802ffdd3cf26f79d8892",
+        "759c8f03f05691eb3e6ec1f40e48f7d68e15ddb11c85cdf1296d5739e1fd98ba",
+        "76a2dacb7ff27d4fb3e052eb58f047abf677f5c16e327ab32ad5af6a4485db32",
+        "77353aea9edbe30e4b8debb4e8b6000f4a7e89a4538e8623b5c0f8c74c077b98",
+        "899f23a6bcb6406899daf5ac2847721711ea5286f80a59794687b22ef2cb0064",
+        "8a9107a273c495c9d3547bc4adc0d9fff3e5269d36c33610b74f6ee3bfe1f74d",
+        "8f11ce186fe64fd56ed20ffc233c6978ff70ac7a01e52a8dc57ca80fea76e248",
+        "906c46d78e022c2a3be682ccaff1a31b8fd702addd7a0cd45e29912823916652",
+        "906c50ab92063e7d5ad9818406f5b503d25c9d1bfd645630419fc2d437b9c928",
+        "9a9fc8d9ad2120f1b342c37f881d909b333a9b8040f1e441721a1ee05ed0582c",
+        "9b60c51bde8ffc6642ab7de56b404d59571e600924f7be74ea7d0c4b5f331cad",
+        "9d07ae78fa4430afac8ae9e7df71e829add876419eebb5b1cb19c4289c184003",
+        "a6f7ec392157e448b6c0d7f744a8902f20d168fb75fabd603c6109aba33ac0b5",
+        "a8e8f52cbc5cccc3a4f87bd877a07870cb5eabd1ba357e86bb576e6bce8f2a92",
+        "ac1eb56777fa215976d81fe542aa72941a7fa32703c05dedc090993cf4363a80",
+        "b30763f4437c1926d18ba499d17d3d8d6c1b880a9ecf66071cafe5d19d32e4ba",
+        "bfc14244f9ccf8dae9242d6a8d2fa56c812209637cce8532ce261ad328414b26",
+        "c523a67746a9329f4f19da281d87c7f6c7a1fdaaafe14fb9cc73bdba57ea669c",
+        "c96435a047a14501526f6b67cf5ad76e05e6ecd399f8919b49dca05c33ac707e",
+        "c96bbfc722b9705e6a3e79478b5ab0fbe40adc8ed162951ea694f3d389fcd703",
+        "ca288519f8e87d59bd318cd9854b7604a0e573b5c48a8840c8b2cbe349025009",
+        "caee324d66c4b7d5be5e175a43022c1b4931aef88e9a3af743256ff094015428",
+        "ce7f5fa39e5dd48aa80549f6800025df8eda076a5b47fc59f264cf86a4d23d73",
+        "d007a6d039b4495388659ac5484754d24b12108e994708085b48ad58251254af",
+        "d0185d34018470dccbd4f0cc47a622a132079f87e7359d33de7b1b84dcb4c2ed",
+        "d8e8dc7bdd8a78c96913172f9d4d1237384b5c84d08524bb7371327596669881",
+        "dadad5fa5ac710f68a7bc0ac27282bd4e331f08f83c504865b93cc9db6f013b3",
+        "de60850e8e1e789f105a31026dfbea378146b53ed8e3a9e063033dbd44f5c522",
+        "e7f653207a824cb2ab0135639d65fdccdea6bdb10dd71d31cb8c9efe4256141c",
+        "f3f8b0c358b5dc412ce708c39dbc917a1f9912ddbe4f722e970af944c212ea60",
+        "ffe23cf7e59d9c7d7f4ccdae93c2a01c10f37f2ed6579639da78ac50b79915b3"
+      ],
+      "playback": {
+        "strategyId": "walking-cadence-sequence",
+        "previewSettings": {
+          "stepsPerMinute": 92,
+          "jitterPercent": 3
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": [
+          {
+            "type": "boundary-mode-audition",
+            "modes": [
+              "crossfade",
+              "overlap"
+            ]
+          }
+        ]
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-b6a5c9d87f29ae493bbe64c9fb576661d1f33be98fe9b6b4a4b960b9b0032a6c"
+      ]
+    },
+    {
+      "groupId": "moodist:walk-on-leaves",
+      "conceptKind": "moodist",
+      "conceptId": "walk-on-leaves",
+      "label": "Walk on Leaves",
+      "category": "nature",
+      "status": "active",
+      "includedSourceIds": [
+        "33a6db4f05600bd6fc15c82186824801403babc98957a0c5f6dd6d936bf1bec6",
+        "554c0039a74b1fe1d87ee831628628c6dbb72b2dba0265c589e05aa695b434bf",
+        "8d8089724bf308d5bf643456dec25b326b50be6187c6af64bb751db087e52e1e",
+        "acb0e938c53abf98d8d5391c1ed9217bf11740df2a7c50ebd99d9fae36e332a9",
+        "acef644cb3470ff3c8f4e2f372ae5aca6edb536a1f97c4d830b32f4a7ff2807c",
+        "e4e4cb1d1d4e2a628b805bb50031cf262f526be2a3dc1e18f08552cb49fe4f10"
+      ],
+      "playback": {
+        "strategyId": "walking-cadence-sequence",
+        "previewSettings": {
+          "stepsPerMinute": 92,
+          "jitterPercent": 11
+        },
+        "minimumSelectionsBeforeRepeat": 3,
+        "constraints": [
+          {
+            "type": "nonrepeat-window",
+            "interveningSelections": 3
+          }
+        ]
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-cb1e30cf2701f9fa65acd913bf9993057815e850404fc41f051c709e10ebbfb4"
+      ]
+    },
+    {
+      "groupId": "moodist:washing-machine",
+      "conceptKind": "moodist",
+      "conceptId": "washing-machine",
+      "label": "Washing Machine",
+      "category": "things",
+      "status": "active",
+      "includedSourceIds": [
+        "87df4cb738ac7e6be2fde11506f4f2993dd182c2367009d126d436615e9b9e5f"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:waves",
+      "conceptKind": "moodist",
+      "conceptId": "waves",
+      "label": "Waves",
+      "category": "nature",
+      "status": "active",
+      "includedSourceIds": [
+        "0d86b3fee2f0a551978989458ae4a6e0ba2c38f3fab3c5e7db528f471b62b8cd",
+        "1634d710cd35a037f7794d1637c2f6379c0df9389597f1e2910742679af848b4",
+        "25e86282105518459c36451dac94478ab6097f5757a0e6deac18ca0d56bebd8f",
+        "27e5c9850c56cd5e2f0b858bc2a55b0b6550331092f0882b95014755c5744433",
+        "4c1295710829bdf29b4171ca5f3d876cb7a0e7d5ac8494365eee1975a3ee606d",
+        "56a555b7d783a0d81707a2066b5a08b256eee1c45356c356c79d51926a8d98f1",
+        "6c94ed2f24ba9a6c18d541a2d969935bc5664983425d7b644e3c96ca26f71168",
+        "7cbf754f19f02ebc8ca8dcabbe0676447a93d1a5223d180c48d78d972040bade",
+        "919402f5b2191dac0f32610b56f9a05feb327c6ce09c5c11a565874895c34925",
+        "9fb3310ab241cd9118d66894be53b58e7171df9ae5787b4ffa05fe02966bbe4c",
+        "adb2e483023b4b7e1ea00963d3a0a27be40144ccc5f762dfa4ab37cea6b6ed52",
+        "be15506b1fc2067db186c7a4696fa1f2c250f55a77050518a8b890b299c60e50",
+        "e59d69f77f64a584a954000309c2a54f9a30473fa714467a4bd72565de2f4d83",
+        "f8564c439c8a7ec212bc4045db32d0158642b79c2052d176585252646b35afe1"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:wind",
+      "conceptKind": "moodist",
+      "conceptId": "wind",
+      "label": "Wind",
+      "category": "nature",
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "moodist:wind-chimes",
+      "conceptKind": "moodist",
+      "conceptId": "wind-chimes",
+      "label": "Wind Chimes",
+      "category": "things",
+      "status": "active",
+      "includedSourceIds": [
+        "f8635c72f05c70ee535e7376a3401ad1d307e981c3c46cafb8aeb0a1272d5b9a"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 6
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "wind-chimes-loop-alternative",
+          "type": "processing-intent",
+          "groupId": "moodist:wind-chimes",
+          "sourceId": null,
+          "intentKind": "repair-loop",
+          "desiredOutcome": "Audition a repaired loop from the current recording.",
+          "state": "alternative",
+          "choiceSetId": "wind-chimes-source-choice",
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": [
+        "note-e182e4e5ab9577507e7312f2f5a5d532d28eab1cc518b352bb70487f22dd3ac1"
+      ]
+    },
+    {
+      "groupId": "moodist:wind-in-trees",
+      "conceptKind": "moodist",
+      "conceptId": "wind-in-trees",
+      "label": "Wind in Trees",
+      "category": "nature",
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": [
+        "note-2e7e39a69ca25da6760360b5eae3cf7c081cde2438949f7460d6390d766e65a7"
+      ]
+    },
+    {
+      "groupId": "signature-extra:air-traffic-control",
+      "conceptKind": "signature-extra",
+      "conceptId": "air-traffic-control",
+      "label": "Air Traffic Control",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "05643a43f00a7c589f0ec6196ce389c8d6aa3f61f2887fe4cccb4f544ae39020",
+        "0dfa49faff5e0abda72e75854cedd76ac1a7c27c79964fcbe19754cfcbfb6e14",
+        "1441c7bb09ef86bcc72e77ee1617e9dbd0b2fc27eecb80b9dad5ac132b1e08da",
+        "173e37ef2d88f5fb310af43d5b6be0ef6193ff9d3059f4b93320a4d859a18374",
+        "1be47f3cac37ab7dc1a344d92e138c6308fd1d2ab980b461f3a3b9ba7020d7e1",
+        "461c8069a3d3e903e694daddc1284c9bf8c6f120f4799c85bc7031eea9a072e2",
+        "541209811de7527e21204b8752e9b70d576325f8a877f78a1b0dc64915b65d57",
+        "aa1e391e9d1553dd09b466f3aa71a9e0a6161bba88b6d7d8dd589da50f15e196",
+        "bba9d2920ff397eee92189239b628bc1b9c60802453d57b492d72ff9c9153733",
+        "ceb8f9d2abd994234da85d56bc7e7143201fc0e02878d6df32a570a9a0df2df3",
+        "d27c7a2e2369bab1dafaec84f355ae93edb767df453923b78f0a331326fba342",
+        "ea1832efc52dc0248c2c80d5c1ebf8fabf77b78397c7f8b071a39a8ea0f1a179"
+      ],
+      "playback": {
+        "strategyId": "spaced-event-sequence",
+        "previewSettings": {
+          "minimumGapSeconds": 1,
+          "maximumGapSeconds": 7
+        },
+        "minimumSelectionsBeforeRepeat": 4,
+        "constraints": [
+          {
+            "type": "nonrepeat-window",
+            "interveningSelections": 4
+          }
+        ]
+      },
+      "processingIntents": [
+        {
+          "id": "air-traffic-normalize",
+          "type": "processing-intent",
+          "groupId": "signature-extra:air-traffic-control",
+          "sourceId": null,
+          "intentKind": "normalize-relative-level",
+          "desiredOutcome": "Align the radio recordings without removing their air-traffic-control speech.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-09f403c20395bd16447979e3515b1f581345c67be4ba2e7f60226eb46371e2ec"
+      ]
+    },
+    {
+      "groupId": "signature-extra:balcony-town",
+      "conceptKind": "signature-extra",
+      "conceptId": "balcony-town",
+      "label": "Balcony Town Ambience",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 4
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {
+        "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f": [
+          {
+            "id": "balcony-town-trim-intro",
+            "type": "processing-intent",
+            "groupId": "signature-extra:balcony-town",
+            "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+            "intentKind": "trim-segment",
+            "desiredOutcome": "Remove the spoken town and recording-title introduction at the beginning.",
+            "state": "required",
+            "choiceSetId": null,
+            "qa": "audible-qa-required"
+          }
+        ]
+      },
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-8bba99ef8e4d7a90696b80cc4078b4dd049d9e07cd352a357e728c78c682f158"
+      ]
+    },
+    {
+      "groupId": "signature-extra:beach-ambience",
+      "conceptKind": "signature-extra",
+      "conceptId": "beach-ambience",
+      "label": "Beach Ambience",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "08f1db22a7367c9bc6a6598a0e3017b08c1dfc16b7dc6861fb6302483751b5ed",
+        "1634d710cd35a037f7794d1637c2f6379c0df9389597f1e2910742679af848b4",
+        "25e86282105518459c36451dac94478ab6097f5757a0e6deac18ca0d56bebd8f",
+        "2cdd00bdc3d3be0c4a40d31c4e094b2bb4ad6e3ea8eb403edc93836183eb9f71",
+        "56a555b7d783a0d81707a2066b5a08b256eee1c45356c356c79d51926a8d98f1",
+        "5d802b2de856297378365c5033a0909f89a29e8c22e39195d1bf6142203d119e",
+        "7ce9cc9a57f43f0e115a36defaf97d5ca59bc0fdf6cafdbc7b08b06126ed4edf",
+        "919402f5b2191dac0f32610b56f9a05feb327c6ce09c5c11a565874895c34925",
+        "9cdaf2fae3900a2956f9695a8bb2ef9d8a00698cfab15ef321fb6ae44d52c05e",
+        "9fb3310ab241cd9118d66894be53b58e7171df9ae5787b4ffa05fe02966bbe4c",
+        "a6e771289e16800e42eddad063ce188091a35721c7d43f8f03221907d14935f8",
+        "be15506b1fc2067db186c7a4696fa1f2c250f55a77050518a8b890b299c60e50",
+        "d9ac8e804ce2207aedd5aefb43c65afc8efeb4efa17d3e41b24c8a98d1a2f5dd",
+        "e84e8640c32bca8a48974db8a57d23214708f6121e1d1d073ddd0d27fec68146"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:bus-station-announcements",
+      "conceptKind": "signature-extra",
+      "conceptId": "bus-station-announcements",
+      "label": "Bus Station Announcements",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "37cc06faab4a2ed46e067e012498c2de44c3c90a4a97a3b107252842e803bd1e",
+        "d109b5a71b3cd7d170ed937379712efe7bda023306e4a06af8b7f0d2e89fc164",
+        "e25ee8261b806c10851b89d46f030b230726a1d9af3b728f0e8687a4d7e3ca71",
+        "eb5524c28b8c0daaa124096aa1f441dd66515e65858f8d54d0affee8b69dd1df",
+        "f4c76d544d5c245e2ebd2d322025bdd8e3ca8ab52cf6a5a1121a97a2feb953ee"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 6.25
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:card-game",
+      "conceptKind": "signature-extra",
+      "conceptId": "card-game",
+      "label": "Card Game",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 0.25
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:cat-vocalizations",
+      "conceptKind": "signature-extra",
+      "conceptId": "cat-vocalizations",
+      "label": "Cat Vocalizations",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "e10d824cc97dc53a4d6621ce582cd1754e3e1c91fdf7ffb1ec38e99620282e34"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {
+        "e10d824cc97dc53a4d6621ce582cd1754e3e1c91fdf7ffb1ec38e99620282e34": [
+          {
+            "id": "cat-vocalizations-suppress-rub",
+            "type": "processing-intent",
+            "groupId": "signature-extra:cat-vocalizations",
+            "sourceId": "e10d824cc97dc53a4d6621ce582cd1754e3e1c91fdf7ffb1ec38e99620282e34",
+            "intentKind": "suppress-unwanted-element",
+            "desiredOutcome": "Reduce microphone-rub noise while retaining the cat vocalization.",
+            "state": "required",
+            "choiceSetId": null,
+            "qa": "audible-qa-required"
+          }
+        ]
+      },
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-e0c8dbaab978d360c3e7cd48adae8b8a0233e22f669057f3879e6f01a232b983"
+      ]
+    },
+    {
+      "groupId": "signature-extra:cave-room-tone",
+      "conceptKind": "signature-extra",
+      "conceptId": "cave-room-tone",
+      "label": "Cave Room Tone",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "0a766d621972678c4fedeb1940b02eeda9b335102ef92ec2d8b56ed3b8117be8",
+        "308edb4de2778a0e390e311f8e33470e42734aec1ace706d6ca4c98a0ed95176",
+        "c3182088acd3b58e0c3411e57bae9355e3c44d8c1d31694bc590b3e15a113f17",
+        "e1a454c265671059d22868923d31fb55405abc5dfc25c9baf258b6c282cd2939",
+        "f96c40c6b60a7ebf0255a87615cb721c566853c2d89f812c299f6f5e96e806f6"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:childrens-toys",
+      "conceptKind": "signature-extra",
+      "conceptId": "childrens-toys",
+      "label": "Children's Toys",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:choir-ambience",
+      "conceptKind": "signature-extra",
+      "conceptId": "choir-ambience",
+      "label": "Choir Ambience",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "19623db5fb24c83f9170b8d53fa2fdbf5d46add9f6f178f30880adf57647f4d6",
+        "7159bfc2ff5595c639a112a0a44b5f2ea61b134b4ded6566075dd0ac9b0bc617",
+        "7c44430a07039776e2946bcdafe41b68d0e88f8e3ea95ec60cb10a6c03282fdd",
+        "8d7036b07f8cbe13a54fb833d1b10efac4aa9a114da12df212f422e7725efe3e",
+        "9262b5b61a066b29d20aba5fcad91650dd82faf8e46faf6c90939d49a052cd87",
+        "a5b668859b5fd4ed07662b61f2647e22c8ec886cde34447c51829c40a5bb33c2",
+        "e0e7e538a1486aa177cb29fffee76e5f3ab596dde3cb6c52cdb4946decd03ed4"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 1.75
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:church-bells",
+      "conceptKind": "signature-extra",
+      "conceptId": "church-bells",
+      "label": "Church Bells",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "03c2d284a781b73ea143190f4e14a61a69601bc21c083a22411e3883c074c96e",
+        "353fd1303f56fb2d0afcc8a7b0a48fdade14218cc1687ff5aab04e0ac05319c1",
+        "63dd7314ba97cc2863910428c47ed590af3d6ec576022e0c642b470493147715",
+        "e920a690083d3682c416a03867108a47809c49c53a609c3001b9288c1524a666"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:cicadas",
+      "conceptKind": "signature-extra",
+      "conceptId": "cicadas",
+      "label": "Cicadas",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:city-centre",
+      "conceptKind": "signature-extra",
+      "conceptId": "city-centre",
+      "label": "City Centre",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:coffee-shop",
+      "conceptKind": "signature-extra",
+      "conceptId": "coffee-shop",
+      "label": "Coffee Shop",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "17d01fa507a01d1f8a86a1580db19dafedf6291a9775fe69eeba8926b3b4c597",
+        "30f08a8683ba8bb1b1bdf7edca0e5e319607cc6ca44d6d7d8d5d69360de6a5d4",
+        "35c084c98fa70b6072cc41301b14740473e6343a7f72ea11c668e4b3dda509f1",
+        "467d0a32fecad9424a50b0fe7ee64c890c96e3114f7b78fa5a1e32c0be6754f2",
+        "4c6634f4a82b4924d0200a29d5bcc15b1d09d3215b7a663c8453c3ab53f79529",
+        "51b5ca435708cec85d4f3aa03adba7a9d7c2ef32248929eacac727bca94fd4e0",
+        "53235b9cac47a57766e04088f2fd43141eed6e8273e2193b66a8ea988286a558",
+        "537125517e4cb657255f6344546cd62328e6153b04a928b423ab56d8cb41e5d6",
+        "5907d1c19f20818a12c3eb7cc90b1f02ead2168761a41d28ddfe4f9d8ad03ee8",
+        "a98ea0faaf211fe402300efe918c282bc6f2332415ecb66790c29fbc7ac409a0",
+        "b3ce9c331b118358b167bd9bfb7ff94046c68fe1375b2231f1167795a93fe943",
+        "ba16ced73c6948952c466691d2a6618e032098407b28b8691dd3d4b456671be9",
+        "ed7b2b9ef00ca15ea9ab268079cc37d18d467c85fc3146720d64e4ecdc142b45"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "coffee-shop-obscure-speech",
+          "type": "processing-intent",
+          "groupId": "signature-extra:coffee-shop",
+          "sourceId": null,
+          "intentKind": "obscure-speech-intelligibility",
+          "desiredOutcome": "Reduce intelligible voices and conversations while retaining coffee-shop ambience.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-5e9b367f15ddc1827f40a5035cea7a75772491698ab46b785a08dedc08100174"
+      ]
+    },
+    {
+      "groupId": "signature-extra:countryside-ambience",
+      "conceptKind": "signature-extra",
+      "conceptId": "countryside-ambience",
+      "label": "Countryside Ambience",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "1795c5cc759d1fa3c92536cfc7e175fd3ff9a4d794404259cf2c0d9563e022a6",
+        "198317478a76634bf070496e070b5ff5eaac9c4fce82542e9c16a4e45bb87149",
+        "27141eb566651d98dfc80868dec57702c5fa8656cb7b4ac1ec35a79c63ee8dcb",
+        "71f4b997a01666e16c717c43c803ba2c98aeda1290d48f979746590309f6195d",
+        "819bdb1e35b1bd2d2990b3c0f6962aa55aa54fba2af5ca278c9c3719f48db4b5",
+        "8f68248b7288881f1f85c118d9dc8aebafb2b331f0927e263ac79dc8b6f8d42a",
+        "95a7515c1b6df5dae368fe13df0e8f56df152c0dd0408627c7eefacfbd477f2d",
+        "98955b33d99c92b98fcaf688c415940764cfdbe0ceeefeaeb37824347830b935",
+        "9bca7c2030a8117c14307526e0a3f33a4d6f55cacb16c31e4ca44936f3e1bc28",
+        "a42152dc231187245474c434befc517b71360baf2f18b8fa85f925c783808976",
+        "b6eed7346ec0fb9c41ebe0b16c57afdfe94cc3f745ca220fe865def5688ee57d",
+        "b7b0f18881c31382087a127acaf1850c57d5f3839d6b1e6ff9a923ee8a0d217c",
+        "bcba5a829c11a553595a817b5c2402ced57be0c92250d8de85dbb3d4cea8af5b",
+        "bda22643c825db0b27227539a1a7c0ddd227ef3612f24073c92a9b97d14de5b8",
+        "c22b59755810a29990b06ad3b55e92e7aa7189f59662f930777fb1e87cb89966",
+        "d463bfdeab382a997f0b1b05121cfddae5fbeafd25d3c60439b640843ef5d06f",
+        "d63e18809a4fe072c9aad4d949541d936d63a595d4a5fe7f0927d1eb8a789403",
+        "d9a6f56d279527656aad817d5c50710c5ebfc4a4e76210960fd02333baad9f68",
+        "e32bfb35a0dc22ea94228e67ea95d394861a09d1fced5a7b30beaeb6ac876d7a",
+        "f6b4b65a59de87970f2e6b6ca84857f0324a5ccbb0db72730abfa1c63070bc97"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:courtyard-conversation",
+      "conceptKind": "signature-extra",
+      "conceptId": "courtyard-conversation",
+      "label": "Courtyard Conversation",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:crowd-walla",
+      "conceptKind": "signature-extra",
+      "conceptId": "crowd-walla",
+      "label": "Crowd Walla",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "2f8734db09ddc344c0a7b435535672f011a6952326a0e628f6c35f8b16c297b8",
+        "307a4b02ba5c3bd537fd4bb4ceae050c728ea3b75e10f9c19b3851f3497ac488",
+        "3e1d0f34a186bc7555a2e3255f8b16461c4a86ed4812985c0ef27345f8acd9d3",
+        "50705600c3dd4a680456e93bbd82f9e84d5b87067a8291b99a75975c5105260f",
+        "68409b5b06660847be903d1500c6221485d980e458caa5e6c1f83721adea949a",
+        "78b22a2ef2033336eb8c34429892350d8d48ba3e4ac1640771358f4414909c9f",
+        "9784bdfff22009d9fe8046facb2f086a8bb8da8f954e41979b39c30c04f596b0",
+        "b7f52b87a7716fb0bba817fa2eb77fbe68fc61d9a48d66ca51f6541af1bab0fb",
+        "bbffc2e7be9dade6849b4fb513e2ad2f7f0800d06f8d0488d017c89d20090336",
+        "bd9f1eff4e878002ddfe55ac0654b5adb25e9393793fc6fdd643695dbdc41832",
+        "cfe5d2487ea8d858bc6716ce4f050abf0ce295f584c7d3b78fc892e7426e5df4",
+        "d460cad46f1caaa4fef970863b1058e9933830c08d89a42ad8891934d04ab186",
+        "e819fd0cba7e7756be37a98fa2e9229a9ad5db2fc6d6cc8a6b95e036215ed4ec"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "crowd-walla-obscure-speech",
+          "type": "processing-intent",
+          "groupId": "signature-extra:crowd-walla",
+          "sourceId": null,
+          "intentKind": "obscure-speech-intelligibility",
+          "desiredOutcome": "Reduce intelligible voices and conversations while retaining crowd walla.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-aa94a3861dedd569e2084fd4c0568bd2e6a1ddd715c9fb4f8591e425d08ac6fa"
+      ]
+    },
+    {
+      "groupId": "signature-extra:dark-ambient-pad",
+      "conceptKind": "signature-extra",
+      "conceptId": "dark-ambient-pad",
+      "label": "Dark Ambient Pad",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "031bca852bb065e3d6d41012724158f8ce85239026fb3b7159c61f4f3c78ff74",
+        "501197ea094d8ba8a61dee7d0c446d36bfa832d7de98cac25637fb1f4b274790",
+        "5f2ce9451d300a7dfa3331f55885850ae4a098eff640f7b5f35734a1f26739d3",
+        "6709c8ab7e27711aa9f01e09cb88d8fa146c9e60763cc9bd95fcb7bfa6592737",
+        "6a2b4d4ffa6496e03910021d06f8f7c500d6297a371a6d6097adb142f88d3863",
+        "87f8f10229cf56d14f09b2724ced699bf366a7561c27ec2f62c2695c4779410a",
+        "98a1993cb64a84d23b02e978ec0166e0753f6a8a2e9702b236959ccd342901a1",
+        "9d74775bbe6e14a6214551afdfc84d1429d05089820f6e1a18fa4e8e85c12226"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:distant-fireworks",
+      "conceptKind": "signature-extra",
+      "conceptId": "distant-fireworks",
+      "label": "Distant Fireworks",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "41faed125c2b69f2d161f51edc31f1e577f20053e15deb6e0d33750b7ad0315a",
+        "63545ff4d8f3c4205f0cac4714de273601abd1717dac61da6eb5ed8e6c654a71",
+        "69604c9519eb30822c0eb75295ddd60faa62dcb66941f1822107960566939258",
+        "996531432a7c8d3e3efe1e8d318884d5c7b644332e51d370e58ddff441bdb716",
+        "a23cea183b19d2593073c95b5e4a62fc348b14ff6b090413f1355bec6221bbf5",
+        "abb3b9e4ab6ee0923f79dea229beafc990995be4dc5d49f58ba82ddfdb6c15c7",
+        "dd376a47dea03e436f25bea486e1d9d9f00cfd16f21ff60a98ac3bde2f5d20d1",
+        "fea2f229102301001f0a1f07c8d2c9970b760128bd4ecacdd785abd36b494757"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:drain-pipe-drops",
+      "conceptKind": "signature-extra",
+      "conceptId": "drain-pipe-drops",
+      "label": "Drain Pipe Drops",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:dry-leaf-crunch",
+      "conceptKind": "signature-extra",
+      "conceptId": "dry-leaf-crunch",
+      "label": "Dry Leaf Crunch",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:electrical-interference",
+      "conceptKind": "signature-extra",
+      "conceptId": "electrical-interference",
+      "label": "Electrical Interference",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "17a1d2369245ff2e61c20eb94d4e098ad72eb702eecc0c3a2dbdf5d04f61673b"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:experimental-atmosphere",
+      "conceptKind": "signature-extra",
+      "conceptId": "experimental-atmosphere",
+      "label": "Experimental Atmosphere",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "10f02ac15cde0cc2c349fccec256c6838dc487c411828fa4ed5fbced42705f83",
+        "1b6de0dc90c1b2a716e31c53d42597bfbea6615bc278e4b591bec742b9ceb832",
+        "1dfc8c9609262dd7f5f8c9b8b46057874d4116867ea3a07e285a005af8edda89",
+        "73726acd26add25ed3eb7f6f161e115aa89f59a50d1f2f82a01ab47f51aa3192",
+        "7b3d6edb9272b36d790d529ef72fb8425f8e4eab0baaf1598e3f3093946449fd",
+        "88f7eb89a89b6f92d4ca8441e80c175c175a4c09b359fbe7bff9a8af3bba3ecf",
+        "a237763a35063ffb1ba465d45b37f117a2fb9e91816815b8ac8a8bc5e90f2da8",
+        "afeaeeb9f72b433d2ae3727c8dc33f2e9784d93b2e33dad0e7da41f83e66bdde",
+        "b31e17cfe74aeae5ac0224a7fb2b04be0e7f6c8d94c1e24e10bb2e3a42f217d5",
+        "dc565a379d433b5490a77295162f307d403a2b8151d7c5baec6c2e24479835d3"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:fireplace",
+      "conceptKind": "signature-extra",
+      "conceptId": "fireplace",
+      "label": "Fireplace",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "1b729e655032b74bbb2abe98314dedbad38f581e9f8affc3bc4d586efad179b4",
+        "76c84c498de97afbcd9c16c3e6a1a98ea45be3e1f4bfe6c941f6b8e63abfc62b",
+        "dc203f5a87481e5e24a616181b86c905b3c2d6ce81300065576d450e0798f1b9"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:flies-buzzing",
+      "conceptKind": "signature-extra",
+      "conceptId": "flies-buzzing",
+      "label": "Flies Buzzing",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:forest-atmosphere",
+      "conceptKind": "signature-extra",
+      "conceptId": "forest-atmosphere",
+      "label": "Forest Atmosphere",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "2d8d05daff501b234f524785a3567c257ecc05359b31e3fdc0d18d4132bc836c",
+        "312695e4755089da035aec77d30e6a4d040adad09d6b6b986a58650687819579",
+        "35e0d2b74fd7e5e8626580ae4f5c89276e0e6afb100b39b9533b1058ab82d393",
+        "38a71524e12492e16e3675b0e9db5942e21d0128dd68c1b0483bfa9b0d552428",
+        "438fe2f2de8b9d10e88e97a5488027a3850f2173b2a346da27a15d807af5cf24",
+        "506ff6b4a042f9fc0806d26f1b426acd9baf740877e74b985f53a31eaf6bb39f",
+        "5bed28d6ba4c930e59f47fa5cb6cbabf9eced28927d2130b9ac2a36b97a30b5c",
+        "5ebdd35656de57f78960ac7d61ae7c9459d5970066bd34021756b37e7b4f99b5",
+        "63a117374b20f04c53dc64b826fb0025aa63997f39226b6a8ad3d1e156546ea5",
+        "7de3a73fa76022b485c67fd7d9ccad9bc47785d042d350964e321bffb6db2941",
+        "85f28287f5387e9a3c74cd37bb3e58bf5e26e25f7e5c7ccad03aaf688aeaf5c8",
+        "8a6d417055894400d425554ca3ff7be4f5f3f015649954c666aa1c5cbce1e233",
+        "92a1bc583f3934f3dba446e06882288bb363e7f7342ab173632d39fa1c6c46f7",
+        "97fbd4f6731d61443eccce4d8e12e19899b3693d21f150971aa94ae4374e3183",
+        "b03783e00690fae6f15499c989d3eb54299e7dfd883fd983044b129101554c66",
+        "b8fd81cacd1521e4649bb9c786c792bd509b5fedeac8d8427ba83595ee61c408",
+        "c19caa61a7d4aaad65dcc92960a2f6e994caae83610576f7a680d0c953801969",
+        "c241abfc1e14c20c10f1154fe6e8da1ad650b88714fc36bf4c64e33b7f515b9d",
+        "d32982a1669addf54513c334fcf0d807e24c81f290f0df82e9ba70e96b6d1815",
+        "ec781955d57534d3be6771629f2fb3b4616b8bb82657a6d152564051d6d15f08",
+        "f19807b9a3a42d822f746190167354fbb3dfa810d8167f77911c01ea5e4d0eb7",
+        "f42840f75695d0363ee8f64a6b1c20115f442ee59dde1cb2753a1eb079dda041",
+        "fa0979ea278b2d2833d54b0ba4efe00750a7c4e763dde1fef7cd8f35ed79b5e2"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 1.5
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:grasshoppers",
+      "conceptKind": "signature-extra",
+      "conceptId": "grasshoppers",
+      "label": "Grasshoppers",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:grocery-store",
+      "conceptKind": "signature-extra",
+      "conceptId": "grocery-store",
+      "label": "Grocery Store",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "0f1ff0b9e4399dcc7391b2112a35d29978fe93c35c426b494bea19605c8d0d83",
+        "6e13a12ce31a4f69528d302ac8cad0e528a33a56d6e486854ee0a3237066ecf8",
+        "76cab04689a057b80462f9b49eedfb5e0e034935ac97a6527e55dda25ebe1b5b",
+        "ae113b9182edf065ad7682d630fa3db4976339062c63c146e856cb371fecfebe"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:hand-dryer",
+      "conceptKind": "signature-extra",
+      "conceptId": "hand-dryer",
+      "label": "Hand Dryer",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:horror-suspense",
+      "conceptKind": "signature-extra",
+      "conceptId": "horror-suspense",
+      "label": "Horror Suspense",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "01050d0eccf817656e59bd7cd1a33f6ceba5281b839fe332d6ad15da1a790564",
+        "06cf2a2850ac1701e8b618de1029b08e816fa4d0740a852de266e6772fbeceb9",
+        "0d825e59a9b184a51ec1e08e32c1ac5dd37a1978c72dbff764045c8f9497a76e",
+        "0e77894e382c724baad6ad84e27cf6fb6790759f4dca11839fda6e8c9de3d954",
+        "2f2adfb84acd6f1e560070ef46e788553bb3f8ba126ac445daea1bec05b4a2d4",
+        "439c2c545b92147630a25bc341204583b30dda9ac9980800a1462b18082ad70a",
+        "58c5e1e891b765c294e3643f2314f4772d2a9641233d6942c450fbff5fd3c209",
+        "61e72a7ca686e54674da7dd46016f49c2b7eaf52c862b050f7fcf6a66b796276",
+        "62297419f588ce16e3dc3138e90c8cd9c62523c8c5c24526753fa79250961897",
+        "87283026d488a7c1dba66b5ddd5d86140c65877bd5180e2f5425099b605d2e32",
+        "9234020f44ebd8782909ee1555ab682c6dbe48a1315d6077dac7c1a2ac0a3aa1",
+        "9ef4f3086c8a72b6b59515107d6a09a1bad751cfc146e13e33dba1fb203da861",
+        "c02ccd3d3373a7680161ee3768154b334266855de43059044425b09d7aff5bc4",
+        "c59e42a477832cc99d06a08c12a20ef3c754ad233b85f2beefa76f4d85ac694f",
+        "d7da88b58b42e9fec29903baa51029a325753de1a448b93b8a69de78babc394f",
+        "d89895ae843b0d7b15f8a55006748ee68946932fcb0509d75060dd24111207db",
+        "d975d8c78bd3fc9269c84d20fdcf3acdbf27e8af68f00d526937168351ce8993",
+        "de2fd8aa274ac9ef96009ed0954eaa336995ea8500163340cc0c2ca63b4f8f12",
+        "e86711ba9f6957f04308452b8c40d00de201cd08221c0f2bbcb8384c8ff94de3",
+        "ecbd91f231afa1f4e62e37b8abbf5f41e20b332718a0fbcf14e19bca3e0185c3"
+      ],
+      "playback": {
+        "strategyId": "spaced-event-sequence",
+        "previewSettings": {
+          "minimumGapSeconds": 0,
+          "maximumGapSeconds": 16
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-61dfe6c5ba9ab58ebffb2daa86812a5271c2d21e5847eaa91e6d2c25bc177e2e"
+      ]
+    },
+    {
+      "groupId": "signature-extra:indoor-rain",
+      "conceptKind": "signature-extra",
+      "conceptId": "indoor-rain",
+      "label": "Rain Heard Indoors",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:inside-a-bus",
+      "conceptKind": "signature-extra",
+      "conceptId": "inside-a-bus",
+      "label": "Inside a Bus",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "0d6d41251bd0dbecb83d13af848a7ffad9a8f9ed017f001549e5698b2d28eb8b"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 4.25
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:kettle",
+      "conceptKind": "signature-extra",
+      "conceptId": "kettle",
+      "label": "Kettle",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:keys-jingling",
+      "conceptKind": "signature-extra",
+      "conceptId": "keys-jingling",
+      "label": "Keys Jingling",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "07600cecb600a994cb8a26dd9ffd6a819979f84379310a67c6214073bfb9ba10",
+        "0a8789a7e7b3bcbbc54f7940e4748a8f695697188044cb50874890cc111f0980",
+        "0df64fe0fb457bdf6001cdd47e1a251d903504c056fa33ee900385813f83b328",
+        "0f23ca49ab556b448e36d1ca5901347d7437fb354b839734a4f2ec37b8c2bca5",
+        "0fde9f16b30d1855f0ec802a8975e8f443b664741b9cfcf30c80b85f8e09cbc5",
+        "111bbe03bec0d459684ce6b5b324d635949706209cd4ed14e5cad9af5ecc405c",
+        "16b4a43a80db6249fc08e08b348731751d7e5351a6b86916d393bb5045c79a17",
+        "1a5d00fce897b06112f0579cb3d70f8176e9689b3911bbf7e5280b90107fe127",
+        "1ce439a9ecb31f2d2aaafcbef9f21e2236b1a1306059e69ddae03223618dae68",
+        "23714b6662fdbcc55682ff2a916076bd6b4d825c7806c92a033f9f334a9b655a",
+        "246fd9a61aeb053b64e1969c9e32f46ba0a2b30665b322a51245f81d13346626",
+        "2d2b570b4f5218d7ac2ad49dced6c9ee2394418796ed758aeaf57304b7f972bf",
+        "33865c8a0cfa9fbc987e66765459935303c76dc9eae578ad84d847c7d1a57500",
+        "36ca641ca02dc461b419433b177698fbca319a2e3f79d96e200bd7def369c847",
+        "3ab7fcc961be2e8be63f347e3ff374a37cff8c8538ac8f52fe60c426ea712efc",
+        "446f9673878b9b68eda384f26e272496a256bbf78c296fcf515a1ee02ef73ef4",
+        "462c50d8ae31771b2b7dc3c614f02a1a0acdf1eb6bf271702afceb4e1c1fe311",
+        "5416b9b763e8252b444c908ca9e9a2ed8145d4227ca077f65f71d1cfa7c96f4c",
+        "57c3769d3cb174be8082db64e8171e18faa025f5f31d1b2bd71c92f4e1569eda",
+        "58d35673b94dcd2c5b800f229b84c2c0a06798405700e2429013595f5388a423",
+        "5916bf68d9245088971d0389d87eb7852b718855a307ad554d66e4c68316f8c3",
+        "5a48be2dda10bb5a32ccce432c815a9791abd8cf7255a7226d36c8743a5ca5f9",
+        "5a5a6dcf732bc20166957c7d4c740efb9e4db2977c7ae6ad4464ea60393c20b0",
+        "686ac2fac2d642754cf05970554c5cb20a678b032f1cbb6870803cbe5b65e283",
+        "6c4669faa6f97ac2ecd3c20327c85ec62f1d323bdc6c3cb8a64d30800f3736a5",
+        "7023fe3104336d96d51ba60c8ab281963a973722fb30925b0cb5993dba2dde49",
+        "707afd7a3b76977d168b37a9229ac8c1489f95027d44af0ed07ea07554b8c0ad",
+        "77f17f12467f908bd3031667a4b6f5a92f463d5787e11ae7eccdd074b72d0bf1",
+        "7e5cc5d0f3cb1a153eacec5d08ec5376c7caf283072e3aebb10ccdbba15ae6b6",
+        "855d65cbc6c62a39987d1baad8973a0a0ad939df23e5f6403366c54500fc9bef",
+        "8c0a85f4ab2b84108e40d8fd13e48d0f27025473ce998f380ad25f092419e5eb",
+        "9041aab851b8107e9d7b307aab4112e80d72f8bc350a53f46607eb0f7b360ffe",
+        "968405aba068f2c9faa2aff87a66537efd2eeda1e60fa0067435a807f8201bf3",
+        "993811165287d2abd00d04d4b66e9e62f7ff313f8c088af9bdab6a8b76091af7",
+        "b06f9111fdd135a699bd30b767861f2bea7f017e99680821024a5f5addf6e40f",
+        "bbaef916842d85c16592f1b615e8393a1f3f7b7b680f1272d30dfb6376223aa0",
+        "be8592f1ed1db4adc60bce8af686bac18a068a279447d5675a2db91f89359e69",
+        "c468785607f84a0c2a7dd7b18feee2edefea247982f1d2e263aa21dde2c98410",
+        "c66f3c336e102f5b4c54ee6d1a3421ca42becf6c8faaaf20c72d620d83fdd385",
+        "cbe775f4f4226db57e229cbb024b67470075cb6618e0f99814c01e24680872fd",
+        "cdf3e3ecc8efce6ad260c0c47b45c30829b0fec6ec780bf7b1aa108a9f042f38",
+        "d12a21795bee09368b0e20241d4edf9b5b0bbfb37a6a51f8a39da271828aee92",
+        "d14726430a896db10494f7bffcd4ad5cc030d587d89aa717bfc681240f5e4900",
+        "e1ceecbb8d6238d2ec17dd515e4e113595e9e18bbee76a998e88672529bc6421",
+        "ebca737ea491bd1cfc8b4cf6951ae42172783ece7ae281ca239fef50fb93107f",
+        "f57dee3b88fc25468ebaa7d5fe63196811358d71e2f4594eb696e46b59864c13",
+        "f92ca654f72e3908b903917331ecae699fc59089fab079532ad3087fdf0976f4",
+        "f9c211bc2db673697e698141d9291084b06900264a246e9052312bd0054bf47f",
+        "fbce39beddce186e208c6216194d130bcd1fef99e3e85b5abcfc598ff7b34743",
+        "fd92ca093f68578518693d016dfb923e2830683babb8e3b2aeaa9f2fbff633e6"
+      ],
+      "playback": {
+        "strategyId": "walking-cadence-sequence",
+        "previewSettings": {
+          "stepsPerMinute": 120,
+          "jitterPercent": 30
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:light-waves",
+      "conceptKind": "signature-extra",
+      "conceptId": "light-waves",
+      "label": "Light Waves",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "0d86b3fee2f0a551978989458ae4a6e0ba2c38f3fab3c5e7db528f471b62b8cd",
+        "27e5c9850c56cd5e2f0b858bc2a55b0b6550331092f0882b95014755c5744433",
+        "4c1295710829bdf29b4171ca5f3d876cb7a0e7d5ac8494365eee1975a3ee606d",
+        "6c94ed2f24ba9a6c18d541a2d969935bc5664983425d7b644e3c96ca26f71168",
+        "7cbf754f19f02ebc8ca8dcabbe0676447a93d1a5223d180c48d78d972040bade",
+        "adb2e483023b4b7e1ea00963d3a0a27be40144ccc5f762dfa4ab37cea6b6ed52",
+        "f8564c439c8a7ec212bc4045db32d0158642b79c2052d176585252646b35afe1"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2.5
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:london-ambience",
+      "conceptKind": "signature-extra",
+      "conceptId": "london-ambience",
+      "label": "London Ambience",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "07595240444d1287ce90d36864896698e94da0a6c66e02ff06b91cec14e6945b",
+        "1e44aba164200c6cc2f173464210b3d1909422916b9eac98a4af7fa57a7ee431",
+        "4c019679fe4b69db1727ae1dbc507171c9ba63dc1914bb46760e0c4a0e369c96",
+        "7e0bbd6133e3b069eca12f55209fabc91189a82a259b9efb0b9639b02dbd8b4c",
+        "93010975b3db89bc156b296ff8cbc374f8ddd4fa9c1db2c39d505910a0217efa",
+        "9b5359cf906b737e700188169b00114c035d735dabd7db3c37650ee237d4dea5",
+        "aeb979c35a09179bb092f841dbbfcfea68b71e88099dff48496f3acf01538840",
+        "beaecefa8fecee0bde53981f743fd4aced5a4fdcd4b081eab9d40212aa47c87e",
+        "cb25f4651cd81f06a9ec6e84cacfa5ab50a122cef1b0b587369b3ca33462ae8e",
+        "f2dc2c83f9c91f657770794ad6fa385964c60d3b40f6cf19907cafbb198610cb",
+        "fbcddf034472ff20939f1e22f7d8816a9c22c11089ffe428945c686f409bd932",
+        "fe4c1ce7c1fad8e73f7ce0313a9b05f050e05fe77d24b59239bf43b8511074eb"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:lunar-wind",
+      "conceptKind": "signature-extra",
+      "conceptId": "lunar-wind",
+      "label": "Lunar Wind",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "062cda89f1c1cb2002232f10db76176d7914e44e7e69e4910f8e802bfc833847",
+        "1b9df702f1ebe8bb6a3b4bfde973c402c173d7acb72eadb149a6c99b23742e22",
+        "25c81826a3b8558aba2a06a4d00e8a48d0d2c2f261ac1d99a8deac95fcb96075",
+        "36bfd2605f3d997e9eb7fe9bfd8baa2fcffab90d37708abde2a93f30161a49f4",
+        "55606d7684393a236fb3cc4b7d6a3c201e56e50d82788a95b74b61832728e64b",
+        "77fb20f16875bada5c88efdd3558e25ef05dc9049ecc8cc5e1ef2056bd8a6c4b",
+        "93b906478eea3052ec57c738277bbf89a30d4af2849f9a58fe228ee93dfd4b25",
+        "da0a134785ec138b4dc6e1def25faad026c0e194de96db434a24f0627468391d",
+        "db97fec4c7d20591976848d0458c3d5413011a4a94bcb1505f40030894936529",
+        "dcf18e33df97bf438f3b3a29c8955970e7e9f4dac172d8e9090a49b32803b404",
+        "ed902c896a29851839229336117ddc0127e45e14b3d1d4200eb974114d8e252e"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:moon-footsteps",
+      "conceptKind": "signature-extra",
+      "conceptId": "moon-footsteps",
+      "label": "Moon Footsteps",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "0070f0511b3ecdcb0abfbea7c6bbd4528d211c6db60bc437f1b1b03a4b6a9ee6",
+        "07e4aed962233ba2aabd120b0779d4245ac38fbfc844a1c2496fe56e61ece41a",
+        "19239b7066cb4f2a79c484d4ecbee4d4e891d69ff88eee670b21f907c79a17d8",
+        "2487aff6adb730092ef8bcfc5e9b6490f09e604a09a916d41dadfacfd553250a",
+        "350b67123d1aba5de2d591baa28fb34f5e5534e023e4c52356e68d812c82bdc0",
+        "4f95e1d8a6f039c631ae7db51a18a96827300ab21b28f4a9f2144ccd4506c19b",
+        "605d2e241d2651cccd8d7e1153d1383f962df24255d934a94c4f3654ffae77c7",
+        "aa9294e7c40ddc62c8e1e247c0bdd20a756c0898eaf9bb4baacddd11860b4a66",
+        "e29f9e1d629f83c8ad6e39d5cfb911776f696dd82f93e938e02f66f3187767f5"
+      ],
+      "playback": {
+        "strategyId": "walking-cadence-sequence",
+        "previewSettings": {
+          "stepsPerMinute": 44,
+          "jitterPercent": 1
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": [
+          {
+            "type": "overlap-next-event"
+          }
+        ]
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-3cf117525d1f8b9b68f0da939560312cf8cef851b04e315d5f28960d661b1a44"
+      ]
+    },
+    {
+      "groupId": "signature-extra:orthodox-choir",
+      "conceptKind": "signature-extra",
+      "conceptId": "orthodox-choir",
+      "label": "Orthodox Choir",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "12791b8e5cdea514cec3a37ddb0d03a19123dd350664e5497f1f432eee621787",
+        "1ff31d4abff7f7937994e037b453aa0e14023d715c3d9a72922d380a93259db0",
+        "236c09ab713a435afb91d0dd8be88642a85a30f177d0b9f928e67a583ce97b93",
+        "3f3e60c79f039d59d0dc24b1b53127d9c3436583cc7832fd5de1331aa0b61f16",
+        "476e35dc0c684b73b19597a24c98e86911517a1a4eee55b36e983aa0d0bb8a32",
+        "555bcbe1f1d58b9964f7bf1acdcefcd04534b7d7a9ad410d2ea5d8a5ea3fa17a",
+        "7320d314234ca44623e866e9e028fb757d8869a5cdbd00b3ac7cb8b9597b993a",
+        "7be84f32674e68c287c8295874f95d5048231f3857d54e1d82c7a865b206bf3f",
+        "813d65bbf37fdd8984ca6b5ff8d5a4eb0be753a21f9ca53ad6f21936487898e1",
+        "c6695018209bb68314b4195eac880b8d5eab640ca091bc88ea9a2cd7226462dd",
+        "cac291fbb5feb5521c4ac705e1a141428ee7b3d11915fd6dc59a826dfd73a051",
+        "cafec305343c22edd651604c644297b7b30f12f2bc17166732eef696a6b2ff4c",
+        "d7a82520a482623a6a66f273af70f7d962eac7ae733a016b5ef1774ed93c8508",
+        "dce6f43477fa0beff467f85c2576965a2f9bb0d0858e5a4fe8bc04c3ff93c1ad",
+        "e6e011399c2d85ba5d490f37b72640c8af279398be99a4805e43bdf7368dc83c",
+        "f0722f28d26b1a84ad787d09ff177348875c75af46299072a9feb0418b38bd39",
+        "f94dc2f7384ccbfe0cd1ca6a1124273ceeaa7fb8b580a224f36e9008aee48775",
+        "f980d1ea966247c999f7af9991e1348d6df19d1a4fc9e60362ffc1a2d551ea71"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 0.5
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:passing-trains",
+      "conceptKind": "signature-extra",
+      "conceptId": "passing-trains",
+      "label": "Passing Trains",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "198980a96176d7b05ad63aa7e1fb25dbf0e3569839d97f1fa29910f17d922e43",
+        "2beed46c7929f8e100c21dc6b706457c5b9ccfda8466e7f1dcbb83c39ab6debc",
+        "672cbe97eafb6d269f5e2421637e379c8ffaa3ea031bd873bf10417a815394c3",
+        "697b05dcc55435420a072954ce02f74d33cda0f07729a5039091d1d07c81dfb4",
+        "7d895e5b20f91ab639956b843f35570d7ad6c44905684f9a21f9dffa726b3ea7",
+        "8ced3bce58c9f2090a25e1844d7bcd8ad2aab879efc85ebd4a8555e95bfb2b1c",
+        "b40cd81a54daf9272cada5e9f539a9e7ddd86ebca50dbf91e5b39238e4d67df9"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:radio-static",
+      "conceptKind": "signature-extra",
+      "conceptId": "radio-static",
+      "label": "Radio Static",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "0a37b8e960e83d131efa3bfee874a2412e389179b0330ce15eaa212e42c15f9d"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:roadside",
+      "conceptKind": "signature-extra",
+      "conceptId": "roadside",
+      "label": "Roadside",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "0f7b4cf9d8a3314c20a67e9f8032ac0a83b722d74fa961cdee521b9ea88a7bd2",
+        "4636604ef27073542a476156a4efe9da7b4ae481b4c6988db6e1b2a9779b1a78",
+        "502a7be39564828d0a73f4460755232e35e39207fa55442777407c0387a1f8a2",
+        "6008ddf4bc953b564f5e21766210ecb867ba71c53323d1028a369f1c3ccc4ae2",
+        "8edda7c92f169dab02e57698fa01ec0d7e793a1a235ed0cb7a65e401e4c32a3f",
+        "92ba95d7acfcf002d181399712ce0e29f8d48372064c7425c0be05d70f3cea4a",
+        "ba3e062a5813274e512245866ade18d5a9e7175af3a9345a67a5c50ed2ae9058",
+        "c26bed0a93a7a0e831df5d2bca0fcc4769dba961748638d32f61b3fc5b226611",
+        "fe3c86ffbed593999e9b52ffdf78730c92a8146d6ee8459c3ea6e0c5dfd0fb6f"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 6
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:room-tone",
+      "conceptKind": "signature-extra",
+      "conceptId": "room-tone",
+      "label": "Room Tone",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "1be27634a5136979ed5e43b9219050b1a07fa7bdb62b03d9d0c28ef86f74b5ff",
+        "5787d563421fdb6aaa587504dd3827b14d9ad04549463718e0aa43d86703461d",
+        "64bc8e2bfc96adaccfb6c95206735ea2760a3dc23cd3e91f44ea1c4fdabeaaf8",
+        "87b48c0929819df48790c722d8b212540d596dc5ca849a1301ae21ba7a232986",
+        "a4d5af905e63752ce468cdf5471a750d582a69045eecfc71e62c8ccc9f1ad6e5",
+        "a724486fba5e2b33a9620688c170781c8d6f3348dc276d6fbfe95fb1f13cb7e1"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 10
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:school-playground",
+      "conceptKind": "signature-extra",
+      "conceptId": "school-playground",
+      "label": "School Playground",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "b4f2d468ad979f46224d74a71f75204fabebc5764f13cc1d111b56225439e2c2"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:sci-fi-whistles",
+      "conceptKind": "signature-extra",
+      "conceptId": "sci-fi-whistles",
+      "label": "Sci-Fi Whistles",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "002f6d2278acada49b8b4401f77c308de4a78f2ac07e6bcfe4b2843d33d22cb2",
+        "1cbdc692dd6d3f03f031ce9dc54d6bcf36389f566fbcfff1d58739142e2e6428",
+        "22efc03d444a83d9a1c664df3c7c2dff905c9f9891437f5b783a4a8f6951f1d8",
+        "2dd3a27060e1b3eec93978435a3910395afef0821b87de5096d777a21ad6503b",
+        "403bf39bc55ec9848d099794ebddf7d2bcc27c1fe779bf7418376ecec41b251a",
+        "461fb9ef089624889b4918ce85e48f0e9f5286e0c63b7b4d2f09f26b205e64a6",
+        "4bf7ef3770393fe30965ee9cdd690c32bc57c46d871f0c09330b0c1a3481f184",
+        "4f55fbb424bf88643f4b4bb3b2d0274f1d4840020684db16a0767ddd60d449da",
+        "563a012cdca2a4e0ec3e749430d4647926adfe648978917f88f516029ffb3419",
+        "7cd1433c08643ab0517df04ed716b249804e494e4092944bd7fa9cab9eb998bc",
+        "98e80e8fdfbed2d456c5447f3afae5edeffbaa482de8fdecbe718257dde8c40c",
+        "a618652d0b5c88177175887969c7abc74b836a7cba80c203abb0d14ad275d01d",
+        "a7d159a17e36af8b813b054c4ae418974afcaab642bf56265834242fd3d55349",
+        "babaa4d713c95f6d5f61c09430eb7de6f189633757e73bd2e66ef39e7436015e",
+        "d905315904ab8b60e27284a69c324f87b825f0b9c8a1d09f1e9f1fcde4cb2921",
+        "ed14397250ac98f06bf86ef3da63a34da8a2421ab654c4572e9ed69e9715cbef",
+        "ef74b6538a6ef18a1604927c2223d3b34e5638fa68f4e0807c4d5b340377bf9a",
+        "f5e6abe07e98bc4fb28d3518048766204631272a9118e93b985f428ecb06c22c"
+      ],
+      "playback": {
+        "strategyId": "spaced-event-sequence",
+        "previewSettings": {
+          "minimumGapSeconds": 0,
+          "maximumGapSeconds": 8
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [
+        {
+          "id": "whistles-time-effect",
+          "type": "processing-intent",
+          "groupId": "signature-extra:sci-fi-whistles",
+          "sourceId": null,
+          "intentKind": "add-time-effect",
+          "desiredOutcome": "Audition echo or delay that supports the whistle events.",
+          "state": "required",
+          "choiceSetId": null,
+          "qa": "audible-qa-required"
+        }
+      ],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-b78f32364318700318f7d09061a16a0439915abe87a2aa7907dc8e2f5b7024c3"
+      ]
+    },
+    {
+      "groupId": "signature-extra:small-town",
+      "conceptKind": "signature-extra",
+      "conceptId": "small-town",
+      "label": "Small Town",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:space-tension-bed",
+      "conceptKind": "signature-extra",
+      "conceptId": "space-tension-bed",
+      "label": "Space Tension Bed",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "251543dec2e0bfd1f109eb6423cd3963ffab48549aec2569ecde91eb8f0261c5",
+        "27213a193f6d251f311a46c01c648605c0f6a7ef230e659d271d65557dad8ae7",
+        "2726b51368a62d83e3ce587d59c985a210065173df4d52ae77a9925fa58dcf25",
+        "29f8b72d6bd26f211b0f9d1e37b95f833a61031720b8bc2cfb99049fa7de12bd",
+        "38a89875ee59ac83b9e90277082c45c41d85291a5b56f2829a0415f0e79dffb7",
+        "3a04ef4c44ad08f20d0a19d3cff44b00a742b1ddb3ce71e10866554906d0ba28",
+        "3e7c77aa5a3d8e9194a4332b5098b1a480d07038bf76459be0fb87925abd2bc0",
+        "73d6d1928f817b7d16f8cd2044f4b7b9a26af19f6c5f87383291db94a2097a99",
+        "7c5e93a321048dcdc72d59ac4cd081b18c4c291208d8b4255875504964be9a4f",
+        "7f4a51ccbde50af187deac8da0758005325ada1d4dc9e45c823433edef0c2043",
+        "a27a63858a7509aa1dcd055600563887574d02925247f7084d5d35e8dd1d302b",
+        "bbe9884b956dc622d37f712b6aa14ef2aa7dfe5b9f851a26d44dc250b0ce4c5f",
+        "d9476be382874ccdaf5d49ac8cb92ca16ef486769938e546ba62f24dd26d0a38",
+        "e4a063a5d806f70bb322985bbd72c8d070d24e3e8cb1415d4a67cb8e74f8ea8e",
+        "f0e8aa161769da6a2a09501719c7fefc30f00dd0e3ab4c7bd195f9f6fc8e856e",
+        "f80e943278954c11cae761b06c3d2d91dbdd177ac4209e76993e42565cf22f23"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 4
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:spaceship-interior",
+      "conceptKind": "signature-extra",
+      "conceptId": "spaceship-interior",
+      "label": "Spaceship Interior",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "04c6f2f3e7ed8f50cd78caf929b1a7da753a1a9241a9ac7a09c8ef36ba1b409b",
+        "1140f28f3f506799876f16c686275fd49299dd9ef6774a269934d463cbca1712",
+        "1d962028df0f0bb3b5c2d39b91772757260f2cc5d9f6afe2dae40759cce9112f",
+        "1e3fb013ef40b9e93a7a8f543744a5a8647f58e9c40662ede3b49edb92149cf4",
+        "284622bcc07f4c7205fa475d582d1cc16f9c4404325c48f87427e8bc131a18c3",
+        "2d55f91aea3cbdce042f708580c1385ac74e9414c363a519b14aae8c22cb1ea6",
+        "47544bf46d6bc764cca3e27f307bd5f7f010f11e7c2d4ae0b465b06362127667",
+        "4e20fce93267cf5a68232aa969353faacffefb31ff7c3d3159cc3eb55a257f6a",
+        "6b76ecc6304e741cd2c695dd7f65e42123cb044a11c43a08519144c0589f74d1",
+        "6daee7d6d8182c184f542290941988e1a0190b7215d46891cbfbaf4d84207ab6",
+        "b4947f234504a4f4de1b03295a8e78297f8c09c773419745f69a8649b22caa32",
+        "b61f0f583d932bd250720c84770fb434f6a52aa2b876eb43240ece21674d1088",
+        "c46b05936ec06dd0a8e3dcae561a940aa3e3baa230fc8e205d347026447d913a",
+        "ce93a349737058ddd56bb5e7669d7418a72fa9fee2c45e82b958a097da254f6f",
+        "d4a61d281393369464ae25b5db73d5cfcee9d227c70d7ec423798dcf3f0a2919",
+        "df139129464f2951c4c07354bf4707347b21358e245f47352cd4cf8cf5ced24a",
+        "e2e4cb344ced27fe438835ecc5adda427d48fff82ec96c21d27ff7d469565d84",
+        "e850fd02902a6cf044ea68cf09c214582b9a87a649d860c2025b77f5ad769b25",
+        "f14059e0f0e00466781879fbcd0a0d3c81f80d3998415a98860a2ddb688b5646",
+        "f4c4a6afd5124a57fc6a2531c089b43fbe53545048a38efa60e2982977919792",
+        "f8462aab887f5d0d56edea65a1249b8b12f7a18aac1606c61abaa3e598dca484",
+        "f9fe58e10041a8a9852ec60b91dcd60e279abbb5764c6d3d7f222097423a0b6f"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:spiritual-acoustics",
+      "conceptKind": "signature-extra",
+      "conceptId": "spiritual-acoustics",
+      "label": "Spiritual Acoustics",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "17a2dfe186fac6f6f2d48978116ac648cfe4d5cdd18ac4f07716b97fbc218ec1",
+        "2a13f829a1b29847dd3a2ee19775c08406cd81892497b4eb906124c023e76d1f",
+        "46764601ed1a8f89d72b4778e77248a15b6cd1c9b004d9a4fd266e62752095bf",
+        "49558f620e6c22dcfeeb928b2de5cd5a7b626deeeeebcc948ffd482c44b62895",
+        "643276aceb124d841fe595be6213bc482ca6b7cee78d4b1ed1315d6b424ec219",
+        "64bf7a5f660110ced9ac2f254bb5d0b23824b9799f0bb0e9dbe23f8dbbb5a2f5",
+        "9a5f1ad1878dd2331c4febc07d8866a9cd4405d7eb38177d93638fb1247c033d",
+        "af318731e5e7a92dd163e9c481dd46850855de0431790296eb3ad9a3198595f8",
+        "bc59097d0e323bc2dd504b7681f9cca02c2e72df8efec56a9c3d076073c1a89e",
+        "c7fa619e2081304269da163ba97eaddbca783f887a876a6a1722e17492f1946d",
+        "cf121385bd0c6db51a1185ab5346b1d0cfe0617c7e3347765d8887664b1c73dc"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 3
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:stadium-crowd",
+      "conceptKind": "signature-extra",
+      "conceptId": "stadium-crowd",
+      "label": "Stadium Crowd",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "438f04ade0d666c1c351613926c92dfc873dfe30e4867a402d87d1dfc376e2d6",
+        "4bcfcf11a547dca0b7448f987436a35e9a5c0c40ef98891b3c18a827c00f7815",
+        "4d145f82b53a11d844c79c482d238e538409f1f5eb5fe959b272d7b48ea0ada6",
+        "53195f13ffad544bd5a878393d2ea2ada208e0c90294caf9ca0ce71611fd61e6",
+        "8dc1b0729af7c229d54be7330232214e0ac498ecec9e9f24249f81464717bfc4",
+        "91299cb9cb8958b61cc16164d0b02d1a0c972fd13edc80ba40780ec2df2cd650"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 4
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:subway-interior",
+      "conceptKind": "signature-extra",
+      "conceptId": "subway-interior",
+      "label": "Subway Interior",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "b48242fb86e004219d230b26ac0a5aefa57eb21c51154ebb3c271b78cc757cbe",
+        "c1ad29ea523f4357d714dd0aff6ecf11b4ec0807a57187e60bc4bf9c151e366a",
+        "c2e529e6b1240104a2eea842f28e5ea468b45a86f0d0eabe7d9931c2d82b7d0f",
+        "c5d8a0ae34b8971187833c9597d35dfef74293618ce4fd9e00a000b462e79611"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 4
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:train-station",
+      "conceptKind": "signature-extra",
+      "conceptId": "train-station",
+      "label": "Train Station",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "af172677d72ab08a0f770e1ab666f6adfda30d3478978fcc051ae5172f2acad4"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:train-station-announcements",
+      "conceptKind": "signature-extra",
+      "conceptId": "train-station-announcements",
+      "label": "Train Station Announcements",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "505939a4972e237788c708a198d1f9b53cdf8e7c53665f6b9174bea56bec0e10",
+        "f88acb7e0f9217ed2d7a86af35e3ea33b29fa5b20eceba5e0fcef6c8252702e8"
+      ],
+      "playback": {
+        "strategyId": "spaced-event-sequence",
+        "previewSettings": {
+          "minimumGapSeconds": 3,
+          "maximumGapSeconds": 9
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:transit-announcements",
+      "conceptKind": "signature-extra",
+      "conceptId": "transit-announcements",
+      "label": "Transit Announcements",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "1c896a59897fe5fd4f2aee2b54366d6b3b48960021b68123599ac56d9e50c8a7",
+        "49d34e6622e65e2e4017644189b86a7d2015a2159361171dd5c1f334856a91cd",
+        "9a05350733c10deebb6b2a71e6245b8bde191fcca0a327ef72b515a20b547ac7",
+        "fe21f5148e3223f18745809bd41fd734aec8300aa54df11add5c304d92620977"
+      ],
+      "playback": {
+        "strategyId": "spaced-event-sequence",
+        "previewSettings": {
+          "minimumGapSeconds": 3,
+          "maximumGapSeconds": 16
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:underwater-effects",
+      "conceptKind": "signature-extra",
+      "conceptId": "underwater-effects",
+      "label": "Walking in Puddles",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "0c0067f46f83d48355af14edfcbb391bbf1a1c6494379f3955e844a332cf4da1",
+        "13668a757bde6e6e73129147f1ffe616a65f6db15c99dbb88d7e19bdbb37c4c7",
+        "21b954544964f0f9e575f8fb8d1196fe92e8fcd712533731e0936e0875cec578",
+        "324e76ec8972d4168578a942949a44d67f88fa037d16286a58a183c95c24ad99",
+        "45a2abc39a6225b3fb9d29b78783610b9a4386778669007fe37ffbe66cf3db3b",
+        "4fe9e2d1f4fd79c039a722c9da4fbfea5b8acd5e41717488a075406082aad82a",
+        "511e3708544ec23d49a60bb25faddf47593f72bee74c83c11ff6d85ebe6fa4a3",
+        "77cadfb34b576e92e2e02a985c9fa371cc793a09c96409da46efac90ae9737d0",
+        "7996e608d0b13b54f16ffac8c42b3da0834af9acc14fa5157ba7dcc582c84e55",
+        "a0ff3a743a73443b6df167f80b6f1a034e096db90ed4a07bfad48448ae9b08ea",
+        "a8cdb6bc4cc9ed77b6cf002f5a0bede3a30a2c810f3a0156215f594b08f108d7",
+        "ad0b950d72129f602289abfce10b77748d527447c0709fb01cf20c22e94a56d6",
+        "bc87434505cf033fa622909e34c4ec2f5abd729103aef801e678e770c3192ac9",
+        "d1ce01e9e80133de21379d1d482606c10683138fc45d3a0c7763efe199e504dd",
+        "da0747827dd17cbfc3b99d22c356c9714c7aefc86e6e6ef0ecbf793f80853ab6",
+        "f2b5ce0be03022b309dc657ef19cc5d4405d23030a1563e53d9531d3c1a9beb2"
+      ],
+      "playback": {
+        "strategyId": "walking-cadence-sequence",
+        "previewSettings": {
+          "stepsPerMinute": 105,
+          "jitterPercent": 8
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": [
+        "note-1e431123cf5fc42b86ae266dbfcaaa5c091e87b4c9c70ca67ee00d596b5d2788"
+      ]
+    },
+    {
+      "groupId": "signature-extra:village-courtyard",
+      "conceptKind": "signature-extra",
+      "conceptId": "village-courtyard",
+      "label": "Village Courtyard",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "unresolved",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:vintage-radio-broadcast",
+      "conceptKind": "signature-extra",
+      "conceptId": "vintage-radio-broadcast",
+      "label": "Vintage Radio Broadcast",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "0022380efce0404354158197ed29b137eddca0791d92a7ed6f509a23d038b147",
+        "002f3b47ec534faa78225a9d5b640b08957d8aefa569a70fc9c7b5e7601d7f42",
+        "1ec1e88e709c3759d473f3b3520a017543f37f8e8fe43a0fb6846867a2cad05b",
+        "2693db5b8750dbd1e20650bf3856eeda6759a8e3d5c51012bc4f5ea4c5edf734",
+        "289e643728dfd5981003a57f03f1e94bfbdc2381eadfb9a4e41b1f4a442e03bf",
+        "3b217be71e21a838ca154b6f29487f55abdfb91ce9200b9418b48411dd82218f",
+        "5a78d984bc37eedf5567201b93883021eef2f66ec8e7f002a05d42e1f9b36154",
+        "94c2565ee52e757a8b471793c76b3f68c646596d5a5ccda6fe74cbb16eb7635f",
+        "ab5b6e41bbaa5e6ccacfd34f4b43ffa201092085b78410aa75060ca145556dcb",
+        "ba4272e6cc42a7999fde1a514b25b54d3204aa2aa495b61999248814198d4b1b",
+        "bfece88d4cea7c59c0a4630ba3f1937245634bd5f355aaa97175f3758edc6d69",
+        "c68e7b45eb3be0dae5a5fd217e9677ef7713fce561b29f530577d69571575569"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 0.25
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:walk-on-stone",
+      "conceptKind": "signature-extra",
+      "conceptId": "walk-on-stone",
+      "label": "Walk on Stone",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "00e4333469d5bdee26b110048566dc6bcda2fd19182b6391551c2d5ab229025b",
+        "021a854046f594d174e43a72a4fda2ca4ad6a6691a270d77d17117953895be57",
+        "04d46ad29c0a38de723cd14babe093dae22ca116a2e76e42ce72e9ebe4b3ca3c",
+        "063b0d32d1565dc96f0060b529cc7c7dbbcbc7f6da408e5ebf2de16cdca85903",
+        "06816897e2bba29c1a2eafd17fc67737f3cb603660ff57b2138cd2ad034e3546",
+        "07019271dee875336ee5b3ccd258cf3033352f607c130e536e40a1c14d58fe4e",
+        "085074fbb571ecf2f3db316b71eb4a90187b09020b8a178a62fe1b23da10fed4",
+        "086cc3301cbb6c5bc3a7aa7605194aab1e19d5029cab67eac9df2a4646510c7c",
+        "0b793b2e704db5f613d89f6555809919ac93f6eaaa549a2ef6b564606d60c79c",
+        "0cf42570f83a4c69c4e017f8f2fc5d130ec5b8400dc77f4defcbda4f2fcfcab4",
+        "0ec7107a3f6806dd5d048768923e1d4f4bc3d17ac119231ac76c6db571525e4c",
+        "0ee5d63c115691798f08134f3797cd17255dd60a5712edc9224b97d391f1a904",
+        "10a5d0619f728fa0059de07bbe3be029bb71f225a19ecbdee981889fd49acfca",
+        "147535b5ee3f7728309a76771dcc405045d7c181fb9436bdb911d35be8689e2f",
+        "154e9c741f644db0d6119de185a8d0d0f4820198caef05b8b6ed9b4e8c036cfa",
+        "15c4858fe1c2553d5f941a7fa079b6463c09368003056d65738984ba2805be82",
+        "16716dece6a70d6221b29ada77b352969ac0bc975dda0c85648099b20ec53ce5",
+        "195ba61080a7c2397027d030fc21edc1ffd5a4b62e8feadd4ee26df37c4ae948",
+        "19e9b86e26254471089ed35952b39c85930581eefcb609e6e62f38df757fbeed",
+        "1d9fd83c6d2107e8857507d5ff9acfcc32be020da2bad29025d6e8133d940284",
+        "2034dd289bc188f6bdd30fd58c14ba304f2cba65b6bfcd18d43eb4ed4cd45b75",
+        "2048269ef1723fb06b954a8dc5d7024e83f8c1972a5da78d5ea9de2b8d7b6958",
+        "21c7e0bbd7f5df2dd38358ac92be17d62ab462bec5716b0313a33876cdccbd52",
+        "224d261e6a9c5060d49972aee32f892a8e892ebd364013f6564400d74ae732fc",
+        "225db3d7bf96a57f21dd3de433363995cc1d63caab234feff62de14c90fe7c9e",
+        "22b049505982624e60cfb68915169ab8c3a5550a95a38e4447b01bddf7e0d3c7",
+        "232541a655965f059c72795e1d85ae95672241b4109528d9f78c6b9a00d69819",
+        "233d5ada1c794e435b121ca151d0a57267b5a00fdda25bd25412503ef483e6c3",
+        "243e68c22f55aa869d89f1dee65333161e65073fe86aa45fc9f90f2925be7fce",
+        "298938aad92942e3e69577e73795c4a0c1f2afe9e8b7a83e968db778ee95bea3",
+        "29ced28407b85c7322951491204e2a8e540128adf1c14530ffb8112a0c446c3d",
+        "2dc394efbbcfdfe41629021ee1ce9f60fd3e9c99903b9e6e72f54d9202b548c0",
+        "34c02e83dc5bed962e049a59d7e2aabf4450e5d7f8a434f5281a804d2a3aa447",
+        "355c27a65b9f951e78afb248f0bc051db4b4b8c91bce4b7a4442c28c162fe66d",
+        "3a3de0686a5d58caba9c17e3278e08d9993c2d58cdaf863a0b5def85221b6cd4",
+        "3ac115f8ed3fa1c067b8acd7d91f842aa5b925de76db65d2fb132d415b9597f0",
+        "3ba3b0a923a61bf5ab07524de39124003d622a720f07565dbf7b91158c00993b",
+        "3c35ce4d2044e2ea4b0f07a5e0d5c0881b5ffa4db4720875b0094d30ca2c67dc",
+        "3c8a620c376bd2caa7f4d8e5e11529503b7453c31a99e0e2ac5f7f0d9248c0d0",
+        "3cd518979d1e982a40609eec090d1a9d6c5d7241794227ed25e62e4e455eff91",
+        "3d0302b4e20b10ce355ec1b38acb7cfcd1cf5247bec09b3006c330a434b11160",
+        "3e567cd074a3da6ddd40230c4d0cf741140fffef5b02fbc76a28246d7a78d212",
+        "4030b163bd8e4e0bc6559da037a13f99336007e1d51cedd1ead4cb76fa118924",
+        "40470a052954c8a5505566f6dffce246be0fd8f6988ba81999642078a0b3d1dd",
+        "4212d8d0058833a6e5792ef86407e727c2b73fd531af8df84752bbbb8b961932",
+        "427ed8da209b092d372845a8348d1d2c7dd61d470f8ccaf0d398abe07d955f27",
+        "42ca7a3b36918f044edf5015f80c3599d4d33f211c9b61a8e27d6fa10ee82624",
+        "45e2f4f32244abf063b30c575bb904f195e125c30cb66adf1e27bf8d33fec1a7",
+        "4627bf6500395fcded0d03098bd0068d408ccdf6a17b1dca601230d7213ab630",
+        "46b781ca0d6faac5140f0e22fff2c9990412993630c5bcf8ea5441275df66e19",
+        "471f56a2ed28f45487f47742c2cfa67f68169e8d43bfbb9e8b78f168c3217e83",
+        "47444af2bb16fbd37eefb289fdd6bbccda5a89f3e3835147c3a7515d939dfda9",
+        "481df210560ad2d570297496fb35b102dde28b74bc8bd4bf13f30d2a55fa4a28",
+        "489a9c6173fba22cab6e33f776f66d61acefbc019f871b36d28eb5e73ed10b64",
+        "4b8ddd4dfc8a9a87af9f632e9dd98723a91360f6a80f4629cdf689e724a36245",
+        "4c8cd09323ec3478bc1b4a81d012654a2af5ad839d5f540148cbd9ec8e0aa8a0",
+        "4eced03c64e2f5d0f1dd1a0895e57f0f1f7725e44c504bf39ad193900cbac412",
+        "4f11c3ed46e1faf24a9be79dad47d514b18709186d5c39baab1f84bc0c186b52",
+        "5656aaa64c2c325d46f4ff134fc22d1734d348854f48c23a5868baba6192a061",
+        "58c4df40bf02190e789ee99530d45397cf4a39bb2a6220319ca5d3c8d2a2f0bd",
+        "58eff932f9fbdc51ddd672d6ed6df4a49edc881b492499acd4f0ceeab2a4e1bc",
+        "59e589bd4f19fa11307fff6442d35a3343e2ecbc0088a202bb56d85bfe2e9387",
+        "5bb192346e34ac5bcde8c5e0e82169bd82d3c2ef01a883e08f3bce8e4f0a26f2",
+        "5bd6b00308a2ff5b43e08a88ab77883da148d287c408245c7384d6b5ebc8b4d8",
+        "5c5963393264cbcb9313388d3cedd95318c579706c4f7c70bbd50fd0d0116644",
+        "5c5f28b9d744ab3d7ffca392d5edb08c3430c20c52a80f36a4c6988709848c5b",
+        "5e835f7670cd83ff88f0ed71d22f5fc6ad74e367d6255dceb35f95d650391ea1",
+        "5ed2fb870adea7ceb8715ef3e70af4cb12c2b1701ee30d46731195c6d4ec2e98",
+        "60453fb9ad92b325ca84572ad2b6665088f1a66eccb89fe2539bfe5eddb2371a",
+        "6244a0cc219caac2ceb1ae5cc5dff88467257d45582147b9612eca91193a9d58",
+        "625364f89a78dd94a9bb9e9a3a8595c380e11b35c812636814e65898906f4eef",
+        "63eb8820a6c9dbc73ca0032f542a4713b88202a0e41b38481d2be1a579c1f100",
+        "6458185b0b66e0ea6f9cca395034d9073ae7b0c4a36a924d15b132c3d82d6326",
+        "651e4018dab07ce45d541b160c513779d361e120ae2587486d7602270320bdfa",
+        "6a01390d91e1830ba8b4f405d593e09af5930bf146d584b736318a95fa157bea",
+        "6a7666e960e58d289ba9ea8cb97ade7b3362e3b857b6c4b10f2d920652264439",
+        "6b3fe364c3294c8ac52d236f4e54e2e708c0e09d29f7802ffdd3cf26f79d8892",
+        "6cdaa69cf90a3952b5fbcab82fe23d65927790cc870890c5521e6b46b945493e",
+        "6f5253d54cd9091cdd9068575e942322d71fa4ed22a25de2890b19dda288e912",
+        "759c8f03f05691eb3e6ec1f40e48f7d68e15ddb11c85cdf1296d5739e1fd98ba",
+        "76a2dacb7ff27d4fb3e052eb58f047abf677f5c16e327ab32ad5af6a4485db32",
+        "77353aea9edbe30e4b8debb4e8b6000f4a7e89a4538e8623b5c0f8c74c077b98",
+        "843edd1740da2c84d148dfd8f0998e5b2b5f58bbd8a58383e43175619a35a7bc",
+        "899f23a6bcb6406899daf5ac2847721711ea5286f80a59794687b22ef2cb0064",
+        "8a9107a273c495c9d3547bc4adc0d9fff3e5269d36c33610b74f6ee3bfe1f74d",
+        "8a9c0644c36e91d4b33cc731d2a624b8224385133edf45d43c4d344fa0de5575",
+        "8e0532c8de09c6722d2b3c93274480e0f83c00a803c9eb573402897b4ceaadf6",
+        "8f11ce186fe64fd56ed20ffc233c6978ff70ac7a01e52a8dc57ca80fea76e248",
+        "906c46d78e022c2a3be682ccaff1a31b8fd702addd7a0cd45e29912823916652",
+        "906c50ab92063e7d5ad9818406f5b503d25c9d1bfd645630419fc2d437b9c928",
+        "90d77285991ff7d56547f8c6507da1784278b35c5c5111928553b52cf691640f",
+        "92391dddd61f5ef898a7c19144125ef245d40d16870a65ce8ebab455fd8e853d",
+        "94f4ddac64d0c3962a9cf50f95f0bbecbd82c664dadd0c2ca2893b0521c0472b",
+        "953a0192bf6f8577e498bf766a024e01676b37086a41adf1ea062fa9677970f6",
+        "96fc0c2b1475f6347140e54877823243bd5559ef9ab38ac373d97efc14dc1543",
+        "97e3433befae1f49cda32dbd43cae6abda535d65772b70e1bb7659f126654a97",
+        "9a9fc8d9ad2120f1b342c37f881d909b333a9b8040f1e441721a1ee05ed0582c",
+        "9b60c51bde8ffc6642ab7de56b404d59571e600924f7be74ea7d0c4b5f331cad",
+        "9bdfea02fce13bbbb8aaf6eb5135721800eddd63ebaaf917255087a0230e573a",
+        "9d07ae78fa4430afac8ae9e7df71e829add876419eebb5b1cb19c4289c184003",
+        "9ec9bad56e9becfc02df1006258d76ab9a2d6303f6c2c64fd1e8022d290344e0",
+        "a1734ed11c771be981591ca140de748e3bf4f35e528b946047e4c7b83519a6d3",
+        "a5665ce35f93db49e1824fdb7bc3c811d881adada0ff56804346ff34deac0a08",
+        "a6f7ec392157e448b6c0d7f744a8902f20d168fb75fabd603c6109aba33ac0b5",
+        "a7840d21fc78043c03fcc5871b7731e11cb4573f304569656c29b1aee0a07f75",
+        "a7affb57fd13c45e19bf8c74abce07b6328a77d542572ba80a13a5075977dcbb",
+        "a8e8f52cbc5cccc3a4f87bd877a07870cb5eabd1ba357e86bb576e6bce8f2a92",
+        "ac1eb56777fa215976d81fe542aa72941a7fa32703c05dedc090993cf4363a80",
+        "aeeb6110b894af5d61145aadba6cdd73d50b27e2f334a518c5de9f882ef13033",
+        "b14eb369cf415be0e4212344e0f94d67efb36efa196956b916050c921f3e94ce",
+        "b30763f4437c1926d18ba499d17d3d8d6c1b880a9ecf66071cafe5d19d32e4ba",
+        "bfc14244f9ccf8dae9242d6a8d2fa56c812209637cce8532ce261ad328414b26",
+        "c0fcb70f4458c1fd8692b62a4eb045a7b5ce11170463ae3939a8ac9c2be591b6",
+        "c1524713de9a73ae46d78c12aabf91876bbce97a810d473fcd0cd24346935bd3",
+        "c523a67746a9329f4f19da281d87c7f6c7a1fdaaafe14fb9cc73bdba57ea669c",
+        "c94d95ea71d71f344a2f76890957a1f11b0e18d951885945693a5053ca2fc516",
+        "c96435a047a14501526f6b67cf5ad76e05e6ecd399f8919b49dca05c33ac707e",
+        "c96bbfc722b9705e6a3e79478b5ab0fbe40adc8ed162951ea694f3d389fcd703",
+        "ca1241950dc5be170aa5d8624227021bdb86c0a62c9a4593c8628dca5b9ceda8",
+        "ca288519f8e87d59bd318cd9854b7604a0e573b5c48a8840c8b2cbe349025009",
+        "caee324d66c4b7d5be5e175a43022c1b4931aef88e9a3af743256ff094015428",
+        "cccdad5a1b0f734fe06dcbfb8a0686c92927c0840b240b55d31e633b8f9c25e1",
+        "ce7f5fa39e5dd48aa80549f6800025df8eda076a5b47fc59f264cf86a4d23d73",
+        "cefc7687d8ebe03d12da1474a8d7148e1b9f44c724cf401711bca87fa6d65d90",
+        "d007a6d039b4495388659ac5484754d24b12108e994708085b48ad58251254af",
+        "d0185d34018470dccbd4f0cc47a622a132079f87e7359d33de7b1b84dcb4c2ed",
+        "d3087fb90a1e9cefbed0cad4d8256101bdf4e15b440b3d5086491d113dfb4674",
+        "d342dfd84e5ac01740f6ceb69e5fd04dcbed869e20939995c80c06bbb2eb8e6b",
+        "d3462f334f0cd877534e7c27ba1a70502120be116a1afd957e8e96963e3f295c",
+        "d66145f676b7ed481d75ddd758f179720afe05254fea3a2d708feaf8b1765ec1",
+        "d6fe3af7bfcf2726d5ee66cd6b23741b53f0af675c248898e05ce27a71b16cc5",
+        "d8b3e0203b6cb2d72e226c73e3115647b2e6de88c1d2f061659d8bb9834e03aa",
+        "d8e8dc7bdd8a78c96913172f9d4d1237384b5c84d08524bb7371327596669881",
+        "d993dcc825c0d01109b97f95cbb8cb4cb51cf399ba8de465575abddfe5fb5cfe",
+        "da7dba71172f0fd9bc4086e9147e9cda47f62a08e080ccdecaf063317347bc95",
+        "dadad5fa5ac710f68a7bc0ac27282bd4e331f08f83c504865b93cc9db6f013b3",
+        "dd35c6c24bc3cb63957d8d105a2e68b97947379751820229535584596a1940ba",
+        "ddec2b4649352f6a93171105532c056fc8b1e765abc362a633b67b5120b11500",
+        "de60850e8e1e789f105a31026dfbea378146b53ed8e3a9e063033dbd44f5c522",
+        "de6223f0ad9922181690183b453bf405a95c18323ae3a1cc6aaf2bcdd29bb980",
+        "e33c4ef75f624d7bb73d7ff9e7bb0fb00d1c5f2931bc08311ded50b925169f8f",
+        "e569a22b24c5f533613b585db863fe704a1ab6d6eebcc63c831a019f853a97b6",
+        "e65e5ca0a282fed25160d68950fc914ebcaa6e8ea0c6cd439d189980895f23fa",
+        "e7f653207a824cb2ab0135639d65fdccdea6bdb10dd71d31cb8c9efe4256141c",
+        "ec45b0e8e0921f9b4d90bbd7110ca0d2db1873e6e82655de28ba0e3d0c373244",
+        "ec6189563e295c04404895644700714d4c14ad1180e62a0852e7374c258afe56",
+        "ed1a5e8c6293f1029a473dadf466982519aadc2fcd3ccd9800d2a6ba294efd82",
+        "ee8cef2cf5aed16fe24c2a3290f5703dedaa1f57a99fd320dd7eb1666ec04bb7",
+        "ef9fd234627e002486be2cb0fafa958d5c6edce1290befe5ee6f9b70b4ae137d",
+        "f1f9bc7d1c8883a5679855f382e31c7487bd8b3ffad8287fc5ada3d3745e5133",
+        "f2763df9fd0a3451e383c2d94cdd83fe1d9c6127a6e94d7e53e5843b7672738d",
+        "f2fbbda163012cefbf72c3cc0bd125d5af46742ce5923f8b149abed119eba9fb",
+        "f3f8b0c358b5dc412ce708c39dbc917a1f9912ddbe4f722e970af944c212ea60",
+        "f5c607a27c4808cac2c5bea0870d27086e6f0b4ff1578e92e7840dd3987c1b6e",
+        "fb486b7df3e61a366e98ef166587a027e3af8db504cee8a80f3659128eceadca",
+        "fd5263231f34900135ba1f891959569d10db05c6716e009f6b8bb903e97ee612",
+        "ffe23cf7e59d9c7d7f4ccdae93c2a01c10f37f2ed6579639da78ac50b79915b3"
+      ],
+      "playback": {
+        "strategyId": "walking-cadence-sequence",
+        "previewSettings": {
+          "stepsPerMinute": 93,
+          "jitterPercent": 4
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "needs-rebuild-audition",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:washing-dishes",
+      "conceptKind": "signature-extra",
+      "conceptId": "washing-dishes",
+      "label": "Washing Dishes",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "c33692959589379f620e108b0810509e1b5d7fb7bd2d7fc2aac035dbdb933fe1"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    },
+    {
+      "groupId": "signature-extra:waterfront-cafe",
+      "conceptKind": "signature-extra",
+      "conceptId": "waterfront-cafe",
+      "label": "Waterfront Cafe",
+      "category": null,
+      "status": "active",
+      "includedSourceIds": [
+        "bb1f61567513063b22ca600fdb1b463d5d846cf24c7da1e23566e3fc6b81425a"
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": {
+          "transitionMode": "crossfade",
+          "transitionSeconds": 2
+        },
+        "minimumSelectionsBeforeRepeat": null,
+        "constraints": []
+      },
+      "processingIntents": [],
+      "sourceOverrides": {},
+      "reviewState": "accepted",
+      "noteDispositionIds": []
+    }
+  ]
+}

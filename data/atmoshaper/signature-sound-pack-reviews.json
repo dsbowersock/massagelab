@@ -1,0 +1,563 @@
+{
+  "version": 1,
+  "reviewedOn": "2026-08-23",
+  "packs": [
+    {
+      "packName": ".zips",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["supermarket"], "signatureExtraConcepts": [], "confidence": "direct", "reason": "The only audio file explicitly names supermarket tills, a cashier, and customers." },
+      "fileRules": []
+    },
+    {
+      "packName": "8-Bit+Music+",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Composed 8-bit music is outside the environmental sound catalog." },
+      "fileRules": []
+    },
+    {
+      "packName": "Aberdeen+FC+Vs+Hearts+FC+-+Crowd+Noise",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["crowd"], "signatureExtraConcepts": [{ "id": "stadium-crowd", "label": "Stadium Crowd" }], "confidence": "direct", "reason": "Dedicated football crowd recordings directly match crowd ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Angellic+Vocal+Kit",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Tonal vocal stabs are musical production samples, not environmental ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Beach+amb-recordings+3",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["waves"], "signatureExtraConcepts": [{ "id": "beach-ambience", "label": "Beach Ambience" }], "confidence": "semantic", "reason": "Dedicated beach ambience is a strong waves lead, pending listening confirmation." },
+      "fileRules": []
+    },
+    {
+      "packName": "Beach+Stone+Percussions+One+Shots",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Stone percussion one-shots are instruments, not walking or continuous environmental sources." },
+      "fileRules": []
+    },
+    {
+      "packName": "Black+Pepper+One+Shots",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Black-pepper Foley one-shots do not form a catalog ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Broken+Lightbulb+Percussion+One+Shots+(1)",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Broken-lightbulb percussion one-shots are unsafe-sounding musical Foley, not ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Burial+Kicks",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Kick drums are musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "burial+Percussions+Teaser_",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Percussion teaser samples are musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "Burial+Styled+Claps",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Clap one-shots are musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "Card+Game+FX+New",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "card-game", "label": "Card Game" }], "confidence": "direct", "reason": "Dedicated card handling and play sounds are a plausible Signature-only concept." },
+      "fileRules": []
+    },
+    {
+      "packName": "Card+Game+FX+New (1)",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "card-game", "label": "Card Game" }], "confidence": "direct", "reason": "Duplicate copy of the dedicated card-game effects pack; retained visibly for duplicate comparison." },
+      "fileRules": []
+    },
+    {
+      "packName": "Cave+Atmosphere+SFX+2",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "cave-room-tone", "label": "Cave Room Tone" }], "confidence": "direct", "reason": "Files explicitly identify cave room-tone effects." },
+      "fileRules": []
+    },
+    {
+      "packName": "CC0+Vintage+Radio+Shows",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "vintage-radio-broadcast", "label": "Vintage Radio Broadcast" }], "confidence": "direct", "reason": "Public-domain-style vintage radio programs are a possible spoken background concept." },
+      "fileRules": []
+    },
+    {
+      "packName": "Cellotape+One+Shots",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Tape one-shots are isolated Foley rather than a sustained ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Childrens+Instruments+-+Sleigh+Bells+(3)",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Sleigh-bell instrument samples are musical one-shots." },
+      "fileRules": []
+    },
+    {
+      "packName": "Childrens+Toys",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "childrens-toys", "label": "Children's Toys" }], "confidence": "semantic", "reason": "The pack may provide a toy-room soundscape, but filenames require listening review." },
+      "fileRules": []
+    },
+    {
+      "packName": "Chocolate+Bar+Snap+One+Shots+(1)",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Chocolate snapping one-shots are isolated Foley rather than ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "City+recordings",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["busy-street", "traffic"], "signatureExtraConcepts": [{ "id": "city-centre", "label": "City Centre" }], "confidence": "direct", "reason": "Files explicitly identify city-centre street ambience and traffic." },
+      "fileRules": []
+    },
+    {
+      "packName": "Classical+Instruments+CC0+Signaturesounds.org",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Classical instrument samples are musical content, not environmental ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Coca+Cola+Drum+Kit+#1+(SignatureSamples.Co.Uk)",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Can-derived drum and Foley one-shots are production material rather than ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Coffee+shop+ambience+part+1",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["cafe"], "signatureExtraConcepts": [{ "id": "coffee-shop", "label": "Coffee Shop" }], "confidence": "direct", "reason": "Dedicated coffee-shop recordings directly match cafe ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Coffee+shop+ambience+part+2",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["cafe"], "signatureExtraConcepts": [{ "id": "coffee-shop", "label": "Coffee Shop" }], "confidence": "direct", "reason": "Dedicated coffee-shop recordings directly match cafe ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Cowbell+&+FX",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "The pack contains no reviewable audio files in the scanned library." },
+      "fileRules": []
+    },
+    {
+      "packName": "Cymbal+Crashes+-+SignatureSounds.org",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Cymbal crashes are musical one-shots." },
+      "fileRules": []
+    },
+    {
+      "packName": "Distant+fireworks",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["fireworks"], "signatureExtraConcepts": [{ "id": "distant-fireworks", "label": "Distant Fireworks" }], "confidence": "direct", "reason": "Dedicated far-away fireworks recordings directly match the Moodist concept." },
+      "fileRules": []
+    },
+    {
+      "packName": "Fire+place+foley+CC0+SignatureSounds.org",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["campfire"], "signatureExtraConcepts": [{ "id": "fireplace", "label": "Fireplace" }], "confidence": "semantic", "reason": "Fire and fireplace crackle recordings are strong campfire-adjacent loop sources." },
+      "fileRules": []
+    },
+    {
+      "packName": "Flies+Buzzing+SFX",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "flies-buzzing", "label": "Flies Buzzing" }], "confidence": "direct", "reason": "Dedicated fly buzzing effects support a Signature-only insect concept." },
+      "fileRules": []
+    },
+    {
+      "packName": "Footsteps+In+SnowFX+Signaturesounds.org",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["walk-in-snow"], "signatureExtraConcepts": [], "confidence": "direct", "reason": "Eight dedicated snow-footstep recordings directly match Walk in Snow." },
+      "fileRules": []
+    },
+    {
+      "packName": "Forest+Kit",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "The pack is mostly designed percussion and one-shots; only explicitly separated environmental subsets are proposed." },
+      "fileRules": [
+        {
+          "id": "forest-walking-stoney-pathway",
+          "includesAll": ["Walking On Stoney Pathway"],
+          "review": { "state": "candidate", "moodistConceptIds": ["walk-on-gravel"], "signatureExtraConcepts": [{ "id": "walk-on-stone", "label": "Walk on Stone" }], "confidence": "direct", "reason": "The subset contains 246 recordings explicitly labeled walking on a stoney pathway." }
+        },
+        {
+          "id": "forest-crunching-dry-leaves",
+          "includesAll": ["Crunching Up Dry Leaves"],
+          "review": { "state": "candidate", "moodistConceptIds": ["walk-on-leaves"], "signatureExtraConcepts": [{ "id": "dry-leaf-crunch", "label": "Dry Leaf Crunch" }], "confidence": "construction", "reason": "Dry-leaf crunch textures may construct Walk on Leaves after audition and looping work." }
+        },
+        {
+          "id": "forest-textural-atmospheres",
+          "includesAll": ["Textural Sounds - Atmospheres"],
+          "review": { "state": "candidate", "moodistConceptIds": ["wind-in-trees"], "signatureExtraConcepts": [{ "id": "forest-atmosphere", "label": "Forest Atmosphere" }], "confidence": "semantic", "reason": "Forest atmosphere textures are plausible wind-in-trees sources pending listening review." }
+        }
+      ]
+    },
+    {
+      "packName": "Fred+Again+Styled+Drum+Kit",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Styled drum-kit samples are musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "Future+House+WWW.SignatureSamples.Co.Uk",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Future-house loops and one-shots are musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "Future+House+WWW.SignatureSamples.Co.Uk (1)",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Duplicate future-house pack; musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "Glasgow_Bus_Station_Announcements_Buchanna_ST_Station_CC0",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "bus-station-announcements", "label": "Bus Station Announcements" }], "confidence": "direct", "reason": "Dedicated bus-station announcement recordings support a Signature-only transit concept." },
+      "fileRules": []
+    },
+    {
+      "packName": "Glass+Smash+One+Shots",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Glass-smash one-shots are abrupt effects, not relaxing ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Grand+Pianos",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Piano loops are musical production content." },
+      "fileRules": []
+    },
+    {
+      "packName": "Grocery+store+recordings+vol.2",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["supermarket"], "signatureExtraConcepts": [{ "id": "grocery-store", "label": "Grocery Store" }], "confidence": "direct", "reason": "Dedicated grocery-store field recordings directly match Supermarket." },
+      "fileRules": []
+    },
+    {
+      "packName": "Heavy+Rain+With+Thunder+Sound+Effects+(2)",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["heavy-rain", "thunder"], "signatureExtraConcepts": [], "confidence": "direct", "reason": "Dedicated heavy-rain-with-thunder recordings directly match both concepts." },
+      "fileRules": []
+    },
+    {
+      "packName": "Home+Made+Drum+Kit+#1+2+(1)",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Homemade drum-kit Foley is production material rather than environmental ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Horror+Suspense+fx",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "horror-suspense", "label": "Horror Suspense" }], "confidence": "direct", "reason": "Designed suspense effects are a possible Signature-only concept, separate from natural ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Industrial+Percussion+Kit_Foley",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Industrial percussion one-shots are musical production material, not a construction-site recording." },
+      "fileRules": []
+    },
+    {
+      "packName": "Keys+Jingling+(2)",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "keys-jingling", "label": "Keys Jingling" }], "confidence": "direct", "reason": "Dedicated key-jingling Foley is a plausible Signature-only object sound." },
+      "fileRules": []
+    },
+    {
+      "packName": "Kick+Drums+-+Multiple+Genres",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Kick drums are musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "Kotor,+Montenegro+-Signaturesounds.org",
+      "defaultReview": { "state": "unclassified", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Mixed location recordings use file-level proposals; unmatched files remain visible for review." },
+      "fileRules": [
+        { "id": "kotor-birds", "includesAll": ["Birds singing"], "review": { "state": "candidate", "moodistConceptIds": ["birds"], "signatureExtraConcepts": [], "confidence": "direct", "reason": "Filename explicitly identifies birds singing." } },
+        { "id": "kotor-cicadas", "includesAll": ["Cicadas"], "review": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "cicadas", "label": "Cicadas" }], "confidence": "direct", "reason": "Filename explicitly identifies cicadas." } },
+        { "id": "kotor-crickets", "includesAll": ["Grasshopper, crickets"], "review": { "state": "candidate", "moodistConceptIds": ["crickets"], "signatureExtraConcepts": [{ "id": "grasshoppers", "label": "Grasshoppers" }], "confidence": "direct", "reason": "Filename explicitly identifies crickets and grasshoppers." } },
+        { "id": "kotor-night", "includesAll": ["Night Ambience"], "review": { "state": "candidate", "moodistConceptIds": ["night-village"], "signatureExtraConcepts": [], "confidence": "semantic", "reason": "Kotor night ambience is a strong Night Village lead." } },
+        { "id": "kotor-courtyard-crowd", "includesAll": ["People chatting in courtyard"], "review": { "state": "candidate", "moodistConceptIds": ["crowd"], "signatureExtraConcepts": [{ "id": "courtyard-conversation", "label": "Courtyard Conversation" }], "confidence": "direct", "reason": "Filename explicitly identifies a chatting crowd in a courtyard." } },
+        { "id": "kotor-waves", "includesAll": ["Small waves on shore"], "review": { "state": "candidate", "moodistConceptIds": ["waves"], "signatureExtraConcepts": [], "confidence": "direct", "reason": "Filename explicitly identifies small waves on shore." } }
+      ]
+    },
+    {
+      "packName": "Lego+Percussion+Signaturesounds.org",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Lego percussion one-shots are musical Foley." },
+      "fileRules": []
+    },
+    {
+      "packName": "Light+Rain",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["light-rain"], "signatureExtraConcepts": [], "confidence": "direct", "reason": "Dedicated light-rain field recordings directly match Light Rain." },
+      "fileRules": []
+    },
+    {
+      "packName": "London+Ambience+CC0+SignatureSounds.org",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["busy-street", "traffic"], "signatureExtraConcepts": [{ "id": "london-ambience", "label": "London Ambience" }], "confidence": "semantic", "reason": "London ambience recordings are plausible busy-street and traffic sources pending audition." },
+      "fileRules": []
+    },
+    {
+      "packName": "London+Underground+Rcordings",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["subway-station"], "signatureExtraConcepts": [{ "id": "transit-announcements", "label": "Transit Announcements" }], "confidence": "semantic", "reason": "Unmatched files are London Underground announcements or station sounds." },
+      "fileRules": [
+        { "id": "underground-interior", "includesAll": ["interior"], "review": { "state": "candidate", "moodistConceptIds": ["inside-a-train"], "signatureExtraConcepts": [{ "id": "subway-interior", "label": "Subway Interior" }], "confidence": "direct", "reason": "Filename explicitly identifies a tube interior." } },
+        { "id": "underground-engine", "includesAll": ["engine revving"], "review": { "state": "candidate", "moodistConceptIds": ["train", "inside-a-train"], "signatureExtraConcepts": [], "confidence": "direct", "reason": "Filename explicitly identifies train engine and track noises." } },
+        { "id": "underground-moving", "includesAll": ["Tube moving"], "review": { "state": "candidate", "moodistConceptIds": ["inside-a-train"], "signatureExtraConcepts": [{ "id": "subway-interior", "label": "Subway Interior" }], "confidence": "direct", "reason": "Filename explicitly identifies a moving tube train on tracks." } }
+      ]
+    },
+    {
+      "packName": "Loops+Of+Ambience",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Tempo-labeled guitar and tonal ambience loops are musical content rather than environmental recordings." },
+      "fileRules": []
+    },
+    {
+      "packName": "Lunar+wind+Part+1",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["wind", "howling-wind"], "signatureExtraConcepts": [{ "id": "lunar-wind", "label": "Lunar Wind" }], "confidence": "construction", "reason": "Designed lunar wind material may supply a seamless wind or howling-wind layer after audition." },
+      "fileRules": []
+    },
+    {
+      "packName": "Moroccan+Countryside+",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["night-village"], "signatureExtraConcepts": [{ "id": "countryside-ambience", "label": "Countryside Ambience" }], "confidence": "semantic", "reason": "Dedicated countryside ambience may suit Night Village or a broader rural ambience concept." },
+      "fileRules": []
+    },
+    {
+      "packName": "Multi+kick+vol.2",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Kick drums are musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "Open+Fields+Signaturesounds.org+3",
+      "defaultReview": { "state": "unclassified", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "The pack title suggests open-field ambience, but generic filenames require listening before a concept proposal." },
+      "fileRules": []
+    },
+    {
+      "packName": "Perast,+Montenegro+SignatureSounds.Org",
+      "defaultReview": { "state": "unclassified", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Mixed Montenegro recordings use file-level proposals; unmatched files remain visible." },
+      "fileRules": [
+        { "id": "perast-church-bells", "includesAll": ["Church bells"], "review": { "state": "candidate", "moodistConceptIds": ["church"], "signatureExtraConcepts": [{ "id": "church-bells", "label": "Church Bells" }], "confidence": "direct", "reason": "Filename explicitly identifies church bells." } },
+        { "id": "perast-cafe-walla", "includesAll": ["Cafe Walla"], "review": { "state": "candidate", "moodistConceptIds": ["cafe", "crowd"], "signatureExtraConcepts": [{ "id": "waterfront-cafe", "label": "Waterfront Cafe" }], "confidence": "direct", "reason": "Filename explicitly identifies cafe walla at the waterfront." } },
+        { "id": "perast-small-waves", "includesAll": ["Small waves"], "review": { "state": "candidate", "moodistConceptIds": ["waves"], "signatureExtraConcepts": [], "confidence": "direct", "reason": "Filename explicitly identifies small waves and a distant boat." } },
+        { "id": "perast-inlet-waves", "includesAll": ["Waves from inlet"], "review": { "state": "candidate", "moodistConceptIds": ["waves"], "signatureExtraConcepts": [], "confidence": "direct", "reason": "Filename explicitly identifies inlet waves hitting a wall." } },
+        { "id": "perast-balcony-birds", "includesAll": ["Balcony sounds, birds"], "review": { "state": "candidate", "moodistConceptIds": ["birds"], "signatureExtraConcepts": [{ "id": "balcony-town", "label": "Balcony Town Ambience" }], "confidence": "direct", "reason": "Filename explicitly identifies birds and distant town sounds from a balcony." } },
+        { "id": "perast-room-tone", "includesAll": ["Room tones"], "review": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "room-tone", "label": "Room Tone" }], "confidence": "direct", "reason": "Filename explicitly identifies room tone with outside noise." } },
+        { "id": "perast-bus-fan", "includesAll": ["Tunnel Fan Noise"], "review": { "state": "candidate", "moodistConceptIds": ["ceiling-fan"], "signatureExtraConcepts": [{ "id": "inside-a-bus", "label": "Inside a Bus" }], "confidence": "semantic", "reason": "Bus fan noise may work as a fan layer or an inside-bus ambience." } }
+      ]
+    },
+    {
+      "packName": "Porcelain+Percussions+Signature+Samples",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "The pack contains no reviewable audio files in the scanned library." },
+      "fileRules": []
+    },
+    {
+      "packName": "Pots+And+Pans+Drum+Kit+2",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Pots-and-pans drum one-shots are musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "Random+Recordings",
+      "defaultReview": { "state": "unclassified", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Mixed random recordings use filename-level proposals; opaque or unrelated files remain visible." },
+      "fileRules": [
+        { "id": "random-village-crowd", "includesAll": ["crowd-in-a-mexican-village"], "review": { "state": "candidate", "moodistConceptIds": ["crowd", "night-village"], "signatureExtraConcepts": [{ "id": "village-courtyard", "label": "Village Courtyard" }], "confidence": "direct", "reason": "Filename explicitly identifies a village crowd and conversational hubbub." } },
+        { "id": "random-radio-static", "includesAll": ["radio-noise-and-static"], "review": { "state": "candidate", "moodistConceptIds": ["tuning-radio"], "signatureExtraConcepts": [{ "id": "radio-static", "label": "Radio Static" }], "confidence": "direct", "reason": "Filename explicitly identifies radio noise and static." } },
+        { "id": "random-wind-chimes", "includesAll": ["wind-chimes"], "review": { "state": "candidate", "moodistConceptIds": ["wind-chimes"], "signatureExtraConcepts": [], "confidence": "direct", "reason": "Filename explicitly identifies wind chimes." } },
+        { "id": "random-electrical-noise", "includesAll": ["electrical-noises"], "review": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "electrical-interference", "label": "Electrical Interference" }], "confidence": "direct", "reason": "Filename explicitly identifies electrical noise." } },
+        { "id": "random-washing-machine", "includesAll": ["washing_machine_spin_cycle"], "review": { "state": "candidate", "moodistConceptIds": ["washing-machine"], "signatureExtraConcepts": [], "confidence": "direct", "reason": "Filename explicitly identifies a washing-machine spin cycle." } },
+        { "id": "random-spanish-town", "includesAll": ["spanish-town"], "review": { "state": "candidate", "moodistConceptIds": ["busy-street"], "signatureExtraConcepts": [{ "id": "small-town", "label": "Small Town" }], "confidence": "semantic", "reason": "Spanish-town recording is a possible street or town ambience pending audition." } },
+        { "id": "random-droplets", "includesAll": ["drops-on-a-drain-pipe"], "review": { "state": "candidate", "moodistConceptIds": ["droplets"], "signatureExtraConcepts": [{ "id": "drain-pipe-drops", "label": "Drain Pipe Drops" }], "confidence": "direct", "reason": "Filename explicitly identifies drops on a drain pipe." } }
+      ]
+    },
+    {
+      "packName": "RandomRecordings+Vol.2",
+      "defaultReview": { "state": "unclassified", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Mixed random recordings use filename-level proposals; unmatched Foley and voices remain visible." },
+      "fileRules": [
+        { "id": "random-two-bus", "includesAll": ["busjoirney"], "review": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "inside-a-bus", "label": "Inside a Bus" }], "confidence": "direct", "reason": "Filename identifies a bus journey recording." } },
+        { "id": "random-two-cat", "includesAll": ["Cat Following Me"], "review": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "cat-vocalizations", "label": "Cat Vocalizations" }], "confidence": "direct", "reason": "Filename identifies unusual cat vocalizations, not specifically purring." } },
+        { "id": "random-two-schoolyard", "includesAll": ["Children Playing In School Yard"], "review": { "state": "candidate", "moodistConceptIds": ["crowd"], "signatureExtraConcepts": [{ "id": "school-playground", "label": "School Playground" }], "confidence": "direct", "reason": "Filename explicitly identifies children playing in a school yard." } },
+        { "id": "random-two-church", "includesAll": ["churchbell"], "review": { "state": "candidate", "moodistConceptIds": ["church"], "signatureExtraConcepts": [{ "id": "church-bells", "label": "Church Bells" }], "confidence": "direct", "reason": "Filename explicitly identifies a church bell." } },
+        { "id": "random-two-dishes", "includesAll": ["Cleaning Dishes"], "review": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "washing-dishes", "label": "Washing Dishes" }], "confidence": "direct", "reason": "Filename explicitly identifies dish cleaning." } },
+        { "id": "random-two-dryer", "includesAll": ["handdryer"], "review": { "state": "candidate", "moodistConceptIds": ["dryer"], "signatureExtraConcepts": [{ "id": "hand-dryer", "label": "Hand Dryer" }], "confidence": "direct", "reason": "Filename explicitly identifies a hand dryer." } },
+        { "id": "random-two-kettle", "includesAll": ["Kettle Boiling"], "review": { "state": "candidate", "moodistConceptIds": ["boiling-water"], "signatureExtraConcepts": [{ "id": "kettle", "label": "Kettle" }], "confidence": "direct", "reason": "Filename explicitly identifies a boiling kettle." } }
+      ]
+    },
+    {
+      "packName": "Risan+Church+Bells",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["church"], "signatureExtraConcepts": [{ "id": "church-bells", "label": "Church Bells" }], "confidence": "direct", "reason": "Dedicated church-bell pack supports Church and a more specific extra concept." },
+      "fileRules": []
+    },
+    {
+      "packName": "Risers+And+Whooshes",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Cinematic risers and whooshes are transition effects, not ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Roadside+Recordings(2)+2",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["highway", "road", "traffic"], "signatureExtraConcepts": [{ "id": "roadside", "label": "Roadside" }], "confidence": "direct", "reason": "Files explicitly identify cars, trucks, buses, motorcycles, crossroads, and wet-road traffic." },
+      "fileRules": []
+    },
+    {
+      "packName": "Room+Tones+-+Signaturesounds.org",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "room-tone", "label": "Room Tone" }], "confidence": "direct", "reason": "Dedicated room-tone recordings support a Signature-only concept." },
+      "fileRules": [
+        { "id": "room-heavy-rain", "includesAll": ["Heavy Rain Outside"], "review": { "state": "candidate", "moodistConceptIds": ["heavy-rain"], "signatureExtraConcepts": [{ "id": "indoor-rain", "label": "Rain Heard Indoors" }], "confidence": "semantic", "reason": "Room tone with heavy rain outside is an indoor heavy-rain perspective." } },
+        { "id": "room-light-rain", "includesAll": ["Light Rain Outside"], "review": { "state": "candidate", "moodistConceptIds": ["light-rain"], "signatureExtraConcepts": [{ "id": "indoor-rain", "label": "Rain Heard Indoors" }], "confidence": "semantic", "reason": "Room tone with light rain outside is an indoor light-rain perspective." } },
+        { "id": "room-wind-city", "includesAll": ["Outdoor Wind+City Noises"], "review": { "state": "candidate", "moodistConceptIds": ["wind", "busy-street"], "signatureExtraConcepts": [{ "id": "room-tone", "label": "Room Tone" }], "confidence": "semantic", "reason": "Filename identifies loud outdoor wind and city noise heard from a room." } }
+      ]
+    },
+    {
+      "packName": "Score+Samples",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Score and flute loops are musical content." },
+      "fileRules": []
+    },
+    {
+      "packName": "Signature+Samples+Foley+One+Shots+Volume+1+Youtube",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Large dry Foley one-shot collection is not sustained ambience; individual future concepts can be revisited separately." },
+      "fileRules": []
+    },
+    {
+      "packName": "Signature+Samples+Trains+passing+by+2",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["train"], "signatureExtraConcepts": [{ "id": "passing-trains", "label": "Passing Trains" }], "confidence": "direct", "reason": "Dedicated passing-train field recordings directly match Train." },
+      "fileRules": []
+    },
+    {
+      "packName": "SignatureSamples.Co.Uk+Light+Waves+Crashing",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["waves"], "signatureExtraConcepts": [{ "id": "light-waves", "label": "Light Waves" }], "confidence": "direct", "reason": "Dedicated small-wave recordings directly match Waves." },
+      "fileRules": []
+    },
+    {
+      "packName": "SignatureSamples.Co.Uk+Mallets",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Mallet notes and atmospheres are musical production content." },
+      "fileRules": []
+    },
+    {
+      "packName": "SignatureSounds.Com+Air+Traffic+Snippets",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "air-traffic-control", "label": "Air Traffic Control" }], "confidence": "direct", "reason": "Dedicated air-traffic-control snippets support a Signature-only radio concept, not airport ambience itself." },
+      "fileRules": []
+    },
+    {
+      "packName": "Smash+Kit+3",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Smash and impact one-shots are abrupt effects, not ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Space_spaceship+SFX",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "spaceship-interior", "label": "Spaceship Interior" }], "confidence": "construction", "reason": "Designed spaceship effects may construct a continuous sci-fi interior ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Spanish+Guitar",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Guitar recordings are musical content even when captured outdoors." },
+      "fileRules": []
+    },
+    {
+      "packName": "Spiritual+Acoustics+CC0+Signaturesounds.org",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "spiritual-acoustics", "label": "Spiritual Acoustics" }], "confidence": "direct", "reason": "Dedicated spiritual-acoustic loops are a possible Signature-only meditation layer, not evidence of a temple recording." },
+      "fileRules": []
+    },
+    {
+      "packName": "Spoken+Word+Vol1+Cass",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Spoken-word poem clips are foreground content, not environmental ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_+Female_Voicemail_Snippets-CC0",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Voicemail snippets are foreground speech and could expose intelligible content during relaxation." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Beach_Ambience_Recordings_CC0",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["waves"], "signatureExtraConcepts": [{ "id": "beach-ambience", "label": "Beach Ambience" }], "confidence": "semantic", "reason": "Dedicated beach ambience is a strong Waves lead pending audition." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Beach-Rocks_Textures_CC0",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Beach-rock percussion textures are musical Foley, not walking or wave ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Bell_One_Kit_Key_CC0",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Chromatic bell one-shots are musical instrument samples." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Bone_Crunch_Break_Texture_CC0",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Bone-crunch effects are disturbing impacts, not relaxation ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Braaams_CC0",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Cinematic braaams are musical transition effects." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Burial_Pads_CC0",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "dark-ambient-pad", "label": "Dark Ambient Pad" }], "confidence": "direct", "reason": "Dedicated ambient pads are a possible Signature-only tonal layer." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Choirs_Vocals_SFX_Teaser_CC0",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "choir-ambience", "label": "Choir Ambience" }], "confidence": "semantic", "reason": "Choir ambience and vocal effects may support a Signature-only choral layer." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Cutlery_Percussion_Foley_CC0",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Cutlery percussion one-shots are musical Foley rather than restaurant ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Experimental_Atmospheres_CC0",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "experimental-atmosphere", "label": "Experimental Atmosphere" }], "confidence": "direct", "reason": "Dedicated experimental atmospheres are a possible Signature-only designed layer." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Moon_Footsteps_CC0",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "moon-footsteps", "label": "Moon Footsteps" }], "confidence": "direct", "reason": "Designed moon-footstep recordings support a Signature-only sci-fi footstep concept, not Walk in Snow." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Ronan_Spoken_Word_Vol_2_CC0",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Spoken-word clips are foreground content, not ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_SciFi_Whistles_CC0_PRO",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "sci-fi-whistles", "label": "Sci-Fi Whistles" }], "confidence": "direct", "reason": "Dedicated sci-fi whistles are a possible Signature-only designed effect layer." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Serbian_Orthodox_Choirs_Original_Recordings_CC0",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "orthodox-choir", "label": "Orthodox Choir" }], "confidence": "direct", "reason": "Original Serbian Orthodox choir recordings support a specific Signature-only choral concept." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Space_Tension_Beds_CC0_v3",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "space-tension-bed", "label": "Space Tension Bed" }], "confidence": "direct", "reason": "Dedicated space tension beds are a possible Signature-only designed ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Trap_808_CC0",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "808 bass one-shots are musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Wartime_Drums_CC0",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Wartime drum samples are musical percussion and unsuitable as relaxation ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Zither_Loops_Key_CC0+",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Zither loops are musical content." },
+      "fileRules": []
+    },
+    {
+      "packName": "SS_Zombie_SFX_Male_Female_CC0",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Zombie vocal effects are disturbing foreground effects, not relaxation ambience." },
+      "fileRules": []
+    },
+    {
+      "packName": "Trap+808+SignatureSounds.Org",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "808 bass one-shots are musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "Trap+Vault+Drum+Loop+Signaturesounds.org",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "Trap drum loops are musical production material." },
+      "fileRules": []
+    },
+    {
+      "packName": "Underwater+One+Shots+2",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["underwater"], "signatureExtraConcepts": [{ "id": "underwater-effects", "label": "Underwater Effects" }], "confidence": "construction", "reason": "Designed underwater one-shots may construct a continuous Underwater layer after audition and processing." },
+      "fileRules": []
+    },
+    {
+      "packName": "vhs-drumkit+CC0+2",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "VHS drum-kit samples are musical production material, not a vinyl-effect source." },
+      "fileRules": []
+    },
+    {
+      "packName": "Walla",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": ["crowd"], "signatureExtraConcepts": [{ "id": "crowd-walla", "label": "Crowd Walla" }], "confidence": "direct", "reason": "Dedicated crowd-walla recordings directly match Crowd." },
+      "fileRules": []
+    },
+    {
+      "packName": "Waverly+Station+Edinburgh",
+      "defaultReview": { "state": "candidate", "moodistConceptIds": [], "signatureExtraConcepts": [{ "id": "train-station-announcements", "label": "Train Station Announcements" }], "confidence": "direct", "reason": "Unmatched files are explicitly train-station announcements." },
+      "fileRules": [
+        { "id": "waverly-station-ambience", "includesAll": ["Background Sounds and Ambience"], "review": { "state": "candidate", "moodistConceptIds": ["train"], "signatureExtraConcepts": [{ "id": "train-station", "label": "Train Station" }], "confidence": "semantic", "reason": "Filename explicitly identifies background sounds and ambience at Waverley train station." } }
+      ]
+    },
+    {
+      "packName": "White+Noise",
+      "defaultReview": { "state": "excluded", "moodistConceptIds": [], "signatureExtraConcepts": [], "confidence": "none", "reason": "White Noise is intentionally native-generated in AtmoShaper, so external recordings are not source candidates." },
+      "fileRules": []
+    }
+  ]
+}

@@ -16,8 +16,13 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { purpleGlowClassName } from "@/components/ui/carousel-button-classes"
+import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  ATMOSHAPER_PRODUCTION_CATALOG,
+  type AtmoShaperProductionConcept,
+} from "@/lib/atmoshaper/production-catalog-runtime"
 import { ATMOSHAPER_PRESETS, type AtmoShaperLayer, type AtmoShaperRecipe } from "@/lib/atmoshaper/recipe.js"
 import { resolveAtmosphereStationArtworkInput } from "@/lib/atmosphere/station-artwork"
 import { getPlayableAtmosphereStations } from "@/lib/atmosphere/stations.js"
@@ -55,6 +60,19 @@ const PRESET_ENTRIES = [
   ["gamma", "Gamma", ATMOSHAPER_PRESETS.gamma],
 ] as const
 const STATION_DEFAULT_VOLUME = 0.75
+const AMBIENT_DEFAULT_VOLUME = 0.6
+const AMBIENT_CATEGORY_LABELS: Record<string, string> = {
+  all: "All categories",
+  animals: "Animals",
+  nature: "Nature",
+  noise: "Noise",
+  places: "Places",
+  rain: "Rain",
+  things: "Things",
+  transport: "Transport",
+  urban: "Urban",
+  signature: "Signature additions",
+}
 
 type BrainwaveKind = "binaural" | "isochronic"
 type BrainwavePresetId = (typeof PRESET_ENTRIES)[number][0]
@@ -82,6 +100,22 @@ function createStationCandidate(station: PlayableStation): AtmoShaperLayer {
     volume: STATION_DEFAULT_VOLUME,
     muted: false,
     settings: {},
+  })
+}
+
+function createAmbientCandidate(
+  concept: AtmoShaperProductionConcept,
+  selectedSourceId: string | null,
+): AtmoShaperLayer {
+  return createSoundLibraryCandidateLayer({
+    kind: "ambient",
+    sourceId: concept.id,
+    volume: AMBIENT_DEFAULT_VOLUME,
+    muted: false,
+    settings: {
+      catalogRevision: ATMOSHAPER_PRODUCTION_CATALOG.catalogRevision,
+      ...(selectedSourceId ? { selectedSourceId } : {}),
+    },
   })
 }
 
@@ -135,6 +169,15 @@ export function SoundLibrary({
   const mountedRef = useRef(true)
   const [pendingSourceKeys, setPendingSourceKeys] = useState<ReadonlySet<string>>(() => new Set())
   const [activeTab, setActiveTab] = useState("noise")
+  const [ambientQuery, setAmbientQuery] = useState("")
+  const [ambientCategory, setAmbientCategory] = useState("all")
+  const [ambientSelections, setAmbientSelections] = useState<Record<string, string>>(() => (
+    Object.fromEntries(ATMOSHAPER_PRODUCTION_CATALOG.concepts.flatMap((concept) => (
+      concept.sourceSelection?.kind === "single-source-loop"
+        ? [[concept.id, concept.sourceSelection.defaultSourceId]]
+        : []
+    )))
+  ))
   const [binauralSelection, setBinauralSelection] = useState<BrainwaveSelection>(() => ({
     presetId: "alpha",
     values: { ...ATMOSHAPER_PRESETS.alpha },
@@ -153,6 +196,17 @@ export function SoundLibrary({
     [isochronicSelection],
   )
   const currentStationLayer = recipe.layers.find((layer) => layer.kind === "station")
+  const filteredAmbientConcepts = useMemo(() => {
+    const normalizedQuery = ambientQuery.trim().toLocaleLowerCase()
+    return ATMOSHAPER_PRODUCTION_CATALOG.concepts.filter((concept) => (
+      (ambientCategory === "all" || concept.category === ambientCategory)
+      && (
+        normalizedQuery === ""
+        || concept.label.toLocaleLowerCase().includes(normalizedQuery)
+        || concept.description.toLocaleLowerCase().includes(normalizedQuery)
+      )
+    ))
+  }, [ambientCategory, ambientQuery])
 
   useEffect(() => {
     const activeTrigger = tabListRef.current?.querySelector<HTMLElement>('[role="tab"][data-state="active"]')
@@ -264,7 +318,7 @@ export function SoundLibrary({
     <section className="ml-atmoshaper-library min-w-0" aria-labelledby="atmoshaper-library-title">
       <div className="space-y-1">
         <h2 id="atmoshaper-library-title" className="text-xl font-semibold">Sound Library</h2>
-        <p className="text-sm text-muted-foreground">Preview generated sounds or an optional station foundation, then add what fits.</p>
+        <p className="text-sm text-muted-foreground">Preview generated sounds, reviewed ambient concepts, or an optional station foundation, then add what fits.</p>
       </div>
 
       <Tabs
@@ -382,10 +436,80 @@ export function SoundLibrary({
           />
         </TabsContent>
 
-        <TabsContent value="ambient">
-          <div className="ml-atmoshaper-library-placeholder">
-            Ambient sound library is being prepared. Verified loops and source details will arrive in a follow-up.
+        <TabsContent value="ambient" className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,auto)]">
+            <Input
+              type="search"
+              value={ambientQuery}
+              onChange={(event) => setAmbientQuery(event.target.value)}
+              placeholder="Search ambient sounds"
+              aria-label="Search ambient sounds"
+            />
+            <select
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={ambientCategory}
+              onChange={(event) => setAmbientCategory(event.target.value)}
+              aria-label="Filter ambient sounds by category"
+            >
+              {Object.entries(AMBIENT_CATEGORY_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
           </div>
+
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {filteredAmbientConcepts.length} of {ATMOSHAPER_PRODUCTION_CATALOG.summary.conceptCount} reviewed concepts
+          </p>
+
+          {filteredAmbientConcepts.length > 0 ? (
+            <div className="ml-atmoshaper-card-grid">
+              {filteredAmbientConcepts.map((concept) => {
+                const selectedSourceId = concept.sourceSelection?.kind === "single-source-loop"
+                  ? ambientSelections[concept.id] ?? concept.sourceSelection.defaultSourceId
+                  : null
+                const candidate = createAmbientCandidate(concept, selectedSourceId)
+                return (
+                  <article
+                    key={concept.id}
+                    className="ml-atmoshaper-library-card"
+                    data-library-source={candidate.sourceId}
+                  >
+                    <div className="ml-atmoshaper-library-card-copy">
+                      <h3 className="font-semibold">{concept.label}</h3>
+                      <p>{concept.description}</p>
+                    </div>
+                    {concept.sourceSelection?.kind === "single-source-loop" ? (
+                      <label className="grid gap-1.5 text-sm font-medium">
+                        Recording
+                        <select
+                          className="h-10 min-w-0 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          value={selectedSourceId ?? ""}
+                          onChange={(event) => setAmbientSelections((current) => ({
+                            ...current,
+                            [concept.id]: event.target.value,
+                          }))}
+                        >
+                          {concept.sources.map((source) => (
+                            <option key={source.sourceId} value={source.sourceId}>{source.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                    <LibraryCardActions
+                      candidate={candidate}
+                      commitPending={pendingSourceKeys.has(getAtmoShaperSourceConfigurationKey(candidate))}
+                      sourceName={concept.label}
+                      onAdd={(opener) => void commitCandidate(candidate, opener)}
+                    />
+                  </article>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="ml-atmoshaper-library-placeholder">
+              No reviewed concepts match that search and category.
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

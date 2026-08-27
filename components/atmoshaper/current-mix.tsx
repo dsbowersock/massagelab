@@ -38,6 +38,7 @@ import {
 import { useMusic } from "@/components/providers/music-provider"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
+import { getAtmoShaperProductionConcept } from "@/lib/atmoshaper/production-catalog-runtime"
 import {
   ATMOSHAPER_PRESETS,
   type AtmoShaperLayer,
@@ -615,6 +616,9 @@ export function atmoShaperLayerSourceName(layer: AtmoShaperLayer) {
   if (layer.kind === "noise") {
     const color = String(layer.settings.color ?? layer.sourceId.replace("noise:", ""))
     return `${color.charAt(0).toUpperCase()}${color.slice(1)} noise`
+  }
+  if (layer.kind === "ambient") {
+    return getAtmoShaperProductionConcept(layer.sourceId).label
   }
   const preset = layer.sourceId.split(":").at(-1) ?? "custom"
   const label = `${preset.charAt(0).toUpperCase()}${preset.slice(1)}`

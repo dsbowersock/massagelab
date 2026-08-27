@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "anchorKind": "signature-speech-reduction-review",
+  "manifestRelativePath": "speech-reduction-manifest.json",
+  "declarationSha256": "d87f5ede54226278b846bdb69894f293cb76b57da636ccde6540326c6dfd2ad7",
+  "manifestSha256": "a4e86fd41de6a295b8bb7628822b35330d676b5c1cb6d4b20c94976bd44e7a9d"
+}

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "batchId": "batch-01-campfire-boiling-water",
+      "declarationRelativePath": "data/atmoshaper/signature-sound-derived-audio-batches.json"
+    },
+    {
+      "batchId": "batch-02-air-traffic-control",
+      "declarationRelativePath": "data/atmoshaper/signature-sound-derived-audio-batch-02-air-traffic-control.json"
+    },
+    {
+      "batchId": "batch-03-sci-fi-whistles-treatment-audition",
+      "declarationRelativePath": "data/atmoshaper/signature-sound-derived-audio-batch-03-sci-fi-whistles-treatment-audition.json"
+    },
+    {
+      "batchId": "batch-04-boiling-water-edit-audition",
+      "declarationRelativePath": "data/atmoshaper/signature-sound-derived-audio-batch-04-boiling-water-edit-audition.json"
+    },
+    {
+      "batchId": "batch-05-dryer-trim-audition",
+      "declarationRelativePath": "data/atmoshaper/signature-sound-derived-audio-batch-05-dryer-trim-audition.json"
+    }
+  ]
+}

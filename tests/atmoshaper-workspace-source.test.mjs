@@ -96,7 +96,9 @@ describe("AtmoShaper live-session workspace source contract", () => {
 
     assert.match(librarySource, /getPlayableAtmosphereStations/)
     assert.match(librarySource, /sourceId:\s*station\.id/)
-    assert.match(librarySource, /Ambient sound library is being prepared/)
+    assert.match(librarySource, /ATMOSHAPER_PRODUCTION_CATALOG/)
+    assert.match(librarySource, /Search ambient sounds/)
+    assert.doesNotMatch(librarySource, /Ambient sound library is being prepared/)
     assert.doesNotMatch(librarySource, /Lo-Fi|YouTube/)
   })
 
