@@ -114,7 +114,9 @@ jobs:
     name: Browser QA (lane ${{ matrix.lane }})
     needs: browser_build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The exact-once music lane keeps AtmoShaper and media-session coverage
+    # together and needs bounded headroom beyond its roughly 18-minute job run.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
