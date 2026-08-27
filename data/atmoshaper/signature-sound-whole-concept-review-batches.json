@@ -1,0 +1,191 @@
+{
+  "version": 1,
+  "reviewKind": "whole-concept-review-batches",
+  "constructionReviewSha256": "a3e782b6c1c2d808bd7e8214cb655163f1bdfbc473318ae0ac9c916ccb84954d",
+  "entries": [
+    {
+      "batchId": "batch-06-droplets",
+      "groupId": "moodist:droplets"
+    },
+    {
+      "batchId": "batch-07-electrical-interference",
+      "groupId": "signature-extra:electrical-interference"
+    },
+    {
+      "batchId": "batch-08-washing-dishes",
+      "groupId": "signature-extra:washing-dishes"
+    },
+    {
+      "batchId": "batch-09-washing-machine",
+      "groupId": "moodist:washing-machine"
+    },
+    {
+      "batchId": "batch-10-cave-room-tone",
+      "groupId": "signature-extra:cave-room-tone"
+    },
+    {
+      "batchId": "batch-11-room-tone",
+      "groupId": "signature-extra:room-tone"
+    },
+    {
+      "batchId": "batch-12-light-waves",
+      "groupId": "signature-extra:light-waves"
+    },
+    {
+      "batchId": "batch-13-dark-ambient-pad",
+      "groupId": "signature-extra:dark-ambient-pad"
+    },
+    {
+      "batchId": "batch-14-walk-in-snow",
+      "groupId": "moodist:walk-in-snow"
+    },
+    {
+      "batchId": "batch-15-experimental-atmosphere",
+      "groupId": "signature-extra:experimental-atmosphere"
+    },
+    {
+      "batchId": "batch-16-fireworks",
+      "groupId": "moodist:fireworks"
+    },
+    {
+      "batchId": "batch-17-heavy-rain",
+      "groupId": "moodist:heavy-rain"
+    },
+    {
+      "batchId": "batch-18-highway",
+      "groupId": "moodist:highway"
+    },
+    {
+      "batchId": "batch-19-inside-a-train",
+      "groupId": "moodist:inside-a-train"
+    },
+    {
+      "batchId": "batch-20-supermarket",
+      "groupId": "moodist:supermarket"
+    },
+    {
+      "batchId": "batch-21-traffic",
+      "groupId": "moodist:traffic"
+    },
+    {
+      "batchId": "batch-22-tuning-radio",
+      "groupId": "moodist:tuning-radio"
+    },
+    {
+      "batchId": "batch-23-waves",
+      "groupId": "moodist:waves"
+    },
+    {
+      "batchId": "batch-24-beach-ambience",
+      "groupId": "signature-extra:beach-ambience"
+    },
+    {
+      "batchId": "batch-25-bus-station-announcements",
+      "groupId": "signature-extra:bus-station-announcements"
+    },
+    {
+      "batchId": "batch-26-choir-ambience",
+      "groupId": "signature-extra:choir-ambience"
+    },
+    {
+      "batchId": "batch-27-church-bells",
+      "groupId": "signature-extra:church-bells"
+    },
+    {
+      "batchId": "batch-28-countryside-ambience",
+      "groupId": "signature-extra:countryside-ambience"
+    },
+    {
+      "batchId": "batch-29-distant-fireworks",
+      "groupId": "signature-extra:distant-fireworks"
+    },
+    {
+      "batchId": "batch-30-fireplace",
+      "groupId": "signature-extra:fireplace"
+    },
+    {
+      "batchId": "batch-31-forest-atmosphere",
+      "groupId": "signature-extra:forest-atmosphere"
+    },
+    {
+      "batchId": "batch-32-grocery-store",
+      "groupId": "signature-extra:grocery-store"
+    },
+    {
+      "batchId": "batch-33-inside-a-bus",
+      "groupId": "signature-extra:inside-a-bus"
+    },
+    {
+      "batchId": "batch-34-keys-jingling",
+      "groupId": "signature-extra:keys-jingling"
+    },
+    {
+      "batchId": "batch-35-london-ambience",
+      "groupId": "signature-extra:london-ambience"
+    },
+    {
+      "batchId": "batch-36-lunar-wind",
+      "groupId": "signature-extra:lunar-wind"
+    },
+    {
+      "batchId": "batch-37-orthodox-choir",
+      "groupId": "signature-extra:orthodox-choir"
+    },
+    {
+      "batchId": "batch-38-passing-trains",
+      "groupId": "signature-extra:passing-trains"
+    },
+    {
+      "batchId": "batch-39-radio-static",
+      "groupId": "signature-extra:radio-static"
+    },
+    {
+      "batchId": "batch-40-roadside",
+      "groupId": "signature-extra:roadside"
+    },
+    {
+      "batchId": "batch-41-school-playground",
+      "groupId": "signature-extra:school-playground"
+    },
+    {
+      "batchId": "batch-42-space-tension-bed",
+      "groupId": "signature-extra:space-tension-bed"
+    },
+    {
+      "batchId": "batch-43-spaceship-interior",
+      "groupId": "signature-extra:spaceship-interior"
+    },
+    {
+      "batchId": "batch-44-spiritual-acoustics",
+      "groupId": "signature-extra:spiritual-acoustics"
+    },
+    {
+      "batchId": "batch-45-stadium-crowd",
+      "groupId": "signature-extra:stadium-crowd"
+    },
+    {
+      "batchId": "batch-46-subway-interior",
+      "groupId": "signature-extra:subway-interior"
+    },
+    {
+      "batchId": "batch-47-train-station",
+      "groupId": "signature-extra:train-station"
+    },
+    {
+      "batchId": "batch-48-train-station-announcements",
+      "groupId": "signature-extra:train-station-announcements"
+    },
+    {
+      "batchId": "batch-49-transit-announcements",
+      "groupId": "signature-extra:transit-announcements"
+    },
+    {
+      "batchId": "batch-50-vintage-radio-broadcast",
+      "groupId": "signature-extra:vintage-radio-broadcast"
+    },
+    {
+      "batchId": "batch-51-waterfront-cafe",
+      "groupId": "signature-extra:waterfront-cafe"
+    }
+  ]
+}

@@ -1,0 +1,429 @@
+{
+  "version": 1,
+  "reviewKind": "whole-concept-chat-outcome-catalog",
+  "entries": [
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-06-droplets",
+      "reviewFingerprint": "77bae92dff11ae06920beef32cdb075526aeed09e03b701198267653d2c52a7b",
+      "decision": "pass",
+      "note": "Reviewer directly passed Droplets in chat.",
+      "reviewedAt": "2026-08-26T16:03:30.041Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-07-electrical-interference",
+      "reviewFingerprint": "adf0b4f180e1de4019a115766c7198ae1c11ec9703c3d827100301db54ec480c",
+      "decision": "pass",
+      "note": "Reviewer directly passed Electrical Interference in chat.",
+      "reviewedAt": "2026-08-26T16:03:30.041Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-08-washing-dishes",
+      "reviewFingerprint": "8dfa79918fb76f3a77ae823ed878274c11d19bb8174510bfd6d00a1e66040eea",
+      "decision": "pass",
+      "note": "Reviewer directly passed Washing Dishes in chat.",
+      "reviewedAt": "2026-08-26T16:03:30.041Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-10-cave-room-tone",
+      "reviewFingerprint": "38bfa7ff5b308a1cf73358dc87fa7683ce10e98b276cf5e289c78fb791b79117",
+      "decision": "pass",
+      "note": "Reviewer directly passed Cave Room Tone in chat.",
+      "reviewedAt": "2026-08-26T16:03:30.041Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-12-light-waves",
+      "reviewFingerprint": "7676fd83746a9b7a2f6625c8b790ff94f3c762e8ed9ab3798f6cc4b51362298e",
+      "decision": "pass",
+      "note": "Reviewer directly passed Light Waves in chat.",
+      "reviewedAt": "2026-08-26T16:03:30.041Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-13-dark-ambient-pad",
+      "reviewFingerprint": "68e715c3558fef2e0fd3e709a0516b4ca6268f2c24b922ee63d7a19f98e2debe",
+      "decision": "pass",
+      "note": "Reviewer directly passed Dark Ambient Pad in chat.",
+      "reviewedAt": "2026-08-26T16:03:30.041Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-14-walk-in-snow",
+      "reviewFingerprint": "b720fac66405729b31d43904fc2887a6131d40a89a8a374c1b0a069637602600",
+      "decision": "pass",
+      "note": "Reviewer directly passed Walk in Snow in chat.",
+      "reviewedAt": "2026-08-26T16:03:30.041Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-11-room-tone",
+      "reviewFingerprint": "6f664bfd8c62cca1e6fefd16e9fd550f410994b4c97207a68a4dab21ed0137fc",
+      "decision": "pass",
+      "note": "Reviewer directly passed the active attenuation-matched Room Tone concept in chat.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-15-experimental-atmosphere",
+      "reviewFingerprint": "1b171d309b92d1fac5f557851c9707b2e8495a25a7d81f0aeb2c6ac121c72334",
+      "decision": "pass",
+      "note": "Reviewer directly passed the active full-length random-overlap Experimental Atmosphere concept in chat.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-16-fireworks",
+      "reviewFingerprint": "178e2f9b147e1cb340bbb50cc4c596060019b9feb18e6c47866b884a07b8458d",
+      "decision": "pass",
+      "note": "Reviewer directly passed Fireworks in chat.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-18-highway",
+      "reviewFingerprint": "5f1ad5c7b4872ba502c685d7afda12de11628f47bbe98208c01c41180b91f2c5",
+      "decision": "pass",
+      "note": "Reviewer passed the unchanged audio and requested the label-only rename to Cars Passing.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-19-inside-a-train",
+      "reviewFingerprint": "6198058f4ace9f1fac5a660e91f661e5e5c9f8075dcc2ab9816956d18678b7a9",
+      "decision": "pass",
+      "note": "Reviewer directly passed Inside a Train in chat.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-20-supermarket",
+      "reviewFingerprint": "d6e5525fa9bdd47d53e30f115b6ca3f753e536903cbacad466f0e309d5095e03",
+      "decision": "pass",
+      "note": "Reviewer passed Supermarket; Grocery Store was retired because it had the exact same four-source pool and policy, so the approved audition identity did not change.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-22-tuning-radio",
+      "reviewFingerprint": "3614ae7bb09533fdbc131602bb4ab32b1bc34301c8084a0312551badda9639b6",
+      "decision": "pass",
+      "note": "Reviewer conditionally passed the renamed Radio Static concept with the requested 10-second crossfade.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-24-beach-ambience",
+      "reviewFingerprint": "f24858087b11ce00f8d349b2baa847aad2278aa86c47a1568b39df7f4a4bd598",
+      "decision": "pass",
+      "note": "Reviewer conditionally passed Beach Ambience after the requested exact cross-source level matching was applied.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-28-countryside-ambience",
+      "reviewFingerprint": "78987fa3ca362f8812d01fc9845202c056baaf43b12528fb628f3417fb73d41c",
+      "decision": "pass",
+      "note": "Reviewer directly passed Countryside Ambience in chat.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-29-distant-fireworks",
+      "reviewFingerprint": "d9ba89a77478438f6f24c2d443d7ab239178ef45eb24d1d5ecef9d3b0f2fd9f9",
+      "decision": "pass",
+      "note": "Reviewer directly passed Distant Fireworks in chat.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-31-forest-atmosphere",
+      "reviewFingerprint": "13885c04127c2045eac18786b5ad505302e5afedd32c2551e146daba6f94c877",
+      "decision": "pass",
+      "note": "Reviewer conditionally passed Forest Atmosphere with the requested 3-second crossfade.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-33-inside-a-bus",
+      "reviewFingerprint": "d7ecb39ac2095711e5d602dc2a2c0d48fdf99fb85ed171e61ff3d9bc25de370d",
+      "decision": "pass",
+      "note": "Reviewer directly passed Inside a Bus in chat.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-38-passing-trains",
+      "reviewFingerprint": "8d9b9d73c56eaea3a4d5e82940fab98fa44f07eea859d54aca72f1279dc409cf",
+      "decision": "pass",
+      "note": "Reviewer directly passed Passing Trains in chat.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-44-spiritual-acoustics",
+      "reviewFingerprint": "9296f54ce20d8d7c40b3c70558bef4212839c6ffe456e994a99e562ae6d6feb9",
+      "decision": "pass",
+      "note": "Reviewer directly passed Spiritual Acoustics in chat.",
+      "reviewedAt": "2026-08-26T19:58:39.320Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-09-washing-machine",
+      "reviewFingerprint": "dff3cb5a997cd0c1aa96fe83def291c9ef8797167764da5c3af484c7bf43b1cb",
+      "decision": "pass",
+      "note": "Reviewer directly passed Washing Machine in chat after hearing the fixed regional loop.",
+      "reviewedAt": "2026-08-26T23:59:04.091Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-30-fireplace",
+      "reviewFingerprint": "d033eb98119e0d6eab84ed5824c94a9d87d65c6fe451c7a75059429257b06725",
+      "decision": "pass",
+      "note": "Reviewer directly passed Fireplace in chat.",
+      "reviewedAt": "2026-08-26T23:59:04.091Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-34-keys-jingling",
+      "reviewFingerprint": "fa45a18c20980b1ee5de0f6d11efd26c93d922a773f2debe070cb473f6bc217f",
+      "decision": "pass",
+      "note": "Reviewer directly passed Keys Jingling in chat.",
+      "reviewedAt": "2026-08-26T23:59:04.091Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-36-lunar-wind",
+      "reviewFingerprint": "1d804ed3c1b6d7b1e401ffe28ebfdfd003241f5a3f3bf634e34a722f4ce2f110",
+      "decision": "pass",
+      "note": "Reviewer directly passed Lunar Wind in chat.",
+      "reviewedAt": "2026-08-26T23:59:04.091Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-42-space-tension-bed",
+      "reviewFingerprint": "e4d1fd5f018f0f365e5833397a2e69abb60e38216430158838e6fbd5639a6023",
+      "decision": "pass",
+      "note": "Reviewer directly passed Space Tension Bed in chat.",
+      "reviewedAt": "2026-08-26T23:59:04.091Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-50-vintage-radio-broadcast",
+      "reviewFingerprint": "ca2c81188b33eb5c4ff438c9702aa245ad35b47a537c0166d78140355d9a7f76",
+      "decision": "pass",
+      "note": "Reviewer directly passed Vintage Radio Broadcast in chat.",
+      "reviewedAt": "2026-08-26T23:59:04.091Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-51-waterfront-cafe",
+      "reviewFingerprint": "73985c4df7b124a7ea1769a977d4476c80026966152ff6809b9f2bef79a7494f",
+      "decision": "pass",
+      "note": "Reviewer directly passed Waterfront Cafe in chat.",
+      "reviewedAt": "2026-08-26T23:59:04.091Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-35-london-ambience",
+      "reviewFingerprint": "66467c4567e18dab5a3e59695b1eb206c2ea4063e3f06385c867c59ba6b9ddbf",
+      "decision": "pass",
+      "note": "Reviewer directly passed the speech-reduced London Ambience concept in chat.",
+      "reviewedAt": "2026-08-27T02:55:14.262Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-21-traffic",
+      "reviewFingerprint": "adb136efee1330209831fee5314edb6e35d2951db23b674368204d658934541a",
+      "decision": "pass",
+      "note": "Reviewer directly passed the genuinely reprocessed nine-source Traffic concept in chat.",
+      "reviewedAt": "2026-08-27T06:06:04.686Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-23-waves",
+      "reviewFingerprint": "93fb5ff2e3f950d0250ec185f70d12af9f12d03bb4d0c1b754a6a6c51cac4767",
+      "decision": "pass",
+      "note": "Reviewer directly passed Waves in chat.",
+      "reviewedAt": "2026-08-27T06:06:04.686Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-25-bus-station-announcements",
+      "reviewFingerprint": "9f813fb40ffe64724884f1667b49550371dd801b0e6fbce7d5c883224d369345",
+      "decision": "pass",
+      "note": "Reviewer directly passed Bus Station Announcements in chat.",
+      "reviewedAt": "2026-08-27T06:06:04.686Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-26-choir-ambience",
+      "reviewFingerprint": "143a15e1bc7c1cede59f675256dfe4a96141e60bcd921425dfaa7a8514c8c4af",
+      "decision": "pass",
+      "note": "Reviewer directly passed Children’s Choir Ambience in chat.",
+      "reviewedAt": "2026-08-27T06:06:04.686Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-37-orthodox-choir",
+      "reviewFingerprint": "e4057353c30fd27bdc37a15d5651b1edaf7186da3d41f477c3590f97de17734a",
+      "decision": "pass",
+      "note": "Reviewer directly passed Orthodox Choir with the four-second crossfade in chat.",
+      "reviewedAt": "2026-08-27T06:06:04.686Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-41-school-playground",
+      "reviewFingerprint": "a2e5c846ac1749ecf1384b0df02cf30e6eb729b282cb8352b9c7f85feec66c41",
+      "decision": "pass",
+      "note": "Reviewer directly passed School Playground in chat.",
+      "reviewedAt": "2026-08-27T06:06:04.686Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-43-spaceship-interior",
+      "reviewFingerprint": "0c30af6bf9a8476d5032c19ec9516f14cfaf59bbf9a0607b3f8ceb7b0b5deae4",
+      "decision": "pass",
+      "note": "Reviewer directly passed Spaceship Interior in chat.",
+      "reviewedAt": "2026-08-27T06:06:04.686Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-46-subway-interior",
+      "reviewFingerprint": "6809d8a8bfd81c47f105bc6472476446a85e350a714ddabb7c996ac29fd96d09",
+      "decision": "pass",
+      "note": "Reviewer directly passed Subway Interior in chat.",
+      "reviewedAt": "2026-08-27T06:06:04.686Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-17-heavy-rain",
+      "reviewFingerprint": "fcb9bd65c6d9472c82ec0cef43e9080c366a6da6de386cbd547076bb137d9896",
+      "decision": "pass",
+      "note": "Reviewer directly passed Heavy Rain with the randomized minimum-20-second loop and 10-second crossfade in chat.",
+      "reviewedAt": "2026-08-27T06:27:07.957Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-27-church-bells",
+      "reviewFingerprint": "aa7ccd95b1a07691eedf2a895a48ee36bb538f25a5a18612078f7aa44a980f6c",
+      "decision": "pass",
+      "note": "Reviewer directly passed Church Bells with the transparent level treatment and 15-second crossfade in chat.",
+      "reviewedAt": "2026-08-27T06:27:07.957Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-45-stadium-crowd",
+      "reviewFingerprint": "9db93767ce5667a5831a6b803520712b657634eee88268769088886aac17bf35",
+      "decision": "pass",
+      "note": "Reviewer preferred and directly passed the exact six-source speech-reduced Stadium Crowd treatment; the later dynamics/leveling experiment is inactive.",
+      "reviewedAt": "2026-08-27T07:13:30.210Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-49-transit-announcements",
+      "reviewFingerprint": "36f434f3d064eb5fe9efef39f4ba32ae80db7a8948b78680428bc29bd7310b99",
+      "decision": "pass",
+      "note": "Reviewer directly passed Transit Announcements with the exact next-station source limited non-destructively to its first six seconds.",
+      "reviewedAt": "2026-08-27T06:27:07.957Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-55-bagpipes-outside",
+      "reviewFingerprint": "e767e9d5a252d9075f1cc10ab0b79d8dc4812ecefd02b3028cdab0ce1eb00b26",
+      "decision": "pass",
+      "note": "Reviewer directly passed Bagpipes Playing Outside in chat.",
+      "reviewedAt": "2026-08-27T11:34:42.779Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-57-open-fields",
+      "reviewFingerprint": "905717978a9e0a0428f22b988efc5d3ee7bc9e1745b131d41c29a43fcf32c4d1",
+      "decision": "pass",
+      "note": "Reviewer directly passed Open Fields in chat.",
+      "reviewedAt": "2026-08-27T11:34:42.779Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-52-grinding-pepper-candidate",
+      "reviewFingerprint": "9d540f85361aef3fc80348ad8a634820f63e83dd82b565abac054ac421159172",
+      "decision": "pass",
+      "note": "Reviewer directly passed Grinding Pepper at 100 events per minute in chat.",
+      "reviewedAt": "2026-08-27T12:36:37.633Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-60-crowd-walla-assignment",
+      "reviewFingerprint": "9a3beee9c7a7b2a0cd874d0435d051cf4ac50e5ee410e7750eb2a99b59ea188b",
+      "decision": "pass",
+      "note": "Reviewer directly passed the 13-source Crowd Walla setup with transparent per-file constant gain to -27.2 LUFS in chat.",
+      "reviewedAt": "2026-08-27T13:09:47.781Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-56-ambient-loops-77bpm",
+      "reviewFingerprint": "d8aca0fa338435811fb7f8aff453307552deb583a892efff57986672506da05d",
+      "decision": "pass",
+      "note": "Reviewer approved all currently prepared concepts, including the exact revised 22-source Ambient Loops setup with 3-6 repeats and its reviewed beat-aligned crossfade policy.",
+      "reviewedAt": "2026-08-27T15:54:07.095Z"
+    },
+    {
+      "version": 1,
+      "reviewKind": "whole-concept-chat-outcome",
+      "batchId": "batch-61-white-noise-selection",
+      "reviewFingerprint": "51f255a2bd993831479c0b8e65caa984ab9b711e22b534a3b4b22a6a0bf3f081",
+      "decision": "pass",
+      "note": "Reviewer approved all currently prepared concepts, including the exact revised White Noise recording-selection setup with a 0.25-second self-overlap seam.",
+      "reviewedAt": "2026-08-27T15:54:07.095Z"
+    }
+  ]
+}

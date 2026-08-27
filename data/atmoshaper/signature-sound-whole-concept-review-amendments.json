@@ -1,0 +1,489 @@
+{
+  "version": 1,
+  "reviewKind": "whole-concept-review-amendments",
+  "constructionReviewSha256": "a3e782b6c1c2d808bd7e8214cb655163f1bdfbc473318ae0ac9c916ccb84954d",
+  "entries": [
+    {
+      "batchId": "batch-09-washing-machine",
+      "baseReviewFingerprint": "cf4dbc5873470f9ef2b7c50caa36e0f4c21a4734744487892fc8c495173d625b",
+      "state": "ready-to-audition",
+      "summary": "Play 0:00–0:55 once, then repeat 0:15–0:55 with a 4-second return crossfade.",
+      "playbackPolicy": {
+        "kind": "fixed-region-loop",
+        "firstPassStartSeconds": 0,
+        "loopStartSeconds": 15,
+        "loopEndSeconds": 55,
+        "crossfadeSeconds": 4
+      }
+    },
+    {
+      "batchId": "batch-17-heavy-rain",
+      "baseReviewFingerprint": "4628b756bd0f2b99c5c33519c013fc8e0f93a014b83c90916f343f85acdc24e9",
+      "state": "ready-to-audition",
+      "summary": "Remove every reviewer-rejected thunder recording, including exact sources 10, 02, 04, and 07. From the remaining 143.413-second Outside5 recording, choose a fresh random loop window anywhere from the beginning to the end; every window is at least 20 seconds and returns through a 10-second crossfade.",
+      "sourceIds": [
+        "1f84ee5ff4d59a66e36dd1f0e846f308901151663fb72b4cb379a57aba11f3f8"
+      ],
+      "playbackPolicy": {
+        "kind": "random-region-loop",
+        "regionStartSeconds": 0,
+        "regionEndSeconds": 143.413,
+        "minimumLoopSeconds": 20,
+        "crossfadeSeconds": 10
+      }
+    },
+    {
+      "batchId": "batch-18-highway",
+      "baseReviewFingerprint": "5f81f2cd1fdc175b89cf8266718b7e98e110d8a5db595b92cb0244eee6a6135e",
+      "state": "ready-to-audition",
+      "summary": "Keep the approved audio and rename the concept from Highway to Cars Passing.",
+      "label": "Cars Passing"
+    },
+    {
+      "batchId": "batch-21-traffic",
+      "baseReviewFingerprint": "79850332254aaf80edebbd4ed6130d1bf2b48ba7a65ac7c371449a69ef94da40",
+      "state": "processing-required",
+      "summary": "Traffic keeps the nine reviewer-retained Roadside and city recordings after removing both named Aberdeen City -2 takes and Cars Passing During Rain On A Wet Road-1 (1).wav. Discernible voices still need removal before the revised concept can be auditioned.",
+      "sourceIds": [
+        "0f7b4cf9d8a3314c20a67e9f8032ac0a83b722d74fa961cdee521b9ea88a7bd2",
+        "4636604ef27073542a476156a4efe9da7b4ae481b4c6988db6e1b2a9779b1a78",
+        "502a7be39564828d0a73f4460755232e35e39207fa55442777407c0387a1f8a2",
+        "6008ddf4bc953b564f5e21766210ecb867ba71c53323d1028a369f1c3ccc4ae2",
+        "64538e1493a9eb2141af43b9c4637eff6e3382e244e7cde6b3cde2199e21815c",
+        "8edda7c92f169dab02e57698fa01ec0d7e793a1a235ed0cb7a65e401e4c32a3f",
+        "ba3e062a5813274e512245866ade18d5a9e7175af3a9345a67a5c50ed2ae9058",
+        "c26bed0a93a7a0e831df5d2bca0fcc4769dba961748638d32f61b3fc5b226611",
+        "fe3c86ffbed593999e9b52ffdf78730c92a8146d6ee8459c3ea6e0c5dfd0fb6f"
+      ],
+      "processingRequirements": [
+        {
+          "kind": "remove-discernible-speech",
+          "detail": "Prepare a speech-reduced treatment; unchanged raw recordings must not stand in for the requested result."
+        }
+      ]
+    },
+    {
+      "batchId": "batch-22-tuning-radio",
+      "baseReviewFingerprint": "577f929b5eabdea9ec0ff149b3c22f87cf3fdffc65233c1852197ddc8524ad2d",
+      "state": "ready-to-audition",
+      "summary": "Use the single shared radio source, rename the concept Radio Static, and return with a 10-second crossfade.",
+      "label": "Radio Static",
+      "playbackPolicy": {
+        "kind": "continuous-sequence",
+        "transitionMode": "crossfade",
+        "transitionSeconds": 10
+      }
+    },
+    {
+      "batchId": "batch-23-waves",
+      "baseReviewFingerprint": "f055db45877a3122c4c9b58c2e50848d27885441cca62af27c4dae5fe4d54ba3",
+      "state": "ready-to-audition",
+      "summary": "Use a 6-second crossfade between complete wave recordings and apply transparent constant-gain leveling around the pool median with 1 dB of true-peak headroom.",
+      "playbackPolicy": {
+        "kind": "continuous-sequence",
+        "transitionMode": "crossfade",
+        "transitionSeconds": 6
+      },
+      "levelMatch": {
+        "method": "ffmpeg-ebur128-v1",
+        "toolVersion": "ffmpeg version N-102167-gc99bdbd5c1-g1ab74bc193+1 Copyright (c) 2000-2021 the FFmpeg developers",
+        "targetPolicy": "median-with-true-peak-headroom",
+        "targetIntegratedLoudnessLufs": -26.8,
+        "measurements": [
+          { "sourceId": "0d86b3fee2f0a551978989458ae4a6e0ba2c38f3fab3c5e7db528f471b62b8cd", "durationSeconds": 13.93, "integratedLoudnessLufs": -23.6, "truePeakDbtp": -3.8, "gainDb": -3.2 },
+          { "sourceId": "1634d710cd35a037f7794d1637c2f6379c0df9389597f1e2910742679af848b4", "durationSeconds": 79.69, "integratedLoudnessLufs": -29.4, "truePeakDbtp": -11, "gainDb": 2.6 },
+          { "sourceId": "25e86282105518459c36451dac94478ab6097f5757a0e6deac18ca0d56bebd8f", "durationSeconds": 79.69, "integratedLoudnessLufs": -29.5, "truePeakDbtp": -10.2, "gainDb": 2.7 },
+          { "sourceId": "27e5c9850c56cd5e2f0b858bc2a55b0b6550331092f0882b95014755c5744433", "durationSeconds": 9.9, "integratedLoudnessLufs": -23.3, "truePeakDbtp": -3.8, "gainDb": -3.5 },
+          { "sourceId": "4c1295710829bdf29b4171ca5f3d876cb7a0e7d5ac8494365eee1975a3ee606d", "durationSeconds": 12.17, "integratedLoudnessLufs": -24.6, "truePeakDbtp": -6.2, "gainDb": -2.2 },
+          { "sourceId": "56a555b7d783a0d81707a2066b5a08b256eee1c45356c356c79d51926a8d98f1", "durationSeconds": 79.69, "integratedLoudnessLufs": -29.4, "truePeakDbtp": -11, "gainDb": 2.6 },
+          { "sourceId": "6c94ed2f24ba9a6c18d541a2d969935bc5664983425d7b644e3c96ca26f71168", "durationSeconds": 11.35, "integratedLoudnessLufs": -20.5, "truePeakDbtp": -2.6, "gainDb": -6.3 },
+          { "sourceId": "7cbf754f19f02ebc8ca8dcabbe0676447a93d1a5223d180c48d78d972040bade", "durationSeconds": 13.51, "integratedLoudnessLufs": -20.5, "truePeakDbtp": -2.3, "gainDb": -6.3 },
+          { "sourceId": "919402f5b2191dac0f32610b56f9a05feb327c6ce09c5c11a565874895c34925", "durationSeconds": 79.69, "integratedLoudnessLufs": -31, "truePeakDbtp": -10.3, "gainDb": 4.2 },
+          { "sourceId": "9fb3310ab241cd9118d66894be53b58e7171df9ae5787b4ffa05fe02966bbe4c", "durationSeconds": 104.93, "integratedLoudnessLufs": -32.2, "truePeakDbtp": -12.4, "gainDb": 5.4 },
+          { "sourceId": "adb2e483023b4b7e1ea00963d3a0a27be40144ccc5f762dfa4ab37cea6b6ed52", "durationSeconds": 14.75, "integratedLoudnessLufs": -22, "truePeakDbtp": -3, "gainDb": -4.8 },
+          { "sourceId": "be15506b1fc2067db186c7a4696fa1f2c250f55a77050518a8b890b299c60e50", "durationSeconds": 125.58, "integratedLoudnessLufs": -33.1, "truePeakDbtp": -7.5, "gainDb": 6.3 },
+          { "sourceId": "e59d69f77f64a584a954000309c2a54f9a30473fa714467a4bd72565de2f4d83", "durationSeconds": 15.75, "integratedLoudnessLufs": -28.9, "truePeakDbtp": -7.9, "gainDb": 2.1 },
+          { "sourceId": "f8564c439c8a7ec212bc4045db32d0158642b79c2052d176585252646b35afe1", "durationSeconds": 14.86, "integratedLoudnessLufs": -23.8, "truePeakDbtp": -5.9, "gainDb": -3 }
+        ]
+      }
+    },
+    {
+      "batchId": "batch-24-beach-ambience",
+      "baseReviewFingerprint": "305c16ad2c40dca59ab1ff689247d172a3562acc471484ce56f47f48c880a2d4",
+      "state": "ready-to-audition",
+      "summary": "The otherwise accepted concept now applies checksum-bound attenuation-only level matching across all 14 source identities; raw audio is unchanged.",
+      "levelMatch": {
+        "method": "ffmpeg-ebur128-v1",
+        "toolVersion": "ffmpeg version 9.0-full_build-www.gyan.dev",
+        "targetPolicy": "quietest-input",
+        "targetIntegratedLoudnessLufs": -40.6,
+        "measurements": [
+          { "sourceId": "08f1db22a7367c9bc6a6598a0e3017b08c1dfc16b7dc6861fb6302483751b5ed", "durationSeconds": 79.686, "integratedLoudnessLufs": -40.6, "truePeakDbtp": -12.2, "gainDb": 0 },
+          { "sourceId": "1634d710cd35a037f7794d1637c2f6379c0df9389597f1e2910742679af848b4", "durationSeconds": 79.686, "integratedLoudnessLufs": -29.5, "truePeakDbtp": -11, "gainDb": -11.1 },
+          { "sourceId": "25e86282105518459c36451dac94478ab6097f5757a0e6deac18ca0d56bebd8f", "durationSeconds": 79.686, "integratedLoudnessLufs": -29.5, "truePeakDbtp": -10.2, "gainDb": -11.1 },
+          { "sourceId": "2cdd00bdc3d3be0c4a40d31c4e094b2bb4ad6e3ea8eb403edc93836183eb9f71", "durationSeconds": 81.47, "integratedLoudnessLufs": -37.8, "truePeakDbtp": -4.3, "gainDb": -2.8 },
+          { "sourceId": "56a555b7d783a0d81707a2066b5a08b256eee1c45356c356c79d51926a8d98f1", "durationSeconds": 79.686, "integratedLoudnessLufs": -29.5, "truePeakDbtp": -11, "gainDb": -11.1 },
+          { "sourceId": "5d802b2de856297378365c5033a0909f89a29e8c22e39195d1bf6142203d119e", "durationSeconds": 79.686, "integratedLoudnessLufs": -40.2, "truePeakDbtp": -11.5, "gainDb": -0.4 },
+          { "sourceId": "7ce9cc9a57f43f0e115a36defaf97d5ca59bc0fdf6cafdbc7b08b06126ed4edf", "durationSeconds": 54.96, "integratedLoudnessLufs": -29.2, "truePeakDbtp": 0, "gainDb": -11.4 },
+          { "sourceId": "919402f5b2191dac0f32610b56f9a05feb327c6ce09c5c11a565874895c34925", "durationSeconds": 79.686, "integratedLoudnessLufs": -31.1, "truePeakDbtp": -10.3, "gainDb": -9.5 },
+          { "sourceId": "9cdaf2fae3900a2956f9695a8bb2ef9d8a00698cfab15ef321fb6ae44d52c05e", "durationSeconds": 81.47, "integratedLoudnessLufs": -37.8, "truePeakDbtp": -4.3, "gainDb": -2.8 },
+          { "sourceId": "9fb3310ab241cd9118d66894be53b58e7171df9ae5787b4ffa05fe02966bbe4c", "durationSeconds": 104.933, "integratedLoudnessLufs": -32.2, "truePeakDbtp": -12.4, "gainDb": -8.4 },
+          { "sourceId": "a6e771289e16800e42eddad063ce188091a35721c7d43f8f03221907d14935f8", "durationSeconds": 79.686, "integratedLoudnessLufs": -40.2, "truePeakDbtp": -11.5, "gainDb": -0.4 },
+          { "sourceId": "be15506b1fc2067db186c7a4696fa1f2c250f55a77050518a8b890b299c60e50", "durationSeconds": 125.579, "integratedLoudnessLufs": -33.1, "truePeakDbtp": -7.5, "gainDb": -7.5 },
+          { "sourceId": "d9ac8e804ce2207aedd5aefb43c65afc8efeb4efa17d3e41b24c8a98d1a2f5dd", "durationSeconds": 54.96, "integratedLoudnessLufs": -29.2, "truePeakDbtp": 0, "gainDb": -11.4 },
+          { "sourceId": "e84e8640c32bca8a48974db8a57d23214708f6121e1d1d073ddd0d27fec68146", "durationSeconds": 79.686, "integratedLoudnessLufs": -40.6, "truePeakDbtp": -12.2, "gainDb": 0 }
+        ]
+      }
+    },
+    {
+      "batchId": "batch-25-bus-station-announcements",
+      "baseReviewFingerprint": "5c840fa3184f0868262ddab2370cf8ccbd889251ed9e49c1fa23aecff605fc55",
+      "state": "ready-to-audition",
+      "summary": "Remove announcement 04. Play one complete announcement, fade out for 5 seconds, wait randomly 0–3 seconds, then fade the next one in for 1 second; never overlap. Level-match the four remaining recordings.",
+      "sourceIds": [
+        "37cc06faab4a2ed46e067e012498c2de44c3c90a4a97a3b107252842e803bd1e",
+        "e25ee8261b806c10851b89d46f030b230726a1d9af3b728f0e8687a4d7e3ca71",
+        "eb5524c28b8c0daaa124096aa1f441dd66515e65858f8d54d0affee8b69dd1df",
+        "f4c76d544d5c245e2ebd2d322025bdd8e3ca8ab52cf6a5a1121a97a2feb953ee"
+      ],
+      "playbackPolicy": {
+        "kind": "pause-separated-sequence",
+        "minimumGapSeconds": 0,
+        "maximumGapSeconds": 3,
+        "fadeInSeconds": 1,
+        "fadeOutSeconds": 5
+      },
+      "levelMatch": {
+        "method": "ffmpeg-ebur128-v1",
+        "toolVersion": "ffmpeg version 9.0-full_build-www.gyan.dev",
+        "targetPolicy": "quietest-input",
+        "targetIntegratedLoudnessLufs": -31,
+        "measurements": [
+          { "sourceId": "37cc06faab4a2ed46e067e012498c2de44c3c90a4a97a3b107252842e803bd1e", "durationSeconds": 62.158, "integratedLoudnessLufs": -28.7, "truePeakDbtp": -11, "gainDb": -2.3 },
+          { "sourceId": "e25ee8261b806c10851b89d46f030b230726a1d9af3b728f0e8687a4d7e3ca71", "durationSeconds": 45.027, "integratedLoudnessLufs": -29.8, "truePeakDbtp": -6.2, "gainDb": -1.2 },
+          { "sourceId": "eb5524c28b8c0daaa124096aa1f441dd66515e65858f8d54d0affee8b69dd1df", "durationSeconds": 31.813, "integratedLoudnessLufs": -28.2, "truePeakDbtp": -10.4, "gainDb": -2.8 },
+          { "sourceId": "f4c76d544d5c245e2ebd2d322025bdd8e3ca8ab52cf6a5a1121a97a2feb953ee", "durationSeconds": 35.728, "integratedLoudnessLufs": -31, "truePeakDbtp": -11.3, "gainDb": 0 }
+        ]
+      }
+    },
+    {
+      "batchId": "batch-26-choir-ambience",
+      "baseReviewFingerprint": "549ef87c46d63328f11949d0bee1b4381210fb2f89785b0ac07014f9bd7a29dd",
+      "state": "ready-to-audition",
+      "summary": "Use all five distinct Choirs_Children_Ambience recordings from the source library. The Serbian recordings remain separated into Batch 37.",
+      "label": "Children’s Choir Ambience",
+      "sourceAdditions": [
+        {
+          "sourceId": "3b9ce185c53d5fadf761a03cb8baf4c4680af19af7ca6a5afe295de834192246",
+          "relativePath": "SS_Choirs_Vocals_SFX_Teaser_CC0/SS_Choirs_Vocals_SFX_Teaser_CC0/Choirs_Children_Ambience_-01.wav"
+        },
+        {
+          "sourceId": "a2900a59684c5278177cd36486718219f815007c439035934a9aff0656c601eb",
+          "relativePath": "SS_Choirs_Vocals_SFX_Teaser_CC0/SS_Choirs_Vocals_SFX_Teaser_CC0/Choirs_Children_Ambience_-03.wav"
+        },
+        {
+          "sourceId": "d7b83d1423198f48c3d79e17f2b2d629cb4d5fcb62c04a7710960041649fcbab",
+          "relativePath": "SS_Choirs_Vocals_SFX_Teaser_CC0/SS_Choirs_Vocals_SFX_Teaser_CC0/Choirs_Children_Ambience_-05.wav"
+        }
+      ],
+      "sourceIds": [
+        "19623db5fb24c83f9170b8d53fa2fdbf5d46add9f6f178f30880adf57647f4d6",
+        "3b9ce185c53d5fadf761a03cb8baf4c4680af19af7ca6a5afe295de834192246",
+        "7c44430a07039776e2946bcdafe41b68d0e88f8e3ea95ec60cb10a6c03282fdd",
+        "a2900a59684c5278177cd36486718219f815007c439035934a9aff0656c601eb",
+        "d7b83d1423198f48c3d79e17f2b2d629cb4d5fcb62c04a7710960041649fcbab"
+      ]
+    },
+    {
+      "batchId": "batch-27-church-bells",
+      "baseReviewFingerprint": "0d69a63bb769d0aa84e26181570fbb650d6121c18ed907cb9c196cdad0acb552",
+      "state": "ready-to-audition",
+      "summary": "Apply transparent overall gain only—no EQ, compression, filtering, or rewritten audio—to level the four church-bell recordings around the pool median with 1 dB of true-peak headroom. Increase the complete-recording crossfade to 15 seconds to address the odd w-03.wav transition.",
+      "playbackPolicy": {
+        "kind": "continuous-sequence",
+        "transitionMode": "crossfade",
+        "transitionSeconds": 15
+      },
+      "levelMatch": {
+        "method": "ffmpeg-ebur128-v1",
+        "toolVersion": "ffmpeg version 9.0-full_build-www.gyan.dev",
+        "targetPolicy": "median-with-true-peak-headroom",
+        "targetIntegratedLoudnessLufs": -26.2,
+        "measurements": [
+          { "sourceId": "03c2d284a781b73ea143190f4e14a61a69601bc21c083a22411e3883c074c96e", "durationSeconds": 41.311, "integratedLoudnessLufs": -29.1, "truePeakDbtp": -5.2, "gainDb": 2.9 },
+          { "sourceId": "353fd1303f56fb2d0afcc8a7b0a48fdade14218cc1687ff5aab04e0ac05319c1", "durationSeconds": 33.481, "integratedLoudnessLufs": -23.3, "truePeakDbtp": -2.5, "gainDb": -2.9 },
+          { "sourceId": "63dd7314ba97cc2863910428c47ed590af3d6ec576022e0c642b470493147715", "durationSeconds": 51.067, "integratedLoudnessLufs": -14.4, "truePeakDbtp": 0, "gainDb": -11.8 },
+          { "sourceId": "e920a690083d3682c416a03867108a47809c49c53a609c3001b9288c1524a666", "durationSeconds": 31.79, "integratedLoudnessLufs": -38.9, "truePeakDbtp": -18.8, "gainDb": 12.7 }
+        ]
+      }
+    },
+    {
+      "batchId": "batch-30-fireplace",
+      "baseReviewFingerprint": "103298974a48abe7cdb38ad701a2e04f49d5545e46e06f034d12211b25a445a7",
+      "state": "ready-to-audition",
+      "summary": "Apply checksum-bound attenuation-only level matching across the three fireplace recordings.",
+      "levelMatch": {
+        "method": "ffmpeg-ebur128-v1",
+        "toolVersion": "ffmpeg version 9.0-full_build-www.gyan.dev",
+        "targetPolicy": "quietest-input",
+        "targetIntegratedLoudnessLufs": -33,
+        "measurements": [
+          { "sourceId": "1b729e655032b74bbb2abe98314dedbad38f581e9f8affc3bc4d586efad179b4", "durationSeconds": 24.96, "integratedLoudnessLufs": -23.1, "truePeakDbtp": -1, "gainDb": -9.9 },
+          { "sourceId": "76c84c498de97afbcd9c16c3e6a1a98ea45be3e1f4bfe6c941f6b8e63abfc62b", "durationSeconds": 369.5, "integratedLoudnessLufs": -33, "truePeakDbtp": 0.1, "gainDb": 0 },
+          { "sourceId": "dc203f5a87481e5e24a616181b86c905b3c2d6ce81300065576d450e0798f1b9", "durationSeconds": 47.554, "integratedLoudnessLufs": -25.4, "truePeakDbtp": 0.3, "gainDb": -7.6 }
+        ]
+      }
+    },
+    {
+      "batchId": "batch-31-forest-atmosphere",
+      "baseReviewFingerprint": "0a583a3792fc8cbcbb947225425baa5797760ee7ae48ab4234a981b9965987d5",
+      "state": "ready-to-audition",
+      "summary": "Increase the complete-recording crossfade to 3 seconds.",
+      "playbackPolicy": {
+        "kind": "continuous-sequence",
+        "transitionMode": "crossfade",
+        "transitionSeconds": 3
+      }
+    },
+    {
+      "batchId": "batch-32-grocery-store",
+      "baseReviewFingerprint": "16a564b13bb4690ea6726f06cf5768f19a9b65d40c5d3019751ec56e33537977",
+      "state": "retired",
+      "summary": "Grocery Store is the exact same four-source, 10-second-crossfade concept as Supermarket.",
+      "redirectToBatchId": "batch-20-supermarket"
+    },
+    {
+      "batchId": "batch-34-keys-jingling",
+      "baseReviewFingerprint": "354ec0b129f6f012527ebeef363cde803a9c60ccbe1e06762ec503288ceacfdc",
+      "state": "ready-to-audition",
+      "summary": "Trigger keys-jingling events at 90 events per minute while retaining the existing 30% timing variation.",
+      "playbackPolicy": {
+        "kind": "cadence",
+        "eventsPerMinute": 90,
+        "jitterPercent": 30
+      }
+    },
+    {
+      "batchId": "batch-35-london-ambience",
+      "baseReviewFingerprint": "6b2dc8a871c3a8d63947f0f532c1f5a3275e512cda3afad27216dae27cbdc057",
+      "state": "processing-required",
+      "summary": "Prepare a real speech-reduced treatment before this concept is auditioned again; unchanged raw recordings must not stand in for the requested result.",
+      "processingRequirements": [
+        {
+          "kind": "remove-discernible-speech",
+          "detail": "Use a source-separation treatment to make speech substantially less discernible while retaining the London ambience."
+        }
+      ]
+    },
+    {
+      "batchId": "batch-36-lunar-wind",
+      "baseReviewFingerprint": "008e5655762ebd2fe64e8641e40d11d22574971c056707c996d03a9bdd0dd1f3",
+      "state": "ready-to-audition",
+      "summary": "Audition a strict cap of four audible recordings, chosen randomly and started within a 10-second stagger window; use 10-second crossfades without cutting a full source.",
+      "playbackPolicy": {
+        "kind": "layered-sequence",
+        "maximumConcurrentVoices": 4,
+        "transitionMode": "crossfade",
+        "transitionSeconds": 10,
+        "initialStartWindowSeconds": 10
+      }
+    },
+    {
+      "batchId": "batch-37-orthodox-choir",
+      "baseReviewFingerprint": "573eb3142562faef2a6e9a73a4a6b34a84d2a17bb34ae06546cd26389cb45cfc",
+      "state": "ready-to-audition",
+      "summary": "Remove the unnumbered, -17, _4, and -18 recordings. Audition a strict cap of two randomly chosen recordings with 4-second crossfades.",
+      "sourceIds": [
+        "12791b8e5cdea514cec3a37ddb0d03a19123dd350664e5497f1f432eee621787",
+        "3f3e60c79f039d59d0dc24b1b53127d9c3436583cc7832fd5de1331aa0b61f16",
+        "476e35dc0c684b73b19597a24c98e86911517a1a4eee55b36e983aa0d0bb8a32",
+        "555bcbe1f1d58b9964f7bf1acdcefcd04534b7d7a9ad410d2ea5d8a5ea3fa17a",
+        "7320d314234ca44623e866e9e028fb757d8869a5cdbd00b3ac7cb8b9597b993a",
+        "813d65bbf37fdd8984ca6b5ff8d5a4eb0be753a21f9ca53ad6f21936487898e1",
+        "c6695018209bb68314b4195eac880b8d5eab640ca091bc88ea9a2cd7226462dd",
+        "cafec305343c22edd651604c644297b7b30f12f2bc17166732eef696a6b2ff4c",
+        "d7a82520a482623a6a66f273af70f7d962eac7ae733a016b5ef1774ed93c8508",
+        "dce6f43477fa0beff467f85c2576965a2f9bb0d0858e5a4fe8bc04c3ff93c1ad",
+        "e6e011399c2d85ba5d490f37b72640c8af279398be99a4805e43bdf7368dc83c",
+        "f0722f28d26b1a84ad787d09ff177348875c75af46299072a9feb0418b38bd39",
+        "f94dc2f7384ccbfe0cd1ca6a1124273ceeaa7fb8b580a224f36e9008aee48775",
+        "f980d1ea966247c999f7af9991e1348d6df19d1a4fc9e60362ffc1a2d551ea71"
+      ],
+      "playbackPolicy": {
+        "kind": "layered-sequence",
+        "maximumConcurrentVoices": 2,
+        "transitionMode": "crossfade",
+        "transitionSeconds": 4,
+        "initialStartWindowSeconds": 3
+      }
+    },
+    {
+      "batchId": "batch-39-radio-static",
+      "baseReviewFingerprint": "50dc6e71a9344076c2cc5626e22388010a9a25ae3591e19df224755b5a0e5ec5",
+      "state": "retired",
+      "summary": "This batch duplicates the single source now named Radio Static in Batch 22.",
+      "redirectToBatchId": "batch-22-tuning-radio"
+    },
+    {
+      "batchId": "batch-40-roadside",
+      "baseReviewFingerprint": "57bb788ae7d1d019f6290a16c60fda6487e4622b59fba144466244c04fd8c069",
+      "state": "retired",
+      "summary": "Traffic already contains all nine Roadside sources plus three additional city recordings.",
+      "redirectToBatchId": "batch-21-traffic"
+    },
+    {
+      "batchId": "batch-41-school-playground",
+      "baseReviewFingerprint": "beff629bca0466b407daaa732ef4798bb5a85720f117e4410d7f5e81b8004ac4",
+      "state": "ready-to-audition",
+      "summary": "Choose a new random window inside 0:15–1:13 at every boundary; each window is at least 15 seconds and returns through a 3-second crossfade.",
+      "playbackPolicy": {
+        "kind": "random-region-loop",
+        "regionStartSeconds": 15,
+        "regionEndSeconds": 73,
+        "minimumLoopSeconds": 15,
+        "crossfadeSeconds": 3
+      }
+    },
+    {
+      "batchId": "batch-42-space-tension-bed",
+      "baseReviewFingerprint": "411d176e60fd51ffad54e593ec4ebf4ffdfd6de633b74b846003b8f74acb4e1c",
+      "state": "ready-to-audition",
+      "summary": "Audition a strict cap of three randomly chosen recordings with 3-second crossfades.",
+      "playbackPolicy": {
+        "kind": "layered-sequence",
+        "maximumConcurrentVoices": 3,
+        "transitionMode": "crossfade",
+        "transitionSeconds": 3,
+        "initialStartWindowSeconds": 3
+      }
+    },
+    {
+      "batchId": "batch-43-spaceship-interior",
+      "baseReviewFingerprint": "3b4d88c06932a965800ee43dc8de4aa5d1890e647ed11100940d2ca084db20df",
+      "state": "ready-to-audition",
+      "summary": "Remove Track 2 and its ten sources. Keep Track 1 as a single nine-source random sequence with 3-second crossfades. SFX 1, 12, and 13 remain removed.",
+      "sourceIds": [
+        "f9fe58e10041a8a9852ec60b91dcd60e279abbb5764c6d3d7f222097423a0b6f",
+        "1e3fb013ef40b9e93a7a8f543744a5a8647f58e9c40662ede3b49edb92149cf4",
+        "f4c4a6afd5124a57fc6a2531c089b43fbe53545048a38efa60e2982977919792",
+        "284622bcc07f4c7205fa475d582d1cc16f9c4404325c48f87427e8bc131a18c3",
+        "b61f0f583d932bd250720c84770fb434f6a52aa2b876eb43240ece21674d1088",
+        "df139129464f2951c4c07354bf4707347b21358e245f47352cd4cf8cf5ced24a",
+        "ce93a349737058ddd56bb5e7669d7418a72fa9fee2c45e82b958a097da254f6f",
+        "d4a61d281393369464ae25b5db73d5cfcee9d227c70d7ec423798dcf3f0a2919",
+        "1d962028df0f0bb3b5c2d39b91772757260f2cc5d9f6afe2dae40759cce9112f"
+      ],
+      "playbackPolicy": {
+        "kind": "continuous-sequence",
+        "transitionMode": "crossfade",
+        "transitionSeconds": 3
+      }
+    },
+    {
+      "batchId": "batch-45-stadium-crowd",
+      "baseReviewFingerprint": "f1e4fe1561a6c6bf31996391a5f7a56ded0aeab1d9e03ed24869cd18ef2326bd",
+      "state": "processing-required",
+      "summary": "Control cheering and shout spikes within each recording, level-match the six-source pool, and use 15-second crossfades.",
+      "playbackPolicy": {
+        "kind": "continuous-sequence",
+        "transitionMode": "crossfade",
+        "transitionSeconds": 15
+      },
+      "processingRequirements": [
+        {
+          "kind": "remove-discernible-speech",
+          "detail": "Prepare a speech-reduced comparison that preserves the wanted stadium crowd bed."
+        },
+        {
+          "kind": "dynamic-range-control",
+          "detail": "Prepare a dynamics-controlled variant that reduces major cheer and shout spikes without flattening the crowd bed."
+        },
+        {
+          "kind": "level-match",
+          "detail": "Level-match the treated recordings across the exact pool."
+        }
+      ]
+    },
+    {
+      "batchId": "batch-46-subway-interior",
+      "baseReviewFingerprint": "e208917e738b28f67ee478d4706d12cc3cc2b0c23d645368b3117a9bc37b3658",
+      "state": "ready-to-audition",
+      "summary": "Level-match the four recordings, including the much quieter On the tube, interior source, and use a 20-second crossfade.",
+      "playbackPolicy": {
+        "kind": "continuous-sequence",
+        "transitionMode": "crossfade",
+        "transitionSeconds": 20
+      },
+      "levelMatch": {
+        "method": "ffmpeg-ebur128-v1",
+        "toolVersion": "ffmpeg version 9.0-full_build-www.gyan.dev",
+        "targetPolicy": "quietest-input",
+        "targetIntegratedLoudnessLufs": -27.5,
+        "measurements": [
+          { "sourceId": "b48242fb86e004219d230b26ac0a5aefa57eb21c51154ebb3c271b78cc757cbe", "durationSeconds": 556.407, "integratedLoudnessLufs": -27.5, "truePeakDbtp": -3.7, "gainDb": 0 },
+          { "sourceId": "c1ad29ea523f4357d714dd0aff6ecf11b4ec0807a57187e60bc4bf9c151e366a", "durationSeconds": 19.873, "integratedLoudnessLufs": -14.9, "truePeakDbtp": 0, "gainDb": -12.6 },
+          { "sourceId": "c2e529e6b1240104a2eea842f28e5ea468b45a86f0d0eabe7d9931c2d82b7d0f", "durationSeconds": 150.692, "integratedLoudnessLufs": -24, "truePeakDbtp": -4.8, "gainDb": -3.5 },
+          { "sourceId": "c5d8a0ae34b8971187833c9597d35dfef74293618ce4fd9e00a000b462e79611", "durationSeconds": 19.873, "integratedLoudnessLufs": -14.9, "truePeakDbtp": 0, "gainDb": -12.6 }
+        ]
+      }
+    },
+    {
+      "batchId": "batch-47-train-station",
+      "baseReviewFingerprint": "b0316cac34a0894be338736627eb7165016743add30e559200a468c62b277aeb",
+      "state": "insufficient-sources",
+      "summary": "Keep the concept and its sole exact source, but hold it outside production because one recording is not enough."
+    },
+    {
+      "batchId": "batch-48-train-station-announcements",
+      "baseReviewFingerprint": "67f1bdef1a26756f3be79050ae6db928c51de8bc163c58c56d080a4a327643bf",
+      "state": "retired",
+      "summary": "Move both Waverly announcement recordings into Transit Announcements.",
+      "redirectToBatchId": "batch-49-transit-announcements"
+    },
+    {
+      "batchId": "batch-49-transit-announcements",
+      "baseReviewFingerprint": "72d1c2a40add392104b96eb2822ccdabfc1bce2f294fe5b5cbd9346f2cdc704c",
+      "state": "ready-to-audition",
+      "summary": "Remove both Waverly Automated Announcement recordings. Keep only 0:00–0:06 of The next station is - Announcement. 2.wav; everything after six seconds is excluded from the audition without changing the source file.",
+      "sourceIds": [
+        "1c896a59897fe5fd4f2aee2b54366d6b3b48960021b68123599ac56d9e50c8a7",
+        "49d34e6622e65e2e4017644189b86a7d2015a2159361171dd5c1f334856a91cd",
+        "9a05350733c10deebb6b2a71e6245b8bde191fcca0a327ef72b515a20b547ac7",
+        "fe21f5148e3223f18745809bd41fd734aec8300aa54df11add5c304d92620977"
+      ],
+      "sourceTrims": [
+        {
+          "sourceId": "9a05350733c10deebb6b2a71e6245b8bde191fcca0a327ef72b515a20b547ac7",
+          "startSeconds": 0,
+          "endSeconds": 6,
+          "fadeInSeconds": 0,
+          "fadeOutSeconds": 0
+        }
+      ]
+    },
+    {
+      "batchId": "batch-50-vintage-radio-broadcast",
+      "baseReviewFingerprint": "98a26c336f4749822e5b0fd332f390e0d364c96e4226a7193883ba12d8df025c",
+      "state": "ready-to-audition",
+      "summary": "Increase the complete-recording crossfade to 4 seconds.",
+      "playbackPolicy": {
+        "kind": "continuous-sequence",
+        "transitionMode": "crossfade",
+        "transitionSeconds": 4
+      }
+    },
+    {
+      "batchId": "batch-51-waterfront-cafe",
+      "baseReviewFingerprint": "51790f7fa5641b7661ec4181d6788d1668721ca1907388e0d2b1605dbbd1278a",
+      "state": "ready-to-audition",
+      "summary": "Choose a new random window inside 0:05–3:10 at every boundary; each window is at least 20 seconds and returns through a 10-second crossfade.",
+      "playbackPolicy": {
+        "kind": "random-region-loop",
+        "regionStartSeconds": 5,
+        "regionEndSeconds": 190,
+        "minimumLoopSeconds": 20,
+        "crossfadeSeconds": 10
+      }
+    }
+  ]
+}

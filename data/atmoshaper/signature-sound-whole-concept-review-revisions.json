@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "reviewKind": "whole-concept-review-revisions",
+  "constructionReviewSha256": "a3e782b6c1c2d808bd7e8214cb655163f1bdfbc473318ae0ac9c916ccb84954d",
+  "entries": [
+    {
+      "batchId": "batch-09-washing-machine",
+      "baseReviewFingerprint": "cf4dbc5873470f9ef2b7c50caa36e0f4c21a4734744487892fc8c495173d625b",
+      "kind": "opening-then-loop",
+      "state": "needs-timing",
+      "summary": "Play the opening once, then repeat a matching loop region. Use the timeline to choose the loop start and end; no loop points have been guessed."
+    },
+    {
+      "batchId": "batch-11-room-tone",
+      "baseReviewFingerprint": "9f02c8d9bc83f1854db8f56b233d659aaed7c91b8843fa6353c94cab39d7927e",
+      "kind": "source-level-match",
+      "state": "ready-to-audition",
+      "summary": "Attenuation-only EBU R128 level match to the quietest included recording; no source is amplified and no audio file is rewritten.",
+      "measurementMethod": "ffmpeg-ebur128-v1",
+      "toolVersion": "ffmpeg version 9.0-full_build-www.gyan.dev",
+      "targetPolicy": "quietest-input",
+      "targetIntegratedLoudnessLufs": -60.8,
+      "measurements": [
+        {
+          "sourceId": "1be27634a5136979ed5e43b9219050b1a07fa7bdb62b03d9d0c28ef86f74b5ff",
+          "durationSeconds": 57.504,
+          "integratedLoudnessLufs": -54.7,
+          "truePeakDbtp": -41.8,
+          "gainDb": -6.1
+        },
+        {
+          "sourceId": "5787d563421fdb6aaa587504dd3827b14d9ad04549463718e0aa43d86703461d",
+          "durationSeconds": 107.539417,
+          "integratedLoudnessLufs": -41.6,
+          "truePeakDbtp": -12.1,
+          "gainDb": -19.2
+        },
+        {
+          "sourceId": "64bc8e2bfc96adaccfb6c95206735ea2760a3dc23cd3e91f44ea1c4fdabeaaf8",
+          "durationSeconds": 60.662125,
+          "integratedLoudnessLufs": -54.4,
+          "truePeakDbtp": -22.1,
+          "gainDb": -6.4
+        },
+        {
+          "sourceId": "87b48c0929819df48790c722d8b212540d596dc5ca849a1301ae21ba7a232986",
+          "durationSeconds": 118.700408,
+          "integratedLoudnessLufs": -39.5,
+          "truePeakDbtp": -5.9,
+          "gainDb": -21.3
+        },
+        {
+          "sourceId": "a4d5af905e63752ce468cdf5471a750d582a69045eecfc71e62c8ccc9f1ad6e5",
+          "durationSeconds": 97.24,
+          "integratedLoudnessLufs": -60.8,
+          "truePeakDbtp": -27.5,
+          "gainDb": 0
+        },
+        {
+          "sourceId": "a724486fba5e2b33a9620688c170781c8d6f3348dc276d6fbfe95fb1f13cb7e1",
+          "durationSeconds": 17.967063,
+          "integratedLoudnessLufs": -49.1,
+          "truePeakDbtp": -36.3,
+          "gainDb": -11.7
+        }
+      ]
+    },
+    {
+      "batchId": "batch-15-experimental-atmosphere",
+      "baseReviewFingerprint": "22e64e37fce67a70a1feb643262f64ac37d4f4e47b0d10d4e9f614355061ceda",
+      "kind": "full-length-random-overlap",
+      "state": "ready-to-audition",
+      "summary": "Start the next whole recording randomly 2–6 seconds before the current one ends. Use plain overlap: no crossfade and no triggered recording is cut off.",
+      "minimumOverlapSeconds": 2,
+      "maximumOverlapSeconds": 6,
+      "preserveFullLengthOverlaps": true
+    }
+  ]
+}

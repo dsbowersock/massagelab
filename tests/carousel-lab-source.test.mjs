@@ -389,7 +389,7 @@ describe("Carousel Lab source boundaries", () => {
     assert.doesNotMatch(favoritesSurface, /Add \{centeredStation\.title\} to favorites/)
   })
 
-  it("bookends the Station categories with Favorites and the branded Atmoshaper preview", () => {
+  it("bookends the Station categories with Favorites and the integrated AtmoShaper workspace", () => {
     const carousel = read("components/atmosphere/station-carousel.tsx")
     const workspace = read("app/browse/workspace.tsx")
 
@@ -407,7 +407,10 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(carousel, /data-special-state="favorites"/)
     assert.match(carousel, /title: "Atmoshaper"/)
     assert.match(carousel, /Layer ambient sounds into your own soundscape\./)
-    assert.match(carousel, /<strong>Coming soon<\/strong>/)
+    assert.match(carousel, /import \{ AtmoShaperWorkspace \}/)
+    assert.match(carousel, /isAtmoshaperCategory \? \(\s*<AtmoShaperWorkspace \/>/)
+    assert.doesNotMatch(carousel, /Coming soon|atmoshaper-coming-soon/)
+    assert.match(workspace, /atmosphereCarouselView === "stations"[\s\S]*?<AtmosphereFavoritesSpeedDial/)
     assert.match(carousel, /stationGroupIdByStationId\.get\(station\.id\) \?\? group\.id/)
     assert.match(carousel, /\[constrainedLandscape, group\?\.id, stationItems\.length\]/)
     assert.match(carousel, /onViewChange\?\.\(nextView\)[\s\S]*?setGroupId\(nextGroupId\)/)

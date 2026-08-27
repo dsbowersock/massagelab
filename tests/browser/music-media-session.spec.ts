@@ -150,7 +150,13 @@ async function canonicalArtworkHash(page: Page, stationId: string) {
 
 let actualRuntimeModulePathPromise: Promise<string> | null = null
 
-/** Resolves the current production chunk that owns the activation-sensitive proof runtime. */
+/**
+ * Resolves the dedicated activation-sensitive proof-runtime chunk.
+ *
+ * AtmoShaper's station adapter also embeds these proof-runtime exports, so the
+ * negative export check prevents filesystem enumeration order from selecting
+ * the larger mixer chunk that is not loaded by ordinary station startup.
+ */
 async function getActualRuntimeModulePath() {
   actualRuntimeModulePathPromise = actualRuntimeModulePathPromise ?? (async () => {
     const chunkDirectory = new URL("../../.next/static/chunks/", import.meta.url)
@@ -161,6 +167,7 @@ async function getActualRuntimeModulePath() {
       if (
         source.includes('"startToneProofDrone",0')
         && source.includes('"getToneProofDroneDiagnostics",0')
+        && !source.includes('"createAtmoShaperRuntime",0')
       ) {
         return `/_next/static/chunks/${entry.name}`
       }
@@ -520,7 +527,11 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
       if (typeof resume === "function") {
         replaceMethod(context, "resume", function (this: object, ...args: unknown[]) {
           recordAudioContextResumeAttempt()
-          if (fakeOptions.requireAudioContextResumeInPlayTurn && !initiatingPlayTurn) {
+          if (
+            fakeOptions.requireAudioContextResumeInPlayTurn
+            && Reflect.get(this, "state") !== "running"
+            && !initiatingPlayTurn
+          ) {
             return Promise.reject(new DOMException("AudioContext resume lost user activation", "NotAllowedError"))
           }
           forcedSuspendedContexts.set(this, false)
@@ -804,7 +815,11 @@ async function installMediaOwnershipFakes(page: Page, options: MediaOwnershipFak
         decodeAudioData() { return Promise.resolve(new FakeAudioBuffer({ length: 1, sampleRate: this.sampleRate })) }
         async resume() {
           recordAudioContextResumeAttempt()
-          if (fakeOptions.requireAudioContextResumeInPlayTurn && !initiatingPlayTurn) {
+          if (
+            fakeOptions.requireAudioContextResumeInPlayTurn
+            && this.state !== "running"
+            && !initiatingPlayTurn
+          ) {
             throw new DOMException("AudioContext resume lost user activation", "NotAllowedError")
           }
           this.state = "running"
@@ -1252,7 +1267,7 @@ for (const activation of ["tap", "click", "keyboard Enter", "keyboard Space"] as
       if (activation === "tap") await expect(page.getByRole("dialog")).toHaveCount(0)
       await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
       await expect(toolbar).toHaveAttribute("data-playback-state", /loading|playing/)
-      await expect(toolbar.getByRole("button", { name: "Stop", exact: true })).toBeVisible()
+      await expect(toolbar.getByRole("button", { name: /^(Cancel loading|Stop)$/ })).toBeVisible()
       await expect.poll(async () => (await readProbe(page)).audioContext.generatorGeneration)
         .toBeGreaterThan(0)
       const firstGeneratorGeneration = (await readProbe(page)).audioContext.generatorGeneration
@@ -1587,6 +1602,32 @@ test("one cold touch starts the generator while carrier readiness is held", asyn
   await releaseHeldCarrierPlay(page)
   await expect(page.getByTestId("music-player-toolbar")).toHaveAttribute("data-playback-state", "playing")
   expect((await readProbe(page)).audio.playCalls).toBe(1)
+})
+
+test("one cold AtmoShaper Play unlocks audio before lazy mixer startup", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Physical-touch activation is mobile-owned.")
+  await installMediaOwnershipFakes(page, {
+    requireAudioContextResumeInPlayTurn: true,
+  })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+
+  await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined)
+  const atmoShaperCategory = page.getByRole("group", { name: "Station category" })
+    .getByRole("button", { name: "Atmoshaper", exact: true })
+  await atmoShaperCategory.click()
+  await expect(atmoShaperCategory).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByRole("heading", { name: "Sound Library", exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Add White noise", exact: true }).click()
+
+  const play = page.getByRole("button", { name: "Play AtmoShaper", exact: true }).first()
+  await expect(play).toBeEnabled({ timeout: 30_000 })
+  const resumeAttemptsBeforePlay = (await readProbe(page)).audioContext.resumeAttempts.length
+  await play.tap()
+
+  await expect(page.getByTestId("music-player-toolbar")).toHaveAttribute("data-playback-state", "playing")
+  const newResumeAttempts = (await readProbe(page)).audioContext.resumeAttempts.slice(resumeAttemptsBeforePlay)
+  expect(newResumeAttempts.length).toBeGreaterThanOrEqual(1)
+  expect(newResumeAttempts[0]).toMatchObject({ sameInitiatingTurn: true })
 })
 
 test("fresh-page cold runtime exposes only an activation-safe centered Play action", async ({ page }, testInfo) => {
@@ -2061,6 +2102,8 @@ test("unbounded playback keeps position absent while Playing and clears prior st
 
   await expect.poll(async () => (await readProbe(page)).audio.playCalls).toBe(1)
   await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+  await expect(player.getByRole("button", { name: "Pause", exact: true })).toBeVisible()
+  await expect(player.getByRole("button", { name: "Stop", exact: true })).toBeVisible()
   await expect.poll(async () => page.evaluate(() => {
     const probe = Reflect.get(window, "__massagelabMediaProbe") as MediaProbe
     return {

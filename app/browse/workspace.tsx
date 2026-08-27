@@ -194,14 +194,16 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
               onCenteredStationChange={setCenteredStationId}
               onViewChange={setAtmosphereCarouselView}
             />
-            <div className="ml-atmosphere-favorites-slot">
-              <AtmosphereFavoritesSpeedDial
-                busy={music.playbackState === "loading"}
-                favoriteIds={music.favorites}
-                onPlayStation={(stationId) => { void music.playStation(stationId) }}
-                playingStationId={music.playbackState === "playing" ? music.activeStationId : null}
-              />
-            </div>
+            {atmosphereCarouselView === "stations" ? (
+              <div className="ml-atmosphere-favorites-slot">
+                <AtmosphereFavoritesSpeedDial
+                  busy={music.playbackState === "loading"}
+                  favoriteIds={music.favorites}
+                  onPlayStation={(stationId) => { void music.playStation(stationId) }}
+                  playingStationId={music.playbackState === "playing" ? music.activeStationId : null}
+                />
+              </div>
+            ) : null}
           </div>
         ) : (
           stationGroups.map((group) => (

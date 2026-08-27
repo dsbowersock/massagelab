@@ -1,0 +1,285 @@
+// @ts-check
+
+import {
+  ATMOSHAPER_EXCLUSIVE_KINDS,
+  addAtmoShaperLayer,
+  createAtmoShaperRecipe,
+  removeAtmoShaperLayer,
+} from "../../lib/atmoshaper/recipe.js"
+
+/** @typedef {import("../../lib/atmoshaper/recipe.js").AtmoShaperLayer} AtmoShaperLayer */
+/** @typedef {import("../../lib/atmoshaper/recipe.js").AtmoShaperRecipe} AtmoShaperRecipe */
+/** @typedef {{ key: string, layer: AtmoShaperLayer, retained: boolean }} AtmoShaperVisibleRow */
+
+export const ATMOSHAPER_ROOMY_INLINE_REM = 42
+export const ATMOSHAPER_ROOMY_BLOCK_REM = 32
+
+/** Places Current Mix away from the configured application sidebar. @param {"left" | "right"} sidebarPosition */
+export function oppositeAtmoShaperEdge(sidebarPosition) {
+  return sidebarPosition === "right" ? "left" : "right"
+}
+
+/**
+ * Uses only measured workspace geometry. Root font size keeps the rem contract
+ * honest when text enlargement changes the usable threshold in CSS pixels.
+ *
+ * @param {{ inlineSize: number, blockSize: number, rootFontSize?: number }} input
+ * @returns {"roomy" | "narrow"}
+ */
+export function resolveAtmoShaperDrawerMode({
+  inlineSize,
+  blockSize,
+  rootFontSize = 16,
+}) {
+  return inlineSize >= ATMOSHAPER_ROOMY_INLINE_REM * rootFontSize
+    && blockSize >= ATMOSHAPER_ROOMY_BLOCK_REM * rootFontSize
+    ? "roomy"
+    : "narrow"
+}
+
+/** Opens discovery only for the first committed layer transition. @param {number} previousLayerCount @param {number} nextLayerCount */
+export function shouldAutoOpenAtmoShaperDrawer(previousLayerCount, nextLayerCount) {
+  return previousLayerCount === 0 && nextLayerCount === 1
+}
+
+/**
+ * Revalidates a drawer opener at the moment focus will be restored. A button
+ * can become disabled, hidden, inert, or detached while an async Add settles.
+ *
+ * @param {HTMLElement | null | undefined} element
+ */
+export function isAtmoShaperFocusRestoreTarget(element) {
+  if (!element?.isConnected) return false
+  if (element.matches(":disabled")
+    || ("disabled" in element && element.disabled === true)
+    || element.getAttribute("aria-disabled") === "true") return false
+  if (element.closest("[inert], [hidden], [aria-hidden='true'], [aria-disabled='true']")) return false
+
+  const view = element.ownerDocument.defaultView
+  if (!view) return false
+  const style = view.getComputedStyle(element)
+  if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse") {
+    return false
+  }
+  return element.getClientRects().length > 0
+}
+
+/**
+ * Reuses the provider-owned live recipe on a conditional workspace remount.
+ * A new id is allocated only when there is no retained AtmoShaper owner.
+ *
+ * @param {{ activePlaybackKind: "station" | "atmoshaper" | null, retainedRecipe: AtmoShaperRecipe | null, createId: () => string }} input
+ */
+export function initializeAtmoShaperWorkspaceRecipe({
+  activePlaybackKind,
+  retainedRecipe,
+  createId,
+}) {
+  if (activePlaybackKind === "atmoshaper" && retainedRecipe) return retainedRecipe
+  return createAtmoShaperRecipe({ id: createId() })
+}
+
+/**
+ * Prevents a locally initialized or edited recipe from mutating a different
+ * live AtmoShaper owner. Explicit Play transfers provider ownership first.
+ *
+ * @param {{ activePlaybackKind: "station" | "atmoshaper" | null, localRecipeId: string, providerRecipeId: string | null }} input
+ */
+export function shouldSyncAtmoShaperWorkspaceRecipe({
+  activePlaybackKind,
+  localRecipeId,
+  providerRecipeId,
+}) {
+  return activePlaybackKind !== "atmoshaper" || providerRecipeId === localRecipeId
+}
+
+/**
+ * Chooses transport without pausing or restarting a foreign active mix.
+ *
+ * @param {{ activePlaybackKind: "station" | "atmoshaper" | null, localRecipeId: string, playbackState: string, providerRecipeId: string | null }} input
+ * @returns {"pause" | "restart" | "play"}
+ */
+export function atmoShaperWorkspaceTransportAction({
+  activePlaybackKind,
+  localRecipeId,
+  playbackState,
+  providerRecipeId,
+}) {
+  const providerOwnsRecipe = activePlaybackKind === "atmoshaper"
+    && providerRecipeId === localRecipeId
+  if (!providerOwnsRecipe) return "play"
+  return playbackState === "playing" ? "pause" : "restart"
+}
+
+/**
+ * Stops only when this workspace recipe is the exact active AtmoShaper owner.
+ * Editing beside an ordinary station or a foreign mix must stay non-destructive.
+ *
+ * @param {{ activePlaybackKind: "station" | "atmoshaper" | null, localRecipeId: string, playbackState: string, providerRecipeId: string | null }} input
+ */
+export function canStopAtmoShaperWorkspaceRecipe({
+  activePlaybackKind,
+  localRecipeId,
+  playbackState,
+  providerRecipeId,
+}) {
+  return activePlaybackKind === "atmoshaper"
+    && providerRecipeId === localRecipeId
+    && playbackState !== "stopped"
+}
+
+/**
+ * Keeps a row honest while the provider owns the recipe but has not published
+ * its per-layer entry yet. Foreign or inactive recipes remain ready to edit.
+ *
+ * @param {{ activePlaybackKind: "station" | "atmoshaper" | null, layerState?: { status: string, error?: string }, localRecipeId: string, providerError: string | null, providerRecipeId: string | null, snapshotStatus?: string }} input
+ */
+export function resolveAtmoShaperVisibleLayerState({
+  activePlaybackKind,
+  layerState,
+  localRecipeId,
+  providerRecipeId,
+  snapshotStatus,
+}) {
+  if (layerState) return layerState
+  const providerOwnsRecipe = activePlaybackKind === "atmoshaper"
+    && providerRecipeId === localRecipeId
+  if (!providerOwnsRecipe) return { status: "ready" }
+  if (snapshotStatus === "loading") return { status: "loading" }
+  // Overall failure is not evidence that a newly added, absent layer failed.
+  // Retry belongs only to a concrete per-layer failure published above.
+  return { status: "ready" }
+}
+
+/**
+ * Finds runtime-active sources whose exact identity is no longer represented
+ * by this workspace's current recipe. Foreign and stale provider snapshots
+ * must not introduce rows into a recipe they do not own.
+ *
+ * @param {{ activePlaybackKind: "station" | "atmoshaper" | null, activeLayers: Record<string, AtmoShaperLayer>, localRecipe: AtmoShaperRecipe, providerRecipeId: string | null }} input
+ */
+export function projectRetainedAtmoShaperLayersForWorkspace({
+  activePlaybackKind,
+  activeLayers,
+  localRecipe,
+  providerRecipeId,
+}) {
+  if (activePlaybackKind !== "atmoshaper" || providerRecipeId !== localRecipe.id) return []
+  const desiredLayers = localRecipe.layers
+  return Object.values(activeLayers).filter((activeLayer) => {
+    const desiredLayer = desiredLayers.find(({ id }) => id === activeLayer.id)
+    return !desiredLayer
+      || desiredLayer.kind !== activeLayer.kind
+      || desiredLayer.sourceId !== activeLayer.sourceId
+  })
+}
+
+/**
+ * Makes a retained predecessor canonical again before applying one of its UI
+ * controls. The recipe domain removes the failed desired exclusive layer.
+ *
+ * @param {AtmoShaperRecipe} recipe
+ * @param {AtmoShaperLayer} retainedLayer
+ * @param {Partial<AtmoShaperLayer>} patch
+ */
+export function restoreRetainedAtmoShaperLayer(recipe, retainedLayer, patch) {
+  return addAtmoShaperLayer(recipe, {
+    ...retainedLayer,
+    ...patch,
+    id: retainedLayer.id,
+    kind: retainedLayer.kind,
+  })
+}
+
+/**
+ * Removes the failed desired exclusive layer with its retained predecessor so
+ * the next controller reconciliation has one unambiguous disposal request.
+ *
+ * @param {AtmoShaperRecipe} recipe
+ * @param {AtmoShaperLayer} retainedLayer
+ */
+export function removeRetainedAtmoShaperLayer(recipe, retainedLayer) {
+  let nextRecipe = recipe
+  if (ATMOSHAPER_EXCLUSIVE_KINDS.has(retainedLayer.kind)) {
+    for (const layer of recipe.layers) {
+      if (layer.kind === retainedLayer.kind) {
+        nextRecipe = removeAtmoShaperLayer(nextRecipe, layer.id)
+      }
+    }
+    return nextRecipe
+  }
+  return removeAtmoShaperLayer(nextRecipe, retainedLayer.id)
+}
+
+/**
+ * Returns the stable row to focus after removal: next, then previous, with a
+ * null result directing the component to its Current Mix heading.
+ *
+ * @param {string[]} rowIds
+ * @param {string} removedId
+ * @param {string[]} [alsoRemovedIds]
+ * @returns {string | null}
+ */
+export function focusTargetAfterAtmoShaperLayerRemoval(rowIds, removedId, alsoRemovedIds = []) {
+  const removedIndex = rowIds.indexOf(removedId)
+  if (removedIndex === -1) return null
+  const removedIds = new Set([removedId, ...alsoRemovedIds])
+  for (let index = removedIndex + 1; index < rowIds.length; index += 1) {
+    if (!removedIds.has(rowIds[index])) return rowIds[index]
+  }
+  for (let index = removedIndex - 1; index >= 0; index -= 1) {
+    if (!removedIds.has(rowIds[index])) return rowIds[index]
+  }
+  return null
+}
+
+/**
+ * Recovers focus only when the row that owned it disappeared during an
+ * asynchronous reconciliation. Undefined means focus was elsewhere or the
+ * focused row survived, so the component must not move it.
+ *
+ * @param {string[]} previousRowIds
+ * @param {string[]} nextRowIds
+ * @param {string | null | undefined} focusedRowId
+ * @returns {string | null | undefined}
+ */
+export function focusTargetAfterAtmoShaperRowsReconcile(
+  previousRowIds,
+  nextRowIds,
+  focusedRowId,
+) {
+  if (!focusedRowId
+    || !previousRowIds.includes(focusedRowId)
+    || nextRowIds.includes(focusedRowId)) return undefined
+  const nextRowIdSet = new Set(nextRowIds)
+  const alsoRemovedIds = previousRowIds.filter((rowId) => (
+    rowId !== focusedRowId && !nextRowIdSet.has(rowId)
+  ))
+  return focusTargetAfterAtmoShaperLayerRemoval(previousRowIds, focusedRowId, alsoRemovedIds)
+}
+
+/**
+ * Excludes both members of a failed exclusive replacement when either Remove
+ * action will cause reconciliation to remove the pair.
+ *
+ * @param {AtmoShaperVisibleRow[]} rows
+ * @param {string} removedKey
+ */
+export function focusTargetAfterAtmoShaperVisibleRowRemoval(rows, removedKey) {
+  const removedRow = rows.find(({ key }) => key === removedKey)
+  if (!removedRow) return null
+  const coupledRemovalKeys = ATMOSHAPER_EXCLUSIVE_KINDS.has(removedRow.layer.kind)
+    ? rows
+        .filter((candidate) => (
+          candidate.key !== removedKey
+          && candidate.retained !== removedRow.retained
+          && candidate.layer.kind === removedRow.layer.kind
+        ))
+        .map(({ key }) => key)
+    : []
+  return focusTargetAfterAtmoShaperLayerRemoval(
+    rows.map(({ key }) => key),
+    removedKey,
+    coupledRemovalKeys,
+  )
+}

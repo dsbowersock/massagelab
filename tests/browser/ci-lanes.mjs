@@ -6,6 +6,7 @@ export const BROWSER_QA_PROJECT_NAMES = [
 export const ORDINARY_BROWSER_QA_SPEC_FILES = [
   "admin-user-operations.spec.ts",
   "app-shell.spec.ts",
+  "atmoshaper.spec.ts",
   "background-commerce.spec.ts",
   "control-system-review.spec.ts",
   "immersive-panel-shell.spec.ts",
@@ -39,10 +40,12 @@ export const BROWSER_QA_LANES = {
   },
   "3": {
     "desktop-chromium": [
+      "atmoshaper.spec.ts",
       "music-media-session.spec.ts",
       "admin-user-operations.spec.ts",
     ],
     "mobile-chromium": [
+      "atmoshaper.spec.ts",
       "music-media-session.spec.ts",
     ],
   },

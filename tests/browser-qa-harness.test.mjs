@@ -82,6 +82,7 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
   const expectedSpecs = [
     "admin-user-operations.spec.ts",
     "app-shell.spec.ts",
+    "atmoshaper.spec.ts",
     "background-commerce.spec.ts",
     "control-system-review.spec.ts",
     "immersive-panel-shell.spec.ts",
@@ -107,7 +108,7 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
   const expectedPairs = new Set(
     expectedProjects.flatMap((projectName) => expectedSpecs.map((spec) => `${projectName}:${spec}`)),
   )
-  assert.equal(expectedPairs.size, 20)
+  assert.equal(expectedPairs.size, 22)
 
   const actualPairs = []
   for (const lane of Object.values(BROWSER_QA_LANES)) {
@@ -185,6 +186,7 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
       {
         name: "desktop-chromium",
         testMatch: [
+          "**/atmoshaper.spec.ts",
           "**/music-media-session.spec.ts",
           "**/admin-user-operations.spec.ts",
         ],
@@ -192,6 +194,7 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
       {
         name: "mobile-chromium",
         testMatch: [
+          "**/atmoshaper.spec.ts",
           "**/music-media-session.spec.ts",
         ],
       },
@@ -373,7 +376,7 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
 
   assert.match(packageData.devDependencies["@playwright/test"], /^\^\d+\.\d+\.\d+$/)
   assert.equal(packageData.scripts["test:browser"], "playwright test")
-  assert.equal(packageData.scripts["test:browser:build"], "npm run build && npm run test:browser")
+  assert.equal(packageData.scripts["test:browser:build"], "npm run build:browser-qa && npm run test:browser")
 
   assert.match(config, /webServer/)
   assert.match(config, /localhost:3010/)
@@ -441,6 +444,14 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assertWorkflowStepBefore(ciWorkflow, "npm run prisma:generate", "npm run typecheck")
 })
 
+test("media readiness QA targets the dedicated proof runtime when mixer bundles share its exports", async () => {
+  const mediaSessionSpec = await readProjectFile("tests/browser/music-media-session.spec.ts")
+
+  assert.match(mediaSessionSpec, /source\.includes\('\"startToneProofDrone\",0'\)/)
+  assert.match(mediaSessionSpec, /source\.includes\('\"getToneProofDroneDiagnostics\",0'\)/)
+  assert.match(mediaSessionSpec, /!source\.includes\('\"createAtmoShaperRuntime\",0'\)/)
+})
+
 test("CI workflow parallelizes browser QA and aggregates every upstream result", async () => {
   const ciWorkflow = await readProjectFile(".github/workflows/ci.yml")
 
@@ -450,7 +461,7 @@ test("CI workflow parallelizes browser QA and aggregates every upstream result",
   assert.match(ciWorkflow, /^  qa:\r?$/m)
   assert.match(ciWorkflow, /code_quality:\r?\n    name: Code quality[\s\S]*?timeout-minutes: 12/)
   assert.match(ciWorkflow, /browser_build:\r?\n    name: Browser build[\s\S]*?timeout-minutes: 12/)
-  assert.match(ciWorkflow, /browser_qa:\r?\n    name: Browser QA \(lane \$\{\{ matrix\.lane \}\}\)[\s\S]*?needs: browser_build[\s\S]*?timeout-minutes: 15/)
+  assert.match(ciWorkflow, /browser_qa:\r?\n    name: Browser QA \(lane \$\{\{ matrix\.lane \}\}\)[\s\S]*?needs: browser_build[\s\S]*?timeout-minutes: 20/)
   assert.match(ciWorkflow, /qa:\r?\n    name: qa[\s\S]*?if: \$\{\{ always\(\) \}\}[\s\S]*?timeout-minutes: 2/)
   assert.doesNotMatch(getWorkflowJob(ciWorkflow, "code_quality"), /^    needs:/m)
   assert.doesNotMatch(getWorkflowJob(ciWorkflow, "browser_build"), /^    needs:/m)

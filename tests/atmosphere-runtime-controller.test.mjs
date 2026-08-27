@@ -154,6 +154,67 @@ describe("Atmosphere runtime controller", () => {
     assert.deepEqual(events, ["start:one", "stop:one"])
   })
 
+  it("offers an awaited cross-owner barrier for active station disposal", async () => {
+    const events = []
+    let releaseDisposal
+    const disposalReady = new Promise((resolve) => { releaseDisposal = resolve })
+    const controller = createAtmosphereRuntimeController({
+      adapters: {
+        a: async () => {
+          const cleanup = () => { events.push("legacy-stop") }
+          cleanup.dispose = async () => {
+            events.push("dispose:start")
+            await disposalReady
+            events.push("dispose:end")
+          }
+          return cleanup
+        },
+      },
+    })
+    await controller.start({ id: "one", runtime: { adapterId: "a" } })
+
+    assert.equal(typeof controller.stopAndWait, "function")
+    let settled = false
+    const barrier = controller.stopAndWait().then(() => { settled = true })
+    await Promise.resolve()
+
+    assert.equal(settled, false)
+    assert.deepEqual(events, ["dispose:start"])
+    releaseDisposal()
+    await barrier
+    assert.deepEqual(events, ["dispose:start", "dispose:end"])
+  })
+
+  it("awaited cross-owner disposal includes an adapter still preparing", async () => {
+    const events = []
+    let releasePreparation
+    const preparationReady = new Promise((resolve) => { releasePreparation = resolve })
+    const controller = createAtmosphereRuntimeController({
+      adapters: {
+        a: async () => {
+          events.push("prepare")
+          await preparationReady
+          const cleanup = () => { events.push("legacy-stop") }
+          cleanup.dispose = async () => { events.push("dispose") }
+          return cleanup
+        },
+      },
+    })
+    const starting = controller.start({ id: "one", runtime: { adapterId: "a" } })
+    await Promise.resolve()
+
+    assert.equal(typeof controller.stopAndWait, "function")
+    let settled = false
+    const barrier = controller.stopAndWait().then(() => { settled = true })
+    await Promise.resolve()
+    assert.equal(settled, false)
+
+    releasePreparation()
+    await barrier
+    assert.deepEqual(await starting, { status: "stale", requestId: 1 })
+    assert.deepEqual(events, ["prepare", "dispose"])
+  })
+
   it("does not reactivate a station after a stop cancels a slow start", async () => {
     const events = []
     let releaseStart

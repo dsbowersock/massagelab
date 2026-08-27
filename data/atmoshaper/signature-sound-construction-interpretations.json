@@ -1,0 +1,913 @@
+{
+  "version": 1,
+  "fingerprints": {
+    "discoveryReviewSha256": "a22a9d19d8ae8353c32c7f8f7ca2be3e7de3b55cceb0e4d8df4f69b552e512bf",
+    "curationSha256": "dc3c8fe2b14dc7d2e29b8ed813e93f89f2ecd47c4a235a1c32dd5ed2beed8bee",
+    "workspaceSha256": "23b102e69850f6cd9d282f6520ff12d8f2ea42a4961a03b033bfa688f9fc8b5a"
+  },
+  "resolutions": [
+    {
+      "id": "air-traffic-nonrepeat-window",
+      "type": "nonrepeat-window",
+      "groupId": "signature-extra:air-traffic-control",
+      "sourceId": null,
+      "interveningSelections": 4
+    },
+    {
+      "id": "air-traffic-normalize",
+      "type": "processing-intent",
+      "groupId": "signature-extra:air-traffic-control",
+      "sourceId": null,
+      "intentKind": "normalize-relative-level",
+      "desiredOutcome": "Align the radio recordings without removing their air-traffic-control speech.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "air-traffic-spaced-playback",
+      "type": "playback-override",
+      "groupId": "signature-extra:air-traffic-control",
+      "sourceId": null,
+      "strategyId": "spaced-event-sequence",
+      "previewSettings": {
+        "minimumGapSeconds": 1,
+        "maximumGapSeconds": 7
+      }
+    },
+    {
+      "id": "balcony-town-trim-intro",
+      "type": "processing-intent",
+      "groupId": "signature-extra:balcony-town",
+      "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+      "intentKind": "trim-segment",
+      "desiredOutcome": "Remove the spoken town and recording-title introduction at the beginning.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "birds-remove-voices",
+      "type": "processing-intent",
+      "groupId": "moodist:birds",
+      "sourceId": null,
+      "intentKind": "remove-human-voice",
+      "desiredOutcome": "Remove human speech while retaining the bird ambience.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "birds-trim-intro",
+      "type": "processing-intent",
+      "groupId": "moodist:birds",
+      "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+      "intentKind": "trim-segment",
+      "desiredOutcome": "Remove the spoken location introduction at the beginning.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "boiling-repair-loop",
+      "type": "processing-intent",
+      "groupId": "moodist:boiling-water",
+      "sourceId": null,
+      "intentKind": "repair-loop",
+      "desiredOutcome": "Build and audibly verify a consistent boiling-water loop after trimming.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "boiling-trim-clicks",
+      "type": "processing-intent",
+      "groupId": "moodist:boiling-water",
+      "sourceId": null,
+      "intentKind": "trim-segment",
+      "desiredOutcome": "Remove the stove ignition and shutdown clicks at the boundaries.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "busy-street-obscure-speech",
+      "type": "processing-intent",
+      "groupId": "moodist:busy-street",
+      "sourceId": null,
+      "intentKind": "obscure-speech-intelligibility",
+      "desiredOutcome": "Reduce speech intelligibility while preserving general street activity.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "busy-street-remove-source-64538e",
+      "type": "processing-intent",
+      "groupId": "moodist:busy-street",
+      "sourceId": "64538e1493a9eb2141af43b9c4637eff6e3382e244e7cde6b3cde2199e21815c",
+      "intentKind": "remove-human-voice",
+      "desiredOutcome": "Remove the loud child and human conversation from this included recording.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "busy-street-remove-source-f7e2c2",
+      "type": "processing-intent",
+      "groupId": "moodist:busy-street",
+      "sourceId": "f7e2c20668d276a4a125b189c7d44e845f20271e812f96c38405193d23a13e7d",
+      "intentKind": "remove-human-voice",
+      "desiredOutcome": "Remove the loud child and human conversation from this included recording.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "busy-street-removed-source-cf936a",
+      "type": "no-assignment",
+      "groupId": "moodist:busy-street",
+      "sourceId": "cf936ab0acc2f2af3be2b9458c6c740b150c9a185e43290aa1a25889a64e46c5",
+      "reason": "source-removed-from-concept"
+    },
+    {
+      "id": "cafe-obscure-speech",
+      "type": "processing-intent",
+      "groupId": "moodist:cafe",
+      "sourceId": null,
+      "intentKind": "obscure-speech-intelligibility",
+      "desiredOutcome": "Reduce intelligible voices and prominent child shouts while retaining cafe ambience.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "campfire-normalize",
+      "type": "processing-intent",
+      "groupId": "moodist:campfire",
+      "sourceId": null,
+      "intentKind": "normalize-relative-level",
+      "desiredOutcome": "Align source levels so the fire does not jump louder or quieter between recordings.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "cat-vocalizations-suppress-rub",
+      "type": "processing-intent",
+      "groupId": "signature-extra:cat-vocalizations",
+      "sourceId": "e10d824cc97dc53a4d6621ce582cd1754e3e1c91fdf7ffb1ec38e99620282e34",
+      "intentKind": "suppress-unwanted-element",
+      "desiredOutcome": "Reduce microphone-rub noise while retaining the cat vocalization.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "ceiling-fan-rename",
+      "type": "rename-concept",
+      "groupId": "moodist:ceiling-fan",
+      "sourceId": null,
+      "replacementLabel": null,
+      "state": "needs-user-decision"
+    },
+    {
+      "id": "church-normalize",
+      "type": "processing-intent",
+      "groupId": "moodist:church",
+      "sourceId": null,
+      "intentKind": "normalize-relative-level",
+      "desiredOutcome": "Align the church recordings to a consistent relative level.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "church-trim-intro",
+      "type": "processing-intent",
+      "groupId": "moodist:church",
+      "sourceId": "353fd1303f56fb2d0afcc8a7b0a48fdade14218cc1687ff5aab04e0ac05319c1",
+      "intentKind": "trim-segment",
+      "desiredOutcome": "Remove the spoken location introduction at the beginning.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "coffee-shop-obscure-speech",
+      "type": "processing-intent",
+      "groupId": "signature-extra:coffee-shop",
+      "sourceId": null,
+      "intentKind": "obscure-speech-intelligibility",
+      "desiredOutcome": "Reduce intelligible voices and conversations while retaining coffee-shop ambience.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "crickets-preview-diagnostic",
+      "type": "preview-diagnostic",
+      "groupId": "moodist:crickets",
+      "sourceId": null,
+      "diagnosticKind": "investigate-preview-failure",
+      "reason": "The retained development preview reported no supported source."
+    },
+    {
+      "id": "crowd-obscure-speech",
+      "type": "processing-intent",
+      "groupId": "moodist:crowd",
+      "sourceId": null,
+      "intentKind": "obscure-speech-intelligibility",
+      "desiredOutcome": "Reduce intelligible voices and conversations so the result reads as general crowd noise.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "crowd-walla-obscure-speech",
+      "type": "processing-intent",
+      "groupId": "signature-extra:crowd-walla",
+      "sourceId": null,
+      "intentKind": "obscure-speech-intelligibility",
+      "desiredOutcome": "Reduce intelligible voices and conversations while retaining crowd walla.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "dryer-transition-range",
+      "type": "transition-duration-range",
+      "groupId": "moodist:dryer",
+      "sourceId": null,
+      "minimumSeconds": 3.75,
+      "maximumSeconds": 10
+    },
+    {
+      "id": "dryer-trim-boundaries",
+      "type": "processing-intent",
+      "groupId": "moodist:dryer",
+      "sourceId": "a2cdc5b801058999b253de905dcdc45e612c5e944ef6e4202a0d815b91bf8d4f",
+      "intentKind": "trim-segment",
+      "desiredOutcome": "Remove the dryer start and stop artifacts from this recording.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "gravel-boundary-audition",
+      "type": "boundary-mode-audition",
+      "groupId": "moodist:walk-on-gravel",
+      "sourceId": null,
+      "modes": [
+        "crossfade",
+        "overlap"
+      ]
+    },
+    {
+      "id": "horror-spaced-playback",
+      "type": "playback-override",
+      "groupId": "signature-extra:horror-suspense",
+      "sourceId": null,
+      "strategyId": "spaced-event-sequence",
+      "previewSettings": {
+        "minimumGapSeconds": 0,
+        "maximumGapSeconds": 16
+      }
+    },
+    {
+      "id": "howling-wind-rename",
+      "type": "rename-concept",
+      "groupId": "moodist:howling-wind",
+      "sourceId": null,
+      "replacementLabel": "Lunar Wind",
+      "state": "required"
+    },
+    {
+      "id": "leaves-nonrepeat-window",
+      "type": "nonrepeat-window",
+      "groupId": "moodist:walk-on-leaves",
+      "sourceId": null,
+      "interveningSelections": 3
+    },
+    {
+      "id": "light-rain-emphasis-alternative",
+      "type": "processing-intent",
+      "groupId": "moodist:light-rain",
+      "sourceId": null,
+      "intentKind": "emphasize-target-element",
+      "desiredOutcome": "Audition emphasis of the light-rain texture without introducing artifacts.",
+      "state": "alternative",
+      "choiceSetId": "light-rain-emphasis-choice",
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "light-rain-level-alternative",
+      "type": "processing-intent",
+      "groupId": "moodist:light-rain",
+      "sourceId": null,
+      "intentKind": "normalize-relative-level",
+      "desiredOutcome": "Audition a louder relative level that keeps the rain natural.",
+      "state": "alternative",
+      "choiceSetId": "light-rain-emphasis-choice",
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "moon-overlap-next-event",
+      "type": "overlap-next-event",
+      "groupId": "signature-extra:moon-footsteps",
+      "sourceId": null
+    },
+    {
+      "id": "night-village-rename",
+      "type": "rename-concept",
+      "groupId": "moodist:night-village",
+      "sourceId": null,
+      "replacementLabel": "Countryside",
+      "state": "required"
+    },
+    {
+      "id": "road-rename",
+      "type": "rename-concept",
+      "groupId": "moodist:road",
+      "sourceId": null,
+      "replacementLabel": null,
+      "state": "needs-user-decision"
+    },
+    {
+      "id": "supermarket-removed-source-3ab747",
+      "type": "no-assignment",
+      "groupId": "moodist:supermarket",
+      "sourceId": "3ab747b3b6206274da0fe25d8fb3b61be2e64b77006cf2d63636646450a02787",
+      "reason": "source-removed-from-concept"
+    },
+    {
+      "id": "thunder-emphasize",
+      "type": "processing-intent",
+      "groupId": "moodist:thunder",
+      "sourceId": null,
+      "intentKind": "emphasize-target-element",
+      "desiredOutcome": "Emphasize thunder relative to the remaining rain ambience.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "thunder-suppress-rain",
+      "type": "processing-intent",
+      "groupId": "moodist:thunder",
+      "sourceId": null,
+      "intentKind": "suppress-unwanted-element",
+      "desiredOutcome": "Reduce the rain-heavy bed while preserving a natural thunder context.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "train-remove-voices",
+      "type": "processing-intent",
+      "groupId": "moodist:train",
+      "sourceId": null,
+      "intentKind": "remove-human-voice",
+      "desiredOutcome": "Remove human voices while retaining the train ambience.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "underwater-effects-reaudition",
+      "type": "audition-requirement",
+      "groupId": "signature-extra:underwater-effects",
+      "sourceId": null,
+      "outcome": "needs-rebuild-audition",
+      "reason": "The renamed cadence concept requires a rebuilt audible construction review."
+    },
+    {
+      "id": "underwater-effects-rename",
+      "type": "rename-concept",
+      "groupId": "signature-extra:underwater-effects",
+      "sourceId": null,
+      "replacementLabel": "Walking in Puddles",
+      "state": "required"
+    },
+    {
+      "id": "whistles-spaced-playback",
+      "type": "playback-override",
+      "groupId": "signature-extra:sci-fi-whistles",
+      "sourceId": null,
+      "strategyId": "spaced-event-sequence",
+      "previewSettings": {
+        "minimumGapSeconds": 0,
+        "maximumGapSeconds": 8
+      }
+    },
+    {
+      "id": "whistles-time-effect",
+      "type": "processing-intent",
+      "groupId": "signature-extra:sci-fi-whistles",
+      "sourceId": null,
+      "intentKind": "add-time-effect",
+      "desiredOutcome": "Audition echo or delay that supports the whistle events.",
+      "state": "required",
+      "choiceSetId": null,
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "wind-chimes-loop-alternative",
+      "type": "processing-intent",
+      "groupId": "moodist:wind-chimes",
+      "sourceId": null,
+      "intentKind": "repair-loop",
+      "desiredOutcome": "Audition a repaired loop from the current recording.",
+      "state": "alternative",
+      "choiceSetId": "wind-chimes-source-choice",
+      "qa": "audible-qa-required"
+    },
+    {
+      "id": "wind-chimes-source-alternative",
+      "type": "source-requirement",
+      "groupId": "moodist:wind-chimes",
+      "sourceId": null,
+      "requirementKind": "needs-additional-source",
+      "desiredSource": "Additional wind-chime recordings suitable for dynamic sequencing.",
+      "state": "alternative",
+      "choiceSetId": "wind-chimes-source-choice"
+    },
+    {
+      "id": "wind-in-trees-source-requirement",
+      "type": "source-requirement",
+      "groupId": "moodist:wind-in-trees",
+      "sourceId": null,
+      "requirementKind": "needs-additional-source",
+      "desiredSource": "A user-made wind-in-trees field recording.",
+      "state": "required",
+      "choiceSetId": null
+    }
+  ],
+  "dispositions": [
+    {
+      "id": "note-09f403c20395bd16447979e3515b1f581345c67be4ba2e7f60226eb46371e2ec",
+      "scope": "group",
+      "groupId": "signature-extra:air-traffic-control",
+      "sourceId": null,
+      "originalNote": "these recordings need to have their volume normalized against each other and we need to make sure that a recording doesn't repeat for at least 4 turns. Because this is mimicing air-traffic-control there needs to be random pauses between the recording that vary from 1 to 7 seconds",
+      "classification": "audio-and-playback",
+      "resolutionIds": [
+        "air-traffic-nonrepeat-window",
+        "air-traffic-normalize",
+        "air-traffic-spaced-playback"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-1e431123cf5fc42b86ae266dbfcaaa5c091e87b4c9c70ca67ee00d596b5d2788",
+      "scope": "group",
+      "groupId": "signature-extra:underwater-effects",
+      "sourceId": null,
+      "originalNote": "I want to rename this to Walking in puddles",
+      "classification": "concept-metadata",
+      "resolutionIds": [
+        "underwater-effects-reaudition",
+        "underwater-effects-rename"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-252ce72455108126f67d2c613661a3312ae1dbab055ef5da96716127ce24cb06",
+      "scope": "ingredient",
+      "groupId": "moodist:crickets",
+      "sourceId": "2c7748c1d22f5f77731e27f3775cb30504d6957bd1efb0a02b94e820b57e3d9b",
+      "originalNote": "Preview failed: Failed to load because no supported source was found.",
+      "classification": "preview-diagnostic",
+      "resolutionIds": [
+        "crickets-preview-diagnostic"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-2e7e39a69ca25da6760360b5eae3cf7c081cde2438949f7460d6390d766e65a7",
+      "scope": "group",
+      "groupId": "moodist:wind-in-trees",
+      "sourceId": null,
+      "originalNote": "need to record this myself",
+      "classification": "source-availability",
+      "resolutionIds": [
+        "wind-in-trees-source-requirement"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-3cf117525d1f8b9b68f0da939560312cf8cef851b04e315d5f28960d661b1a44",
+      "scope": "group",
+      "groupId": "signature-extra:moon-footsteps",
+      "sourceId": null,
+      "originalNote": "the sound of a recording should continue to play and be heard when the next recording starts",
+      "classification": "playback",
+      "resolutionIds": [
+        "moon-overlap-next-event"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-42eee6636032a334440ef1437071714489e8005c9f7f7597b3fa864287fd6bbc",
+      "scope": "ingredient",
+      "groupId": "moodist:church",
+      "sourceId": "353fd1303f56fb2d0afcc8a7b0a48fdade14218cc1687ff5aab04e0ac05319c1",
+      "originalNote": "The beginning of this recording has the author saying the location, that will need to be cut out",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "church-trim-intro"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-462e0ee86c203f220770306ff40a9a04eee2162d21f20433d030d0227d467a39",
+      "scope": "group",
+      "groupId": "moodist:busy-street",
+      "sourceId": null,
+      "originalNote": " If we could run all of these through a filter that could limit and dull speaking voices it would improve this concept a lot.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "busy-street-obscure-speech"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-4eab7c7885aa8a0773eee0cfff54866c58a455de15ff8f0ae0e2f2adac4eccaa",
+      "scope": "ingredient",
+      "groupId": "moodist:busy-street",
+      "sourceId": "64538e1493a9eb2141af43b9c4637eff6e3382e244e7cde6b3cde2199e21815c",
+      "originalNote": "has a loud child and people talking that needs removed from the audio",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "busy-street-remove-source-64538e"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-5e9b367f15ddc1827f40a5035cea7a75772491698ab46b785a08dedc08100174",
+      "scope": "group",
+      "groupId": "signature-extra:coffee-shop",
+      "sourceId": null,
+      "originalNote": "voices and conversations need to be filtered out of these recordings",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "coffee-shop-obscure-speech"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-61dfe6c5ba9ab58ebffb2daa86812a5271c2d21e5847eaa91e6d2c25bc177e2e",
+      "scope": "group",
+      "groupId": "signature-extra:horror-suspense",
+      "sourceId": null,
+      "originalNote": "this concept should randomly pause from 0second to 16seconds in-between each recording",
+      "classification": "playback",
+      "resolutionIds": [
+        "horror-spaced-playback"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-71df0cf1f4a470d11291657e8ec8bafe006bf81ec5535fa62ad0abb1aa3c6a6e",
+      "scope": "group",
+      "groupId": "moodist:night-village",
+      "sourceId": null,
+      "originalNote": "This concept needs its named changed to Countryside",
+      "classification": "concept-metadata",
+      "resolutionIds": [
+        "night-village-rename"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-798ce18dfbbadd37a3c6d0e931676591815324f31d3de10fe94043706e14a9bc",
+      "scope": "ingredient",
+      "groupId": "moodist:dryer",
+      "sourceId": "a2cdc5b801058999b253de905dcdc45e612c5e944ef6e4202a0d815b91bf8d4f",
+      "originalNote": "The dryer turning on and off at the beginning and end need to be cut from the recoding",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "dryer-trim-boundaries"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-7bdd0c7bd99b2002b315b3fd4f9d68c165d2a86f535f7516c95077657217fa03",
+      "scope": "group",
+      "groupId": "moodist:thunder",
+      "sourceId": null,
+      "originalNote": "These are too rain heavy. We need to filter out the rain sound and emphasise the thunder.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "thunder-emphasize",
+        "thunder-suppress-rain"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-7d334f2b141a926700e150123f249a2f55faac553602efacde930175cea4fd21",
+      "scope": "ingredient",
+      "groupId": "moodist:busy-street",
+      "sourceId": "cf936ab0acc2f2af3be2b9458c6c740b150c9a185e43290aa1a25889a64e46c5",
+      "originalNote": "has a loud child and people talking that needs removed from the audio",
+      "classification": "removed-source-observation",
+      "resolutionIds": [
+        "busy-street-removed-source-cf936a"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-8bba99ef8e4d7a90696b80cc4078b4dd049d9e07cd352a357e728c78c682f158",
+      "scope": "ingredient",
+      "groupId": "signature-extra:balcony-town",
+      "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+      "originalNote": "The author speaks the name of the the town and title of the recording at the beginning, that will need to be cut out",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "balcony-town-trim-intro"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-946deb50bbd988874c1e103d755611dcfa36ac4717236cf323a3377b98f22021",
+      "scope": "group",
+      "groupId": "moodist:church",
+      "sourceId": null,
+      "originalNote": "The volume of these needs to be normalized against each other",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "church-normalize"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-a59632e697889e080cf58c612b2a29fe67f01667a2010b717e30168026f5d2f5",
+      "scope": "ingredient",
+      "groupId": "moodist:busy-street",
+      "sourceId": "f7e2c20668d276a4a125b189c7d44e845f20271e812f96c38405193d23a13e7d",
+      "originalNote": "has a loud child and people talking that needs removed from the audio",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "busy-street-remove-source-f7e2c2"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-aa94a3861dedd569e2084fd4c0568bd2e6a1ddd715c9fb4f8591e425d08ac6fa",
+      "scope": "group",
+      "groupId": "signature-extra:crowd-walla",
+      "sourceId": null,
+      "originalNote": "voices and conversations need to be filtered out of these recordings",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "crowd-walla-obscure-speech"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-b099740292fecd072f1d5627f2dcc5bc524074ee34091b93d7b4f13ee4f36a2f",
+      "scope": "group",
+      "groupId": "moodist:road",
+      "sourceId": null,
+      "originalNote": "These recordings are of  cars passing by, not road-noise from tires",
+      "classification": "concept-metadata",
+      "resolutionIds": [
+        "road-rename"
+      ],
+      "state": "needs-user-decision"
+    },
+    {
+      "id": "note-b6a5c9d87f29ae493bbe64c9fb576661d1f33be98fe9b6b4a4b960b9b0032a6c",
+      "scope": "group",
+      "groupId": "moodist:walk-on-gravel",
+      "sourceId": null,
+      "originalNote": "we need like a crossfade or something between the steps. something sounds off",
+      "classification": "playback",
+      "resolutionIds": [
+        "gravel-boundary-audition"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-b78f32364318700318f7d09061a16a0439915abe87a2aa7907dc8e2f5b7024c3",
+      "scope": "group",
+      "groupId": "signature-extra:sci-fi-whistles",
+      "sourceId": null,
+      "originalNote": "the recordings need an echo or delay",
+      "classification": "audio-and-playback",
+      "resolutionIds": [
+        "whistles-spaced-playback",
+        "whistles-time-effect"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-b983abda9e458e2e4bf0bf5c61fcb8d1ebd3ba8205fb9c0e6aa24e765dd61bc3",
+      "scope": "group",
+      "groupId": "moodist:birds",
+      "sourceId": null,
+      "originalNote": "Vocals need to be removed",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "birds-remove-voices"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-bbfd67ac97468daf47662e7d2901d49a68fdb12a1ddc70fa0b96e3c530893ffa",
+      "scope": "group",
+      "groupId": "moodist:crickets",
+      "sourceId": null,
+      "originalNote": "Preview failed: Failed to load because no supported source was found.",
+      "classification": "preview-diagnostic",
+      "resolutionIds": [
+        "crickets-preview-diagnostic"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-c2ea95b42d4c2eb0190ef1d2671b2907e4f99753b554e4b405308909a370f747",
+      "scope": "group",
+      "groupId": "moodist:cafe",
+      "sourceId": null,
+      "originalNote": "Generally these need run through a filter that can limit and dull voices, especially shouts from children.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "cafe-obscure-speech"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-c3d2fcde4aa90a3a44469a4eda1d78847d77eae63f51cace522f6aaaa9f421c1",
+      "scope": "ingredient",
+      "groupId": "moodist:supermarket",
+      "sourceId": "3ab747b3b6206274da0fe25d8fb3b61be2e64b77006cf2d63636646450a02787",
+      "originalNote": "The sounds of thuds on the counter and something sliding across the microphone need removed.",
+      "classification": "removed-source-observation",
+      "resolutionIds": [
+        "supermarket-removed-source-3ab747"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-cb1e30cf2701f9fa65acd913bf9993057815e850404fc41f051c709e10ebbfb4",
+      "scope": "group",
+      "groupId": "moodist:walk-on-leaves",
+      "sourceId": null,
+      "originalNote": "the recordings shouldn't repeat for at least 3 turns",
+      "classification": "playback",
+      "resolutionIds": [
+        "leaves-nonrepeat-window"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-cc46bfda420f0a1de3fd149e49b1936a4a86bc05d899d12963d0fa188e506650",
+      "scope": "group",
+      "groupId": "moodist:dryer",
+      "sourceId": null,
+      "originalNote": "I want the transition time of this concept to vary from 3.75seconds to 10seconds to give it variety",
+      "classification": "playback",
+      "resolutionIds": [
+        "dryer-transition-range"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-dcd048a2ca6b7b5c49eb96165dcf1b1b3a50b84558834dec7bf7630d8d5f4490",
+      "scope": "group",
+      "groupId": "moodist:crowd",
+      "sourceId": null,
+      "originalNote": "This sounds generally as I'd expect it to, but it needs a filter on voices and conversations so that it just sounds like crowd noise",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "crowd-obscure-speech"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-e0c8dbaab978d360c3e7cd48adae8b8a0233e22f669057f3879e6f01a232b983",
+      "scope": "ingredient",
+      "groupId": "signature-extra:cat-vocalizations",
+      "sourceId": "e10d824cc97dc53a4d6621ce582cd1754e3e1c91fdf7ffb1ec38e99620282e34",
+      "originalNote": "there is rubbing noise against the microphone that needs filtered out",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "cat-vocalizations-suppress-rub"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-e182e4e5ab9577507e7312f2f5a5d532d28eab1cc518b352bb70487f22dd3ac1",
+      "scope": "group",
+      "groupId": "moodist:wind-chimes",
+      "sourceId": null,
+      "originalNote": "we need to edit the recording for a better loop or find additional wind chime recordings to add",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "wind-chimes-loop-alternative",
+        "wind-chimes-source-alternative"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-e40419289fb111a7a8dffc825e100d0ee16a3b65d415693001b08d60c680df3e",
+      "scope": "group",
+      "groupId": "moodist:boiling-water",
+      "sourceId": null,
+      "originalNote": "At the beginning and end I can hear the stove clicking on/off. It would be best to cut those out for a consistent loop.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "boiling-repair-loop",
+        "boiling-trim-clicks"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-e4d14c7dc4aa875ee30446385181736307dcfe10baef355297629a39918909f3",
+      "scope": "ingredient",
+      "groupId": "moodist:boiling-water",
+      "sourceId": "d4d3d8e79de008a42450e8835383fd2255a801cd29a15f10386fe6cbdab1349c",
+      "originalNote": "At the beginning and end I can hear the stove clicking on/off. It would be best to cut those out for a consistent loop.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "boiling-repair-loop",
+        "boiling-trim-clicks"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-f0c673ef6725f83a1941d07155f50dadf47226966afc1547a0f998d80e1dc0e7",
+      "scope": "group",
+      "groupId": "moodist:ceiling-fan",
+      "sourceId": null,
+      "originalNote": "We just need to rename this concept to reflect the file description because it's clearly not a ceiling fan",
+      "classification": "concept-metadata",
+      "resolutionIds": [
+        "ceiling-fan-rename"
+      ],
+      "state": "needs-user-decision"
+    },
+    {
+      "id": "note-f0c860a8ad4e1fcf5fdb1d00d7f682e924252e6fd6fb81fda257831b1caa5ca9",
+      "scope": "group",
+      "groupId": "moodist:light-rain",
+      "sourceId": null,
+      "originalNote": "Since the rain is light it's harder to hear. I'm not sure if we should have their audio be louder or filter them somehow to highlight/emphasize the rain",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "light-rain-emphasis-alternative",
+        "light-rain-level-alternative"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-f2f7b02f90e6d8b37a6feb38c5fbd26c48a87df73157ee6f5a1d83312996bbc1",
+      "scope": "group",
+      "groupId": "moodist:train",
+      "sourceId": null,
+      "originalNote": "these need a filter to remove the voices",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "train-remove-voices"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-f469fcce337c5d02853606b78eea8c3e5ce4eb9517069aa4afbe461098c70861",
+      "scope": "ingredient",
+      "groupId": "moodist:birds",
+      "sourceId": "93af53fdf1740d4eac97d255d7183938408b14ff4d053316ae7818e53509e22f",
+      "originalNote": "This recording has the author saying the name of the location at the beginning. that will need to be cut out before production.",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "birds-trim-intro"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-f85b78b36aae99ca7b8c2a2fcf1d6e9413fd2670ca0608d1964884d5e1d77872",
+      "scope": "group",
+      "groupId": "moodist:campfire",
+      "sourceId": null,
+      "originalNote": "This all sounds good but the volume level of each needs to be normalized so that the fire doesn't sound like it gets louder and quieter",
+      "classification": "audio-processing",
+      "resolutionIds": [
+        "campfire-normalize"
+      ],
+      "state": "structured"
+    },
+    {
+      "id": "note-fd4ae51e8f389e4ea021dcb8e22bb4a175977342c0f56cbb5ac190968674c0d8",
+      "scope": "group",
+      "groupId": "moodist:howling-wind",
+      "sourceId": null,
+      "originalNote": "The name of this concept needs to be changed to lunar wind",
+      "classification": "concept-metadata",
+      "resolutionIds": [
+        "howling-wind-rename"
+      ],
+      "state": "structured"
+    }
+  ]
+}

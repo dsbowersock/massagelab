@@ -64,6 +64,7 @@ jobs:
       NEXTAUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only
       AUTH_URL: http://127.0.0.1:3010
       NEXTAUTH_URL: http://127.0.0.1:3010
+      NEXT_PUBLIC_ATMOSHAPER_BROWSER_QA: "1"
 
     steps:
       - name: Check out repository
@@ -113,7 +114,9 @@ jobs:
     name: Browser QA (lane ${{ matrix.lane }})
     needs: browser_build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The exact-once music lane keeps AtmoShaper and media-session coverage
+    # together and needs bounded headroom beyond its roughly 18-minute job run.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
