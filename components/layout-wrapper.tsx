@@ -29,6 +29,7 @@ export function LayoutWrapper({
   const isCalendarOperatorRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
   const isCalendarWorkspaceRoute = pathname === "/calendar"
   const isPublicBookingRoute = pathname.startsWith("/book/")
+  const isMusicWorkspaceRoute = pathname === "/music"
   const isChimerRoute = pathname.startsWith("/chimer")
     || pathname.startsWith("/clock")
     || pathname === "/dev/clock"
@@ -51,6 +52,7 @@ export function LayoutWrapper({
       className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-background"
       data-app-bar-position={settings.appBarPosition}
       data-main-bar-visible={routeShowsMobileMainBar ? "true" : "false"}
+      data-music-workspace-route={isMusicWorkspaceRoute ? "true" : "false"}
     >
       {!routeOwnsBackground && (
         <>
@@ -68,14 +70,14 @@ export function LayoutWrapper({
       <div
         className={cn(
           "ml-app-scroll relative z-10 min-h-0 min-w-0 w-full flex-1 overscroll-contain",
-          isCalendarWorkspaceRoute ? "overflow-hidden" : "overflow-y-auto",
+          isCalendarWorkspaceRoute || isMusicWorkspaceRoute ? "overflow-hidden" : "overflow-y-auto",
         )}
       >
         <div
           className={cn(
             "ml-app-content mx-auto min-w-0 w-full",
             isCalendarOperatorRoute || isPublicBookingRoute ? "max-w-none" : "max-w-screen-2xl",
-            isCalendarWorkspaceRoute && "h-full min-h-0",
+            (isCalendarWorkspaceRoute || isMusicWorkspaceRoute) && "h-full min-h-0",
           )}
         >
           {children}

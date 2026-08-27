@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "batchDeclarationSha256": "87a79b019a119ef781640fb344a8f3b688a2aa7fd0a0457a7da29a1b1da17008",
+  "manifestSha256": "fb0163b77a656f92f61bcc2bd63d46b9ad74bbc55fb9b4557268beab95a1ef94",
+  "updatedAt": "2026-08-25T20:32:02.702Z",
+  "outputs": {
+    "ae65ff444044fd7a713f562c8dfb1bc3791772c30f8630202168bc920b390841": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    },
+    "5ffa603aa9a82f868dd313b701b9be96522d7946f0d2c58b90b6a61328505cd5": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    },
+    "9fca2831507f4358482990ef59d782e5644416a4d42577514d8179d8924fb259": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    },
+    "69739bc553c8951bad44d74e23b8239714624ed4f5def924fd0c0f51d7400d24": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    },
+    "efd91d7d1d27beb767e5fb722692287d5444caa00b9cde994f4fae2cf624b6c0": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    },
+    "ccba6404ea543ff1c90962ebe460e164bc64b74c4687d03c89d74d379b5253ac": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    },
+    "3241d8a1c3edf26ce90d6e783b44c719cd0b91d7962b1512f10577566d5e2719": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    },
+    "933417bf27386a363ee2d15454e40b4a6700d718487164fddca683b921b83b27": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    },
+    "cd5171e95fb84bad8a8dc04a5ca06dece87eb820fc14a33f33fa9693dbf5daf0": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    },
+    "2cf9c1ed0055c3be67cf089e939d80386e738b875268ebf7561ee2eb2d1b1e89": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    },
+    "2c855cc62b68bc185250100de988547cccf3520b6c1170abf9974a41475d4cde": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    },
+    "5165355a7b7f7314640a4d251a54df191c366cc0b6249cbcd5f6e75dd37dc2b8": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T20:32:02.702Z",
+      "derivedHeardAt": "2026-08-25T20:32:02.702Z",
+      "decision": "pass"
+    }
+  }
+}

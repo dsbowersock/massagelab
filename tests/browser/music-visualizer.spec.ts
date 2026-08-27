@@ -509,6 +509,7 @@ test("top-player state keeps the Music clock dock and its real control reachable
   test.skip(testInfo.project.name !== "desktop-chromium", "single top-player state proof")
   await seedDeviceVisualizer(page, { backgroundId: "static-gradient", showClock: false })
   const player = await startProofStation(page, "/music?task8=top-player")
+  await openVisualizerFromPlayer(page)
   await player.evaluate((element) => {
     element.setAttribute("data-placement", "top")
     document.body.classList.remove("ml-music-player-bottom")
@@ -517,7 +518,6 @@ test("top-player state keeps the Music clock dock and its real control reachable
   await expect(player).toHaveAttribute("data-placement", "top")
   await expect(page.locator("body")).toHaveClass(/ml-music-player-top/)
 
-  await openVisualizerFromPlayer(page)
   await page.getByRole("button", { name: "Clock", exact: true }).click()
   const showClock = page.getByRole("switch", { name: /^Show clock:/ })
   await expect.poll(async () => {

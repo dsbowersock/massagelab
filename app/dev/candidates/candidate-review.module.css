@@ -1,0 +1,351 @@
+.review {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.curationSummary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.curationSummary > div {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.8rem;
+  background: hsl(var(--background));
+}
+
+.curationSummary strong {
+  font-size: 1.15rem;
+}
+
+.curationSummary span,
+.curationPolicy,
+.playbackStrategies small {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+}
+
+.curationPolicy {
+  margin-top: 1rem;
+  line-height: 1.55;
+}
+
+.playbackStrategies li {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.7rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--background));
+}
+
+.playbackStrategies li > span {
+  color: hsl(var(--primary));
+  font-size: 0.7rem;
+  font-weight: 650;
+  text-transform: capitalize;
+}
+
+.summary > div {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  background: hsl(var(--card));
+}
+
+.summary strong {
+  font-size: 1.5rem;
+}
+
+.summary span,
+.controls span,
+.note span {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.875rem;
+}
+
+.controls label,
+.note {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.controls input,
+.controls select,
+.note textarea {
+  width: 100%;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.7rem;
+  background: hsl(var(--background));
+  padding: 0.65rem 0.75rem;
+  color: hsl(var(--foreground));
+}
+
+.search {
+  grid-column: span 2;
+}
+
+.toolbar,
+.toolbar > div,
+.pagination,
+.cardHeader,
+.badges,
+.meta,
+.decision {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.toolbar {
+  justify-content: space-between;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.list {
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 2vw, 1.4rem);
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  background: hsl(var(--card));
+}
+
+.cardHeader {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.card h2 {
+  margin-top: 0.55rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.path {
+  margin-top: 0.25rem;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.badges,
+.meta {
+  flex-wrap: wrap;
+}
+
+.badges span,
+.meta span,
+.concepts li span {
+  border-radius: 999px;
+  background: hsl(var(--muted));
+  padding: 0.2rem 0.5rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.7rem;
+}
+
+.badges span[data-state="candidate"] {
+  background: color-mix(in srgb, hsl(var(--primary)) 16%, transparent);
+  color: hsl(var(--primary));
+}
+
+.card audio {
+  width: 100%;
+}
+
+.reason {
+  max-width: 72rem;
+  line-height: 1.55;
+}
+
+.concepts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+}
+
+.playbackStrategies {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.committedNote {
+  padding: 0.75rem;
+  border-left: 3px solid hsl(var(--primary));
+  background: color-mix(in srgb, hsl(var(--primary)) 8%, transparent);
+  line-height: 1.5;
+}
+
+.concepts li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  padding: 0.3rem 0.55rem 0.3rem 0.35rem;
+  font-size: 0.78rem;
+}
+
+.decision button {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.65rem;
+  padding: 0.5rem 0.85rem;
+  background: transparent;
+  font-weight: 600;
+}
+
+.decision button:hover,
+.selectedDecision {
+  border-color: hsl(var(--primary)) !important;
+  background: color-mix(in srgb, hsl(var(--primary)) 14%, transparent) !important;
+  color: hsl(var(--primary));
+}
+
+.note textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.assignments {
+  display: grid;
+  gap: 1rem;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 1rem;
+}
+
+.assignmentHeading,
+.assignmentHeading > div,
+.assignmentList,
+.assignment,
+.addConcepts,
+.addConcepts label {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.assignmentHeading {
+  grid-template-columns: 1fr auto;
+  align-items: start;
+}
+
+.assignmentHeading h3 {
+  font-weight: 650;
+}
+
+.assignmentHeading p,
+.assignmentHeading span,
+.assignment small,
+.addConcepts span {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+}
+
+.assignmentList {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+}
+
+.assignment {
+  align-content: start;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.85rem;
+  padding: 0.85rem;
+}
+
+.assignment > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.assignmentDecision {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.assignmentDecision button {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.65rem;
+  background: transparent;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.selectedRemoval {
+  border-color: hsl(var(--destructive)) !important;
+  background: color-mix(in srgb, hsl(var(--destructive)) 12%, transparent) !important;
+  color: hsl(var(--destructive));
+}
+
+.addConcepts {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.addConcepts label {
+  align-content: start;
+  border-radius: 0.85rem;
+  background: hsl(var(--muted) / 0.45);
+  padding: 0.85rem;
+}
+
+.addConcepts input,
+.addConcepts select {
+  width: 100%;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.7rem;
+  background: hsl(var(--background));
+  padding: 0.65rem 0.75rem;
+  color: hsl(var(--foreground));
+}
+
+.pagination {
+  justify-content: center;
+}
+
+.empty {
+  padding: 2rem;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+}
+
+@media (max-width: 700px) {
+  .search {
+    grid-column: auto;
+  }
+
+  .cardHeader {
+    display: grid;
+  }
+}

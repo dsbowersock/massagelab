@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "algorithmVersion": "signature-edit-audition-v2",
+  "batchId": "batch-04-boiling-water-edit-audition",
+  "outputVersion": 2,
+  "groupId": "moodist:boiling-water",
+  "processingIntentIds": [
+    "boiling-repair-loop",
+    "boiling-trim-clicks"
+  ],
+  "sources": [
+    {
+      "sourceId": "d4d3d8e79de008a42450e8835383fd2255a801cd29a15f10386fe6cbdab1349c",
+      "sha256": "c6cf080eae8ed0d979f97414ec3547f71e2b1e11c7188885c2d8a34ba0be929b",
+      "byteSize": 25257624,
+      "relativePath": "RandomRecordings+Vol.2/RandomRecordings Vol.2/Kettle Boiling.wav"
+    }
+  ],
+  "variants": [
+    {
+      "variantId": "short-seam",
+      "label": "Short 2-second crossfade",
+      "firstPassStartSeconds": 0,
+      "loopStartSeconds": 15,
+      "loopEndSeconds": 90,
+      "cyclicCrossfadeSeconds": 2,
+      "crossfadeCurve": "qsin"
+    },
+    {
+      "variantId": "medium-seam",
+      "label": "Medium 4-second crossfade",
+      "firstPassStartSeconds": 0,
+      "loopStartSeconds": 15,
+      "loopEndSeconds": 90,
+      "cyclicCrossfadeSeconds": 4,
+      "crossfadeCurve": "qsin"
+    },
+    {
+      "variantId": "long-seam",
+      "label": "Long 8-second crossfade",
+      "firstPassStartSeconds": 0,
+      "loopStartSeconds": 15,
+      "loopEndSeconds": 90,
+      "cyclicCrossfadeSeconds": 8,
+      "crossfadeCurve": "qsin"
+    }
+  ],
+  "outputFormat": {
+    "codec": "pcm_s24le",
+    "sampleRateHz": 48000,
+    "channels": "preserve",
+    "truePeakCeilingDbtp": -0.1
+  }
+}

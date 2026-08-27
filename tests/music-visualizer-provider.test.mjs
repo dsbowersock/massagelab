@@ -5,6 +5,7 @@ import { describe, it } from "node:test"
 const providerSource = await readFile(new URL("../components/providers/music-provider.tsx", import.meta.url), "utf8")
 const miniPlayerSource = await readFile(new URL("../components/providers/music-mini-player.tsx", import.meta.url), "utf8")
 const musicWorkspaceSource = await readFile(new URL("../app/browse/workspace.tsx", import.meta.url), "utf8")
+const stationCardSource = await readFile(new URL("../components/atmosphere/station-carousel-card.tsx", import.meta.url), "utf8")
 
 describe("Music visualizer provider contract", () => {
   it("exposes visualizer state and actions through MusicContext", () => {
@@ -72,21 +73,98 @@ describe("Music visualizer provider contract", () => {
     assert.equal((providerSource.match(/storageStateRef\.current =/g) ?? []).length, 2)
   })
 
-  it("retains station identity when stopCurrent stops the runtime", () => {
-    const start = providerSource.indexOf("const stopCurrent")
-    const end = providerSource.indexOf("// Expose the active station", start)
+  it("retains stopped identity synchronously and guards its 60-second retirement", () => {
+    const start = providerSource.indexOf("const stopCurrent = useCallback")
+    const end = providerSource.indexOf("const handleInterruptionStarted", start)
     const stopCurrentSource = providerSource.slice(start, end)
     assert.notEqual(start, -1)
     assert.notEqual(end, -1)
-    assert.doesNotMatch(stopCurrentSource, /setActiveStation(Id|Title|Artist)\(null\)/)
+    assert.match(providerSource, /const STOPPED_PLAYER_RETENTION_MS = 60_000/)
+    assert.doesNotMatch(stopCurrentSource, /setActiveStation(Id|Title|Artwork)\(null\)/)
     for (const contract of [
       /playbackRequestIdRef\.current = requestId/,
+      /const sessionGeneration = playbackSessionGenerationRef\.current/,
+      /const stoppedStationId = activeStationIdRef\.current/,
       /controller\.stop\(\)/,
-      /setPlaybackState\("stopped"\)/,
+      /EXPLICIT_STOP/,
+      /stopAndDismiss\(\)/,
+      /mediaSessionControllerRef\.current\?\.clear\(\)/,
       /setLoadingProgress\(null\)/,
       /setLoadingStartedAt\(null\)/,
       /setError\(null\)/,
     ]) assert.match(stopCurrentSource, contract)
+
+    const retirementStart = providerSource.indexOf("const retireStoppedPlayer = useCallback")
+    const retirementEnd = providerSource.indexOf("\n  }, [])", retirementStart) + "\n  }, [])".length
+    const retirementSource = providerSource.slice(retirementStart, retirementEnd)
+    assert.notEqual(retirementStart, -1)
+    assert.notEqual(retirementEnd, -1)
+    for (const contract of [
+      /sessionGeneration !== playbackSessionGenerationRef\.current/,
+      /playbackLifecycleRef\.current\.status !== "stopped"/,
+      /activeStationIdRef\.current !== stoppedStationId/,
+      /activeStationIdRef\.current = null/,
+      /activeStationMetadataRef\.current = null/,
+      /activeStationArtworkRef\.current = null/,
+      /setActiveStationId\(null\)/,
+      /setActiveStationTitle\(null\)/,
+      /setActiveStationArtwork\(null\)/,
+    ]) assert.match(retirementSource, contract)
+    assert.doesNotMatch(retirementSource, /controller\.(?:start|stop)|publishMediaSession|commitPlaybackLifecycle|setStorageState/)
+    assert.equal((providerSource.match(/window\.setTimeout/g) ?? []).length, 1)
+    assert.equal((providerSource.match(/scheduleStoppedPlayerRetirement\(/g) ?? []).length, 1)
+    assert.match(providerSource, /const playStation = useCallback\(async \([\s\S]*?\) => \{\s*cancelStoppedPlayerRetirement\(\)/)
+    assert.match(providerSource, /const playAdjacentStation = useCallback\(async \(direction: 1 \| -1\) => \{\s*cancelStoppedPlayerRetirement\(\)/)
+    assert.match(providerSource, /const navigationRequestId = playbackRequestIdRef\.current/)
+    assert.match(providerSource, /navigationRequestId !== playbackRequestIdRef\.current/)
+    assert.match(providerSource, /navigationSessionGeneration !== playbackSessionGenerationRef\.current/)
+    assert.match(providerSource, /useEffect\(\(\) => \(\) => \{\s*cancelStoppedPlayerRetirement\(\)/)
+  })
+
+  it("starts the generator independently from guarded carrier settlement", () => {
+    assert.match(providerSource, /const carrierStartPromise[\s\S]*const runtime = await getRuntime\(\)/)
+    assert.match(providerSource, /void carrierStartPromise[\s\S]*settleMediaIntegrationAvailability/)
+    assert.match(providerSource, /const runtimeResult = await runtime\.controller\.start\(station\)/)
+    assert.doesNotMatch(providerSource, /await Promise\.all\(\[\s*carrierStartPromise,\s*runtimePromise/)
+  })
+
+  it("publishes retryable runtime readiness before the centered Play action", () => {
+    for (const contract of [
+      /type RuntimeReadinessState = {[\s\S]*status: "idle" \| "preparing" \| "ready" \| "error"/,
+      /runtimeReadiness: RuntimeReadinessState/,
+      /setRuntimeReadiness\({ status: "preparing", error: null }\)/,
+      /setRuntimeReadiness\({ status: "ready", error: null }\)/,
+      /setRuntimeReadiness\({ status: "error", error: "Audio setup failed\. Try again\." }\)/,
+      /const retryRuntimeReadiness = useCallback\(\(\) => {[\s\S]*window\.location\.reload\(\)/,
+    ]) assert.match(providerSource, contract)
+    assert.doesNotMatch(
+      providerSource,
+      /catch\(\(caughtError\) => {\s*runtimeLoadPromiseRef\.current = null/,
+      "failed runtime readiness must stay latched until the explicit page reload",
+    )
+
+    for (const contract of [
+      /music\.runtimeReadiness\.status === "preparing"/,
+      /Preparing audio for \$\{station\.title\}/,
+      /Retry audio setup/,
+      /music\.retryRuntimeReadiness\(\)/,
+      /role="status"[\s\S]*aria-live="polite"[\s\S]*Preparing audio/,
+    ]) assert.match(stationCardSource, contract)
+  })
+
+  it("transports canonical active artwork without bundling the full station catalog", () => {
+    for (const source of [providerSource, miniPlayerSource]) {
+      assert.doesNotMatch(source, /from\s+["']@\/lib\/atmosphere\/stations(?:\.js)?["']/)
+    }
+    for (const contract of [
+      /activeStationArtwork: AtmosphereStationArtworkInput \| null/,
+      /artworkInput\?: AtmosphereStationArtworkInput/,
+      /setActiveStationArtwork\(/,
+      /resolveAtmosphereStationArtworkInput\(nextStation\)/,
+      /resolvedSuppliedArtwork\?\.stationId === stationId/,
+    ]) assert.match(providerSource, contract)
+    assert.match(stationCardSource, /artworkInput:\s*stationArtworkInput/)
+    assert.match(miniPlayerSource, /artworkInput=\{music\.activeStationArtwork\}/)
   })
 })
 
@@ -98,18 +176,22 @@ describe("Persistent player visualizer boundary", () => {
     )
 
     assert.doesNotMatch(miniPlayerSource, /RefreshCw|Restart|overflow-x-auto/)
-    assert.match(miniPlayerSource, /variant="success"/)
+    assert.match(miniPlayerSource, /variant=\{isPlaying \? "glow" : "success"\}/)
+    assert.match(miniPlayerSource, /variant="destructive"/)
+    assert.match(miniPlayerSource, /variant="attention"/)
     assert.match(miniPlayerSource, /TooltipProvider/)
     assert.match(miniPlayerSource, /ml-music-player-collapsed/)
     assert.match(miniPlayerSource, /data-testid="music-player-toolbar-controls"/)
     assert.doesNotMatch(toolbarActions, /\btitle=/)
-    assert.equal((toolbarActions.match(/<TooltipContent>/g) ?? []).length, 6)
+    assert.equal((toolbarActions.match(/<TooltipContent>/g) ?? []).length, 8)
     for (const accessibleNamePattern of [
       /aria-label="Previous station"/,
-      /aria-label=\{playStopLabel\}/,
+      /aria-label=\{playPauseLabel\}/,
+      /aria-label=\{isLoading \? "Cancel loading" : "Stop"\}/,
       /aria-label="Next station"/,
       /aria-label=\{visualizerActionLabel\}/,
-      /aria-label="Collapse"/,
+      /aria-label="Player settings"/,
+      /aria-label="Minimize"/,
       /aria-label="Expand"/,
     ]) {
       assert.match(toolbarActions, accessibleNamePattern)

@@ -1,0 +1,151 @@
+.layout,
+.card {
+  display: grid;
+  gap: 1rem;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.summary > div {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.8rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.8rem;
+  background: hsl(var(--card));
+}
+
+.summary strong {
+  font-size: 1.35rem;
+}
+
+.summary span,
+.requirement,
+.playing,
+.sources,
+.qa small,
+.blockers p {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.badges,
+.transport,
+.decisions {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.badges span {
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: hsl(var(--muted));
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.badges span[data-status="processing-pending"],
+.blockers {
+  border-color: color-mix(in srgb, hsl(var(--primary)) 35%, hsl(var(--border)));
+  background: color-mix(in srgb, hsl(var(--primary)) 5%, hsl(var(--background)));
+}
+
+.badges span[data-status="blocked"],
+.error,
+.warning {
+  color: hsl(var(--destructive));
+}
+
+.badges span[data-heard="true"] {
+  color: hsl(var(--primary));
+}
+
+.blockers,
+.boundary,
+.qa {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.8rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.8rem;
+}
+
+.blockers ul,
+.sources ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.boundary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.boundary label,
+.qa label,
+.note {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.boundary label > span,
+.qa label > span,
+.note > span {
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.boundary select,
+.qa select,
+.note textarea {
+  width: 100%;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.65rem;
+  background: hsl(var(--background));
+  padding: 0.6rem;
+  color: hsl(var(--foreground));
+}
+
+.boundary input {
+  width: 100%;
+  accent-color: hsl(var(--primary));
+}
+
+.sources summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.sources li {
+  margin-top: 0.35rem;
+  overflow-wrap: anywhere;
+}
+
+.note textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+@media (max-width: 850px) {
+  .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary > button {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .summary,
+  .boundary {
+    grid-template-columns: 1fr;
+  }
+}

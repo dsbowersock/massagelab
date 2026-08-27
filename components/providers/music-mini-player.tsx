@@ -1,9 +1,13 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import {
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
+  MoreHorizontal,
+  Pause,
   Play,
   SkipBack,
   SkipForward,
@@ -13,8 +17,17 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
+import { purpleGlowClassName } from "@/components/ui/carousel-button-classes"
 import { Button } from "@/components/ui/button"
+import { MetalFavoriteIcon } from "@/components/ui/metal-favorite-icon"
+import { StationVinyl } from "@/components/ui/music-player"
 import { Slider } from "@/components/ui/slider"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Tooltip,
   TooltipContent,
@@ -27,19 +40,28 @@ import {
 } from "@/lib/music-visualizer"
 import { cn } from "@/lib/utils"
 import { MusicLoadingProgress } from "./music-loading-progress"
+import { MusicInterruptionNotice } from "./music-interruption-notice"
 import { useMusic } from "./music-provider"
 
 type MusicMiniPlayerPlacement = "top" | "bottom"
+
+const compactLandscapePlayerQuery = "(orientation: landscape) and (max-width: 60rem) and (max-height: 31.25rem)"
 
 export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMiniPlayerPlacement }) {
   const music = useMusic()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const hasStation = Boolean(music.activeStationId)
-  const showPlayer = hasStation || music.playbackState === "failed"
+  const hasPlaybackIdentity = music.activePlaybackKind !== null
+  const showPlayer = hasPlaybackIdentity
   const isCollapsed = music.miniPlayerCollapsed
   const isLoading = music.playbackState === "loading"
-  const isPlayingOrLoading = music.playbackState === "playing" || isLoading
+  const isPlaying = music.playbackState === "playing"
+  const isVinylPlaying = music.playbackState === "playing"
+  const isMusicRoute = pathname === "/music"
+  const [isCompactLandscape, setIsCompactLandscape] = useState(false)
+  const isFavorite = music.activeStationId
+    ? music.favorites.includes(music.activeStationId)
+    : false
   const isMusicVisualizerRoute =
     pathname === "/clock"
     && searchParams.getAll("source").includes("music")
@@ -56,11 +78,25 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
       })
 
   useEffect(() => {
+    // This capability query drives shell-wide player reservations, not just
+    // this toolbar's rendering.
+    const mediaQuery = window.matchMedia(compactLandscapePlayerQuery)
+    const updateLayout = () => setIsCompactLandscape(mediaQuery.matches)
+    updateLayout()
+    mediaQuery.addEventListener("change", updateLayout)
+    return () => mediaQuery.removeEventListener("change", updateLayout)
+  }, [])
+
+  useEffect(() => {
+    // These body classes are global layout state. This component is their sole
+    // owner and must remove every class it adds when it unmounts.
     const { body } = document
     body.classList.toggle("ml-music-player-active", showPlayer)
     body.classList.toggle("ml-music-player-top", showPlayer && placement === "top")
     body.classList.toggle("ml-music-player-bottom", showPlayer && placement === "bottom")
     body.classList.toggle("ml-music-player-collapsed", showPlayer && isCollapsed)
+    body.classList.toggle("ml-music-player-rail", showPlayer && isCompactLandscape)
+    body.classList.toggle("ml-music-player-music-route", showPlayer && isMusicRoute)
 
     return () => {
       body.classList.remove(
@@ -68,9 +104,11 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
         "ml-music-player-top",
         "ml-music-player-bottom",
         "ml-music-player-collapsed",
+        "ml-music-player-rail",
+        "ml-music-player-music-route",
       )
     }
-  }, [isCollapsed, placement, showPlayer])
+  }, [isCollapsed, isCompactLandscape, isMusicRoute, placement, showPlayer])
 
   if (!showPlayer) {
     return null
@@ -78,22 +116,37 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
 
   const title = music.activeStationTitle ?? "Atmosphere"
 
-  function handlePlayStop() {
-    // Loading is an active, cancellable playback intent, so Stop must invalidate pending startup.
-    if (isPlayingOrLoading) {
-      void music.stopCurrent()
-      return
-    }
-    if (music.activeStationId) void music.playStation(music.activeStationId)
+  function handlePlayPause() {
+    if (music.playbackState === "playing") void music.pauseCurrent()
+    else if (music.playbackState !== "loading") void music.restartCurrent()
   }
 
-  const previousAction = (
+  const favoriteAction = music.canNavigateStations && music.activeStationId ? (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           type="button"
           size="icon"
-          variant="success"
+          variant="glow"
+          aria-label={isFavorite ? `Remove ${title} from favorites` : `Favorite ${title}`}
+          aria-pressed={isFavorite}
+          className={purpleGlowClassName}
+          onClick={() => music.toggleFavorite(music.activeStationId!)}
+        >
+          <MetalFavoriteIcon kind="heart" selected={isFavorite} />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{isFavorite ? "Favorited" : "Favorite"}</TooltipContent>
+    </Tooltip>
+  ) : null
+
+  const previousAction = music.canNavigateStations ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant="glow"
           aria-label="Previous station"
           disabled={isLoading}
           onClick={() => void music.playPreviousStation()}
@@ -103,34 +156,53 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
       </TooltipTrigger>
       <TooltipContent>Previous station</TooltipContent>
     </Tooltip>
-  )
+  ) : null
 
-  const playStopLabel = isPlayingOrLoading ? "Stop" : "Play"
-  const playStopAction = (
+  const playPauseLabel = isPlaying ? "Pause" : "Play"
+  const playPauseAction = (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           type="button"
           size="icon"
-          variant="success"
-          aria-label={playStopLabel}
-          disabled={!music.activeStationId}
-          onClick={handlePlayStop}
+          variant={isPlaying ? "glow" : "success"}
+          aria-label={playPauseLabel}
+          disabled={isLoading || !hasPlaybackIdentity}
+          onClick={handlePlayPause}
         >
-          {isPlayingOrLoading ? <Square aria-hidden="true" /> : <Play aria-hidden="true" />}
+          {isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{playStopLabel}</TooltipContent>
+      <TooltipContent>{playPauseLabel}</TooltipContent>
     </Tooltip>
   )
 
-  const nextAction = (
+  // Stop remains available during startup so it can cancel a pending source.
+  const stopAction = (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           type="button"
           size="icon"
-          variant="success"
+          variant="destructive"
+          aria-label={isLoading ? "Cancel loading" : "Stop"}
+          disabled={music.playbackState === "stopped"}
+          onClick={() => void music.stopCurrent()}
+        >
+          <Square aria-hidden="true" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{isLoading ? "Cancel loading" : "Stop"}</TooltipContent>
+    </Tooltip>
+  )
+
+  const nextAction = music.canNavigateStations ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant="glow"
           aria-label="Next station"
           disabled={isLoading}
           onClick={() => void music.playNextStation()}
@@ -140,12 +212,12 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
       </TooltipTrigger>
       <TooltipContent>Next station</TooltipContent>
     </Tooltip>
-  )
+  ) : null
 
   const visualizerAction = (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button asChild size="icon" variant="success">
+        <Button asChild size="icon" variant="attention">
           {/* The shared dirty-draft guard intercepts this marker. On the
               visualizer route, href plus replace preserves the Music return
               target without stacking another /clock entry. */}
@@ -169,15 +241,57 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
         <Button
           type="button"
           size="icon"
-          variant="success"
-          aria-label="Collapse"
+          variant="glow"
+          aria-label="Minimize"
           onClick={() => music.setMiniPlayerCollapsed(true)}
         >
-          <ChevronDown aria-hidden="true" />
+          {isCompactLandscape
+            ? <ChevronRight aria-hidden="true" />
+            : <ChevronDown aria-hidden="true" />}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>Collapse</TooltipContent>
+      <TooltipContent>Minimize</TooltipContent>
     </Tooltip>
+  )
+
+  const settingsAction = (
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="icon"
+              variant="glow"
+              aria-label="Player settings"
+            >
+              <MoreHorizontal aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Player settings</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent
+        align="start"
+        side="left"
+        // The trigger lives inside the right-side player rail. Give the menu
+        // enough anchor clearance to finish to the left of the entire rail,
+        // rather than merely to the left of the trigger button.
+        sideOffset={isCompactLandscape ? 80 : undefined}
+        className="min-w-56 border-border bg-card"
+      >
+        <DropdownMenuCheckboxItem
+          checked={music.resumeAfterInterruptionDefault}
+          disabled={!music.mediaIntegrationAvailable}
+          aria-description={music.mediaIntegrationAvailable
+            ? undefined
+            : "External interruption controls are unavailable in this browser."}
+          onCheckedChange={(checked) => music.setResumeAfterInterruptionDefault(checked === true)}
+        >
+          Resume after interruptions
+        </DropdownMenuCheckboxItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 
   const expandAction = (
@@ -186,11 +300,13 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
         <Button
           type="button"
           size="icon"
-          variant="success"
+          variant="glow"
           aria-label="Expand"
           onClick={() => music.setMiniPlayerCollapsed(false)}
         >
-          <ChevronUp aria-hidden="true" />
+          {isCompactLandscape
+            ? <ChevronLeft aria-hidden="true" />
+            : <ChevronUp aria-hidden="true" />}
         </Button>
       </TooltipTrigger>
       <TooltipContent>Expand</TooltipContent>
@@ -199,25 +315,28 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
 
   return (
     <div
-      className="ml-music-player-toolbar pointer-events-none absolute inset-x-0 z-[10020]"
+      className="ml-music-player ml-music-player-toolbar pointer-events-none absolute inset-x-0 z-[10020]"
       data-placement={placement}
+      data-layout={isCompactLandscape ? "rail" : "bottom"}
+      data-music-route={isMusicRoute}
       data-collapsed={isCollapsed}
       data-playback-state={music.playbackState}
       data-testid="music-player-toolbar"
       role="region"
       aria-label="Atmosphere audio player"
     >
-      <div className="ml-music-player-toolbar-surface pointer-events-auto bg-card/95 shadow-2xl shadow-black/35 backdrop-blur">
+      <MusicInterruptionNotice placement={placement} />
+      <div className="ml-music-player-toolbar-surface pointer-events-auto relative bg-card/95 shadow-2xl shadow-black/35 backdrop-blur">
+        {music.activeStationArtwork ? (
+          <div className="ml-station-vinyl-layer" aria-hidden="true">
+            <StationVinyl artworkInput={music.activeStationArtwork} playing={isVinylPlaying} />
+          </div>
+        ) : null}
         <TooltipProvider>
-          {/* The grid owns responsive shape: two rows on narrow expanded
-              screens, one compact row when collapsed, and wide columns above. */}
+          {/* CSS keeps the record in a bounded background layer while this
+              foreground grid owns identity and breakpoint-stable actions. */}
           <div
-            className={cn(
-              "ml-music-player-toolbar-layout mx-auto grid w-full max-w-screen-2xl gap-2 px-3 py-2 sm:px-4",
-              isCollapsed
-                ? "min-h-[4.5rem] grid-cols-[minmax(0,1fr)_auto_auto] items-center"
-                : "min-h-[7rem] grid-cols-1 content-center sm:min-h-16 sm:grid-cols-[minmax(8rem,1fr)_auto] sm:items-center lg:grid-cols-[minmax(8rem,1fr)_auto_minmax(9rem,14rem)]",
-            )}
+            className="ml-music-player-toolbar-layout mx-auto grid w-full max-w-screen-2xl gap-2 py-2"
           >
             <div className="min-w-0" data-testid="music-player-toolbar-identity">
               <p className="ml-music-player-toolbar-title truncate text-sm font-semibold">{title}</p>
@@ -236,34 +355,76 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
 
             {isCollapsed ? (
               <>
-                {playStopAction}
+                <div className={cn("flex items-center self-center gap-1", isCompactLandscape && "flex-col")}>
+                  {playPauseAction}
+                  {stopAction}
+                </div>
                 {expandAction}
               </>
-            ) : (
-              <>
+            ) : isCompactLandscape ? (
+              <div
+                className="ml-music-player-toolbar-controls grid min-w-0 items-center gap-2"
+                data-control-layout="rail"
+                data-testid="music-player-toolbar-controls"
+              >
                 <div
-                  className="grid min-w-0 grid-cols-5 gap-1 sm:flex sm:shrink-0 sm:items-center sm:gap-2"
-                  data-testid="music-player-toolbar-controls"
+                  className="ml-music-player-toolbar-rail-row"
+                  data-testid="music-player-toolbar-rail-transport"
                 >
                   {previousAction}
-                  {playStopAction}
+                  {playPauseAction}
+                  {stopAction}
                   {nextAction}
+                </div>
+                <div
+                  className="ml-music-player-toolbar-rail-row"
+                  data-testid="music-player-toolbar-rail-options"
+                >
+                  {settingsAction}
+                  {favoriteAction}
                   {visualizerAction}
                   {collapseAction}
                 </div>
-
-                <label className="hidden min-w-0 items-center gap-2 text-xs text-muted-foreground lg:flex">
-                  <Volume2 aria-hidden="true" className="size-4 shrink-0" />
-                  <Slider
-                    aria-label="Atmosphere volume"
-                    className="ml-slider-fill-blue"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={[music.volume]}
-                    onValueChange={([value]) => music.setVolume(value ?? 0.75)}
-                  />
-                </label>
+              </div>
+            ) : (
+              <>
+                <div
+                  className="ml-music-player-toolbar-controls grid min-w-0 items-center gap-1 sm:gap-2"
+                  data-testid="music-player-toolbar-controls"
+                >
+                  <div className="flex items-center justify-start" data-testid="music-player-toolbar-left">
+                    {settingsAction}
+                  </div>
+                  <div
+                    className="flex min-w-0 items-center justify-center gap-1 sm:gap-2"
+                    data-testid="music-player-toolbar-primary-controls"
+                  >
+                    {favoriteAction}
+                    {previousAction}
+                    {playPauseAction}
+                    {stopAction}
+                    {nextAction}
+                    {visualizerAction}
+                  </div>
+                  <div
+                    className="flex min-w-0 items-center justify-end gap-2"
+                    data-testid="music-player-toolbar-right"
+                  >
+                    <label className="hidden min-w-0 flex-1 items-center gap-2 text-xs text-muted-foreground lg:flex">
+                      <Volume2 aria-hidden="true" className="size-4 shrink-0" />
+                      <Slider
+                        aria-label="Atmosphere volume"
+                        className="ml-slider-fill-blue"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={[music.volume]}
+                        onValueChange={([value]) => music.setVolume(value ?? 0.75)}
+                      />
+                    </label>
+                    {collapseAction}
+                  </div>
+                </div>
               </>
             )}
           </div>
@@ -276,6 +437,8 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
 function playerStatusLabel(state: string) {
   if (state === "loading") return "Preparing audio..."
   if (state === "playing") return "Playing"
+  if (state === "interrupted") return "Interrupted"
+  if (state === "paused") return "Paused"
   if (state === "stopped") return "Stopped"
   return "Ready"
 }

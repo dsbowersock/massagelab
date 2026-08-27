@@ -51,18 +51,39 @@ describe("Carousel Lab source boundaries", () => {
     const presentationRule = css.match(/\.presentation\s*\{([\s\S]*?)\n\}/)?.[1] ?? ""
 
     assert.match(stage, /data-carousel-transform="true"/)
+    assert.match(stage, /\) : centered \? \(/)
+    assert.match(stage, /aria-hidden=\{item\.loopClone \? "true" : undefined\}/)
+    assert.match(stage, /inert=\{item\.loopClone \? true : undefined\}/)
     assert.doesNotMatch(slideRule, /(?:^|\s)transform\s*:/)
     assert.match(presentationRule, /transform:\s*[\s\S]*?translate3d/)
     assert.match(slideRule, /z-index:\s*var\(--carousel-z-index, 1\)/)
     assert.doesNotMatch(css, /\.slide\[data-centered="true"\]\s*\{[^}]*z-index/)
   })
 
-  it("forces a finite keyboard rail when carousel motion is off", () => {
+  it("keeps stations circular while Background motion-off navigation stays finite", () => {
     const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
-    assert.match(controller, /const finiteRail = reducedMotion \|\| tuning\.motion === false/)
-    assert.match(controller, /const effectiveLoop = finiteRail\s+\? false/)
-    assert.match(controller, /if \(!effectiveLoop && event\.key === "Home"\)/)
-    assert.match(controller, /if \(!effectiveLoop && event\.key === "End"\)/)
+    assert.match(controller, /const staticPresentation = reducedMotion \|\| tuning\.motion === false/)
+    assert.match(
+      controller,
+      /const effectiveLoop = surface === "stations" \|\| !staticPresentation[\s\S]*?\? resolveEffectiveCarouselLoop\([\s\S]*?: false/,
+    )
+    assert.match(controller, /duration: staticPresentation \? 0 : 45/)
+    assert.match(controller, /const edgeShortcutsEnabled = !effectiveLoop \|\| surface === "stations"/)
+    assert.match(controller, /if \(edgeShortcutsEnabled && event\.key === "Home"\)/)
+    assert.match(controller, /if \(edgeShortcutsEnabled && event\.key === "End"\)/)
+    assert.match(controller, /const firstItemId = surface === "stations"[\s\S]*?logicalItems\[0\]\?\.id/)
+    assert.match(controller, /const lastItemId = surface === "stations"[\s\S]*?logicalItems\.at\(-1\)\?\.id/)
+    assert.match(controller, /items\.findIndex\(\(item\) => item\.id === firstItemId\)/)
+    assert.match(controller, /items\.findIndex\(\(item\) => item\.id === lastItemId\)/)
+  })
+
+  it("preserves the player rail reservation in narrow immersive layouts", () => {
+    const immersiveStyles = read("app/chimer/immersive-panel-shell.module.css")
+    const narrowDockRule = immersiveStyles.match(
+      /@media \(max-width: 36rem\) \{[\s\S]*?\.dock \{([\s\S]*?)\n  \}/,
+    )?.[1] ?? ""
+
+    assert.match(narrowDockRule, /var\(--ml-player-right-safe, 0px\)/)
   })
 
   it("starts Embla at the reconciled mount identity before its first select", () => {
@@ -99,7 +120,7 @@ describe("Carousel Lab source boundaries", () => {
   it("cancels stale dependency frames before scheduling current transforms", () => {
     const controller = read("components/carousels/use-adaptive-carousel-controller.ts")
     const listenerEffect = controller.match(
-      /useEffect\(\(\) => \{\s+if \(!api\) return\s+const select = \(\) => \{[\s\S]*?\n  \}, \[api, effectiveLoop, items, scheduleTransformWrite\]\)/,
+      /useEffect\(\(\) => \{\s+if \(!api\) return[\s\S]*?const select = \(\) => \{[\s\S]*?\n  \}, \[api, effectiveLoop, items, scheduleTransformWrite\]\)/,
     )?.[0]
 
     assert.ok(listenerEffect, "expected the Embla listener effect")
@@ -109,10 +130,14 @@ describe("Carousel Lab source boundaries", () => {
       listenerEffect,
       /api\.off\("scroll", scheduleTransformWrite\)[\s\S]*?if \(frameRef\.current !== null\) \{[\s\S]*?cancelAnimationFrame\(frameRef\.current\)[\s\S]*?frameRef\.current = null/,
     )
-    assert.match(
-      controller,
-      /\}, \[api, effectiveLoop, items, presentation, reducedMotion, surface, tuning\]\)[\s\S]*?\}, \[writeTransforms\]\)/,
-    )
+    const writeTransformDependencies = controller.match(
+      /const writeTransforms = useCallback\([\s\S]*?\}, \[([\s\S]*?)\]\)\s+const scheduleTransformWrite/,
+    )?.[1]
+    assert.ok(writeTransformDependencies, "expected the transform callback dependencies")
+    for (const dependency of ["api", "bufferedLoop", "emblaLoop", "visibleRadius"]) {
+      assert.match(writeTransformDependencies, new RegExp(`\\b${dependency}\\b`))
+    }
+    assert.match(controller, /\}, \[writeTransforms\]\)/)
   })
 
   it("does not turn an in-progress Embla selection into an instant jump", () => {
@@ -300,6 +325,105 @@ describe("Carousel Lab source boundaries", () => {
     assert.match(labSurface, /groupAtmosphereStations/)
     assert.match(labSurface, /getVisibleAtmosphereStations/)
     assert.match(labSurface, /useMusic\(\)/)
+  })
+
+  it("keeps measured-space Favorites rendering under the workspace playback boundary", () => {
+    const workspace = read("app/browse/workspace.tsx")
+    const productionCarousel = read("components/atmosphere/station-carousel.tsx")
+    const favoritesSurface = read("components/atmosphere/favorites-speed-dial.tsx")
+    const responsiveModel = read("components/carousels/adaptive-carousel-model.js")
+    const styles = read("app/globals.css")
+
+    assert.match(workspace, /AtmosphereFavoritesSpeedDial/)
+    assert.match(workspace, /STATION_CAROUSEL_LARGE_SCREEN_TUNING\.favoritesRatio/)
+    assert.match(workspace, /FAVORITES_MIN_SURROUNDING_GAP_PX\s*=\s*4/)
+    assert.match(workspace, /FAVORITES_BALANCED_FILL_RATIO\s*=\s*0\.8/)
+    assert.match(workspace, /FAVORITES_MIN_USEFUL_EDGE_PX\s*=\s*STATION_CAROUSEL_TUNING\.cardWidth/)
+    assert.match(workspace, /ResizeObserver/)
+    assert.match(workspace, /data-favorites-fit/)
+    assert.match(workspace, /data-carousel-slide.*data-centered/)
+    assert.match(workspace, /--ml-atmosphere-favorites-edge/)
+    assert.match(workspace, /--ml-atmosphere-workspace-scale-rem/)
+    assert.match(workspace, /minimumEdge\s*=\s*centeredCardRect\.width\s*\*\s*FAVORITES_TO_CENTER_CARD_RATIO/)
+    assert.match(workspace, /preferredEdge\s*=\s*Math\.min/)
+    assert.match(workspace, /Math\.min\([\s\S]*?maximumFittingEdge,[\s\S]*?Math\.max\(minimumEdge, preferredEdge\)/)
+    assert.match(workspace, /remainingVerticalSpace\s*\/\s*2/)
+    assert.match(workspace, /maximumFittingEdge\s*>=\s*FAVORITES_MIN_USEFUL_EDGE_PX/)
+    assert.match(workspace, /--ml-atmosphere-favorites-edge/)
+    assert.match(workspace, /favoriteIds=\{music\.favorites\}/)
+    assert.match(productionCarousel, /onCenteredStationChange\?\./)
+    assert.doesNotMatch(favoritesSurface, /useMusic\(|new Audio|AudioContext|stopCurrent|pauseCurrent/)
+    assert.doesNotMatch(styles, /@media \(min-height: 44\.01rem\)/)
+    assert.match(styles, /data-favorites-fit="true"/)
+    assert.doesNotMatch(styles, /@container ml-atmosphere-carousel-slot \(min-height:/)
+    assert.doesNotMatch(styles, /@container ml-atmosphere-favorites-slot \(min-width:/)
+    assert.match(styles, /inline-size: min\(100cqi, 100cqb, var\(--ml-atmosphere-favorites-edge\)\)/)
+    assert.match(styles, /place-self: start center/)
+    assert.match(styles, /\.ml-atmosphere-favorites-mosaic[\s\S]*?overflow:\s*visible/)
+    assert.match(
+      styles,
+      /@container \(min-width: 32rem\) \{\s+\.ml-atmosphere-all-favorites-sheet \.ml-atmosphere-all-favorites-grid/,
+    )
+    assert.match(styles, /\.ml-atmosphere-rail-content[\s\S]*max-inline-size: none/)
+    assert.match(styles, /var\(--ml-atmosphere-workspace-scale-rem\)/)
+    assert.match(responsiveModel, /referenceWidth:\s*960/)
+    assert.match(responsiveModel, /maxScale:\s*2\.5/)
+    assert.match(responsiveModel, /maxHeaderScale:\s*1\.5/)
+    assert.match(responsiveModel, /favoritesRatio:\s*1\.3/)
+    assert.match(responsiveModel, /fitRoundingBuffer:\s*2/)
+    assert.match(responsiveModel, /minimumFavoritesGap:\s*8/)
+    assert.match(responsiveModel, /safeHeight[\s\S]*stackedBaseHeight/)
+    assert.match(favoritesSurface, /aria-label="Favorites"/)
+    assert.match(favoritesSurface, /appMediaTileClassName/)
+    assert.match(favoritesSurface, /favoriteTileClassName[\s\S]*?ml-atmosphere-favorite-tile/)
+    assert.doesNotMatch(favoritesSurface, /<h2|atmosphere-favorites-heading/)
+    assert.doesNotMatch(workspace, /devicePixelRatio|visualViewport\.scale|userAgent/)
+  })
+
+  it("renders an instructional zero-Favorites state without promoting the centered station", () => {
+    const favoritesSurface = read("components/atmosphere/favorites-speed-dial.tsx")
+
+    assert.match(favoritesSurface, /Add favorites to make your speed dial/)
+    assert.match(favoritesSurface, /Heart a station and it will appear here\./)
+    assert.doesNotMatch(favoritesSurface, /onAddFavorite/)
+    assert.doesNotMatch(favoritesSurface, /Add \{centeredStation\.title\} to favorites/)
+  })
+
+  it("bookends the Station categories with Favorites and the integrated AtmoShaper workspace", () => {
+    const carousel = read("components/atmosphere/station-carousel.tsx")
+    const workspace = read("app/browse/workspace.tsx")
+
+    const favoritesButton = carousel.indexOf("handleGroupChange(FAVORITES_CATEGORY_ID)")
+    const stationButtons = carousel.indexOf("stationGroups.map((candidate)")
+    const atmoshaperButton = carousel.indexOf("handleGroupChange(ATMOSHAPER_CATEGORY_ID)")
+    assert.ok(favoritesButton >= 0 && favoritesButton < stationButtons)
+    assert.ok(atmoshaperButton > stationButtons)
+    assert.match(carousel, /<MetalFavoriteIcon kind="heart" selected \/>/)
+    assert.match(carousel, /className=\{cn\("shrink-0", isFavoritesCategory && purpleGlowClassName\)\}/)
+    assert.match(carousel, /buildAtmosphereFavoritesSpeedDialModel\(music\.favorites, stations\)\.allFavorites/)
+    assert.match(carousel, /Heart a station and it will appear here\./)
+    assert.match(carousel, /ml-atmosphere-station-special-icon/)
+    assert.match(carousel, /ml-atmosphere-station-special-content/)
+    assert.match(carousel, /data-special-state="favorites"/)
+    assert.match(carousel, /title: "Atmoshaper"/)
+    assert.match(carousel, /Layer ambient sounds into your own soundscape\./)
+    assert.match(carousel, /import \{ AtmoShaperWorkspace \}/)
+    assert.match(carousel, /isAtmoshaperCategory \? \(\s*<AtmoShaperWorkspace \/>/)
+    assert.doesNotMatch(carousel, /Coming soon|atmoshaper-coming-soon/)
+    assert.match(workspace, /atmosphereCarouselView === "stations"[\s\S]*?<AtmosphereFavoritesSpeedDial/)
+    assert.match(carousel, /stationGroupIdByStationId\.get\(station\.id\) \?\? group\.id/)
+    assert.match(carousel, /\[constrainedLandscape, group\?\.id, stationItems\.length\]/)
+    assert.match(carousel, /onViewChange\?\.\(nextView\)[\s\S]*?setGroupId\(nextGroupId\)/)
+    assert.match(workspace, /atmosphereCarouselView === "stations"/)
+    assert.match(workspace, /onViewChange=\{setAtmosphereCarouselView\}/)
+  })
+
+  it("renders unavailable Favorites through the shared inert tile state", () => {
+    const favoritesSurface = read("components/atmosphere/favorites-speed-dial.tsx")
+
+    assert.match(favoritesSurface, /getAtmosphereFavoriteStationTileState/)
+    assert.match(favoritesSurface, /disabled=\{tileState\.disabled\}/)
+    assert.match(favoritesSurface, /if \(!tileState\.canPlay\) return/)
   })
 
   it("preserves Station category positions and cancels lab prewarm on category change and unmount", () => {

@@ -116,13 +116,19 @@
     /* App shell spacing */
     --ml-safe-top: env(safe-area-inset-top, 0px);
     --ml-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --ml-safe-left: env(safe-area-inset-left, 0px);
+    --ml-safe-right: env(safe-area-inset-right, 0px);
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
     --ml-scroll-end-buffer: 1.5rem;
     --ml-audio-toolbar-content-height: 5rem;
     --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
+    --ml-music-player-rail-width: 0px;
+    --ml-player-right-safe: 0px;
     --ml-main-bar-height: 3.25rem;
     --ml-desktop-app-bar-height: 3.5rem;
     --ml-bottom-stack-height: var(--ml-safe-bottom);
+    /* Portaled overlays inherit from the root rather than .ml-app-shell. */
+    --ml-portal-bottom-stack-height: var(--ml-safe-bottom);
   }
 
   .light {
@@ -219,53 +225,52 @@
   }
 
   body.ml-music-player-active.ml-music-player-top {
-    --chimer-top-control-offset: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height) + 0.75rem);
-    --chimer-settings-panel-top-offset: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height) + 4.75rem);
+    --ml-audio-toolbar-height: calc(var(--ml-audio-toolbar-content-height) + var(--ml-safe-top));
+    --chimer-top-control-offset: calc(var(--ml-audio-toolbar-height) + 0.75rem);
+    --chimer-settings-panel-top-offset: calc(var(--ml-audio-toolbar-height) + 4.75rem);
   }
 
   body.ml-music-player-active.ml-music-player-bottom {
+    --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
     --chimer-bottom-control-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
     --chimer-panel-bottom-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
   }
 
-  /* The narrow shell reservation follows the toolbar's expanded or compact grid. */
+  body.ml-music-player-active:not(.ml-music-player-collapsed) {
+    --ml-audio-toolbar-expanded-content-height: 10rem;
+    --ml-audio-toolbar-content-height: var(--ml-audio-toolbar-expanded-content-height);
+  }
+
+  body.ml-music-player-active.ml-music-player-collapsed {
+    --ml-audio-toolbar-content-height: 4.5rem;
+  }
+
+  /* The root owns the placement-specific reservation while the grid keeps
+     its full control height. The bottom stack already owns its safe inset. */
+  .ml-music-player-toolbar {
+    height: var(--ml-audio-toolbar-height);
+  }
+
+  .ml-music-player-toolbar-surface {
+    box-sizing: border-box;
+    height: 100%;
+    position: relative;
+  }
+
+  .ml-music-player-toolbar-layout {
+    height: var(--ml-audio-toolbar-content-height);
+    min-height: var(--ml-audio-toolbar-content-height);
+  }
+
+  @media (min-width: 36.0625rem) and (max-height: 44rem) {
+    body.ml-music-player-active:not(.ml-music-player-collapsed) {
+      --ml-audio-toolbar-expanded-content-height: 8rem;
+    }
+  }
+
   @media (max-width: 39.999rem) {
     body.ml-music-player-active:not(.ml-music-player-collapsed) {
-      --ml-audio-toolbar-content-height: 7rem;
-    }
-
-    body.ml-music-player-active.ml-music-player-collapsed {
-      --ml-audio-toolbar-content-height: 4.5rem;
-    }
-
-    body.ml-music-player-active.ml-music-player-top {
-      --ml-audio-toolbar-height: calc(var(--ml-audio-toolbar-content-height) + var(--ml-safe-top));
-      --chimer-top-control-offset: calc(var(--ml-audio-toolbar-height) + 0.75rem);
-      --chimer-settings-panel-top-offset: calc(var(--ml-audio-toolbar-height) + 4.75rem);
-    }
-
-    body.ml-music-player-active.ml-music-player-bottom {
-      --ml-audio-toolbar-height: var(--ml-audio-toolbar-content-height);
-    }
-
-    /* The root owns the placement-specific reservation while the grid keeps
-       its full control height. The bottom stack already owns its safe inset. */
-    .ml-music-player-toolbar {
-      height: var(--ml-audio-toolbar-height);
-    }
-
-    .ml-music-player-toolbar-surface {
-      box-sizing: border-box;
-      height: 100%;
-      position: relative;
-    }
-
-    .ml-music-player-toolbar-layout {
-      height: var(--ml-audio-toolbar-content-height);
-      min-height: var(--ml-audio-toolbar-content-height) !important;
-      padding-bottom: 0.25rem;
-      padding-top: 0.25rem;
-      row-gap: 0.25rem;
+      --ml-audio-toolbar-expanded-content-height: min(10rem, 24dvh);
     }
 
     /* Loading keeps one visible identity line plus the accessible progress bar,
@@ -275,23 +280,6 @@
       display: none;
     }
 
-    .ml-music-player-toolbar-surface::after {
-      background: hsl(var(--border) / 0.82);
-      content: "";
-      height: 1px;
-      left: 0;
-      pointer-events: none;
-      position: absolute;
-      right: 0;
-    }
-
-    .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface::after {
-      bottom: 0;
-    }
-
-    .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface::after {
-      top: 0;
-    }
   }
 
   body.chimer-running aside,
@@ -1937,14 +1925,10 @@
   }
 
   body.ml-music-player-active.ml-music-player-top .ml-app-shell {
-    --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height));
+    --ml-page-top-safe: var(--ml-audio-toolbar-height);
   }
 
   @media (max-width: 39.999rem) {
-    body.ml-music-player-active.ml-music-player-top .ml-app-shell {
-      --ml-page-top-safe: var(--ml-audio-toolbar-height);
-    }
-
     body.ml-music-player-active.ml-music-player-top .ml-app-scroll {
       scroll-padding-top: calc(var(--ml-page-edge-gap) + var(--ml-page-top-safe));
     }
@@ -1985,10 +1969,1674 @@
     padding-bottom: var(--ml-page-bottom-safe);
   }
 
+  /* Music is a viewport-owned workspace. Its content box, rather than an
+     independently scrolling page, consumes the dynamic viewport left above
+     the app bar and (while bottom-based) the player. */
+  .ml-app-shell[data-music-workspace-route="true"] {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  .ml-app-shell[data-music-workspace-route="true"] .ml-app-scroll {
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+
+  .ml-app-shell[data-music-workspace-route="true"] .ml-app-content {
+    height: 100%;
+    max-inline-size: none !important;
+    min-height: 0;
+    padding-bottom: var(--ml-bottom-stack-height);
+  }
+
+  body.ml-music-player-active .ml-app-shell[data-music-workspace-route="true"] .ml-app-content {
+    padding-bottom: calc(var(--ml-bottom-stack-height) + var(--ml-audio-toolbar-height));
+  }
+
+  [data-atmosphere-workspace="rails"],
+  .ml-atmosphere-workspace-page,
+  .ml-atmosphere-rail-content,
+  .ml-atmosphere-carousel-slot,
+  .ml-atmosphere-carousel-workspace,
+  .ml-atmosphere-station-carousel {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .ml-atmosphere-station-stage-allocation {
+    min-height: 0;
+  }
+
+  .ml-atmosphere-station-special-state {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    align-content: center;
+    justify-items: center;
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 1.25);
+    padding: 1rem;
+    color: hsl(var(--muted-foreground));
+    text-align: center;
+  }
+
+  .ml-atmosphere-station-special-state > strong {
+    color: hsl(var(--foreground));
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 1.1);
+    line-height: 1.25;
+  }
+
+  .ml-atmosphere-station-special-state[data-special-state="favorites"] {
+    position: relative;
+    display: block;
+  }
+
+  .ml-atmosphere-station-special-content {
+    position: absolute;
+    inset-block-start: 33.333%;
+    inset-inline-start: 50%;
+    display: grid;
+    inline-size: calc(100% - 2rem);
+    justify-items: center;
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 1.25);
+    translate: -50% -50%;
+  }
+
+  .ml-atmosphere-station-special-content > strong {
+    max-inline-size: 28ch;
+    color: hsl(var(--foreground));
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 1.45);
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  .ml-atmosphere-station-special-icon {
+    display: grid;
+    inline-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 5);
+    aspect-ratio: 1;
+    place-items: center;
+    border: 1px solid hsl(var(--button-cta-face-bright) / 0.75);
+    border-radius: 9999px;
+    color: hsl(var(--foreground));
+    background:
+      radial-gradient(circle at 35% 25%, hsl(var(--button-cta-face) / 0.28), transparent 52%),
+      hsl(var(--button-cta-face-depth) / 0.84);
+    box-shadow:
+      0 0 calc(var(--ml-atmosphere-workspace-scale-rem) * 1.5) hsl(var(--button-cta-face) / 0.72),
+      inset 0 1px 0 hsl(0 0% 100% / 0.22);
+  }
+
+  .ml-atmosphere-station-special-icon > svg {
+    inline-size: 52%;
+    block-size: 52%;
+  }
+
+  .ml-atmosphere-rail-content {
+    gap: 0;
+    max-inline-size: none !important;
+    padding-bottom: 0 !important;
+  }
+
+  .ml-atmosphere-workspace-page {
+    --ml-atmosphere-page-inline-padding: 1rem;
+    min-height: 0 !important;
+  }
+
+  @media (min-width: 40rem) {
+    .ml-atmosphere-workspace-page {
+      --ml-atmosphere-page-inline-padding: 1.5rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .ml-atmosphere-workspace-page {
+      --ml-atmosphere-page-inline-padding: 2rem;
+    }
+  }
+
+  /* The category scroller and carousel are viewport rails, so their clipping
+     edge is the real sidebar-safe workspace rather than the padded text column. */
+  .ml-atmosphere-category-pills,
+  .ml-atmosphere-station-stage-allocation {
+    margin-inline: calc(0px - var(--ml-atmosphere-page-inline-padding));
+    inline-size: calc(100% + (2 * var(--ml-atmosphere-page-inline-padding)));
+    max-inline-size: none;
+  }
+
+  .ml-atmosphere-station-carousel {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  /* Large displays scale the complete Atmosphere composition from the same
+     measured card ratio while the global sidebar and bottom navigation remain
+     on their normal app-shell sizing. */
+  .ml-atmosphere-carousel-workspace {
+    --ml-atmosphere-header-scale-rem: 1rem;
+    --ml-atmosphere-workspace-scale-rem: 1rem;
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-carousel {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 1);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-heading {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 0.75);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-picker {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 0.375);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-label,
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-selected-category > p {
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 0.875);
+    line-height: calc(var(--ml-atmosphere-header-scale-rem) * 1.25);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-selected-category > h2 {
+    font-size: var(--ml-atmosphere-header-scale-rem);
+    line-height: calc(var(--ml-atmosphere-header-scale-rem) * 1.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-selected-category > p {
+    margin-top: calc(var(--ml-atmosphere-header-scale-rem) * 0.25);
+    max-inline-size: calc(var(--ml-atmosphere-header-scale-rem) * 48);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-pills {
+    gap: calc(var(--ml-atmosphere-header-scale-rem) * 0.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-category-pills > button {
+    min-height: calc(var(--ml-atmosphere-header-scale-rem) * 2);
+    padding-inline: calc(var(--ml-atmosphere-header-scale-rem) * 0.75);
+    font-size: calc(var(--ml-atmosphere-header-scale-rem) * 0.75);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-actions {
+    inset-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    top: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.5);
+  }
+
+  .ml-atmosphere-carousel-workspace [data-carousel-primary-action] {
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.25);
+    padding-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.5);
+    font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.875);
+  }
+
+  .ml-atmosphere-carousel-workspace [data-carousel-favorite-action] {
+    width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+  }
+
+  .ml-atmosphere-carousel-workspace [data-carousel-primary-action] > svg,
+  .ml-atmosphere-carousel-workspace [data-carousel-favorite-action] svg {
+    width: var(--ml-atmosphere-workspace-scale-rem);
+    height: var(--ml-atmosphere-workspace-scale-rem);
+    min-width: var(--ml-atmosphere-workspace-scale-rem);
+    min-height: var(--ml-atmosphere-workspace-scale-rem);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-summary-title {
+    inset-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.25);
+    bottom: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.25);
+    padding: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    padding-top: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-summary-title > p,
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-details > span:first-child {
+    font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.875);
+    line-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.25);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-details {
+    gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.25);
+    padding-inline: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    padding-top: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.5);
+    padding-bottom: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.5);
+  }
+
+  .ml-atmosphere-carousel-workspace .ml-atmosphere-station-details > span:last-child {
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.25);
+    font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.75);
+    line-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 1.25);
+  }
+
+  .ml-atmosphere-station-controls {
+    position: absolute;
+    inset-inline: 0;
+    /* Glow buttons render one pixel above their layout box; offset the owner
+       by 17px so the visible control top stays exactly 16px below the card. */
+    top: min(
+      calc(var(--carousel-summary-card-height) + (var(--ml-atmosphere-workspace-scale-rem) * 1.0625)),
+      calc(100% - (var(--ml-atmosphere-workspace-scale-rem) * 2.75))
+    );
+    display: grid;
+    grid-template-columns:
+      calc((100% - var(--carousel-card-width)) / 2)
+      var(--carousel-card-width)
+      calc((100% - var(--carousel-card-width)) / 2);
+    height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.75);
+    pointer-events: none;
+  }
+
+  .ml-atmosphere-station-control {
+    align-self: start;
+    justify-self: center;
+    width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-width: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    min-height: calc(var(--ml-atmosphere-workspace-scale-rem) * 2.5);
+    pointer-events: auto;
+  }
+
+  .ml-atmosphere-station-control > svg {
+    width: var(--ml-atmosphere-workspace-scale-rem);
+    height: var(--ml-atmosphere-workspace-scale-rem);
+    min-width: var(--ml-atmosphere-workspace-scale-rem);
+    min-height: var(--ml-atmosphere-workspace-scale-rem);
+  }
+
+  .ml-atmosphere-station-control-previous {
+    grid-column: 1;
+  }
+
+  .ml-atmosphere-station-control-next {
+    grid-column: 3;
+  }
+
+  /* Reduced motion removes the wing transforms. When three complete cards
+     leave spare inline room, move each control by one quarter of that room so
+     it stays centered beneath the adjacent visible card rather than the wider
+     outer grid column. */
+  @media (prefers-reduced-motion: reduce) {
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
+      .ml-atmosphere-station-control-previous {
+      translate: max(
+        0px,
+        calc((100cqi - (3 * var(--carousel-card-width))) / 4)
+      ) 0;
+    }
+
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
+      .ml-atmosphere-station-control-next {
+      translate: calc(
+        0px - max(0px, calc((100cqi - (3 * var(--carousel-card-width))) / 4))
+      ) 0;
+    }
+  }
+
   /* Short landscape workspaces already keep their controls above the fixed app bar. */
   @media (min-width: 36.0625rem) and (max-height: 44rem) {
     .ml-atmosphere-rail-content {
       padding-bottom: 0 !important;
+    }
+  }
+
+  @media (max-height: 44rem) {
+    .ml-atmosphere-workspace-page {
+      padding-top: 0.75rem !important;
+      padding-bottom: 0 !important;
+    }
+
+    .ml-atmosphere-station-carousel {
+      /* Compact mode hides the selected-category copy, so this becomes the
+         direct user-approved pill-to-carousel breathing room. */
+      gap: 1.5rem !important;
+    }
+
+    .ml-atmosphere-selected-category {
+      display: none;
+    }
+
+    /* Keep the title-only card treatment tied to the carousel's measured
+       constrained-landscape mode, not to whether the separate Favorites row fits. */
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
+      .ml-atmosphere-station-stage-allocation
+      [data-carousel-station-details]
+      span:last-child {
+      display: none;
+    }
+
+    .ml-atmosphere-station-carousel[data-constrained-landscape="true"]
+      .ml-atmosphere-station-stage-allocation
+      [data-carousel-station-details] {
+      top: auto !important;
+      min-height: 2.5rem;
+      padding-block: 0.5rem !important;
+    }
+  }
+
+  @media (max-height: 36rem) {
+    .ml-atmosphere-category-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .ml-atmosphere-category-picker,
+    .ml-atmosphere-station-heading {
+      gap: 0;
+    }
+
+  }
+
+  /* AtmoShaper receives the exact stage row left after the category heading.
+     The outer size container lets both available width and height allocate the
+     mixer without inferring a device, browser zoom, or display class. */
+  .ml-atmoshaper-workspace {
+    --ml-atmoshaper-bottom-reserve: var(--ml-bottom-stack-height, var(--ml-safe-bottom));
+    --ml-atmoshaper-edge-control-size: 3.35rem;
+    --ml-atmoshaper-rail-width: clamp(4.5rem, 6vw, 6rem);
+    container-type: size;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    scroll-padding-block-end: var(--ml-atmoshaper-bottom-reserve);
+  }
+
+  body.ml-music-player-active.ml-music-player-bottom:not(.ml-music-player-rail)
+    .ml-atmoshaper-workspace {
+    --ml-atmoshaper-bottom-reserve: calc(
+      var(--ml-bottom-stack-height, var(--ml-safe-bottom)) + var(--ml-audio-toolbar-height)
+    );
+  }
+
+  .ml-atmoshaper-layout {
+    display: grid;
+    grid-template-areas: "library rail";
+    grid-template-columns: minmax(0, 1fr) var(--ml-atmoshaper-rail-width);
+    grid-template-rows: minmax(0, 1fr);
+    gap: clamp(0.5rem, 1.2cqi, 1rem);
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding-block: 0;
+    padding-inline-start: clamp(0.5rem, 1.8cqi, 1.5rem);
+    padding-inline-end: 0;
+  }
+
+  .ml-atmoshaper-layout[data-current-mix-side="left"] {
+    grid-template-areas: "rail library";
+    grid-template-columns: var(--ml-atmoshaper-rail-width) minmax(0, 1fr);
+    padding-inline-start: 0;
+    padding-inline-end: clamp(0.5rem, 1.8cqi, 1.5rem);
+  }
+
+  .ml-atmoshaper-library {
+    grid-area: library;
+    min-width: 0;
+    min-height: 0;
+    border: 1px solid hsl(var(--border) / 0.72);
+    border-radius: clamp(0.75rem, 1.5cqi, 1.25rem);
+    background: hsl(var(--card) / 0.72);
+    box-shadow: 0 0.75rem 2.25rem hsl(0 0% 0% / 0.12);
+  }
+
+  .ml-atmoshaper-library {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: clamp(1rem, 2cqi, 2rem);
+    scrollbar-gutter: stable;
+  }
+
+  /* Sound Library category rail mirrors the Atmosphere glow-pill language
+     while retaining Radix Tabs semantics and keyboard selection. */
+  .ml-atmoshaper-library-tabs-root {
+    position: relative;
+    isolation: isolate;
+    min-width: 0;
+  }
+
+  .ml-atmoshaper-library-brainwave-canvas {
+    position: absolute;
+    inset-block: -1.5rem;
+    inset-inline-start: 50%;
+    /* The SVG wave paths have intentional side breathing room. Widen their
+       canvas so the visible strokes extend beyond the Sound Library before
+       that outer surface clips them, leaving no apparent hard side edge. */
+    width: 120%;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 66% 70% at 12% 22%, hsl(153 36% 22% / 0.8), transparent 72%),
+      radial-gradient(ellipse 72% 76% at 52% 48%, hsl(267 34% 25% / 0.82), transparent 74%),
+      radial-gradient(ellipse 62% 68% at 90% 78%, hsl(17 48% 24% / 0.78), transparent 72%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 38%, hsl(0 0% 0% / 0.78) 66%, transparent 96%);
+    mask-image: radial-gradient(ellipse at center, black 38%, hsl(0 0% 0% / 0.78) 66%, transparent 96%);
+    opacity: 0.24;
+    pointer-events: none;
+    transform: translateX(-50%);
+  }
+
+  .ml-atmoshaper-library-brainwave-canvas .ml-atmoshaper-brainwave-artwork {
+    width: 100%;
+    height: 100%;
+  }
+
+  .ml-atmoshaper-library-tabs-root > .ml-atmoshaper-library-tabs-list,
+  .ml-atmoshaper-library-tabs-root > [role="tabpanel"] {
+    position: relative;
+    z-index: 1;
+  }
+
+  .ml-atmoshaper-library-tabs-list {
+    display: flex;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    width: 100%;
+    height: auto !important;
+    min-block-size: 5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin-block: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent !important;
+    padding-block: 1.5rem !important;
+    padding-inline: 2rem !important;
+    scroll-padding-inline: 2rem;
+    scrollbar-width: none;
+  }
+
+  .ml-atmoshaper-library-tabs-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Once every category fits, stop making the tab rail a scroll container.
+     Its internal padding remains the narrow-layout glow buffer, while roomy
+     layouts let the full shadow paint outside the rail without clipping. */
+  @container (min-width: 54rem) {
+    .ml-atmoshaper-library-tabs-list {
+      overflow: visible;
+    }
+  }
+
+  .ml-atmoshaper-library-tab[data-state="active"] {
+    --brand-orange: var(--button-cta-face);
+    --brand-orange-glow: var(--button-cta-face-bright);
+    --button-orange-start: var(--button-cta-face-bright);
+    --button-orange-depth: var(--button-cta-face-depth);
+    --button-orange-edge: var(--button-cta-corner);
+    color: white;
+  }
+
+  .ml-atmoshaper-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    gap: clamp(0.8rem, 1.7cqi, 1.25rem);
+  }
+
+  .ml-atmoshaper-station-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  }
+
+  .ml-atmoshaper-library-card {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    align-content: start;
+    gap: 0.9rem;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid hsl(var(--border) / 0.82);
+    border-radius: 1rem;
+    background:
+      linear-gradient(145deg, hsl(var(--card) / 0.96), hsl(var(--card) / 0.76)),
+      hsl(var(--card));
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.05),
+      0 0.7rem 1.7rem hsl(0 0% 0% / 0.13);
+    padding: clamp(0.75rem, 1.5cqi, 1rem);
+    color: hsl(var(--card-foreground));
+  }
+
+  .ml-atmoshaper-library-art {
+    aspect-ratio: 16 / 9;
+    min-height: 7rem;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    background: hsl(var(--muted));
+    box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.08);
+  }
+
+  .ml-atmoshaper-library-art > *,
+  .ml-atmoshaper-noise-artwork,
+  .ml-atmoshaper-brainwave-artwork {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .ml-atmoshaper-library-card-copy {
+    min-width: 0;
+  }
+
+  .ml-atmoshaper-library-card-copy > p {
+    margin-top: 0.25rem;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+    line-height: 1.35rem;
+  }
+
+  .ml-atmoshaper-library-card-actions {
+    display: grid;
+    gap: 0.6rem;
+    min-block-size: 5.4rem;
+  }
+
+  .ml-atmoshaper-card-primary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .ml-atmoshaper-card-primary-actions > button {
+    flex: 1 1 7.5rem;
+    min-inline-size: 7.5rem;
+  }
+
+  .ml-atmoshaper-card-preview-controls {
+    display: grid;
+    grid-template-columns: auto minmax(7rem, 1fr);
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    min-block-size: 1.4rem;
+    transition: opacity 160ms ease;
+  }
+
+  .ml-atmoshaper-card-preview-status {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ml-atmoshaper-library-card-actions[data-preview-active="false"]
+    .ml-atmoshaper-card-preview-controls {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .ml-atmoshaper-brainwave-panel {
+    position: relative;
+    isolation: isolate;
+    max-width: 52rem;
+    overflow: hidden;
+    border: 0;
+    border-radius: 1rem;
+    background: transparent;
+    padding: clamp(0.35rem, 1cqi, 0.75rem);
+  }
+
+  /* Isochronic uses the full available control width; Binaural keeps its
+     readable control measure. Both share the feathered library-wide artwork
+     canvas above, so neither local panel draws another hard-edged backdrop. */
+  .ml-atmoshaper-brainwave-panel[data-brainwave-kind="isochronic"] {
+    width: 100%;
+    max-width: none;
+    min-block-size: clamp(20rem, 52cqh, 36rem);
+  }
+
+  .ml-atmoshaper-brainwave-panel[data-brainwave-kind="isochronic"]
+    .ml-atmoshaper-brainwave-backdrop,
+  .ml-atmoshaper-brainwave-panel[data-brainwave-kind="binaural"]
+    .ml-atmoshaper-brainwave-backdrop {
+    display: none;
+  }
+
+  .ml-atmoshaper-brainwave-panel[data-brainwave-kind="isochronic"]
+    .ml-atmoshaper-brainwave-content {
+    width: min(100%, 52rem);
+  }
+
+  .ml-atmoshaper-brainwave-backdrop {
+    position: absolute;
+    inset: -0.75rem;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 68% 74% at 10% 18%, hsl(153 36% 22% / 0.8), transparent 72%),
+      radial-gradient(ellipse 74% 78% at 52% 48%, hsl(267 34% 25% / 0.82), transparent 74%),
+      radial-gradient(ellipse 64% 70% at 92% 82%, hsl(17 48% 24% / 0.78), transparent 72%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 36%, hsl(0 0% 0% / 0.76) 65%, transparent 96%);
+    mask-image: radial-gradient(ellipse at center, black 36%, hsl(0 0% 0% / 0.76) 65%, transparent 96%);
+    opacity: 0.24;
+    pointer-events: none;
+  }
+
+  .ml-atmoshaper-brainwave-backdrop .ml-atmoshaper-brainwave-artwork {
+    width: 100%;
+    min-height: 14rem;
+    object-fit: cover;
+  }
+
+  .ml-atmoshaper-brainwave-content {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: clamp(0.35rem, 1cqi, 0.75rem);
+  }
+
+  .ml-atmoshaper-preset-buttons {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin: 0;
+    padding-block: 0.75rem;
+    padding-inline: 0.25rem;
+    scroll-padding-inline: 1rem;
+    scrollbar-width: thin;
+  }
+
+  @container (min-width: 54rem) {
+    .ml-atmoshaper-preset-buttons {
+      overflow: visible;
+    }
+  }
+
+  .ml-atmoshaper-advanced-controls {
+    display: grid;
+    gap: 0.75rem;
+    min-width: 0;
+    border-top: 0;
+    padding-top: 0.85rem;
+  }
+
+  .ml-atmoshaper-library-placeholder {
+    border: 1px dashed hsl(var(--border));
+    border-radius: 0.9rem;
+    padding: 1rem;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+    line-height: 1.35rem;
+  }
+
+  .ml-atmoshaper-current-mix {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .ml-atmoshaper-current-mix-rail {
+    --ml-atmoshaper-rail-shell-top-reserve: var(--ml-safe-top);
+    --ml-atmoshaper-rail-top-reserve: var(--ml-atmoshaper-rail-shell-top-reserve);
+    --ml-atmoshaper-rail-bottom-reserve: var(--ml-portal-bottom-stack-height);
+    --ml-atmoshaper-rail-right-reserve: max(var(--ml-player-right-safe), var(--ml-safe-right));
+    grid-area: rail;
+    position: fixed;
+    inset-block-start: var(--ml-atmoshaper-rail-top-reserve);
+    inset-block-end: var(--ml-atmoshaper-rail-bottom-reserve);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    --ml-atmoshaper-fixed-rail-width: var(--ml-atmoshaper-rail-width);
+    --ml-atmoshaper-expanded-inline-room: calc(
+      100dvw - var(--ml-safe-left) - var(--ml-atmoshaper-rail-right-reserve)
+    );
+    width: var(--ml-atmoshaper-fixed-rail-width);
+    inline-size: var(--ml-atmoshaper-fixed-rail-width);
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid hsl(var(--border) / 0.8);
+    border-block: 0;
+    border-inline-end: 0;
+    border-radius: 0;
+    background: hsl(var(--card) / 0.9);
+    box-shadow: none;
+    padding: 0 !important;
+    scrollbar-width: thin;
+    transition:
+      width 240ms cubic-bezier(0.2, 0.75, 0.2, 1),
+      inline-size 240ms cubic-bezier(0.2, 0.75, 0.2, 1),
+      background-color 180ms ease;
+  }
+
+  .ml-atmoshaper-current-mix-rail[data-expanded="true"] {
+    z-index: 60;
+    background: hsl(var(--background) / 0.985);
+  }
+
+  .ml-atmoshaper-current-mix-rail[data-expanded="true"][data-drawer-mode="roomy"] {
+    width: min(
+      calc(30rem + var(--ml-atmoshaper-fixed-rail-width)),
+      var(--ml-atmoshaper-expanded-inline-room)
+    );
+    inline-size: min(
+      calc(30rem + var(--ml-atmoshaper-fixed-rail-width)),
+      var(--ml-atmoshaper-expanded-inline-room)
+    );
+  }
+
+  .ml-atmoshaper-current-mix-rail[data-expanded="true"][data-drawer-mode="narrow"] {
+    width: min(40rem, calc(var(--ml-atmoshaper-expanded-inline-room) - 0.5rem));
+    inline-size: min(40rem, calc(var(--ml-atmoshaper-expanded-inline-room) - 0.5rem));
+  }
+
+  .ml-atmoshaper-layout[data-current-mix-side="right"]
+    .ml-atmoshaper-current-mix-rail {
+    inset-inline-start: auto;
+    inset-inline-end: var(--ml-atmoshaper-rail-right-reserve);
+  }
+
+  .ml-atmoshaper-layout[data-current-mix-side="left"]
+    .ml-atmoshaper-current-mix-rail {
+    inset-inline-start: var(--ml-safe-left);
+    inset-inline-end: auto;
+    border-inline-start: 0;
+    border-inline-end: 1px solid hsl(var(--border) / 0.8);
+  }
+
+  body.ml-music-player-active.ml-music-player-bottom:not(.ml-music-player-rail)
+    .ml-atmoshaper-current-mix-rail {
+    --ml-atmoshaper-rail-bottom-reserve: calc(
+      var(--ml-portal-bottom-stack-height) + var(--ml-audio-toolbar-height)
+    );
+  }
+
+  body.ml-music-player-active.ml-music-player-top
+    .ml-atmoshaper-current-mix-rail {
+    --ml-atmoshaper-rail-top-reserve: calc(
+      var(--ml-atmoshaper-rail-shell-top-reserve) + var(--ml-audio-toolbar-height)
+    );
+  }
+
+  .ml-atmoshaper-rail-button {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    width: 100%;
+    height: auto;
+    min-height: var(--ml-atmoshaper-edge-control-size);
+    padding: 0.4rem 0.2rem;
+    white-space: normal;
+    font-size: 0.7rem;
+    line-height: 1;
+  }
+
+  .ml-atmoshaper-rail-transport {
+    display: grid;
+    min-height: var(--ml-atmoshaper-edge-control-size);
+  }
+
+  .ml-atmoshaper-rail-master-volume {
+    flex: 0 0 var(--ml-atmoshaper-edge-control-size);
+  }
+
+  .ml-atmoshaper-rail-layers {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .ml-atmoshaper-rail-layer {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: stretch;
+    justify-items: stretch;
+    gap: 0;
+    aspect-ratio: 1 / 1;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid hsl(var(--border) / 0.68);
+    border-radius: 0.7rem;
+    background: hsl(var(--background) / 0.5);
+    padding: 0;
+  }
+
+  .ml-atmoshaper-rail-layer-open {
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .ml-atmoshaper-rail-layer-open {
+    position: relative;
+    display: grid;
+    place-items: center;
+    gap: 0.25rem;
+    height: 100%;
+    min-height: 0;
+    padding: 0.2rem;
+  }
+
+  .ml-atmoshaper-rail-layer-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    width: 100%;
+  }
+
+  .ml-atmoshaper-rail-layer-state-badge {
+    position: absolute;
+    inset-block-end: 0.22rem;
+    inset-inline-end: 0.22rem;
+    display: grid;
+    place-items: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 999px;
+    color: hsl(var(--foreground));
+    background: hsl(var(--card));
+  }
+
+  .ml-atmoshaper-rail-layer[data-layer-state="failed"] .ml-atmoshaper-rail-layer-state-badge {
+    color: hsl(var(--destructive));
+  }
+
+  .ml-atmoshaper-rail-layer-mute,
+  .ml-atmoshaper-rail-layer-solo {
+    display: grid;
+    place-items: center;
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1;
+    min-width: 0;
+    min-height: 0;
+    border: 1px solid hsl(var(--border) / 0.7);
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .ml-atmoshaper-rail-layer-mute {
+    border-inline-start: 0;
+    border-block-end: 0;
+  }
+
+  .ml-atmoshaper-rail-layer-solo {
+    border-inline-end: 0;
+    border-block-end: 0;
+  }
+
+  .ml-atmoshaper-rail-layer-solo[aria-pressed="true"] {
+    color: hsl(var(--primary-foreground));
+    border-color: hsl(var(--button-success-border) / 0.84);
+    background: hsl(var(--button-success-face) / 0.74);
+    box-shadow: 0 0 0.7rem hsl(var(--button-success-glow) / 0.34);
+  }
+
+  .ml-atmoshaper-rail-layer-name {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.6rem;
+    line-height: 1.1;
+  }
+
+  .ml-atmoshaper-layer-row {
+    position: relative;
+  }
+
+  .ml-atmoshaper-layer-row[data-dragging="true"] {
+    border-color: hsl(var(--primary) / 0.72);
+    box-shadow: 0 1rem 2rem hsl(0 0% 0% / 0.25);
+    opacity: 0.92;
+  }
+
+  .ml-atmoshaper-layer-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 0 0 auto;
+  }
+
+  .ml-atmoshaper-layer-volume-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .ml-atmoshaper-layer-drag-handle {
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .ml-atmoshaper-layer-drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .ml-atmoshaper-layer-brainwave-controls {
+    margin-top: 0.9rem;
+    border-top: 1px solid hsl(var(--border) / 0.7);
+    padding-top: 0.9rem;
+  }
+
+  .ml-atmoshaper-expanded-mix-toggle,
+  .ml-atmoshaper-expanded-mix-transport,
+  .ml-atmoshaper-expanded-master-volume {
+    min-height: var(--ml-atmoshaper-edge-control-size);
+  }
+
+  .ml-atmoshaper-expanded-mix-toggle,
+  .ml-atmoshaper-expanded-mix-transport > button {
+    width: 100%;
+    height: var(--ml-atmoshaper-edge-control-size);
+  }
+
+  .ml-atmoshaper-expanded-mix-toggle {
+    display: flex;
+    flex: 0 0 var(--ml-atmoshaper-edge-control-size);
+    gap: 0.35rem;
+  }
+
+  .ml-atmoshaper-expanded-mix-transport {
+    display: grid;
+    flex: 0 0 var(--ml-atmoshaper-edge-control-size);
+  }
+
+  .ml-atmoshaper-expanded-master-volume {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.75rem;
+    flex: 0 0 var(--ml-atmoshaper-edge-control-size);
+    border: 2px solid hsl(var(--button-blue-start) / 0.76);
+    border-radius: 0.65rem;
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--button-blue-start) / 0.08),
+      0 2px 6px hsl(var(--button-blue-depth) / 0.14);
+    padding-inline: 0.75rem;
+  }
+
+  .ml-atmoshaper-expanded-layers {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: 0;
+    padding: 0 0.25rem 0 0;
+    list-style: none;
+    scrollbar-width: thin;
+  }
+
+  .ml-atmoshaper-expanded-layers .ml-atmoshaper-layer-row {
+    padding: 0.1rem 0.25rem !important;
+  }
+
+  /* Ordinary layers keep the collapsed tile's exact vertical footprint while
+     the edge rail widens. Brainwave and failed rows retain intrinsic height
+     because their live settings or recovery controls need additional room. */
+  .ml-atmoshaper-current-mix[data-expanded="true"]
+    .ml-atmoshaper-expanded-layers
+    .ml-atmoshaper-layer-row:not([data-layer-state="failed"]):not(:has(.ml-atmoshaper-layer-brainwave-controls)) {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    block-size: calc(var(--ml-atmoshaper-fixed-rail-width) - 0.9rem);
+    min-block-size: calc(var(--ml-atmoshaper-fixed-rail-width) - 0.9rem);
+    overflow: hidden;
+  }
+
+  .ml-atmoshaper-expanded-layers .ml-atmoshaper-layer-header {
+    gap: 0.4rem;
+  }
+
+  .ml-atmoshaper-expanded-layers .ml-atmoshaper-layer-header h3 {
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+
+  .ml-atmoshaper-expanded-layers .ml-atmoshaper-layer-header p {
+    font-size: 0.625rem;
+    line-height: 1.1;
+  }
+
+  .ml-atmoshaper-expanded-layers .ml-atmoshaper-layer-volume-row {
+    margin-top: 0.125rem;
+    gap: 0.35rem;
+  }
+
+  .ml-atmoshaper-expanded-layers .ml-atmoshaper-layer-header-actions > button,
+  .ml-atmoshaper-expanded-layers .ml-atmoshaper-layer-volume-row > button {
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+    min-height: 1.5rem !important;
+    padding: 0.15rem !important;
+  }
+
+  .ml-atmoshaper-expanded-layers .ml-atmoshaper-layer-volume-row > button {
+    width: auto !important;
+    font-size: 0.625rem;
+  }
+
+  /* Height-responsive card floors spend roomy television-scale allocations on
+     useful targets and readable groups while the library remains the sole
+     scroll owner when text enlargement or short height removes that room. */
+  .ml-atmoshaper-library [role="tabpanel"] > article,
+  .ml-atmoshaper-library [role="tabpanel"] > section {
+    min-block-size: clamp(7rem, 18cqh, 13rem);
+  }
+
+  .ml-atmoshaper-library [role="tabpanel"] > article {
+    display: grid;
+    align-content: space-between;
+  }
+
+  .ml-atmoshaper-current-mix-overlay-roomy {
+    display: none;
+  }
+
+  .ml-atmoshaper-current-mix-overlay-narrow {
+    background: hsl(0 0% 0% / 0.32) !important;
+    backdrop-filter: blur(2px);
+  }
+
+  /* The portaled drawer reconstructs shell/player exclusions without taking
+     part in workspace grid sizing, so opening it cannot change library width. */
+  .ml-atmoshaper-current-mix-drawer {
+    --ml-atmoshaper-fixed-rail-width: clamp(4.5rem, 6vw, 6rem);
+    --ml-atmoshaper-edge-control-size: 3.35rem;
+    --ml-atmoshaper-shell-top-reserve: var(--ml-safe-top);
+    --ml-atmoshaper-drawer-top-reserve: var(--ml-atmoshaper-shell-top-reserve);
+    --ml-atmoshaper-drawer-bottom-reserve: var(--ml-portal-bottom-stack-height);
+    --ml-atmoshaper-drawer-right-reserve: max(var(--ml-player-right-safe), var(--ml-safe-right));
+    --ml-atmoshaper-drawer-inline-room: calc(
+      100dvw - var(--ml-safe-left) - var(--ml-atmoshaper-drawer-right-reserve)
+    );
+    inset-block-start: var(--ml-atmoshaper-drawer-top-reserve) !important;
+    inset-block-end: var(--ml-atmoshaper-drawer-bottom-reserve) !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    height: auto !important;
+    max-block-size: calc(
+      100dvh - var(--ml-atmoshaper-drawer-top-reserve) - var(--ml-atmoshaper-drawer-bottom-reserve)
+    );
+    min-width: 0;
+    min-height: 0;
+    overflow: clip;
+    border-radius: 0;
+    background: hsl(var(--background) / 0.98);
+    padding: 0.45rem !important;
+  }
+
+  html .ml-atmoshaper-current-mix-drawer[data-ml-player-viewport-side="left"] {
+    inset-inline-start: var(--ml-safe-left) !important;
+    inset-inline-end: auto !important;
+  }
+
+  html .ml-atmoshaper-current-mix-drawer[data-ml-player-viewport-side="right"] {
+    inset-inline-start: auto !important;
+    inset-inline-end: var(--ml-atmoshaper-drawer-right-reserve) !important;
+  }
+
+  .ml-atmoshaper-current-mix-drawer[data-drawer-mode="roomy"] {
+    inline-size: min(calc(30rem + var(--ml-atmoshaper-fixed-rail-width)), var(--ml-atmoshaper-drawer-inline-room)) !important;
+    max-inline-size: min(calc(30rem + var(--ml-atmoshaper-fixed-rail-width)), var(--ml-atmoshaper-drawer-inline-room)) !important;
+  }
+
+  .ml-atmoshaper-current-mix-drawer[data-drawer-mode="narrow"] {
+    inline-size: min(40rem, calc(var(--ml-atmoshaper-drawer-inline-room) - 0.5rem)) !important;
+    max-inline-size: min(40rem, calc(var(--ml-atmoshaper-drawer-inline-room) - 0.5rem)) !important;
+  }
+
+  .ml-atmoshaper-current-mix-drawer-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* The visible rail and expanded controls are one persistent surface. The
+     outer aside owns the animated edge width; this inner region only changes
+     its layout and dialog semantics, so controls never jump between trees. */
+  .ml-atmoshaper-current-mix-rail > .ml-atmoshaper-current-mix-drawer {
+    position: static !important;
+    inset: auto !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    width: 100% !important;
+    max-width: none !important;
+    inline-size: 100% !important;
+    max-inline-size: none !important;
+    height: 100% !important;
+    max-height: none !important;
+    max-block-size: none !important;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+    padding: 0.45rem !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .ml-atmoshaper-mix-toggle {
+    flex: 0 0 var(--ml-atmoshaper-edge-control-size);
+  }
+
+  .ml-atmoshaper-current-mix-rail[data-expanded="true"] .ml-atmoshaper-rail-button {
+    flex-direction: row;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: var(--ml-atmoshaper-edge-control-size);
+    padding-inline: 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] {
+    flex: 1 1 auto;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-expanded-mix-transport,
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-master-volume-slot {
+    flex: 0 0 var(--ml-atmoshaper-edge-control-size);
+  }
+
+  .ml-atmoshaper-transport-button {
+    width: 100%;
+    height: var(--ml-atmoshaper-edge-control-size);
+  }
+
+  .ml-atmoshaper-transport-label-compact {
+    display: none;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-transport-button {
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.4rem 0.2rem;
+    font-size: 0.7rem;
+    line-height: 1;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-transport-label-full {
+    display: none;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-transport-label-compact {
+    display: inline;
+  }
+
+  .ml-atmoshaper-master-volume-slot {
+    display: grid;
+    min-width: 0;
+    min-height: var(--ml-atmoshaper-edge-control-size);
+  }
+
+  .ml-atmoshaper-master-volume-slot > * {
+    grid-area: 1 / 1;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-expanded-master-volume,
+  .ml-atmoshaper-current-mix[data-expanded="true"] .ml-atmoshaper-rail-master-volume {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-rail-master-volume,
+  .ml-atmoshaper-current-mix[data-expanded="true"] .ml-atmoshaper-expanded-master-volume {
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-expanded-layers {
+    padding: 0;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-row {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    /* Keep the layer's final square height stable while the shared rail
+       contracts. Tying both dimensions to the animating rail width made the
+       tile balloon across the drawer before snapping back into the rail. */
+    block-size: calc(var(--ml-atmoshaper-fixed-rail-width) - 0.9rem);
+    min-block-size: calc(var(--ml-atmoshaper-fixed-rail-width) - 0.9rem);
+    min-width: 0;
+    overflow: hidden;
+    border-color: hsl(var(--border) / 0.68);
+    border-radius: 0.7rem;
+    background: hsl(var(--background) / 0.5);
+    padding: 0 !important;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-header {
+    display: block;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-identity,
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-open {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .ml-atmoshaper-layer-open {
+    position: relative;
+    display: grid;
+    justify-items: start;
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    padding: 0;
+    text-align: start;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-open {
+    place-items: center;
+    padding: 0.2rem;
+  }
+
+  .ml-atmoshaper-layer-name {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-name {
+    font-size: 0.6rem;
+    line-height: 1.1;
+    text-align: center;
+  }
+
+  .ml-atmoshaper-layer-state-badge {
+    position: absolute;
+    inset-block-end: 0.22rem;
+    inset-inline-end: 0.22rem;
+    display: grid;
+    place-items: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 999px;
+    color: hsl(var(--foreground));
+    background: hsl(var(--card));
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-status,
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-header-actions,
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-volume-slider,
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-brainwave-controls,
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-row [aria-label^="Retry "] {
+    display: none;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-volume-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.15rem;
+    margin: 0;
+    padding: 0.15rem;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-volume-row > button {
+    display: grid;
+    place-items: center;
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1;
+    min-width: 0;
+    min-height: 0;
+    border-radius: 0.4rem;
+    padding: 0 !important;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-volume-row > button span {
+    display: none;
+  }
+
+  .ml-atmoshaper-current-mix[data-expanded="false"] .ml-atmoshaper-layer-volume-row > button[aria-pressed="true"] {
+    color: hsl(var(--primary-foreground));
+    border-color: hsl(var(--button-success-border) / 0.84);
+    background: hsl(var(--button-success-face) / 0.74);
+    box-shadow: 0 0 0.7rem hsl(var(--button-success-glow) / 0.34);
+  }
+
+  .ml-atmoshaper-current-mix-overlay-narrow {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: hsl(0 0% 0% / 0.32) !important;
+    backdrop-filter: blur(2px);
+  }
+
+  body.ml-music-player-active.ml-music-player-bottom:not(.ml-music-player-rail)
+    .ml-atmoshaper-current-mix-drawer {
+    --ml-atmoshaper-drawer-bottom-reserve: calc(
+      var(--ml-portal-bottom-stack-height) + var(--ml-audio-toolbar-height)
+    );
+  }
+
+  body.ml-music-player-active.ml-music-player-top
+    .ml-atmoshaper-current-mix-drawer {
+    --ml-atmoshaper-drawer-top-reserve: calc(
+      var(--ml-atmoshaper-shell-top-reserve) + var(--ml-audio-toolbar-height)
+    );
+  }
+
+  @media (min-width: 768px) {
+    html[data-app-bar-position="top"] .ml-atmoshaper-current-mix-rail,
+    html[data-app-bar-position="top"] .ml-atmoshaper-current-mix-drawer {
+      --ml-atmoshaper-rail-shell-top-reserve: var(--ml-desktop-app-bar-height);
+      --ml-atmoshaper-shell-top-reserve: var(--ml-desktop-app-bar-height);
+    }
+  }
+
+  @media (max-width: 767px) {
+    html[data-app-bar-position="top"] .ml-atmoshaper-current-mix-rail,
+    html[data-app-bar-position="top"] .ml-atmoshaper-current-mix-drawer {
+      --ml-atmoshaper-rail-shell-top-reserve: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
+      --ml-atmoshaper-shell-top-reserve: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
+    }
+  }
+
+  @container (max-width: 46rem) {
+    .ml-atmoshaper-library {
+      padding: clamp(0.8rem, 3cqi, 1.25rem);
+      scrollbar-gutter: auto;
+    }
+
+    .ml-atmoshaper-library [role="tabpanel"] > article,
+    .ml-atmoshaper-library [role="tabpanel"] > section {
+      min-block-size: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ml-atmoshaper-library-tab,
+    .ml-atmoshaper-library-card,
+    .ml-atmoshaper-noise-artwork,
+    .ml-atmoshaper-brainwave-artwork,
+    .ml-atmoshaper-current-mix-rail,
+    .ml-atmoshaper-current-mix-drawer,
+    .ml-atmoshaper-current-mix-overlay-narrow,
+    .ml-atmoshaper-layer-row,
+    .ml-atmoshaper-rail-status-icon {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+  .ml-music-player-toolbar {
+    --ml-station-vinyl-size: 8rem;
+    --ml-music-player-expanded-content-height: var(--ml-audio-toolbar-expanded-content-height, 10rem);
+    --ml-music-player-inline-padding: 0.75rem;
+    --ml-music-player-safe-offset: 0px;
+  }
+
+  .ml-music-player-toolbar[data-placement="top"] {
+    --ml-music-player-safe-offset: var(--ml-safe-top);
+  }
+
+  .ml-music-player-toolbar-surface {
+    overflow: hidden;
+  }
+
+  .ml-music-player-toolbar-surface::after {
+    background: hsl(var(--border) / 0.82);
+    content: "";
+    height: 1px;
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+  }
+
+  .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface::after {
+    bottom: 0;
+  }
+
+  .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface::after {
+    top: 0;
+  }
+
+  .ml-station-vinyl-layer {
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    position: absolute;
+    z-index: 0;
+  }
+
+  .ml-music-player-toolbar-layout {
+    grid-template-rows: minmax(0, 1fr) auto;
+    /* Safe insets replace the ordinary gutter only when they are larger, so
+       the physical screen edge is consumed once rather than added twice. */
+    padding-left: max(var(--ml-music-player-inline-padding), var(--ml-safe-left));
+    padding-right: max(var(--ml-music-player-inline-padding), var(--ml-safe-right));
+    position: relative;
+    z-index: 1;
+  }
+
+  .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+    align-self: center;
+    margin-left: calc(var(--ml-station-vinyl-size) + 1rem);
+    position: relative;
+    z-index: 1;
+  }
+
+  .ml-music-player-toolbar-controls {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .ml-station-vinyl {
+    height: var(--ml-station-vinyl-size);
+    left: calc(
+      max(0px, (100% - 96rem) / 2)
+      + max(var(--ml-music-player-inline-padding), var(--ml-safe-left))
+    );
+    position: absolute;
+    top: calc(
+      var(--ml-music-player-safe-offset)
+      + (var(--ml-music-player-expanded-content-height) - var(--ml-station-vinyl-size)) / 2
+    );
+    width: var(--ml-station-vinyl-size);
+    z-index: 0;
+  }
+
+  .ml-station-vinyl-disc {
+    animation: ml-station-vinyl-spin 52s linear infinite;
+    animation-play-state: paused;
+    background: hsl(240 5% 5%);
+    border-radius: 9999px;
+    box-shadow:
+      inset 0 0 0 0.22rem hsl(240 4% 12%),
+      0 0.35rem 0.8rem hsl(0 0% 0% / 0.42);
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    transform-origin: center;
+    width: 100%;
+  }
+
+  .ml-station-vinyl[data-playing="true"] .ml-station-vinyl-disc {
+    animation-play-state: running;
+  }
+
+  .ml-station-vinyl-artwork {
+    border-radius: inherit;
+    inset: 4%;
+    position: absolute;
+  }
+
+  .ml-station-vinyl-grooves,
+  .ml-station-vinyl-glare,
+  .ml-station-vinyl-label {
+    border-radius: inherit;
+    inset: 0;
+    position: absolute;
+  }
+
+  .ml-station-vinyl-grooves {
+    background:
+      repeating-radial-gradient(
+        circle at center,
+        transparent 0 5.2%,
+        hsl(0 0% 0% / 0.34) 5.55% 5.95%,
+        hsl(0 0% 100% / 0.13) 6.05%,
+        transparent 6.35% 8.9%
+      ),
+      radial-gradient(
+        circle at center,
+        transparent 0 18%,
+        hsl(0 0% 0% / 0.08) 18.5% 84%,
+        hsl(240 5% 5% / 0.96) 88% 100%
+      );
+    mix-blend-mode: normal;
+  }
+
+  .ml-station-vinyl-glare {
+    background:
+      conic-gradient(
+        from 208deg at 50% 50%,
+        transparent 0deg 24deg,
+        hsl(0 0% 100% / 0.24) 36deg,
+        transparent 58deg 178deg,
+        hsl(0 0% 100% / 0.08) 196deg,
+        transparent 222deg 360deg
+      ),
+      radial-gradient(circle at 35% 28%, hsl(0 0% 100% / 0.18), transparent 38%);
+    mix-blend-mode: screen;
+  }
+
+  .ml-station-vinyl-label {
+    background: none;
+  }
+
+  .ml-station-vinyl-label::before {
+    background: hsl(240 5% 9% / 0.97);
+    border: 0.2rem solid hsl(240 3% 34% / 0.96);
+    border-radius: 9999px;
+    box-shadow:
+      0 0 0 0.12rem hsl(0 0% 3% / 0.78),
+      inset 0 0.18rem 0.45rem hsl(0 0% 0% / 0.5);
+    content: "";
+    height: 34%;
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 34%;
+  }
+
+  .ml-station-vinyl-label > span {
+    background: radial-gradient(circle, hsl(0 0% 92%) 0 30%, hsl(0 0% 24%) 36% 64%, hsl(0 0% 5%) 70%);
+    border-radius: 9999px;
+    height: 3.5%;
+    left: 48.25%;
+    position: absolute;
+    top: 48.25%;
+    width: 3.5%;
+    z-index: 1;
+  }
+
+  .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+    background-image: none;
+    box-shadow: none;
+    isolation: isolate;
+    padding-inline: 0.4rem;
+    text-shadow: 0 1px 2px hsl(0 0% 0% / 0.98), 0 0 0.5rem hsl(0 0% 0% / 0.9);
+  }
+
+  .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"]::before {
+    background-image: radial-gradient(
+      ellipse at center,
+      hsl(var(--card) / 0.94) 0 34%,
+      hsl(var(--card) / 0.68) 52%,
+      hsl(var(--card) / 0.28) 67%,
+      transparent 82%
+    );
+    content: "";
+    filter: blur(0.28rem);
+    inset: -0.35rem -0.85rem;
+    opacity: 0.52;
+    pointer-events: none;
+    position: absolute;
+    z-index: -1;
+  }
+
+  .ml-music-player-toolbar[data-collapsed="true"] .ml-station-vinyl {
+    transform: translateY(1.5rem);
+  }
+
+  .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(0, 1fr);
+    row-gap: 0;
+  }
+
+  .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+    margin-left: 0;
+    text-shadow: 0 1px 2px hsl(var(--card));
+  }
+
+  .ml-music-player-toolbar[data-collapsed="true"]:not([data-layout="rail"]) .ml-music-player-toolbar-layout > button {
+    align-self: center;
+  }
+
+  @media (min-width: 40rem) {
+    .ml-music-player-toolbar {
+      --ml-music-player-inline-padding: 1rem;
+    }
+  }
+
+  @media (min-width: 36.0625rem) and (max-height: 44rem) {
+    .ml-music-player-toolbar {
+      --ml-station-vinyl-size: 6rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ml-station-vinyl-disc {
+      animation: none;
+    }
+  }
+
+  @keyframes ml-station-vinyl-spin {
+    to {
+      transform: rotate(360deg);
     }
   }
 
@@ -2001,13 +3649,56 @@
   }
 
   .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface {
-    border-bottom: 1px solid hsl(var(--border) / 0.82);
+    border-bottom: 0;
     padding-top: var(--ml-safe-top);
   }
 
   .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface {
-    border-top: 1px solid hsl(var(--border) / 0.82);
-    padding-bottom: var(--ml-safe-bottom);
+    border-top: 0;
+    padding-bottom: 0;
+  }
+
+  /* The session notice sits just beyond the reserved toolbar edge. Its own
+     active-time deadline pauses for hover/focus, so it remains nonmodal. */
+  .ml-music-interruption-notice {
+    left: max(0.75rem, env(safe-area-inset-left, 0px));
+    margin-inline: auto;
+    /* Enlarged text can make this nonmodal notice taller than the space above
+       the player. Keep its dismissal control inside that reserved viewport. */
+    max-height: calc(
+      100dvh - var(--ml-safe-top) - var(--ml-portal-bottom-stack-height) - var(--ml-audio-toolbar-height) - 1rem
+    );
+    max-width: min(28rem, calc(100vw - 1.5rem));
+    overflow-y: auto;
+    position: absolute;
+    right: max(0.75rem, env(safe-area-inset-right, 0px));
+    width: auto;
+    z-index: 1;
+  }
+
+  .ml-music-interruption-notice[data-placement="top"] {
+    top: calc(100% + 0.5rem);
+  }
+
+  .ml-music-interruption-notice[data-placement="bottom"] {
+    bottom: calc(100% + 0.5rem);
+  }
+
+  /* Shared overlays use the CSS-owned rail inset while it is nonzero. The
+     default keeps existing viewport centering and right-edge placement. */
+  body.ml-music-player-rail .ml-player-viewport-safe-modal {
+    left: calc((100dvw - var(--ml-player-right-safe)) / 2) !important;
+    max-width: min(32rem, max(0px, calc(100dvw - var(--ml-player-right-safe)))) !important;
+  }
+
+  .ml-player-viewport-safe-sheet[data-ml-player-viewport-side="right"] {
+    max-width: max(0px, calc(100dvw - var(--ml-player-right-safe))) !important;
+    right: var(--ml-player-right-safe) !important;
+  }
+
+  .ml-player-viewport-safe-sheet[data-ml-player-viewport-side="bottom"] {
+    max-width: max(0px, calc(100dvw - var(--ml-player-right-safe))) !important;
+    right: var(--ml-player-right-safe) !important;
   }
 
   @media (max-width: 39.999rem) {
@@ -2019,6 +3710,181 @@
     .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface {
       border-top-width: 0;
       padding-bottom: 0;
+    }
+  }
+
+  @media (orientation: landscape) and (max-width: 60rem) and (max-height: 31.25rem) {
+    /* The active rail owns player and overlay geometry on every route. Music
+       keeps a separate marker solely for its bounded workspace allocation. */
+    body.ml-music-player-active.ml-music-player-rail {
+      --ml-music-player-expanded-rail-width: clamp(16rem, 34vw, 20rem);
+      --ml-music-player-rail-width: var(--ml-music-player-expanded-rail-width);
+      --ml-player-right-safe: calc(var(--ml-music-player-rail-width) + var(--ml-safe-right));
+      --ml-audio-toolbar-height: 0px;
+    }
+
+    /* Immersive stage reservations compose the live exclusion in their inline
+       geometry owner; the fixed exit control consumes the same shared value. */
+    body.ml-music-player-rail [data-immersive-stage] > div > button[data-chimer-control="true"]:is(
+      [aria-label="Close clock"],
+      [aria-label="End timer"],
+      [aria-label="Minimize visualizer"]
+    ) {
+      right: calc(var(--ml-player-right-safe) + 1rem);
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route .ml-app-scroll {
+      overflow: hidden;
+    }
+
+    body.ml-music-player-rail .ml-music-interruption-notice {
+      bottom: auto;
+      left: auto;
+      max-width: min(28rem, max(0px, calc(100dvw - var(--ml-player-right-safe) - 1.5rem)));
+      right: calc(100% + 0.75rem);
+      top: 0.75rem;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route [data-atmosphere-workspace="rails"] {
+      display: grid;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    body.ml-music-player-active.ml-music-player-music-route [data-atmosphere-workspace="rails"] > div {
+      height: 100%;
+      min-height: 0;
+      padding-right: calc(1.5rem + var(--ml-player-right-safe));
+    }
+
+    body.ml-music-player-rail.ml-music-player-collapsed {
+      --ml-music-player-rail-width: var(--sidebar-width-icon, 3.25rem);
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar {
+      --ml-station-vinyl-size: calc(var(--ml-music-player-expanded-rail-width) - 14px);
+      bottom: var(--ml-bottom-stack-height);
+      height: calc(100dvh - var(--ml-bottom-stack-height));
+      left: auto !important;
+      right: 0 !important;
+      top: 0;
+      width: var(--ml-music-player-rail-width);
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-layout {
+      gap: 0.5rem !important;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) auto auto;
+      height: 100%;
+      min-height: 0;
+      padding: 0.75rem max(0.75rem, var(--ml-safe-right)) 0.75rem 0.75rem !important;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-layout::before {
+      background-color: hsl(var(--card) / 0.86);
+      border: 1px solid hsl(var(--border) / 0.58);
+      border-radius: 1rem;
+      box-shadow: 0 0.35rem 1rem hsl(0 0% 0% / 0.24);
+      content: "";
+      grid-column: 1;
+      grid-row: 2 / 4;
+      margin: -0.35rem -0.25rem -0.25rem;
+      opacity: 0.58;
+      pointer-events: none;
+      position: relative;
+      z-index: 0;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+      align-items: center;
+      align-self: end;
+      display: flex;
+      flex-direction: column;
+      grid-column: 1;
+      grid-row: 2;
+      height: auto;
+      justify-content: center;
+      left: auto;
+      margin-left: 0;
+      padding: 0 0.4rem;
+      pointer-events: none;
+      position: relative;
+      right: auto;
+      text-align: center;
+      top: auto;
+      width: 100%;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"]::before {
+      content: none;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-controls {
+      align-self: end;
+      grid-column: 1;
+      grid-row: 3;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto auto;
+      min-height: 0;
+      position: relative;
+      z-index: 2;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-rail-row {
+      align-items: center;
+      display: grid;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+
+    body.ml-music-player-rail [data-testid="music-player-toolbar-rail-transport"] {
+      grid-template-columns: repeat(4, auto);
+    }
+
+    body.ml-music-player-rail [data-testid="music-player-toolbar-rail-options"] {
+      grid-template-columns: repeat(4, auto);
+    }
+
+    body.ml-music-player-rail .ml-station-vinyl {
+      left: 7px;
+      top: 7px;
+      transform: none;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout {
+      align-items: center;
+      display: flex !important;
+      flex-direction: column;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      padding: 0.75rem 0.25rem 1rem !important;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar[data-collapsed="true"] .ml-music-player-toolbar-layout > [data-testid="music-player-toolbar-identity"] {
+      display: none;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar[data-collapsed="true"] .ml-station-vinyl {
+      left: 7px;
+      top: 7px;
+      transform: none;
+    }
+  }
+
+  @media (orientation: landscape) and (max-width: 60rem) and (max-height: 20rem) {
+    body.ml-music-player-rail .ml-music-player-toolbar-layout {
+      gap: 0.25rem !important;
+      padding-block: 0.5rem !important;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-status,
+    body.ml-music-player-rail .ml-music-player-toolbar-progress {
+      display: none;
+    }
+
+    body.ml-music-player-rail .ml-music-player-toolbar-rail-row {
+      gap: 0.375rem;
     }
   }
 
@@ -2128,6 +3994,14 @@
   }
 
   @media (min-width: 768px) {
+    html[data-app-bar-position="top"] {
+      --ml-portal-bottom-stack-height: var(--ml-safe-bottom);
+    }
+
+    html[data-app-bar-position="bottom"] {
+      --ml-portal-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-desktop-app-bar-height));
+    }
+
     html[data-app-bar-position="top"] .ml-app-shell {
       --ml-page-top-safe: var(--ml-desktop-app-bar-height);
     }
@@ -2151,6 +4025,14 @@
   }
 
   @media (max-width: 767px) {
+    html[data-app-bar-position="top"] {
+      --ml-portal-bottom-stack-height: var(--ml-safe-bottom);
+    }
+
+    html[data-app-bar-position="bottom"] {
+      --ml-portal-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
+    }
+
     html[data-app-bar-position="top"] .ml-app-shell[data-main-bar-visible="true"] {
       --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
       --ml-bottom-stack-height: var(--ml-safe-bottom);
@@ -3018,6 +4900,14 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   }
 }
 
+[aria-label="Station carousel"][data-carousel-ready="false"]
+[data-carousel-primary-action],
+[aria-label="Station carousel"][data-carousel-ready="false"]
+[data-carousel-favorite-action] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 @media (max-width: 639px) {
   [data-anatomy-browser-toolbar][data-compact="true"] [data-anatomy-search-label] {
     position: absolute;
@@ -3089,6 +4979,284 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   .ml-metal-attention-root * {
     animation: none !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Keep enough endpoint room for the first and last category pills to expose
+   their full glow without masking the visible portion of the scroll strip. */
+.ml-atmosphere-category-pills {
+  scroll-padding-inline: 2rem;
+}
+
+/* The Favorites surface only receives the leftover room of the fixed-height
+   Music workspace; it never asks the document to become scrollable. */
+.ml-atmosphere-favorites-slot,
+.ml-atmosphere-favorites-region {
+  display: none;
+  min-height: 0;
+}
+
+/* The outer slot is the live geometry boundary used by the workspace owner.
+   It stays single-row until measured carousel and Favorites content fit. */
+.ml-atmosphere-carousel-slot {
+  container-name: ml-atmosphere-carousel-slot;
+  container-type: size;
+}
+
+.ml-atmosphere-carousel-workspace[data-favorites-fit="true"] {
+  position: relative;
+}
+
+.ml-atmosphere-carousel-workspace[data-favorites-fit="true"] .ml-atmosphere-favorites-slot {
+  position: absolute;
+  inset-block: var(--ml-atmosphere-favorites-top) 0;
+  inset-inline-start: 50%;
+  inline-size: min(100%, var(--ml-atmosphere-favorites-edge));
+  transform: translateX(-50%);
+  container-name: ml-atmosphere-favorites-slot;
+  container-type: size;
+  display: block;
+}
+
+/* JavaScript prefers 130% of the centered card, then lets the square consume
+   surplus portrait room. Tight boundaries use the largest useful fit; the top
+   offset still divides the remaining room evenly with a 4px-per-side floor. */
+.ml-atmosphere-carousel-workspace[data-favorites-fit="true"] {
+    .ml-atmosphere-favorites-region {
+      display: grid;
+      height: 100%;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .ml-atmosphere-favorites-mosaic {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-auto-rows: minmax(0, 1fr);
+      gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.2);
+      aspect-ratio: 1;
+      /* The centered card supplies the preferred 130% baseline; measured room
+         may grow it or, at a tight boundary, choose the largest safe fit. */
+      inline-size: min(100cqi, 100cqb, var(--ml-atmosphere-favorites-edge));
+      place-self: start center;
+      min-block-size: 0;
+      /* Tiles clip their own artwork; the mosaic must leave their shared card
+         shadow visible beyond the square's edge. */
+      overflow: visible;
+    }
+
+    .ml-atmosphere-favorites-mosaic > div {
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .ml-atmosphere-favorite-tile {
+      position: relative;
+      display: grid;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid hsl(var(--border) / 0.56);
+      border-radius: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.55);
+      background: hsl(var(--card) / 0.8);
+      color: hsl(var(--foreground));
+      isolation: isolate;
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    }
+
+    button.ml-atmosphere-favorite-tile {
+      cursor: pointer;
+      text-align: left;
+    }
+
+    button.ml-atmosphere-favorite-tile:focus-visible {
+      outline: 2px solid hsl(var(--ring));
+      outline-offset: 2px;
+    }
+
+    button.ml-atmosphere-favorite-tile[aria-current="true"] {
+      border-color: hsl(var(--primary) / 0.88);
+      box-shadow: 0 0 0.75rem hsl(var(--primary) / 0.34);
+    }
+
+    button.ml-atmosphere-favorite-tile:not(:disabled):hover {
+      border-color: hsl(var(--primary) / 0.72);
+      transform: translateY(-1px);
+    }
+
+    button.ml-atmosphere-favorite-tile:disabled {
+      cursor: default;
+      opacity: 0.58;
+    }
+
+    .ml-atmosphere-favorite-tile > [role="img"] {
+      grid-area: 1 / 1;
+      border-radius: 0;
+    }
+
+    .ml-atmosphere-favorite-tile > span {
+      z-index: 1;
+      align-self: end;
+      min-width: 0;
+      padding: 1.15rem 0.38rem 0.28rem;
+      overflow: hidden;
+      background: linear-gradient(to top, hsl(0 0% 0% / 0.88), transparent);
+      color: hsl(var(--foreground));
+      font-size: clamp(
+        0.55rem,
+        2.8cqi,
+        calc(var(--ml-atmosphere-workspace-scale-rem) * 0.78)
+      );
+      font-weight: 650;
+      line-height: 1.1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ml-atmosphere-favorite-collection,
+    .ml-atmosphere-favorite-empty {
+      place-items: center;
+      align-content: center;
+      gap: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.35);
+      padding: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.45);
+      text-align: center;
+    }
+
+    .ml-atmosphere-favorite-collection {
+      background:
+        linear-gradient(145deg, hsl(var(--primary) / 0.32), hsl(var(--card) / 0.92)),
+        hsl(var(--card));
+    }
+
+    .ml-atmosphere-favorite-collection > span {
+      align-self: auto;
+      padding: 0;
+      background: transparent;
+      white-space: normal;
+    }
+
+    .ml-atmosphere-favorite-collection > strong {
+      font-size: clamp(
+        1rem,
+        7cqi,
+        calc(var(--ml-atmosphere-workspace-scale-rem) * 2)
+      );
+    }
+
+    .ml-atmosphere-favorite-empty > span {
+      align-self: auto;
+      padding: 0;
+      background: transparent;
+      color: hsl(var(--muted-foreground));
+      font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.7);
+      line-height: 1.2;
+      white-space: normal;
+    }
+
+    .ml-atmosphere-favorite-empty > strong {
+      max-width: 18ch;
+      font-size: calc(var(--ml-atmosphere-workspace-scale-rem) * 0.82);
+      line-height: 1.15;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ml-atmosphere-carousel-workspace[data-favorites-fit="true"] .ml-atmosphere-favorite-tile,
+  .ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* The complete Favorites collection stays within the shared player-safe Sheet
+   primitive. Its scroll body is bounded so the fixed Music workspace never
+   inherits document scrolling when a user saves more than nine stations. */
+.ml-atmosphere-all-favorites-sheet {
+  container-type: inline-size;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(100%, 42rem);
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-all-favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.15rem 0.1rem 0.4rem;
+}
+
+.ml-atmosphere-all-favorites-grid > div {
+  aspect-ratio: 1;
+  min-width: 0;
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.56);
+  border-radius: 0.55rem;
+  background: hsl(var(--card) / 0.8);
+  color: hsl(var(--foreground));
+  isolation: isolate;
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile {
+  cursor: pointer;
+  text-align: left;
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile[aria-current="true"] {
+  border-color: hsl(var(--primary) / 0.88);
+  box-shadow: 0 0 0.75rem hsl(var(--primary) / 0.34);
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile:not(:disabled):hover {
+  border-color: hsl(var(--primary) / 0.72);
+}
+
+.ml-atmosphere-all-favorites-sheet button.ml-atmosphere-favorite-tile:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile > [role="img"] {
+  grid-area: 1 / 1;
+  border-radius: 0;
+}
+
+.ml-atmosphere-all-favorites-sheet .ml-atmosphere-favorite-tile > span {
+  z-index: 1;
+  align-self: end;
+  min-width: 0;
+  padding: 1.15rem 0.5rem 0.35rem;
+  overflow: hidden;
+  background: linear-gradient(to top, hsl(0 0% 0% / 0.88), transparent);
+  color: hsl(var(--foreground));
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container (min-width: 32rem) {
+  .ml-atmosphere-all-favorites-sheet .ml-atmosphere-all-favorites-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

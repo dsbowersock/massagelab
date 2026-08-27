@@ -14,7 +14,10 @@ describe("Atmosphere runtime controller", () => {
       },
     })
 
-    await controller.start({ id: "mlab-proof-drone", runtime: { adapterId: "tone-proof-drone" } })
+    assert.deepEqual(
+      await controller.start({ id: "mlab-proof-drone", runtime: { adapterId: "tone-proof-drone" } }),
+      { status: "active", requestId: 1 },
+    )
 
     assert.equal(controller.getActiveStationId(), "mlab-proof-drone")
     assert.deepEqual(events, ["start:mlab-proof-drone"])
@@ -38,35 +41,92 @@ describe("Atmosphere runtime controller", () => {
     assert.deepEqual(events, ["start:one", "stop:one", "start:two"])
   })
 
-  it("serializes overlapping starts so adapters do not run concurrently", async () => {
+  it("activates the newest overlapping start without waiting for an older adapter", async () => {
     const events = []
-    let releaseFirstStart
-    const firstStartReady = new Promise((resolve) => {
-      releaseFirstStart = resolve
+    let releaseFirst
+    let releaseSecond
+    let firstAdapterEntered
+    let secondAdapterEntered
+    const firstReady = new Promise((resolve) => {
+      releaseFirst = resolve
+    })
+    const secondReady = new Promise((resolve) => {
+      releaseSecond = resolve
+    })
+    const firstEntered = new Promise((resolve) => {
+      firstAdapterEntered = resolve
+    })
+    const secondEntered = new Promise((resolve) => {
+      secondAdapterEntered = resolve
     })
     const controller = createAtmosphereRuntimeController({
       adapters: {
         a: async ({ station }) => {
           events.push(`start:${station.id}`)
-          if (station.id === "one") await firstStartReady
-          return () => events.push(`stop:${station.id}`)
+          if (station.id === "one") {
+            firstAdapterEntered()
+            await firstReady
+          } else {
+            secondAdapterEntered()
+            await secondReady
+          }
+          return () => events.push(`dispose:${station.id}`)
         },
       },
     })
 
     const firstStart = controller.start({ id: "one", runtime: { adapterId: "a" } })
+    await firstEntered
     const secondStart = controller.start({ id: "two", runtime: { adapterId: "a" } })
+    await secondEntered
 
-    await Promise.resolve()
-    assert.deepEqual(events, ["start:one"])
-    releaseFirstStart()
-    await Promise.all([firstStart, secondStart])
+    releaseSecond()
+    assert.deepEqual(await secondStart, { status: "active", requestId: 2 })
+    releaseFirst()
+    assert.deepEqual(await firstStart, { status: "stale", requestId: 1 })
 
     assert.equal(controller.getActiveStationId(), "two")
-    assert.deepEqual(events, ["start:one", "stop:one", "start:two"])
+    assert.deepEqual(events, ["start:one", "start:two", "dispose:one"])
   })
 
-  it("honors a stop request queued while a station is still starting", async () => {
+  it("lets a stale adapter verify ownership before mutating shared audio state", async () => {
+    const events = []
+    let releaseFirst
+    let firstAdapterEntered
+    const firstReady = new Promise((resolve) => {
+      releaseFirst = resolve
+    })
+    const firstEntered = new Promise((resolve) => {
+      firstAdapterEntered = resolve
+    })
+    const controller = createAtmosphereRuntimeController({
+      adapters: {
+        a: async ({ station, isCurrent }) => {
+          if (station.id === "one") {
+            firstAdapterEntered()
+            await firstReady
+          }
+          if (isCurrent()) {
+            events.push(`claim:${station.id}`)
+          }
+          return () => events.push(`dispose:${station.id}`)
+        },
+      },
+    })
+
+    const firstStart = controller.start({ id: "one", runtime: { adapterId: "a" } })
+    await firstEntered
+    assert.deepEqual(
+      await controller.start({ id: "two", runtime: { adapterId: "a" } }),
+      { status: "active", requestId: 2 },
+    )
+    releaseFirst()
+    assert.deepEqual(await firstStart, { status: "stale", requestId: 1 })
+
+    assert.deepEqual(events, ["claim:two", "dispose:one"])
+  })
+
+  it("returns from stop while adapter preparation remains unresolved", async () => {
     const events = []
     let releaseStart
     const startReady = new Promise((resolve) => {
@@ -83,13 +143,76 @@ describe("Atmosphere runtime controller", () => {
     })
 
     const start = controller.start({ id: "one", runtime: { adapterId: "a" } })
-    const stop = controller.stop()
+    await Promise.resolve()
+    assert.deepEqual(await controller.stop(), { requestId: 2 })
+    assert.equal(controller.getActiveStationId(), null)
 
     releaseStart()
-    await Promise.all([start, stop])
+    assert.deepEqual(await start, { status: "stale", requestId: 1 })
 
     assert.equal(controller.getActiveStationId(), null)
     assert.deepEqual(events, ["start:one", "stop:one"])
+  })
+
+  it("offers an awaited cross-owner barrier for active station disposal", async () => {
+    const events = []
+    let releaseDisposal
+    const disposalReady = new Promise((resolve) => { releaseDisposal = resolve })
+    const controller = createAtmosphereRuntimeController({
+      adapters: {
+        a: async () => {
+          const cleanup = () => { events.push("legacy-stop") }
+          cleanup.dispose = async () => {
+            events.push("dispose:start")
+            await disposalReady
+            events.push("dispose:end")
+          }
+          return cleanup
+        },
+      },
+    })
+    await controller.start({ id: "one", runtime: { adapterId: "a" } })
+
+    assert.equal(typeof controller.stopAndWait, "function")
+    let settled = false
+    const barrier = controller.stopAndWait().then(() => { settled = true })
+    await Promise.resolve()
+
+    assert.equal(settled, false)
+    assert.deepEqual(events, ["dispose:start"])
+    releaseDisposal()
+    await barrier
+    assert.deepEqual(events, ["dispose:start", "dispose:end"])
+  })
+
+  it("awaited cross-owner disposal includes an adapter still preparing", async () => {
+    const events = []
+    let releasePreparation
+    const preparationReady = new Promise((resolve) => { releasePreparation = resolve })
+    const controller = createAtmosphereRuntimeController({
+      adapters: {
+        a: async () => {
+          events.push("prepare")
+          await preparationReady
+          const cleanup = () => { events.push("legacy-stop") }
+          cleanup.dispose = async () => { events.push("dispose") }
+          return cleanup
+        },
+      },
+    })
+    const starting = controller.start({ id: "one", runtime: { adapterId: "a" } })
+    await Promise.resolve()
+
+    assert.equal(typeof controller.stopAndWait, "function")
+    let settled = false
+    const barrier = controller.stopAndWait().then(() => { settled = true })
+    await Promise.resolve()
+    assert.equal(settled, false)
+
+    releasePreparation()
+    await barrier
+    assert.deepEqual(await starting, { status: "stale", requestId: 1 })
+    assert.deepEqual(events, ["prepare", "dispose"])
   })
 
   it("does not reactivate a station after a stop cancels a slow start", async () => {
@@ -119,6 +242,98 @@ describe("Atmosphere runtime controller", () => {
 
     await stop
     assert.equal(controller.getActiveStationId(), null)
+  })
+
+  it("keeps a newer active station when a stale adapter rejects", async () => {
+    let rejectFirst
+    let firstAdapterEntered
+    const firstRejected = new Promise((_, reject) => {
+      rejectFirst = reject
+    })
+    const firstEntered = new Promise((resolve) => {
+      firstAdapterEntered = resolve
+    })
+    const controller = createAtmosphereRuntimeController({
+      adapters: {
+        a: async ({ station }) => {
+          if (station.id === "one") {
+            firstAdapterEntered()
+            await firstRejected
+          }
+        },
+      },
+    })
+
+    const firstStart = controller.start({ id: "one", runtime: { adapterId: "a" } })
+    await firstEntered
+    assert.deepEqual(
+      await controller.start({ id: "two", runtime: { adapterId: "a" } }),
+      { status: "active", requestId: 2 },
+    )
+
+    rejectFirst(new Error("First audio failed"))
+    await assert.rejects(() => firstStart, /First audio failed/)
+    assert.equal(controller.getActiveStationId(), "two")
+  })
+
+  it("disposes each of two stale activations exactly once", async () => {
+    const events = []
+    const releases = new Map()
+    const entered = new Map()
+    const controller = createAtmosphereRuntimeController({
+      adapters: {
+        a: async ({ station }) => {
+          if (station.id !== "three") {
+            const ready = new Promise((resolve) => releases.set(station.id, resolve))
+            entered.set(station.id, true)
+            await ready
+          }
+          return () => events.push(`dispose:${station.id}`)
+        },
+      },
+    })
+
+    const firstStart = controller.start({ id: "one", runtime: { adapterId: "a" } })
+    while (!entered.has("one")) await Promise.resolve()
+    const secondStart = controller.start({ id: "two", runtime: { adapterId: "a" } })
+    while (!entered.has("two")) await Promise.resolve()
+    assert.deepEqual(
+      await controller.start({ id: "three", runtime: { adapterId: "a" } }),
+      { status: "active", requestId: 3 },
+    )
+
+    releases.get("one")?.()
+    releases.get("two")?.()
+    assert.deepEqual(await firstStart, { status: "stale", requestId: 1 })
+    assert.deepEqual(await secondStart, { status: "stale", requestId: 2 })
+    await controller.stop()
+
+    assert.deepEqual(events, ["dispose:one", "dispose:two", "dispose:three"])
+  })
+
+  it("detaches active cleanup before a replacement adapter resolves", async () => {
+    const events = []
+    let releaseSecond
+    const secondReady = new Promise((resolve) => {
+      releaseSecond = resolve
+    })
+    const controller = createAtmosphereRuntimeController({
+      adapters: {
+        a: async ({ station }) => {
+          events.push(`start:${station.id}`)
+          if (station.id === "two") await secondReady
+          return () => events.push(`dispose:${station.id}`)
+        },
+      },
+    })
+
+    await controller.start({ id: "one", runtime: { adapterId: "a" } })
+    const secondStart = controller.start({ id: "two", runtime: { adapterId: "a" } })
+
+    assert.equal(controller.getActiveStationId(), null)
+    assert.deepEqual(events, ["start:one", "dispose:one", "start:two"])
+    releaseSecond()
+    assert.deepEqual(await secondStart, { status: "active", requestId: 2 })
   })
 
   it("clears active state when a station fails to start", async () => {

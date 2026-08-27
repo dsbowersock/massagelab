@@ -1,0 +1,214 @@
+{
+  "version": 1,
+  "reviewKind": "signature-catalog-expansion-review",
+  "discoveryReviewSha256": "a22a9d19d8ae8353c32c7f8f7ca2be3e7de3b55cceb0e4d8df4f69b552e512bf",
+  "entries": [
+    {
+      "batchId": "batch-52-grinding-pepper-candidate",
+      "groupId": "signature-expansion:grinding-pepper-candidate",
+      "label": "Grinding Pepper — candidate pool",
+      "summary": "Manual review of all 18 Black Pepper one-shots at a 100-event-per-minute walking-like cadence. Keep only the events that combine into a convincing grinding-pepper rhythm.",
+      "sourceSets": [
+        {
+          "id": "pepper-events",
+          "label": "Black Pepper one-shots",
+          "pathPrefix": "Black+Pepper+One+Shots/Black Pepper One Shots/",
+          "expectedSourceCount": 18
+        }
+      ],
+      "playback": {
+        "strategyId": "walking-cadence-sequence",
+        "previewSettings": { "stepsPerMinute": 100, "jitterPercent": 15 },
+        "minimumSelectionsBeforeRepeat": 6,
+        "overlapNextEvent": true
+      },
+      "runtimePolicy": null,
+      "sourceSelection": null,
+      "showSourceAuditions": true
+    },
+    {
+      "batchId": "batch-55-bagpipes-outside",
+      "groupId": "signature-expansion:bagpipes-outside",
+      "label": "Bagpipes Playing Outside",
+      "summary": "All four dedicated Bag Pipes Playing Outside city recordings in their own concept rather than folded into generic Traffic.",
+      "sourceSets": [
+        {
+          "id": "bagpipes",
+          "label": "Bagpipes outside recordings",
+          "pathPrefix": "City+recordings/",
+          "fileNameIncludes": "Bag Pipes Playing Outside",
+          "expectedSourceCount": 4
+        }
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": { "transitionMode": "crossfade", "transitionSeconds": 10 },
+        "minimumSelectionsBeforeRepeat": 2
+      },
+      "runtimePolicy": null,
+      "sourceSelection": null,
+      "showSourceAuditions": false
+    },
+    {
+      "batchId": "batch-56-ambient-loops-77bpm",
+      "groupId": "signature-expansion:ambient-loops-77bpm",
+      "label": "Ambient Loops — repeating 77 BPM pool",
+      "summary": "The 22 retained 77 BPM recordings play one at a time in random blocks. Each selection plays three to six consecutive times before a different recording enters through a crossfade spanning four 4-beat bars. Three shorter recordings use a two-bar crossfade so their boundary does not consume the whole recording.",
+      "sourceSets": [
+        {
+          "id": "pads",
+          "label": "Pads · 77 BPM",
+          "pathPrefix": "Loops+Of+Ambience/Loops Of Ambience/Pads/",
+          "fileNameIncludes": "77BPM",
+          "excludeFileNames": [
+            "Amient Pad Loop 01 77BPM.wav",
+            "Amient Pad Loop 01-3 77BPM.wav",
+            "Amient Pad Loop 01-4 77BPM.wav",
+            "Amient Pad Loop 02 77BPM.wav",
+            "Amient Pad Loop 02-2 77BPM.wav"
+          ],
+          "expectedSourceCount": 10
+        },
+        {
+          "id": "strings",
+          "label": "Strings · all recordings",
+          "pathPrefix": "Loops+Of+Ambience/Loops Of Ambience/Strings/",
+          "excludeFileNames": [
+            "Amient String Loop 01 77BPM.wav",
+            "Amient String Loop 02 77BPM.wav",
+            "Amient String Loop 02-1 77BPM.wav"
+          ],
+          "expectedSourceCount": 1
+        },
+        {
+          "id": "piano",
+          "label": "Piano · 77 BPM",
+          "pathPrefix": "Loops+Of+Ambience/Loops Of Ambience/Piano/",
+          "fileNameIncludes": "77BPM",
+          "excludeFileNames": [
+            "Amient Piano Loop 04-3 77BPM.wav",
+            "Amient Piano Loop 02 77BPM.wav"
+          ],
+          "expectedSourceCount": 10
+        },
+        {
+          "id": "mallets",
+          "label": "Mallets · 77 BPM",
+          "pathPrefix": "Loops+Of+Ambience/Loops Of Ambience/Mallets/",
+          "fileNameIncludes": "77BPM",
+          "excludeFileNames": [
+            "Amient Mals Loop 04 77BPM.wav",
+            "Amient Mals Loop 04-1 77BPM.wav"
+          ],
+          "expectedSourceCount": 1
+        }
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": { "transitionMode": "crossfade", "transitionSeconds": 12.467532467532468 }
+      },
+      "runtimePolicy": {
+        "kind": "repeat-source-sequence",
+        "minimumConsecutivePlays": 3,
+        "maximumConsecutivePlays": 6,
+        "beatsPerMinute": 77,
+        "crossfadeBeats": 16,
+        "shortSourceIds": [
+          "91ba202ebe785a74fec30f5264e720a43b6136a8e62673402e0dd552e1e6938e",
+          "831ff8d3b4e005e5d09a484fba83b238a1f27406a42d8fa5e265cd0dfa18a74d",
+          "08e8b48075051f141144b0143aec6bb1c0ac4ef23f9e071d2d41f570dc4c7c73"
+        ],
+        "shortCrossfadeBeats": 8
+      },
+      "sourceSelection": null,
+      "showSourceAuditions": true
+    },
+    {
+      "batchId": "batch-57-open-fields",
+      "groupId": "signature-expansion:open-fields",
+      "label": "Open Fields",
+      "summary": "All 11 previously unclassified Open Fields recordings in one dedicated concept pool.",
+      "sourceSets": [
+        {
+          "id": "open-fields",
+          "label": "Open Fields recordings",
+          "pathPrefix": "Open+Fields+Signaturesounds.org+3/Open Fields Signaturesounds.org/",
+          "expectedSourceCount": 11
+        }
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": { "transitionMode": "crossfade", "transitionSeconds": 10 },
+        "minimumSelectionsBeforeRepeat": 5
+      },
+      "runtimePolicy": null,
+      "sourceSelection": null,
+      "showSourceAuditions": false
+    },
+    {
+      "batchId": "batch-60-crowd-walla-assignment",
+      "groupId": "signature-expansion:crowd-walla-assignment",
+      "label": "Crowd Walla",
+      "summary": "All 13 Crowd Walla recordings remain in one pool. Transparent constant-gain matching places every recording at -27.2 LUFS without compression or within-recording attenuation, while preserving at least 1 dB of measured true-peak headroom.",
+      "sourceSets": [
+        {
+          "id": "crowd-walla",
+          "label": "Crowd Walla recordings",
+          "pathPrefix": "Walla/Walla/",
+          "expectedSourceCount": 13
+        }
+      ],
+      "levelMatch": {
+        "method": "ffmpeg-ebur128-v1",
+        "toolVersion": "ffmpeg version N-102167-gc99bdbd5c1-g1ab74bc193+1 Copyright (c) 2000-2021 the FFmpeg developers",
+        "targetPolicy": "median-with-true-peak-headroom",
+        "targetIntegratedLoudnessLufs": -27.2,
+        "measurements": [
+          { "sourceId": "bbffc2e7be9dade6849b4fb513e2ad2f7f0800d06f8d0488d017c89d20090336", "durationSeconds": 44.13, "integratedLoudnessLufs": -21, "truePeakDbtp": -5.5, "gainDb": -6.2 },
+          { "sourceId": "2f8734db09ddc344c0a7b435535672f011a6952326a0e628f6c35f8b16c297b8", "durationSeconds": 224.39, "integratedLoudnessLufs": -25.9, "truePeakDbtp": 0.2, "gainDb": -1.3 },
+          { "sourceId": "e819fd0cba7e7756be37a98fa2e9229a9ad5db2fc6d6cc8a6b95e036215ed4ec", "durationSeconds": 252, "integratedLoudnessLufs": -28.2, "truePeakDbtp": -2, "gainDb": 1 },
+          { "sourceId": "3e1d0f34a186bc7555a2e3255f8b16461c4a86ed4812985c0ef27345f8acd9d3", "durationSeconds": 143.33, "integratedLoudnessLufs": -21.6, "truePeakDbtp": 0.3, "gainDb": -5.6 },
+          { "sourceId": "d460cad46f1caaa4fef970863b1058e9933830c08d89a42ad8891934d04ab186", "durationSeconds": 73.58, "integratedLoudnessLufs": -25.1, "truePeakDbtp": -2.2, "gainDb": -2.1 },
+          { "sourceId": "307a4b02ba5c3bd537fd4bb4ceae050c728ea3b75e10f9c19b3851f3497ac488", "durationSeconds": 33.05, "integratedLoudnessLufs": -34.2, "truePeakDbtp": -18.3, "gainDb": 7 },
+          { "sourceId": "68409b5b06660847be903d1500c6221485d980e458caa5e6c1f83721adea949a", "durationSeconds": 257.58, "integratedLoudnessLufs": -26.1, "truePeakDbtp": -3.4, "gainDb": -1.1 },
+          { "sourceId": "9784bdfff22009d9fe8046facb2f086a8bb8da8f954e41979b39c30c04f596b0", "durationSeconds": 229.33, "integratedLoudnessLufs": -44.5, "truePeakDbtp": -26.8, "gainDb": 17.3 },
+          { "sourceId": "b7f52b87a7716fb0bba817fa2eb77fbe68fc61d9a48d66ca51f6541af1bab0fb", "durationSeconds": 115.98, "integratedLoudnessLufs": -15.5, "truePeakDbtp": -4.3, "gainDb": -11.7 },
+          { "sourceId": "78b22a2ef2033336eb8c34429892350d8d48ba3e4ac1640771358f4414909c9f", "durationSeconds": 22.41, "integratedLoudnessLufs": -31.5, "truePeakDbtp": -18.1, "gainDb": 4.3 },
+          { "sourceId": "50705600c3dd4a680456e93bbd82f9e84d5b87067a8291b99a75975c5105260f", "durationSeconds": 23.69, "integratedLoudnessLufs": -26.9, "truePeakDbtp": -13.9, "gainDb": -0.3 },
+          { "sourceId": "cfe5d2487ea8d858bc6716ce4f050abf0ce295f584c7d3b78fc892e7426e5df4", "durationSeconds": 29.47, "integratedLoudnessLufs": -25.4, "truePeakDbtp": -13.2, "gainDb": -1.8 },
+          { "sourceId": "bd9f1eff4e878002ddfe55ac0654b5adb25e9393793fc6fdd643695dbdc41832", "durationSeconds": 25.41, "integratedLoudnessLufs": -32.4, "truePeakDbtp": -15.2, "gainDb": 5.2 }
+        ]
+      },
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": { "transitionMode": "crossfade", "transitionSeconds": 10 },
+        "minimumSelectionsBeforeRepeat": 6
+      },
+      "runtimePolicy": null,
+      "sourceSelection": null,
+      "showSourceAuditions": true
+    },
+    {
+      "batchId": "batch-61-white-noise-selection",
+      "groupId": "signature-expansion:white-noise-selection",
+      "label": "White Noise — choose one recording",
+      "summary": "All 11 White Noise recordings are available under one concept. Choose one source before playback; only that recording loops, with the next copy beginning 0.25 second before the current copy ends and no fade at the seam.",
+      "sourceSets": [
+        {
+          "id": "white-noise",
+          "label": "White Noise recordings",
+          "pathPrefix": "White+Noise/White Noise/",
+          "expectedSourceCount": 11
+        }
+      ],
+      "playback": {
+        "strategyId": "adaptive-whole-source-sequence",
+        "previewSettings": { "transitionMode": "overlap", "transitionSeconds": 0.25 },
+        "preserveFullLengthOverlaps": true
+      },
+      "runtimePolicy": null,
+      "sourceSelection": { "kind": "single-source-loop" },
+      "showSourceAuditions": true
+    }
+  ]
+}

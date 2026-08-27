@@ -28,6 +28,7 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet"
 import { QuickActionSpeedDial } from "@/components/shell/quick-action-speed-dial"
 import { AppToolLink } from "@/components/shell/app-tool-link"
@@ -230,25 +231,26 @@ function CalendarDrawerButton({
     <Sheet open={open} onOpenChange={updateOpen}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ctaBlue"
-            size="icon"
-            data-active={isNavigationRouteActive(pathname, "/calendar")}
-            className="ml-calendar-drawer-trigger ml-shell-main-bar-control relative shrink-0"
-            aria-label="Open calendar"
-            aria-expanded={open}
-            aria-haspopup="dialog"
-            onClick={() => updateOpen(true)}
-          >
-            <CalendarDays data-icon="inline-start" />
-            {hasActionableRequests && (
-              <span
-                aria-hidden="true"
-                className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-primary shadow-[0_0_0_2px_hsl(var(--background))]"
-              />
-            )}
-          </Button>
+          <SheetTrigger asChild>
+            <Button
+              type="button"
+              variant="ctaBlue"
+              size="icon"
+              data-active={isNavigationRouteActive(pathname, "/calendar")}
+              className="ml-calendar-drawer-trigger ml-shell-main-bar-control relative shrink-0"
+              aria-label="Open calendar"
+              aria-expanded={open}
+              aria-haspopup="dialog"
+            >
+              <CalendarDays data-icon="inline-start" />
+              {hasActionableRequests && (
+                <span
+                  aria-hidden="true"
+                  className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-primary shadow-[0_0_0_2px_hsl(var(--background))]"
+                />
+              )}
+            </Button>
+          </SheetTrigger>
         </TooltipTrigger>
         <TooltipContent>Calendar</TooltipContent>
       </Tooltip>

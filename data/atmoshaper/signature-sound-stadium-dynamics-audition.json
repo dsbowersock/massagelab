@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "algorithmVersion": "signature-stadium-dynamics-v1",
+  "outputVersion": 1,
+  "batchId": "batch-45-stadium-crowd",
+  "groupId": "signature-extra:stadium-crowd",
+  "baseReviewFingerprint": "581844bfabfe92024656ea7686c8aff4e729bc0bd575da5316634571e4254ea1",
+  "upstream": {
+    "manifestRelativePath": "speech-reduction-manifest.json",
+    "declarationSha256": "d87f5ede54226278b846bdb69894f293cb76b57da636ccde6540326c6dfd2ad7",
+    "manifestSha256": "a4e86fd41de6a295b8bb7628822b35330d676b5c1cb6d4b20c94976bd44e7a9d"
+  },
+  "recipe": {
+    "kind": "rms-compression-static-level-match",
+    "thresholdDbfs": -20,
+    "ratio": 3,
+    "attackMs": 20,
+    "releaseMs": 750,
+    "knee": 4,
+    "detection": "rms",
+    "stereoLink": "average",
+    "makeupGain": 1,
+    "mix": 1,
+    "targetIntegratedLoudnessLufs": -23
+  },
+  "format": {
+    "sampleRateHz": 48000,
+    "bitsPerSample": 24,
+    "channels": 2,
+    "codecName": "pcm_s24le",
+    "truePeakCeilingDbtp": -1,
+    "measurementMethod": "ffmpeg-ebur128-v1",
+    "requiredFfmpegVersion": "ffmpeg version 9.0-full_build-www.gyan.dev",
+    "requiredFfprobeVersion": "ffprobe version 9.0-full_build-www.gyan.dev",
+    "ffmpegExecutableSha256": "05f4251bce9293c2ab492cb17ca7724a0ffd0d06c881ba2ee83b82a89c2fc740",
+    "ffprobeExecutableSha256": "51e0780cd881f83749b029ed716cbb841c2eac6289f418050f2f2961b158896b"
+  },
+  "acceptance": {
+    "durationToleranceSeconds": 0.02,
+    "integratedLoudnessToleranceLu": 0.3,
+    "maximumPoolSpreadLu": 0.3,
+    "truePeakToleranceDb": 0.1
+  },
+  "inputs": [
+    {
+      "sourceId": "438f04ade0d666c1c351613926c92dfc873dfe30e4867a402d87d1dfc376e2d6",
+      "upstreamOutputIdentity": "e899f40d2d2fd1c9e7cac414a3ff9572ec10b9e2fb598af2b8ad749ba819b3f7",
+      "upstreamRelativePath": "artifacts/stadium-crowd/438f04ade0d666c1c351613926c92dfc873dfe30e4867a402d87d1dfc376e2d6/audio.wav",
+      "upstreamSha256": "70889e5a4bfe82aed895e2653b16f3ef1772641a7de23e6ad0ec7576f49c6a5f",
+      "upstreamByteSize": 19927404,
+      "durationSeconds": 69.192021
+    },
+    {
+      "sourceId": "4bcfcf11a547dca0b7448f987436a35e9a5c0c40ef98891b3c18a827c00f7815",
+      "upstreamOutputIdentity": "461ec538913e36470b25065f83ce6b142c9075ce88cd1ee28356cf68bbe50124",
+      "upstreamRelativePath": "artifacts/stadium-crowd/4bcfcf11a547dca0b7448f987436a35e9a5c0c40ef98891b3c18a827c00f7815/audio.wav",
+      "upstreamSha256": "0a7f4444304dd29add9ab2e7a13ea731f8fa88187f91699252c297dd02cdf95f",
+      "upstreamByteSize": 28995942,
+      "durationSeconds": 100.68
+    },
+    {
+      "sourceId": "4d145f82b53a11d844c79c482d238e538409f1f5eb5fe959b272d7b48ea0ada6",
+      "upstreamOutputIdentity": "12b171374f1160acec16f5c811db2362d20d051d2fbb7097a862d6cd8ba265d2",
+      "upstreamRelativePath": "artifacts/stadium-crowd/4d145f82b53a11d844c79c482d238e538409f1f5eb5fe959b272d7b48ea0ada6/audio.wav",
+      "upstreamSha256": "11bfacfaa4ef00e540d1712e21589430a94e690255c55e1f0f33d6ee692f7a20",
+      "upstreamByteSize": 26452332,
+      "durationSeconds": 91.848021
+    },
+    {
+      "sourceId": "53195f13ffad544bd5a878393d2ea2ada208e0c90294caf9ca0ce71611fd61e6",
+      "upstreamOutputIdentity": "be716381218c30d5182ec1b4b3a4db3783b625df299524a18c093e2c4420f9ad",
+      "upstreamRelativePath": "artifacts/stadium-crowd/53195f13ffad544bd5a878393d2ea2ada208e0c90294caf9ca0ce71611fd61e6/audio.wav",
+      "upstreamSha256": "836e26cf9f99849c1c6ffa4268ead1fab4f96a9b5b2bcd97be582a8b908e897a",
+      "upstreamByteSize": 67668582,
+      "durationSeconds": 234.96
+    },
+    {
+      "sourceId": "8dc1b0729af7c229d54be7330232214e0ac498ecec9e9f24249f81464717bfc4",
+      "upstreamOutputIdentity": "54f7c1757682b3f3d4fa73cf7df8bb0658ada92293e4401a4f22fdbe92ff1d2b",
+      "upstreamRelativePath": "artifacts/stadium-crowd/8dc1b0729af7c229d54be7330232214e0ac498ecec9e9f24249f81464717bfc4/audio.wav",
+      "upstreamSha256": "0cc007cdc98f14e15aaa47b3a6b5ecacd0c4bb770c26e8a3731365e876c5cfe5",
+      "upstreamByteSize": 23313660,
+      "durationSeconds": 80.949854
+    },
+    {
+      "sourceId": "91299cb9cb8958b61cc16164d0b02d1a0c972fd13edc80ba40780ec2df2cd650",
+      "upstreamOutputIdentity": "48fb9418f34b92eaa684b353d2ecd0250cab19cc73ede9b98c31ba256f39f473",
+      "upstreamRelativePath": "artifacts/stadium-crowd/91299cb9cb8958b61cc16164d0b02d1a0c972fd13edc80ba40780ec2df2cd650/audio.wav",
+      "upstreamSha256": "abbe0f1b662282e6cba1a3a977676c2dc619da5556103dc1d817a2682b66bbd0",
+      "upstreamByteSize": 30331926,
+      "durationSeconds": 105.318833
+    }
+  ]
+}

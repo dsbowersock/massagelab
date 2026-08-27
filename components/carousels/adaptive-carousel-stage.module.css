@@ -5,12 +5,15 @@
   --carousel-gap: 16px;
   min-width: 0;
   width: 100%;
+  container-type: inline-size;
 }
 
 .stage {
   perspective: var(--carousel-perspective, 900px);
   transform-style: preserve-3d;
   overflow: clip;
+  min-width: 0;
+  width: 100%;
   padding-block: clamp(1rem, 4vw, 3rem);
   touch-action: pan-y pinch-zoom;
 }
@@ -26,10 +29,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  flex: 0 0 min(var(--carousel-card-width), calc(100vw - 5rem));
+  flex: 0 0 min(var(--carousel-card-width), calc(100cqw - 2rem));
   height: var(--carousel-card-height);
   min-width: 0;
-  container-type: inline-size;
   z-index: var(--carousel-z-index, 1);
 }
 
@@ -125,6 +127,35 @@
   gap: 0.75rem;
 }
 
+.root[data-surface="stations"][data-carousel-responsive-profile="music-fit"] {
+  position: relative;
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
+
+.root[data-surface="stations"][data-carousel-responsive-profile="music-fit"] .stage {
+  height: 100%;
+  min-height: 0;
+  padding-block: 0;
+}
+
+.root[data-surface="stations"][data-carousel-responsive-profile="music-fit"] .track {
+  align-items: flex-start;
+  height: 100%;
+}
+
+.root[data-surface="stations"][data-carousel-responsive-profile="music-fit"] .slide {
+  align-items: flex-start;
+}
+
+.root[data-surface="stations"][data-carousel-responsive-profile="music-fit"] .controls {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
 .status {
   position: absolute;
   width: 1px;
@@ -154,7 +185,7 @@
 /* Preserve the approved roomy portrait layout while reclaiming vertical space
    in compact desktop and landscape immersive panels. */
 @media (max-height: 44rem) {
-  .root[data-surface="stations"] .stage {
+  .root[data-surface="stations"]:not([data-carousel-responsive-profile="music-fit"]) .stage {
     padding-block: 1.553125rem;
   }
 

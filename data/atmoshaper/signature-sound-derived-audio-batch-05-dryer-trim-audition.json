@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "algorithmVersion": "signature-derived-audio-v1",
+  "batchId": "batch-05-dryer-trim-audition",
+  "outputVersion": 1,
+  "concepts": [
+    {
+      "groupId": "moodist:dryer",
+      "processingIntentIds": [
+        "dryer-trim-boundaries"
+      ],
+      "state": "ready",
+      "sources": [
+        {
+          "sourceId": "a2cdc5b801058999b253de905dcdc45e612c5e944ef6e4202a0d815b91bf8d4f",
+          "sha256": "55d051ad11d93483b3d66f1ef4d13dd02afc94ec2e1d1b6ca125f317cec27a95",
+          "byteSize": 285536,
+          "relativePath": "RandomRecordings+Vol.2/RandomRecordings Vol.2/handdryer.mp3"
+        }
+      ],
+      "recipe": {
+        "kind": "trim-boundary-fades",
+        "trimStartSeconds": 1.8,
+        "trimEndSeconds": 17.7,
+        "fadeInSeconds": 0.15,
+        "fadeOutSeconds": 0.15,
+        "truePeakCeilingDbtp": -0.1,
+        "outputCodec": "pcm_s24le",
+        "outputSampleRateHz": 48000,
+        "outputChannels": 2
+      }
+    }
+  ]
+}

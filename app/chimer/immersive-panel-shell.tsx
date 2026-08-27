@@ -142,10 +142,19 @@ function subscribeToViewportChanges(listener: () => void) {
   }
 }
 
-/** Clears every panel reservation so a closed or edge-docked panel cannot leave the display shifted. */
+const PLAYER_RIGHT_SAFE_RESERVATION = "var(--ml-player-right-safe, 0px)"
+
+/** Keeps panel-owned right space additive with the live global player exclusion. */
+function composeStageRightReservation(panelReservedPx = 0) {
+  return panelReservedPx > 0
+    ? `calc(${panelReservedPx}px + ${PLAYER_RIGHT_SAFE_RESERVATION})`
+    : PLAYER_RIGHT_SAFE_RESERVATION
+}
+
+/** Clears panel reservations while retaining any active global player exclusion. */
 function resetStageReservations(stage: HTMLElement) {
   stage.style.setProperty("--immersive-reserved-top", "0px")
-  stage.style.setProperty("--immersive-reserved-right", "0px")
+  stage.style.setProperty("--immersive-reserved-right", composeStageRightReservation())
   stage.style.setProperty("--immersive-reserved-bottom", "0px")
   stage.style.setProperty("--immersive-reserved-left", "0px")
 }
@@ -319,9 +328,13 @@ export function ImmersivePanelShell({
           const viewportRight = viewportLeft + viewportWidth
           const dockBounds = dock.getBoundingClientRect()
           const sidebarIsRight = document.documentElement.dataset.sidebarPosition === "right"
+          const playerRightSafe = Number.parseFloat(getComputedStyle(dockInsetProbe).paddingRight) || 0
+          // The dock already consumes the player-safe inset. Remove it from the
+          // measured edge and let composeStageRightReservation restore it once,
+          // so the timer stage never reserves the player rail twice.
           const edgeInset = sidebarIsRight
             ? Math.max(0, dockBounds.left - viewportLeft)
-            : Math.max(0, viewportRight - dockBounds.right)
+            : Math.max(0, viewportRight - dockBounds.right - playerRightSafe)
           const reservedPx = Math.min(
             viewportWidth,
             dockBounds.width + edgeInset + SIDE_SHEET_STAGE_GAP_PX,
@@ -329,7 +342,10 @@ export function ImmersivePanelShell({
 
           setPlacement(DEFAULT_PLACEMENT)
           stage.style.setProperty("--immersive-reserved-top", "0px")
-          stage.style.setProperty("--immersive-reserved-right", sidebarIsRight ? "0px" : `${reservedPx}px`)
+          stage.style.setProperty(
+            "--immersive-reserved-right",
+            composeStageRightReservation(sidebarIsRight ? 0 : reservedPx),
+          )
           stage.style.setProperty("--immersive-reserved-bottom", "0px")
           stage.style.setProperty("--immersive-reserved-left", sidebarIsRight ? `${reservedPx}px` : "0px")
           stage.style.removeProperty("--immersive-panel-max-height")
@@ -439,7 +455,7 @@ export function ImmersivePanelShell({
           "--immersive-reserved-bottom",
           nextPlacement.edge === "bottom" ? `${nextPlacement.reservedPx}px` : "0px",
         )
-        stage.style.setProperty("--immersive-reserved-right", "0px")
+        stage.style.setProperty("--immersive-reserved-right", composeStageRightReservation())
         stage.style.setProperty("--immersive-reserved-left", "0px")
         stage.style.setProperty("--immersive-panel-max-height", `${nextPlacement.maxPanelPx}px`)
       })

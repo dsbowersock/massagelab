@@ -1,9 +1,17 @@
 "use client"
 
-import { useCallback, useEffect } from "react"
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react"
 import Link from "next/link"
 import { Heart, Play, Radio, Square, Wind } from "lucide-react"
-import { AtmosphereStationCarousel } from "@/components/atmosphere/station-carousel"
+import {
+  AtmosphereStationCarousel,
+  type AtmosphereStationCarouselView,
+} from "@/components/atmosphere/station-carousel"
+import { AtmosphereFavoritesSpeedDial } from "@/components/atmosphere/favorites-speed-dial"
+import {
+  STATION_CAROUSEL_LARGE_SCREEN_TUNING,
+  STATION_CAROUSEL_TUNING,
+} from "@/components/carousels/adaptive-carousel-model"
 import { AppNotice, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { useMusic } from "@/components/providers/music-provider"
@@ -45,13 +53,31 @@ const initialPayloadPrewarmStationIdSet = new Set([
   "generative-fm-day-dream",
 ])
 
+const FAVORITES_TO_CENTER_CARD_RATIO = STATION_CAROUSEL_LARGE_SCREEN_TUNING.favoritesRatio
+const FAVORITES_MIN_SURROUNDING_GAP_PX = 4
+const FAVORITES_BALANCED_FILL_RATIO = 0.8
+const FAVORITES_MIN_USEFUL_EDGE_PX = STATION_CAROUSEL_TUNING.cardWidth
+
+type AtmosphereFavoritesLayout = {
+  edge: number
+  fit: boolean
+  scale: number
+  top: number
+}
+
 type AtmosphereStationGroup = (typeof stationGroups)[number]
 type AtmosphereWorkspaceLayout = "grid" | "rails"
 
 export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWorkspaceLayout } = {}) {
   const music = useMusic()
+  const [centeredStationId, setCenteredStationId] = useState<string | null>(stations[0]?.id ?? null)
+  const [atmosphereCarouselView, setAtmosphereCarouselView] = useState<AtmosphereStationCarouselView>("stations")
   const { prewarmStation: prewarmMusicStation } = music
   const isRailLayout = layout === "rails"
+  const [carouselSlotRef, favoritesLayout] = useAtmosphereFavoritesLayout(
+    centeredStationId,
+    atmosphereCarouselView === "stations",
+  )
   const prewarmStation = useCallback((stationId: string, options: { includeSamplePayloads?: boolean } = {}) => {
     void prewarmMusicStation(stationId, options)
   }, [prewarmMusicStation])
@@ -95,11 +121,20 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
   }, [prewarmStation])
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div
+      className={cn(
+        "relative overflow-hidden",
+        isRailLayout ? "h-full min-h-0" : "min-h-screen",
+      )}
+      data-atmosphere-workspace={isRailLayout ? "rails" : "grid"}
+    >
       <AppPageShell
         width="full"
-        className="relative z-10 bg-transparent"
-        contentClassName={cn("pb-28", isRailLayout && "ml-atmosphere-rail-content")}
+        className={cn(
+          "relative z-10 bg-transparent",
+          isRailLayout && "ml-atmosphere-workspace-page",
+        )}
+        contentClassName={cn(!isRailLayout && "pb-28", isRailLayout && "ml-atmosphere-rail-content")}
       >
       {isRailLayout ? (
         <h1 className="sr-only">Atmosphere audio stations</h1>
@@ -136,9 +171,40 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
         </section>
       )}
 
-      <div className={isRailLayout ? "space-y-9" : "space-y-8"}>
+      <div
+        className={isRailLayout ? "ml-atmosphere-carousel-slot" : "space-y-8"}
+        ref={isRailLayout ? carouselSlotRef : undefined}
+      >
         {isRailLayout ? (
-          <AtmosphereStationCarousel />
+          <div
+            className="ml-atmosphere-carousel-workspace"
+            data-favorites-fit={favoritesLayout.fit ? "true" : "false"}
+            style={{
+              "--ml-atmosphere-favorites-edge": `${favoritesLayout.edge}px`,
+              "--ml-atmosphere-favorites-top": `${favoritesLayout.top}px`,
+              "--ml-atmosphere-workspace-scale": favoritesLayout.scale,
+              "--ml-atmosphere-header-scale-rem": `${Math.min(
+                favoritesLayout.scale,
+                STATION_CAROUSEL_LARGE_SCREEN_TUNING.maxHeaderScale,
+              )}rem`,
+              "--ml-atmosphere-workspace-scale-rem": `${favoritesLayout.scale}rem`,
+            } as CSSProperties}
+          >
+            <AtmosphereStationCarousel
+              onCenteredStationChange={setCenteredStationId}
+              onViewChange={setAtmosphereCarouselView}
+            />
+            {atmosphereCarouselView === "stations" ? (
+              <div className="ml-atmosphere-favorites-slot">
+                <AtmosphereFavoritesSpeedDial
+                  busy={music.playbackState === "loading"}
+                  favoriteIds={music.favorites}
+                  onPlayStation={(stationId) => { void music.playStation(stationId) }}
+                  playingStationId={music.playbackState === "playing" ? music.activeStationId : null}
+                />
+              </div>
+            ) : null}
+          </div>
         ) : (
           stationGroups.map((group) => (
             <AtmosphereStationGrid
@@ -153,6 +219,109 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
       </AppPageShell>
     </div>
   )
+}
+
+/**
+ * Derives the optional Favorites row from live rendered geometry. Browser zoom,
+ * text scaling, player rails, and device emulation all change this same measured
+ * space, so none of them needs a separate breakpoint or browser-specific rule.
+ */
+function useAtmosphereFavoritesLayout(centeredStationId: string | null, enabled: boolean) {
+  const carouselSlotRef = useRef<HTMLDivElement>(null)
+  const [layout, setLayout] = useState<AtmosphereFavoritesLayout>({ edge: 0, fit: false, scale: 1, top: 0 })
+
+  useEffect(() => {
+    const slot = carouselSlotRef.current
+    if (!slot) return undefined
+    if (!enabled) {
+      setLayout((current) => current.fit ? { ...current, fit: false } : current)
+      return undefined
+    }
+
+    let animationFrame = 0
+    let resizeObserver: ResizeObserver | null = null
+
+    const measure = () => {
+      const stationCarousel = slot.querySelector<HTMLElement>(".ml-atmosphere-station-carousel")
+      const centeredCard = slot.querySelector<HTMLElement>(
+        '[data-carousel-slide][data-centered="true"]',
+      )
+      if (!stationCarousel || !centeredCard) return
+
+      const slotRect = slot.getBoundingClientRect()
+      const centeredCardRect = centeredCard.getBoundingClientRect()
+      const minimumEdge = centeredCardRect.width * FAVORITES_TO_CENTER_CARD_RATIO
+      const scale = Math.max(1, centeredCardRect.width / STATION_CAROUSEL_TUNING.cardWidth)
+      const centeredCardBottom = centeredCardRect.bottom - slotRect.top
+      const availableBelowCarousel = slotRect.height - centeredCardBottom
+      const preferredEdge = Math.min(
+        slotRect.width * FAVORITES_BALANCED_FILL_RATIO,
+        availableBelowCarousel * FAVORITES_BALANCED_FILL_RATIO,
+      )
+      const maximumFittingEdge = Math.min(
+        slotRect.width * FAVORITES_BALANCED_FILL_RATIO,
+        availableBelowCarousel - FAVORITES_MIN_SURROUNDING_GAP_PX * 2,
+      )
+      const constrainedLandscape = stationCarousel.dataset.constrainedLandscape === "true"
+      const fit = maximumFittingEdge >= FAVORITES_MIN_USEFUL_EDGE_PX
+        && !constrainedLandscape
+      // Prefer 1.3x, then spend surplus portrait room on the mosaic. At a tight
+      // boundary, use the largest useful square that preserves all four gaps.
+      const edge = fit
+        ? Math.min(
+            maximumFittingEdge,
+            Math.max(minimumEdge, preferredEdge),
+          )
+        : minimumEdge
+      const remainingVerticalSpace = availableBelowCarousel - edge
+      // Divide the live leftover workspace equally so the mosaic sits midway
+      // between the carousel and the usable viewport bottom above the app rail.
+      const surroundingGap = Math.max(0, remainingVerticalSpace / 2)
+      const top = centeredCardBottom + surroundingGap
+
+      setLayout((current) => (
+        current.fit === fit
+          && Math.abs(current.edge - edge) < 0.5
+          && Math.abs(current.scale - scale) < 0.005
+          && Math.abs(current.top - top) < 0.5
+          ? current
+          : { edge, fit, scale, top }
+      ))
+    }
+
+    const scheduleMeasurement = () => {
+      window.cancelAnimationFrame(animationFrame)
+      animationFrame = window.requestAnimationFrame(measure)
+    }
+
+    resizeObserver = new ResizeObserver(scheduleMeasurement)
+    resizeObserver.observe(slot)
+    const stationCarousel = slot.querySelector<HTMLElement>(".ml-atmosphere-station-carousel")
+    const centeredCard = slot.querySelector<HTMLElement>(
+      '[data-carousel-slide][data-centered="true"]',
+    )
+    if (stationCarousel) resizeObserver.observe(stationCarousel)
+    if (centeredCard) resizeObserver.observe(centeredCard)
+
+    const mutationObserver = new MutationObserver(scheduleMeasurement)
+    mutationObserver.observe(slot, {
+      attributeFilter: ["class", "data-centered", "style"],
+      attributes: true,
+      childList: true,
+      subtree: true,
+    })
+    window.addEventListener("resize", scheduleMeasurement)
+    scheduleMeasurement()
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame)
+      resizeObserver?.disconnect()
+      mutationObserver.disconnect()
+      window.removeEventListener("resize", scheduleMeasurement)
+    }
+  }, [centeredStationId, enabled])
+
+  return [carouselSlotRef, layout] as const
 }
 
 function AtmosphereStationGrid({

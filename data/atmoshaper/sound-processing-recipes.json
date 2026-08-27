@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "plannerAlgorithmVersion": "cyclic-crossfade-two-pass-v1",
+  "profiles": [
+    {
+      "id": "ambient-loop-v1",
+      "trim": {
+        "startSeconds": 0,
+        "targetDurationSeconds": 60
+      },
+      "loop": {
+        "crossfadeSeconds": 3
+      },
+      "audio": {
+        "channels": 2,
+        "sampleRateHz": 48000,
+        "integratedLoudnessTargetLufs": -20,
+        "truePeakCeilingDbtp": -1
+      },
+      "encodes": [
+        {
+          "format": "webm-opus",
+          "extension": "webm",
+          "codec": "libopus",
+          "bitrateKbps": 128
+        },
+        {
+          "format": "m4a-aac",
+          "extension": "m4a",
+          "codec": "aac",
+          "bitrateKbps": 160
+        }
+      ]
+    }
+  ],
+  "sourceMeasurements": [],
+  "assignments": [],
+  "publishedOutputs": []
+}

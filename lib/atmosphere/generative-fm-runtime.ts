@@ -8,6 +8,12 @@ import {
   startAbortableGenerativeFmPrewarm,
   waitForAbortableGenerativeFmPrewarm,
 } from "./generative-fm-provider"
+import {
+  loadGenerativeFmPieceModule,
+  prepareGenerativeFmPlayback,
+} from "./generative-fm-piece-loader"
+import { generativeFmTransportOwner } from "./generative-fm-transport-owner.js"
+import type { InputNode } from "tone/build/esm/core/context/ToneAudioNode"
 
 type HostedCompressedSampleFormat = "opus" | "aac" | "mp3"
 type HostedSampleFormat = HostedCompressedSampleFormat | "wav"
@@ -23,9 +29,16 @@ type GenerativeFmRuntimeStation = {
 }
 
 type GenerativeFmRuntimeOptions = {
+  destination?: InputNode
   station: GenerativeFmRuntimeStation
   volume?: number
   onLoadProgress?: (progress: number) => void
+  isCurrent?: () => boolean
+}
+
+type GenerativeFmPlaybackHandle = (() => void) & {
+  dispose(): Promise<void>
+  setVolume(nextVolume: number, seconds?: number): void
 }
 
 type GenerativeFmPrewarmOptions = {
@@ -89,7 +102,6 @@ type SamplePayloadPrewarmEntry = {
 }
 
 let activeVolumeNode: { volume: { value: number, rampTo?: (value: number, seconds: number) => unknown } } | null = null
-let activeTransportOwner: symbol | null = null
 let runtimeModulesPromise: Promise<GenerativeFmRuntimeModules> | null = null
 const preparedRuntimeEntries = new Map<string, PreparedRuntimeCacheEntry>()
 const samplePayloadPrewarmEntries = new Map<string, SamplePayloadPrewarmEntry>()
@@ -109,27 +121,31 @@ const HOSTED_SAMPLE_FORMAT_PREFERENCE: ReadonlyArray<{
 
 /**
  * Starts a Generative.fm package inside MassageLab's global audio lifecycle.
- * The adapter reuses any already prepared metadata/module promise, then starts
- * Tone only from the user-initiated playback path.
+ * The adapter reuses any already prepared metadata/module promise and requests
+ * Tone activation immediately from the user-initiated playback path.
  */
 export async function startGenerativeFmPiece({
+  destination,
+  isCurrent = () => true,
   onLoadProgress,
   station,
   volume = 0.75,
-}: GenerativeFmRuntimeOptions) {
+}: GenerativeFmRuntimeOptions): Promise<GenerativeFmPlaybackHandle> {
   if (typeof window === "undefined") {
     throw new Error("Generative.fm stations can only start in the browser.")
   }
 
   const startedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.04)
-  const prepared = await getPreparedGenerativeFmRuntime(station, "playback")
-  const preparedAt = performance.now()
+  const playbackPreparation = await prepareGenerativeFmPlayback({
+    loadRuntimeModules: loadGenerativeFmRuntimeModules,
+    prepareRuntime: () => getPreparedGenerativeFmRuntime(station, "playback"),
+  })
+  const prepared = playbackPreparation.prepared as PreparedGenerativeFmRuntimeResult
+  const { preparedAt, toneStartedAt } = playbackPreparation
   reportLoadProgress(onLoadProgress, 0.22)
   const { Tone, createWebProvider, createWebLibrary, piece, pieceId, sampleIndex } = prepared
 
-  await Tone.start()
-  const toneStartedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.32)
 
   const providerRequestStats = createGenerativeFmProviderRequestStats()
@@ -145,7 +161,9 @@ export async function startGenerativeFmPiece({
     },
   }) as ReturnType<WebProviderFactory>
   const sampleLibrary = createWebLibrary({ sampleIndex, provider })
-  const output = new Tone.Volume(volumeToDecibels(0)).toDestination()
+  const output = new Tone.Volume(volumeToDecibels(0))
+  if (destination) output.connect(destination)
+  else output.toDestination()
   let deactivate: () => unknown
   let schedule: () => (() => unknown) | undefined
   try {
@@ -161,21 +179,24 @@ export async function startGenerativeFmPiece({
     output.dispose()
     throw error
   }
+
+  // A newer request may finish while this piece is preparing. Do not let this
+  // stale graph cancel or claim the newer request's shared Tone.Transport.
+  if (!isCurrent()) {
+    deactivate()
+    output.dispose()
+    return createSilentGenerativeFmHandle()
+  }
   const activatedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.9)
 
-  const transportOwner = Symbol(station.id)
-  let endStage: (() => unknown) | undefined
+  let transportSession
   try {
-    if (activeTransportOwner) {
-      // Generative.fm pieces share Tone.Transport and package callbacks are not
-      // owner-scoped. Clear old future callbacks before the next station claims
-      // the transport; already-started sources keep fading through their output.
-      Tone.Transport.cancel()
-      activeTransportOwner = null
-    }
-
-    endStage = schedule()
+    transportSession = generativeFmTransportOwner.replace({
+      cancel: () => Tone.Transport.cancel(),
+      schedule,
+      start: () => Tone.Transport.start(),
+    })
   } catch (error) {
     deactivate()
     output.dispose()
@@ -183,7 +204,6 @@ export async function startGenerativeFmPiece({
   }
   reportLoadProgress(onLoadProgress, 0.97)
 
-  Tone.Transport.start()
   const scheduledAt = performance.now()
   reportLoadProgress(onLoadProgress, 1)
   const samplePayloadPrewarm = readSamplePayloadPrewarmState(prepared)
@@ -201,47 +221,54 @@ export async function startGenerativeFmPiece({
     sampleRequestMemoryHitUrlCount: providerRequestStats.memoryHitUrlCount,
     sampleRequestUniqueUrlCount: providerRequestStats.uniqueUrlCount,
     sampleRequestUrlCount: providerRequestStats.requestedUrlCount,
-    prepareWaitMs: preparedAt - startedAt,
-    toneStartMs: toneStartedAt - preparedAt,
-    pieceActivateMs: activatedAt - toneStartedAt,
+    prepareWaitMs: Math.max(0, preparedAt - toneStartedAt),
+    toneStartMs: Math.max(0, toneStartedAt - startedAt),
+    pieceActivateMs: Math.max(0, activatedAt - Math.max(preparedAt, toneStartedAt)),
     scheduleMs: scheduledAt - activatedAt,
     totalMs: scheduledAt - startedAt,
   })
   activeVolumeNode = output
-  activeTransportOwner = transportOwner
   output.volume.rampTo?.(volumeToDecibels(volume), GENERATIVE_FM_HANDOFF_FADE_SECONDS)
 
-  let disposed = false
-  return () => {
-    if (disposed) {
-      return
-    }
-    disposed = true
-
+  let cleanupPromise: Promise<void> | null = null
+  const beginCleanup = () => {
+    if (cleanupPromise) return cleanupPromise
     if (activeVolumeNode === output) {
       activeVolumeNode = null
     }
 
-    output.volume.rampTo?.(volumeToDecibels(0), GENERATIVE_FM_HANDOFF_FADE_SECONDS)
+    try {
+      output.volume.rampTo?.(volumeToDecibels(0), GENERATIVE_FM_HANDOFF_FADE_SECONDS)
+    } catch {
+      // A failed fade must not prevent terminal graph cleanup.
+    }
 
     // Let the old piece fade under the next station. If no newer station has
     // claimed the shared Transport by the end of the fade, stop it as part of
     // the normal user-visible stop path.
-    window.setTimeout(() => {
-      const ownsTransport = activeTransportOwner === transportOwner
-      if (ownsTransport) {
-        activeTransportOwner = null
-        // Cancel queued package events before disposing samplers so a late
-        // Transport callback cannot trigger a released buffer.
-        Tone.Transport.stop()
-        Tone.Transport.cancel()
-      }
-
-      endStage?.()
-      deactivate()
-      output.dispose()
-    }, Math.ceil(GENERATIVE_FM_HANDOFF_FADE_SECONDS * 1000))
+    cleanupPromise = new Promise((resolve) => {
+      window.setTimeout(() => {
+        generativeFmTransportOwner.release(transportSession, {
+          stop: () => Tone.Transport.stop(),
+          cancel: () => Tone.Transport.cancel(),
+        })
+        generativeFmTransportOwner.endSchedule(transportSession)
+        runCleanupStep(deactivate)
+        runCleanupStep(() => output.dispose())
+        resolve()
+      }, Math.ceil(GENERATIVE_FM_HANDOFF_FADE_SECONDS * 1000))
+    })
+    return cleanupPromise
   }
+  const stop = (() => {
+    void beginCleanup()
+  }) as GenerativeFmPlaybackHandle
+  stop.setVolume = (nextVolume: number, seconds = 0.08) => {
+    if (cleanupPromise) return
+    output.volume.rampTo?.(volumeToDecibels(nextVolume), seconds)
+  }
+  stop.dispose = beginCleanup
+  return stop
 }
 
 /**
@@ -274,6 +301,23 @@ export function setGenerativeFmPieceVolume(volume: number) {
   }
 
   activeVolumeNode.volume.value = volumeToDecibels(volume)
+}
+
+/** Returns the callable legacy shape even when an obsolete start allocates no live graph. */
+function createSilentGenerativeFmHandle(): GenerativeFmPlaybackHandle {
+  const stop = (() => undefined) as GenerativeFmPlaybackHandle
+  stop.setVolume = () => undefined
+  stop.dispose = async () => undefined
+  return stop
+}
+
+/** Runs terminal cleanup best-effort so a package callback cannot strand later owners. */
+function runCleanupStep(step: () => unknown) {
+  try {
+    step()
+  } catch {
+    // The graph is already terminal; continue releasing the remaining owners.
+  }
 }
 
 async function getPreparedGenerativeFmRuntime(
@@ -530,25 +574,8 @@ function resolveToneContext(Tone: ToneModule) {
   return Tone.context
 }
 
-/**
- * Loads the requested Generative.fm package piece. Observable Streams stays on
- * the single-piece package because its exported runtime matches the hosted
- * rendered sample keys verified for MassageLab playback; the aggregate package
- * remains the catalog source for future sample-enabled stations.
- */
 async function loadGenerativeFmPiece(pieceId: string): Promise<GenerativeMusicPiece> {
-  if (pieceId === "observable-streams") {
-    const { default: piece } = await import("@generative-music/piece-observable-streams")
-    return piece
-  }
-
-  const { byId: piecesById } = await import("@generative-music/pieces-alex-bainter")
-  const piece = piecesById?.[pieceId] as GenerativeMusicPiece | undefined
-  if (!piece) {
-    throw new Error(`Generative.fm package did not expose piece id: ${pieceId}`)
-  }
-
-  return piece
+  return loadGenerativeFmPieceModule(pieceId) as Promise<GenerativeMusicPiece>
 }
 
 /**

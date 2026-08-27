@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "batchDeclarationSha256": "1dc03a71719a12e4e5e47ebf0410f7ed9e308b06d7a1e2434a3de853d8ac2f6a",
+  "manifestSha256": "04f96575eb156fc39913244b9e7f30d46025f7b3580031e15af2cc1e8c3b53a8",
+  "updatedAt": "2026-08-25T18:22:50.031Z",
+  "outputs": {
+    "2a024d7cc5923cc465b088faaccec79583924314b3cd19b17f18a31815d5f987": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T18:19:19.172Z",
+      "derivedHeardAt": "2026-08-25T18:19:09.256Z",
+      "decision": "pass"
+    },
+    "87d5eee5402707237cd5f3dd37bad23aa71dca63beee5fce896726ad05740ec3": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T18:19:50.004Z",
+      "derivedHeardAt": "2026-08-25T18:19:30.138Z",
+      "decision": "pass"
+    },
+    "05152d472168db2e14773ddcb42f15fcd164610c0a72bfa30ecf1801be9e55bb": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T18:19:56.653Z",
+      "derivedHeardAt": "2026-08-25T18:19:35.654Z",
+      "decision": "pass"
+    },
+    "e06aaf0b5986441ac2631b44757ba372cd2a5579ecbc28a72931e48446854a24": {
+      "note": "",
+      "sourceHeardAt": "2026-08-25T18:20:02.336Z",
+      "derivedHeardAt": "2026-08-25T18:19:40.254Z",
+      "decision": "pass"
+    }
+  }
+}

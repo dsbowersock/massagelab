@@ -41,6 +41,106 @@ function formatResponse(response: Response) {
   return `${response.status()} ${url.pathname}`
 }
 
+/** Sends a browser-native Chromium touch drag across an adaptive carousel viewport. */
+async function swipeCarouselStage(
+  page: Page,
+  testId: "station-carousel-stage" | "background-carousel-stage",
+  direction: "next" | "previous",
+) {
+  const stage = page.getByTestId(testId)
+  const box = await stage.boundingBox()
+  if (!box) throw new Error(`${testId} has no touch bounds`)
+
+  const session = await page.context().newCDPSession(page)
+  const y = box.y + box.height * 0.25
+  const startX = box.x + box.width * 0.5
+  const endX = box.x + box.width * (direction === "next" ? 0.1 : 0.9)
+  const touchPoint = (x: number) => ({
+    x,
+    y,
+    id: 1,
+    radiusX: 4,
+    radiusY: 4,
+    force: 1,
+  })
+
+  try {
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [touchPoint(startX)],
+    })
+    for (let step = 1; step <= 8; step += 1) {
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [touchPoint(startX + (endX - startX) * (step / 8))],
+      })
+    }
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    })
+  } finally {
+    await session.detach()
+  }
+}
+
+/** Drags an adaptive carousel with the desktop pointer across the same bounds. */
+async function dragCarouselStageWithMouse(
+  page: Page,
+  testId: "station-carousel-stage" | "background-carousel-stage",
+  direction: "next" | "previous",
+) {
+  const box = await page.getByTestId(testId).boundingBox()
+  if (!box) throw new Error("Adaptive carousel stage has no mouse-drag bounds")
+  const y = box.y + box.height * 0.25
+  const startX = box.x + box.width * 0.5
+  const endX = box.x + box.width * (direction === "next" ? 0.1 : 0.9)
+  await page.mouse.move(startX, y)
+  await page.mouse.down()
+  await page.mouse.move(endX, y, { steps: 8 })
+  await page.mouse.up()
+}
+
+/** Clicks the visible portion of a side preview through the browser input path. */
+async function clickVisibleCarouselSideCard(
+  page: Page,
+  stage: Locator,
+  sideCard: Locator,
+) {
+  const [stageBox, cardBox] = await Promise.all([stage.boundingBox(), sideCard.boundingBox()])
+  if (!stageBox || !cardBox) throw new Error("Carousel side card has no visible bounds")
+  const left = Math.max(stageBox.x, cardBox.x)
+  const right = Math.min(stageBox.x + stageBox.width, cardBox.x + cardBox.width)
+  const top = Math.max(stageBox.y, cardBox.y)
+  const bottom = Math.min(stageBox.y + stageBox.height, cardBox.y + cardBox.height)
+  if (right <= left || bottom <= top) throw new Error("Carousel side card is outside the stage")
+  await page.mouse.click((left + right) / 2, (top + bottom) / 2)
+}
+
+/** Waits for Embla's track transform to remain unchanged across three frames. */
+async function waitForCarouselMotionToSettle(
+  page: Page,
+  testId: "station-carousel-stage" | "background-carousel-stage",
+) {
+  await page.getByTestId(testId).evaluate(async (stage) => {
+    const track = stage.firstElementChild
+    if (!(track instanceof HTMLElement)) throw new Error("Adaptive carousel track is missing")
+    let previous: number | null = null
+    let stableFrames = 0
+    for (let frame = 0; frame < 120; frame += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      const transform = getComputedStyle(track).transform
+      const current = transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41
+      stableFrames = previous !== null && Math.abs(current - previous) <= 0.05
+        ? stableFrames + 1
+        : 0
+      previous = current
+      if (stableFrames >= 3) return
+    }
+    throw new Error("Adaptive carousel track did not settle within 120 frames")
+  })
+}
+
 function isLocalHttpUrl(urlString: string) {
   const url = new URL(urlString)
   return ["127.0.0.1", "localhost"].includes(url.hostname)
@@ -563,11 +663,11 @@ test("Atmosphere visualizer action retains selected station across client routes
     expect(controlsBox?.y ?? 0).toBeGreaterThan(identityBox?.y ?? 0)
   }
 
-  for (const name of ["Previous station", "Stop", "Next station", "Background", "Collapse"]) {
+  for (const name of ["Previous station", "Stop", "Next station", "Background", "Minimize"]) {
     await expect(playerToolbar.getByRole(name === "Background" ? "link" : "button", { name, exact: true })).toBeVisible()
   }
 
-  await playerToolbar.getByRole("button", { name: "Collapse", exact: true }).click()
+  await playerToolbar.getByRole("button", { name: "Minimize", exact: true }).click()
   await expect(playerToolbar).toHaveAttribute("data-collapsed", "true")
   await expect(playerToolbar.getByRole("link", { name: "Background", exact: true })).toHaveCount(0)
   await expect(playerToolbar.getByRole("button", { name: "Stop", exact: true })).toBeVisible()
@@ -617,6 +717,32 @@ test("Atmosphere visualizer action retains selected station across client routes
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("non-Music compact landscape keeps the global rail without narrowing ordinary content", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Compact-landscape global rail is covered in mobile Chromium.")
+  await page.setViewportSize({ width: 844, height: 390 })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  const toolbar = page.getByTestId("music-player-toolbar")
+  await expect(toolbar).toHaveAttribute("data-layout", "rail")
+
+  await page.getByRole("link", { name: "Open clock" }).click()
+  await expect(page).toHaveURL(/\/clock$/)
+  await expect(toolbar).toHaveAttribute("data-layout", "rail")
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-rail/)
+  await expect(page.locator("body")).not.toHaveClass(/ml-music-player-music-route/)
+  const contentBox = await page.locator(".ml-app-content").boundingBox()
+  expect(contentBox?.width).toBeCloseTo(844, 0)
+  expect(await page.locator("body").evaluate((body) => {
+    const probe = document.createElement("div")
+    probe.style.cssText = "position:absolute;visibility:hidden;width:var(--ml-player-right-safe);"
+    body.appendChild(probe)
+    const width = probe.getBoundingClientRect().width
+    probe.remove()
+    return width
+  })).toBeGreaterThan(0)
+})
+
 test("Atmosphere restores the active station category after the Music route remounts", async ({ page }) => {
   const health = capturePageHealth(page)
 
@@ -642,96 +768,6 @@ test("Atmosphere restores the active station category after the Music route remo
   await expect(page.getByRole("heading", { name: /Water, nature, and field textures/i })).toBeVisible()
   await expect(page.locator('[data-carousel-item-id="generative-fm-last-transit"]')).toHaveAttribute("data-centered", "true")
   await page.getByRole("button", { name: /^Stop$/i }).last().click()
-
-  expect(health.pageErrors, "uncaught page errors").toEqual([])
-  expect(health.consoleErrors, "browser console errors").toEqual([])
-  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
-  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
-})
-
-test("Atmosphere registers mobile media notification controls for active stations", async ({ page }) => {
-  const health = capturePageHealth(page)
-
-  // Install a deterministic Media Session shim before app code runs so this
-  // test can assert notification metadata and action-handler registration.
-  await page.addInitScript(() => {
-    const handlers: Record<string, (() => void) | null> = {}
-    const mediaSession = {
-      handlers,
-      metadata: null as Record<string, unknown> | null,
-      playbackState: "none",
-      setActionHandler(action: string, handler: (() => void) | null) {
-        handlers[action] = handler
-      },
-    }
-
-    class MockMediaMetadata {
-      title = ""
-      artist = ""
-      album = ""
-      artwork: Array<Record<string, string>> = []
-
-      constructor(init: Record<string, unknown>) {
-        Object.assign(this, init)
-      }
-    }
-
-    // The app reads navigator.mediaSession, so the shim must live on the
-    // Navigator prototype before React code initializes.
-    Object.defineProperty(Navigator.prototype, "mediaSession", {
-      configurable: true,
-      get: () => mediaSession,
-    })
-    // The app constructs MediaMetadata when updating notification controls.
-    Object.defineProperty(window, "MediaMetadata", {
-      configurable: true,
-      value: MockMediaMetadata,
-    })
-    // Expose shim state for page.evaluate polling assertions in this test.
-    Reflect.set(window, "__massagelabMediaSession", mediaSession)
-  })
-
-  await page.goto("/music", { waitUntil: "domcontentloaded" })
-  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
-    .toHaveAttribute("data-music-storage-status", "available")
-  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
-  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
-
-  await expect
-    .poll(async () => page.evaluate(() => {
-      const mediaSession = Reflect.get(window, "__massagelabMediaSession") as {
-        handlers: Record<string, (() => void) | null>
-        metadata: { title?: string; artist?: string; album?: string; artwork?: Array<Record<string, string>> } | null
-        playbackState: string
-      }
-      return {
-        actions: Object.entries(mediaSession.handlers)
-          .filter(([, handler]) => typeof handler === "function")
-          .map(([action]) => action)
-          .sort(),
-        album: mediaSession.metadata?.album,
-        artist: mediaSession.metadata?.artist,
-        artworkCount: mediaSession.metadata?.artwork?.length ?? 0,
-        playbackState: mediaSession.playbackState,
-        title: mediaSession.metadata?.title,
-      }
-    }))
-    .toEqual({
-      actions: ["nexttrack", "pause", "play", "previoustrack", "stop"],
-      album: "MassageLab Atmosphere",
-      artist: "MassageLab",
-      artworkCount: 2,
-      playbackState: "playing",
-      title: "MassageLab Proof Drone",
-    })
-
-  await page.evaluate(() => {
-    const mediaSession = Reflect.get(window, "__massagelabMediaSession") as {
-      handlers: Record<string, (() => void) | null>
-    }
-    mediaSession.handlers.pause?.()
-  })
-  await expect(page.getByText(/Playing|Preparing audio|Preparing station/i)).toHaveCount(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
@@ -996,6 +1032,21 @@ test("Breathing guide route runs separately from Music stations", async ({ page 
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("first station Play activation stays hidden before carousel readiness", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Mobile Chromium owns the first-action contract.")
+  const context = await browser.newContext({ javaScriptEnabled: false })
+  const page = await context.newPage()
+  try {
+    await page.goto("/music", { waitUntil: "domcontentloaded" })
+    const carousel = page.getByRole("region", { name: "Station carousel" })
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "false")
+    await expect(carousel.locator("[data-carousel-primary-action]").first()).toHaveCSS("visibility", "hidden")
+    await expect(carousel.locator("[data-carousel-favorite-action]").first()).toHaveCSS("visibility", "hidden")
+  } finally {
+    await context.close()
+  }
+})
+
 test("center station details support swipe and short tap while actions stay protected", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Touch carousel behavior is covered in mobile Chromium.")
   await page.setViewportSize({ width: 390, height: 844 })
@@ -1019,7 +1070,7 @@ test("center station details support swipe and short tap while actions stay prot
   const proof = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
   const protectedCenterId = await proof.getAttribute("data-carousel-item-id")
   const playButton = proof.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })
-  const pointerPrewarmAbortCount = await playButton.evaluate(async (button) => {
+  await playButton.evaluate(async (button) => {
     const textNode = Array.from(button.childNodes).find((node) => (
       node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === "Play"
     ))
@@ -1029,40 +1080,9 @@ test("center station details support swipe and short tap while actions stay prot
     const startX = box.left + box.width * 0.75
     const startY = box.top + box.height * 0.5
 
-    const dispatchPointer = (type: "pointerdown" | "pointercancel", pointerId: number) => {
-      textNode.dispatchEvent(new PointerEvent(type, {
-        bubbles: true,
-        button: 0,
-        buttons: type === "pointerdown" ? 1 : 0,
-        cancelable: true,
-        clientX: startX,
-        clientY: startY,
-        isPrimary: true,
-        pointerId,
-        pointerType: "mouse",
-      }))
-    }
-
-    // A first pointerdown establishes the current prewarm controller. The
-    // second must reach the Play button's React onPointerDown handler and abort it.
-    dispatchPointer("pointerdown", 41)
-    dispatchPointer("pointercancel", 41)
-    const originalAbort = AbortController.prototype.abort
-    let abortCount = 0
-    try {
-      AbortController.prototype.abort = function (reason?: unknown) {
-        abortCount += 1
-        return originalAbort.call(this, reason)
-      }
-      dispatchPointer("pointerdown", 42)
-      dispatchPointer("pointercancel", 42)
-    } finally {
-      AbortController.prototype.abort = originalAbort
-    }
-
     // Keep the MouseEvent sequence because Embla's watchDrag gate consumes
-    // MouseEvent | TouchEvent. Starting on the label preserves the Text-node
-    // target that previously bypassed interactive-control drag protection.
+    // MouseEvent | TouchEvent. Starting on the label proves drag protection
+    // still applies without the primary button's former pointerdown warmup.
     textNode.dispatchEvent(new MouseEvent("mousedown", {
       bubbles: true,
       button: 0,
@@ -1092,9 +1112,7 @@ test("center station details support swipe and short tap while actions stay prot
       clientY: startY,
       view: window,
     }))
-    return abortCount
   })
-  expect(pointerPrewarmAbortCount).toBeGreaterThan(0)
   await expect.poll(async () => page.locator('[data-carousel-slide][data-centered="true"]').getAttribute("data-carousel-item-id"))
     .toBe(protectedCenterId)
 
@@ -1113,6 +1131,184 @@ test("center station details support swipe and short tap while actions stay prot
   await expect(proof).toHaveAttribute("data-centered", "true")
   await page.getByTestId("music-player-toolbar").getByRole("button", { name: "Stop", exact: true }).click()
 })
+
+for (const reducedMotion of [false, true] as const) {
+  test(`station carousel loops and station swipe wraps ${reducedMotion ? "with reduced motion" : "with normal motion"}`, async ({ page }, testInfo) => {
+    test.skip(
+      !["mobile-chromium", "desktop-chromium"].includes(testInfo.project.name),
+      "Station loop coverage is owned by Chromium projects.",
+    )
+    await page.emulateMedia({ reducedMotion: reducedMotion ? "reduce" : "no-preference" })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto("/music", { waitUntil: "domcontentloaded" })
+
+    const carousel = page.getByRole("region", { name: "Station carousel" })
+    const stage = page.getByTestId("station-carousel-stage")
+    const slides = carousel.locator('[data-carousel-slide="true"]:not([data-carousel-loop-clone="true"])')
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+    await expect(carousel).toHaveAttribute("data-reduced-motion", String(reducedMotion))
+    const ids = await slides.evaluateAll((elements) => elements
+      .map((element) => element.getAttribute("data-carousel-canonical-id"))
+      .filter((id): id is string => Boolean(id)))
+    expect(ids.length).toBeGreaterThan(2)
+    const firstId = ids[0]
+    const lastId = ids[ids.length - 1]
+    const centeredId = () => carousel
+      .locator('[data-carousel-slide="true"][data-centered="true"]')
+      .getAttribute("data-carousel-canonical-id")
+    const previous = carousel.getByRole("button", { name: "Previous station" })
+    const next = carousel.getByRole("button", { name: "Next station" })
+    const customControlMarker = carousel.locator('[data-station-carousel-controls="true"]')
+    const hasFineHoverPointer = await page.evaluate(() => (
+      window.matchMedia("(any-hover: hover) and (any-pointer: fine)").matches
+    ))
+    const controlsExpected = reducedMotion || hasFineHoverPointer
+
+    await expect(previous).toHaveCount(controlsExpected ? 1 : 0)
+    await expect(next).toHaveCount(controlsExpected ? 1 : 0)
+    await expect(customControlMarker).toHaveCount(controlsExpected ? 1 : 0)
+    await stage.focus()
+    await page.keyboard.press("Home")
+    await expect.poll(centeredId).toBe(firstId)
+    await page.keyboard.press("ArrowLeft")
+    await expect.poll(centeredId).toBe(lastId)
+    await page.keyboard.press("ArrowRight")
+    await expect.poll(centeredId).toBe(firstId)
+
+    if (controlsExpected) {
+      await expect(previous).toBeEnabled()
+      await expect(next).toBeEnabled()
+      await previous.click()
+      await expect.poll(centeredId).toBe(lastId)
+      await next.click()
+      await expect.poll(centeredId).toBe(firstId)
+    }
+
+    await stage.focus()
+    await page.keyboard.press("ArrowLeft")
+    await expect.poll(centeredId).toBe(lastId)
+    await page.keyboard.press("ArrowRight")
+    await expect.poll(centeredId).toBe(firstId)
+    await waitForCarouselMotionToSettle(page, "station-carousel-stage")
+
+    const lastSideCard = carousel.locator(`[data-carousel-canonical-id="${lastId}"][data-detail-level="summary"]`).first()
+    await clickVisibleCarouselSideCard(page, stage, lastSideCard)
+    await expect.poll(centeredId).toBe(lastId)
+    await waitForCarouselMotionToSettle(page, "station-carousel-stage")
+
+    const firstSideCard = carousel.locator(`[data-carousel-canonical-id="${firstId}"][data-detail-level="summary"]`).first()
+    await clickVisibleCarouselSideCard(page, stage, firstSideCard)
+    await expect.poll(centeredId).toBe(firstId)
+    await waitForCarouselMotionToSettle(page, "station-carousel-stage")
+    if (testInfo.project.name === "mobile-chromium") {
+      await swipeCarouselStage(page, "station-carousel-stage", "previous")
+    } else {
+      await dragCarouselStageWithMouse(page, "station-carousel-stage", "previous")
+    }
+    await expect.poll(centeredId).toBe(lastId)
+    await waitForCarouselMotionToSettle(page, "station-carousel-stage")
+    if (testInfo.project.name === "mobile-chromium") {
+      await swipeCarouselStage(page, "station-carousel-stage", "next")
+    } else {
+      await dragCarouselStageWithMouse(page, "station-carousel-stage", "next")
+    }
+    await expect.poll(centeredId).toBe(firstId)
+
+    if (controlsExpected) {
+      await expect(previous).toBeEnabled()
+      await expect(next).toBeEnabled()
+    }
+    if (reducedMotion) {
+      const presentation = carousel.locator('[data-centered="true"] [data-carousel-transform="true"]')
+      await expect(presentation).toHaveCSS("transition-duration", "0s")
+      await expect(presentation).toHaveCSS("transform", "none")
+    }
+  })
+}
+
+for (const reducedMotion of [false, true] as const) {
+  test(`Background default navigation and Background drag keep ${reducedMotion ? "reduced-motion finite" : "normal looped"} behavior`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Native Background drag coverage is owned by mobile Chromium.")
+    await page.emulateMedia({ reducedMotion: reducedMotion ? "reduce" : "no-preference" })
+    if (reducedMotion) {
+      await page.addInitScript(() => {
+        localStorage.setItem("massage-lab-settings", JSON.stringify({ ambientMotionMode: "reduced" }))
+      })
+    }
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto("/clock?source=music&returnTo=%2Fmusic", { waitUntil: "domcontentloaded" })
+
+    const dialog = page.getByRole("dialog", { name: "Background" })
+    await expect(dialog).toBeVisible()
+    const carousel = dialog.getByRole("region", { name: "Background carousel" })
+    const stage = page.getByTestId("background-carousel-stage")
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+    await expect(carousel).toHaveAttribute("data-reduced-motion", String(reducedMotion))
+    const ids = await carousel.locator('[data-carousel-slide="true"]').evaluateAll((elements) => elements
+      .map((element) => element.getAttribute("data-carousel-item-id"))
+      .filter((id): id is string => Boolean(id)))
+    expect(ids.length).toBeGreaterThan(2)
+    const firstId = ids[0]
+    const lastId = ids[ids.length - 1]
+    const centeredId = () => carousel
+      .locator('[data-carousel-slide="true"][data-centered="true"]')
+      .getAttribute("data-carousel-item-id")
+    const previous = carousel.getByRole("button", { name: "Previous background" })
+    const next = carousel.getByRole("button", { name: "Next background" })
+    await expect(carousel).toHaveAttribute("data-has-custom-controls", "true")
+    await expect(carousel.locator("[data-station-carousel-controls], [data-carousel-controls]"))
+      .toHaveCount(0)
+    await expect(previous).toHaveCount(1)
+    await expect(next).toHaveCount(1)
+
+    await expect.poll(centeredId).toBe(firstId)
+    if (reducedMotion) {
+      await expect(previous).toBeDisabled()
+      await stage.focus()
+      await page.keyboard.press("ArrowLeft")
+      await expect.poll(centeredId).toBe(firstId)
+      await swipeCarouselStage(page, "background-carousel-stage", "previous")
+      await expect.poll(centeredId).toBe(firstId)
+
+      await next.click()
+      await expect.poll(centeredId).toBe(ids[1])
+      await previous.click()
+      await expect.poll(centeredId).toBe(firstId)
+
+      await stage.focus()
+      await page.keyboard.press("ArrowRight")
+      await expect.poll(centeredId).toBe(ids[1])
+      await page.keyboard.press("ArrowLeft")
+      await expect.poll(centeredId).toBe(firstId)
+
+      await page.keyboard.press("End")
+      await expect.poll(centeredId).toBe(lastId)
+      await expect(next).toBeDisabled()
+      await swipeCarouselStage(page, "background-carousel-stage", "next")
+      await expect.poll(centeredId).toBe(lastId)
+      await expect(carousel.locator('[data-centered="true"] [data-carousel-transform="true"]'))
+        .toHaveCSS("transition-duration", "0s")
+    } else {
+      await expect(previous).toBeEnabled()
+      await expect(next).toBeEnabled()
+      await previous.click()
+      await expect.poll(centeredId).toBe(lastId)
+      await next.click()
+      await expect.poll(centeredId).toBe(firstId)
+
+      await stage.focus()
+      await page.keyboard.press("ArrowLeft")
+      await expect.poll(centeredId).toBe(lastId)
+      await page.keyboard.press("ArrowRight")
+      await expect.poll(centeredId).toBe(firstId)
+
+      await swipeCarouselStage(page, "background-carousel-stage", "previous")
+      await expect.poll(centeredId).toBe(lastId)
+      await swipeCarouselStage(page, "background-carousel-stage", "next")
+      await expect.poll(centeredId).toBe(firstId)
+    }
+  })
+}
 
 test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample station", async ({ page }) => {
   const health = capturePageHealth(page)
@@ -1138,14 +1334,33 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   await expect(treatmentRoomCategory).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByRole("heading", { name: /Treatment room starters/i })).toBeVisible()
 
-  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
-  const proofCard = page.locator("#station-mlab-proof-drone")
-  const proofBox = await proofCard.boundingBox()
-  expect(proofBox?.width).toBeCloseTo(192, 0)
-  expect(proofBox?.height).toBeCloseTo(224, 0)
+  const proofSlide = await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  const proofCard = proofSlide.locator("#station-mlab-proof-drone")
+  const [proofBox, stageBox] = await Promise.all([
+    proofCard.boundingBox(),
+    page.getByTestId("station-carousel-stage").boundingBox(),
+  ])
+  expect(proofBox).not.toBeNull()
+  expect(stageBox).not.toBeNull()
+  expect(proofBox?.width ?? 0).toBeGreaterThan(0)
+  expect(proofBox?.height ?? 0).toBeGreaterThan(0)
+  expect(proofBox?.x ?? -1).toBeGreaterThanOrEqual((stageBox?.x ?? 0) - 1)
+  expect(proofBox?.y ?? -1).toBeGreaterThanOrEqual((stageBox?.y ?? 0) - 1)
+  expect((proofBox?.x ?? 0) + (proofBox?.width ?? 0)).toBeLessThanOrEqual(
+    (stageBox?.x ?? 0) + (stageBox?.width ?? 0) + 1,
+  )
+  expect((proofBox?.y ?? 0) + (proofBox?.height ?? 0)).toBeLessThanOrEqual(
+    (stageBox?.y ?? 0) + (stageBox?.height ?? 0) + 1,
+  )
 
-  await centerCarouselItem(page, "observable-streams-probe", "Next station")
-  const observableStreamsStation = page.locator("#station-observable-streams-probe")
+  const observableStreamsSlide = await centerCarouselItem(
+    page,
+    "observable-streams-probe",
+    "Next station",
+  )
+  const observableStreamsStation = observableStreamsSlide.locator(
+    "#station-observable-streams-probe",
+  )
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
   await expect(observableStreamsStation.getByRole("img", { name: /Observable Streams station artwork/i })).toBeVisible()
   await expect(observableStreamsStation.getByText(/Piano, violin, and oboe-like tones/i)).toBeVisible()

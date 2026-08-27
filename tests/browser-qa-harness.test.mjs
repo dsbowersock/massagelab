@@ -30,6 +30,21 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
 
+test("install-prompt QA dispatches only while the provider listener is proven active", async () => {
+  const appShellSpec = await readProjectFile("tests/browser/app-shell.spec.ts")
+
+  assert.equal((appShellSpec.match(/await installPwaPromptListenerProbe\(page\)/g) ?? []).length, 2)
+  assert.equal((appShellSpec.match(/await dispatchPwaInstallPromptWhenReady\(page,/g) ?? []).length, 2)
+  const dispatchStart = appShellSpec.indexOf("async function dispatchPwaInstallPromptWhenReady")
+  const dispatchEnd = appShellSpec.indexOf("\nasync function ", dispatchStart + 1)
+  const dispatchSource = appShellSpec.slice(dispatchStart, dispatchEnd === -1 ? undefined : dispatchEnd)
+  assert.notEqual(dispatchStart, -1)
+  assert.match(
+    dispatchSource,
+    /if \(!Reflect\.get\(window, "__massagelabPwaInstallPromptListenerReady"\)\) return false[\s\S]*window\.dispatchEvent\(event\)/,
+  )
+})
+
 /**
  * Extracts one job from this repository's CI workflow source. The matcher
  * intentionally follows its two-space job indentation and lowercase-letter or
@@ -67,10 +82,12 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
   const expectedSpecs = [
     "admin-user-operations.spec.ts",
     "app-shell.spec.ts",
+    "atmoshaper.spec.ts",
     "background-commerce.spec.ts",
     "control-system-review.spec.ts",
     "immersive-panel-shell.spec.ts",
     "local-first.spec.ts",
+    "music-media-session.spec.ts",
     "music-visualizer.spec.ts",
     "public-routes.spec.ts",
     "pwa.spec.ts",
@@ -91,7 +108,7 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
   const expectedPairs = new Set(
     expectedProjects.flatMap((projectName) => expectedSpecs.map((spec) => `${projectName}:${spec}`)),
   )
-  assert.equal(expectedPairs.size, 18)
+  assert.equal(expectedPairs.size, 22)
 
   const actualPairs = []
   for (const lane of Object.values(BROWSER_QA_LANES)) {
@@ -135,9 +152,17 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
   const expectedLaneProjects = {
     "1": [
       {
-        name: "mobile-chromium",
+        name: "desktop-chromium",
         testMatch: [
           "**/public-routes.spec.ts",
+          "**/local-first.spec.ts",
+        ],
+      },
+      {
+        name: "mobile-chromium",
+        testMatch: [
+          "**/app-shell.spec.ts",
+          "**/pwa.spec.ts",
         ],
       },
     ],
@@ -145,15 +170,15 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
       {
         name: "desktop-chromium",
         testMatch: [
-          "**/public-routes.spec.ts",
-          "**/immersive-panel-shell.spec.ts",
+          "**/app-shell.spec.ts",
           "**/pwa.spec.ts",
         ],
       },
       {
         name: "mobile-chromium",
         testMatch: [
-          "**/immersive-panel-shell.spec.ts",
+          "**/public-routes.spec.ts",
+          "**/local-first.spec.ts",
         ],
       },
     ],
@@ -161,14 +186,16 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
       {
         name: "desktop-chromium",
         testMatch: [
-          "**/app-shell.spec.ts",
+          "**/atmoshaper.spec.ts",
+          "**/music-media-session.spec.ts",
+          "**/admin-user-operations.spec.ts",
         ],
       },
       {
         name: "mobile-chromium",
         testMatch: [
-          "**/background-commerce.spec.ts",
-          "**/app-shell.spec.ts",
+          "**/atmoshaper.spec.ts",
+          "**/music-media-session.spec.ts",
         ],
       },
     ],
@@ -177,20 +204,19 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
         name: "desktop-chromium",
         testMatch: [
           "**/background-commerce.spec.ts",
-          "**/music-visualizer.spec.ts",
-          "**/local-first.spec.ts",
-          "**/admin-user-operations.spec.ts",
           "**/control-system-review.spec.ts",
+          "**/immersive-panel-shell.spec.ts",
+          "**/music-visualizer.spec.ts",
         ],
       },
       {
         name: "mobile-chromium",
         testMatch: [
-          "**/music-visualizer.spec.ts",
-          "**/local-first.spec.ts",
-          "**/pwa.spec.ts",
           "**/admin-user-operations.spec.ts",
+          "**/background-commerce.spec.ts",
           "**/control-system-review.spec.ts",
+          "**/immersive-panel-shell.spec.ts",
+          "**/music-visualizer.spec.ts",
         ],
       },
     ],
@@ -350,7 +376,7 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
 
   assert.match(packageData.devDependencies["@playwright/test"], /^\^\d+\.\d+\.\d+$/)
   assert.equal(packageData.scripts["test:browser"], "playwright test")
-  assert.equal(packageData.scripts["test:browser:build"], "npm run build && npm run test:browser")
+  assert.equal(packageData.scripts["test:browser:build"], "npm run build:browser-qa && npm run test:browser")
 
   assert.match(config, /webServer/)
   assert.match(config, /localhost:3010/)
@@ -418,6 +444,14 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assertWorkflowStepBefore(ciWorkflow, "npm run prisma:generate", "npm run typecheck")
 })
 
+test("media readiness QA targets the dedicated proof runtime when mixer bundles share its exports", async () => {
+  const mediaSessionSpec = await readProjectFile("tests/browser/music-media-session.spec.ts")
+
+  assert.match(mediaSessionSpec, /source\.includes\('\"startToneProofDrone\",0'\)/)
+  assert.match(mediaSessionSpec, /source\.includes\('\"getToneProofDroneDiagnostics\",0'\)/)
+  assert.match(mediaSessionSpec, /!source\.includes\('\"createAtmoShaperRuntime\",0'\)/)
+})
+
 test("CI workflow parallelizes browser QA and aggregates every upstream result", async () => {
   const ciWorkflow = await readProjectFile(".github/workflows/ci.yml")
 
@@ -427,7 +461,7 @@ test("CI workflow parallelizes browser QA and aggregates every upstream result",
   assert.match(ciWorkflow, /^  qa:\r?$/m)
   assert.match(ciWorkflow, /code_quality:\r?\n    name: Code quality[\s\S]*?timeout-minutes: 12/)
   assert.match(ciWorkflow, /browser_build:\r?\n    name: Browser build[\s\S]*?timeout-minutes: 12/)
-  assert.match(ciWorkflow, /browser_qa:\r?\n    name: Browser QA \(lane \$\{\{ matrix\.lane \}\}\)[\s\S]*?needs: browser_build[\s\S]*?timeout-minutes: 15/)
+  assert.match(ciWorkflow, /browser_qa:\r?\n    name: Browser QA \(lane \$\{\{ matrix\.lane \}\}\)[\s\S]*?needs: browser_build[\s\S]*?timeout-minutes: 20/)
   assert.match(ciWorkflow, /qa:\r?\n    name: qa[\s\S]*?if: \$\{\{ always\(\) \}\}[\s\S]*?timeout-minutes: 2/)
   assert.doesNotMatch(getWorkflowJob(ciWorkflow, "code_quality"), /^    needs:/m)
   assert.doesNotMatch(getWorkflowJob(ciWorkflow, "browser_build"), /^    needs:/m)

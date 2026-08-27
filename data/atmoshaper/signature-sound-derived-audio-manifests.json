@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "batchId": "batch-01-campfire-boiling-water",
+      "batchDeclarationSha256": "1dc03a71719a12e4e5e47ebf0410f7ed9e308b06d7a1e2434a3de853d8ac2f6a",
+      "manifestRelativePath": "batch-manifest.json",
+      "manifestSha256": "04f96575eb156fc39913244b9e7f30d46025f7b3580031e15af2cc1e8c3b53a8",
+      "state": "audible-qa-passed"
+    },
+    {
+      "batchId": "batch-02-air-traffic-control",
+      "batchDeclarationSha256": "87a79b019a119ef781640fb344a8f3b688a2aa7fd0a0457a7da29a1b1da17008",
+      "manifestRelativePath": "batch-manifest.json",
+      "manifestSha256": "fb0163b77a656f92f61bcc2bd63d46b9ad74bbc55fb9b4557268beab95a1ef94",
+      "state": "audible-qa-passed"
+    },
+    {
+      "batchId": "batch-03-sci-fi-whistles-treatment-audition",
+      "batchDeclarationSha256": "e05aadb04e87f56e9df4f69cba180ce37ca0f4481fbfc0fa2c981bdd4fb4163a",
+      "manifestRelativePath": "batch-manifest.json",
+      "manifestSha256": "8ff6856b1342a8d88366eeae48e1307b7cbc0921ef0ef7755fce8ac4f7faa6c6",
+      "state": "audible-qa-passed"
+    },
+    {
+      "batchId": "batch-04-boiling-water-edit-audition",
+      "batchDeclarationSha256": "7ba27607e61fdd09f3cad2c6898fec8726dd9762d798ad1437ff8120ae6e16e4",
+      "manifestRelativePath": "batch-manifest.json",
+      "manifestSha256": "dbbdb177e8cd47fa2923528f9de834a5ad1cdb87fe3c2cc3c780bf67a2a6c5c6",
+      "state": "audible-qa-passed"
+    },
+    {
+      "batchId": "batch-05-dryer-trim-audition",
+      "batchDeclarationSha256": "15ae5817239e3b43da3a520bae261fdf03756401d05220b06885996b18cfe2b9",
+      "manifestRelativePath": "batch-manifest.json",
+      "manifestSha256": "2612f3cf58c2be61ad3f609fc5e6237af34143c1185a983f5a892a58a11d9d9d",
+      "state": "audible-qa-complete-dry-selected"
+    }
+  ]
+}

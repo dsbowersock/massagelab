@@ -57,8 +57,111 @@ export const STATION_CAROUSEL_TUNING = Object.freeze({
   motion: true,
   spread: 27,
   radius: 420,
+  perspective: 900,
   scaleFalloff: 0.05,
 })
+
+export const STATION_CAROUSEL_LARGE_SCREEN_TUNING = Object.freeze({
+  compactReferenceWidth: 375,
+  compactMaxWidth: 768,
+  compactMaxScale: 1.4,
+  balancedFillHeightShare: 2 / 3,
+  balancedFillAspectStart: 1,
+  balancedFillAspectFull: 1.3,
+  referenceWidth: 960,
+  maxScale: 2.5,
+  maxHeaderScale: 1.5,
+  favoritesRatio: 1.3,
+  fitRoundingBuffer: 2,
+  minimumFavoritesGap: 8,
+  preferredFavoritesGap: 30,
+})
+
+/**
+ * Preserves the approved Station composition while allowing roomy phones,
+ * tablets, laptops, and televisions to scale it as one unit. Width establishes
+ * the baseline while increasingly tall stages blend in two-thirds of their
+ * additional vertical opportunity. Inline and block fit remain hard bounds so
+ * the 1.3x Favorites square stays complete. Constrained landscape retains its
+ * separate height-first behavior.
+ * @param {{ containerWidth: number, containerHeight: number, constrainedLandscape: boolean }} dimensions
+ * @returns {AdaptiveCarouselTuning}
+ */
+export function getResponsiveStationCarouselTuning({
+  containerWidth,
+  containerHeight,
+  constrainedLandscape,
+}) {
+  const safeWidth = Number.isFinite(containerWidth) && containerWidth > 0 ? containerWidth : 740
+  const safeHeight = Number.isFinite(containerHeight) && containerHeight > 0 ? containerHeight : 224
+  const compactWidthProgress = Math.max(0, Math.min(1, (
+    safeWidth - STATION_CAROUSEL_LARGE_SCREEN_TUNING.compactReferenceWidth
+  ) / (
+    STATION_CAROUSEL_LARGE_SCREEN_TUNING.compactMaxWidth
+      - STATION_CAROUSEL_LARGE_SCREEN_TUNING.compactReferenceWidth
+  )))
+  const compactWidthInfluence = Math.sqrt(compactWidthProgress)
+  const compactWidthScale = 1 + (
+    STATION_CAROUSEL_LARGE_SCREEN_TUNING.compactMaxScale - 1
+  ) * compactWidthInfluence
+  const largeScreenWidthScale = safeWidth
+    / STATION_CAROUSEL_LARGE_SCREEN_TUNING.referenceWidth
+  const widthScale = Math.max(compactWidthScale, largeScreenWidthScale)
+  const stackedBaseHeight = STATION_CAROUSEL_TUNING.cardHeight
+    + STATION_CAROUSEL_TUNING.cardWidth * STATION_CAROUSEL_LARGE_SCREEN_TUNING.favoritesRatio
+  const heightScale = (
+    safeHeight
+      - STATION_CAROUSEL_LARGE_SCREEN_TUNING.minimumFavoritesGap
+      - STATION_CAROUSEL_LARGE_SCREEN_TUNING.fitRoundingBuffer
+  ) / stackedBaseHeight
+  const tallStageInfluence = Math.max(0, Math.min(1, (
+    safeHeight / Math.max(1, safeWidth)
+      - STATION_CAROUSEL_LARGE_SCREEN_TUNING.balancedFillAspectStart
+  ) / (
+    STATION_CAROUSEL_LARGE_SCREEN_TUNING.balancedFillAspectFull
+      - STATION_CAROUSEL_LARGE_SCREEN_TUNING.balancedFillAspectStart
+  )))
+  const balancedHeightScale = 1 + Math.max(0, heightScale - 1)
+    * STATION_CAROUSEL_LARGE_SCREEN_TUNING.balancedFillHeightShare
+  const balancedFillScale = widthScale + Math.max(0, balancedHeightScale - widthScale)
+    * tallStageInfluence
+    * compactWidthInfluence
+  const inlineFitScale = (
+    safeWidth - STATION_CAROUSEL_LARGE_SCREEN_TUNING.fitRoundingBuffer
+  ) / (
+    STATION_CAROUSEL_TUNING.cardWidth
+      * STATION_CAROUSEL_LARGE_SCREEN_TUNING.favoritesRatio
+  )
+  const roomyScale = constrainedLandscape
+    ? 1
+    : Math.max(1, Math.min(
+        STATION_CAROUSEL_LARGE_SCREEN_TUNING.maxScale,
+        balancedFillScale,
+        inlineFitScale,
+        heightScale,
+      ))
+  const cardHeight = constrainedLandscape
+    ? Math.max(72, Math.min(STATION_CAROUSEL_TUNING.cardHeight, Math.floor(safeHeight)))
+    : Math.round(STATION_CAROUSEL_TUNING.cardHeight * roomyScale)
+  const cardWidth = constrainedLandscape
+    ? Math.round(
+        cardHeight * STATION_CAROUSEL_TUNING.cardWidth / STATION_CAROUSEL_TUNING.cardHeight,
+      )
+    : Math.round(STATION_CAROUSEL_TUNING.cardWidth * roomyScale)
+  return {
+    ...STATION_CAROUSEL_TUNING,
+    cardWidth,
+    cardHeight,
+    radius: Math.round(STATION_CAROUSEL_TUNING.radius * roomyScale),
+    perspective: Math.round(STATION_CAROUSEL_TUNING.perspective * roomyScale),
+    // Preserve the approved 27-degree composition when room permits. At the
+    // medium-width shell, pull the second pair of wings inward far enough to
+    // remain recognizable instead of leaving only imperceptible slivers.
+    spread: safeWidth < 700 && !constrainedLandscape
+      ? 20
+      : STATION_CAROUSEL_TUNING.spread,
+  }
+}
 
 /**
  * Selects Background geometry from the width available to the carousel. The
@@ -172,6 +275,62 @@ export function getMountedAdaptiveCarouselItemIds(items, centeredId, visibleRadi
 }
 
 /**
+ * Adds a unique, non-semantic copy of the nearest items to both ends of a
+ * finite rail. Station carousels use this physical breathing room so the
+ * curved presentation can always draw the same unique neighbors on the left
+ * and right; the controller silently returns an edge copy to its real item.
+ *
+ * @template {AdaptiveCarouselItem} T
+ * @param {readonly T[]} items
+ * @param {number} requestedRadius
+ * @param {boolean} enabled
+ * @returns {readonly (T & { canonicalId?: string, loopClone?: boolean })[]}
+ */
+export function createAdaptiveCarouselLoopBuffer(items, requestedRadius, enabled) {
+  if (!enabled || items.length < 3) return items
+  const radius = Math.min(
+    Math.max(1, Math.round(requestedRadius)),
+    Math.floor((items.length - 1) / 2),
+  )
+  const originals = items.map((item) => ({
+    ...item,
+    canonicalId: item.id,
+    loopClone: false,
+  }))
+  /** @param {T} item @param {"before" | "after"} side @param {number} index */
+  const clone = (item, side, index) => ({
+    ...item,
+    id: `__ml-${side}-${index}-${item.id}`,
+    canonicalId: item.id,
+    loopClone: true,
+  })
+  return [
+    ...items.slice(-radius).map((item, index) => clone(item, "before", index)),
+    ...originals,
+    ...items.slice(0, radius).map((item, index) => clone(item, "after", index)),
+  ]
+}
+
+/**
+ * Preserves the approved curved spacing when a loop uses a finite physical
+ * buffer. The buffer's whole-slide positions must be translated back to the
+ * same fractional ring steps that the visual presentation used before.
+ *
+ * @param {number} physicalProgress
+ * @param {number} logicalItemCount
+ * @param {boolean} buffered
+ * @returns {number}
+ */
+export function getAdaptiveCarouselPresentationProgress(
+  physicalProgress,
+  logicalItemCount,
+  buffered,
+) {
+  if (!buffered || logicalItemCount < 2) return physicalProgress
+  return physicalProgress * ((logicalItemCount - 1) / logicalItemCount)
+}
+
+/**
  * Converts continuous Embla progress into presentation-owned CSS variables.
  * @param {AdaptiveCarouselPresentation} presentation
  * @param {AdaptiveCarouselSurface} surface
@@ -211,8 +370,19 @@ export function getAdaptiveCarouselPresentationVariables(
     const linearOffset = progress * (
       /** @type {number} */ (tuning.cardWidth) + /** @type {number} */ (tuning.gap)
     )
+    // The fourth Station wing is nearly edge-on. Ease just that outer portion
+    // inward so proportional scaling keeps a recognizable sliver at both
+    // viewport edges without changing the approved first three card positions.
+    const outerWingTuck = surface === "stations"
+      ? Math.max(0, absoluteProgress - 3)
+        * /** @type {number} */ (tuning.cardWidth) * 0.15
+      : 0
     return {
-      "--carousel-x": `${(Math.sin(radians) * /** @type {number} */ (tuning.radius) - linearOffset).toFixed(2)}px`,
+      "--carousel-x": `${(
+        Math.sin(radians) * /** @type {number} */ (tuning.radius)
+        - linearOffset
+        - Math.sign(progress) * outerWingTuck
+      ).toFixed(2)}px`,
       "--carousel-z": `${(-absoluteProgress * 28).toFixed(2).replace(".00", "")}px`,
       "--carousel-rotate-y": `${(-angle).toFixed(2).replace(".00", "")}deg`,
       "--carousel-scale": String(Math.max(0.65, 1 - absoluteProgress * /** @type {number} */ (tuning.scaleFalloff))),

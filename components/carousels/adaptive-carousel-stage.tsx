@@ -1,9 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, type CSSProperties, type ReactNode } from "react"
+import { useEffect, useMemo, type CSSProperties, type ReactNode, type Ref } from "react"
 import { StepBack, StepForward } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { normalizeAdaptiveCarouselItems } from "./adaptive-carousel-model"
+import {
+  createAdaptiveCarouselLoopBuffer,
+  normalizeAdaptiveCarouselItems,
+} from "./adaptive-carousel-model"
 import {
   useAdaptiveCarouselController,
   type AdaptiveCarouselItem,
@@ -16,6 +19,7 @@ interface AdaptiveCarouselItemRenderState {
   centered: boolean
   nearby: boolean
   detailLevel: AdaptiveCarouselDetailLevel
+  loopClone: boolean
 }
 
 /**
@@ -45,6 +49,13 @@ export interface AdaptiveCarouselStageProps<T extends AdaptiveCarouselItem> {
   testId?: string
   viewportProfile?: string
   renderControls?: (state: AdaptiveCarouselControlState) => ReactNode
+  customControlsVisible?: boolean
+  stageRef?: Ref<HTMLElement>
+}
+
+type BufferedAdaptiveCarouselItem<T extends AdaptiveCarouselItem> = T & {
+  canonicalId?: string
+  loopClone?: boolean
 }
 
 type CarouselRootStyle = CSSProperties & {
@@ -65,7 +76,7 @@ function finiteTuningValue(value: number | boolean | undefined, fallback: number
  * Embla stage shared by production and the development review surface.
  */
 export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
-  items: sourceItems,
+  items: sourceItemInput,
   initialItemId,
   selectedItemId,
   surface,
@@ -79,10 +90,24 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
   testId = "adaptive-carousel-stage",
   viewportProfile,
   renderControls,
+  customControlsVisible = true,
+  stageRef,
 }: AdaptiveCarouselStageProps<T>) {
-  const items = useMemo(
-    () => normalizeAdaptiveCarouselItems(sourceItems) as T[],
+  const sourceItems = useMemo(
+    () => normalizeAdaptiveCarouselItems(sourceItemInput) as T[],
+    [sourceItemInput],
+  )
+  const sourceItemsById = useMemo(
+    () => new Map(sourceItems.map((item) => [item.id, item])),
     [sourceItems],
+  )
+  const items = useMemo(
+    () => createAdaptiveCarouselLoopBuffer(
+      sourceItems,
+      Number(tuning.visibleRadius),
+      surface === "stations" && Boolean(tuning.loop),
+    ) as BufferedAdaptiveCarouselItem<T>[],
+    [sourceItems, surface, tuning.loop, tuning.visibleRadius],
   )
   const {
     viewportRef,
@@ -115,13 +140,17 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
 
   const cardWidth = finiteTuningValue(tuning.cardWidth, 208)
   const cardHeight = finiteTuningValue(tuning.cardHeight, 304)
+  // Station previews are square so their artwork and title remain complete.
+  // Navigation is an independently overlaid affordance and must not change
+  // card geometry when pointer or reduced-motion capability changes live.
+  const approvedSummaryCardHeight = Math.min(cardHeight, cardWidth)
   const summaryCardHeight = surface === "stations"
-    ? Math.min(cardHeight, cardWidth + 1)
-    : cardHeight
+    ? `${approvedSummaryCardHeight}px`
+    : `${cardHeight}px`
   const rootStyle: CarouselRootStyle = {
     "--carousel-card-width": `${cardWidth}px`,
     "--carousel-card-height": `${cardHeight}px`,
-    "--carousel-summary-card-height": `${summaryCardHeight}px`,
+    "--carousel-summary-card-height": summaryCardHeight,
     "--carousel-gap": `${finiteTuningValue(tuning.gap, 16)}px`,
     "--carousel-perspective": `${finiteTuningValue(tuning.perspective, 900)}px`,
   }
@@ -139,6 +168,9 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
       goNext()
     },
   }
+  const stationControlsVisible = surface === "stations"
+    && Boolean(renderControls)
+    && customControlsVisible
   const defaultNavigation = (
     <div className={styles.navigation}>
       <Button
@@ -167,9 +199,15 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
       </Button>
     </div>
   )
+  const renderedControls = renderControls && customControlsVisible
+    ? renderControls(controlState)
+    : !renderControls
+      ? defaultNavigation
+      : null
 
   return (
     <section
+      ref={stageRef}
       className={styles.root}
       data-surface={surface}
       data-presentation={presentation}
@@ -185,7 +223,7 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
         className={styles.stage}
         data-testid={testId}
         tabIndex={0}
-        onKeyDown={(event) => {
+        onKeyDownCapture={(event) => {
           if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) {
             onNavigate?.()
           }
@@ -193,26 +231,33 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
         }}
       >
         <div className={styles.track}>
-          {items.map((item, index) => {
+          {items.map((item) => {
+            const canonicalId = item.canonicalId ?? item.id
+            const sourceItem = sourceItemsById.get(canonicalId)
+            if (!sourceItem) return null
             const nearby = mountedIds.has(item.id)
             const centered = centeredId === item.id
             const detailLevel = centered ? "full" : nearby ? "summary" : "shell"
             const availability =
               item.statusLabel ?? (item.disabled ? "disabled" : "available")
+            const logicalIndex = sourceItems.findIndex(({ id }) => id === canonicalId)
             const accessibleLabel =
-              `${item.label}, item ${index + 1} of ${items.length}, ${availability}`
+              `${item.label}, item ${logicalIndex + 1} of ${sourceItems.length}, ${availability}`
 
             return (
               <div
                 key={item.id}
                 ref={(element) => registerItemElement(item.id, element)}
                 className={styles.slide}
-                role="group"
-                aria-roledescription="slide"
-                aria-current={centered ? "true" : undefined}
-                aria-label={accessibleLabel}
+                role={item.loopClone ? undefined : "group"}
+                aria-roledescription={item.loopClone ? undefined : "slide"}
+                aria-current={!item.loopClone && centered ? "true" : undefined}
+                aria-label={item.loopClone ? undefined : accessibleLabel}
+                aria-hidden={item.loopClone ? "true" : undefined}
                 data-carousel-slide="true"
                 data-carousel-item-id={item.id}
+                data-carousel-canonical-id={canonicalId}
+                data-carousel-loop-clone={item.loopClone ? "true" : undefined}
                 data-centered={centered}
                 data-detail-level={detailLevel}
                 onClick={(event) => {
@@ -231,12 +276,26 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
                   {detailLevel === "shell" ? (
                     <div className={styles.shell} aria-hidden="true" />
                   ) : centered ? (
-                    <div className={styles.renderer}>
-                      {renderItem(item, { centered, nearby, detailLevel })}
+                    <div
+                      className={styles.renderer}
+                      aria-hidden={item.loopClone ? "true" : undefined}
+                      inert={item.loopClone ? true : undefined}
+                    >
+                      {renderItem(sourceItem, {
+                        centered,
+                        nearby,
+                        detailLevel,
+                        loopClone: Boolean(item.loopClone),
+                      })}
                     </div>
                   ) : (
                     <div className={styles.summary} aria-hidden="true" inert>
-                      {renderItem(item, { centered, nearby, detailLevel })}
+                      {renderItem(sourceItem, {
+                        centered,
+                        nearby,
+                        detailLevel,
+                        loopClone: Boolean(item.loopClone),
+                      })}
                     </div>
                   )}
                 </div>
@@ -246,9 +305,16 @@ export function AdaptiveCarouselStage<T extends AdaptiveCarouselItem>({
         </div>
       </div>
 
-      <div className={styles.controls}>
-        {renderControls ? renderControls(controlState) : defaultNavigation}
-      </div>
+      {renderedControls ? (
+        <div
+          className={styles.controls}
+          data-station-carousel-controls={stationControlsVisible && viewportProfile === "music-fit"
+            ? "true"
+            : undefined}
+        >
+          {renderedControls}
+        </div>
+      ) : null}
 
       <p className={styles.status} aria-live="polite" aria-atomic="true">
         {statusText}
