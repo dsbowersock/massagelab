@@ -425,6 +425,11 @@ $mergeMessage = "Merge family-and-friends release PR #$($candidatePr.number)"
 $candidateMerge = $mergeMessage | git commit-tree $candidateTree -p $candidateBase -p $candidateHead
 if ($LASTEXITCODE -ne 0 -or $candidateMerge -notmatch '^[0-9a-f]{40}$') { throw 'Could not construct candidate merge commit.' }
 git branch $candidateBranch $candidateMerge
+if ($LASTEXITCODE -ne 0) { throw 'Could not retain the candidate merge on the absent candidate branch.' }
+$retainedCandidate = git rev-parse --verify "$candidateRef^{commit}"
+if ($LASTEXITCODE -ne 0 -or $retainedCandidate -ne $candidateMerge) {
+  throw 'Candidate branch does not resolve to the exact constructed merge commit.'
+}
 if ((git rev-parse "$candidateMerge^1") -ne $candidateBase) { throw 'Candidate first parent mismatch.' }
 if ((git rev-parse "$candidateMerge^2") -ne $candidateHead) { throw 'Candidate second parent mismatch.' }
 if ((git rev-parse "$candidateMerge^{tree}") -ne $candidateTree) { throw 'Candidate tree mismatch.' }
