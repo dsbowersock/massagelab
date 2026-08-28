@@ -335,8 +335,16 @@ When the gate fails:
 
 1. Review the exact committed pending migrations.
 2. Obtain explicit authorization for the Production database write.
-3. Run `npm run prisma:migrate:deploy` through the direct maintenance
-   connection.
+3. Confirm that `DIRECT_URL` or `DATABASE_URL_UNPOOLED` contains the direct
+   maintenance connection, then run the deploy without allowing Prisma's
+   pooled `DATABASE_URL` fallback:
+
+   ```bash
+   DIRECT_URL="${DIRECT_URL:-$DATABASE_URL_UNPOOLED}" npm run prisma:migrate:deploy
+   ```
+
+   Stop if both direct variables are empty; never substitute the pooled
+   runtime `DATABASE_URL` for this recovery procedure.
 4. Run `npm run production:migrations:check` with the Vercel Production
    environment and confirm it passes.
 5. Redeploy the same reviewed commit and complete authentication plus affected
