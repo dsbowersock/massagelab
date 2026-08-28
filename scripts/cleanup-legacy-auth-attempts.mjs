@@ -100,8 +100,11 @@ function createCleanupPrismaClient(connectionString) {
 export async function executeCleanupTransaction({
   connectionString,
   sql,
-  createPrismaClient = createCleanupPrismaClient,
+  createPrismaClient,
 }) {
+  if (typeof createPrismaClient !== "function") {
+    throw new Error("An explicitly injected createPrismaClient factory is required.")
+  }
   const prisma = createPrismaClient(connectionString)
   try {
     return await prisma.$transaction((transaction) => transaction.$executeRawUnsafe(sql))
@@ -117,7 +120,7 @@ export async function executeCleanupTransaction({
 export async function runLegacyAuthAttemptCleanupCli({
   args,
   env,
-  createPrismaClient = createCleanupPrismaClient,
+  createPrismaClient,
   writeLine = (line) => process.stdout.write(`${line}\n`),
 }) {
   const options = parseCleanupArgs(args)
@@ -133,6 +136,9 @@ export async function runLegacyAuthAttemptCleanupCli({
   }
   if (options.expectedFingerprint !== actualFingerprint) {
     throw new Error("The expected fingerprint does not match the selected target.")
+  }
+  if (typeof createPrismaClient !== "function") {
+    throw new Error("An explicitly injected createPrismaClient factory is required.")
   }
 
   const deletedCount = Number(await executeCleanupTransaction({
@@ -163,7 +169,11 @@ function formatCleanupError(error) {
 async function main() {
   loadDotenv({ path: ".env.local", override: false, quiet: true })
   loadDotenv({ path: ".env", override: false, quiet: true })
-  await runLegacyAuthAttemptCleanupCli({ args: process.argv.slice(2), env: process.env })
+  await runLegacyAuthAttemptCleanupCli({
+    args: process.argv.slice(2),
+    env: process.env,
+    createPrismaClient: createCleanupPrismaClient,
+  })
 }
 
 const invokedPath = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : ""

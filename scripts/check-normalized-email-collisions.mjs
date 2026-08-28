@@ -78,13 +78,16 @@ function createNormalizedEmailCheckPrismaClient(connectionString) {
  */
 export async function runNormalizedEmailCollisionCheckCli({
   env,
-  createPrismaClient = createNormalizedEmailCheckPrismaClient,
+  createPrismaClient,
   writeLine = (line) => process.stdout.write(`${line}\n`),
   setExitCode = (code) => {
     process.exitCode = code
   },
 }) {
   const connectionString = requireDirectNormalizedEmailCheckUrl(env)
+  if (typeof createPrismaClient !== "function") {
+    throw new Error("An explicitly injected createPrismaClient factory is required.")
+  }
   const prisma = createPrismaClient(connectionString)
   try {
     const count = await countNormalizedEmailCollisions(prisma)
@@ -99,7 +102,10 @@ export async function runNormalizedEmailCollisionCheckCli({
 async function main() {
   loadDotenv({ path: ".env.local", override: false, quiet: true })
   loadDotenv({ path: ".env", override: false, quiet: true })
-  await runNormalizedEmailCollisionCheckCli({ env: process.env })
+  await runNormalizedEmailCollisionCheckCli({
+    env: process.env,
+    createPrismaClient: createNormalizedEmailCheckPrismaClient,
+  })
 }
 
 const invokedPath = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : ""

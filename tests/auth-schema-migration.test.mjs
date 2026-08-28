@@ -155,6 +155,33 @@ FROM (
     }
   })
 
+  it("requires an explicit correctly named client factory before collision queries", async () => {
+    assert.doesNotMatch(preflight, /createPrismaClient\s*=\s*createNormalizedEmailCheckPrismaClient/)
+    assert.match(
+      preflight,
+      /runNormalizedEmailCollisionCheckCli\(\{[\s\S]*env:\s*process\.env[\s\S]*createPrismaClient:\s*createNormalizedEmailCheckPrismaClient/,
+    )
+
+    let misspelledFactoryCalls = 0
+    const baseRequest = {
+      env: { AUTH_NORMALIZED_EMAIL_CHECK_DATABASE_URL: directUrl },
+      writeLine: () => assert.fail("missing injection must fail before output"),
+      setExitCode: () => assert.fail("missing injection must fail before setting an exit code"),
+    }
+    await assert.rejects(runNormalizedEmailCollisionCheckCli(baseRequest), /explicit.*createPrismaClient/i)
+    await assert.rejects(
+      runNormalizedEmailCollisionCheckCli({
+        ...baseRequest,
+        createPrsimaClient: () => {
+          misspelledFactoryCalls += 1
+          throw new Error("misspelled injection must never be called")
+        },
+      }),
+      /explicit.*createPrismaClient/i,
+    )
+    assert.equal(misspelledFactoryCalls, 0)
+  })
+
   it("disconnects after invalid results and redacts URL and secret-bearing errors", async () => {
     assert.equal(typeof runNormalizedEmailCollisionCheckCli, "function")
     let disconnects = 0

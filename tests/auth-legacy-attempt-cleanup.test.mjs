@@ -1,8 +1,10 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 const directUrl = "postgresql://operator:secret@ep-example.us-east-2.aws.neon.tech:5432/massagelab?sslmode=require"
 const pooledUrl = "postgresql://operator:secret@ep-example-pooler.us-east-2.aws.neon.tech/massagelab?sslmode=require"
+const cleanupSource = await readFile(new URL("../scripts/cleanup-legacy-auth-attempts.mjs", import.meta.url), "utf8")
 
 async function loadCleanupModule() {
   try {
@@ -16,22 +18,49 @@ describe("legacy auth-attempt cleanup", () => {
   it("fingerprints a direct target without connecting or exposing the target", async () => {
     const { runLegacyAuthAttemptCleanupCli } = await loadCleanupModule()
     const output = []
-    let clientsCreated = 0
 
     await runLegacyAuthAttemptCleanupCli({
       args: ["--print-fingerprint"],
       env: { AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL: directUrl },
-      createPrismaClient: () => {
-        clientsCreated += 1
-        throw new Error("fingerprint mode must not create a client")
-      },
       writeLine: (line) => output.push(line),
     })
 
-    assert.equal(clientsCreated, 0)
     assert.equal(output.length, 1)
     assert.match(output[0], /^[0-9a-f]{64}$/)
     assert.doesNotMatch(output[0], /operator|secret|neon|massagelab|postgres|:\/\//i)
+  })
+
+  it("requires an explicit correctly named client factory before mutation", async () => {
+    assert.doesNotMatch(cleanupSource, /createPrismaClient\s*=\s*createCleanupPrismaClient/)
+    assert.match(
+      cleanupSource,
+      /runLegacyAuthAttemptCleanupCli\(\{[\s\S]*args:\s*process\.argv\.slice\(2\)[\s\S]*createPrismaClient:\s*createCleanupPrismaClient/,
+    )
+
+    const { fingerprintLegacyAuthAttemptTarget, runLegacyAuthAttemptCleanupCli } = await loadCleanupModule()
+    const expectedFingerprint = fingerprintLegacyAuthAttemptTarget(directUrl)
+    let misspelledFactoryCalls = 0
+    const baseRequest = {
+      args: [`--expected-fingerprint=${expectedFingerprint}`, "--max-rows=1"],
+      env: {
+        AUTH_LEGACY_ATTEMPT_CLEANUP: "1",
+        AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL: directUrl,
+      },
+      writeLine: () => assert.fail("missing injection must fail before output"),
+    }
+
+    await assert.rejects(runLegacyAuthAttemptCleanupCli(baseRequest), /explicit.*createPrismaClient/i)
+    await assert.rejects(
+      runLegacyAuthAttemptCleanupCli({
+        ...baseRequest,
+        createPrsimaClient: () => {
+          misspelledFactoryCalls += 1
+          throw new Error("misspelled injection must never be called")
+        },
+      }),
+      /explicit.*createPrismaClient/i,
+    )
+    assert.equal(misspelledFactoryCalls, 0)
   })
 
   it("fails closed unless every mutation gate is exact", async () => {
