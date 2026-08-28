@@ -5,7 +5,7 @@ import { extname, join, relative } from "node:path"
 import ts from "typescript"
 
 const ROOT = process.cwd()
-const SOURCE_EXTENSIONS = new Set([".js", ".mjs", ".ts", ".tsx"])
+const SOURCE_EXTENSIONS = new Set([".cjs", ".js", ".mjs", ".ts", ".tsx"])
 const ROOT_SENTRY_ENTRYPOINTS = [
   "instrumentation.ts",
   "instrumentation-client.ts",
@@ -54,9 +54,16 @@ function sentryBoundarySources() {
 }
 
 /**
- * Conservatively finds reviewed method references and dynamic calls derived
- * from any Sentry SDK import. Flagging the reference that creates an alias keeps
- * the guard independent of later control flow and lexical shadowing.
+ * Analyzes repository-relative source text for privacy-reviewed Sentry API
+ * references. Supports ESM imports, literal CommonJS `require("@sentry/*")`
+ * calls, and aliases derived from either form. Returns the source path and
+ * resolved method for each reference; unresolved dynamic access is returned as
+ * `<dynamic>` so the boundary fails closed. Flagging the alias-creating
+ * reference keeps the result independent of later control flow and shadowing.
+ *
+ * @param {string} filePath Repository-relative path used for parser selection and reporting.
+ * @param {string} contents UTF-8 source text to analyze.
+ * @returns {{ filePath: string, method: string }[]} Reviewed references found in the source.
  */
 function findReviewedSentryReferences(filePath, contents) {
   const scriptKind = extname(filePath) === ".tsx" ? ts.ScriptKind.TSX
@@ -261,7 +268,9 @@ describe("anonymous operational Sentry boundary", () => {
     ])
   })
 
-  it("detects prohibited Sentry calls through common alias forms", () => {
+  it("scans .cjs sources and detects prohibited Sentry calls through common alias forms", () => {
+    assert.equal(SOURCE_EXTENSIONS.has(".cjs"), true)
+
     const references = findReviewedSentryReferences("fixture.ts", `
       import * as Sentry from "@sentry/nextjs"
       import * as Core from "@sentry/core"
