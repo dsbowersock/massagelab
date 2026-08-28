@@ -31,6 +31,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
   const [statusIsError, setStatusIsError] = useState(false)
   const [devLink, setDevLink] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
 
   function toggleLegalDocument(documentId: string, checked: boolean) {
     setAcceptedLegalDocuments((current) => (
@@ -77,6 +78,28 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
     }
   }
 
+  async function handleGoogleRegistration() {
+    if (isGoogleSubmitting) return
+    setIsGoogleSubmitting(true)
+    setStatus("")
+    setStatusIsError(false)
+    try {
+      const response = await fetch("/api/auth/google/intent", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ purpose: "SIGN_IN_OR_LINK", callbackUrl: googleRedirectTo }),
+      })
+      const result = await response.json().catch(() => ({})) as { ok?: boolean; callbackUrl?: string }
+      if (!response.ok || !result.ok || !result.callbackUrl) throw new Error("Google intent unavailable")
+      await signIn("google", { redirectTo: result.callbackUrl })
+    } catch {
+      setStatus("Google registration could not be started. Try again or use email and password.")
+      setStatusIsError(true)
+    } finally {
+      setIsGoogleSubmitting(false)
+    }
+  }
+
   return (
     <AppSurface
       title={<h1>Create MassageLab account</h1>}
@@ -88,7 +111,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       contentClassName="gap-5"
     >
       {googleEnabled ? (
-        <Button type="button" variant="outline" className="w-full" onClick={() => signIn("google", { redirectTo: googleRedirectTo })}>
+        <Button type="button" variant="outline" className="w-full" disabled={isGoogleSubmitting} onClick={handleGoogleRegistration}>
           <ShieldCheck className="mr-2 h-4 w-4" />
           Continue with Google
         </Button>

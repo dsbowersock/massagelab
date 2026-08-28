@@ -1,0 +1,332 @@
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto"
+import type { Prisma, PrismaClient } from "@prisma/client"
+import { getAuthSecret } from "@/lib/auth-env"
+import { normalizeEmail } from "@/lib/auth-security"
+import { ensureUserRole } from "@/lib/auth-users"
+import { runCommerceTransaction } from "@/lib/commerce/transactions"
+import { prisma } from "@/lib/prisma"
+
+export const AUTH_METHOD_INTENT_COOKIE = "ml-auth-method-binding"
+
+export type GoogleIntentPurpose = "SIGN_IN_OR_LINK" | "LINK_GOOGLE" | "ADD_PASSWORD" | "REMOVE_PASSWORD"
+type AuthIntentClient = Pick<PrismaClient, "$transaction" | "authMethodIntent" | "user" | "account">
+type SessionIdentity = { id?: string | null; email?: string | null } | null | undefined
+type GoogleAccountProof = { type: string; provider: "google"; providerAccountId: string }
+type GoogleProfileProof = { email: string; name: string | null; image: string | null }
+type EnsureRole = (userId: string, email: string | null, database: Prisma.TransactionClient) => Promise<unknown>
+
+export type GoogleAuthenticationDecision =
+  | { kind: "CONTINUE"; userId: string; created?: boolean }
+  | { kind: "LINK_REQUIRED"; userId: string }
+  | { kind: "REAUTH_COMPLETE"; purpose: Exclude<GoogleIntentPurpose, "SIGN_IN_OR_LINK">; userId: string }
+  | { kind: "REJECTED"; recoveryPath: GoogleRecoveryPath }
+
+type GoogleRecoveryPath =
+  | "/login?auth=google-retry"
+  | "/login?auth=google-unavailable"
+  | "/account?tab=security&auth=google-retry"
+
+const INTENT_LIFETIME_MS = 10 * 60 * 1000
+const MAX_PRUNE_ROWS = 100
+const SECURITY_PURPOSES = new Set<GoogleIntentPurpose>(["LINK_GOOGLE", "ADD_PASSWORD", "REMOVE_PASSWORD"])
+
+/** Creates an opaque browser proof; only its domain-separated HMAC is persisted. */
+export async function startAuthMethodIntent({
+  prismaClient = prisma,
+  purpose,
+  targetUserId,
+  secret = getAuthSecret(),
+  now = new Date(),
+  randomBytesFn = randomBytes,
+}: {
+  prismaClient?: AuthIntentClient
+  purpose: GoogleIntentPurpose
+  targetUserId?: string | null
+  secret?: string
+  now?: Date
+  randomBytesFn?: (size: number) => Buffer
+}) {
+  if (!isGoogleIntentPurpose(purpose)) throw new Error("Unsupported Google intent purpose.")
+  if (SECURITY_PURPOSES.has(purpose) && !targetUserId) {
+    throw new Error("This Google intent purpose requires a target user.")
+  }
+  const resolvedSecret = requireSecret(secret)
+  const browserBindingToken = randomBytesFn(32).toString("base64url")
+  const browserBindingHash = bindingHash(browserBindingToken, resolvedSecret)
+  const expiresAt = new Date(now.getTime() + INTENT_LIFETIME_MS)
+
+  const intent = await runCommerceTransaction(prismaClient as PrismaClient, async (tx) => {
+    const stale = await tx.authMethodIntent.findMany({
+      where: {
+        OR: [
+          { expiresAt: { lt: now } },
+          { consumedAt: { not: null } },
+        ],
+      },
+      orderBy: { updatedAt: "asc" },
+      take: MAX_PRUNE_ROWS,
+      select: { id: true },
+    })
+    if (stale.length > 0) {
+      await tx.authMethodIntent.deleteMany({ where: { id: { in: stale.map(({ id }) => id) } } })
+    }
+    return tx.authMethodIntent.create({
+      data: {
+        purpose,
+        targetUserId: targetUserId ?? null,
+        provider: "google",
+        browserBindingHash,
+        expiresAt,
+      },
+      select: { id: true, expiresAt: true },
+    })
+  })
+
+  return { intentId: intent.id, expiresAt: intent.expiresAt, browserBindingToken }
+}
+
+/** Serializes the private cookie without exposing any database or identity proof. */
+export function serializeAuthMethodIntentBinding(intentId: string, browserBindingToken: string) {
+  return `${intentId}.${browserBindingToken}`
+}
+
+/** Rejects malformed cookie values before the database sees attacker-controlled IDs. */
+export function parseAuthMethodIntentBinding(value: unknown) {
+  if (typeof value !== "string") return null
+  const separator = value.indexOf(".")
+  const intentId = value.slice(0, separator)
+  const browserBindingToken = value.slice(separator + 1)
+  if (separator < 1 || !/^[A-Za-z0-9_-]{8,128}$/.test(intentId) || !/^[A-Za-z0-9_-]{43}$/.test(browserBindingToken)) {
+    return null
+  }
+  return { intentId, browserBindingToken }
+}
+
+/**
+ * Decides Google authentication before Auth.js adapter mutation. Serializable
+ * retries plus exact predicate updates make one intent single-use under races.
+ */
+export async function prepareGoogleAuthentication({
+  prismaClient = prisma,
+  intentId,
+  browserBindingToken,
+  profile,
+  account,
+  currentSessionUser,
+  secret = getAuthSecret(),
+  now = new Date(),
+  ensureRole = ensureUserRole,
+}: {
+  prismaClient?: AuthIntentClient
+  intentId: string
+  browserBindingToken: string
+  profile: unknown
+  account: unknown
+  currentSessionUser?: SessionIdentity
+  secret?: string
+  now?: Date
+  ensureRole?: EnsureRole
+}): Promise<GoogleAuthenticationDecision> {
+  const profileProof = verifiedGoogleProfile(profile)
+  if (!profileProof) return rejected("SIGN_IN_OR_LINK", currentSessionUser, true)
+  const accountProof = allowlistedGoogleAccount(account)
+  if (!accountProof || !intentId || !browserBindingToken) {
+    return rejected("SIGN_IN_OR_LINK", currentSessionUser)
+  }
+
+  const resolvedSecret = requireSecret(secret)
+  const operation = () => runCommerceTransaction(prismaClient as PrismaClient, async (tx) => {
+    const intent = await tx.authMethodIntent.findUnique({ where: { id: intentId } })
+    const purpose = isGoogleIntentPurpose(intent?.purpose) ? intent.purpose : "SIGN_IN_OR_LINK"
+    if (
+      !intent
+      || intent.provider !== "google"
+      || intent.status !== "PENDING"
+      || intent.consumedAt
+      || intent.expiresAt <= now
+      || !hashesEqual(intent.browserBindingHash, bindingHash(browserBindingToken, resolvedSecret))
+    ) {
+      return rejected(purpose, currentSessionUser)
+    }
+
+    if (SECURITY_PURPOSES.has(purpose)) {
+      return prepareSecurityReauthentication({
+        tx,
+        intent,
+        purpose: purpose as Exclude<GoogleIntentPurpose, "SIGN_IN_OR_LINK">,
+        profileProof,
+        accountProof,
+        currentSessionUser,
+        now,
+      })
+    }
+
+    const [userByEmail, accountByProvider] = await Promise.all([
+      tx.user.findUnique({ where: { email: profileProof.email } }),
+      tx.account.findUnique({
+        where: { provider_providerAccountId: { provider: "google", providerAccountId: accountProof.providerAccountId } },
+      }),
+    ])
+
+    if (accountByProvider) {
+      const providerUser = await tx.user.findUnique({ where: { id: accountByProvider.userId } })
+      if (!providerUser || normalizeEmail(providerUser.email) !== profileProof.email || (userByEmail && userByEmail.id !== providerUser.id)) {
+        return rejected(purpose, currentSessionUser)
+      }
+      if (!await consumePendingIntent(tx, intent.id, now)) return rejected(purpose, currentSessionUser)
+      return { kind: "CONTINUE" as const, userId: providerUser.id }
+    }
+
+    if (userByEmail) {
+      const proved = await tx.authMethodIntent.updateMany({
+        where: { id: intent.id, status: "PENDING", consumedAt: null, expiresAt: { gt: now } },
+        data: {
+          status: "PROVIDER_PROVEN",
+          providerAccountId: accountProof.providerAccountId,
+          providerEmailHash: emailHash(profileProof.email, resolvedSecret),
+          providerProvenAt: now,
+        },
+      })
+      return proved.count === 1
+        ? { kind: "LINK_REQUIRED" as const, userId: userByEmail.id }
+        : rejected(purpose, currentSessionUser)
+    }
+
+    const user = await tx.user.create({
+      data: {
+        email: profileProof.email,
+        emailVerified: now,
+        name: profileProof.name,
+        image: profileProof.image,
+        profile: { create: { displayName: profileProof.name } },
+        accounts: { create: accountProof },
+      },
+    })
+    await ensureRole(user.id, user.email, tx)
+    if (!await consumePendingIntent(tx, intent.id, now)) return rejected(purpose, currentSessionUser)
+    return { kind: "CONTINUE" as const, userId: user.id, created: true }
+  })
+
+  try {
+    return await operation()
+  } catch (error) {
+    // A different browser may win the normalized User or Google Account unique
+    // constraint after our initial read. Restart once to resolve its committed owner.
+    if (!isRelevantIdentityUniqueRace(error)) throw error
+    return operation()
+  }
+}
+
+async function prepareSecurityReauthentication({
+  tx,
+  intent,
+  purpose,
+  profileProof,
+  accountProof,
+  currentSessionUser,
+  now,
+}: {
+  tx: Prisma.TransactionClient
+  intent: { id: string; targetUserId: string | null }
+  purpose: Exclude<GoogleIntentPurpose, "SIGN_IN_OR_LINK">
+  profileProof: GoogleProfileProof
+  accountProof: GoogleAccountProof
+  currentSessionUser: SessionIdentity
+  now: Date
+}): Promise<GoogleAuthenticationDecision> {
+  const sessionId = typeof currentSessionUser?.id === "string" ? currentSessionUser.id : ""
+  const sessionEmail = normalizeEmail(currentSessionUser?.email)
+  if (!sessionId || intent.targetUserId !== sessionId || sessionEmail !== profileProof.email) {
+    return rejected(purpose, currentSessionUser)
+  }
+  const account = await tx.account.findUnique({
+    where: { provider_providerAccountId: { provider: "google", providerAccountId: accountProof.providerAccountId } },
+  })
+  if (!account || account.userId !== sessionId) return rejected(purpose, currentSessionUser)
+  if (!await consumePendingIntent(tx, intent.id, now, { providerAccountId: accountProof.providerAccountId, providerProvenAt: now })) {
+    return rejected(purpose, currentSessionUser)
+  }
+  return { kind: "REAUTH_COMPLETE", purpose, userId: sessionId }
+}
+
+async function consumePendingIntent(
+  tx: Prisma.TransactionClient,
+  intentId: string,
+  now: Date,
+  proof: { providerAccountId?: string; providerProvenAt?: Date } = {},
+) {
+  const consumed = await tx.authMethodIntent.updateMany({
+    where: { id: intentId, status: "PENDING", consumedAt: null, expiresAt: { gt: now } },
+    data: { status: "CONSUMED", consumedAt: now, ...proof },
+  })
+  return consumed.count === 1
+}
+
+function verifiedGoogleProfile(profile: unknown): GoogleProfileProof | null {
+  const value = asRecord(profile)
+  const email = normalizeEmail(value.email)
+  if (!email || value.email_verified !== true) return null
+  return {
+    email,
+    name: typeof value.name === "string" ? value.name.trim() || null : null,
+    image: typeof value.picture === "string" ? value.picture : null,
+  }
+}
+
+function allowlistedGoogleAccount(account: unknown): GoogleAccountProof | null {
+  const value = asRecord(account)
+  if (value.provider !== "google" || typeof value.providerAccountId !== "string" || !value.providerAccountId) return null
+  return {
+    type: "oauth",
+    provider: "google",
+    providerAccountId: value.providerAccountId,
+  }
+}
+
+function rejected(purpose: GoogleIntentPurpose, session: SessionIdentity, unavailable = false): GoogleAuthenticationDecision {
+  if (SECURITY_PURPOSES.has(purpose) || session?.id) {
+    return { kind: "REJECTED", recoveryPath: "/account?tab=security&auth=google-retry" }
+  }
+  return {
+    kind: "REJECTED",
+    recoveryPath: unavailable ? "/login?auth=google-unavailable" : "/login?auth=google-retry",
+  }
+}
+
+function isRelevantIdentityUniqueRace(error: unknown) {
+  if (!error || typeof error !== "object" || (error as { code?: unknown }).code !== "P2002") return false
+  const meta = (error as { meta?: unknown }).meta
+  if (!meta || typeof meta !== "object") return false
+  const modelName = (meta as { modelName?: unknown }).modelName
+  const target = (meta as { target?: unknown }).target
+  if (!Array.isArray(target) || !target.every((field) => typeof field === "string")) return false
+  return (modelName === "User" && target.length === 1 && target[0] === "email")
+    || (modelName === "Account" && target.length === 2 && target.includes("provider") && target.includes("providerAccountId"))
+}
+
+function isGoogleIntentPurpose(value: unknown): value is GoogleIntentPurpose {
+  return value === "SIGN_IN_OR_LINK" || value === "LINK_GOOGLE" || value === "ADD_PASSWORD" || value === "REMOVE_PASSWORD"
+}
+
+function bindingHash(token: string, secret: string) {
+  return createHmac("sha256", secret).update(`auth-method-binding\0${token}`).digest("hex")
+}
+
+function emailHash(email: string, secret: string) {
+  return createHmac("sha256", secret).update(`verified-google-email\0${email}`).digest("hex")
+}
+
+function hashesEqual(left: string, right: string) {
+  const leftBytes = Buffer.from(left, "hex")
+  const rightBytes = Buffer.from(right, "hex")
+  return leftBytes.length === rightBytes.length && leftBytes.length > 0 && timingSafeEqual(leftBytes, rightBytes)
+}
+
+function requireSecret(secret: string) {
+  if (!secret) throw new Error("AUTH_SECRET is required for auth-method intents.")
+  return secret
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}

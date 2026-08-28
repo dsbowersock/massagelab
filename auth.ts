@@ -2,11 +2,17 @@ import NextAuth, { CredentialsSignin } from "next-auth"
 import type { NextAuthConfig } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import GoogleProvider from "next-auth/providers/google"
+import { cookies } from "next/headers"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { googleProfileEmail, isVerifiedGoogleProfile } from "@/lib/auth-account-linking"
 import { getAuthSecret, getGoogleAuthConfig, getSiteUrl } from "@/lib/auth-env"
 import { verifyPasswordMethodProof } from "@/lib/auth-method-proof"
+import {
+  AUTH_METHOD_INTENT_COOKIE,
+  parseAuthMethodIntentBinding,
+  prepareGoogleAuthentication,
+} from "@/lib/auth-method-intents"
 import { ensureGoogleUserState, ensureUserRole, getUserAuthState } from "@/lib/auth-users"
 import { decideAuthSessionVersion } from "@/lib/auth-session-version"
 import type { AccountCapabilities, AccountRole, VerificationStatus } from "@/lib/domain-types"
@@ -85,7 +91,6 @@ if (googleAuthConfig) {
     GoogleProvider({
       clientId: googleAuthConfig.clientId,
       clientSecret: googleAuthConfig.clientSecret,
-      allowDangerousEmailAccountLinking: true,
       profile(profile) {
         const email = googleProfileEmail(profile)
 
@@ -114,7 +119,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ account, profile }) {
       if (account?.provider === "google") {
-        return isVerifiedGoogleProfile(profile)
+        // Profile verification remains the first gate; rejected OAuth callbacks
+        // always land on a fixed retry surface rather than Auth.js AccessDenied.
+        if (!isVerifiedGoogleProfile(profile)) return "/login?auth=google-unavailable"
+        const cookieStore = await cookies()
+        const binding = parseAuthMethodIntentBinding(cookieStore.get(AUTH_METHOD_INTENT_COOKIE)?.value)
+        const currentSession = await auth().catch(() => null)
+        const result = await prepareGoogleAuthentication({
+          prismaClient: prisma,
+          intentId: binding?.intentId ?? "",
+          browserBindingToken: binding?.browserBindingToken ?? "",
+          profile,
+          account,
+          currentSessionUser: currentSession?.user,
+          secret: getAuthSecret(),
+        })
+        if (result.kind === "CONTINUE") return true
+        if (result.kind === "LINK_REQUIRED") return "/account/link-google"
+        if (result.kind === "REAUTH_COMPLETE") return "/account?tab=security&reauth=complete"
+        return result.recoveryPath
       }
 
       return true

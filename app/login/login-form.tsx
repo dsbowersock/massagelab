@@ -42,6 +42,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
   const [needsTwoFactor, setNeedsTwoFactor] = useState(false)
   const [status, setStatus] = useState(searchParams.get("verified") ? "Email verified. You can sign in now." : "")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
 
   async function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -72,6 +73,26 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
     }
 
     setStatus((errorCode ? ERROR_MESSAGES[errorCode] : undefined) ?? "Sign in failed. Try again.")
+  }
+
+  async function handleGoogleLogin() {
+    if (isGoogleSubmitting) return
+    setIsGoogleSubmitting(true)
+    setStatus("")
+    try {
+      const response = await fetch("/api/auth/google/intent", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ purpose: "SIGN_IN_OR_LINK", callbackUrl: googleRedirectTo }),
+      })
+      const result = await response.json().catch(() => ({})) as { ok?: boolean; callbackUrl?: string }
+      if (!response.ok || !result.ok || !result.callbackUrl) throw new Error("Google intent unavailable")
+      await signIn("google", { redirectTo: result.callbackUrl })
+    } catch {
+      setStatus("Google sign-in could not be started. Try again or use email and password.")
+    } finally {
+      setIsGoogleSubmitting(false)
+    }
   }
 
   return (
@@ -127,7 +148,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
         </form>
 
         {googleEnabled ? (
-          <Button type="button" variant="outline" className="w-full" onClick={() => signIn("google", { redirectTo: googleRedirectTo })}>
+          <Button type="button" variant="outline" className="w-full" disabled={isGoogleSubmitting} onClick={handleGoogleLogin}>
             <ShieldCheck className="mr-2 h-4 w-4" />
             Continue with Google
           </Button>

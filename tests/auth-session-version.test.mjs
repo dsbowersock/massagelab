@@ -125,6 +125,7 @@ describe("JWT session-version integration contract", () => {
       "next-auth": NextAuth,
       "next-auth/providers/credentials": (config) => config,
       "next-auth/providers/google": (config) => config,
+      "next/headers": { cookies: async () => ({ get: () => undefined }) },
       "@auth/prisma-adapter": { PrismaAdapter: () => ({}) },
       "@/lib/prisma": { prisma: {} },
       "@/lib/auth-account-linking": { googleProfileEmail: () => "", isVerifiedGoogleProfile: () => true },
@@ -134,6 +135,11 @@ describe("JWT session-version integration contract", () => {
         getSiteUrl: () => "http://localhost:3000",
       },
       "@/lib/auth-method-proof": { verifyPasswordMethodProof: async () => ({ status: "INVALID" }) },
+      "@/lib/auth-method-intents": {
+        AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
+        parseAuthMethodIntentBinding: () => null,
+        prepareGoogleAuthentication: async () => ({ kind: "REJECTED", recoveryPath: "/login?auth=google-retry" }),
+      },
       "@/lib/auth-users": {
         ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
         async getUserAuthState(userId) {
@@ -184,11 +190,17 @@ describe("JWT session-version integration contract", () => {
       "next-auth": NextAuth,
       "next-auth/providers/credentials": (config) => config,
       "next-auth/providers/google": (config) => config,
+      "next/headers": { cookies: async () => ({ get: () => undefined }) },
       "@auth/prisma-adapter": { PrismaAdapter: () => ({}) },
       "@/lib/prisma": { prisma: {} },
       "@/lib/auth-account-linking": { googleProfileEmail: () => "", isVerifiedGoogleProfile: () => true },
       "@/lib/auth-env": { getAuthSecret: () => "test-secret", getGoogleAuthConfig: () => null, getSiteUrl: () => "http://localhost:3000" },
       "@/lib/auth-method-proof": { verifyPasswordMethodProof: async () => ({ status: "INVALID" }) },
+      "@/lib/auth-method-intents": {
+        AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
+        parseAuthMethodIntentBinding: () => null,
+        prepareGoogleAuthentication: async () => ({ kind: "REJECTED", recoveryPath: "/login?auth=google-retry" }),
+      },
       "@/lib/auth-users": {
         ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
         getUserAuthState: async () => ({
