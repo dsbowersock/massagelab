@@ -1,11 +1,25 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { fetchWithTimeout } from "../lib/client-fetch.ts"
+import { fetchJsonWithTimeout, fetchWithTimeout } from "../lib/client-fetch.ts"
 
 function installStalledFetch() {
   const originalFetch = globalThis.fetch
   globalThis.fetch = (_input, init = {}) => new Promise((_resolve, reject) => {
     init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true })
+  })
+  return () => {
+    globalThis.fetch = originalFetch
+  }
+}
+
+/** Installs a response whose JSON reader settles only when its request signal aborts. */
+function installStalledJsonFetch() {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (_input, init = {}) => Promise.resolve({
+    ok: true,
+    json: () => new Promise((_resolve, reject) => {
+      init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true })
+    }),
   })
   return () => {
     globalThis.fetch = originalFetch
@@ -42,6 +56,21 @@ describe("fetchWithTimeout", () => {
       await assert.rejects(
         pendingRequest,
         (error) => error instanceof DOMException && error.name === "AbortError",
+      )
+    } finally {
+      restoreFetch()
+    }
+  })
+})
+
+describe("fetchJsonWithTimeout", () => {
+  it("keeps the request deadline active while a successful response body is read", { timeout: 250 }, async () => {
+    const restoreFetch = installStalledJsonFetch()
+
+    try {
+      await assert.rejects(
+        fetchJsonWithTimeout("/stalled-body", {}, 10),
+        (error) => error instanceof DOMException && error.name === "TimeoutError",
       )
     } finally {
       restoreFetch()
