@@ -166,6 +166,7 @@ first-cohort Production monitoring remain external invite-readiness gates.
 - Confirm result presentation labels persisted transaction-time evidence as `Credit immediately after this credit` and labels a safe freshly read present value separately as `Current Stripe credit`. An unavailable current read or legitimate current debit makes no current-credit claim and does not block exact historical verification; local replay without a fresh read must make no current claim. Pre-mutation `Resulting credit` remains a projection.
 - Confirm mutation-time Stripe subscription currency is exactly `usd`; direct or stale non-USD submissions must fail before balance-transaction creation.
 - Keep `ADMIN_BILLING_GOODWILL_LIVE_ENABLED` absent or false during ordinary validation and test-mode proof. A live credit requires `NODE_ENV=production`, exact `VERCEL_ENV=production`, the explicit flag, and separate user authorization that names the controlled account and exact amount. Preview and missing Vercel identity must fail closed. A mistaken live credit has no ordinary debit/reversal control and requires a separately reviewed recovery procedure. Eligibility, `$0.01`-`$100.00`, USD, confirmation, mutation-entry, and QA zero-mutation gates remain unchanged. Do not begin Admin Operations Closure Branch 3 Production activation, migration deployment, or browser acceptance before Admin Operations Closure Branch 2 merges.
+- Completed 2026-08-27: after Branch 2 and the four originating Admin PRs had merged, the separately gated Production migration step was found still pending during a Google sign-in incident. All four committed migrations were explicitly authorized, applied, and verified current; no Admin live Stripe mutation was enabled or exercised.
 
 ## Manual Focus Areas
 
@@ -180,6 +181,7 @@ first-cohort Production monitoring remain external invite-readiness gates.
 ## Production Operating Checks
 
 - Production runtime `DATABASE_URL` uses the Neon pooled host. Direct Neon URLs stay limited to migrations and maintenance paths.
+- Vercel Production `prebuild` runs the read-only migration gate before Prisma generation. Do not promote when the direct maintenance URL is absent, status cannot be verified, or committed migrations are pending. Apply reviewed migrations only through a separately authorized maintenance action, verify status, then redeploy the same reviewed commit.
 - Production `robots.txt`, `sitemap.xml`, and metadata index only approved public pages. Preview/local deployments stay noindex.
 - Auth flows, account/admin surfaces, APIs, public booking links, shared room-code URLs, and local professional-record subroutes stay out of the sitemap and crawler allowlist.
 - Sentry remains limited to sanitized errors/traces and the approved user-initiated diagnostic report. Do not enable Session Replay, screenshots, attachments, logs, or standard feedback widgets before route-by-route privacy review.

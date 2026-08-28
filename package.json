@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "prebuild": "prisma generate",
+    "prebuild": "npm run production:migrations:check && prisma generate",
     "build": "next build",
     "build:browser-qa": "node scripts/build-browser-qa.mjs",
     "build:next": "next build",
@@ -37,6 +37,7 @@
     "prisma:validate": "prisma validate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "production:migrations:check": "node scripts/assert-production-migrations-current.mjs",
     "admin:grant": "node scripts/grant-admin.mjs",
     "anatomy:seed": "node --experimental-strip-types prisma/seed.ts",
     "anatomy:grant-editor": "node scripts/grant-anatomy-admin.mjs",
