@@ -6,17 +6,11 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { googleProfileEmail, isVerifiedGoogleProfile } from "@/lib/auth-account-linking"
 import { getAuthSecret, getGoogleAuthConfig, getSiteUrl } from "@/lib/auth-env"
-import { assertRateLimit, clearAttempts, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
+import { verifyPasswordMethodProof } from "@/lib/auth-method-proof"
 import { ensureGoogleUserState, ensureUserRole, getUserAuthState } from "@/lib/auth-users"
 import { decideAuthSessionVersion } from "@/lib/auth-session-version"
 import type { AccountCapabilities, AccountRole, VerificationStatus } from "@/lib/domain-types"
-import {
-  decryptSecret,
-  normalizeEmail,
-  verifyBackupCode,
-  verifyPassword,
-  verifyTotpCode,
-} from "@/lib/auth-security"
+import { normalizeEmail } from "@/lib/auth-security"
 
 if (!process.env.NEXTAUTH_URL) {
   process.env.NEXTAUTH_URL = getSiteUrl()
@@ -58,74 +52,19 @@ const providers: NextAuthConfig["providers"] = [
       const email = normalizeEmail(credentials?.email)
       const password = typeof credentials?.password === "string" ? credentials.password : ""
       const twoFactorCode = typeof credentials?.twoFactorCode === "string" ? credentials.twoFactorCode : ""
-      const key = rateLimitKey(email, requestIp(request))
-
-      try {
-        await assertRateLimit("LOGIN", key)
-      } catch {
-        throw loginError("RATE_LIMITED")
-      }
-
-      const user = await prisma.user.findUnique({
-        where: { email },
-        include: {
-          passwordCredential: true,
-          roles: true,
-          twoFactorSecret: true,
-          backupCodes: {
-            where: { usedAt: null },
-            orderBy: { createdAt: "asc" },
-          },
-        },
+      const proof = await verifyPasswordMethodProof({
+        prismaClient: prisma,
+        email,
+        password,
+        twoFactorCode,
+        networkIdentifier: requestIp(request),
+        secret: getAuthSecret(),
       })
+      if (proof.status === "INVALID") throw loginError("INVALID_CREDENTIALS")
+      if (proof.status !== "VERIFIED") throw loginError(proof.status)
 
-      const passwordIsValid = user?.passwordCredential
-        ? await verifyPassword(user.passwordCredential.passwordHash, password)
-        : false
-
-      if (!user || !passwordIsValid) {
-        await recordFailedAttempt("LOGIN", key)
-        throw loginError("INVALID_CREDENTIALS")
-      }
-
-      if (!user.emailVerified) {
-        await recordFailedAttempt("LOGIN", key)
-        throw loginError("EMAIL_UNVERIFIED")
-      }
-
-      if (user.twoFactorSecret?.enabledAt) {
-        if (!twoFactorCode) {
-          throw loginError("TWO_FACTOR_REQUIRED")
-        }
-
-        const secret = decryptSecret(user.twoFactorSecret.encryptedSecret)
-        const validTotp = verifyTotpCode(secret, twoFactorCode)
-        let validBackupCodeId: string | null = null
-
-        if (!validTotp) {
-          for (const backupCode of user.backupCodes) {
-            if (await verifyBackupCode(backupCode.codeHash, twoFactorCode)) {
-              validBackupCodeId = backupCode.id
-              break
-            }
-          }
-        }
-
-        if (!validTotp && !validBackupCodeId) {
-          await recordFailedAttempt("TWO_FACTOR", key)
-          throw loginError("TWO_FACTOR_INVALID")
-        }
-
-        if (validBackupCodeId) {
-          await prisma.backupCode.update({
-            where: { id: validBackupCodeId },
-            data: { usedAt: new Date() },
-          })
-        }
-      }
-
-      await clearAttempts("LOGIN", key)
-      await clearAttempts("TWO_FACTOR", key)
+      const user = await prisma.user.findUnique({ where: { email } })
+      if (!user) throw loginError("INVALID_CREDENTIALS")
       await ensureUserRole(user.id, user.email)
 
       return {
@@ -133,6 +72,7 @@ const providers: NextAuthConfig["providers"] = [
         name: user.name,
         email: user.email,
         image: user.image,
+        passwordAuthenticatedAt: Date.now(),
       }
     },
   }),
@@ -184,6 +124,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user?.id) {
         token.id = user.id
       }
+      if (account?.provider === "credentials" && Number.isFinite(user?.passwordAuthenticatedAt)) {
+        token.lastPasswordAuthenticatedAt = user.passwordAuthenticatedAt
+      } else if (isSignIn) {
+        delete token.lastPasswordAuthenticatedAt
+      }
 
       const userId = typeof token.id === "string" ? token.id : token.sub
 
@@ -224,6 +169,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token
     },
     async session({ session, token }) {
+      session.lastPasswordAuthenticatedAt = Number.isFinite(token.lastPasswordAuthenticatedAt)
+        ? token.lastPasswordAuthenticatedAt
+        : undefined
       if (session.user) {
         const sessionUser = session.user as {
           id: string

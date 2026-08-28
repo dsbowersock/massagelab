@@ -53,6 +53,16 @@ describe("registration email delivery policy", () => {
     assert.match(registerRoute, /id: emailVerificationToken\.id/)
   })
 
+  it("consumes privacy-safe account and network registration quota before account work", async () => {
+    const registerRoute = await readFile(new URL("../app/api/account/register/route.ts", import.meta.url), "utf8")
+
+    assert.match(registerRoute, /consumeEmailWorkRateLimit\(\{[\s\S]*purpose: "REGISTER"/)
+    assert.match(registerRoute, /retryAfterSeconds/)
+    assert.match(registerRoute, /"Retry-After"/)
+    assert.doesNotMatch(registerRoute, /assertRateLimit|recordFailedAttempt|rateLimitKey|prisma\.authAttempt/)
+    assert.ok(registerRoute.indexOf("consumeEmailWorkRateLimit") < registerRoute.indexOf("prisma.user.findUnique"))
+  })
+
   it("presents Google registration and email-password registration on the register page", async () => {
     const registerPage = await readFile(new URL("../app/register/page.tsx", import.meta.url), "utf8")
     const registerForm = await readFile(new URL("../app/register/register-form.tsx", import.meta.url), "utf8")

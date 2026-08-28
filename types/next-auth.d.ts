@@ -4,6 +4,7 @@ import type { AccountCapabilities, VerificationStatus } from "@/lib/domain-types
 
 declare module "next-auth" {
   interface Session {
+    lastPasswordAuthenticatedAt?: number
     user: Omit<NonNullable<DefaultSession["user"]>, "emailVerified"> & {
       id: string
       role: Role
@@ -17,6 +18,7 @@ declare module "next-auth" {
 
   interface User {
     id: string
+    passwordAuthenticatedAt?: number
   }
 }
 
@@ -30,5 +32,6 @@ declare module "next-auth/jwt" {
     capabilities?: AccountCapabilities
     emailVerified?: boolean
     twoFactorEnabled?: boolean
+    lastPasswordAuthenticatedAt?: number
   }
 }

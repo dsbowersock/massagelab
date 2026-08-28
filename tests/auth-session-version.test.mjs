@@ -97,6 +97,8 @@ describe("JWT session-version integration contract", () => {
     assert.match(schema, /authSessionVersion\s+Int\s+@default\(0\)/)
     assert.match(migration, /ALTER TABLE "User"[\s\S]*ADD COLUMN "authSessionVersion" INTEGER NOT NULL DEFAULT 0;/)
     assert.match(authTypes, /interface JWT \{[\s\S]*authSessionVersion\?: number/)
+    assert.match(authTypes, /interface JWT \{[\s\S]*lastPasswordAuthenticatedAt\?: number/)
+    assert.match(authTypes, /interface Session \{[\s\S]*lastPasswordAuthenticatedAt\?: number/)
     const sessionDeclarationMatch = authTypes.match(/interface Session \{[\s\S]*?^  \}/m)
     assert.ok(sessionDeclarationMatch, "Expected the Session interface declaration")
     const sessionDeclaration = sessionDeclarationMatch[0]
@@ -131,10 +133,7 @@ describe("JWT session-version integration contract", () => {
         getGoogleAuthConfig: () => null,
         getSiteUrl: () => "http://localhost:3000",
       },
-      "@/lib/auth-rate-limit": {
-        assertRateLimit: async () => {}, clearAttempts: async () => {},
-        rateLimitKey: () => "key", recordFailedAttempt: async () => {},
-      },
+      "@/lib/auth-method-proof": { verifyPasswordMethodProof: async () => ({ status: "INVALID" }) },
       "@/lib/auth-users": {
         ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
         async getUserAuthState(userId) {
@@ -152,8 +151,7 @@ describe("JWT session-version integration contract", () => {
       },
       "@/lib/auth-session-version": { decideAuthSessionVersion },
       "@/lib/auth-security": {
-        decryptSecret: () => "", normalizeEmail: () => "", verifyBackupCode: async () => false,
-        verifyPassword: async () => false, verifyTotpCode: () => false,
+        normalizeEmail: () => "",
       },
     })
 
@@ -168,6 +166,57 @@ describe("JWT session-version integration contract", () => {
     assert.match(authUsersSource, /select:\s*\{[\s\S]*authSessionVersion: true/)
     assert.match(authUsersSource, /return \{\s*authSessionVersion: user\?\.authSessionVersion,/)
     assert.doesNotMatch(authUsersSource, /authSessionVersion: user\?\.authSessionVersion\s*\?\?\s*0/)
+    assert.match(authSource, /account\?\.provider === "credentials" && Number\.isFinite\(user\?\.passwordAuthenticatedAt\)/)
+    assert.match(authSource, /token\.lastPasswordAuthenticatedAt = user\.passwordAuthenticatedAt/)
+    assert.match(authSource, /session\.lastPasswordAuthenticatedAt = Number\.isFinite\(token\.lastPasswordAuthenticatedAt\)/)
+  })
+
+  it("mints and exposes password freshness only for a successful Credentials sign-in", async () => {
+    const authSource = await read("auth.ts")
+    let capturedConfig
+    class CredentialsSignin extends Error {}
+    const NextAuth = (config) => {
+      capturedConfig = config
+      return { handlers: {}, auth() {}, signIn() {}, signOut() {} }
+    }
+    NextAuth.CredentialsSignin = CredentialsSignin
+    loadCompiledModule(authSource, "auth-password-freshness.test.ts", {
+      "next-auth": NextAuth,
+      "next-auth/providers/credentials": (config) => config,
+      "next-auth/providers/google": (config) => config,
+      "@auth/prisma-adapter": { PrismaAdapter: () => ({}) },
+      "@/lib/prisma": { prisma: {} },
+      "@/lib/auth-account-linking": { googleProfileEmail: () => "", isVerifiedGoogleProfile: () => true },
+      "@/lib/auth-env": { getAuthSecret: () => "test-secret", getGoogleAuthConfig: () => null, getSiteUrl: () => "http://localhost:3000" },
+      "@/lib/auth-method-proof": { verifyPasswordMethodProof: async () => ({ status: "INVALID" }) },
+      "@/lib/auth-users": {
+        ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
+        getUserAuthState: async () => ({
+          authSessionVersion: 0, role: "USER", roles: ["USER"],
+          roleAssignments: [{ role: "USER", status: "VERIFIED" }], capabilities: {},
+          emailVerified: true, twoFactorEnabled: false,
+        }),
+      },
+      "@/lib/auth-session-version": { decideAuthSessionVersion },
+      "@/lib/auth-security": { normalizeEmail: (value) => String(value ?? "") },
+    })
+
+    const passwordAuthenticatedAt = Date.parse("2026-08-28T12:00:00.000Z")
+    const credentialToken = await capturedConfig.callbacks.jwt({
+      token: {},
+      user: { id: "user-1", passwordAuthenticatedAt },
+      account: { provider: "credentials" },
+    })
+    assert.equal(credentialToken.lastPasswordAuthenticatedAt, passwordAuthenticatedAt)
+    const session = await capturedConfig.callbacks.session({ session: { user: {} }, token: credentialToken })
+    assert.equal(session.lastPasswordAuthenticatedAt, passwordAuthenticatedAt)
+
+    const googleToken = await capturedConfig.callbacks.jwt({
+      token: { lastPasswordAuthenticatedAt: passwordAuthenticatedAt },
+      user: { id: "user-1" },
+      account: { provider: "google" },
+    })
+    assert.equal(Object.hasOwn(googleToken, "lastPasswordAuthenticatedAt"), false)
   })
 })
 

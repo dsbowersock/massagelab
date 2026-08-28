@@ -2,8 +2,9 @@ import { NextResponse } from "next/server"
 import { hashPassword, generateRandomToken, hashToken, normalizeEmail, tokenExpiresIn, verifyPassword } from "@/lib/auth-security"
 import { registrationVerificationResponse, sendRegistrationVerification } from "@/lib/auth-registration"
 import { sendVerificationEmail } from "@/lib/auth-mail"
+import { getAuthSecret } from "@/lib/auth-env"
 import { ensureUserRole } from "@/lib/auth-users"
-import { assertRateLimit, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
+import { consumeEmailWorkRateLimit } from "@/lib/auth-rate-limit"
 import {
   acceptedDocumentIdsFromInput,
   legalRequestMetadata,
@@ -22,22 +23,30 @@ export async function POST(request: Request) {
   // Gate the app-local destination before it reaches verification-link generation.
   const callbackUrl = safePostLegalAcceptanceCallback(body.callbackUrl)
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? "unknown"
-  const key = rateLimitKey(email, ip)
+  const rateLimitDecision = await consumeEmailWorkRateLimit({
+    prismaClient: prisma,
+    purpose: "REGISTER",
+    email,
+    networkIdentifier: ip,
+    secret: getAuthSecret(),
+  })
+  if (!rateLimitDecision.allowed) {
+    return NextResponse.json(
+      { message: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(rateLimitDecision.retryAfterSeconds) } },
+    )
+  }
   const requiredDocuments = requiredLegalDocumentsForEvent("registration")
   const missingLegalDocuments = missingRequiredLegalDocuments({
     acceptedDocumentIds: acceptedDocumentIdsFromInput(body.acceptedLegalDocuments),
     documents: requiredDocuments,
   })
 
-  await assertRateLimit("REGISTER", key)
-
   if (!email || password.length < 12) {
-    await recordFailedAttempt("REGISTER", key)
     return NextResponse.json({ message: "Use a valid email and a password with at least 12 characters." }, { status: 400 })
   }
 
   if (missingLegalDocuments.length > 0) {
-    await recordFailedAttempt("REGISTER", key)
     return NextResponse.json({
       message: `Accept ${missingLegalDocuments.map((document) => document.shortLabel).join(" and ")} before creating an account.`,
     }, { status: 400 })
@@ -94,7 +103,6 @@ export async function POST(request: Request) {
       }
     }
 
-    await recordFailedAttempt("REGISTER", key)
     return NextResponse.json(
       { message: "An account already exists for that email. Sign in instead, or use forgot password to set or reset an email password." },
       { status: 409 },
