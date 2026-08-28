@@ -34,6 +34,7 @@ function rateLimitBucketHasCapacity(key: string, now: number, maxCount: number) 
   return !current || current.resetAt <= now || current.count < maxCount
 }
 
+/** Counts caller-derived buckets for retention-cap enforcement, excluding the global quota bucket. */
 function retainedClientBucketCount() {
   let count = 0
   for (const key of reportRateLimitBuckets.keys()) {

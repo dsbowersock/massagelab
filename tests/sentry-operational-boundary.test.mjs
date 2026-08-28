@@ -78,8 +78,24 @@ function findReviewedSentryReferences(filePath, contents) {
     return current
   }
 
+  /** Returns true only for a literal CommonJS import from a Sentry package. */
+  function isSentryRequireCall(expression) {
+    const current = unwrap(expression)
+    if (!ts.isCallExpression(current)
+      || !ts.isIdentifier(current.expression)
+      || current.expression.text !== "require"
+      || current.arguments.length !== 1) {
+      return false
+    }
+    const moduleSpecifier = current.arguments[0]
+    return (ts.isStringLiteral(moduleSpecifier)
+      || ts.isNoSubstitutionTemplateLiteral(moduleSpecifier))
+      && moduleSpecifier.text.startsWith("@sentry/")
+  }
+
   function originatesFromSentry(expression) {
     const current = unwrap(expression)
+    if (isSentryRequireCall(current)) return true
     if (ts.isIdentifier(current)) return namespaceAliases.has(current.text)
     if (ts.isPropertyAccessExpression(current) || ts.isElementAccessExpression(current)) {
       return originatesFromSentry(current.expression)
@@ -106,6 +122,11 @@ function findReviewedSentryReferences(filePath, contents) {
     return undefined
   }
 
+  /**
+   * Returns resolved property-name text for shorthand, identifier/string, and
+   * static-computed assignment keys. Unsupported or dynamic keys remain
+   * undefined so the caller records <dynamic>.
+   */
   function assignmentPropertyName(node) {
     if (ts.isShorthandPropertyAssignment(node)) return node.name.text
     if (!ts.isPropertyAssignment(node)) return undefined
@@ -287,6 +308,11 @@ describe("anonymous operational Sentry boundary", () => {
       let dynamicAlias
       ({ setUser: identify, ["showReportDialog"]: dialog, [method]: dynamicAlias } = Sentry)
     `).map(({ method }) => method), ["setUser", "showReportDialog", "<dynamic>"])
+    assert.deepEqual(findReviewedSentryReferences("commonjs.cjs", `
+      const { captureUserFeedback: feedback } = require("@sentry/node")
+      let identify
+      ({ setUser: identify } = require("@sentry/core"))
+    `).map(({ method }) => method), ["captureUserFeedback", "setUser"])
   })
 
   it("pins root Sentry framework hooks without allowing additional capture APIs", () => {
