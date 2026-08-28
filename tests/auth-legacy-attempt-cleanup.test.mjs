@@ -16,19 +16,19 @@ describe("legacy auth-attempt cleanup", () => {
   it("fingerprints a direct target without connecting or exposing the target", async () => {
     const { runLegacyAuthAttemptCleanupCli } = await loadCleanupModule()
     const output = []
-    let executions = 0
+    let clientsCreated = 0
 
     await runLegacyAuthAttemptCleanupCli({
       args: ["--print-fingerprint"],
       env: { AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL: directUrl },
-      executeCleanup: async () => {
-        executions += 1
-        return 0
+      createPrismaClient: () => {
+        clientsCreated += 1
+        throw new Error("fingerprint mode must not create a client")
       },
       writeLine: (line) => output.push(line),
     })
 
-    assert.equal(executions, 0)
+    assert.equal(clientsCreated, 0)
     assert.equal(output.length, 1)
     assert.match(output[0], /^[0-9a-f]{64}$/)
     assert.doesNotMatch(output[0], /operator|secret|neon|massagelab|postgres|:\/\//i)
@@ -37,15 +37,15 @@ describe("legacy auth-attempt cleanup", () => {
   it("fails closed unless every mutation gate is exact", async () => {
     const { fingerprintLegacyAuthAttemptTarget, runLegacyAuthAttemptCleanupCli } = await loadCleanupModule()
     const expectedFingerprint = fingerprintLegacyAuthAttemptTarget(directUrl)
-    let executions = 0
-    const executeCleanup = async () => {
-      executions += 1
-      return 0
+    let clientsCreated = 0
+    const createPrismaClient = () => {
+      clientsCreated += 1
+      throw new Error("refused cleanup must not create a client")
     }
     const run = (args, env = {}) => runLegacyAuthAttemptCleanupCli({
       args,
       env: { AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL: directUrl, ...env },
-      executeCleanup,
+      createPrismaClient,
       writeLine: () => assert.fail("refused cleanup must not emit a success line"),
     })
 
@@ -72,19 +72,19 @@ describe("legacy auth-attempt cleanup", () => {
           AUTH_LEGACY_ATTEMPT_CLEANUP: "1",
           AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL: pooledUrl,
         },
-        executeCleanup,
+        createPrismaClient,
         writeLine: () => assert.fail("pooled target must not emit a success line"),
       }),
       /direct.*Neon/i,
     )
-    assert.equal(executions, 0)
+    assert.equal(clientsCreated, 0)
   })
 
   it("runs one bounded deletion and reports only the affected count", async () => {
     const { fingerprintLegacyAuthAttemptTarget, runLegacyAuthAttemptCleanupCli } = await loadCleanupModule()
     const expectedFingerprint = fingerprintLegacyAuthAttemptTarget(directUrl)
     const output = []
-    const executions = []
+    const state = { clients: 0, transactions: 0, statements: 0, disconnects: 0, sql: "" }
 
     const result = await runLegacyAuthAttemptCleanupCli({
       args: [`--expected-fingerprint=${expectedFingerprint}`, "--max-rows=2"],
@@ -92,20 +92,78 @@ describe("legacy auth-attempt cleanup", () => {
         AUTH_LEGACY_ATTEMPT_CLEANUP: "1",
         AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL: directUrl,
       },
-      executeCleanup: async (request) => {
-        executions.push(request)
-        return 2
+      createPrismaClient: (connectionString) => {
+        assert.equal(connectionString, directUrl)
+        state.clients += 1
+        return {
+          $executeRawUnsafe: () => assert.fail("deletion must execute through the transaction client"),
+          async $transaction(callback) {
+            state.transactions += 1
+            return callback({
+              async $executeRawUnsafe(sql) {
+                state.statements += 1
+                state.sql = sql
+                return 2
+              },
+            })
+          },
+          async $disconnect() {
+            state.disconnects += 1
+          },
+        }
       },
       writeLine: (line) => output.push(line),
     })
 
     assert.equal(result, 2)
-    assert.equal(executions.length, 1)
-    assert.equal(executions[0].connectionString, directUrl)
-    assert.match(executions[0].sql, /DELETE FROM "AuthAttempt"/)
-    assert.match(executions[0].sql, /LIMIT 2/)
-    assert.doesNotMatch(executions[0].sql, /AuthRateLimitBucket/)
+    assert.deepEqual(state, {
+      clients: 1,
+      transactions: 1,
+      statements: 1,
+      disconnects: 1,
+      sql: state.sql,
+    })
+    assert.match(state.sql, /DELETE FROM "AuthAttempt"/)
+    assert.match(state.sql, /LIMIT 2/)
+    assert.doesNotMatch(state.sql, /AuthRateLimitBucket/)
     assert.deepEqual(output, ["legacy_auth_attempt_rows_deleted=2"])
     assert.doesNotMatch(output[0], /key|email|ip|operator|secret|neon|massagelab|postgres|:\/\//i)
+  })
+
+  it("rejects negative or excessive affected counts from the transaction client", async () => {
+    const { fingerprintLegacyAuthAttemptTarget, runLegacyAuthAttemptCleanupCli } = await loadCleanupModule()
+    const expectedFingerprint = fingerprintLegacyAuthAttemptTarget(directUrl)
+
+    for (const affectedCount of [-1, 3]) {
+      let transactions = 0
+      let statements = 0
+      let disconnects = 0
+      await assert.rejects(
+        runLegacyAuthAttemptCleanupCli({
+          args: [`--expected-fingerprint=${expectedFingerprint}`, "--max-rows=2"],
+          env: {
+            AUTH_LEGACY_ATTEMPT_CLEANUP: "1",
+            AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL: directUrl,
+          },
+          createPrismaClient: () => ({
+            async $transaction(callback) {
+              transactions += 1
+              return callback({
+                async $executeRawUnsafe() {
+                  statements += 1
+                  return affectedCount
+                },
+              })
+            },
+            async $disconnect() {
+              disconnects += 1
+            },
+          }),
+          writeLine: () => assert.fail("invalid counts must not emit a success line"),
+        }),
+        /invalid affected-row count/i,
+      )
+      assert.deepEqual({ transactions, statements, disconnects }, { transactions: 1, statements: 1, disconnects: 1 })
+    }
   })
 })

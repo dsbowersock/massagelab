@@ -91,9 +91,18 @@ WHERE legacy."id" = doomed."id";
 `
 }
 
-async function executeCleanupTransaction({ connectionString, sql }) {
+function createCleanupPrismaClient(connectionString) {
   neonConfig.webSocketConstructor = ws
-  const prisma = new PrismaClient({ adapter: new PrismaNeon({ connectionString }) })
+  return new PrismaClient({ adapter: new PrismaNeon({ connectionString }) })
+}
+
+/** Owns client lifetime and guarantees the bounded statement runs through one transaction client. */
+export async function executeCleanupTransaction({
+  connectionString,
+  sql,
+  createPrismaClient = createCleanupPrismaClient,
+}) {
+  const prisma = createPrismaClient(connectionString)
   try {
     return await prisma.$transaction((transaction) => transaction.$executeRawUnsafe(sql))
   } finally {
@@ -108,7 +117,7 @@ async function executeCleanupTransaction({ connectionString, sql }) {
 export async function runLegacyAuthAttemptCleanupCli({
   args,
   env,
-  executeCleanup = executeCleanupTransaction,
+  createPrismaClient = createCleanupPrismaClient,
   writeLine = (line) => process.stdout.write(`${line}\n`),
 }) {
   const options = parseCleanupArgs(args)
@@ -126,10 +135,10 @@ export async function runLegacyAuthAttemptCleanupCli({
     throw new Error("The expected fingerprint does not match the selected target.")
   }
 
-  const deletedCount = Number(await executeCleanup({
+  const deletedCount = Number(await executeCleanupTransaction({
     connectionString,
-    maxRows: options.maxRows,
     sql: buildLegacyAuthAttemptCleanupSql(options.maxRows),
+    createPrismaClient,
   }))
   if (!Number.isInteger(deletedCount) || deletedCount < 0 || deletedCount > options.maxRows) {
     throw new Error("Cleanup returned an invalid affected-row count.")

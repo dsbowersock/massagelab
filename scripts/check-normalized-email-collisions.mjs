@@ -67,20 +67,39 @@ export async function countNormalizedEmailCollisions(prismaClient) {
   return count
 }
 
-async function main() {
-  loadDotenv({ path: ".env.local", override: false, quiet: true })
-  loadDotenv({ path: ".env", override: false, quiet: true })
-  const connectionString = requireDirectNormalizedEmailCheckUrl(process.env)
+function createNormalizedEmailCheckPrismaClient(connectionString) {
   neonConfig.webSocketConstructor = ws
-  const prisma = new PrismaClient({ adapter: new PrismaNeon({ connectionString }) })
+  return new PrismaClient({ adapter: new PrismaNeon({ connectionString }) })
+}
 
+/**
+ * Runs the count-only preflight through an injectable client while preserving
+ * production CLI output and exit semantics without exposing database values.
+ */
+export async function runNormalizedEmailCollisionCheckCli({
+  env,
+  createPrismaClient = createNormalizedEmailCheckPrismaClient,
+  writeLine = (line) => process.stdout.write(`${line}\n`),
+  setExitCode = (code) => {
+    process.exitCode = code
+  },
+}) {
+  const connectionString = requireDirectNormalizedEmailCheckUrl(env)
+  const prisma = createPrismaClient(connectionString)
   try {
     const count = await countNormalizedEmailCollisions(prisma)
-    process.stdout.write(`normalized_collision_count=${count}\n`)
-    if (count !== 0) process.exitCode = 1
+    writeLine(`normalized_collision_count=${count}`)
+    if (count !== 0) setExitCode(1)
+    return count
   } finally {
     await prisma.$disconnect()
   }
+}
+
+async function main() {
+  loadDotenv({ path: ".env.local", override: false, quiet: true })
+  loadDotenv({ path: ".env", override: false, quiet: true })
+  await runNormalizedEmailCollisionCheckCli({ env: process.env })
 }
 
 const invokedPath = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : ""

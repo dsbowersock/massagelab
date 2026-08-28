@@ -1,6 +1,17 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import * as normalizedEmailCheck from "../scripts/check-normalized-email-collisions.mjs"
+
+const {
+  countNormalizedEmailCollisions,
+  formatNormalizedEmailCheckError,
+  requireDirectNormalizedEmailCheckUrl,
+  runNormalizedEmailCollisionCheckCli,
+} = normalizedEmailCheck
+
+const directUrl = "postgresql://operator:secret@ep-example.us-east-2.aws.neon.tech:5432/massagelab?sslmode=require"
+const pooledUrl = "postgresql://operator:secret@ep-example-pooler.us-east-2.aws.neon.tech/massagelab?sslmode=require"
 
 const [schema, migration, preflight, cleanup, packageJsonSource] = await Promise.all([
   readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8"),
@@ -65,5 +76,108 @@ describe("identity method safety persistence", () => {
     assert.doesNotMatch(cleanup, /AuthRateLimitBucket/)
     assert.equal(packageJson.scripts["auth:check-normalized-emails"], "node scripts/check-normalized-email-collisions.mjs")
     assert.equal(packageJson.scripts["auth:cleanup-legacy-attempts"], "node scripts/cleanup-legacy-auth-attempts.mjs")
+  })
+
+  it("accepts only an explicit direct non-pooler Neon target", () => {
+    assert.equal(requireDirectNormalizedEmailCheckUrl({
+      AUTH_NORMALIZED_EMAIL_CHECK_DATABASE_URL: `  ${directUrl}  `,
+    }), directUrl)
+    assert.throws(() => requireDirectNormalizedEmailCheckUrl({}), /required/i)
+    assert.throws(
+      () => requireDirectNormalizedEmailCheckUrl({ AUTH_NORMALIZED_EMAIL_CHECK_DATABASE_URL: pooledUrl }),
+      /direct non-pooler Neon/i,
+    )
+    assert.throws(
+      () => requireDirectNormalizedEmailCheckUrl({
+        AUTH_NORMALIZED_EMAIL_CHECK_DATABASE_URL: "postgresql://operator:secret@database.example.test/massagelab",
+      }),
+      /direct non-pooler Neon/i,
+    )
+  })
+
+  it("executes one fixed count-only collision query and rejects invalid results", async () => {
+    const calls = []
+    const count = await countNormalizedEmailCollisions({
+      async $queryRawUnsafe(...args) {
+        calls.push(args)
+        return [{ normalized_collision_count: 0 }]
+      },
+    })
+
+    assert.equal(count, 0)
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0].length, 1)
+    assert.equal(calls[0][0].trim(), `SELECT COUNT(*)::int AS normalized_collision_count
+FROM (
+  SELECT lower(btrim("email"))
+  FROM "User"
+  WHERE "email" IS NOT NULL
+  GROUP BY lower(btrim("email"))
+  HAVING COUNT(*) > 1
+) collisions`)
+
+    for (const invalidRows of [[], [{ normalized_collision_count: -1 }], [{ normalized_collision_count: 1.5 }]]) {
+      await assert.rejects(
+        countNormalizedEmailCollisions({ $queryRawUnsafe: async () => invalidRows }),
+        /invalid count/i,
+      )
+    }
+  })
+
+  it("prints only the count and marks nonzero collisions as a failure", async () => {
+    assert.equal(typeof runNormalizedEmailCollisionCheckCli, "function")
+    for (const expectedCount of [0, 2]) {
+      const output = []
+      const exitCodes = []
+      let clients = 0
+      let disconnects = 0
+      const result = await runNormalizedEmailCollisionCheckCli({
+        env: { AUTH_NORMALIZED_EMAIL_CHECK_DATABASE_URL: directUrl },
+        createPrismaClient: (connectionString) => {
+          assert.equal(connectionString, directUrl)
+          clients += 1
+          return {
+            $queryRawUnsafe: async () => [{ normalized_collision_count: expectedCount }],
+            async $disconnect() {
+              disconnects += 1
+            },
+          }
+        },
+        writeLine: (line) => output.push(line),
+        setExitCode: (code) => exitCodes.push(code),
+      })
+
+      assert.equal(result, expectedCount)
+      assert.deepEqual(output, [`normalized_collision_count=${expectedCount}`])
+      assert.deepEqual(exitCodes, expectedCount === 0 ? [] : [1])
+      assert.equal(clients, 1)
+      assert.equal(disconnects, 1)
+    }
+  })
+
+  it("disconnects after invalid results and redacts URL and secret-bearing errors", async () => {
+    assert.equal(typeof runNormalizedEmailCollisionCheckCli, "function")
+    let disconnects = 0
+    await assert.rejects(
+      runNormalizedEmailCollisionCheckCli({
+        env: { AUTH_NORMALIZED_EMAIL_CHECK_DATABASE_URL: directUrl },
+        createPrismaClient: () => ({
+          $queryRawUnsafe: async () => [],
+          async $disconnect() {
+            disconnects += 1
+          },
+        }),
+        writeLine: () => assert.fail("invalid results must not emit a count"),
+        setExitCode: () => assert.fail("invalid results must reject before setting a collision exit code"),
+      }),
+      /invalid count/i,
+    )
+    assert.equal(disconnects, 1)
+
+    const formatted = formatNormalizedEmailCheckError(
+      new Error("connect postgresql://operator:raw-secret@db.example/app password=raw-secret token=raw-token"),
+    )
+    assert.equal(formatted, "connect [redacted] [redacted] [redacted]")
+    assert.doesNotMatch(formatted, /operator|raw-secret|raw-token|postgresql|password=|token=/i)
   })
 })
