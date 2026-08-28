@@ -1146,7 +1146,7 @@ Expected:
 
 - lint PASS, allowing only an already-documented pre-existing informational notice;
 - typecheck PASS;
-- all Node tests PASS except the repository's one intentional skip;
+- Node tests report three intentional skips; on Windows, the current baseline may additionally report the nine documented AtmoShaper construction-review checksum failures caused by CRLF working-tree materialization of two immutable JSON fixtures, while hosted Linux remains green;
 - Production build PASS with the complete route count for the execution baseline; and
 - diff check PASS.
 

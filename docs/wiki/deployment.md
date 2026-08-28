@@ -272,6 +272,9 @@ Production Sentry setup should keep alerting focused on:
 
 No account, user, visitor, or session identifier is sent to Sentry. Automatic
 click, input, navigation, console, and network breadcrumbs are disabled.
+`sentry.server.config.ts` keeps `includeServerName: false` to disable SDK
+server-name capture, and provider advanced scrubbing removes server-name tags
+from new events.
 Event-scoped trace and diagnostic IDs may correlate one operational failure,
 not a person or browser history.
 

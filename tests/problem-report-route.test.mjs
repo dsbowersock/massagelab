@@ -28,14 +28,14 @@ function diagnosticRequest() {
   })
 }
 
-function loadRoute(sentry) {
+function loadRoute(sentry, requestHeaders = new Headers({ "user-agent": "Mozilla/5.0 Chrome/140.0" })) {
   return loadCompiledModule(
     routeSource,
     "app/api/support/problem-report/route.ts",
     {
       "@sentry/nextjs": sentry,
       "next/headers": {
-        headers: async () => new Headers({ "user-agent": "Mozilla/5.0 Chrome/140.0" }),
+        headers: async () => requestHeaders,
       },
       "next/server": {
         NextResponse: {
@@ -55,6 +55,7 @@ describe("privacy-safe problem report route", () => {
     })
     const calls = []
     const route = loadRoute({
+      isEnabled: () => true,
       captureMessage(message, options) {
         calls.push({ operation: "capture", message, options })
         return "event-id"
@@ -85,6 +86,7 @@ describe("privacy-safe problem report route", () => {
 
   it("does not report success when Sentry delivery cannot be confirmed", async () => {
     const route = loadRoute({
+      isEnabled: () => true,
       captureMessage: () => "event-id",
       flush: async () => false,
     })
@@ -95,5 +97,80 @@ describe("privacy-safe problem report route", () => {
     assert.deepEqual(response.body, {
       error: "Diagnostic report could not be delivered. Please try again later.",
     })
+  })
+
+  it("does not report success when the Sentry transport is unavailable", async () => {
+    const route = loadRoute({
+      isEnabled: () => false,
+      captureMessage: () => assert.fail("captureMessage must not be called"),
+      flush: () => assert.fail("flush must not be called"),
+    })
+
+    const response = await route.POST(diagnosticRequest())
+
+    assert.equal(response.status, 503)
+    assert.deepEqual(response.body, {
+      error: "Diagnostic report could not be delivered. Please try again later.",
+    })
+  })
+
+  it("rejects an oversized body even without a Content-Length header", async () => {
+    const request = new Request("https://example.test/api/support/problem-report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category: "x".repeat(4096) }),
+    })
+    const route = loadRoute({
+      isEnabled: () => assert.fail("Sentry readiness must not be checked"),
+      captureMessage: () => assert.fail("captureMessage must not be called"),
+      flush: () => assert.fail("flush must not be called"),
+    })
+
+    const response = await route.POST(request)
+
+    assert.equal(response.status, 400)
+    assert.deepEqual(response.body, {
+      error: "Problem report could not be accepted.",
+    })
+  })
+
+  it("rejects an absent body without calling Sentry", async () => {
+    const route = loadRoute({
+      isEnabled: () => assert.fail("Sentry readiness must not be checked"),
+      captureMessage: () => assert.fail("captureMessage must not be called"),
+      flush: () => assert.fail("flush must not be called"),
+    })
+    const request = new Request("https://example.test/api/support/problem-report", {
+      method: "POST",
+    })
+
+    const response = await route.POST(request)
+
+    assert.equal(response.status, 400)
+    assert.deepEqual(response.body, {
+      error: "Problem report could not be accepted.",
+    })
+  })
+
+  it("does not let a rate-limited client consume the global allowance", async () => {
+    const requestHeaders = new Headers({
+      "user-agent": "Mozilla/5.0 Chrome/140.0",
+      "x-forwarded-for": "192.0.2.1",
+    })
+    const route = loadRoute({
+      isEnabled: () => true,
+      captureMessage: () => "event-id",
+      flush: async () => true,
+    }, requestHeaders)
+
+    for (let index = 0; index < 5; index += 1) {
+      assert.equal((await route.POST(diagnosticRequest())).status, 200)
+    }
+    for (let index = 0; index < 100; index += 1) {
+      assert.equal((await route.POST(diagnosticRequest())).status, 429)
+    }
+
+    requestHeaders.set("x-forwarded-for", "192.0.2.2")
+    assert.equal((await route.POST(diagnosticRequest())).status, 200)
   })
 })

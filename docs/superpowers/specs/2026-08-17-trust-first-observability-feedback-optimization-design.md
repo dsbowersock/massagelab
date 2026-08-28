@@ -34,7 +34,7 @@ Decomposing Chimer immediately could reduce local complexity, but it would provi
 
 Pseudonymous pageviews, background impressions, event funnels, and similar product analytics were considered and explicitly rejected. They conflict with the intended trust relationship and must not be treated as a deferred default if voluntary feedback volume is low.
 
-## Current evidence
+## Design baseline evidence (2026-08-17)
 
 MassageLab already has useful foundations:
 
@@ -46,10 +46,10 @@ MassageLab already has useful foundations:
 - The legal cookie notice describes functional-only cookies and says future analytics must be privacy-preserving and disclosed before use.
 - The June measurement-first refactor plan remains useful historical source evidence, but its baseline and priorities predate the present Chimer hotspot. This program must remeasure current `origin/main` rather than assume that plan's numbers or task order are current.
 
-The current implementation also has concrete gaps:
+At the 2026-08-17 design baseline, the implementation also had concrete gaps:
 
-- `scrubUser()` currently retains `user.id` when one is present.
-- The breadcrumb sanitizer drops console breadcrumbs but does not categorically reject automatic UI, keyboard, location, or fetch breadcrumbs.
+- `scrubUser()` retained `user.id` when one was present.
+- The breadcrumb sanitizer dropped console breadcrumbs but did not categorically reject automatic UI, keyboard, location, or fetch breadcrumbs.
 - Sentry's browser SDK can automatically record clicks, key presses, XHR/fetch requests, console calls, and location changes; `beforeBreadcrumb` can discard them. See [Sentry's breadcrumb documentation](https://docs.sentry.io/platforms/javascript/guides/svelte/enriching-events/breadcrumbs/).
 - SDK-side filtering is not the only boundary. Sentry also exposes server-side data scrubbing and IP-address storage controls, so the project configuration must be audited as a second layer. See [Sentry's organization privacy settings API](https://docs.sentry.io/api/organizations/update-an-organization/).
 

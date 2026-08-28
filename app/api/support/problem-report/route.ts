@@ -48,12 +48,15 @@ function clientRateLimitKey(requestHeaders: Headers) {
 
 function allowProblemReportCapture(requestHeaders: Headers) {
   const now = Date.now()
+  // This privacy-preserving map is a best-effort instance-local limit. Sentry
+  // provider quotas remain the deployment-wide backstop across serverless instances.
   return (
-    rateLimitBucketAllows("global", now, REPORT_RATE_LIMIT_MAX_GLOBAL)
-    && rateLimitBucketAllows(clientRateLimitKey(requestHeaders), now, REPORT_RATE_LIMIT_MAX_PER_CLIENT)
+    rateLimitBucketAllows(clientRateLimitKey(requestHeaders), now, REPORT_RATE_LIMIT_MAX_PER_CLIENT)
+    && rateLimitBucketAllows("global", now, REPORT_RATE_LIMIT_MAX_GLOBAL)
   )
 }
 
+/** Reads and parses a report without buffering more than the approved byte cap. */
 async function readReportBody(request: Request) {
   const contentLength = Number(request.headers.get("content-length") || 0)
 
@@ -61,12 +64,51 @@ async function readReportBody(request: Request) {
     return null
   }
 
+  const reader = request.body?.getReader()
+
+  if (!reader) {
+    return null
+  }
+
+  const chunks: Uint8Array[] = []
+  let receivedBytes = 0
+
   try {
-    const body = await request.json()
+    while (true) {
+      const { done, value } = await reader.read()
+
+      if (done) break
+
+      receivedBytes += value.byteLength
+      if (receivedBytes > MAX_REPORT_BODY_BYTES) {
+        await reader.cancel()
+        return null
+      }
+      chunks.push(value)
+    }
+
+    const bytes = new Uint8Array(receivedBytes)
+    let offset = 0
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset)
+      offset += chunk.byteLength
+    }
+
+    const body = JSON.parse(new TextDecoder().decode(bytes))
     return body && typeof body === "object" && !Array.isArray(body) ? body : {}
   } catch {
     return null
+  } finally {
+    reader.releaseLock()
   }
+}
+
+/** Returns the route's deliberately generic response for unavailable delivery. */
+function unavailableDiagnosticResponse() {
+  return NextResponse.json(
+    { error: "Diagnostic report could not be delivered. Please try again later." },
+    { status: 503 },
+  )
 }
 
 export async function POST(request: Request) {
@@ -74,6 +116,10 @@ export async function POST(request: Request) {
 
   if (!body) {
     return NextResponse.json({ error: "Problem report could not be accepted." }, { status: 400 })
+  }
+
+  if (!Sentry.isEnabled()) {
+    return unavailableDiagnosticResponse()
   }
 
   const requestHeaders = await headers()
@@ -97,10 +143,7 @@ export async function POST(request: Request) {
   const delivered = await Sentry.flush(2000)
 
   if (!delivered) {
-    return NextResponse.json(
-      { error: "Diagnostic report could not be delivered. Please try again later." },
-      { status: 503 },
-    )
+    return unavailableDiagnosticResponse()
   }
 
   return NextResponse.json({
