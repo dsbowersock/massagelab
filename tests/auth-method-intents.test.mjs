@@ -150,6 +150,54 @@ describe("private Google auth-method intents", () => {
     )
   })
 
+  it("rejects signed-in account A choosing Google B before any identity or intent write", async () => {
+    const service = await loadService()
+    for (const scenario of [
+      {
+        label: "would continue another user's linked provider",
+        users: [
+          { id: "user-a", email: "account-a@example.com", emailVerified: new Date() },
+          { id: "user-b", email: "account-b@example.com", emailVerified: new Date() },
+        ],
+        accounts: [{ id: "account-b", userId: "user-b", type: "oauth", provider: "google", providerAccountId: "google-b" }],
+        googleEmail: "account-b@example.com",
+        providerAccountId: "google-b",
+      },
+      {
+        label: "would request linking to another password account",
+        users: [
+          { id: "user-a", email: "account-a@example.com", emailVerified: new Date() },
+          { id: "user-b", email: "account-b@example.com", emailVerified: new Date() },
+        ],
+        accounts: [],
+        googleEmail: "account-b@example.com",
+        providerAccountId: "google-b",
+      },
+      {
+        label: "would create a new Google user and account",
+        users: [{ id: "user-a", email: "account-a@example.com", emailVerified: new Date() }],
+        accounts: [],
+        googleEmail: "new-google@example.com",
+        providerAccountId: "google-new",
+      },
+    ]) {
+      const db = createIntentDatabase({ users: scenario.users, accounts: scenario.accounts })
+      const intent = await start(service, db)
+      const before = structuredClone(db.state)
+      const result = await service.prepareGoogleAuthentication({
+        ...googleInput(db, scenario.googleEmail, scenario.providerAccountId, intent),
+        currentSessionUser: { id: "user-a", email: "account-a@example.com" },
+      })
+      assert.deepEqual(
+        result,
+        { kind: "REJECTED", recoveryPath: "/account?tab=security&auth=google-retry" },
+        scenario.label,
+      )
+      assert.deepEqual(db.state, before, scenario.label)
+      assert.equal(db.intent(intent.intentId).status, "PENDING", scenario.label)
+    }
+  })
+
   it("accepts two distinct first-use intents as one user/account and enforces same-intent single use", async () => {
     const service = await loadService()
     const db = createIntentDatabase()
@@ -162,6 +210,8 @@ describe("private Google auth-method intents", () => {
     assert.equal(db.usersByNormalizedEmail("family@example.com").length, 1)
     assert.equal(db.accountsByProviderId("google", "google-sub-a").length, 1)
     assert.deepEqual(results.map((result) => result.kind).sort(), ["CONTINUE", "CONTINUE"])
+    assert.ok(db.serializationConflicts >= 1)
+    assert.equal(db.transactionOptions.every((options) => options?.isolationLevel === "Serializable"), true)
 
     const same = await start(service, db)
     const sameInput = googleInput(db, "other@example.com", "google-sub-b", same)
@@ -171,6 +221,7 @@ describe("private Google auth-method intents", () => {
     ])
     assert.deepEqual(sameResults.map((result) => result.kind).sort(), ["CONTINUE", "REJECTED"])
     assert.equal(db.intentConsumeWins(same.intentId), 1)
+    assert.ok(db.serializationConflicts >= 2)
   })
 
   it("re-resolves to LINK_REQUIRED when a password user wins between read and create", async () => {
@@ -189,6 +240,8 @@ describe("private Google auth-method intents", () => {
     assert.equal(db.state.users.length, 1)
     assert.equal(db.state.accounts.length, 0)
     assert.equal(db.intent(intent.intentId).status, "PROVIDER_PROVEN")
+    assert.equal(db.identityUniqueConflicts, 1)
+    assert.equal(db.rolledBackTransactions >= 1, true)
   })
 
   it("rate limits before intent access and returns a private cookie plus callback only", async () => {
@@ -226,6 +279,36 @@ describe("private Google auth-method intents", () => {
     assert.equal(response.status, 429)
     assert.equal(response.headers.get("Retry-After"), "419")
     assert.deepEqual(await response.json(), { ok: false })
+  })
+
+  it("blocks LINK_GOOGLE start thirty-one before session or any intent work", async () => {
+    const { createGoogleIntentHandler } = await loadIntentRoute()
+    const rows = []
+    let consumed = 0
+    let sessionCalls = 0
+    let intentWorkCalls = 0
+    const handler = createGoogleIntentHandler({
+      prismaClient: {},
+      secret: "intent-test-secret",
+      getSession: async () => { sessionCalls += 1; return { user: { id: "user-1" } } },
+      consumeLimit: async () => (++consumed <= 30 ? { allowed: true } : { allowed: false, retryAfterSeconds: 271 }),
+      startIntent: async () => {
+        intentWorkCalls += 1
+        rows.push({ id: `intent-${rows.length + 1}` })
+        return { intentId: rows.at(-1).id, browserBindingToken: "a".repeat(43), expiresAt: new Date() }
+      },
+    })
+    for (let index = 0; index < 30; index += 1) {
+      const accepted = await handler(intentRequest({ purpose: "LINK_GOOGLE", callbackUrl: "https://evil.example" }))
+      assert.equal(accepted.status, 200)
+    }
+    const before = { sessionCalls, intentWorkCalls, rows: structuredClone(rows) }
+    const blocked = await handler(intentRequest({ purpose: "LINK_GOOGLE", callbackUrl: "https://evil.example" }))
+    assert.equal(blocked.status, 429)
+    assert.equal(blocked.headers.get("Retry-After"), "271")
+    assert.equal(sessionCalls, before.sessionCalls)
+    assert.equal(intentWorkCalls, before.intentWorkCalls)
+    assert.deepEqual(rows, before.rows)
   })
 
   it("rebuilds registration gates and ignores caller callbacks for security intents", async () => {
@@ -320,23 +403,62 @@ function googleInput(db, email, providerAccountId, intent) {
 }
 
 function createIntentDatabase(seed = {}) {
-  const state = {
-    intents: (seed.intents ?? []).map((row) => ({ ...row })),
-    users: (seed.users ?? []).map((row) => ({ ...row })),
-    accounts: (seed.accounts ?? []).map((row) => ({ ...row })),
-    consumeWins: new Map(),
+  const root = {
+    version: 0,
+    serializationConflicts: 0,
+    identityUniqueConflicts: 0,
+    rolledBackTransactions: 0,
+    transactionOptions: [],
+    state: {
+      intents: (seed.intents ?? []).map((row) => ({ ...row })),
+      users: (seed.users ?? []).map((row) => ({ ...row })),
+      accounts: (seed.accounts ?? []).map((row) => ({ ...row })),
+      consumeWins: new Map(),
+      nextIntent: (seed.intents?.length ?? 0) + 1,
+      nextUser: (seed.users?.length ?? 0) + 1,
+      nextAccount: (seed.accounts?.length ?? 0) + 1,
+    },
   }
-  let nextIntent = state.intents.length + 1
-  let nextUser = state.users.length + 1
-  let nextAccount = state.accounts.length + 1
 
   const client = {
-    state,
-    intent: (id) => state.intents.find((row) => row.id === id),
-    intentConsumeWins: (id) => state.consumeWins.get(id) ?? 0,
-    usersByNormalizedEmail: (email) => state.users.filter((row) => row.email === email),
-    accountsByProviderId: (provider, providerAccountId) => state.accounts.filter((row) => row.provider === provider && row.providerAccountId === providerAccountId),
-    async $transaction(callback) { return callback(client) },
+    get state() { return root.state },
+    get serializationConflicts() { return root.serializationConflicts },
+    get identityUniqueConflicts() { return root.identityUniqueConflicts },
+    get rolledBackTransactions() { return root.rolledBackTransactions },
+    get transactionOptions() { return root.transactionOptions },
+    intent: (id) => root.state.intents.find((row) => row.id === id),
+    intentConsumeWins: (id) => root.state.consumeWins.get(id) ?? 0,
+    usersByNormalizedEmail: (email) => root.state.users.filter((row) => row.email === email),
+    accountsByProviderId: (provider, providerAccountId) => root.state.accounts.filter((row) => row.provider === provider && row.providerAccountId === providerAccountId),
+    async $transaction(callback, options) {
+      root.transactionOptions.push(options)
+      const baseVersion = root.version
+      const snapshot = structuredClone(root.state)
+      const tx = transactionClient(snapshot, root, seed)
+      try {
+        const result = await callback(tx)
+        // Allow concurrent callbacks to finish against their own snapshots
+        // before optimistic Serializable commit validation.
+        await Promise.resolve()
+        if (root.version !== baseVersion) {
+          root.serializationConflicts += 1
+          throw serializationError()
+        }
+        root.state = snapshot
+        root.version += 1
+        return result
+      } catch (error) {
+        root.rolledBackTransactions += 1
+        throw error
+      }
+    },
+  }
+  return client
+}
+
+/** Builds one isolated transaction view; no mutation reaches root before commit. */
+function transactionClient(state, root, seed) {
+  return {
     authMethodIntent: {
       async findMany({ where, take }) {
         return state.intents.filter((row) => row.consumedAt || row.expiresAt < where.OR[0].expiresAt.lt).slice(0, take).map(({ id }) => ({ id }))
@@ -348,13 +470,18 @@ function createIntentDatabase(seed = {}) {
         return { count: before - state.intents.length }
       },
       async create({ data }) {
-        const row = { id: `intent-${nextIntent++}`, status: "PENDING", consumedAt: null, ...data }
+        const row = { id: `intent-${state.nextIntent++}`, status: "PENDING", consumedAt: null, ...data }
         state.intents.push(row)
         return row
       },
       async findUnique({ where }) { return state.intents.find((row) => row.id === where.id) ?? null },
       async updateMany({ where, data }) {
-        const row = state.intents.find((candidate) => candidate.id === where.id && candidate.status === where.status)
+        const row = state.intents.find((candidate) => (
+          candidate.id === where.id
+          && candidate.status === where.status
+          && (!Object.hasOwn(where, "consumedAt") || candidate.consumedAt === where.consumedAt)
+          && (!where.expiresAt?.gt || candidate.expiresAt > where.expiresAt.gt)
+        ))
         if (!row) return { count: 0 }
         Object.assign(row, data)
         if (data.status === "CONSUMED") state.consumeWins.set(row.id, (state.consumeWins.get(row.id) ?? 0) + 1)
@@ -369,17 +496,29 @@ function createIntentDatabase(seed = {}) {
       },
       async create({ data }) {
         await Promise.resolve()
-        seed.beforeUserCreate?.(state)
+        if (seed.beforeUserCreate) {
+          const beforeCount = root.state.users.length
+          seed.beforeUserCreate(root.state)
+          if (root.state.users.length !== beforeCount) root.version += 1
+        }
+        if (root.state.users.some((row) => row.email === data.email)) {
+          root.identityUniqueConflicts += 1
+          throw uniqueError("User", ["email"])
+        }
         if (state.users.some((row) => row.email === data.email)) throw uniqueError("User", ["email"])
         const accounts = data.accounts?.create ? [data.accounts.create] : []
         for (const account of accounts) {
+          if (root.state.accounts.some((row) => row.provider === account.provider && row.providerAccountId === account.providerAccountId)) {
+            root.identityUniqueConflicts += 1
+            throw uniqueError("Account", ["provider", "providerAccountId"])
+          }
           if (state.accounts.some((row) => row.provider === account.provider && row.providerAccountId === account.providerAccountId)) {
             throw uniqueError("Account", ["provider", "providerAccountId"])
           }
         }
-        const user = { id: `user-${nextUser++}`, ...data }
+        const user = { id: `user-${state.nextUser++}`, ...data }
         state.users.push(user)
-        for (const account of accounts) state.accounts.push({ id: `account-${nextAccount++}`, userId: user.id, ...account })
+        for (const account of accounts) state.accounts.push({ id: `account-${state.nextAccount++}`, userId: user.id, ...account })
         return user
       },
     },
@@ -390,9 +529,12 @@ function createIntentDatabase(seed = {}) {
       },
     },
   }
-  return client
 }
 
 function uniqueError(modelName, target) {
   return Object.assign(new Error("unique constraint"), { code: "P2002", meta: { modelName, target } })
+}
+
+function serializationError() {
+  return Object.assign(new Error("serializable conflict"), { code: "P2034" })
 }

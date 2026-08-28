@@ -149,6 +149,20 @@ export async function prepareGoogleAuthentication({
       return rejected(purpose, currentSessionUser)
     }
 
+    if (purpose === "SIGN_IN_OR_LINK" && currentSessionUser) {
+      const sessionId = typeof currentSessionUser.id === "string" ? currentSessionUser.id : ""
+      const sessionEmail = normalizeEmail(currentSessionUser.email)
+      const resolvedSessionUser = sessionId ? await tx.user.findUnique({ where: { id: sessionId } }) : null
+      if (
+        !resolvedSessionUser
+        || resolvedSessionUser.id !== sessionId
+        || normalizeEmail(resolvedSessionUser.email) !== profileProof.email
+        || sessionEmail !== profileProof.email
+      ) {
+        return rejected(purpose, currentSessionUser)
+      }
+    }
+
     if (SECURITY_PURPOSES.has(purpose)) {
       return prepareSecurityReauthentication({
         tx,
@@ -284,7 +298,7 @@ function allowlistedGoogleAccount(account: unknown): GoogleAccountProof | null {
 }
 
 function rejected(purpose: GoogleIntentPurpose, session: SessionIdentity, unavailable = false): GoogleAuthenticationDecision {
-  if (SECURITY_PURPOSES.has(purpose) || session?.id) {
+  if (SECURITY_PURPOSES.has(purpose) || session) {
     return { kind: "REJECTED", recoveryPath: "/account?tab=security&auth=google-retry" }
   }
   return {

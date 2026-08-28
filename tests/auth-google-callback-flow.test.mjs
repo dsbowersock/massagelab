@@ -25,6 +25,7 @@ describe("Google callback safety seam", () => {
   it("does not allow Auth.js automatic email account linking", async () => {
     const authSource = await readFile(new URL("../auth.ts", import.meta.url), "utf8")
     assert.doesNotMatch(authSource, /allowDangerousEmailAccountLinking\s*:\s*true/)
+    assert.doesNotMatch(authSource, /OAuthAccountNotLinked/)
     assert.match(authSource, /prepareGoogleAuthentication/)
     assert.doesNotMatch(authSource, /return\s+false/)
   })
@@ -43,9 +44,10 @@ describe("Google callback safety seam", () => {
     let capturedConfig
     let decision = { kind: "REJECTED", recoveryPath: "/login?auth=google-retry" }
     let verified = true
+    let currentSession = null
     const NextAuth = (config) => {
       capturedConfig = config
-      return { handlers: {}, auth: async () => null, signIn() {}, signOut() {} }
+      return { handlers: {}, auth: async () => currentSession, signIn() {}, signOut() {} }
     }
     NextAuth.CredentialsSignin = class CredentialsSignin extends Error {}
     loadCompiledModule(authSource, "auth-google-callback.test.ts", {
@@ -76,6 +78,9 @@ describe("Google callback safety seam", () => {
     assert.equal(await capturedConfig.callbacks.signIn(google), "/account/link-google")
     decision = { kind: "REAUTH_COMPLETE", purpose: "LINK_GOOGLE", userId: "user-1" }
     assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&reauth=complete")
+    currentSession = { user: { id: "user-a", email: "account-a@example.com" } }
+    decision = { kind: "REJECTED", recoveryPath: "/account?tab=security&auth=google-retry" }
+    assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&auth=google-retry")
     verified = false
     assert.equal(await capturedConfig.callbacks.signIn(google), "/login?auth=google-unavailable")
   })
