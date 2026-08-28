@@ -80,6 +80,7 @@ function recalculateCart(snapshot: CommerceSnapshot) {
   snapshot.cart.subtotalAmount = snapshot.cart.items.reduce((sum, item) => sum + item.unitAmount, 0)
 }
 
+/** Installs database-free session, entitlement, and commerce routes for browser QA. */
 async function installCommerceFixture({
   context,
   page,
@@ -89,6 +90,9 @@ async function installCommerceFixture({
   fulfillAfterReads,
   failRedemptionRefresh = false,
   startPreferenceAccessUnavailable = false,
+  installServerSessionCookie = true,
+  sessionResponseDelayMs = 0,
+  preferenceResponseDelayMs = 0,
 }: {
   context: BrowserContext
   page: Page
@@ -98,18 +102,25 @@ async function installCommerceFixture({
   fulfillAfterReads?: number
   failRedemptionRefresh?: boolean
   startPreferenceAccessUnavailable?: boolean
+  installServerSessionCookie?: boolean
+  sessionResponseDelayMs?: number
+  preferenceResponseDelayMs?: number
 }) {
-  await installSignedInSessionCookie(context, baseURL, {
-    id: USER_ID,
-    name: "Commerce QA",
-    email: "commerce-qa@example.invalid",
-  })
+  if (installServerSessionCookie) {
+    await installSignedInSessionCookie(context, baseURL, {
+      id: USER_ID,
+      name: "Commerce QA",
+      email: "commerce-qa@example.invalid",
+    })
+  }
   const snapshot = structuredClone(initialSnapshot)
   let snapshotReads = 0
   let redemptionRefreshPending = false
   let redemptionRefreshFailures = 0
   let preferenceAccessFailures = 0
   let preferenceAccessSuccesses = 0
+  let sessionResponseCompletions = 0
+  let preferenceRequestsBeforeSessionCompletion = 0
   let preferenceAccessUnavailable = startPreferenceAccessUnavailable
   const checkoutBodies: Array<Record<string, unknown>> = []
 
@@ -119,6 +130,9 @@ async function installCommerceFixture({
     await route.abort()
   })
   await page.route("**/api/auth/session", async (route) => {
+    if (sessionResponseDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, sessionResponseDelayMs))
+    }
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -126,10 +140,17 @@ async function installCommerceFixture({
         user: { id: USER_ID, email: "commerce-qa@example.invalid", emailVerified: true },
       }),
     })
+    sessionResponseCompletions += 1
   })
   await page.route("**/api/account/preferences", async (route) => {
     const request = route.request()
     if (request.method() === "GET") {
+      if (sessionResponseCompletions === 0) {
+        preferenceRequestsBeforeSessionCompletion += 1
+      }
+      if (preferenceResponseDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, preferenceResponseDelayMs))
+      }
       if (preferenceAccessUnavailable) {
         await route.fulfill({ status: 503, contentType: "application/json", body: "{}" })
         preferenceAccessFailures += 1
@@ -262,6 +283,8 @@ async function installCommerceFixture({
     getRedemptionRefreshFailures: () => redemptionRefreshFailures,
     getPreferenceAccessFailures: () => preferenceAccessFailures,
     getPreferenceAccessSuccesses: () => preferenceAccessSuccesses,
+    getSessionResponseCompletions: () => sessionResponseCompletions,
+    getPreferenceRequestsBeforeSessionCompletion: () => preferenceRequestsBeforeSessionCompletion,
     restorePreferenceAccess: () => { preferenceAccessUnavailable = false },
   }
 }
@@ -763,6 +786,52 @@ test("returning signed-in Clock retries subscription access after a wake-time pr
   await expect.poll(fixture.getPreferenceAccessSuccesses).toBeGreaterThan(successesBeforeWake)
   const refreshedAurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(refreshedAurora)).toHaveAttribute(
+    "data-background-access-state",
+    "included-subscription",
+  )
+})
+
+test("newly signed-in Clock waits for a cold subscription response without Account navigation", async ({ context, page }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL)
+  const fixture = await installCommerceFixture({
+    context,
+    page,
+    baseURL,
+    featureKeys: ["premium_backgrounds"],
+    // Keep the server-rendered shell database-free while the client receives
+    // the same signed-in session and authoritative access contract as Production.
+    installServerSessionCookie: false,
+    preferenceResponseDelayMs: 2_000,
+  })
+
+  await openClockBackground(page)
+  await expect.poll(fixture.getPreferenceAccessSuccesses).toBeGreaterThan(0)
+
+  const aurora = await centerPremium(page, AURORA_ID)
+  await expect(accessCard(aurora)).toHaveAttribute(
+    "data-background-access-state",
+    "included-subscription",
+  )
+})
+
+test("newly signed-in Clock waits for a cold session response before loading subscription access", async ({ context, page }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL)
+  const fixture = await installCommerceFixture({
+    context,
+    page,
+    baseURL,
+    featureKeys: ["premium_backgrounds"],
+    installServerSessionCookie: false,
+    sessionResponseDelayMs: 2_000,
+  })
+
+  await openClockBackground(page)
+  await expect.poll(fixture.getPreferenceAccessSuccesses).toBeGreaterThan(0)
+  expect(fixture.getSessionResponseCompletions()).toBeGreaterThan(0)
+  expect(fixture.getPreferenceRequestsBeforeSessionCompletion()).toBe(0)
+
+  const aurora = await centerPremium(page, AURORA_ID)
+  await expect(accessCard(aurora)).toHaveAttribute(
     "data-background-access-state",
     "included-subscription",
   )
