@@ -37,7 +37,7 @@
 | `tests/membership-webhook-ordering.test.mjs` | Covers duplicate/newer/older/equal/legacy/authoritative barriers. |
 | `lib/membership-webhook-service.ts` | Receipt ownership, snapshot application, retry, provider reconciliation, and safe outcomes. |
 | `tests/membership-webhook-service.test.mjs` | Covers lifecycle ordering, concurrency, provider failure, feature results, and transaction boundaries. |
-| `lib/stripe-billing.js` | Retains exported `normalizeStripeSubscription`; removes bypass membership writers after test migration. |
+| `lib/stripe-billing.js` | Retains exported `normalizeStripeSubscription`; keeps legacy writers through Task 2 compatibility, then removes them only after Task 3 routes every caller through convergence. |
 | `app/api/billing/webhook/route.ts` | Preserves signature/background routing and delegates signed membership events. |
 | `tests/membership-webhook-route.test.mjs` | Verifies dispatch, result status, cache timing, and unchanged non-membership routing. |
 | `lib/membership-convergence.ts` | Projects persisted membership into a provider-ID-free return status. |
@@ -163,7 +163,7 @@ Expected: all commands pass.
 - Create: `lib/membership-webhook-service.ts`
 - Create: `tests/membership-webhook-ordering.test.mjs`
 - Create: `tests/membership-webhook-service.test.mjs`
-- Modify: `lib/stripe-billing.js`
+- Verify: `lib/stripe-billing.js`
 - Modify: `tests/stripe-billing.test.mjs`
 - Modify: `tests/membership.test.mjs`
 
@@ -171,6 +171,17 @@ Expected: all commands pass.
 - Produces `MembershipEventOrderDecision = "apply" | "duplicate" | "ignore-stale" | "reconcile"`.
 - Produces `decideMembershipEventOrder({ hasStoredSnapshot, storedEventId, storedEventCreatedAt, storedAuthoritativeAt, incomingEventId, incomingEventCreatedAt })`.
 - Produces `processStripeMembershipEvent({ prismaClient, event, env, retrieveSubscription, now }): Promise<MembershipWebhookResult>`.
+- Produces this exact safe result contract:
+
+```ts
+type MembershipWebhookResult =
+  | { outcome: "applied"; changed: true; userId: string }
+  | { outcome: "applied"; changed: false; userId: string | null }
+  | { outcome: "duplicate"; changed: false; userId: string | null }
+  | { outcome: "ignored"; changed: false; userId: string | null }
+```
+
+`changed` is true only when the committed transaction changes persisted subscription fields that can affect the membership summary or feature-key access; receipt attempts, terminal status, and watermark-only writes do not make it true. A changing result necessarily has the verified persisted owner needed for cache invalidation. Non-changing results carry that owner when resolved and otherwise use `null`; no caller may assume `userId` is non-null without narrowing `changed: true`.
 - Produces safe retry error: `MembershipWebhookRetryableError` with allowlisted `code`.
 - Preserves exported `normalizeStripeSubscription(subscription, { env })`.
 
@@ -205,6 +216,7 @@ Required cases:
 - provider failure leaves receipt RECEIVED with safe failure code and throws retryable error;
 - current provider retrieval occurs outside `$transaction`;
 - a newer event committed during retrieval prevents the reconciled read from overwriting it;
+- two reconciliation workers for the same receipt, where one commits APPLIED while the other is awaiting the provider, leave the winning receipt APPLIED, return a non-changing terminal result from the resumed worker, and mutate the subscription snapshot exactly once;
 - `past_due`, `unpaid`, `paused`, and canceled remove paid features under existing resolver semantics;
 - active/trialing grant existing `premium_backgrounds` behavior;
 - Price change updates persisted price but not feature-key rules;
@@ -256,14 +268,17 @@ For Checkout completion, legacy null marks, or equal-time ambiguity:
 2. retrieve the current Stripe subscription outside any transaction;
 3. validate subscription ID, customer ID, stored customer ownership, and allowlisted Price mapping;
 4. enter a short serializable transaction and re-read receipt/snapshot;
-5. compare the re-read event ID/time and local authoritative marker with the values captured before retrieval; if any changed during the provider read, mark this receipt IGNORED without applying the fetched snapshot;
-6. otherwise apply the current normalized snapshot, set the incoming event ID/time, set `lastStripeAuthoritativeAt = authoritativeReadStartedAt`, and mark the receipt APPLIED.
+5. if the re-read receipt is already APPLIED, return `{ outcome: "duplicate", changed: false, userId }`; if it is already IGNORED, return `{ outcome: "ignored", changed: false, userId }`; do not change its status or the snapshot;
+6. compare the re-read event ID/time and local authoritative marker with the values captured before retrieval; if any changed during the provider read, transition only a still-RECEIVED receipt to IGNORED without applying the fetched snapshot;
+7. otherwise apply the current normalized snapshot, set the incoming event ID/time, set `lastStripeAuthoritativeAt = authoritativeReadStartedAt`, and transition only the still-RECEIVED receipt to APPLIED.
+
+Every post-provider terminal transition is conditional on `status = RECEIVED`. If that conditional write loses to another worker, re-read and return the winning terminal result; never rewrite APPLIED to IGNORED or IGNORED to APPLIED. The concurrency test must hold worker A after provider retrieval, allow worker B for the same receipt to commit APPLIED, then resume worker A and assert final receipt status APPLIED, one snapshot mutation, and `changed: false` from A.
 
 On retrieval/configuration/mapping failure, retain RECEIVED, persist only an allowlisted code such as `provider_unavailable`, `price_unmapped`, or `ownership_mismatch`, and throw `MembershipWebhookRetryableError`. No unresolved event returns success because there is no background worker.
 
-- [ ] **Step 7: Remove bypass writers and migrate their tests**
+- [ ] **Step 7: Migrate service expectations while retaining route compatibility**
 
-Keep `normalizeStripeSubscription` exported. Remove `recordCheckoutSessionCompleted` and `upsertMembershipSubscriptionFromStripe` after their relevant expectations move from `tests/stripe-billing.test.mjs` into the service tests. Repository search must show no runtime caller for either removed function.
+Keep `normalizeStripeSubscription`, `recordCheckoutSessionCompleted`, and `upsertMembershipSubscriptionFromStripe` exported through this task because the unchanged webhook route still imports the legacy writers. Move convergence-owned expectations into the service tests, but preserve enough legacy coverage for the compatibility exports. Do not remove either writer until Task 3 changes the route and repository search proves there is no remaining runtime caller.
 
 - [ ] **Step 8: Run focused tests and commit**
 
@@ -271,7 +286,7 @@ Keep `normalizeStripeSubscription` exported. Remove `recordCheckoutSessionComple
 node --test tests/membership-webhook-ordering.test.mjs tests/membership-webhook-service.test.mjs tests/stripe-billing.test.mjs tests/membership.test.mjs
 npm run typecheck
 git diff --check
-git add lib/membership-webhook-ordering.ts lib/membership-webhook-service.ts lib/stripe-billing.js tests/membership-webhook-ordering.test.mjs tests/membership-webhook-service.test.mjs tests/stripe-billing.test.mjs tests/membership.test.mjs
+git add lib/membership-webhook-ordering.ts lib/membership-webhook-service.ts tests/membership-webhook-ordering.test.mjs tests/membership-webhook-service.test.mjs tests/stripe-billing.test.mjs tests/membership.test.mjs
 git commit -m "feat: converge ordered membership webhook state"
 ```
 
@@ -284,18 +299,21 @@ Expected: PASS.
 **Files:**
 - Create: `tests/membership-webhook-route.test.mjs`
 - Modify: `app/api/billing/webhook/route.ts`
+- Modify: `lib/stripe-billing.js`
+- Modify: `tests/stripe-billing.test.mjs`
+- Modify: `tests/membership.test.mjs`
 - Verify: `lib/stripe-webhook-contract.js`
 - Verify: background commerce/refund/dispute tests.
 
 **Interfaces:**
-- Membership applied/duplicate/stale outcome -> HTTP 200 `{ received: true }`.
+- Membership `applied`/`duplicate`/`ignored` outcome -> HTTP 200 `{ received: true }`.
 - Retryable unfinished membership outcome -> HTTP 503 `{ received: false, retry: true }`.
 - Donation/unknown Checkout remains non-entitling.
 - Background checkout/refund/dispute routing remains unchanged.
 
 - [ ] **Step 1: Write failing route tests**
 
-Inject signature verification and processors. Cover invalid signature causing zero parse/write; membership-purpose `checkout.session.completed`; every type in `STRIPE_MEMBERSHIP_WEBHOOK_EVENTS`; 200 for applied/duplicate/stale; 503 for `MembershipWebhookRetryableError`; cache clear only after `changed: true`; and unchanged donation/background/refund/dispute dispatch.
+Inject signature verification and processors. Cover invalid signature causing zero parse/write; membership-purpose `checkout.session.completed`; every type in `STRIPE_MEMBERSHIP_WEBHOOK_EVENTS`; 200 for `applied`/`duplicate`/`ignored`; 503 for `MembershipWebhookRetryableError`; cache clear only after `changed: true`; and unchanged donation/background/refund/dispute dispatch.
 
 - [ ] **Step 2: Run route tests and verify RED**
 
@@ -309,12 +327,14 @@ Expected: FAIL because membership routing still calls the bypass writers.
 
 Preserve raw-body signature verification. Route membership Checkout completion and subscription events to `processStripeMembershipEvent`. Catch only its typed retryable error for the 503 response; unexpected errors remain non-2xx and privacy-safe. Call `clearAccountSurfaceDataCache(result.userId, "membership")` only when `changed` is true and after service completion.
 
+After the route delegates every membership event, remove `recordCheckoutSessionCompleted` and `upsertMembershipSubscriptionFromStripe` from `lib/stripe-billing.js`, migrate/delete their remaining legacy-only tests, and require repository search to show no runtime caller or import. This removal occurs in the same task and commit as route integration so no committed task boundary has a broken import or typecheck.
+
 Do not alter the webhook event contract, pinned Stripe API version, or background-commerce branches.
 
 - [ ] **Step 4: Run route and non-regression tests**
 
 ```bash
-node --test tests/membership-webhook-route.test.mjs tests/stripe-webhook-contract.test.mjs tests/background-reversals.test.mjs tests/background-fulfillment.test.mjs
+node --test tests/membership-webhook-route.test.mjs tests/stripe-webhook-contract.test.mjs tests/stripe-billing.test.mjs tests/membership.test.mjs tests/background-reversals.test.mjs tests/background-fulfillment.test.mjs
 npm run typecheck
 npm run lint
 git diff --check
@@ -325,7 +345,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit route integration**
 
 ```bash
-git add app/api/billing/webhook/route.ts tests/membership-webhook-route.test.mjs
+git add app/api/billing/webhook/route.ts lib/stripe-billing.js tests/membership-webhook-route.test.mjs tests/stripe-billing.test.mjs tests/membership.test.mjs
 git commit -m "feat: route membership events through convergence"
 ```
 
@@ -409,7 +429,7 @@ Update Checkout and Portal URLs to the exact paths above. Remove `{CHECKOUT_SESS
 
 - [ ] **Step 7: Add the browser spec to CI lanes**
 
-Add `membership-return-status.spec.ts` to `ORDINARY_BROWSER_QA_SPEC_FILES`. Assign its desktop pair to lane 1 and mobile pair to lane 2. Update harness assertions so the identity and membership workstream total is 13 ordinary specs and 26 exact project/spec pairs. Keep exactly four nonempty lanes and exact-once coverage. Public/fixture-free cases always run. Account-page cases use `tests/browser/membership-return-status-fixture.ts`, the same explicit disposable-database opt-in as Identity, project-qualified example.test rows, a signed session cookie, and exact cleanup; they skip in ordinary CI when no QA database is configured.
+Add `membership-return-status.spec.ts` to `ORDINARY_BROWSER_QA_SPEC_FILES`. Assign its desktop pair to lane 1 and mobile pair to lane 2. Update harness assertions so the identity and membership workstream total is 13 ordinary specs and 26 exact project/spec pairs. Keep exactly four nonempty lanes and exact-once coverage. Public/fixture-free cases always run. Account-page cases use `tests/browser/membership-return-status-fixture.ts`, project-qualified `example.test` rows, a signed session cookie, and exact cleanup. They must reuse Identity Task 6's existing `npm run browser-qa:db:target` guard, `MASSAGELAB_BROWSER_QA_DATABASE*` variables, approved SHA-256 target fingerprint, and guarded fresh-process setup/runtime wrappers; do not create a second target-check mechanism. The approved migration list for that disposable target must include the membership migration before any Subscription fixture write. If the exact target/fingerprint and migration application were not separately approved, or a pre-migrated disposable target is unavailable, keep only these database-backed rows skipped with that exact reason; ordinary CI and public/fixture-free cases still run.
 
 - [ ] **Step 8: Run focused tests and browser coverage**
 
@@ -423,7 +443,7 @@ npm run lint
 git diff --check
 ```
 
-Expected: PASS.
+Expected: PASS. If the disposable database was authorized, run the database-backed Subscription rows only inside Identity Task 6 Step 7's fresh-process runtime wrapper, with the fingerprint guard immediately before `build:browser-qa`, and verify exact fixture cleanup afterward. Otherwise record their explicit skip; never point the fixture at Production or run it from a shell whose pre-existing database values could be cleared.
 
 - [ ] **Step 9: Commit return convergence**
 

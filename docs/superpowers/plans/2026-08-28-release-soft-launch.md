@@ -200,6 +200,8 @@ npm run test:browser -- tests/browser/interaction-feedback.spec.ts --project=mob
 
 Expected: PASS for identity, persisted membership return, throttled feedback, desktop, and mobile.
 
+Checkout and Portal pending-state rows in this local proof use the exact-head intercepted/injected fixtures owned by the Subscription and Feedback workstreams. They must not construct a Stripe client or create a Checkout or Portal Session. A provider-backed Session smoke remains a separately authorized action under Task 6 Step 5.
+
 - [ ] **Step 6: Run all browser lanes**
 
 ```bash
@@ -211,14 +213,14 @@ Expected: PASS across every ordinary project/spec pair, including desktop/mobile
 
 - [ ] **Step 7: Record workload and pause evidence**
 
-Run the same production build/server shape for both sets:
+Use the self-contained timing receipt so the exact candidate owns its fresh build, loopback server, readiness wait, measurements, and teardown instead of depending on an assumed server:
 
 ```bash
-npm run readiness:timings -- --base-url=http://127.0.0.1:3010 --samples=3
+npm run readiness:timing-receipt -- --base-url=http://127.0.0.1:3010 --samples=3
 node --test tests/background-credit-service.test.mjs tests/auth-session-feature-keys.test.mjs tests/public-launch-controls.test.mjs tests/membership-checkout-route.test.mjs tests/auth-registration.test.mjs
 ```
 
-Expected: sanitized first/warm route lines and PASS proving no auth-refresh credit repair, session feature-key reuse, and independent pauses. Record results without individual requests.
+Expected: the wrapper first proves the port unused, freshly builds, starts and waits for only its owned server, emits sanitized first/warm route lines, and tears that server down; the focused tests PASS proving no auth-refresh credit repair, session feature-key reuse, and independent pauses. Record results without individual requests, and do not reuse an existing server or call the first sample a provider cold start.
 
 - [ ] **Step 8: Update and commit the local receipt**
 
@@ -230,6 +232,8 @@ git commit -m "docs: record exact-head local readiness proof"
 ```
 
 The receipt commit changes HEAD. Record both the tested code parent and the docs-only receipt commit, and rerun `git diff --check`; no application artifact changed between them.
+
+Require `git status --short --branch` to be clean after the receipt commit. That clean docs-only head is the handoff into hosted proof; do not carry an uncommitted receipt edit into the PR or later merge-candidate construction.
 
 ---
 
@@ -260,7 +264,15 @@ Verify review comments against current code. Resolve supported findings with foc
 
 - [ ] **Step 5: Update the hosted receipt**
 
-Record exact commit, run IDs/URLs, check conclusions, review status, and any newer commit invalidating earlier local evidence. If code changed, rerun Task 2 for the new exact head.
+Record the exact tested code commit, run IDs/URLs, check conclusions, review status, and any newer commit invalidating earlier local evidence. If code changed, rerun Task 2 for the new exact head. Then make the hosted observation its own local docs-only commit and hand off a clean branch:
+
+```bash
+git add docs/audits/2026-08-28-family-friends-release-readiness.md
+git commit -m "docs: record hosted readiness proof"
+git status --short --branch
+```
+
+Record both the hosted-tested code head and this hosted-receipt head. Do not push the receipt commit, update the PR, merge, or deploy without the later exact authorization; Task 4 begins only from this clean committed head.
 
 ---
 
@@ -339,7 +351,15 @@ Confirm both exact flags can be set independently in Production and currently ha
 
 - [ ] **Step 8: Update the production-prerequisite receipt**
 
-Mark each read-only row PASS/FAIL/NOT RUN with date, environment, and coarse evidence. List exact required mutations separately: additive migration deployment, application deployment, any configuration correction, and any optional live smoke. No production mutation occurs in this task.
+Mark each read-only row PASS/FAIL/NOT RUN with date, environment, and coarse evidence. List exact required mutations separately: additive migration deployment, application deployment, any configuration correction, and any optional live smoke. No production mutation occurs in this task. Commit this read-only observation separately and require a clean handoff before Task 5:
+
+```bash
+git add docs/audits/2026-08-28-family-friends-release-readiness.md
+git commit -m "docs: record production readiness prerequisites"
+git status --short --branch
+```
+
+Record the production-prerequisite receipt head separately from the earlier hosted-tested code head and hosted-receipt head. Do not amend or leave the receipt dirty, and do not push/update the PR at this step without exact authorization.
 
 ---
 
@@ -372,7 +392,9 @@ Use the documented direct Neon maintenance path to run `npm run prisma:migrate:d
 
 - [ ] **Step 3: Construct and request authorization for one exact atomic main update/Production deploy**
 
-Proceed only if Task 4 proved the current Vercel mechanism is automatic Production deployment from `main`. Fetch without modifying external state, then identify the exact release PR number, reviewed branch head, current `origin/main` hash, green PR checks, current migrations, provider receipt, and rollback deployment. Require the release branch to already contain that exact `origin/main`.
+Proceed only if Task 4 proved the current Vercel mechanism is automatic Production deployment from `main`. The local release-proof branch must first be clean and contain the separate local, hosted, and production-prerequisite receipt commits from Tasks 2–4. If the remote PR head does not equal that exact clean local head, stop and request authorization specifically for a non-force push/PR update of those named docs-only commits. After any authorized update, wait for required hosted checks on the resulting exact PR head and require the PR to be clean/current; older hosted results remain tied to their recorded code head and are not relabeled. This receipt synchronization authorizes no merge or deployment.
+
+Fetch without modifying external state, then identify the exact release PR number, final exact PR head, current `origin/main` hash, green PR checks, current migrations, provider receipt, and rollback deployment. Require the release branch to already contain that exact `origin/main`.
 
 Create a local candidate merge commit without pushing: its tree is exactly the reviewed release head, first parent is the current approved `origin/main`, and second parent is the reviewed release head. Retain it on local branch `codex/family-friends-release-merge-candidate`, verify both parents/tree, and record its exact SHA. This local object creation does not merge GitHub or deploy Vercel.
 
@@ -381,16 +403,28 @@ $candidatePr = gh pr view codex/family-friends-release-proof --json number,headR
 git fetch origin main
 $candidateBase = git rev-parse origin/main
 $candidateHead = $candidatePr.headRefOid
+$releaseDirty = @(git status --porcelain)
+if ($releaseDirty.Count -ne 0) { throw 'The release-proof worktree is not clean.' }
+$localReleaseHead = git rev-parse codex/family-friends-release-proof
+if ($localReleaseHead -ne $candidateHead) { throw 'The clean local release-proof head does not equal the PR head.' }
 if ($candidatePr.baseRefOid -ne $candidateBase -or $candidatePr.mergeStateStatus -ne 'CLEAN') {
   throw 'Release PR base or merge readiness is not current.'
 }
 git merge-base --is-ancestor $candidateBase $candidateHead
 if ($LASTEXITCODE -ne 0) { throw 'Release head does not contain the exact current main base.' }
+$candidateBranch = 'codex/family-friends-release-merge-candidate'
+$candidateRef = "refs/heads/$candidateBranch"
+git show-ref --verify --quiet $candidateRef
+$candidateRefStatus = $LASTEXITCODE
+if ($candidateRefStatus -eq 0) {
+  throw 'Candidate branch already exists. Stop and inspect its SHA, worktree attachment, and ownership; this plan never overwrites it.'
+}
+if ($candidateRefStatus -ne 1) { throw 'Could not prove the candidate branch is absent.' }
 $candidateTree = git rev-parse "$candidateHead^{tree}"
 $mergeMessage = "Merge family-and-friends release PR #$($candidatePr.number)"
 $candidateMerge = $mergeMessage | git commit-tree $candidateTree -p $candidateBase -p $candidateHead
 if ($LASTEXITCODE -ne 0 -or $candidateMerge -notmatch '^[0-9a-f]{40}$') { throw 'Could not construct candidate merge commit.' }
-git branch -f codex/family-friends-release-merge-candidate $candidateMerge
+git branch $candidateBranch $candidateMerge
 if ((git rev-parse "$candidateMerge^1") -ne $candidateBase) { throw 'Candidate first parent mismatch.' }
 if ((git rev-parse "$candidateMerge^2") -ne $candidateHead) { throw 'Candidate second parent mismatch.' }
 if ((git rev-parse "$candidateMerge^{tree}") -ne $candidateTree) { throw 'Candidate tree mismatch.' }
@@ -401,6 +435,8 @@ $candidateBase
 $candidateHead
 $candidateMerge
 ```
+
+If the candidate branch exists, present its exact SHA, worktree attachment, and provenance and stop. Reuse or removal requires separate explicit confirmation that it is task-owned and disposable; never use `git branch -f` or overwrite an unknown local branch.
 
 Read current branch rules. If an exact-OID leased fast-forward push of that preconstructed commit is not permitted, stop and amend the plan; do not fall back to an unpinned `gh pr merge`, queue, plain force push, admin bypass, or temporary rule change. Otherwise request one explicit authorization naming three coupled effects: atomically fast-forward `main` from the exact approved base to the exact preconstructed merge SHA under an exact ref lease, allow that update to incorporate the exact reviewed PR head, and allow Vercel to deploy that exact merge SHA. If the user authorizes the repository update but not Production deployment, do not push. If either head/base changes, reconstruct, re-prove, and reauthorize.
 
@@ -484,13 +520,13 @@ Verify representative free Clock/Chimer, Music/Atmosphere, Education, Wellness, 
 
 - [ ] **Step 5: Verify subscription path without redundant charge**
 
-Record the prior successful live subscription as HISTORICAL and confirm current Stripe configuration plus existing persisted membership/Portal availability read-only. Use the exact-head injected automated fixtures for Checkout -> signed webhook -> persisted feature -> Portal return, duplicate/delayed events, failure, recovery, cancel/reactivate, and amount/interval changes. These fixtures construct no Stripe client and mutate no provider state.
+Record the prior successful live subscription as HISTORICAL and confirm current Stripe configuration plus existing persisted membership/Portal availability read-only. Use the exact-head local/intercepted and injected automated fixtures for Checkout -> signed webhook -> persisted feature -> Portal return, duplicate/delayed events, failure, recovery, cancel/reactivate, amount/interval changes, and Checkout/Portal pending-state copy. These fixtures construct no Stripe client, create no Checkout or Portal Session, and mutate no provider state.
 
 Do not create another live charge for ceremony. A new real Stripe test-mode Checkout, synthetic event, cancellation/reactivation, amount change, or Portal Session is also an external provider mutation and remains `NOT RUN — authorization required` unless the user separately approves the exact disposable test identity, actions, expected amounts, and cleanup. It is optional because the injected failure matrix plus historical live success and read-only live configuration can satisfy this launch gate. A willing tester may voluntarily subscribe during normal use after the launch gate; that real experience becomes first-cohort evidence. Any operator-created live Portal Session or controlled live payment before that requires its own exact authorization.
 
 - [ ] **Step 6: Verify feedback under delay**
 
-On desktop and phone, use network throttling to observe route bar, link-local state, auth action copy, Checkout/Portal copy without submitting a real live payment, membership return state, thrown-request recovery, keyboard focus, enlarged text, landscape, screen-reader status, and reduced motion. Confirm music/timer continuity.
+On desktop and phone, use network throttling to observe route bar, link-local state, auth action copy, exact-head injected Checkout/Portal pending copy without creating a provider Session or submitting a real payment, membership return state, thrown-request recovery, keyboard focus, enlarged text, landscape, screen-reader status, and reduced motion. Confirm persistent music continues across the real `/music` -> `/clock?source=music` route navigation. Separately confirm the Chimer timer node remains mounted and advances only while same-page Visual draft controls change; a deliberate route departure may unmount that route-local timer and is not a cross-route persistence requirement.
 
 - [ ] **Step 7: Update alpha QA and receipt**
 
