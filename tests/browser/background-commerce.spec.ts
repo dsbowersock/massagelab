@@ -80,6 +80,7 @@ function recalculateCart(snapshot: CommerceSnapshot) {
   snapshot.cart.subtotalAmount = snapshot.cart.items.reduce((sum, item) => sum + item.unitAmount, 0)
 }
 
+/** Installs database-free session, entitlement, and commerce routes for browser QA. */
 async function installCommerceFixture({
   context,
   page,
@@ -118,6 +119,8 @@ async function installCommerceFixture({
   let redemptionRefreshFailures = 0
   let preferenceAccessFailures = 0
   let preferenceAccessSuccesses = 0
+  let sessionResponseCompletions = 0
+  let preferenceRequestsBeforeSessionCompletion = 0
   let preferenceAccessUnavailable = startPreferenceAccessUnavailable
   const checkoutBodies: Array<Record<string, unknown>> = []
 
@@ -137,10 +140,14 @@ async function installCommerceFixture({
         user: { id: USER_ID, email: "commerce-qa@example.invalid", emailVerified: true },
       }),
     })
+    sessionResponseCompletions += 1
   })
   await page.route("**/api/account/preferences", async (route) => {
     const request = route.request()
     if (request.method() === "GET") {
+      if (sessionResponseCompletions === 0) {
+        preferenceRequestsBeforeSessionCompletion += 1
+      }
       if (preferenceResponseDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, preferenceResponseDelayMs))
       }
@@ -276,6 +283,8 @@ async function installCommerceFixture({
     getRedemptionRefreshFailures: () => redemptionRefreshFailures,
     getPreferenceAccessFailures: () => preferenceAccessFailures,
     getPreferenceAccessSuccesses: () => preferenceAccessSuccesses,
+    getSessionResponseCompletions: () => sessionResponseCompletions,
+    getPreferenceRequestsBeforeSessionCompletion: () => preferenceRequestsBeforeSessionCompletion,
     restorePreferenceAccess: () => { preferenceAccessUnavailable = false },
   }
 }
@@ -818,6 +827,8 @@ test("newly signed-in Clock waits for a cold session response before loading sub
 
   await openClockBackground(page)
   await expect.poll(fixture.getPreferenceAccessSuccesses).toBeGreaterThan(0)
+  expect(fixture.getSessionResponseCompletions()).toBeGreaterThan(0)
+  expect(fixture.getPreferenceRequestsBeforeSessionCompletion()).toBe(0)
 
   const aurora = await centerPremium(page, AURORA_ID)
   await expect(accessCard(aurora)).toHaveAttribute(

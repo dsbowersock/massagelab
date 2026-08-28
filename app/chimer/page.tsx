@@ -50,7 +50,7 @@ import {
   LEGACY_CHIMER_GLOBAL_PALETTE_STORAGE_KEY,
   prepareChimerBackgroundPreferenceMigration,
 } from "@/lib/background-palette"
-import { fetchWithTimeout } from "@/lib/client-fetch"
+import { fetchJsonWithTimeout, fetchWithTimeout } from "@/lib/client-fetch"
 import { sanitizeAccessibleChimerSettings } from "@/lib/chimer-accessible-settings"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { triggerHapticFeedback } from "@/lib/haptics"
@@ -378,9 +378,10 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       return nextSettings
     }
 
+    /** Hydrates session and access state without letting a stalled body block future retries. */
     async function syncAccountSettings() {
       try {
-        const sessionResponse = await fetchWithTimeout(
+        const { response: sessionResponse, json: session } = await fetchJsonWithTimeout(
           "/api/auth/session",
           {},
           ACCOUNT_ACCESS_FETCH_TIMEOUT_MS,
@@ -396,12 +397,6 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
           // distinguish a valid session from an actual signed-out response.
           setCanSync(false)
           setAccountSyncStatus("local")
-          return
-        }
-
-        const session = await sessionResponse.json().catch(() => undefined)
-
-        if (!isMounted) {
           return
         }
 
@@ -431,7 +426,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
           return
         }
 
-        const response = await fetchWithTimeout(
+        const { response, json: preferences } = await fetchJsonWithTimeout<Record<string, unknown>>(
           "/api/account/preferences",
           {},
           ACCOUNT_ACCESS_FETCH_TIMEOUT_MS,
@@ -450,7 +445,11 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
           return
         }
 
-        const preferences = await response.json()
+        if (preferences === undefined) {
+          setCanSync(false)
+          setAccountSyncStatus("local")
+          return
+        }
         if (preferences.accessAuthoritative !== true) {
           // The server explicitly could not prove a current access decision.
           // Do not reinterpret that as revocation; the next foreground retry
