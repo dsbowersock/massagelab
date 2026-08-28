@@ -6,6 +6,13 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-08-28 — Anonymous operational Sentry provider proof
+
+- Completed the authorized provider and exact-preview proof for PR #186 at runtime commit `77ec81e2db77faaa3fd6694ce62075761e4513db`. Server-side data scrubbing, default scrubbers, IP-storage prevention, geographic/server-name advanced scrubbers, and disabled public issue sharing were saved or read back. The provider did not expose an exact retention duration through the connected organization/project settings readback or visible account UI, so the audit records retention as unverified instead of inventing a duration.
+- Added Sentry's documented null-IP opt-out marker after deleting every supplied user value and retained the separate `includeServerName: false` boundary. The marker contains no identity value and prevents provider-side transport-IP location inference. Focused privacy coverage passes `41/41`; TypeScript, lint, and `git diff --check` also pass for this correction.
+- One authorized enum-only diagnostic reached the exact preview. Sentry retained only the bounded report tags/context, coarse `/timer` and `/api/[route]` families, exact release/environment, and event-scoped correlation. It retained no user/account/session/IP value, location, server name, full URL, query, body, header, cookie, breadcrumb, Replay, or attachment; affected-user count was zero, provider geo was empty, and `[Filtered]` was accepted as safer message over-filtering. Vercel recorded exactly one application `POST /api/support/problem-report` with status `200`.
+- This work adds no product analytics, pageviews, funnels, background impressions or selections, dwell time, user journeys, retention measurement, standard Sentry User Feedback, Replay, screenshots, attachments, Logs, identity collection, analytics cookie, or consent popup.
+
 ## 2026-08-27 — Clock subscription access hydration after login
 
 - Traced the premium-background lock after login to Clock's account-sync transport boundary. Both `/api/auth/session` and `/api/account/preferences` used the generic 1.5-second client timeout even though the session callback and entitlement response can require cold database-backed work. A successful but slower response was therefore aborted and the fresh Clock mount correctly remained fail-closed until Account navigation or a lifecycle retry warmed and repeated the same reads.

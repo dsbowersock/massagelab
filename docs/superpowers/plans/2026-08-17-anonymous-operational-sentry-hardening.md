@@ -1249,13 +1249,13 @@ Verify in Sentry that the resulting event contains the bounded message/report ta
 
 - [ ] **Step 5: Write the scrubbed provider audit with runtime evidence**
 
-Create `docs/audits/2026-08-17-anonymous-sentry-provider-settings.md`. Write the full SHA returned by `git rev-parse HEAD` and the exact retention duration shown by Sentry at execution time; do not transcribe either value from memory.
+Create `docs/audits/2026-08-17-anonymous-sentry-provider-settings.md`. Write the full SHA returned by `git rev-parse HEAD` and the exact retention duration shown by Sentry at execution time. If neither the connected organization/project settings readback nor the visible account UI exposes a retention duration, record it explicitly as `Unverified`, identify the readback limitation, and do not guess. Do not transcribe either value from memory.
 
-Use four short sections: scope, SDK head, provider controls, and synthetic diagnostic. The SDK section must contain the exact verified SHA plus disabled/deny-by-default states for PII, data collection, browser sessions, breadcrumbs, Logs, and metrics. The provider-controls table must report the verified state of every setting from Step 1 and the exact retention duration. The synthetic-diagnostic section must report PASS or FAIL for acceptance, coarse `/timer` grouping, release/environment and event-scoped correlation, identity-field absence, and query/body/header/cookie/breadcrumb absence. Never write a sample value first and replace it later.
+Use four short sections: scope, SDK head, provider controls, and synthetic diagnostic. The SDK section must contain the exact verified SHA plus disabled/deny-by-default states for PII, data collection, browser sessions, breadcrumbs, Logs, and metrics. The provider-controls table must report the verified state of every setting from Step 1 and either the exact retention duration or the explicit `Unverified` readback limitation described above. The synthetic-diagnostic section must report PASS or FAIL for acceptance, coarse `/timer` grouping, release/environment and event-scoped correlation, identity-field absence, and query/body/header/cookie/breadcrumb absence. Never write a sample value first and replace it later.
 
 - [ ] **Step 6: Update canonical project documentation**
 
-Add a concise current-state bullet to `docs/project-state.md` only after every provider and synthetic-event check passes. Add a chronological entry to the top dated section of `docs/project-log.md` containing:
+Add a concise current-state bullet to `docs/project-state.md` only after every privacy-affecting provider and synthetic-event check passes. An unavailable retention-duration field may be carried only as the explicit verification limitation above; it must not be described as a passing provider readback. Add a chronological entry to the top dated section of `docs/project-log.md` containing:
 
 - the exact preview commit;
 - local validation counts;
