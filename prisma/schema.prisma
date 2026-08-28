@@ -43,6 +43,41 @@ enum AuthAttemptPurpose {
   REGISTER
   PASSWORD_RESET
   TWO_FACTOR
+  GOOGLE_INTENT
+}
+
+enum AuthAttemptScope {
+  ACCOUNT
+  NETWORK
+}
+
+enum AuthMethodIntentPurpose {
+  SIGN_IN_OR_LINK
+  LINK_GOOGLE
+  ADD_PASSWORD
+  REMOVE_PASSWORD
+}
+
+enum AuthMethodIntentStatus {
+  PENDING
+  PROVIDER_PROVEN
+  CONSUMED
+}
+
+enum AccountSecurityEmailKind {
+  GOOGLE_LINKED
+  GOOGLE_UNLINKED
+  PASSWORD_ENABLED
+  PASSWORD_CHANGED
+  PASSWORD_DISABLED
+  PASSWORD_RECOVERED
+}
+
+enum AccountSecurityEmailIntentStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED
 }
 
 enum AnatomyKind {
@@ -490,6 +525,8 @@ model User {
   profile               UserProfile?
   preference            UserPreference?
   passwordCredential    PasswordCredential?
+  authMethodIntents     AuthMethodIntent[]          @relation("AuthMethodIntentTarget")
+  accountSecurityEmailIntents AccountSecurityEmailIntent[] @relation("AccountSecurityEmailUser")
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens   PasswordResetToken[]
   twoFactorSecret       TwoFactorSecret?
@@ -2417,6 +2454,65 @@ model AuthAttempt {
   updatedAt    DateTime           @updatedAt
 
   @@unique([purpose, key])
+}
+
+model AuthRateLimitBucket {
+  id           String             @id @default(cuid())
+  purpose      AuthAttemptPurpose
+  scope        AuthAttemptScope
+  keyHash      String
+  count        Int                @default(0)
+  windowStart  DateTime           @default(now())
+  blockedUntil DateTime?
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([purpose, scope, keyHash])
+  @@index([updatedAt])
+  @@index([blockedUntil])
+}
+
+model AuthMethodIntent {
+  id                 String                  @id @default(cuid())
+  targetUserId       String?
+  purpose            AuthMethodIntentPurpose
+  status             AuthMethodIntentStatus  @default(PENDING)
+  provider           String                  @default("google")
+  browserBindingHash String                  @unique
+  providerAccountId  String?
+  providerEmailHash  String?
+  providerProvenAt   DateTime?
+  expiresAt          DateTime
+  consumedAt         DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  targetUser         User?                   @relation("AuthMethodIntentTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([targetUserId, purpose, status])
+  @@index([status, expiresAt])
+  @@index([provider, providerAccountId])
+}
+
+model AccountSecurityEmailIntent {
+  id              String                           @id @default(cuid())
+  userId          String
+  kind            AccountSecurityEmailKind
+  recipientEmail  String
+  subject         String
+  message         String
+  status          AccountSecurityEmailIntentStatus @default(PENDING)
+  idempotencyKey  String                           @unique
+  attemptCount    Int                              @default(0)
+  claimTokenHash  String?
+  claimExpiresAt  DateTime?
+  lastAttemptedAt DateTime?
+  deliveredAt     DateTime?
+  failureCode     String?
+  createdAt       DateTime                         @default(now())
+  updatedAt       DateTime                         @updatedAt
+  user            User                             @relation("AccountSecurityEmailUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, claimExpiresAt])
+  @@index([userId, createdAt])
 }
 
 model Practice {
