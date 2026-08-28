@@ -106,6 +106,19 @@ function findReviewedSentryReferences(filePath, contents) {
     return undefined
   }
 
+  function assignmentPropertyName(node) {
+    if (ts.isShorthandPropertyAssignment(node)) return node.name.text
+    if (!ts.isPropertyAssignment(node)) return undefined
+    const property = node.name
+    if (ts.isIdentifier(property) || ts.isStringLiteral(property)) return property.text
+    if (ts.isComputedPropertyName(property)
+      && (ts.isStringLiteral(property.expression)
+        || ts.isNoSubstitutionTemplateLiteral(property.expression))) {
+      return property.expression.text
+    }
+    return undefined
+  }
+
   function visit(node) {
     if (ts.isImportDeclaration(node)
       && ts.isStringLiteral(node.moduleSpecifier)
@@ -163,9 +176,21 @@ function findReviewedSentryReferences(filePath, contents) {
 
     if (ts.isBinaryExpression(node)
       && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
-      && ts.isIdentifier(node.left)
       && originatesFromSentry(node.right)) {
-      namespaceAliases.add(node.left.text)
+      const assignmentTarget = unwrap(node.left)
+      if (ts.isIdentifier(assignmentTarget)) {
+        namespaceAliases.add(assignmentTarget.text)
+      } else if (ts.isObjectLiteralExpression(assignmentTarget)) {
+        for (const property of assignmentTarget.properties) {
+          const method = assignmentPropertyName(property)
+          if (method && REVIEWED_SENTRY_METHODS.has(method)) {
+            references.push({ filePath, method })
+          } else if (ts.isSpreadAssignment(property)
+            || ("name" in property && ts.isComputedPropertyName(property.name) && !method)) {
+            references.push({ filePath, method: "<dynamic>" })
+          }
+        }
+      }
     }
 
     if (ts.isPropertyAccessExpression(node) && REVIEWED_SENTRY_METHODS.has(node.name.text)) {
@@ -255,6 +280,13 @@ describe("anonymous operational Sentry boundary", () => {
       Sentry.captureRequestError()
       Sentry.captureRouterTransitionStart()
     `), [])
+    assert.deepEqual(findReviewedSentryReferences("assignment.ts", `
+      import * as Sentry from "@sentry/nextjs"
+      let identify
+      let dialog
+      let dynamicAlias
+      ({ setUser: identify, ["showReportDialog"]: dialog, [method]: dynamicAlias } = Sentry)
+    `).map(({ method }) => method), ["setUser", "showReportDialog", "<dynamic>"])
   })
 
   it("pins root Sentry framework hooks without allowing additional capture APIs", () => {

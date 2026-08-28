@@ -10,6 +10,7 @@ const MAX_REPORT_BODY_BYTES = 2048
 const REPORT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const REPORT_RATE_LIMIT_MAX_PER_CLIENT = 5
 const REPORT_RATE_LIMIT_MAX_GLOBAL = 100
+const REPORT_RATE_LIMIT_MAX_RETAINED_CLIENTS = REPORT_RATE_LIMIT_MAX_GLOBAL
 
 type RateLimitBucket = {
   count: number
@@ -17,6 +18,29 @@ type RateLimitBucket = {
 }
 
 const reportRateLimitBuckets = new Map<string, RateLimitBucket>()
+
+/** Drops expired hashed client identifiers before enforcing the retention cap. */
+function pruneExpiredClientRateLimitBuckets(now: number) {
+  for (const [key, bucket] of reportRateLimitBuckets) {
+    if (key.startsWith("client:") && bucket.resetAt <= now) {
+      reportRateLimitBuckets.delete(key)
+    }
+  }
+}
+
+/** Checks capacity without consuming quota or creating a new bucket. */
+function rateLimitBucketHasCapacity(key: string, now: number, maxCount: number) {
+  const current = reportRateLimitBuckets.get(key)
+  return !current || current.resetAt <= now || current.count < maxCount
+}
+
+function retainedClientBucketCount() {
+  let count = 0
+  for (const key of reportRateLimitBuckets.keys()) {
+    if (key.startsWith("client:")) count += 1
+  }
+  return count
+}
 
 function rateLimitBucketAllows(key: string, now: number, maxCount: number) {
   const current = reportRateLimitBuckets.get(key)
@@ -50,10 +74,25 @@ function allowProblemReportCapture(requestHeaders: Headers) {
   const now = Date.now()
   // This privacy-preserving map is a best-effort instance-local limit. Sentry
   // provider quotas remain the deployment-wide backstop across serverless instances.
-  return (
-    rateLimitBucketAllows(clientRateLimitKey(requestHeaders), now, REPORT_RATE_LIMIT_MAX_PER_CLIENT)
-    && rateLimitBucketAllows("global", now, REPORT_RATE_LIMIT_MAX_GLOBAL)
-  )
+  pruneExpiredClientRateLimitBuckets(now)
+
+  // Reject globally blocked traffic before retaining a caller-derived key, but
+  // do not consume global quota until the caller also passes its own limit.
+  if (!rateLimitBucketHasCapacity("global", now, REPORT_RATE_LIMIT_MAX_GLOBAL)) {
+    return false
+  }
+
+  const clientKey = clientRateLimitKey(requestHeaders)
+  if (!reportRateLimitBuckets.has(clientKey)
+    && retainedClientBucketCount() >= REPORT_RATE_LIMIT_MAX_RETAINED_CLIENTS) {
+    return false
+  }
+
+  if (!rateLimitBucketAllows(clientKey, now, REPORT_RATE_LIMIT_MAX_PER_CLIENT)) {
+    return false
+  }
+
+  return rateLimitBucketAllows("global", now, REPORT_RATE_LIMIT_MAX_GLOBAL)
 }
 
 /** Reads and parses a report without buffering more than the approved byte cap. */
