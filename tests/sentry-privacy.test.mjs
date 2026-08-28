@@ -34,7 +34,7 @@ test("sanitizeSentryEvent removes request body, headers, query strings, and defa
   })
 
   assert.deepEqual(event.request, { url: "/notes/[local-first]" })
-  assert.equal("user" in event, false)
+  assert.deepEqual(event.user, { ip_address: null })
   assert.equal(event.transaction, "/notes/[local-first]")
   assert.equal("extra" in event, false)
 })
@@ -60,7 +60,7 @@ test("sanitizeSentryEvent removes identity fields and non-operational tags at ev
     extra: { sessionId: "session_123", safeCount: 2 },
   })
 
-  assert.equal("user" in event, false)
+  assert.deepEqual(event.user, { ip_address: null })
   assert.deepEqual(event.tags, {
     "ml.report": "privacy-safe-problem-report",
     "ml.report.area": "timer",

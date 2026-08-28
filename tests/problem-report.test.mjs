@@ -97,7 +97,7 @@ describe("privacy-safe problem reports", () => {
     assert.equal(normalizeLinkedSentryEventId("abc"), undefined)
   })
 
-  it("survives the final Sentry sanitizer without gaining identity or behavior data", () => {
+  it("survives the final Sentry sanitizer without retaining identity or behavior data", () => {
     const payload = buildProblemReportSentryPayload({
       category: "page-error",
       area: "chimer-clock",
@@ -111,7 +111,7 @@ describe("privacy-safe problem reports", () => {
       user: { id: "must-not-survive" },
     })
 
-    assert.equal("user" in event, false)
+    assert.deepEqual(event.user, { ip_address: null })
     assert.equal(event.tags["ml.report.area"], "timer")
     assert.equal(event.contexts.problemReport.safePath, "/timer")
   })
