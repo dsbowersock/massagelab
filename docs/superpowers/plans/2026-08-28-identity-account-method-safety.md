@@ -150,7 +150,8 @@ assert.match(schema, /enum AccountSecurityEmailKind[\s\S]*PASSWORD_CHANGED/)
 assert.match(schema, /model AccountSecurityEmailIntent[\s\S]*idempotencyKey\s+String\s+@unique[\s\S]*claimTokenHash\s+String\?[\s\S]*claimExpiresAt\s+DateTime\?/)
 assert.doesNotMatch(schema.match(/model AuthMethodIntent[\s\S]*?\n\}/)?.[0] ?? "", /accessToken|refreshToken|idToken|rawPayload/)
 assert.match(migration, /CREATE TABLE "AuthRateLimitBucket"/)
-assert.doesNotMatch(migration, /(?:DELETE FROM|ALTER TABLE|DROP TABLE) "AuthAttempt"/)
+assert.doesNotMatch(migration, /(?:"AuthAttempt"|\bAuthAttempt\b)/)
+assert.doesNotMatch(migration, /\bAuthAttempt_purpose_key_key\b/)
 assert.match(migration, /CREATE UNIQUE INDEX "User_normalized_email_key"[\s\S]*lower\(btrim\("email"\)\)/)
 assert.match(preflight, /normalized_collision_count/)
 assert.doesNotMatch(preflight, /SELECT[\s\S]*email[\s\S]*console\.log/i)
@@ -162,6 +163,8 @@ assert.equal(packageJson.scripts["auth:cleanup-legacy-attempts"], "node scripts/
 ```
 
 Create `tests/auth-legacy-attempt-cleanup.test.mjs` with injected database execution. Prove `--print-fingerprint` parses the direct target without connecting and prints only a SHA-256 host/port/database fingerprint. Prove mutation mode refuses without exact `AUTH_LEGACY_ATTEMPT_CLEANUP=1`, rejects pooled targets or a missing/mismatched 64-character `--expected-fingerprint`, accepts only `--max-rows=1..100`, deletes at most that many rows from `AuthAttempt`, prints only `legacy_auth_attempt_rows_deleted=<number>`, never returns/logs `key`, email, IP, URL, or row IDs, and does not reference `AuthRateLimitBucket`. Production is an allowed target only through these exact gates because production is the eventual cleanup target; no test or implementation step runs the command against it.
+
+The migration assertions intentionally forbid even mentioning the exact legacy table or index names in the expansion SQL. Along with the exact schema-block assertions above, this prevents dropping, renaming, recreating, reindexing, or otherwise changing the old table/index contract while still allowing the distinct `AuthAttemptPurpose` and `AuthAttemptScope` type names.
 
 - [ ] **Step 3: Run both tests and verify RED**
 
@@ -393,6 +396,7 @@ git commit -m "feat: add identity method safety persistence"
 - Create: `lib/auth-method-proof.ts`
 - Create: `tests/auth-rate-limit.test.mjs`
 - Create: `tests/auth-method-proof.test.mjs`
+- Create: `tests/password-reset-request-route.test.mjs`
 - Modify: `auth.ts`
 - Modify: `app/api/account/register/route.ts`
 - Modify: `app/api/account/password-reset/request/route.ts`
@@ -428,6 +432,8 @@ GOOGLE_INTENT:  network 30
 
 Test accepted registration/reset consumption, a sixth registration for one account, twelve distinct household registrations, the thirteenth network request, exact `Retry-After`, 15-minute expiry, two concurrent increments without lost count, HMAC domain separation, 64-character stored hashes, and absence of raw identifiers. Source/assertion coverage keeps `lib/domain-types.ts` aligned with Prisma by requiring `GOOGLE_INTENT`, requires every bucket operation to use `authRateLimitBucket`, and rejects `prisma.authAttempt`, `assertRateLimit`, `recordFailedAttempt`, `clearAttempts`, or `rateLimitKey` in `auth.ts`, `app/api/account/register/route.ts`, `app/api/account/password-reset/request/route.ts`, and `lib/auth-rate-limit.ts`. For LOGIN/TWO_FACTOR, prove successful proofs do not increment either bucket, failed proofs increment account and network atomically, the network block cannot be cleared by one successful account, and three to five healthy household users can repeatedly sign in. For GOOGLE_INTENT, prove thirty accepted starts consume the privacy-hashed network bucket, the thirty-first is rejected before an intent row is created, and no raw network identifier is persisted or logged. Prove `pruneAuthRateLimits` deletes at most 100 stale rows and `maybePruneAuthRateLimits` can be forced on/off in tests.
 
+Create `tests/password-reset-request-route.test.mjs` as behavioral cutover coverage. Export an injectable request-handler factory from `app/api/account/password-reset/request/route.ts`; production `POST` supplies the real limiter and existing reset-work dependencies. Exercise the handler with the real `consumeEmailWorkRateLimit` against a fake Prisma client and fixed secret/time. For an accepted syntactically valid request, assert exactly two new `AuthRateLimitBucket` rows exist before the reset-work callback runs: one `PASSWORD_RESET/ACCOUNT` row and one `PASSWORD_RESET/NETWORK` row, each with a 64-character hash and neither raw email nor raw IP. At the configured limit, assert the work callback is never invoked and the route returns status 429, the exact integer `Retry-After` header from `retryAfterSeconds`, and the fixed non-enumerating rate-limit body. This test owns route orchestration; `tests/auth-rate-limit.test.mjs` remains authoritative for transaction/concurrency policy.
+
 - [ ] **Step 2: Write failing shared-proof tests**
 
 In `tests/auth-method-proof.test.mjs`, use a fake Prisma dependency to cover invalid password, unverified email, required/invalid/valid TOTP, one-use backup code, two concurrent uses of one backup code where only one `updateMany(...usedAt: null)` succeeds, pre-proof limiter rejection, failed-proof recording, and successful proof clearing only that account's LOGIN/TWO_FACTOR failure buckets without incrementing or clearing the shared network bucket.
@@ -443,10 +449,10 @@ type PasswordMethodProofResult =
 - [ ] **Step 3: Run both focused tests and verify RED**
 
 ```bash
-node --test tests/auth-rate-limit.test.mjs tests/auth-method-proof.test.mjs
+node --test tests/auth-rate-limit.test.mjs tests/auth-method-proof.test.mjs tests/password-reset-request-route.test.mjs
 ```
 
-Expected: FAIL because the new APIs and proof service do not exist.
+Expected: FAIL because the new APIs, proof service, and injectable password-reset route cutover do not exist.
 
 - [ ] **Step 4: Implement privacy-safe email-work and credential-failure policies**
 
@@ -454,7 +460,7 @@ Use HMAC-SHA256 with `AUTH_SECRET` and input `${purpose}\0${scope}\0${identifier
 
 `consumeEmailWorkRateLimit` is restricted to REGISTER/PASSWORD_RESET. In one bounded serializable transaction it checks and increments both account and network buckets before database/hash/email work, so successful and failed accepted requests consume quota. `consumeGoogleIntentStartRateLimit` consumes only the GOOGLE_INTENT network bucket before any intent lookup/prune/create and returns the same bounded retry metadata. `checkCredentialRateLimit` reads LOGIN/TWO_FACTOR account/network blocks before proof without incrementing. Only a failed password, TOTP, or backup-code proof calls `recordCredentialFailure`, which increments both buckets atomically. A fully successful proof calls `clearCredentialAccountFailures` for that account only; it neither increments nor clears the shared network bucket. A blocked result includes `Math.max(1, Math.ceil((blockedUntil-now)/1000))`.
 
-In this same commit, switch every current serving caller atomically. Credentials login in `auth.ts` uses the credential check/failure/clear APIs. The current registration and password-reset request routes call `consumeEmailWorkRateLimit` before their existing hash/database/email work and intentionally map a blocked decision to their current 429 response with exact `Retry-After`; Task 5 later moves this unchanged contract into the new orchestration services. Update `tests/auth-registration.test.mjs` for this interim privacy-safe route contract. No compatibility adapter, dual write, or fallback to `AuthAttempt` remains, so once this commit is deployed old raw keys stop growing immediately and cannot be consulted as active limiter state.
+In this same commit, switch every current serving caller atomically. Credentials login in `auth.ts` uses the credential check/failure/clear APIs. The current registration and password-reset request routes call `consumeEmailWorkRateLimit` before their existing hash/database/email work and intentionally map a blocked decision to their current 429 response with exact `Retry-After`; Task 5 later moves this unchanged contract into the new orchestration services. Update `tests/auth-registration.test.mjs` and add `tests/password-reset-request-route.test.mjs` for this interim privacy-safe route contract. No compatibility adapter, dual write, or fallback to `AuthAttempt` remains. During a rolling deployment, old instances may continue writing legacy rows; after the Task 2 deployment completes and those old instances drain, raw legacy keys stop growing and cannot be consulted as active limiter state.
 
 Bounded cleanup first selects at most `maxRows` rows whose `updatedAt < before` and whose `blockedUntil` is null or expired, then deletes only those IDs. `consumeEmailWorkRateLimit`, `consumeGoogleIntentStartRateLimit`, and `recordCredentialFailure` schedule `maybePruneAuthRateLimits({ maxRows: 100, before: now - 24 hours })` after their primary transaction. Its injected `shouldPrune()` defaults to one privacy-neutral random sample in 64, so cleanup is exercised without adding a query to every request.
 
@@ -475,7 +481,7 @@ Map the result back to the existing `EMAIL_UNVERIFIED`, `INVALID_CREDENTIALS`, `
 - [ ] **Step 6: Run focused and regression tests**
 
 ```bash
-node --test tests/auth-rate-limit.test.mjs tests/auth-method-proof.test.mjs tests/auth-security.test.mjs tests/auth-session-version.test.mjs tests/auth-registration.test.mjs
+node --test tests/auth-rate-limit.test.mjs tests/auth-method-proof.test.mjs tests/password-reset-request-route.test.mjs tests/auth-security.test.mjs tests/auth-session-version.test.mjs tests/auth-registration.test.mjs
 npm run typecheck
 git diff --check
 rg -n "prisma\.authAttempt|assertRateLimit|recordFailedAttempt|clearAttempts|rateLimitKey" auth.ts app/api/account/register/route.ts app/api/account/password-reset/request/route.ts lib/auth-rate-limit.ts
@@ -486,7 +492,7 @@ Expected: all tests/typecheck pass, `git diff --check` is clean, and the final `
 - [ ] **Step 7: Commit limiter and proof services**
 
 ```bash
-git add auth.ts app/api/account/register/route.ts app/api/account/password-reset/request/route.ts types/next-auth.d.ts lib/auth-rate-limit.ts lib/auth-method-proof.ts lib/domain-types.ts tests/auth-rate-limit.test.mjs tests/auth-method-proof.test.mjs tests/auth-registration.test.mjs tests/auth-session-version.test.mjs
+git add auth.ts app/api/account/register/route.ts app/api/account/password-reset/request/route.ts types/next-auth.d.ts lib/auth-rate-limit.ts lib/auth-method-proof.ts lib/domain-types.ts tests/auth-rate-limit.test.mjs tests/auth-method-proof.test.mjs tests/password-reset-request-route.test.mjs tests/auth-registration.test.mjs tests/auth-session-version.test.mjs
 git commit -m "security: bound auth work and share method proof"
 ```
 
@@ -518,17 +524,36 @@ git commit -m "security: bound auth work and share method proof"
 
 Cover: unverified/missing Google email; no intent; other-browser token; expired/consumed intent; existing linked provider; first Google user creation; normalized-email existing password account returning `LINK_REQUIRED` without Account creation; current-session Google reauth; provider ID attached to another user; and replay. Route/handler cases prove the thirtieth network start is accepted, the thirty-first returns 429 before row creation, raw network data is absent, an already-built registration legal gate with a safe nested callback is rebuilt equivalently, a malicious prebuilt gate's nested external/API/legal callback falls back to `/onboarding`, and security-purpose callbacks ignore caller input. Callback cases assert each rejected condition returns its fixed recoverable retry path rather than `false`/AccessDenied.
 
-Include concurrent first-use proof:
+Include concurrent first-use proof with two distinct browser-bound intents for the same normalized Google identity:
 
 ```js
+const firstInput = googleInput(db, " Family@Example.com ", "google-sub-a")
+const secondInput = googleInput(db, "family@example.com", "google-sub-a")
+assert.notEqual(firstInput.intentId, secondInput.intentId)
+assert.notEqual(firstInput.browserBindingToken, secondInput.browserBindingToken)
 const results = await Promise.all([
-  prepareGoogleAuthentication(googleInput(db, " Family@Example.com ", "google-sub-a")),
-  prepareGoogleAuthentication(googleInput(db, "family@example.com", "google-sub-a")),
+  prepareGoogleAuthentication(firstInput),
+  prepareGoogleAuthentication(secondInput),
 ])
 assert.equal(db.usersByNormalizedEmail("family@example.com").length, 1)
 assert.equal(db.accountsByProviderId("google", "google-sub-a").length, 1)
 assert.deepEqual(results.map((result) => result.kind).sort(), ["CONTINUE", "CONTINUE"])
 ```
+
+Keep a separate same-intent race to enforce single use:
+
+```js
+const sameIntentInput = googleInput(db, "family@example.com", "google-sub-b")
+const sameIntentResults = await Promise.all([
+  prepareGoogleAuthentication(sameIntentInput),
+  prepareGoogleAuthentication(sameIntentInput),
+])
+assert.deepEqual(sameIntentResults.map((result) => result.kind).sort(), ["CONTINUE", "REJECTED"])
+assert.equal(db.intentConsumeWins(sameIntentInput.intentId), 1)
+assert.equal((await prepareGoogleAuthentication(sameIntentInput)).kind, "REJECTED")
+```
+
+The rejected racer and the later replay both use the fixed recoverable rejection path and create no second User or Account.
 
 Barrier a second race so a password user appears between the initial read and create; the retry must return `LINK_REQUIRED`, create no Google Account, and leave one browser-bound `PROVIDER_PROVEN` intent.
 
@@ -953,7 +978,7 @@ git commit -m "feat: add secure sign-in method management"
 
 Add the Google intent-cookie/linking contract, exact limiter thresholds/15-minute window, bounded 24-hour active-bucket stale cleanup, count-only collision command, required expansion-before-runtime order, Google publishing/callback checks, SMTP sender/SPF/DKIM/DMARC/bounce checks, and safe security-email failure review to deployment/release docs.
 
-Describe `20260828120000_identity_method_safety` truthfully as an expansion migration: it creates `AuthRateLimitBucket` while preserving `AuthAttempt` for old instances and rollback. Document that Task 2 atomically moves all runtime callers, at which point old raw identifiers stop growing and `AuthAttempt` is no longer active limiter state. Document read-only fingerprinting and `npm run auth:cleanup-legacy-attempts -- --expected-fingerprint=<64 lowercase hex> --max-rows=<1..100>` as later release actions that may run only after deployment/cutover/drain evidence and separate authorization for the exact production fingerprint and mutation scope; record counts only, and do not imply cleanup or a future table-drop contract migration occurred.
+Describe `20260828120000_identity_method_safety` truthfully as an expansion migration: it creates `AuthRateLimitBucket` while preserving `AuthAttempt` for old instances and rollback. Document that Task 2 atomically changes the code contract, but old instances may still write `AuthAttempt` during a rolling deployment; only after the Task 2 deployment completes and those old instances drain do raw legacy identifiers stop growing and `AuthAttempt` cease to be active limiter state. Document read-only fingerprinting and `npm run auth:cleanup-legacy-attempts -- --expected-fingerprint=<64 lowercase hex> --max-rows=<1..100>` as later release actions that may run only after deployment/cutover/drain evidence and separate authorization for the exact production fingerprint and mutation scope; record counts only, and do not imply cleanup or a future table-drop contract migration occurred.
 
 State that provider-setting changes, any migration application, any legacy-row cleanup, future legacy-table drop, real Google account testing, and production mail tests remain separate execution gates. Do not print configuration values.
 
