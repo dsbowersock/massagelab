@@ -1,11 +1,14 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
+import { sanitizeSentryEvent } from "../lib/sentry-privacy.js"
 import {
   buildProblemReportSentryPayload,
   classifyProblemReportRoute,
   getSafeBrowserHint,
   normalizeLinkedSentryEventId,
   normalizeProblemReportPath,
+  PROBLEM_REPORT_AREAS,
+  PROBLEM_REPORT_CATEGORIES,
 } from "../lib/problem-report.js"
 
 describe("privacy-safe problem reports", () => {
@@ -92,5 +95,104 @@ describe("privacy-safe problem reports", () => {
     assert.equal(getSafeBrowserHint("Mozilla/5.0 Firefox/120.0"), "firefox")
     assert.equal(normalizeLinkedSentryEventId(" ABCDEFabcdef12345678901234567890 "), "abcdefabcdef12345678901234567890")
     assert.equal(normalizeLinkedSentryEventId("abc"), undefined)
+  })
+
+  it("survives the final Sentry sanitizer without retaining identity or behavior data", () => {
+    const payload = buildProblemReportSentryPayload({
+      category: "page-error",
+      area: "chimer-clock",
+      route: "/chimer?background=dna",
+      userAgent: "Mozilla/5.0 Chrome/140.0.0.0 Safari/537.36",
+    })
+    const event = sanitizeSentryEvent({
+      message: payload.message,
+      tags: payload.tags,
+      contexts: payload.contexts,
+      user: { id: "must-not-survive" },
+    })
+
+    assert.deepEqual(event.user, { ip_address: null })
+    assert.equal(event.tags["ml.report.area"], "timer")
+    assert.equal(event.contexts.problemReport.safePath, "/timer")
+  })
+
+  it("preserves every declared problem-report taxonomy value through final sanitization", () => {
+    for (const category of PROBLEM_REPORT_CATEGORIES) {
+      const payload = buildProblemReportSentryPayload({ category: category.id })
+      const event = sanitizeSentryEvent({ contexts: payload.contexts })
+
+      assert.equal(event.contexts.problemReport.category, category.id)
+    }
+
+    for (const area of PROBLEM_REPORT_AREAS) {
+      const payload = buildProblemReportSentryPayload({ area: area.id })
+      const event = sanitizeSentryEvent({ contexts: payload.contexts })
+
+      assert.deepEqual(event.contexts.problemReport, payload.contexts.problemReport)
+    }
+  })
+
+  it("accepts only the exact enum domain for each problem-report context key", () => {
+    const allowedValues = {
+      area: [
+        "unknown", "home", "professional-records", "wellness", "booking", "calendar",
+        "calendar-booking", "account-billing", "api", "admin-anatomy", "admin", "anatomime",
+        "education", "timer", "music", "public-page",
+      ],
+      browser: ["edge", "firefox", "chrome-ios", "chrome", "safari", "unknown"],
+      category: PROBLEM_REPORT_CATEGORIES.map(({ id }) => id),
+      displayMode: ["browser", "standalone", "fullscreen", "minimal-ui", "unknown"],
+      network: ["online", "offline", "unknown"],
+      privacyLevel: [
+        "unknown", "public", "local-first-phi-capable", "consumer-health",
+        "scheduling-contact", "account-private", "server-route", "admin-private",
+        "public-study", "public-tool",
+      ],
+      selectedArea: PROBLEM_REPORT_AREAS.map(({ id }) => id),
+      viewport: ["small", "medium", "large", "unknown"],
+    }
+
+    for (const [key, values] of Object.entries(allowedValues)) {
+      for (const value of values) {
+        const event = sanitizeSentryEvent({ contexts: { problemReport: { [key]: value } } })
+        assert.equal(event.contexts.problemReport[key], value, `${key} should retain ${value}`)
+      }
+    }
+
+    const event = sanitizeSentryEvent({
+      contexts: {
+        problemReport: {
+          area: "user_123",
+          browser: "opera",
+          category: "secret-category",
+          displayMode: "embedded",
+          network: "wifi",
+          privacyLevel: "private",
+          selectedArea: "client_123",
+          viewport: "retina",
+          safePath: "/account/user_123?email=person@example.com",
+          linkedEventId: "not-a-sentry-event-id",
+        },
+      },
+    })
+
+    assert.equal("problemReport" in event.contexts, false)
+    assert.doesNotMatch(JSON.stringify(event), /person@example\.com|user_123|client_123/i)
+  })
+
+  it("preserves every exact coarse problem-report route enum idempotently", () => {
+    const safePaths = new Set([
+      ...PROBLEM_REPORT_AREAS.map(({ safePath }) => safePath),
+      "/", "/book/[practice]", "/calendar/[workspace]", "/account-or-auth", "/api/[route]",
+      "/admin/[route]", "/anatomime/play/[code]", "/education/flashcards/decks/[slug]",
+      "/public/[route]", "/about", "/about/[route]", "/breathe", "/breathe/[route]",
+      "/legal", "/legal/[route]", "/pricing", "/pricing/[route]", "/roadmap",
+      "/roadmap/[route]", "/support", "/support/[route]", "/tools", "/tools/[route]",
+    ])
+
+    for (const safePath of safePaths) {
+      const event = sanitizeSentryEvent({ contexts: { problemReport: { safePath } } })
+      assert.equal(event.contexts.problemReport.safePath, safePath)
+    }
   })
 })
