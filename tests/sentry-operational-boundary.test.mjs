@@ -65,12 +65,14 @@ describe("anonymous operational Sentry boundary", () => {
 
   it("keeps the SDK policy explicit and session-free", () => {
     const options = source("sentry.options.ts")
+    const server = source("sentry.server.config.ts")
     const policy = source("lib/sentry-options.js")
 
     assert.match(options, /dataCollection:\s*getAnonymousSentryDataCollection\(\)/)
     assert.match(options, /enableLogs:\s*false/)
     assert.match(options, /enableMetrics:\s*false/)
     assert.match(options, /maxBreadcrumbs:\s*0/)
+    assert.match(server, /includeServerName:\s*false/)
     assert.match(options, /integrations\(defaultIntegrations\)\s*{\s*return filterAnonymousSentryIntegrations\(defaultIntegrations\)\s*}/s)
     assert.match(policy, /"BrowserSession"/)
     assert.match(policy, /"Replay"/)
