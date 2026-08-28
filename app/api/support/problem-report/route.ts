@@ -92,6 +92,16 @@ export async function POST(request: Request) {
     tags: payload.tags,
     contexts: payload.contexts,
   })
+  // A serverless response can finish before the SDK transport drains, so the
+  // voluntary report is not acknowledged until its queued event is flushed.
+  const delivered = await Sentry.flush(2000)
+
+  if (!delivered) {
+    return NextResponse.json(
+      { error: "Diagnostic report could not be delivered. Please try again later." },
+      { status: 503 },
+    )
+  }
 
   return NextResponse.json({
     eventId,
