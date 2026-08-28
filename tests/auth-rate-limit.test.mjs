@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
+import { createHmac } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import { runCommerceTransaction } from "../lib/commerce/transactions.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -8,82 +10,123 @@ const source = await readFile(new URL("../lib/auth-rate-limit.ts", import.meta.u
 const limiter = loadCompiledModule(source, "auth-rate-limit.test.ts", {
   "@/lib/prisma": { prisma: {} },
   "@/lib/auth-env": { getAuthSecret: () => "production-secret" },
-  "@/lib/auth-security": { normalizeEmail: (value) => String(value ?? "").trim().toLowerCase() },
-  "@/lib/commerce/transactions": {
-    runCommerceTransaction: (client, callback) => client.$transaction(callback, { isolationLevel: "Serializable" }),
-  },
+  "@/lib/auth-security": { normalizeEmail },
+  "@/lib/commerce/transactions": { runCommerceTransaction },
 })
 
 const NOW = new Date("2026-08-28T12:00:00.000Z")
+const SECRET = "secret"
 
 describe("privacy-safe auth rate limits", () => {
-  it("uses domain-separated HMAC hashes without retaining raw identifiers", () => {
-    const account = limiter.authRateLimitKeyHash({ purpose: "REGISTER", scope: "ACCOUNT", identifier: " Person@Example.com ", secret: "secret" })
-    const network = limiter.authRateLimitKeyHash({ purpose: "REGISTER", scope: "NETWORK", identifier: "person@example.com", secret: "secret" })
-    const login = limiter.authRateLimitKeyHash({ purpose: "LOGIN", scope: "ACCOUNT", identifier: "person@example.com", secret: "secret" })
+  it("uses the exact domain-separated HMAC and never retains a raw identifier", () => {
+    const account = limiter.authRateLimitKeyHash({ purpose: "REGISTER", scope: "ACCOUNT", identifier: " Person@Example.com ", secret: SECRET })
+    const expected = createHmac("sha256", SECRET).update("REGISTER\0ACCOUNT\0person@example.com").digest("hex")
+    const network = limiter.authRateLimitKeyHash({ purpose: "REGISTER", scope: "NETWORK", identifier: "person@example.com", secret: SECRET })
+    const login = limiter.authRateLimitKeyHash({ purpose: "LOGIN", scope: "ACCOUNT", identifier: "person@example.com", secret: SECRET })
 
+    assert.equal(account, expected)
     assert.equal(account.length, 64)
-    assert.equal(network.length, 64)
-    assert.equal(login.length, 64)
     assert.notEqual(account, network)
     assert.notEqual(account, login)
     assert.doesNotMatch(account, /person|example/i)
   })
 
-  it("accepts five account registrations, blocks the sixth, and expires exactly after 15 minutes", async () => {
-    const database = createRateLimitDatabase()
-    const input = { prismaClient: database, purpose: "REGISTER", email: "Person@Example.com", networkIdentifier: "203.0.113.4", secret: "secret", now: NOW, shouldPrune: () => false }
+  it("covers REGISTER account 5/network 12 with exact partial-window retry and expiry", async () => {
+    const accountDb = createRateLimitDatabase()
+    const accountInput = emailInput(accountDb, "REGISTER", "Person@Example.com", "203.0.113.4")
+    for (let index = 0; index < 5; index += 1) assert.deepEqual(await limiter.consumeEmailWorkRateLimit(accountInput), { allowed: true })
+    assert.deepEqual(await limiter.consumeEmailWorkRateLimit({ ...accountInput, now: plusMinutes(4) }), { allowed: false, retryAfterSeconds: 660 })
+    assert.deepEqual(await limiter.consumeEmailWorkRateLimit({ ...accountInput, now: plusMinutes(15) }), { allowed: true })
 
-    for (let index = 0; index < 5; index += 1) {
-      assert.deepEqual(await limiter.consumeEmailWorkRateLimit(input), { allowed: true })
-    }
-    assert.deepEqual(await limiter.consumeEmailWorkRateLimit(input), { allowed: false, retryAfterSeconds: 900 })
-    assert.deepEqual(await limiter.consumeEmailWorkRateLimit({ ...input, now: new Date(NOW.getTime() + 15 * 60 * 1000) }), { allowed: true })
-    assert.equal(database.rows.length, 2)
-    assert.equal(database.rows.every((row) => row.keyHash.length === 64), true)
-    assert.equal(JSON.stringify(database.rows).includes("Person@Example.com"), false)
-    assert.equal(database.transactionOptions.every((option) => option?.isolationLevel === "Serializable"), true)
-  })
-
-  it("permits twelve household registrations and blocks the thirteenth network request", async () => {
-    const database = createRateLimitDatabase()
+    const networkDb = createRateLimitDatabase()
     for (let index = 0; index < 12; index += 1) {
-      assert.deepEqual(await limiter.consumeEmailWorkRateLimit({ prismaClient: database, purpose: "REGISTER", email: `person${index}@example.com`, networkIdentifier: "198.51.100.8", secret: "secret", now: NOW, shouldPrune: () => false }), { allowed: true })
+      assert.deepEqual(await limiter.consumeEmailWorkRateLimit(emailInput(networkDb, "REGISTER", `person${index}@example.com`, "198.51.100.8")), { allowed: true })
     }
-    assert.deepEqual(await limiter.consumeEmailWorkRateLimit({ prismaClient: database, purpose: "REGISTER", email: "person12@example.com", networkIdentifier: "198.51.100.8", secret: "secret", now: NOW, shouldPrune: () => false }), { allowed: false, retryAfterSeconds: 900 })
+    assert.deepEqual(await limiter.consumeEmailWorkRateLimit(emailInput(networkDb, "REGISTER", "person12@example.com", "198.51.100.8")), { allowed: false, retryAfterSeconds: 900 })
+    assertHasOnlyHashes(networkDb)
   })
 
-  it("serializes concurrent increments without losing a count", async () => {
+  it("covers PASSWORD_RESET account 5/network 20", async () => {
+    const accountDb = createRateLimitDatabase()
+    const sameAccount = emailInput(accountDb, "PASSWORD_RESET", "reset@example.com", "203.0.113.10")
+    for (let index = 0; index < 5; index += 1) assert.deepEqual(await limiter.consumeEmailWorkRateLimit(sameAccount), { allowed: true })
+    assert.deepEqual(await limiter.consumeEmailWorkRateLimit(sameAccount), { allowed: false, retryAfterSeconds: 900 })
+
+    const networkDb = createRateLimitDatabase()
+    for (let index = 0; index < 20; index += 1) {
+      assert.deepEqual(await limiter.consumeEmailWorkRateLimit(emailInput(networkDb, "PASSWORD_RESET", `reset${index}@example.com`, "203.0.113.11")), { allowed: true })
+    }
+    assert.deepEqual(await limiter.consumeEmailWorkRateLimit(emailInput(networkDb, "PASSWORD_RESET", "reset20@example.com", "203.0.113.11")), { allowed: false, retryAfterSeconds: 900 })
+  })
+
+  for (const purpose of ["LOGIN", "TWO_FACTOR"]) {
+    it(`covers ${purpose} account 8/network 30 and 15-minute credential expiry`, async () => {
+      const accountDb = createRateLimitDatabase()
+      const sameAccount = credentialInput(accountDb, purpose, "login@example.com", "192.0.2.10")
+      for (let index = 0; index < 8; index += 1) assert.deepEqual(await limiter.recordCredentialFailure(sameAccount), { allowed: true })
+      assert.deepEqual(await limiter.checkCredentialRateLimit({ ...sameAccount, now: plusMinutes(4) }), { allowed: false, retryAfterSeconds: 660 })
+      assert.deepEqual(await limiter.checkCredentialRateLimit({ ...sameAccount, now: plusMinutes(15) }), { allowed: true })
+
+      const networkDb = createRateLimitDatabase()
+      for (let index = 0; index < 30; index += 1) {
+        assert.deepEqual(await limiter.recordCredentialFailure(credentialInput(networkDb, purpose, `login${index}@example.com`, "192.0.2.11")), { allowed: true })
+      }
+      assert.deepEqual(await limiter.checkCredentialRateLimit(credentialInput(networkDb, purpose, "login30@example.com", "192.0.2.11")), { allowed: false, retryAfterSeconds: 900 })
+    })
+  }
+
+  it("uses the real bounded Serializable retry and rolls back a P2034 loser without lost updates", async () => {
     const database = createRateLimitDatabase()
+    const input = emailInput(database, "PASSWORD_RESET", "same@example.com", "192.0.2.2")
     await Promise.all([
-      limiter.consumeEmailWorkRateLimit({ prismaClient: database, purpose: "PASSWORD_RESET", email: "same@example.com", networkIdentifier: "192.0.2.2", secret: "secret", now: NOW, shouldPrune: () => false }),
-      limiter.consumeEmailWorkRateLimit({ prismaClient: database, purpose: "PASSWORD_RESET", email: "same@example.com", networkIdentifier: "192.0.2.2", secret: "secret", now: NOW, shouldPrune: () => false }),
+      limiter.consumeEmailWorkRateLimit(input),
+      limiter.consumeEmailWorkRateLimit(input),
     ])
-    assert.deepEqual(database.rows.map((row) => row.count).sort(), [2, 2])
-  })
 
-  it("bounds Google intent starts with only a privacy-hashed network bucket", async () => {
-    const database = createRateLimitDatabase()
-    const input = { prismaClient: database, networkIdentifier: "203.0.113.90", secret: "secret", now: NOW, shouldPrune: () => false }
-    for (let index = 0; index < 30; index += 1) {
-      assert.deepEqual(await limiter.consumeGoogleIntentStartRateLimit(input), { allowed: true })
-    }
-    assert.deepEqual(await limiter.consumeGoogleIntentStartRateLimit(input), { allowed: false, retryAfterSeconds: 900 })
-    assert.equal(database.rows.length, 1)
-    assert.deepEqual({ purpose: database.rows[0].purpose, scope: database.rows[0].scope, count: database.rows[0].count }, { purpose: "GOOGLE_INTENT", scope: "NETWORK", count: 30 })
-    assert.equal(JSON.stringify(database.rows).includes("203.0.113.90"), false)
-  })
-
-  it("counts credential failures but never charges successful checks and clears account buckets only", async () => {
-    const database = createRateLimitDatabase()
-    const input = { prismaClient: database, purpose: "LOGIN", email: "person@example.com", networkIdentifier: "192.0.2.9", secret: "secret", now: NOW, shouldPrune: () => false }
-    assert.deepEqual(await limiter.checkCredentialRateLimit(input), { allowed: true })
-    assert.equal(database.rows.length, 0)
-    await limiter.recordCredentialFailure(input)
+    assert.equal(database.transactionAttempts, 3)
+    assert.equal(database.serializationConflicts, 1)
+    assert.equal(database.transactionOptions.every((option) => option?.isolationLevel === "Serializable"), true)
     assert.equal(database.rows.length, 2)
-    await limiter.clearCredentialAccountFailures({ prismaClient: database, email: input.email, secret: "secret" })
-    assert.equal(database.rows.length, 1)
-    assert.equal(database.rows[0].scope, "NETWORK")
+    assert.deepEqual(database.rows.map((row) => row.count).sort(), [2, 2])
+    assert.equal(new Set(database.rows.map((row) => `${row.purpose}:${row.scope}:${row.keyHash}`)).size, 2)
+  })
+
+  it("rejects the 31st GOOGLE_INTENT before the injected intent-create callback", async () => {
+    const database = createRateLimitDatabase()
+    let intentCreates = 0
+    const start = () => runGoogleIntentHarness(
+      { prismaClient: database, networkIdentifier: "203.0.113.90", secret: SECRET, now: NOW, shouldPrune: () => false },
+      async () => { intentCreates += 1 },
+    )
+    for (let index = 0; index < 30; index += 1) assert.deepEqual(await start(), { allowed: true })
+    assert.deepEqual(await start(), { allowed: false, retryAfterSeconds: 900 })
+    assert.equal(intentCreates, 30)
+    assert.deepEqual(database.rows.map(({ purpose, scope, count }) => ({ purpose, scope, count })), [{ purpose: "GOOGLE_INTENT", scope: "NETWORK", count: 30 }])
+    assertHasOnlyHashes(database)
+  })
+
+  it("does not charge three to five healthy household users and preserves a blocked network after account success", async () => {
+    const healthyDb = createRateLimitDatabase()
+    for (let round = 0; round < 10; round += 1) {
+      for (let user = 0; user < 5; user += 1) {
+        assert.deepEqual(await limiter.checkCredentialRateLimit(credentialInput(healthyDb, "LOGIN", `healthy${user}@example.com`, "198.51.100.40")), { allowed: true })
+      }
+    }
+    assert.equal(healthyDb.rows.length, 0)
+
+    const blockedDb = createRateLimitDatabase()
+    for (let index = 0; index < 30; index += 1) await limiter.recordCredentialFailure(credentialInput(blockedDb, "LOGIN", `failed${index}@example.com`, "198.51.100.41"))
+    await limiter.clearCredentialAccountFailures({ prismaClient: blockedDb, email: "failed0@example.com", secret: SECRET })
+    assert.deepEqual(await limiter.checkCredentialRateLimit(credentialInput(blockedDb, "LOGIN", "healthy@example.com", "198.51.100.41")), { allowed: false, retryAfterSeconds: 900 })
+    assert.equal(blockedDb.rows.some((row) => row.purpose === "LOGIN" && row.scope === "NETWORK" && row.count === 30), true)
+  })
+
+  it("keeps sampled pruning best-effort after an authoritative consumed transaction", async () => {
+    const database = createRateLimitDatabase({ pruneFailure: new Error("cleanup unavailable") })
+    const result = await limiter.consumeEmailWorkRateLimit({ ...emailInput(database, "REGISTER", "person@example.com", "203.0.113.80"), shouldPrune: () => true })
+    assert.deepEqual(result, { allowed: true })
+    assert.equal(database.rows.length, 2)
+    assert.deepEqual(database.rows.map((row) => row.count), [1, 1])
   })
 
   it("bounds stale pruning and provides a deterministic sampling hook", async () => {
@@ -103,48 +146,109 @@ describe("privacy-safe auth rate limits", () => {
   })
 })
 
-function createRateLimitDatabase() {
-  const rows = []
-  const transactionOptions = []
-  let transactionTail = Promise.resolve()
-  const delegate = {
+function emailInput(prismaClient, purpose, email, networkIdentifier) {
+  return { prismaClient, purpose, email, networkIdentifier, secret: SECRET, now: NOW, shouldPrune: () => false }
+}
+
+function credentialInput(prismaClient, purpose, email, networkIdentifier) {
+  return { prismaClient, purpose, email, networkIdentifier, secret: SECRET, now: NOW, shouldPrune: () => false }
+}
+
+function plusMinutes(minutes) {
+  return new Date(NOW.getTime() + minutes * 60 * 1000)
+}
+
+async function runGoogleIntentHarness(input, wouldCreateIntent) {
+  const decision = await limiter.consumeGoogleIntentStartRateLimit(input)
+  if (decision.allowed) await wouldCreateIntent()
+  return decision
+}
+
+function normalizeEmail(value) {
+  return String(value ?? "").trim().toLowerCase()
+}
+
+function assertHasOnlyHashes(database) {
+  assert.equal(database.rows.every((row) => row.keyHash.length === 64), true)
+  assert.equal(JSON.stringify(database.rows).includes("@example.com"), false)
+  assert.equal(JSON.stringify(database.rows).includes("203.0.113"), false)
+  assert.equal(JSON.stringify(database.rows).includes("198.51.100"), false)
+}
+
+/**
+ * Simulates optimistic Serializable transactions: each callback mutates a private
+ * snapshot and a stale snapshot receives Prisma's P2034 before any state commits.
+ */
+function createRateLimitDatabase({ pruneFailure = null } = {}) {
+  let committedRows = []
+  let version = 0
+  const metrics = { transactionAttempts: 0, serializationConflicts: 0, transactionOptions: [] }
+
+  const store = {
+    get rows() { return committedRows },
+    replace(rows) { committedRows = rows },
+  }
+  const rootDelegate = createBucketDelegate(store, { pruneFailure })
+  const database = {
+    get rows() { return committedRows },
+    get transactionAttempts() { return metrics.transactionAttempts },
+    get serializationConflicts() { return metrics.serializationConflicts },
+    get transactionOptions() { return metrics.transactionOptions },
+    authRateLimitBucket: rootDelegate,
+    seed(row) { committedRows.push(structuredClone(row)) },
+    async $transaction(callback, options) {
+      metrics.transactionAttempts += 1
+      metrics.transactionOptions.push(options)
+      const baseVersion = version
+      let workingRows = structuredClone(committedRows)
+      const workingStore = {
+        get rows() { return workingRows },
+        replace(rows) { workingRows = rows },
+      }
+      const result = await callback({ authRateLimitBucket: createBucketDelegate(workingStore) })
+      await Promise.resolve()
+      if (version !== baseVersion) {
+        metrics.serializationConflicts += 1
+        throw Object.assign(new Error("Transaction failed due to a write conflict or a deadlock"), { code: "P2034" })
+      }
+      committedRows = workingRows
+      version += 1
+      return result
+    },
+  }
+  return database
+}
+
+function createBucketDelegate(store, { pruneFailure = null } = {}) {
+  return {
     async findUnique({ where }) {
       const key = where.purpose_scope_keyHash
-      return rows.find((row) => row.purpose === key.purpose && row.scope === key.scope && row.keyHash === key.keyHash) ?? null
+      return structuredClone(store.rows.find((row) => row.purpose === key.purpose && row.scope === key.scope && row.keyHash === key.keyHash) ?? null)
     },
     async upsert({ where, create, update }) {
       const key = where.purpose_scope_keyHash
-      const existing = rows.find((row) => row.purpose === key.purpose && row.scope === key.scope && row.keyHash === key.keyHash)
-      if (existing) Object.assign(existing, update, { updatedAt: update.updatedAt ?? new Date() })
-      else rows.push({ id: `bucket-${rows.length + 1}`, ...create, updatedAt: create.updatedAt ?? new Date() })
+      const existing = store.rows.find((row) => row.purpose === key.purpose && row.scope === key.scope && row.keyHash === key.keyHash)
+      if (existing) Object.assign(existing, structuredClone(update))
+      else store.rows.push({ id: `bucket-${key.purpose}-${key.scope}-${key.keyHash}`, ...structuredClone(create) })
     },
     async findMany({ where, take }) {
-      return rows.filter((row) => row.updatedAt < where.updatedAt.lt && (row.blockedUntil === null || row.blockedUntil < where.OR[1].blockedUntil.lt)).slice(0, take).map(({ id }) => ({ id }))
+      if (pruneFailure) throw pruneFailure
+      return store.rows
+        .filter((row) => row.updatedAt < where.updatedAt.lt && (row.blockedUntil === null || row.blockedUntil < where.OR[1].blockedUntil.lt))
+        .slice(0, take)
+        .map(({ id }) => ({ id }))
     },
     async deleteMany({ where }) {
-      const before = rows.length
+      const before = store.rows.length
       const ids = where.id?.in
-      for (let index = rows.length - 1; index >= 0; index -= 1) {
-        const row = rows[index]
+      store.replace(store.rows.filter((row) => {
         const matchesIds = ids ? ids.includes(row.id) : true
         const matchesScope = where.scope ? row.scope === where.scope : true
         const matchesPurpose = where.purpose?.in ? where.purpose.in.includes(row.purpose) : where.purpose ? row.purpose === where.purpose : true
         const matchesHash = where.keyHash ? row.keyHash === where.keyHash : true
-        if (matchesIds && matchesScope && matchesPurpose && matchesHash) rows.splice(index, 1)
-      }
-      return { count: before - rows.length }
-    },
-  }
-  return {
-    rows,
-    transactionOptions,
-    seed(row) { rows.push({ ...row }) },
-    authRateLimitBucket: delegate,
-    async $transaction(callback, options) {
-      transactionOptions.push(options)
-      const run = transactionTail.then(() => callback({ authRateLimitBucket: delegate }))
-      transactionTail = run.catch(() => {})
-      return run
+        return !(matchesIds && matchesScope && matchesPurpose && matchesHash)
+      }))
+      return { count: before - store.rows.length }
     },
   }
 }

@@ -226,12 +226,18 @@ function bucketLimit(purpose: AuthAttemptPurpose, scope: AuthRateLimitScope) {
 
 async function schedulePrune(input: BaseInput & { shouldPrune?: () => boolean }) {
   const now = input.now ?? new Date()
-  await maybePruneAuthRateLimits({
-    prismaClient: input.prismaClient,
-    before: new Date(now.getTime() - STALE_AFTER_MS),
-    maxRows: DEFAULT_PRUNE_ROWS,
-    shouldPrune: input.shouldPrune,
-  })
+  try {
+    // Await for serverless completion, but never rewrite the already-committed
+    // limiter decision because optional stale cleanup is temporarily unavailable.
+    await maybePruneAuthRateLimits({
+      prismaClient: input.prismaClient,
+      before: new Date(now.getTime() - STALE_AFTER_MS),
+      maxRows: DEFAULT_PRUNE_ROWS,
+      shouldPrune: input.shouldPrune,
+    })
+  } catch {
+    // Best-effort cleanup intentionally has no request-derived logging.
+  }
 }
 
 function resolveSecret(secret?: string) {
