@@ -54,6 +54,8 @@ describe("checkout return recovery", () => {
   it("polls server snapshots and never grants ownership from URL state", async () => {
     const source = await readFile(returnPath, "utf8")
     assert.match(source, /Confirming purchase/)
+    assert.match(source, /const \{ state, ensureSnapshot, refresh \} = useBackgroundCommerce\(\)/)
+    assert.match(source, /result !== "success" && result !== "cancelled"[\s\S]*void ensureSnapshot\(\)/)
     assert.match(source, /await refresh\(\)/)
     assert.match(source, /catch \{[\s\S]*finally \{[\s\S]*setChecks/)
     assert.match(source, /ownedBackgroundIds/)

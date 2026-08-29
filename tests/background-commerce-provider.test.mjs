@@ -4,6 +4,8 @@ import { describe, it } from "node:test"
 
 const providerPath = new URL("../components/backgrounds/BackgroundCommerceProvider.tsx", import.meta.url)
 const layoutPath = new URL("../components/layout-wrapper.tsx", import.meta.url)
+const carouselPath = new URL("../components/backgrounds/background-carousel.tsx", import.meta.url)
+const chimerPath = new URL("../app/chimer/page.tsx", import.meta.url)
 
 async function source(path) {
   return readFile(path, "utf8")
@@ -19,10 +21,11 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /controller\.abort\(\)/)
   })
 
-  it("refreshes account state on focus and reconnect while signed-out state stays local", async () => {
+  it("refreshes only intent-hydrated owners on focus and keeps signed-out state local", async () => {
     const value = await source(providerPath)
-    assert.match(value, /if \(!enabled\) \{[\s\S]*readGuestBackgroundCartIds/)
+    assert.match(value, /if \(!ownerKey\) \{[\s\S]*readGuestBackgroundCartIds/)
     assert.match(value, /createGuestBackgroundCommerceSnapshot/)
+    assert.match(value, /commerceIntentRef\.current/)
     assert.match(value, /addEventListener\("focus"/)
     assert.match(value, /addEventListener\("online"/)
   })
@@ -33,7 +36,8 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /for \(const backgroundId of pendingIds\)/)
     assert.match(value, /"\/api\/background-commerce\/cart"/)
     assert.match(value, /enqueueMutation\("merge-guest-cart"/)
-    assert.match(value, /void refresh\(\)/)
+    assert.match(value, /pendingIds\.length > 0/)
+    assert.doesNotMatch(value, /Account state must load even when there is no guest intent/)
     assert.match(value, /remainingIds\.push\(backgroundId\)/)
     assert.match(value, /writeGuestBackgroundCartIds\(window\.localStorage, remainingIds\)/)
     assert.match(value, /ITEM_RESERVED/)
@@ -79,12 +83,12 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /EMAIL_VERIFICATION_REQUIRED/)
     assert.match(value, /checkout\.stripe\.com/)
     assert.match(value, /window\.location\.assign/)
-    assert.match(value, /const cancelReservation[\s\S]*if \(!enabled\)[\s\S]*AUTH_REQUIRED/)
+    assert.match(value, /const cancelReservation[\s\S]*if \(!signedIn\)[\s\S]*AUTH_REQUIRED/)
   })
 
   it("exposes the shared API and retains caller-provided redemption idempotency keys", async () => {
     const value = await source(providerPath)
-    for (const member of ["refresh", "addToCart", "removeFromCart", "redeemCredit", "startCheckout"]) {
+    for (const member of ["ensureSnapshot", "refresh", "addToCart", "removeFromCart", "redeemCredit", "startCheckout"]) {
       assert.match(value, new RegExp(`\\b${member}\\b`))
     }
     assert.match(value, /idempotencyKey/)
@@ -94,6 +98,18 @@ describe("BackgroundCommerceProvider contract", () => {
   it("mounts exactly once at the shared layout boundary", async () => {
     const value = await source(layoutPath)
     assert.equal((value.match(/<BackgroundCommerceProvider\b/g) ?? []).length, 1)
-    assert.match(value, /enabled=\{Boolean\(user\)\}/)
+    assert.match(value, /ownerKey=\{ownerKey\}/)
+  })
+
+  it("hydrates from actual carousel and Chimer consumers without a shell mount read", async () => {
+    const [provider, carousel, chimer] = await Promise.all([
+      source(providerPath),
+      source(carouselPath),
+      source(chimerPath),
+    ])
+    assert.match(provider, /snapshotPromiseRef/)
+    assert.match(provider, /if \(snapshotPromiseRef\.current\) return snapshotPromiseRef\.current/)
+    assert.match(carousel, /void ensureSnapshot\(\)/)
+    assert.match(chimer, /void ensureBackgroundCommerceSnapshot\(\)/)
   })
 })

@@ -18,6 +18,8 @@ const [
   accountSurfaceDataSource,
   membershipSource,
   stripeBillingSource,
+  backgroundCommerceProviderSource,
+  layoutWrapperSource,
 ] = await Promise.all([
   readFile(new URL("../lib/auth-users.ts", import.meta.url), "utf8"),
   readFile(new URL("../components/sidebar/sidebar.tsx", import.meta.url), "utf8"),
@@ -26,6 +28,8 @@ const [
   readFile(new URL("../lib/account-surface-data.js", import.meta.url), "utf8"),
   readFile(new URL("../lib/membership.js", import.meta.url), "utf8"),
   readFile(new URL("../lib/stripe-billing.js", import.meta.url), "utf8"),
+  readFile(new URL("../components/backgrounds/BackgroundCommerceProvider.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../components/layout-wrapper.tsx", import.meta.url), "utf8"),
 ])
 
 /** Returns one named function body bounded by the next named owner. */
@@ -330,6 +334,12 @@ describe("family-and-friends server workload baseline", () => {
       commerceSnapshotLoads: 0,
     })
     assert.equal(logicalOrmOperations, 4)
+    assert.match(backgroundCommerceProviderSource, /const ensureSnapshot/)
+    assert.doesNotMatch(
+      backgroundCommerceProviderSource,
+      /Account state must load even when there is no guest intent/,
+    )
+    assert.match(layoutWrapperSource, /ownerKey=\{ownerKey\}/)
     assert.deepEqual(shell.navigation.featureKeys, authState.featureKeys)
     assert.deepEqual(shell.accountBootstrap, {
       ownerKey: "workload-user",
