@@ -280,11 +280,11 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.createCheckout, 1)
     assert.equal(
       calls.checkoutOptions.successUrl,
-      "https://massagelab.app/account?checkout=success&session_id={CHECKOUT_SESSION_ID}",
+      "https://massagelab.app/account?tab=membership&checkout=success",
     )
     assert.equal(
       calls.checkoutOptions.cancelUrl,
-      "https://massagelab.app/account?checkout=cancelled",
+      "https://massagelab.app/account?tab=membership&checkout=cancelled",
     )
   })
 
@@ -309,11 +309,11 @@ describe("Membership Checkout POST route", () => {
     assert.equal(calls.createCheckout, 1)
     assert.equal(
       calls.checkoutOptions.successUrl,
-      "https://www.massagelab.app/account?checkout=success&session_id={CHECKOUT_SESSION_ID}",
+      "https://www.massagelab.app/account?tab=membership&checkout=success",
     )
     assert.equal(
       calls.checkoutOptions.cancelUrl,
-      "https://www.massagelab.app/account?checkout=cancelled",
+      "https://www.massagelab.app/account?tab=membership&checkout=cancelled",
     )
   })
 
@@ -514,8 +514,8 @@ describe("Membership Checkout POST route", () => {
       priceId: "price_supporter_1_month",
       userId: "user_123",
       membershipLevel: "SUPPORTER",
-      successUrl: "https://massagelab.app/account?checkout=success&session_id={CHECKOUT_SESSION_ID}",
-      cancelUrl: "https://massagelab.app/account?checkout=cancelled",
+      successUrl: "https://massagelab.app/account?tab=membership&checkout=success",
+      cancelUrl: "https://massagelab.app/account?tab=membership&checkout=cancelled",
     })
     assert.equal(Object.hasOwn(calls.checkoutOptions, "couponId"), false)
     assert.equal(Object.hasOwn(calls.checkoutOptions, "discounts"), false)

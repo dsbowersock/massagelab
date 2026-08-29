@@ -179,6 +179,17 @@ describe("Account page tab model", () => {
     assert.equal(selectAccountTab(undefined, { billing: "checkout-error" }), "membership")
   })
 
+  it("renders persisted return status only for exact Checkout and Portal returns without session-id authority", () => {
+    assert.match(accountPageSource, /MembershipReturnStatus/)
+    assert.match(accountPageSource, /params\?\.checkout === "success"/)
+    assert.match(accountPageSource, /<MembershipReturnStatus kind="checkout" \/>/)
+    assert.match(accountPageSource, /params\?\.portal === "returned"/)
+    assert.match(accountPageSource, /<MembershipReturnStatus kind="portal" \/>/)
+    assert.doesNotMatch(accountPageSource, /session_id|CHECKOUT_SESSION_ID/)
+    assert.match(accountPageSource, /checkout === "cancelled"/)
+    assert.match(accountPageSource, /portal === "error"/)
+  })
+
   it("builds stable account tab hrefs for route-backed navigation", () => {
     assert.equal(getAccountTabHref("orders-invoices"), "/account?tab=orders-invoices")
     assert.equal(getAccountTabHref("profile"), "/account?tab=profile")

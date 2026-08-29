@@ -15,6 +15,7 @@ import { getCurrentSession } from "@/auth"
 import { requestCredentialVerificationAction, saveProfileAction } from "@/app/account/actions"
 import { AccountAppSettingsPanel, LocalTherapistDefaultsPanel } from "@/app/account/app-settings-panel"
 import { AccountSettingsShell } from "@/app/account/account-settings-shell"
+import { MembershipReturnStatus } from "@/app/account/membership-return-status"
 import { PreferenceSync } from "@/app/account/preference-sync"
 import { SecurityPanel } from "@/app/account/security/security-panel"
 import { SignOutButton } from "@/app/account/sign-out-button"
@@ -210,6 +211,8 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
         legal={params?.legal}
         portal={params?.portal}
       />
+      {params?.checkout === "success" ? <MembershipReturnStatus kind="checkout" /> : null}
+      {params?.portal === "returned" ? <MembershipReturnStatus kind="portal" /> : null}
 
       <AccountSettingsShell
         defaultValue={defaultTab}
@@ -1051,27 +1054,11 @@ function accountNotice({
   legal?: string
   portal?: string
 }) {
-  if (checkout === "success") {
-    return {
-      title: "Checkout complete",
-      description: "Your membership is being updated. If it does not appear right away, refresh this page in a minute.",
-      tone: "accent" as const,
-    }
-  }
-
   if (checkout === "cancelled") {
     return {
       title: "Checkout cancelled",
       description: "No membership changes were made. Free access remains available.",
       tone: "default" as const,
-    }
-  }
-
-  if (portal === "returned") {
-    return {
-      title: "Billing portal closed",
-      description: "Any subscription changes you made may take a moment to appear here. Refresh this page if they do not show right away.",
-      tone: "accent" as const,
     }
   }
 
