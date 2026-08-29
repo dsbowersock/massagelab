@@ -25,6 +25,50 @@ npm run test:browser -- tests/browser/public-routes.spec.ts --project=desktop-ch
 
 Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it still applies.
 
+## Family-And-Friends Cost And Pause Gate
+
+- Record the baseline head and final head, then run
+  `npm run readiness:timing-receipt -- --base-url=http://127.0.0.1:3010 --samples=3`
+  once at each head. Each receipt must build its own fresh Production output and
+  use the same machine, loopback port, sample count, and environment shape.
+  Treat `first` as the first harness request, not as a platform or provider
+  cold start.
+- Attach the exact before/after matrix from
+  `tests/family-friends-server-workload.test.mjs`: verified-auth
+  background-credit calls `1 -> 0`; signed-in-sidebar membership-entitlement
+  loads `1 -> 0`; membership-status persisted-summary loads `1 -> 1` and Stripe
+  calls `0 -> 0`; explicit Checkout-session creates `1 -> 1` with ordinary
+  render `0 -> 0`; and explicit Portal-session creates `1 -> 1` with ordinary
+  render `0 -> 0`.
+- Include focused proof that ordinary session refresh performs zero
+  background-credit provisioning and source/test proof that the sidebar has no
+  separate entitlement reload. Confirm calendar context remains deferred behind
+  its authenticated endpoint and ordinary page rendering calls neither Stripe
+  nor an email provider.
+- Capture a separate read-only aggregate for the exact deployed commit that
+  distinguishes observed Vercel cold-start latency from warm invocation
+  latency. If the platform does not expose that distinction, write
+  `deployed platform cold/warm aggregate: NOT RUN`; do not relabel the local
+  timing harness.
+- Prove the two server-enforced switches independently with their exact names:
+  `MASSAGELAB_PUBLIC_REGISTRATION_PAUSED` and
+  `MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED`. Only lowercase `true` pauses a path;
+  absence defaults open. Browser proof must show that a registration pause
+  preserves existing email/password and Google login plus recovery, and that a
+  Checkout pause preserves existing entitlements and billing Portal access.
+- Complete read-only Neon pooled-host/connection/compute/transfer, Vercel
+  usage/error/WAF Log mode, SMTP volume/bounce/complaint, Stripe webhook-failure,
+  R2 custom-domain cache-header/Class A/Class B, and Sentry quota/privacy
+  checks. Evidence must contain no identifiers or secret values. Provider,
+  environment, WAF, cache, alert, quota, billing, and privacy-setting changes
+  each require separate authorization.
+- Run the complete exact-candidate automated and Browser-QA gates and obtain
+  hosted line-ending-independent evidence before release. Private
+  database-backed browser rows remain hard-skipped unless the separately
+  authorized disposable non-Production target, exact fingerprint, reviewed
+  migrations, fresh-process wrapper, and cleanup contract are all in force;
+  public pause and route rows must still run.
+
 ## Navigation And Action Feedback Gate
 
 - Keep `interaction-feedback.spec.ts` registered exactly once in each ordinary Chromium project. The lane contract is 14 ordinary browser specs, 28 desktop/mobile project-spec assignments, and four nonempty lanes; `tests/browser/ci-lanes.test.mjs` plus `tests/browser-qa-harness.test.mjs` must prove that topology before browser execution.
