@@ -442,6 +442,12 @@ enum MembershipLevel {
   PRACTICE
 }
 
+enum MembershipWebhookReceiptStatus {
+  RECEIVED
+  APPLIED
+  IGNORED
+}
+
 enum StudentAccessStatus {
   ACTIVE
   EXPIRED
@@ -583,6 +589,7 @@ model User {
   receivedNotificationIntents CalendarNotificationIntent[] @relation("CalendarNotificationRecipient")
   stripeCustomer        StripeCustomer?
   membershipSubscriptions MembershipSubscription[]
+  membershipWebhookReceipts MembershipWebhookReceipt[]
   studentAccess         StudentAccess?
   legalAcceptances      LegalAcceptance[]
   commerceCart          CommerceCart?
@@ -3219,6 +3226,9 @@ model MembershipSubscription {
   canceledAt               DateTime?
   couponId                 String?
   metadata                 Json            @default("{}")
+  lastStripeEventId         String?
+  lastStripeEventCreatedAt  DateTime?
+  lastStripeAuthoritativeAt DateTime?
   createdAt                DateTime        @default(now())
   updatedAt                DateTime        @updatedAt
   user                     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -3226,6 +3236,29 @@ model MembershipSubscription {
   @@index([userId, status])
   @@index([membershipLevel, status])
   @@index([stripeCustomerId])
+}
+
+model MembershipWebhookReceipt {
+  id                     String                           @id @default(cuid())
+  userId                 String?
+  provider               String
+  providerEventId        String
+  eventType              String
+  providerEventCreatedAt DateTime
+  providerObjectId       String
+  stripeSubscriptionId   String?
+  status                 MembershipWebhookReceiptStatus @default(RECEIVED)
+  attemptCount           Int                              @default(0)
+  failureCode            String?
+  receivedAt             DateTime                         @default(now())
+  lastAttemptedAt        DateTime?
+  processedAt            DateTime?
+  user                   User?                            @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, providerEventId])
+  @@index([status, receivedAt])
+  @@index([stripeSubscriptionId, providerEventCreatedAt])
+  @@index([userId, receivedAt])
 }
 
 model StudentAccess {
