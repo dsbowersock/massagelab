@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
-import { getAuthSecret } from "@/lib/auth-env"
+import { noStoreJsonHeaders, parseTrustedAccountSecurityJson } from "@/lib/account-security-request"
+import { getAuthSecret, getSiteUrl } from "@/lib/auth-env"
 import { consumeGoogleIntentStartRateLimit } from "@/lib/auth-rate-limit"
 import {
   AUTH_METHOD_INTENT_COOKIE,
@@ -19,9 +20,14 @@ type IntentHandlerDependencies = {
   consumeLimit?: typeof consumeGoogleIntentStartRateLimit
   startIntent?: typeof startAuthMethodIntent
   clock?: () => Date
+  expectedSiteUrl?: string
+  parseRequest?: typeof parseTrustedAccountSecurityJson
 }
 
-/** Keeps rate-limit consumption ahead of every intent lookup, prune, or create. */
+/**
+ * Keeps rate limiting ahead of intent persistence while requiring the reserved
+ * LINK_GOOGLE security proof to cross the same-origin JSON boundary first.
+ */
 export function createGoogleIntentHandler({
   prismaClient,
   secret,
@@ -29,11 +35,31 @@ export function createGoogleIntentHandler({
   consumeLimit = consumeGoogleIntentStartRateLimit,
   startIntent = startAuthMethodIntent,
   clock = () => new Date(),
+  expectedSiteUrl = getSiteUrl(),
+  parseRequest = parseTrustedAccountSecurityJson,
 }: IntentHandlerDependencies) {
   return async function googleIntentHandler(request: Request) {
-    const body = await request.json().catch(() => ({})) as { purpose?: unknown; callbackUrl?: unknown }
+    let body = await request.clone().json().catch(() => ({})) as { purpose?: unknown; callbackUrl?: unknown }
     const purpose = googleIntentPurpose(body.purpose)
     if (!purpose) return NextResponse.json({ ok: false }, { status: 400 })
+
+    if (purpose === "LINK_GOOGLE") {
+      const parsed = await parseRequest({
+        request,
+        expectedSiteUrl,
+        allowedKeys: ["purpose"],
+      })
+      if (!parsed.ok) {
+        return NextResponse.json({ ok: false }, {
+          status: parsed.code === "UNTRUSTED_REQUEST" ? 403 : 400,
+          headers: noStoreJsonHeaders(),
+        })
+      }
+      if (parsed.body.purpose !== "LINK_GOOGLE") {
+        return NextResponse.json({ ok: false }, { status: 400, headers: noStoreJsonHeaders() })
+      }
+      body = parsed.body
+    }
 
     const now = clock()
     const decision = await consumeLimit({
@@ -45,7 +71,13 @@ export function createGoogleIntentHandler({
     if (!decision.allowed) {
       return NextResponse.json(
         { ok: false },
-        { status: 429, headers: { "Retry-After": String(decision.retryAfterSeconds) } },
+        {
+          status: 429,
+          headers: {
+            ...(purpose === "LINK_GOOGLE" ? noStoreJsonHeaders() : {}),
+            "Retry-After": String(decision.retryAfterSeconds),
+          },
+        },
       )
     }
 
@@ -56,14 +88,22 @@ export function createGoogleIntentHandler({
     } else {
       const session = await getSession()
       targetUserId = typeof session?.user?.id === "string" ? session.user.id : undefined
-      if (!targetUserId) return NextResponse.json({ ok: false }, { status: 401 })
+      if (!targetUserId) {
+        return NextResponse.json({ ok: false }, {
+          status: 401,
+          headers: purpose === "LINK_GOOGLE" ? noStoreJsonHeaders() : undefined,
+        })
+      }
       // Security proofs always return to their owning surface, irrespective of
       // caller input, so the OAuth state cannot become an open redirect seam.
       callbackUrl = "/account?tab=security"
     }
 
     const intent = await startIntent({ prismaClient, purpose, targetUserId, secret, now })
-    const response = NextResponse.json({ ok: true, callbackUrl })
+    const response = NextResponse.json(
+      { ok: true, callbackUrl },
+      purpose === "LINK_GOOGLE" ? { headers: noStoreJsonHeaders() } : undefined,
+    )
     response.cookies.set(
       AUTH_METHOD_INTENT_COOKIE,
       serializeAuthMethodIntentBinding(intent.intentId, intent.browserBindingToken),
@@ -95,4 +135,6 @@ export const POST = createGoogleIntentHandler({
   prismaClient: prisma,
   secret: getAuthSecret(),
   getSession: getCurrentSession,
+  expectedSiteUrl: getSiteUrl(),
+  parseRequest: parseTrustedAccountSecurityJson,
 })

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 import { consumeFreshGoogleReauth, isFreshConsumedGoogleReauth } from "../lib/auth-method-intent-proof.ts"
+import { noStoreJsonHeaders, parseTrustedAccountSecurityJson } from "../lib/account-security-request.ts"
 import { runCommerceTransaction } from "../lib/commerce/transactions.ts"
 import { buildRegistrationLegalProviderRedirectPath } from "../lib/legal-acceptance-gate.js"
 import { isGoogleIdentityUniqueConstraint } from "../lib/prisma-identity-unique-constraint.ts"
@@ -602,11 +603,11 @@ describe("private Google auth-method intents", () => {
       },
     })
     for (let index = 0; index < 30; index += 1) {
-      const accepted = await handler(intentRequest({ purpose: "LINK_GOOGLE", callbackUrl: "https://evil.example" }))
+      const accepted = await handler(intentRequest({ purpose: "LINK_GOOGLE" }))
       assert.equal(accepted.status, 200)
     }
     const before = { sessionCalls, intentWorkCalls, rows: structuredClone(rows) }
-    const blocked = await handler(intentRequest({ purpose: "LINK_GOOGLE", callbackUrl: "https://evil.example" }))
+    const blocked = await handler(intentRequest({ purpose: "LINK_GOOGLE" }))
     assert.equal(blocked.status, 429)
     assert.equal(blocked.headers.get("Retry-After"), "271")
     assert.equal(sessionCalls, before.sessionCalls)
@@ -637,10 +638,69 @@ describe("private Google auth-method intents", () => {
     })
 
     for (const purpose of ["LINK_GOOGLE", "ADD_PASSWORD", "REMOVE_PASSWORD"]) {
-      const response = await handler(intentRequest({ purpose, callbackUrl: "https://evil.example/steal" }))
+      const response = await handler(intentRequest(
+        purpose === "LINK_GOOGLE"
+          ? { purpose }
+          : { purpose, callbackUrl: "https://evil.example/steal" },
+      ))
       assert.deepEqual(await response.json(), { ok: true, callbackUrl: "/account?tab=security" })
       assert.equal(started.at(-1).targetUserId, "user-1")
     }
+  })
+
+  it("rejects untrusted, non-JSON, and unknown-key LINK_GOOGLE starts before limiter, session, or intent work", async () => {
+    const { createGoogleIntentHandler } = await loadIntentRoute()
+    const calls = { limit: 0, session: 0, intent: 0 }
+    const handler = createGoogleIntentHandler({
+      prismaClient: {},
+      secret: "intent-test-secret",
+      expectedSiteUrl: "https://massagelab.test",
+      getSession: async () => { calls.session += 1; return { user: { id: "user-1" } } },
+      consumeLimit: async () => { calls.limit += 1; return { allowed: true } },
+      startIntent: async () => {
+        calls.intent += 1
+        return { intentId: "intent-1", browserBindingToken: "a".repeat(43), expiresAt: new Date() }
+      },
+    })
+
+    const rejected = [
+      intentRequest({ purpose: "LINK_GOOGLE" }, { origin: null }),
+      intentRequest({ purpose: "LINK_GOOGLE" }, { origin: "https://attacker.example" }),
+      intentRequest({ purpose: "LINK_GOOGLE" }, { contentType: "text/plain" }),
+      intentRequest({ purpose: "LINK_GOOGLE", callbackUrl: "/account" }),
+    ]
+    for (const request of rejected) {
+      const response = await handler(request)
+      assert.ok(response.status === 400 || response.status === 403)
+      assert.equal(response.headers.get("Cache-Control"), "private, no-store")
+      assert.equal(response.headers.get("Pragma"), "no-cache")
+    }
+    assert.deepEqual(calls, { limit: 0, session: 0, intent: 0 })
+  })
+
+  it("preserves provenance-optional starts for SIGN_IN_OR_LINK, ADD_PASSWORD, and REMOVE_PASSWORD", async () => {
+    const { createGoogleIntentHandler } = await loadIntentRoute()
+    const started = []
+    const handler = createGoogleIntentHandler({
+      prismaClient: {},
+      secret: "intent-test-secret",
+      expectedSiteUrl: "https://massagelab.test",
+      getSession: async () => ({ user: { id: "user-1" } }),
+      consumeLimit: async () => ({ allowed: true }),
+      startIntent: async (input) => {
+        started.push(input)
+        return { intentId: `intent-${started.length}`, browserBindingToken: "a".repeat(43), expiresAt: new Date() }
+      },
+    })
+
+    for (const purpose of ["SIGN_IN_OR_LINK", "ADD_PASSWORD", "REMOVE_PASSWORD"]) {
+      const response = await handler(intentRequest(
+        { purpose, callbackUrl: "/wellness" },
+        { origin: null, fetchSite: null },
+      ))
+      assert.equal(response.status, 200, purpose)
+    }
+    assert.deepEqual(started.map(({ purpose }) => purpose), ["SIGN_IN_OR_LINK", "ADD_PASSWORD", "REMOVE_PASSWORD"])
   })
 })
 
@@ -649,7 +709,11 @@ async function loadIntentRoute() {
   return loadCompiledModule(source, "google-intent-route.test.ts", {
     "next/server": { NextResponse: testNextResponse() },
     "@/auth": { getCurrentSession: async () => null },
-    "@/lib/auth-env": { getAuthSecret: () => "intent-test-secret" },
+    "@/lib/auth-env": {
+      getAuthSecret: () => "intent-test-secret",
+      getSiteUrl: () => "https://massagelab.test",
+    },
+    "@/lib/account-security-request": { noStoreJsonHeaders, parseTrustedAccountSecurityJson },
     "@/lib/auth-rate-limit": { consumeGoogleIntentStartRateLimit: async () => ({ allowed: true }) },
     "@/lib/auth-method-intents": {
       AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
@@ -674,10 +738,18 @@ function testNextResponse() {
   }
 }
 
-function intentRequest(body) {
+function intentRequest(body, {
+  origin = "https://massagelab.test",
+  fetchSite = "same-origin",
+  contentType = "application/json",
+} = {}) {
+  const headers = new Headers({ "x-forwarded-for": "203.0.113.8" })
+  if (contentType !== null) headers.set("content-type", contentType)
+  if (origin !== null) headers.set("origin", origin)
+  if (fetchSite !== null) headers.set("sec-fetch-site", fetchSite)
   return new Request("https://massagelab.test/api/auth/google/intent", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.8" },
+    headers,
     body: JSON.stringify(body),
   })
 }
