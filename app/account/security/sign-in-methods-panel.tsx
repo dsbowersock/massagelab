@@ -21,10 +21,16 @@ export function SignInMethodsPanel({
 }) {
   const [passwordAvailable, setPasswordAvailable] = useState(hasPasswordCredential)
   const [googleAccountLinked, setGoogleAccountLinked] = useState(googleLinked)
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [twoFactorCode, setTwoFactorCode] = useState("")
-  const [confirmChange, setConfirmChange] = useState(false)
+  const [addPassword, setAddPassword] = useState("")
+  const [addPasswordConfirmed, setAddPasswordConfirmed] = useState(false)
+  const [changeCurrentPassword, setChangeCurrentPassword] = useState("")
+  const [changeNewPassword, setChangeNewPassword] = useState("")
+  const [changeTwoFactorCode, setChangeTwoFactorCode] = useState("")
+  const [changePasswordConfirmed, setChangePasswordConfirmed] = useState(false)
+  const [unlinkPassword, setUnlinkPassword] = useState("")
+  const [unlinkTwoFactorCode, setUnlinkTwoFactorCode] = useState("")
+  const [unlinkGoogleConfirmed, setUnlinkGoogleConfirmed] = useState(false)
+  const [disablePasswordConfirmed, setDisablePasswordConfirmed] = useState(false)
   const [reauthComplete, setReauthComplete] = useState(false)
   const [actionState, setActionState] = useState<MethodActionState>("idle")
   const [message, setMessage] = useState("")
@@ -50,7 +56,6 @@ export function SignInMethodsPanel({
 
   async function startGoogleProof(purpose: "SIGN_IN_OR_LINK" | "ADD_PASSWORD" | "REMOVE_PASSWORD") {
     if (!begin("proving", "Preparing secure Google confirmation…")) return
-    let redirectStarted = false
     try {
       const response = await fetch("/api/auth/google/intent", {
         method: "POST",
@@ -59,7 +64,6 @@ export function SignInMethodsPanel({
       })
       const result = await response.json().catch(() => ({})) as { ok?: boolean; callbackUrl?: string }
       if (!response.ok || !result.ok || !result.callbackUrl) throw new Error("Google confirmation could not be started. Try again.")
-      redirectStarted = true
       setActionState("redirecting")
       setMessage("Redirecting to Google confirmation…")
       await signIn("google", { redirectTo: result.callbackUrl })
@@ -68,38 +72,41 @@ export function SignInMethodsPanel({
       setMessage(error instanceof Error ? error.message : "Google confirmation could not be started. Try again.")
     } finally {
       actionLock.current = false
-      if (!redirectStarted) setConfirmChange(false)
     }
   }
 
   async function savePassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!begin("saving", passwordAvailable ? "Changing password…" : "Adding password sign-in…")) return
+    const mode = passwordAvailable ? "CHANGE" : "ADD"
     try {
-      const mode = passwordAvailable ? "CHANGE" : "ADD"
       const response = await fetch("/api/account/security/password", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(mode === "CHANGE"
-          ? { mode, currentPassword, newPassword, twoFactorCode, confirmed: confirmChange }
-          : { mode, newPassword, confirmed: confirmChange }),
+          ? { mode, currentPassword: changeCurrentPassword, newPassword: changeNewPassword, twoFactorCode: changeTwoFactorCode, confirmed: changePasswordConfirmed }
+          : { mode, newPassword: addPassword, confirmed: addPasswordConfirmed }),
       })
       const result = await response.json().catch(() => ({})) as MethodResponse
       if (!response.ok) throw new Error(result.message ?? "The password change could not be saved. Try again.")
       applyMethodResponse(result)
       setActionState("success")
       setMessage(result.message ?? "Password sign-in was saved.")
-      setCurrentPassword("")
-      setNewPassword("")
-      setTwoFactorCode("")
-      setConfirmChange(false)
+      if (mode === "CHANGE") setChangePasswordConfirmed(false)
+      else setAddPasswordConfirmed(false)
       setReauthComplete(false)
     } catch (error) {
       setActionState("error")
       setMessage(error instanceof Error ? error.message : "The password change could not be saved. Try again.")
     } finally {
       actionLock.current = false
-      // The success/error state remains visible; the busy state always ends here.
+      if (mode === "CHANGE") {
+        setChangeCurrentPassword("")
+        setChangeNewPassword("")
+        setChangeTwoFactorCode("")
+      } else {
+        setAddPassword("")
+      }
     }
   }
 
@@ -110,22 +117,21 @@ export function SignInMethodsPanel({
       const response = await fetch("/api/account/security/google/unlink", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ password: currentPassword, twoFactorCode, confirmed: confirmChange }),
+        body: JSON.stringify({ password: unlinkPassword, twoFactorCode: unlinkTwoFactorCode, confirmed: unlinkGoogleConfirmed }),
       })
       const result = await response.json().catch(() => ({})) as MethodResponse
       if (!response.ok) throw new Error(result.message ?? "Google sign-in could not be removed. Try again.")
       applyMethodResponse(result)
       setActionState("success")
       setMessage(result.message ?? "Google sign-in was removed.")
-      setCurrentPassword("")
-      setTwoFactorCode("")
-      setConfirmChange(false)
+      setUnlinkGoogleConfirmed(false)
     } catch (error) {
       setActionState("error")
       setMessage(error instanceof Error ? error.message : "Google sign-in could not be removed. Try again.")
     } finally {
       actionLock.current = false
-      // The success/error state remains visible; the busy state always ends here.
+      setUnlinkPassword("")
+      setUnlinkTwoFactorCode("")
     }
   }
 
@@ -135,21 +141,20 @@ export function SignInMethodsPanel({
       const response = await fetch("/api/account/security/password/disable", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ confirmed: confirmChange }),
+        body: JSON.stringify({ confirmed: disablePasswordConfirmed }),
       })
       const result = await response.json().catch(() => ({})) as MethodResponse
       if (!response.ok) throw new Error(result.message ?? "Password sign-in could not be disabled. Try again.")
       applyMethodResponse(result)
       setActionState("success")
       setMessage(result.message ?? "Password sign-in was disabled.")
-      setConfirmChange(false)
+      setDisablePasswordConfirmed(false)
       setReauthComplete(false)
     } catch (error) {
       setActionState("error")
       setMessage(error instanceof Error ? error.message : "Password sign-in could not be disabled. Try again.")
     } finally {
       actionLock.current = false
-      // The success/error state remains visible; the busy state always ends here.
     }
   }
 
@@ -188,30 +193,42 @@ export function SignInMethodsPanel({
         </div>
       ) : null}
 
-      {passwordAvailable || canAddPassword ? (
+      {passwordAvailable ? (
         <form className="space-y-3" onSubmit={savePassword} aria-busy={busy}>
-          {passwordAvailable ? (
-            <div className="space-y-2">
-              <Label htmlFor="methodCurrentPassword">Current password</Label>
-              <Input id="methodCurrentPassword" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required disabled={busy} />
-            </div>
-          ) : null}
           <div className="space-y-2">
-            <Label htmlFor="methodNewPassword">{passwordAvailable ? "New password" : "Create password"}</Label>
-            <Input id="methodNewPassword" type="password" autoComplete="new-password" minLength={12} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required disabled={busy} />
+            <Label htmlFor="changeCurrentPassword">Current password</Label>
+            <Input id="changeCurrentPassword" type="password" autoComplete="current-password" value={changeCurrentPassword} onChange={(event) => setChangeCurrentPassword(event.target.value)} required disabled={busy} />
           </div>
-          {passwordAvailable ? (
-            <div className="space-y-2">
-              <Label htmlFor="methodTwoFactorCode">Authenticator or backup code (if enabled)</Label>
-              <Input id="methodTwoFactorCode" autoComplete="one-time-code" value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value)} disabled={busy} />
-            </div>
-          ) : null}
+          <div className="space-y-2">
+            <Label htmlFor="changeNewPassword">New password</Label>
+            <Input id="changeNewPassword" type="password" autoComplete="new-password" minLength={12} value={changeNewPassword} onChange={(event) => setChangeNewPassword(event.target.value)} required disabled={busy} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="changeTwoFactorCode">Authenticator or backup code (if enabled)</Label>
+            <Input id="changeTwoFactorCode" autoComplete="one-time-code" value={changeTwoFactorCode} onChange={(event) => setChangeTwoFactorCode(event.target.value)} disabled={busy} />
+          </div>
           <label className="flex gap-3 text-sm text-muted-foreground">
-            <input type="checkbox" checked={confirmChange} onChange={(event) => setConfirmChange(event.target.checked)} disabled={busy} />
+            <input type="checkbox" checked={changePasswordConfirmed} onChange={(event) => setChangePasswordConfirmed(event.target.checked)} disabled={busy} />
             <span>Confirm this password sign-in change.</span>
           </label>
-          <Button type="submit" variant="outline" disabled={busy || !confirmChange}>
-            {actionState === "saving" ? "Saving password…" : passwordAvailable ? "Update password" : "Add password sign-in"}
+          <Button type="submit" variant="outline" disabled={busy || !changePasswordConfirmed}>
+            {actionState === "saving" ? "Saving password…" : "Update password"}
+          </Button>
+        </form>
+      ) : null}
+
+      {canAddPassword ? (
+        <form className="space-y-3" onSubmit={savePassword} aria-busy={busy}>
+          <div className="space-y-2">
+            <Label htmlFor="addPassword">Create password</Label>
+            <Input id="addPassword" type="password" autoComplete="new-password" minLength={12} value={addPassword} onChange={(event) => setAddPassword(event.target.value)} required disabled={busy} />
+          </div>
+          <label className="flex gap-3 text-sm text-muted-foreground">
+            <input type="checkbox" checked={addPasswordConfirmed} onChange={(event) => setAddPasswordConfirmed(event.target.checked)} disabled={busy} />
+            <span>Confirm this password sign-in change.</span>
+          </label>
+          <Button type="submit" variant="outline" disabled={busy || !addPasswordConfirmed}>
+            {actionState === "saving" ? "Saving password…" : "Add password sign-in"}
           </Button>
         </form>
       ) : null}
@@ -219,18 +236,18 @@ export function SignInMethodsPanel({
       {googleAccountLinked && passwordAvailable ? (
         <form className="space-y-3" onSubmit={unlinkGoogle} aria-busy={busy}>
           <div className="space-y-2">
-            <Label htmlFor="unlinkCurrentPassword">Password to remove Google</Label>
-            <Input id="unlinkCurrentPassword" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required disabled={busy} />
+            <Label htmlFor="unlinkPassword">Password to remove Google</Label>
+            <Input id="unlinkPassword" type="password" autoComplete="current-password" value={unlinkPassword} onChange={(event) => setUnlinkPassword(event.target.value)} required disabled={busy} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="unlinkTwoFactorCode">Authenticator or backup code (if enabled)</Label>
-            <Input id="unlinkTwoFactorCode" autoComplete="one-time-code" value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value)} disabled={busy} />
+            <Label htmlFor="unlinkTwoFactorCode">Authenticator or backup code to remove Google (if enabled)</Label>
+            <Input id="unlinkTwoFactorCode" autoComplete="one-time-code" value={unlinkTwoFactorCode} onChange={(event) => setUnlinkTwoFactorCode(event.target.value)} disabled={busy} />
           </div>
           <label className="flex gap-3 text-sm text-muted-foreground">
-            <input type="checkbox" aria-label="Confirm remove Google sign-in" checked={confirmChange} onChange={(event) => setConfirmChange(event.target.checked)} disabled={busy} />
+            <input type="checkbox" aria-label="Confirm remove Google sign-in" checked={unlinkGoogleConfirmed} onChange={(event) => setUnlinkGoogleConfirmed(event.target.checked)} disabled={busy} />
             <span>Confirm that Google sign-in should be removed.</span>
           </label>
-          <Button type="submit" variant="outline" disabled={busy || !confirmChange}>
+          <Button type="submit" variant="outline" disabled={busy || !unlinkGoogleConfirmed}>
             {actionState === "saving" ? "Removing Google…" : "Unlink Google"}
           </Button>
         </form>
@@ -246,10 +263,10 @@ export function SignInMethodsPanel({
       {canDisablePassword ? (
         <div className="space-y-3" aria-busy={busy}>
           <label className="flex gap-3 text-sm text-muted-foreground">
-            <input type="checkbox" aria-label="Confirm disable password sign-in" checked={confirmChange} onChange={(event) => setConfirmChange(event.target.checked)} disabled={busy} />
+            <input type="checkbox" aria-label="Confirm disable password sign-in" checked={disablePasswordConfirmed} onChange={(event) => setDisablePasswordConfirmed(event.target.checked)} disabled={busy} />
             <span>Confirm that password sign-in should be disabled.</span>
           </label>
-          <Button type="button" variant="outline" disabled={busy || !confirmChange} onClick={disablePassword}>
+          <Button type="button" variant="outline" disabled={busy || !disablePasswordConfirmed} onClick={disablePassword}>
             {actionState === "saving" ? "Disabling password…" : "Disable password sign-in"}
           </Button>
         </div>

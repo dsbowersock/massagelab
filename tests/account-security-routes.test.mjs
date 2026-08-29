@@ -180,6 +180,27 @@ describe("recoverable account-method UI contracts", () => {
     assert.match(methodsPanelSource, /role=\{[^}]*"alert"[^}]*"status"/)
     assert.match(methodsPanelSource, /aria-live=\{[^}]*"assertive"[^}]*"polite"/)
   })
+
+  it("keeps every sign-in method action's proof and confirmation state isolated", () => {
+    for (const owner of [
+      "addPassword",
+      "addPasswordConfirmed",
+      "changeCurrentPassword",
+      "changeNewPassword",
+      "changeTwoFactorCode",
+      "changePasswordConfirmed",
+      "unlinkPassword",
+      "unlinkTwoFactorCode",
+      "unlinkGoogleConfirmed",
+      "disablePasswordConfirmed",
+    ]) {
+      assert.match(methodsPanelSource, new RegExp(`\\[${owner},\\s*set${owner[0].toUpperCase()}${owner.slice(1)}\\]`), owner)
+    }
+    assert.doesNotMatch(methodsPanelSource, /\[confirmChange,|\[currentPassword,|\[newPassword,|\[twoFactorCode,/)
+    assert.match(methodsPanelSource, /mode,\s*currentPassword:\s*changeCurrentPassword,\s*newPassword:\s*changeNewPassword,\s*twoFactorCode:\s*changeTwoFactorCode,\s*confirmed:\s*changePasswordConfirmed/)
+    assert.match(methodsPanelSource, /password:\s*unlinkPassword,\s*twoFactorCode:\s*unlinkTwoFactorCode,\s*confirmed:\s*unlinkGoogleConfirmed/)
+    assert.match(methodsPanelSource, /JSON\.stringify\(\{\s*confirmed:\s*disablePasswordConfirmed\s*\}\)/)
+  })
 })
 
 function loadRoute(routeName, {

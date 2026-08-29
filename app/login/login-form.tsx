@@ -15,6 +15,8 @@ type LoginFormProps = {
   googleEnabled: boolean
 }
 
+type EntryAction = "idle" | "email" | "google"
+
 const ERROR_MESSAGES: Record<string, string> = {
   EMAIL_UNVERIFIED: "Verify your email before signing in.",
   INVALID_CREDENTIALS: "Email or password is incorrect.",
@@ -42,18 +44,26 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
   const [needsTwoFactor, setNeedsTwoFactor] = useState(false)
   const [status, setStatus] = useState(searchParams.get("verified") ? "Email verified. You can sign in now." : "")
   const [statusIsError, setStatusIsError] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
-  const emailSubmissionLock = useRef(false)
-  const googleSubmissionLock = useRef(false)
+  const [entryAction, setEntryAction] = useState<EntryAction>("idle")
+  const entryActionLock = useRef(false)
+
+  function beginEntryAction(action: Exclude<EntryAction, "idle">) {
+    if (entryActionLock.current) return false
+    entryActionLock.current = true
+    setEntryAction(action)
+    return true
+  }
+
+  function finishEntryAction() {
+    entryActionLock.current = false
+    setEntryAction("idle")
+  }
 
   async function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (emailSubmissionLock.current) return
-    emailSubmissionLock.current = true
+    if (!beginEntryAction("email")) return
     setStatus("")
     setStatusIsError(false)
-    setIsSubmitting(true)
     try {
       const result = await signIn("credentials", {
         email,
@@ -79,15 +89,12 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
       setStatus("Sign in failed. Try again.")
       setStatusIsError(true)
     } finally {
-      emailSubmissionLock.current = false
-      setIsSubmitting(false)
+      finishEntryAction()
     }
   }
 
   async function handleGoogleLogin() {
-    if (googleSubmissionLock.current) return
-    googleSubmissionLock.current = true
-    setIsGoogleSubmitting(true)
+    if (!beginEntryAction("google")) return
     setStatus("")
     setStatusIsError(false)
     try {
@@ -103,8 +110,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
       setStatus("Google sign-in could not be started. Try again or use email and password.")
       setStatusIsError(true)
     } finally {
-      googleSubmissionLock.current = false
-      setIsGoogleSubmitting(false)
+      finishEntryAction()
     }
   }
 
@@ -118,7 +124,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
       }
       contentClassName="gap-5"
     >
-        <form className="space-y-3" onSubmit={handleEmailLogin} aria-busy={isSubmitting}>
+        <form className="space-y-3" onSubmit={handleEmailLogin} aria-busy={entryAction === "email"}>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -154,16 +160,16 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
               />
             </div>
           )}
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" className="w-full" disabled={entryAction !== "idle"}>
             <Mail className="mr-2 h-4 w-4" />
-            {isSubmitting ? "Signing in…" : "Sign in with email"}
+            {entryAction === "email" ? "Signing in…" : "Sign in with email"}
           </Button>
         </form>
 
         {googleEnabled ? (
-          <Button type="button" variant="outline" className="w-full" disabled={isGoogleSubmitting} onClick={handleGoogleLogin}>
+          <Button type="button" variant="outline" className="w-full" disabled={entryAction !== "idle"} onClick={handleGoogleLogin}>
             <ShieldCheck className="mr-2 h-4 w-4" />
-            {isGoogleSubmitting ? "Starting Google sign-in…" : "Continue with Google"}
+            {entryAction === "google" ? "Starting Google sign-in…" : "Continue with Google"}
           </Button>
         ) : (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">

@@ -19,6 +19,8 @@ type RegisterFormProps = {
   initialCallbackUrl: string
 }
 
+type EntryAction = "idle" | "email" | "google"
+
 export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterFormProps) {
   const registrationDocuments = requiredLegalDocumentsForEvent("registration")
   const googleRedirectTo = buildRegistrationLegalProviderRedirectPath(initialCallbackUrl)
@@ -30,10 +32,20 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
   const [status, setStatus] = useState("")
   const [statusIsError, setStatusIsError] = useState(false)
   const [devLink, setDevLink] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
-  const registrationSubmissionLock = useRef(false)
-  const googleSubmissionLock = useRef(false)
+  const [entryAction, setEntryAction] = useState<EntryAction>("idle")
+  const entryActionLock = useRef(false)
+
+  function beginEntryAction(action: Exclude<EntryAction, "idle">) {
+    if (entryActionLock.current) return false
+    entryActionLock.current = true
+    setEntryAction(action)
+    return true
+  }
+
+  function finishEntryAction() {
+    entryActionLock.current = false
+    setEntryAction("idle")
+  }
 
   function toggleLegalDocument(documentId: string, checked: boolean) {
     setAcceptedLegalDocuments((current) => (
@@ -45,11 +57,8 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (isSubmitting) return
-    if (registrationSubmissionLock.current) return
-    registrationSubmissionLock.current = true
+    if (!beginEntryAction("email")) return
 
-    setIsSubmitting(true)
     setStatus("")
     setStatusIsError(false)
     setDevLink("")
@@ -78,15 +87,12 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       setStatusIsError(true)
       setDevLink("")
     } finally {
-      setIsSubmitting(false)
-      registrationSubmissionLock.current = false
+      finishEntryAction()
     }
   }
 
   async function handleGoogleRegistration() {
-    if (googleSubmissionLock.current) return
-    googleSubmissionLock.current = true
-    setIsGoogleSubmitting(true)
+    if (!beginEntryAction("google")) return
     setStatus("")
     setStatusIsError(false)
     try {
@@ -102,8 +108,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       setStatus("Google registration could not be started. Try again or use email and password.")
       setStatusIsError(true)
     } finally {
-      googleSubmissionLock.current = false
-      setIsGoogleSubmitting(false)
+      finishEntryAction()
     }
   }
 
@@ -118,9 +123,9 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       contentClassName="gap-5"
     >
       {googleEnabled ? (
-        <Button type="button" variant="outline" className="w-full" disabled={isGoogleSubmitting} onClick={handleGoogleRegistration}>
+        <Button type="button" variant="outline" className="w-full" disabled={entryAction !== "idle"} onClick={handleGoogleRegistration}>
           <ShieldCheck className="mr-2 h-4 w-4" />
-          Continue with Google
+          {entryAction === "google" ? "Starting Google registration…" : "Continue with Google"}
         </Button>
       ) : (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
@@ -128,7 +133,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
         </div>
       )}
 
-      <form className="space-y-4" onSubmit={handleSubmit} aria-busy={isSubmitting}>
+      <form className="space-y-4" onSubmit={handleSubmit} aria-busy={entryAction === "email"}>
         <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
           <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
@@ -165,9 +170,9 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
             )
           })}
         </div>
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" className="w-full" disabled={entryAction !== "idle"}>
           <Mail className="mr-2 h-4 w-4" />
-          {isSubmitting ? "Creating account…" : "Create account with email"}
+          {entryAction === "email" ? "Creating account…" : "Create account with email"}
         </Button>
       </form>
       {status && (

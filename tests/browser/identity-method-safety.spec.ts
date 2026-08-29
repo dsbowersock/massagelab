@@ -1,56 +1,130 @@
 import { expect, test } from "@playwright/test"
+import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
 
 const PRIVATE_QA_SKIP_REASON = "Identity method database-backed browser QA requires the missing explicit disposable-database opt-in/authorization."
-const hasPrivateQaOptIn = process.env.MASSAGELAB_BROWSER_QA_DATABASE === "1"
+const hasPrivateQaAuthorization = isBrowserQaDatabaseTargetAuthorized(process.env)
 
 test.describe("public account-entry recovery", () => {
   test("login prevents duplicate Credentials submission and recovers from a thrown request", async ({ page }) => {
     let requests = 0
+    let googleRequests = 0
+    await page.route("**/api/auth/google/intent", async (route) => {
+      googleRequests += 1
+      await route.fulfill({ status: 503, contentType: "application/json", body: "{}" })
+    })
     await page.route("**/api/auth/callback/credentials**", async (route) => {
       requests += 1
-      await new Promise((resolve) => setTimeout(resolve, 1_000))
-      await route.abort("failed")
+      if (requests === 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1_000))
+        await route.abort("failed")
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ url: `${new URL(page.url()).origin}/login?retrySuccess=1` }),
+        })
+      }
     })
-    await page.goto("/login", { waitUntil: "domcontentloaded" })
+    await page.goto("/login?callbackUrl=%2Flogin%3FretrySuccess%3D1", { waitUntil: "domcontentloaded" })
     await page.getByLabel("Email").fill("browser-login@example.test")
     await page.getByLabel("Password").fill("not-a-real-password")
-    const submit = page.getByRole("button", { name: "Sign in with email" })
-    await submit.dblclick()
+    const submit = page.locator('form button[type="submit"]')
+    await submit.click()
     const pending = page.getByRole("button", { name: "Signing in…" })
     await expect(pending).toBeDisabled()
+    await submit.click({ force: true })
+    const google = page.getByRole("button", { name: "Continue with Google" })
+    await expect(google).toBeDisabled()
+    await google.click({ force: true })
+    expect(googleRequests).toBe(0)
     await expect(page.locator('p[role="alert"]')).toContainText(/sign in failed|try again/i)
     await expect(page.getByRole("button", { name: "Sign in with email" })).toBeEnabled()
-    expect(requests).toBe(1)
+    await expect(google).toBeEnabled()
+    await page.getByRole("button", { name: "Sign in with email" }).click()
+    await expect(page).toHaveURL(/\/login\?retrySuccess=1$/)
+    expect(requests).toBe(2)
+    expect(googleRequests).toBe(0)
   })
 
   test("registration announces pending work, prevents duplicates, and recovers after intercepted failure", async ({ page }) => {
     let requests = 0
+    let googleRequests = 0
+    await page.route("**/api/auth/google/intent", async (route) => {
+      googleRequests += 1
+      await route.fulfill({ status: 503, contentType: "application/json", body: "{}" })
+    })
     await page.route("**/api/account/register", async (route) => {
       requests += 1
-      await new Promise((resolve) => setTimeout(resolve, 1_000))
-      await route.abort("failed")
+      if (requests === 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1_000))
+        await route.abort("failed")
+      } else {
+        await route.fulfill({
+          status: 202,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "Check your email to finish creating your account." }),
+        })
+      }
     })
     await page.goto("/register", { waitUntil: "domcontentloaded" })
     await page.getByLabel("Email").fill("browser-register@example.test")
     await page.getByLabel("Password").fill("not-a-real-password")
     for (const checkbox of await page.getByRole("checkbox").all()) await checkbox.check()
-    const submit = page.getByRole("button", { name: "Create account with email" })
-    await submit.dblclick()
+    const submit = page.locator('form button[type="submit"]')
+    await submit.click()
     const pending = page.getByRole("button", { name: "Creating account…" })
     await expect(pending).toBeDisabled()
+    await submit.click({ force: true })
+    const google = page.getByRole("button", { name: "Continue with Google" })
+    await expect(google).toBeDisabled()
+    await google.click({ force: true })
+    expect(googleRequests).toBe(0)
     await expect(page.locator('p[role="alert"]')).toContainText(/could not create|try again/i)
     await expect(page.getByRole("button", { name: "Create account with email" })).toBeEnabled()
-    expect(requests).toBe(1)
+    await expect(google).toBeEnabled()
+    await page.getByRole("button", { name: "Create account with email" }).click()
+    await expect(page.getByRole("status")).toContainText(/check your email/i)
+    expect(requests).toBe(2)
+    expect(googleRequests).toBe(0)
+  })
+
+  test("Google registration blocks email entry and recovers both actions after a thrown request", async ({ page }) => {
+    let googleRequests = 0
+    let registrationRequests = 0
+    await page.route("**/api/auth/google/intent", async (route) => {
+      googleRequests += 1
+      await new Promise((resolve) => setTimeout(resolve, 1_000))
+      await route.abort("failed")
+    })
+    await page.route("**/api/account/register", async (route) => {
+      registrationRequests += 1
+      await route.fulfill({ status: 503, contentType: "application/json", body: "{}" })
+    })
+    await page.goto("/register", { waitUntil: "domcontentloaded" })
+    await page.getByLabel("Email").fill("browser-register-google@example.test")
+    await page.getByLabel("Password").fill("not-a-real-password")
+    for (const checkbox of await page.getByRole("checkbox").all()) await checkbox.check()
+    await page.getByRole("button", { name: "Continue with Google" }).click()
+    const googlePending = page.getByRole("button", { name: "Starting Google registration…" })
+    await expect(googlePending).toBeDisabled()
+    const emailSubmit = page.getByRole("button", { name: "Create account with email" })
+    await expect(emailSubmit).toBeDisabled()
+    await emailSubmit.click({ force: true })
+    expect(registrationRequests).toBe(0)
+    await expect(page.locator('p[role="alert"]')).toContainText(/could not be started|try again/i)
+    await expect(page.getByRole("button", { name: "Continue with Google" })).toBeEnabled()
+    await expect(emailSubmit).toBeEnabled()
+    expect(googleRequests).toBe(1)
   })
 })
 
 test.describe("private identity-method journeys", () => {
   test.beforeEach(() => {
-    test.skip(!hasPrivateQaOptIn, PRIVATE_QA_SKIP_REASON)
+    test.skip(!hasPrivateQaAuthorization, PRIVATE_QA_SKIP_REASON)
   })
 
   test.afterEach(async ({}, testInfo) => {
-    if (!hasPrivateQaOptIn) return
+    if (!hasPrivateQaAuthorization) return
     const fixture = await import("./identity-method-safety-fixture")
     for (const scenario of ["MATCHING_LINK", "GOOGLE_ONLY", "BOTH_METHODS"] as const) {
       await fixture.removeIdentityMethodSafetyFixture(testInfo.project.name, scenario)
@@ -90,9 +164,16 @@ test.describe("private identity-method journeys", () => {
     })
     await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
     await expect(page.getByRole("heading", { name: "Sign-in methods" })).toBeVisible()
-    await page.getByLabel("Current password").fill(installed.password)
+    const updatePassword = page.getByRole("button", { name: "Update password" })
+    await expect(updatePassword).toBeDisabled()
+    await page.getByText("Confirm this password sign-in change.").click()
+    await expect(updatePassword).toBeEnabled()
+    const unlink = page.getByRole("button", { name: /unlink Google/i })
+    await expect(unlink).toBeDisabled()
+    await page.getByLabel("Password to remove Google").fill(installed.password)
+    await expect(unlink).toBeDisabled()
     await page.getByRole("checkbox", { name: /confirm.*remove Google/i }).check()
-    await page.getByRole("button", { name: /unlink Google/i }).click()
+    await unlink.click()
     await expect(page.getByRole("status")).toContainText(/removed/i)
     await expect(page.getByText(/keep at least one/i)).toBeVisible()
   })
@@ -108,8 +189,9 @@ test.describe("private identity-method journeys", () => {
     })
     await page.goto("/account?tab=security&reauth=complete", { waitUntil: "domcontentloaded" })
     await page.getByLabel("Create password").fill(installed.password)
-    await page.getByText("Confirm this password sign-in change.").click()
     const save = page.getByRole("button", { name: "Add password sign-in" })
+    await expect(save).toBeDisabled()
+    await page.getByText("Confirm this password sign-in change.").click()
     await save.dblclick()
     await expect(page.getByRole("status")).toContainText(/enabled|saved/i)
     await expect(page.getByText("Enabled", { exact: true })).toBeVisible()
@@ -120,8 +202,9 @@ test.describe("private identity-method journeys", () => {
     const baseURL = String(testInfo.project.use.baseURL)
     await fixture.installIdentityMethodSafetyFixture({ context, baseURL, projectName: testInfo.project.name, scenario: "BOTH_METHODS" })
     await page.goto("/account?tab=security&reauth=complete", { waitUntil: "domcontentloaded" })
-    await page.getByLabel("Confirm disable password sign-in").check()
     const disable = page.getByRole("button", { name: "Disable password sign-in" })
+    await expect(disable).toBeDisabled()
+    await page.getByLabel("Confirm disable password sign-in").check()
     await disable.dblclick()
     await expect(page.getByRole("status")).toContainText(/disabled/i)
     await expect(page.getByText("Not enabled", { exact: true })).toBeVisible()

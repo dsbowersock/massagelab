@@ -2,13 +2,15 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
-import {
+import * as targetGuard from "../scripts/assert-browser-qa-database-target.mjs"
+import { createBrowserIdentityMethodFixtureIdentity } from "../lib/auth/browser-fixture-identity.ts"
+
+const {
   assertBrowserQaDatabaseTarget,
   fingerprintBrowserQaDatabaseTarget,
   parseBrowserQaDatabaseTuple,
   runBrowserQaDatabaseTargetCli,
-} from "../scripts/assert-browser-qa-database-target.mjs"
-import { createBrowserIdentityMethodFixtureIdentity } from "../lib/auth/browser-fixture-identity.ts"
+} = targetGuard
 
 const fixtureRecordsSource = await readFile(new URL("../lib/auth/browser-fixture-records.ts", import.meta.url), "utf8")
 const browserSpecSource = await readFile(new URL("./browser/identity-method-safety.spec.ts", import.meta.url), "utf8")
@@ -22,6 +24,16 @@ function authorizedEnvironment(overrides = {}) {
     MASSAGELAB_BROWSER_QA_DATABASE_URL: runtimeUrl,
     MASSAGELAB_BROWSER_QA_DIRECT_URL: directUrl,
     VERCEL_ENV: "preview",
+    ...overrides,
+  }
+}
+
+function completeAuthorizedEnvironment(overrides = {}) {
+  return {
+    ...authorizedEnvironment(),
+    DATABASE_URL: runtimeUrl,
+    DIRECT_URL: directUrl,
+    MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT: fingerprintBrowserQaDatabaseTarget(runtimeUrl, directUrl),
     ...overrides,
   }
 }
@@ -82,6 +94,36 @@ describe("disposable browser-QA database target guard", () => {
     ]) {
       assert.throws(() => assertBrowserQaDatabaseTarget({ environment, mode: "print" }), pattern)
     }
+  })
+
+  it("hard-skips private rows unless the entire approved target environment matches", () => {
+    assert.equal(typeof targetGuard.isBrowserQaDatabaseTargetAuthorized, "function")
+    const isAuthorized = targetGuard.isBrowserQaDatabaseTargetAuthorized
+    assert.equal(isAuthorized(completeAuthorizedEnvironment()), true)
+    for (const environment of [
+      completeAuthorizedEnvironment({ MASSAGELAB_BROWSER_QA_DATABASE: undefined }),
+      completeAuthorizedEnvironment({ MASSAGELAB_BROWSER_QA_DATABASE_URL: undefined }),
+      completeAuthorizedEnvironment({ MASSAGELAB_BROWSER_QA_DIRECT_URL: undefined }),
+      completeAuthorizedEnvironment({ DATABASE_URL: undefined }),
+      completeAuthorizedEnvironment({ DATABASE_URL: `${runtimeUrl}-other` }),
+      completeAuthorizedEnvironment({ DATABASE_URL: `${runtimeUrl} ` }),
+      completeAuthorizedEnvironment({ DIRECT_URL: undefined }),
+      completeAuthorizedEnvironment({ DIRECT_URL: `${directUrl}-other` }),
+      completeAuthorizedEnvironment({
+        MASSAGELAB_BROWSER_QA_DATABASE_URL: `${runtimeUrl} `,
+        DATABASE_URL: `${runtimeUrl} `,
+      }),
+      completeAuthorizedEnvironment({ VERCEL_ENV: "production" }),
+      completeAuthorizedEnvironment({ MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT: undefined }),
+      completeAuthorizedEnvironment({ MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT: "0".repeat(64) }),
+      completeAuthorizedEnvironment({ MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT: "A".repeat(64) }),
+      completeAuthorizedEnvironment({
+        MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT: `${fingerprintBrowserQaDatabaseTarget(runtimeUrl, directUrl)} `,
+      }),
+    ]) {
+      assert.equal(isAuthorized(environment), false)
+    }
+    assert.match(browserSpecSource, /isBrowserQaDatabaseTargetAuthorized\(process\.env\)/)
   })
 
   it("permits only fingerprint display or an exact lowercase approved fingerprint", () => {

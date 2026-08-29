@@ -95,6 +95,7 @@ describe("registration email delivery policy", () => {
   it("presents Google registration and email-password registration on the register page", async () => {
     const registerPage = await readFile(new URL("../app/register/page.tsx", import.meta.url), "utf8")
     const registerForm = await readFile(new URL("../app/register/register-form.tsx", import.meta.url), "utf8")
+    const loginForm = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
 
     assert.match(registerPage, /hasGoogleAuthConfig/)
     assert.match(registerPage, /initialCallbackUrl=\{callbackUrl\}/)
@@ -109,10 +110,22 @@ describe("registration email delivery policy", () => {
     assert.match(registerForm, /callbackUrl: initialCallbackUrl/)
     assert.match(registerForm, /buildRegistrationLegalProviderRedirectPath/)
     assert.match(registerForm, /REGISTRATION_REQUEST_FAILED_MESSAGE/)
-    assert.match(registerForm, /if \(isSubmitting\) return/)
-    assert.match(registerForm, /finally \{\s*setIsSubmitting\(false\)/)
+    assert.match(registerForm, /if \(!beginEntryAction\("email"\)\) return/)
+    assert.match(registerForm, /finally \{\s*finishEntryAction\(\)/)
     assert.match(registerForm, /role=\{statusIsError \? "alert" : "status"\}/)
     assert.match(registerForm, /aria-live=\{statusIsError \? "assertive" : "polite"\}/)
+    for (const [name, source] of [["login", loginForm], ["register", registerForm]]) {
+      assert.match(source, /type EntryAction\s*=\s*"idle"\s*\|\s*"email"\s*\|\s*"google"/, name)
+      assert.match(source, /const \[entryAction, setEntryAction\] = useState<EntryAction>\("idle"\)/, name)
+      assert.match(source, /const entryActionLock = useRef\(false\)/, name)
+      assert.match(source, /if \(entryActionLock\.current\) return/, name)
+      assert.doesNotMatch(source, /emailSubmissionLock|googleSubmissionLock|registrationSubmissionLock/, name)
+      assert.match(source, /disabled=\{entryAction !== "idle"\}/, name)
+    }
+    assert.match(loginForm, /entryAction === "email" \? "Signing in…" : "Sign in with email"/)
+    assert.match(loginForm, /entryAction === "google" \? "Starting Google sign-in…" : "Continue with Google"/)
+    assert.match(registerForm, /entryAction === "email" \? "Creating account…" : "Create account with email"/)
+    assert.match(registerForm, /entryAction === "google" \? "Starting Google registration…" : "Continue with Google"/)
   })
 
   it("preserves an app-local callback through email verification and sign-in", async () => {

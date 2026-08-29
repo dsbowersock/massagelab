@@ -76,6 +76,26 @@ export function assertBrowserQaDatabaseTarget({ environment = process.env, mode,
   return { fingerprint }
 }
 
+/**
+ * Returns a fail-closed yes/no gate for private browser rows without printing,
+ * connecting, or exposing any target value.
+ * @param {Record<string, string | undefined>} [environment]
+ */
+export function isBrowserQaDatabaseTargetAuthorized(environment = process.env) {
+  const runtimeUrl = environment.MASSAGELAB_BROWSER_QA_DATABASE_URL
+  const directUrl = environment.MASSAGELAB_BROWSER_QA_DIRECT_URL
+  const expectedFingerprint = environment.MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT
+  if (!runtimeUrl || !directUrl || !expectedFingerprint) return false
+  if (runtimeUrl !== runtimeUrl.trim() || directUrl !== directUrl.trim() || expectedFingerprint !== expectedFingerprint.trim()) return false
+  if (environment.DATABASE_URL !== runtimeUrl || environment.DIRECT_URL !== directUrl) return false
+  try {
+    assertBrowserQaDatabaseTarget({ environment, mode: "expected", expectedFingerprint })
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Runs the read-only CLI without ever echoing a connection string. */
 export function runBrowserQaDatabaseTargetCli({
   argv = process.argv.slice(2),
