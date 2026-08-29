@@ -70,13 +70,14 @@ export async function saveProfileAction(formData: FormData) {
           npiNumber: formString(formData, "npi_number"),
         },
       })
-
-      clearAccountSurfaceDataCache(session.user.id)
-      revalidatePath("/account")
     },
     successPath: "/account?tab=profile&profile=saved",
     failurePath: "/account?tab=profile&profile=save-failed",
   })
+
+  if (destination === "/account?tab=profile&profile=saved") {
+    refreshAccountSurface(session.user.id)
+  }
 
   redirect(destination)
 }
@@ -159,14 +160,14 @@ export async function requestCredentialVerificationAction(formData: FormData) {
   })
 
   if (destination === "/account?tab=credentials&credential=submitted") {
-    refreshCredentialAccountSurface(session.user.id)
+    refreshAccountSurface(session.user.id)
   }
 
   redirect(destination)
 }
 
 /** Cache refresh is best-effort after a durable commit and never changes its outcome. */
-function refreshCredentialAccountSurface(userId: string) {
+function refreshAccountSurface(userId: string) {
   try {
     clearAccountSurfaceDataCache(userId)
     revalidatePath("/account")

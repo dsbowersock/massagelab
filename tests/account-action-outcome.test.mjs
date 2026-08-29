@@ -37,8 +37,109 @@ describe("account action outcome mapping", () => {
     const actions = await readFile(new URL("../app/account/actions.ts", import.meta.url), "utf8")
     assert.match(actions, /settleAccountAction\(\{[\s\S]*successPath: "\/account\?tab=profile&profile=saved"[\s\S]*failurePath: "\/account\?tab=profile&profile=save-failed"/)
     assert.match(actions, /settleAccountAction\(\{[\s\S]*successPath: "\/account\?tab=credentials&credential=submitted"[\s\S]*failurePath: "\/account\?tab=credentials&credential=submit-failed"/)
-    assert.match(actions, /const destination = await settleAccountAction\([\s\S]*\)\s*redirect\(destination\)/)
+    const profileAction = actions.slice(
+      actions.indexOf("export async function saveProfileAction"),
+      actions.indexOf("function credentialRole"),
+    )
+    const credentialAction = actions.slice(
+      actions.indexOf("export async function requestCredentialVerificationAction"),
+      actions.indexOf("/** Cache refresh is best-effort"),
+    )
+    for (const action of [profileAction, credentialAction]) {
+      const settlementIndex = action.indexOf("const destination = await settleAccountAction")
+      const refreshIndex = action.indexOf("refreshAccountSurface")
+      const redirectIndex = action.indexOf("redirect(destination)")
+      assert.ok(settlementIndex >= 0 && refreshIndex > settlementIndex && redirectIndex > refreshIndex)
+    }
     assert.equal((actions.match(/redirect\(destination\)/g) ?? []).length, 2)
+  })
+
+  it("keeps a durable profile save successful when cache refresh fails and maps true persistence failure", async () => {
+    const actionsSource = await readFile(new URL("../app/account/actions.ts", import.meta.url), "utf8")
+    const outcomeSource = await readFile(new URL("../lib/account-action-outcome.ts", import.meta.url), "utf8")
+    const { settleAccountAction } = loadCompiledModule(outcomeSource, "lib/account-action-outcome.test.ts")
+
+    async function runScenario({ failPersistence = false, failRefreshAt = null } = {}) {
+      const calls = []
+      const redirect = (destination) => {
+        const controlFlow = new Error("redirect")
+        controlFlow.destination = destination
+        throw controlFlow
+      }
+      const prisma = {
+        userProfile: {
+          upsert: async () => {
+            calls.push("persist")
+            if (failPersistence) throw new Error("private persistence detail")
+          },
+        },
+        $transaction: async () => {
+          throw new Error("credential transaction must stay outside profile save")
+        },
+      }
+      const { saveProfileAction } = loadCompiledModule(actionsSource, "app/account/actions.profile.test.ts", {
+        "next/cache": {
+          revalidatePath: () => {
+            calls.push("revalidate")
+            if (failRefreshAt === "revalidate") throw new Error("private revalidation detail")
+          },
+        },
+        "next/headers": { headers: async () => new Headers() },
+        "next/navigation": { redirect },
+        "@/auth": { getCurrentSession: async () => ({ user: { id: "user-1" } }) },
+        "@/lib/account-action-outcome": { settleAccountAction },
+        "@/lib/account-surface-data": {
+          clearAccountSurfaceDataCache: () => {
+            calls.push("clear-cache")
+            if (failRefreshAt === "clear-cache") throw new Error("private cache detail")
+          },
+        },
+        "@/lib/credential-verification-roles": {
+          roleStatusForCredentialStatus: () => "PENDING",
+          shouldUpdateCredentialRole: () => false,
+        },
+        "@/lib/credential-claims": { claimVerifiedCredential },
+        "@/lib/legal-acceptance": {
+          acceptedDocumentIdsFromInput: () => [],
+          legalHeadersMetadata: () => ({}),
+          missingRequiredLegalDocuments: () => [],
+          recordLegalAcceptances: async () => {},
+        },
+        "@/lib/legal-documents": { requiredLegalDocumentsForEvent: () => [] },
+        "@/lib/license-verification": {
+          getJurisdictionVerificationPlan: () => ({
+            sourceType: "DOCUMENT_REVIEW",
+            sourceUrl: null,
+            supportStatus: "MANUAL_REVIEW_REQUIRED",
+            message: "Review required.",
+          }),
+        },
+        "@/lib/membership": { buildStudentAccessState: () => null },
+        "@/lib/ohio-license-verifier": {
+          OHIO_LICENSE_VERIFIER_NAME: "Ohio eLicense",
+          ohioExpirationDateToDate: () => null,
+          verifyOhioMassageLicense: async () => null,
+        },
+        "@/lib/prisma": { prisma },
+      })
+      const formData = new FormData()
+      formData.set("display_name", "Safe profile")
+      const outcome = saveProfileAction(formData).then(
+        () => ({ destination: null }),
+        (error) => ({ destination: error.destination }),
+      )
+      return { ...(await outcome), calls }
+    }
+
+    for (const failRefreshAt of ["clear-cache", "revalidate"]) {
+      const committed = await runScenario({ failRefreshAt })
+      assert.equal(committed.destination, "/account?tab=profile&profile=saved")
+      assert.equal(committed.calls[0], "persist")
+    }
+
+    const failed = await runScenario({ failPersistence: true })
+    assert.equal(failed.destination, "/account?tab=profile&profile=save-failed")
+    assert.deepEqual(failed.calls, ["persist"])
   })
 
   it("keeps credential provider work outside one atomic durable-write boundary", async () => {
@@ -53,7 +154,7 @@ describe("account action outcome mapping", () => {
     assert.match(operation, /transaction\.userRole\.(?:findUnique|create|update)/)
     assert.match(operation, /transaction\.studentAccess\.upsert/)
     assert.doesNotMatch(operation, /await prisma\.(?:credentialVerification|userRole|studentAccess)\./)
-    assert.match(actions, /if \(destination === "\/account\?tab=credentials&credential=submitted"\) \{[\s\S]*refreshCredentialAccountSurface/)
+    assert.match(actions, /if \(destination === "\/account\?tab=credentials&credential=submitted"\) \{[\s\S]*refreshAccountSurface/)
   })
 
   it("rolls back a late credential write failure and retries without duplicates", async () => {

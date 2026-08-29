@@ -393,7 +393,13 @@ test("affected client account actions declare recoverable settlement boundaries"
   for (const path of affectedForms) {
     const client = source(path)
     assert.match(client, /try \{[\s\S]*catch(?: \([^)]*\))? \{[\s\S]*finally \{/, path)
-    assert.match(client, /Something went wrong\. Please try again\./, path)
+    assert.match(
+      client,
+      path.endsWith("link-google-form.tsx")
+        ? /GENERIC_GOOGLE_LINK_RECOVERY_MESSAGE/
+        : /Something went wrong\. Please try again\./,
+      path,
+    )
   }
 })
 
