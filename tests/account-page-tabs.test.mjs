@@ -67,6 +67,17 @@ function topLevelFunctionSource(source, functionName, fileName) {
   return source.slice(declaration.start, declaration.end)
 }
 
+/** Executes the production return normalizer together with its real notice mapper. */
+function loadAccountReturnContract() {
+  const source = [
+    `export ${topLevelFunctionSource(accountPageSource, "normalizeAccountReturnState", "app/account/page.tsx")}`,
+    topLevelFunctionSource(accountPageSource, "billingMessage", "app/account/page.tsx"),
+    `export ${topLevelFunctionSource(accountPageSource, "accountNotice", "app/account/page.tsx")}`,
+  ].join("\n")
+
+  return loadCompiledModule(source, "app/account/account-return-state.test.ts")
+}
+
 describe("Account page tab model", () => {
   it("extracts only lexical top-level function declarations", () => {
     const fixture = [
@@ -179,26 +190,79 @@ describe("Account page tab model", () => {
     assert.equal(selectAccountTab(undefined, { billing: "checkout-error" }), "membership")
   })
 
-  it("renders one persisted return controller with deterministic Checkout-success precedence", () => {
-    const source = `export ${topLevelFunctionSource(
-      accountPageSource,
-      "membershipReturnKind",
-      "app/account/page.tsx",
-    )}`
-    const { membershipReturnKind } = loadCompiledModule(
-      source,
-      "app/account/membership-return-kind.test.ts",
-    )
+  it("normalizes conflicting account outcomes to one controller or notice owner", () => {
+    const { accountNotice, normalizeAccountReturnState } = loadAccountReturnContract()
 
-    assert.equal(membershipReturnKind({ checkout: "success", portal: "returned" }), "checkout")
-    assert.equal(membershipReturnKind({ checkout: "success" }), "checkout")
-    assert.equal(membershipReturnKind({ portal: "returned" }), "portal")
-    assert.equal(membershipReturnKind({ checkout: "cancelled", portal: "returned" }), "portal")
-    assert.equal(membershipReturnKind({ checkout: "other", portal: "other" }), null)
+    for (const [params, expectedKind] of [
+      [{ checkout: "success", portal: "error" }, "checkout"],
+      [{ checkout: "success", portal: "returned" }, "checkout"],
+      [{ checkout: "cancelled", portal: "returned" }, "portal"],
+    ]) {
+      const state = normalizeAccountReturnState(params)
+      assert.deepEqual(state, { kind: expectedKind, notice: {} })
+      assert.equal(accountNotice(state.notice), null)
+    }
+
+    const conflictingNotices = normalizeAccountReturnState({
+      checkout: "cancelled",
+      portal: "error",
+    })
+    assert.deepEqual(conflictingNotices, {
+      kind: null,
+      notice: { checkout: "cancelled" },
+    })
+    assert.equal(accountNotice(conflictingNotices.notice)?.title, "Checkout cancelled")
+
     assert.match(accountPageSource, /MembershipReturnStatus/)
     assert.equal((accountPageSource.match(/<MembershipReturnStatus/g) ?? []).length, 1)
-    assert.match(accountPageSource, /<MembershipReturnStatus kind=\{returnKind\} \/>/)
+    assert.match(accountPageSource, /<MembershipReturnStatus kind=\{returnState\.kind\} \/>/)
+    assert.equal((accountPageSource.match(/<AccountNotice \{\.\.\.returnState\.notice\} \/>/g) ?? []).length, 2)
     assert.doesNotMatch(accountPageSource, /session_id|CHECKOUT_SESSION_ID/)
+  })
+
+  it("preserves each ordinary account controller and notice outcome", () => {
+    const { accountNotice, normalizeAccountReturnState } = loadAccountReturnContract()
+
+    for (const [params, expectedKind] of [
+      [{ checkout: "success" }, "checkout"],
+      [{ portal: "returned" }, "portal"],
+    ]) {
+      const state = normalizeAccountReturnState(params)
+      assert.deepEqual(state, { kind: expectedKind, notice: {} })
+      assert.equal(accountNotice(state.notice), null)
+    }
+
+    const checkoutCancelled = normalizeAccountReturnState({ checkout: "cancelled" })
+    assert.deepEqual(checkoutCancelled, {
+      kind: null,
+      notice: { checkout: "cancelled" },
+    })
+    assert.equal(accountNotice(checkoutCancelled.notice)?.title, "Checkout cancelled")
+
+    for (const [portal, expectedTitle] of [
+      ["customer-not-found", "Billing portal unavailable"],
+      ["subscription-not-found", "Subscription change unavailable"],
+      ["error", "Billing portal unavailable"],
+    ]) {
+      const state = normalizeAccountReturnState({ portal })
+      assert.deepEqual(state, { kind: null, notice: { portal } })
+      assert.equal(accountNotice(state.notice)?.title, expectedTitle)
+    }
+
+    const legal = normalizeAccountReturnState({ legal: "therapist-agreement-required" })
+    assert.deepEqual(legal, {
+      kind: null,
+      notice: { legal: "therapist-agreement-required" },
+    })
+    assert.equal(accountNotice(legal.notice)?.title, "Therapist Agreement required")
+
+    const billing = normalizeAccountReturnState({ billing: "existing-subscription" })
+    assert.deepEqual(billing, {
+      kind: null,
+      notice: { billing: "existing-subscription" },
+    })
+    assert.equal(accountNotice(billing.notice)?.title, "Checkout unavailable")
+
     assert.match(accountPageSource, /checkout === "cancelled"/)
     assert.match(accountPageSource, /portal === "error"/)
   })

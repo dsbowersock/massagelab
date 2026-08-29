@@ -56,14 +56,51 @@ type AccountPageProps = {
   }>
 }
 
-/** Selects one return-state owner, with Checkout success winning malformed dual returns. */
-function membershipReturnKind(params: {
+type AccountNoticeInput = {
+  billing?: string
   checkout?: string
+  legal?: string
   portal?: string
-} | undefined) {
-  if (params?.checkout === "success") return "checkout" as const
-  if (params?.portal === "returned") return "portal" as const
-  return null
+}
+
+type NormalizedAccountReturnState = {
+  kind: "checkout" | "portal" | null
+  notice: AccountNoticeInput
+}
+
+/**
+ * Selects exactly one account-return owner. Controller returns outrank notices,
+ * and Checkout success wins when malformed input contains both controllers.
+ */
+function normalizeAccountReturnState(params: {
+  billing?: string
+  checkout?: string
+  legal?: string
+  portal?: string
+} | undefined): NormalizedAccountReturnState {
+  if (params?.checkout === "success") {
+    return { kind: "checkout", notice: {} }
+  }
+  if (params?.portal === "returned") {
+    return { kind: "portal", notice: {} }
+  }
+  if (params?.checkout === "cancelled") {
+    return { kind: null, notice: { checkout: "cancelled" } }
+  }
+  if (
+    params?.portal === "customer-not-found"
+    || params?.portal === "subscription-not-found"
+    || params?.portal === "error"
+  ) {
+    return { kind: null, notice: { portal: params.portal } }
+  }
+  if (params?.legal === "therapist-agreement-required") {
+    return { kind: null, notice: { legal: params.legal } }
+  }
+  if (params?.billing) {
+    return { kind: null, notice: { billing: params.billing } }
+  }
+  return { kind: null, notice: {} }
 }
 
 type AccountPageTab = {
@@ -76,7 +113,7 @@ const typedAccountPageTabs = accountPageTabs as AccountPageTab[]
 
 export default async function AccountPage({ searchParams }: AccountPageProps) {
   const params = await searchParams
-  const returnKind = membershipReturnKind(params)
+  const returnState = normalizeAccountReturnState(params)
   const session = await getCurrentSession()
   const defaultTab = selectAccountTab(params?.tab, {
     billing: params?.billing,
@@ -89,7 +126,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   if (!session?.user?.id) {
     return (
       <AccountShell>
-        <AccountNotice billing={params?.billing} checkout={params?.checkout} legal={params?.legal} portal={params?.portal} />
+        <AccountNotice {...returnState.notice} />
         <AccountSettingsShell
           defaultValue={defaultTab}
           groups={accountPageGroups}
@@ -216,13 +253,8 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
 
   return (
     <AccountShell>
-      <AccountNotice
-        billing={params?.billing}
-        checkout={params?.checkout}
-        legal={params?.legal}
-        portal={params?.portal}
-      />
-      {returnKind ? <MembershipReturnStatus kind={returnKind} /> : null}
+      <AccountNotice {...returnState.notice} />
+      {returnState.kind ? <MembershipReturnStatus kind={returnState.kind} /> : null}
 
       <AccountSettingsShell
         defaultValue={defaultTab}
@@ -1036,12 +1068,7 @@ function AccountNotice({
   checkout,
   legal,
   portal,
-}: {
-  billing?: string
-  checkout?: string
-  legal?: string
-  portal?: string
-}) {
+}: AccountNoticeInput) {
   const notice = accountNotice({ billing, checkout, legal, portal })
 
   if (!notice) {
@@ -1058,12 +1085,7 @@ function accountNotice({
   checkout,
   legal,
   portal,
-}: {
-  billing?: string
-  checkout?: string
-  legal?: string
-  portal?: string
-}) {
+}: AccountNoticeInput) {
   if (checkout === "cancelled") {
     return {
       title: "Checkout cancelled",
