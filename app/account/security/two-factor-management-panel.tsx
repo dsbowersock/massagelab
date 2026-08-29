@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { signIn, signOut } from "next-auth/react"
 
 import type { PendingSecurityAction } from "@/app/account/security/security-panel"
@@ -85,9 +85,19 @@ export function TwoFactorManagementPanel({
   const disableSurfaceRef = useRef<HTMLDivElement>(null)
   const regenerateSurfaceRef = useRef<HTMLDivElement>(null)
   const googleSurfaceRef = useRef<HTMLDivElement>(null)
+  const backupCodesRecoveryRef = useRef<HTMLDivElement>(null)
+  const reauthRecoveryRef = useRef<HTMLDivElement>(null)
   const busy = pendingAction !== null
   const hasUsablePrimaryMethod = hasPasswordCredential || googleLinked
   const setupAvailable = !enabled && hasPasswordCredential
+
+  useEffect(() => {
+    if (backupCodes.length > 0) focusSurface(backupCodesRecoveryRef)
+  }, [backupCodes])
+
+  useEffect(() => {
+    if (reauthRequired) focusSurface(reauthRecoveryRef)
+  }, [reauthRequired])
 
   function proofReady(method: ProofMethod) {
     return method === "PASSWORD"
@@ -182,6 +192,7 @@ export function TwoFactorManagementPanel({
     event.preventDefault()
     if (!setup.enrollment || !setup.code || !setup.enableConfirmed || !beginAction("enable")) return
     setFeedback(null)
+    let enabledSuccessfully = false
     try {
       const response = await fetch("/api/account/security/totp/enable", {
         method: "POST",
@@ -208,11 +219,12 @@ export function TwoFactorManagementPanel({
       setBackupCodes(result.backupCodes)
       setBackupCodesAcknowledged(false)
       setFeedback({ kind: "success", message: "Two-factor authentication is enabled. Save every backup code before signing in again." })
+      enabledSuccessfully = true
     } catch {
       failGeneric()
     } finally {
       finishAction("enable")
-      focusSurface(setupSurfaceRef)
+      if (!enabledSuccessfully) focusSurface(setupSurfaceRef)
     }
   }
 
@@ -220,6 +232,7 @@ export function TwoFactorManagementPanel({
     event.preventDefault()
     if (!canSubmitManagement(disable, proofReady) || !beginAction("disable")) return
     setFeedback(null)
+    let disabledSuccessfully = false
     try {
       const response = await fetch("/api/account/security/totp/disable", {
         method: "POST",
@@ -237,11 +250,12 @@ export function TwoFactorManagementPanel({
       setBackupCodesAcknowledged(false)
       setReauthRequired(true)
       setFeedback({ kind: "success", message: "Two-factor authentication is disabled. Your sessions were ended; sign in again to continue." })
+      disabledSuccessfully = true
     } catch {
       failGeneric()
     } finally {
       finishAction("disable")
-      focusSurface(disableSurfaceRef)
+      if (!disabledSuccessfully) focusSurface(disableSurfaceRef)
     }
   }
 
@@ -273,14 +287,33 @@ export function TwoFactorManagementPanel({
   }
 
   async function signInAgainAfterCodes() {
-    if (!backupCodesAcknowledged || backupCodes.length === 0) return
+    if (
+      !backupCodesAcknowledged
+      || backupCodes.length === 0
+      || !beginAction("backup-codes-sign-out")
+    ) return
+    setFeedback(null)
     setBackupCodes([])
     setBackupCodesAcknowledged(false)
-    await signOut({ redirectTo: REAUTH_CALLBACK })
+    try {
+      await signOut({ redirectTo: REAUTH_CALLBACK })
+    } catch {
+      failGeneric()
+    } finally {
+      finishAction("backup-codes-sign-out")
+    }
   }
 
   async function signInAgain() {
-    await signOut({ redirectTo: REAUTH_CALLBACK })
+    if (!beginAction("two-factor-sign-out")) return
+    setFeedback(null)
+    try {
+      await signOut({ redirectTo: REAUTH_CALLBACK })
+    } catch {
+      failGeneric()
+    } finally {
+      finishAction("two-factor-sign-out")
+    }
   }
 
   return (
@@ -291,7 +324,7 @@ export function TwoFactorManagementPanel({
     >
       <p className="text-sm text-muted-foreground">Current status: {enabled ? "Enabled" : "Not enabled"}</p>
 
-      {googleLinked ? (
+      {googleLinked && (enabled || hasPasswordCredential) ? (
         <div ref={googleSurfaceRef} tabIndex={-1} className="space-y-2" data-two-factor-surface="google-proof">
           {googlePrimaryProofReady ? (
             <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
@@ -425,33 +458,61 @@ export function TwoFactorManagementPanel({
 
       {enabled && !hasUsablePrimaryMethod ? <AdminRecoveryGuidance /> : null}
 
-      {backupCodes.length > 0 ? (
-        <AppInset className="space-y-4 border-amber-500/40 bg-amber-500/10 p-4 text-sm">
-          <p className="font-medium">Save these backup codes now. They will not be shown again.</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {backupCodes.map((backupCode) => <code key={backupCode} className="rounded-sm bg-black/30 px-2 py-1">{backupCode}</code>)}
-          </div>
-          <label className="flex gap-3 text-sm text-muted-foreground">
-            <input id="backupCodesAcknowledged" aria-label="I saved these backup codes" type="checkbox" checked={backupCodesAcknowledged} onChange={(event) => setBackupCodesAcknowledged(event.target.checked)} />
-            <span>I saved these backup codes somewhere secure.</span>
-          </label>
-          <AsyncActionButton
-            type="button"
-            variant="outline"
-            disabled={!backupCodesAcknowledged}
-            pending={false}
-            idleLabel="I saved these codes; sign in again"
-            pendingLabel="Signing out…"
-            onClick={signInAgainAfterCodes}
-          />
-        </AppInset>
+      {backupCodes.length > 0 || pendingAction === "backup-codes-sign-out" ? (
+        <div
+          ref={backupCodesRecoveryRef}
+          tabIndex={-1}
+          aria-busy={pendingAction === "backup-codes-sign-out"}
+          data-two-factor-recovery="backup-codes"
+          className="rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+        >
+          <AppInset className="space-y-4 border-amber-500/40 bg-amber-500/10 p-4 text-sm">
+            {backupCodes.length > 0 ? (
+              <>
+                <p className="font-medium">Save these backup codes now. They will not be shown again.</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {backupCodes.map((backupCode) => <code key={backupCode} className="rounded-sm bg-black/30 px-2 py-1">{backupCode}</code>)}
+                </div>
+                <label className="flex gap-3 text-sm text-muted-foreground">
+                  <input id="backupCodesAcknowledged" aria-label="I saved these backup codes" type="checkbox" disabled={busy} checked={backupCodesAcknowledged} onChange={(event) => setBackupCodesAcknowledged(event.target.checked)} />
+                  <span>I saved these backup codes somewhere secure.</span>
+                </label>
+              </>
+            ) : null}
+            <AsyncActionButton
+              type="button"
+              variant="outline"
+              disabled={busy || !backupCodesAcknowledged}
+              pending={pendingAction === "backup-codes-sign-out"}
+              idleLabel="I saved these codes; sign in again"
+              pendingLabel="Signing out…"
+              onClick={signInAgainAfterCodes}
+            />
+          </AppInset>
+        </div>
       ) : null}
 
       {reauthRequired ? (
-        <AppInset className="space-y-3 p-4 text-sm">
-          <p>Two-factor authentication is disabled. Sign in again to continue with the newly secured session state.</p>
-          <AsyncActionButton type="button" variant="outline" disabled={false} pending={false} idleLabel="Sign in again" pendingLabel="Signing out…" onClick={signInAgain} />
-        </AppInset>
+        <div
+          ref={reauthRecoveryRef}
+          tabIndex={-1}
+          aria-busy={pendingAction === "two-factor-sign-out"}
+          data-two-factor-recovery="reauth"
+          className="rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+        >
+          <AppInset className="space-y-3 p-4 text-sm">
+            <p>Two-factor authentication is disabled. Sign in again to continue with the newly secured session state.</p>
+            <AsyncActionButton
+              type="button"
+              variant="outline"
+              disabled={busy}
+              pending={pendingAction === "two-factor-sign-out"}
+              idleLabel="Sign in again"
+              pendingLabel="Signing out…"
+              onClick={signInAgain}
+            />
+          </AppInset>
+        </div>
       ) : null}
 
       {feedback ? (

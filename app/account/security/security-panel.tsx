@@ -21,6 +21,8 @@ export type PendingSecurityAction =
   | "enable"
   | "disable"
   | "backup-codes"
+  | "backup-codes-sign-out"
+  | "two-factor-sign-out"
   | null
 
 /** Coordinates one shared action lock while each security panel owns its state. */

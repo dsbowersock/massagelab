@@ -9,6 +9,7 @@ import {
   createElement,
   elementText,
   findElement,
+  findElements,
   passThroughElement,
   renderFunctionComponents,
 } from "./helpers/compiled-module.mjs"
@@ -31,6 +32,7 @@ async function createPanelHarness({
   googleLinked = false,
   googlePrimaryProofReady = false,
   fetchImpl = async () => jsonResponse(500, {}),
+  signOutImpl = async () => undefined,
 } = {}) {
   assert.equal(existsSync(fileURLToPath(panelUrl)), true, "missing two-factor UI owner")
   assert.equal(existsSync(fileURLToPath(recoveryUrl)), true, "missing two-factor recovery owner")
@@ -43,6 +45,8 @@ async function createPanelHarness({
   const fetchCalls = []
   const signInCalls = []
   const signOutCalls = []
+  const focusEvents = []
+  let mountedRefs = new Set()
   let actionLock = null
   const props = {
     twoFactorEnabled,
@@ -75,6 +79,7 @@ async function createPanelHarness({
         async signOut(...args) {
           signOutCalls.push(args)
           renderDuringSignOut = elementText(render())
+          await signOutImpl(...args)
         },
       },
       "next/image": { default: passThroughElement("image") },
@@ -82,6 +87,8 @@ async function createPanelHarness({
         AsyncActionButton(buttonProps) {
           return createElement("button", {
             ...buttonProps,
+            "aria-busy": buttonProps.pending,
+            disabled: buttonProps.pending || buttonProps.disabled,
             children: buttonProps.pending ? buttonProps.pendingLabel : buttonProps.idleLabel,
           })
         },
@@ -111,13 +118,33 @@ async function createPanelHarness({
 
   function render() {
     hooks.startRender()
-    return renderFunctionComponents(compiled.TwoFactorManagementPanel(props))
+    const tree = renderFunctionComponents(compiled.TwoFactorManagementPanel(props))
+    const nextMountedRefs = new Set()
+    for (const element of findElements(tree, (candidate) => isObjectRef(candidate.props.ref))) {
+      const ref = element.props.ref
+      nextMountedRefs.add(ref)
+      if (ref.current === null) {
+        const target = element.props["data-two-factor-recovery"]
+          ?? element.props["data-two-factor-surface"]
+          ?? "unlabelled"
+        ref.current = {
+          focus(options) { focusEvents.push({ target, options }) },
+        }
+      }
+    }
+    for (const ref of mountedRefs) {
+      if (!nextMountedRefs.has(ref)) ref.current = null
+    }
+    mountedRefs = nextMountedRefs
+    hooks.finishRender()
+    return tree
   }
 
   return {
     fetchCalls,
     signInCalls,
     signOutCalls,
+    focusEvents,
     get renderDuringSignOut() { return renderDuringSignOut },
     render,
     restore() { globalThis.fetch = previousFetch },
@@ -144,6 +171,7 @@ describe("recoverable two-factor management UI", () => {
     const googleOnlyTree = googleOnly.render()
     assert.match(elementText(googleOnlyTree), /Add a password first/)
     assert.equal(actionForm(googleOnlyTree, "setup"), null)
+    assert.equal(button(googleOnlyTree, "Confirm with Google"), null)
     googleOnly.restore()
 
     const legacyGoogle = await createPanelHarness({
@@ -300,6 +328,57 @@ describe("recoverable two-factor management UI", () => {
     harness.restore()
   })
 
+  it("moves focus from successful enablement to the mounted backup-code recovery inset", async () => {
+    const responses = [
+      jsonResponse(200, {
+        code: "TWO_FACTOR_SETUP_READY",
+        qrCode: "data:image/png;base64,focus-target",
+        manualCode: "FOCUS-TARGET",
+      }),
+      jsonResponse(200, {
+        code: "TWO_FACTOR_ENABLED",
+        backupCodes: ["focus-backup-code"],
+      }),
+    ]
+    const harness = await createPanelHarness({ fetchImpl: async () => responses.shift() })
+    let tree = harness.render()
+    change(field(tree, "setupPassword"), "password-proof")
+    change(field(tree, "setupConfirmed"), true, "checked")
+    await submit(actionForm(harness.render(), "setup"))
+
+    tree = harness.render()
+    harness.focusEvents.length = 0
+    change(field(tree, "enableCode"), "123456")
+    change(field(tree, "enableConfirmed"), true, "checked")
+    await submit(actionForm(harness.render(), "enable"))
+    tree = harness.render()
+
+    const recovery = recoverySurface(tree, "backup-codes")
+    assert.ok(recovery)
+    assert.equal(recovery.props.tabIndex, -1)
+    assert.deepEqual(harness.focusEvents.map(({ target }) => target), ["backup-codes"])
+    harness.restore()
+  })
+
+  it("moves focus from successful disablement to the mounted reauthentication recovery inset", async () => {
+    const harness = await createPanelHarness({
+      twoFactorEnabled: true,
+      fetchImpl: async () => jsonResponse(200, { code: "TWO_FACTOR_DISABLED" }),
+    })
+    let tree = harness.render()
+    change(field(tree, "disablePassword"), "password-proof")
+    change(field(tree, "disableTwoFactorCode"), "123456")
+    change(field(tree, "disableConfirmed"), true, "checked")
+    await submit(actionForm(harness.render(), "disable"))
+    tree = harness.render()
+
+    const recovery = recoverySurface(tree, "reauth")
+    assert.ok(recovery)
+    assert.equal(recovery.props.tabIndex, -1)
+    assert.deepEqual(harness.focusEvents.map(({ target }) => target), ["reauth"])
+    harness.restore()
+  })
+
   it("keeps destructive proofs isolated and offers explicit re-sign-in transitions", async () => {
     const responses = [
       jsonResponse(200, { code: "BACKUP_CODES_REGENERATED", backupCodes: ["rotation-code"] }),
@@ -370,6 +449,79 @@ describe("recoverable two-factor management UI", () => {
     harness.restore()
   })
 
+  it("locks rapid backup-code recovery sign-out and keeps its pending recovery surface observable", async () => {
+    let resolveSignOut
+    const signOutRequest = new Promise((resolve) => { resolveSignOut = resolve })
+    const harness = await createPanelHarness({
+      twoFactorEnabled: true,
+      fetchImpl: async () => jsonResponse(200, {
+        code: "BACKUP_CODES_REGENERATED",
+        backupCodes: ["rapid-backup-code"],
+      }),
+      signOutImpl: async () => signOutRequest,
+    })
+    let tree = harness.render()
+    change(field(tree, "regeneratePassword"), "password-proof")
+    change(field(tree, "regenerateTwoFactorCode"), "123456")
+    change(field(tree, "regenerateConfirmed"), true, "checked")
+    await submit(actionForm(harness.render(), "backup-codes"))
+    tree = harness.render()
+    change(field(tree, "backupCodesAcknowledged"), true, "checked")
+    tree = harness.render()
+
+    const recoveryButton = button(tree, "I saved these codes; sign in again")
+    const first = recoveryButton.props.onClick()
+    const second = recoveryButton.props.onClick()
+    tree = harness.render()
+
+    const recovery = recoverySurface(tree, "backup-codes")
+    assert.ok(recovery)
+    assert.equal(recovery.props["aria-busy"], true)
+    const pendingButton = button(tree, "Signing out…")
+    assert.ok(pendingButton)
+    assert.equal(pendingButton.props["aria-busy"], true)
+    assert.equal(pendingButton.props.disabled, true)
+    assert.equal(harness.signOutCalls.length, 1)
+
+    resolveSignOut()
+    await Promise.all([first, second])
+    harness.restore()
+  })
+
+  it("locks rapid disable-recovery sign-out and exposes its pending state", async () => {
+    let resolveSignOut
+    const signOutRequest = new Promise((resolve) => { resolveSignOut = resolve })
+    const harness = await createPanelHarness({
+      twoFactorEnabled: true,
+      fetchImpl: async () => jsonResponse(200, { code: "TWO_FACTOR_DISABLED" }),
+      signOutImpl: async () => signOutRequest,
+    })
+    let tree = harness.render()
+    change(field(tree, "disablePassword"), "password-proof")
+    change(field(tree, "disableTwoFactorCode"), "123456")
+    change(field(tree, "disableConfirmed"), true, "checked")
+    await submit(actionForm(harness.render(), "disable"))
+    tree = harness.render()
+
+    const recoveryButton = button(tree, "Sign in again")
+    const first = recoveryButton.props.onClick()
+    const second = recoveryButton.props.onClick()
+    tree = harness.render()
+
+    const recovery = recoverySurface(tree, "reauth")
+    assert.ok(recovery)
+    assert.equal(recovery.props["aria-busy"], true)
+    const pendingButton = button(tree, "Signing out…")
+    assert.ok(pendingButton)
+    assert.equal(pendingButton.props["aria-busy"], true)
+    assert.equal(pendingButton.props.disabled, true)
+    assert.equal(harness.signOutCalls.length, 1)
+
+    resolveSignOut()
+    await Promise.all([first, second])
+    harness.restore()
+  })
+
   it("locks double submit, announces pending and safe failures, and retains the action focus surface", async () => {
     let resolveRequest
     const request = new Promise((resolve) => { resolveRequest = resolve })
@@ -409,14 +561,34 @@ describe("recoverable two-factor management UI", () => {
 function createHookRuntime() {
   const states = []
   const refs = []
+  const effectDependencies = []
+  const pendingEffects = []
   let stateCursor = 0
   let refCursor = 0
+  let effectCursor = 0
   return {
     startRender() {
       stateCursor = 0
       refCursor = 0
+      effectCursor = 0
+      pendingEffects.length = 0
+    },
+    finishRender() {
+      for (const effect of pendingEffects.splice(0)) effect()
     },
     react: {
+      useEffect(effect, dependencies) {
+        const index = effectCursor
+        effectCursor += 1
+        const previous = effectDependencies[index]
+        const changed = !previous
+          || previous.length !== dependencies.length
+          || previous.some((value, dependencyIndex) => !Object.is(value, dependencies[dependencyIndex]))
+        if (changed) {
+          effectDependencies[index] = dependencies
+          pendingEffects.push(effect)
+        }
+      },
       useState(initialValue) {
         const index = stateCursor
         stateCursor += 1
@@ -451,6 +623,14 @@ function actionForm(tree, action) {
   return findElement(tree, (element) => (
     element.type === "form" && element.props["data-two-factor-action"] === action
   ))
+}
+
+function recoverySurface(tree, recovery) {
+  return findElement(tree, (element) => element.props["data-two-factor-recovery"] === recovery)
+}
+
+function isObjectRef(value) {
+  return Boolean(value) && typeof value === "object" && Object.hasOwn(value, "current")
 }
 
 function change(element, value, property = "value") {
