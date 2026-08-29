@@ -114,6 +114,56 @@ async function abortHeldFixtureRequest(route: Route) {
   }
 }
 
+/** Holds one real App Router response so a route-owned readiness barrier can be proven. */
+async function holdRscNavigationResponse(page: Page, pathname: string) {
+  const pattern = `**${pathname}*`
+  let releaseHold: () => void = () => undefined
+  let markRequestStarted: () => void = () => undefined
+  let markRequestFinished: () => void = () => undefined
+  let requestStarted = false
+  let requestFinished = false
+  const hold = new Promise<void>((resolve) => {
+    releaseHold = resolve
+  })
+  const started = new Promise<void>((resolve) => {
+    markRequestStarted = resolve
+  })
+  const finished = new Promise<void>((resolve) => {
+    markRequestFinished = resolve
+  })
+  const handler = async (route: Route) => {
+    const request = route.request()
+    const headers = request.headers()
+    if (headers["next-router-prefetch"] || headers.purpose === "prefetch") {
+      await route.abort()
+      return
+    }
+    if (headers.rsc || request.isNavigationRequest()) {
+      requestStarted = true
+      markRequestStarted()
+      try {
+        const response = await route.fetch()
+        await hold
+        await route.fulfill({ response })
+      } finally {
+        requestFinished = true
+        markRequestFinished()
+      }
+      return
+    }
+    await route.continue()
+  }
+  await page.route(pattern, handler)
+  return {
+    waitForRequest: () => started,
+    async releaseAndCleanup() {
+      releaseHold()
+      if (requestStarted && !requestFinished) await finished
+      await page.unroute(pattern, handler)
+    },
+  }
+}
+
 /** Persists a deterministic newest-first Atmosphere Favorites fixture before app hydration. */
 async function installAtmosphereFavorites(page: Page, favorites: string[]) {
   await page.addInitScript((favoriteIds) => {
@@ -1336,6 +1386,8 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
     "Constrained-landscape rail geometry is covered in Chromium.",
   )
   await installInterruptionNoticeMediaFakes(page)
+  const wellnessHold = await holdRscNavigationResponse(page, "/wellness")
+  let wellnessHoldActive = true
   const geometryReceipt: Array<Record<string, unknown>> = []
   const measureStageReservations = () => page.locator("[data-immersive-stage]").evaluate((stage) => {
     const measureVariable = (variable: string) => {
@@ -1611,8 +1663,18 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
       return
     }
     if (route === "home") {
-      await page.getByRole("link", { name: "Open wellness", exact: true }).first().click()
+      await page.getByRole("link", { name: "Open wellness", exact: true }).first().click({ noWaitAfter: true })
+      const wellnessLandmark = page.locator("#quick-log")
+        .getByRole("heading", { name: "Quick log", exact: true, level: 2 })
+      if (wellnessHoldActive) {
+        await wellnessHold.waitForRequest()
+        await expect(wellnessLandmark).toHaveCount(0)
+        await wellnessHold.releaseAndCleanup()
+        wellnessHoldActive = false
+      }
       await expect(page).toHaveURL(/\/wellness$/)
+      await expect(wellnessLandmark).toBeVisible()
+      await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
       return
     }
     await page.getByRole("link", { name: "Open clock" }).click()
