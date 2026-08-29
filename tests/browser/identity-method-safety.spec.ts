@@ -1,11 +1,35 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
 import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
 
 const PRIVATE_QA_SKIP_REASON = "Identity method database-backed browser QA requires the missing explicit disposable-database opt-in/authorization."
 const hasPrivateQaAuthorization = isBrowserQaDatabaseTargetAuthorized(process.env)
 
+/** Blocks every browser-side Google OAuth provider request while public QA mocks the local intent route. */
+async function blockLiveGoogleProviderRequests(page: Page) {
+  const blockedRequests: string[] = []
+
+  await page.route("https://**/*", async (route) => {
+    const url = new URL(route.request().url())
+    const isGoogleOAuthProvider = url.hostname === "accounts.google.com"
+      || url.hostname === "oauth2.googleapis.com"
+      || url.hostname === "openidconnect.googleapis.com"
+      || (url.hostname === "www.googleapis.com" && url.pathname.startsWith("/oauth2/"))
+
+    if (!isGoogleOAuthProvider) {
+      await route.fallback()
+      return
+    }
+
+    blockedRequests.push(url.toString())
+    await route.abort("blockedbyclient")
+  })
+
+  return blockedRequests
+}
+
 test.describe("public account-entry recovery", () => {
   test("login prevents duplicate Credentials submission and recovers from a thrown request", async ({ page }) => {
+    const providerRequests = await blockLiveGoogleProviderRequests(page)
     let requests = 0
     let googleRequests = 0
     await page.route("**/api/auth/google/intent", async (route) => {
@@ -44,9 +68,11 @@ test.describe("public account-entry recovery", () => {
     await expect(page).toHaveURL(/\/login\?retrySuccess=1$/)
     expect(requests).toBe(2)
     expect(googleRequests).toBe(0)
+    expect(providerRequests).toEqual([])
   })
 
   test("registration announces pending work, prevents duplicates, and recovers after intercepted failure", async ({ page }) => {
+    const providerRequests = await blockLiveGoogleProviderRequests(page)
     let requests = 0
     let googleRequests = 0
     await page.route("**/api/auth/google/intent", async (route) => {
@@ -86,9 +112,11 @@ test.describe("public account-entry recovery", () => {
     await expect(page.getByRole("status")).toContainText(/check your email/i)
     expect(requests).toBe(2)
     expect(googleRequests).toBe(0)
+    expect(providerRequests).toEqual([])
   })
 
   test("Google registration blocks email entry and recovers both actions after a thrown request", async ({ page }) => {
+    const providerRequests = await blockLiveGoogleProviderRequests(page)
     let googleRequests = 0
     let registrationRequests = 0
     await page.route("**/api/auth/google/intent", async (route) => {
@@ -105,7 +133,7 @@ test.describe("public account-entry recovery", () => {
     await page.getByLabel("Password").fill("not-a-real-password")
     for (const checkbox of await page.getByRole("checkbox").all()) await checkbox.check()
     await page.getByRole("button", { name: "Continue with Google" }).click()
-    const googlePending = page.getByRole("button", { name: "Starting Google registration…" })
+    const googlePending = page.getByRole("button", { name: "Connecting to Google…" })
     await expect(googlePending).toBeDisabled()
     const emailSubmit = page.getByRole("button", { name: "Create account with email" })
     await expect(emailSubmit).toBeDisabled()
@@ -115,6 +143,7 @@ test.describe("public account-entry recovery", () => {
     await expect(page.getByRole("button", { name: "Continue with Google" })).toBeEnabled()
     await expect(emailSubmit).toBeEnabled()
     expect(googleRequests).toBe(1)
+    expect(providerRequests).toEqual([])
   })
 })
 
