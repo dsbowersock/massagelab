@@ -64,17 +64,44 @@ describe("registerPasswordAccount", () => {
     assert.deepEqual(db.rawQueries[0].values, ["person@example.com"])
   })
 
-  it("recognizes only the exact normalized-email index race metadata", async () => {
-    const exact = createRegistrationDatabase({ duplicateRace: true })
-    assert.deepEqual(await registerPasswordAccount(registrationInput(exact)), { status: "ACCEPTED" })
+  it("reloads a functional normalized-email index race", async () => {
+    const db = createRegistrationDatabase({ duplicateRace: true })
+    assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" })
+    assert.equal(db.users.length, 1)
+    assert.equal(db.sentExistingMessages.length, 1)
+  })
 
-    for (const uniqueError of [
-      Object.assign(new Error("other unique"), { code: "P2002", meta: { modelName: "User", target: "User_email_key" } }),
+  for (const [name, target] of [
+    ["named exact-email constraint", "User_email_key"],
+    ["Prisma exact email field target", ["email"]],
+  ]) {
+    it(`reloads a ${name} race without creating a second user`, async () => {
+      const db = createRegistrationDatabase({
+        duplicateRace: true,
+        uniqueError: Object.assign(new Error("exact email race"), {
+          code: "P2002",
+          meta: { modelName: "User", target },
+        }),
+      })
+
+      assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" })
+      assert.equal(db.users.length, 1)
+      assert.equal(db.userCreateAttempts, 1)
+      assert.equal(db.sentExistingMessages.length, 1)
+    })
+  }
+
+  it("propagates undefined, unrelated, multi-field, other-model, and non-unique failures", async () => {
+    for (const error of [
       Object.assign(new Error("unknown unique"), { code: "P2002", meta: { modelName: "User" } }),
-      Object.assign(new Error("other model"), { code: "P2002", meta: { modelName: "EmailVerificationToken", target: "User_normalized_email_key" } }),
+      Object.assign(new Error("other constraint"), { code: "P2002", meta: { modelName: "User", target: "User_name_key" } }),
+      Object.assign(new Error("multi-field"), { code: "P2002", meta: { modelName: "User", target: ["email", "name"] } }),
+      Object.assign(new Error("wrong case"), { code: "P2002", meta: { modelName: "User", target: ["Email"] } }),
+      Object.assign(new Error("other model"), { code: "P2002", meta: { modelName: "EmailVerificationToken", target: "User_email_key" } }),
+      Object.assign(new Error("not unique"), { code: "P2024" }),
     ]) {
-      const db = createRegistrationDatabase({ uniqueError })
-      await assert.rejects(() => registerPasswordAccount(registrationInput(db)), (error) => error === uniqueError)
+      const db = createRegistrationDatabase({ uniqueError: error })
+      await assert.rejects(() => registerPasswordAccount(registrationInput(db)), (received) => received === error)
       assert.equal(db.userCreateAttempts, 1)
     }
   })

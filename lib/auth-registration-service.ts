@@ -113,7 +113,7 @@ export async function registerPasswordAccount(
       await input.ensureUserRole(user.id, user.email, tx)
     }, { isolationLevel: "Serializable" })
   } catch (error) {
-    if (!isNormalizedEmailUniqueConflict(error)) throw error
+    if (!isUserEmailIdentityConflict(error)) throw error
     const racedAccount = await findAccount(input.prismaClient, email)
     if (!racedAccount) throw error
     await handleExistingAccount(input, racedAccount, email, now)
@@ -199,10 +199,13 @@ async function findAccount(prismaClient: RegistrationClient, email: string) {
   })
 }
 
-function isNormalizedEmailUniqueConflict(error: unknown): boolean {
+function isUserEmailIdentityConflict(error: unknown): boolean {
   if (!error || typeof error !== "object" || (error as { code?: unknown }).code !== "P2002") return false
   const meta = (error as { meta?: { modelName?: unknown; target?: unknown } }).meta
-  return meta?.modelName === "User" && meta.target === "User_normalized_email_key"
+  if (meta?.modelName !== "User") return false
+  return meta.target === "User_normalized_email_key"
+    || meta.target === "User_email_key"
+    || (Array.isArray(meta.target) && meta.target.length === 1 && meta.target[0] === "email")
 }
 
 function scheduleDelivery(input: RegisterPasswordAccountInput, deliver: () => Promise<unknown>): void {
