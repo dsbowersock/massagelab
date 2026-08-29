@@ -92,7 +92,10 @@ describe("canonical current two-factor proof", () => {
     }
     securityEvents = []
 
-    assert.deepEqual(await proof.prepareCurrentTwoFactorProof(proofInput(database, "BACKUP-ONE")), { status: "RATE_LIMITED" })
+    assert.deepEqual(await proof.prepareCurrentTwoFactorProof(proofInput(database, "BACKUP-ONE")), {
+      status: "RATE_LIMITED",
+      retryAfterSeconds: 900,
+    })
     assert.deepEqual(securityEvents, [])
   })
 

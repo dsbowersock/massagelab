@@ -3,7 +3,11 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 import { consumeFreshGoogleReauth, isFreshConsumedGoogleReauth } from "../lib/auth-method-intent-proof.ts"
-import { noStoreJsonHeaders, parseTrustedAccountSecurityJson } from "../lib/account-security-request.ts"
+import {
+  noStoreJsonHeaders,
+  parseBoundedAccountSecurityJson,
+  validateTrustedAccountSecurityJson,
+} from "../lib/account-security-request.ts"
 import { runCommerceTransaction } from "../lib/commerce/transactions.ts"
 import { buildRegistrationLegalProviderRedirectPath } from "../lib/legal-acceptance-gate.js"
 import { isGoogleIdentityUniqueConstraint } from "../lib/prisma-identity-unique-constraint.ts"
@@ -678,6 +682,34 @@ describe("private Google auth-method intents", () => {
     assert.deepEqual(calls, { limit: 0, session: 0, intent: 0 })
   })
 
+  it("rejects an oversized streaming LINK_GOOGLE body before limiter, session, or intent work", { timeout: 2_000 }, async () => {
+    const { createGoogleIntentHandler } = await loadIntentRoute()
+    const calls = { limit: 0, session: 0, intent: 0 }
+    const handler = createGoogleIntentHandler({
+      prismaClient: {},
+      secret: "intent-test-secret",
+      expectedSiteUrl: "https://massagelab.test",
+      getSession: async () => { calls.session += 1; return { user: { id: "user-1" } } },
+      consumeLimit: async () => { calls.limit += 1; return { allowed: true } },
+      startIntent: async () => {
+        calls.intent += 1
+        return { intentId: "intent-1", browserBindingToken: "a".repeat(43), expiresAt: new Date() }
+      },
+    })
+
+    const response = await settlesWithin(
+      handler(oversizedStreamingIntentRequest()),
+      500,
+      "oversized LINK_GOOGLE request did not settle",
+    )
+
+    assert.equal(response.status, 400)
+    assert.equal(response.headers.get("Cache-Control"), "private, no-store")
+    assert.equal(response.headers.get("Pragma"), "no-cache")
+    assert.deepEqual(await response.json(), { ok: false })
+    assert.deepEqual(calls, { limit: 0, session: 0, intent: 0 })
+  })
+
   it("preserves provenance-optional starts for SIGN_IN_OR_LINK, ADD_PASSWORD, and REMOVE_PASSWORD", async () => {
     const { createGoogleIntentHandler } = await loadIntentRoute()
     const started = []
@@ -713,7 +745,11 @@ async function loadIntentRoute() {
       getAuthSecret: () => "intent-test-secret",
       getSiteUrl: () => "https://massagelab.test",
     },
-    "@/lib/account-security-request": { noStoreJsonHeaders, parseTrustedAccountSecurityJson },
+    "@/lib/account-security-request": {
+      noStoreJsonHeaders,
+      parseBoundedAccountSecurityJson,
+      validateTrustedAccountSecurityJson,
+    },
     "@/lib/auth-rate-limit": { consumeGoogleIntentStartRateLimit: async () => ({ allowed: true }) },
     "@/lib/auth-method-intents": {
       AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
@@ -752,6 +788,41 @@ function intentRequest(body, {
     headers,
     body: JSON.stringify(body),
   })
+}
+
+function oversizedStreamingIntentRequest() {
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(JSON.stringify({
+        purpose: "LINK_GOOGLE",
+        padding: "x".repeat(5_000),
+      })))
+    },
+  })
+  return new Request("https://massagelab.test/api/auth/google/intent", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://massagelab.test",
+      "sec-fetch-site": "same-origin",
+    },
+    body,
+    duplex: "half",
+  })
+}
+
+async function settlesWithin(promise, timeoutMs, message) {
+  let timeoutId
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs)
+      }),
+    ])
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 async function start(service, db, purpose = "SIGN_IN_OR_LINK", targetUserId) {

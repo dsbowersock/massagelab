@@ -106,35 +106,31 @@ async function parseManageRequest(
   expectedSiteUrl: string,
   parseRequest: typeof parseTrustedAccountSecurityJson,
 ): Promise<{ ok: true; body: ManageBody } | { ok: false; code: "UNTRUSTED_REQUEST" | "INVALID_REQUEST" }> {
-  const google = await parseRequest({
-    request: request.clone(),
+  const parsed = await parseRequest({
+    request,
     expectedSiteUrl,
-    allowedKeys: ["proofMethod", "twoFactorCode", "confirmed"],
+    allowedKeySets: [
+      ["proofMethod", "twoFactorCode", "confirmed"],
+      ["proofMethod", "password", "twoFactorCode", "confirmed"],
+    ],
   })
-  if (!google.ok && google.code === "UNTRUSTED_REQUEST") return google
+  if (!parsed.ok) return parsed
   if (
-    google.ok
-    && google.body.proofMethod === "GOOGLE"
-    && typeof google.body.twoFactorCode === "string"
-    && google.body.confirmed === true
+    parsed.body.proofMethod === "GOOGLE"
+    && !Object.hasOwn(parsed.body, "password")
+    && typeof parsed.body.twoFactorCode === "string"
+    && parsed.body.confirmed === true
   ) {
     return {
       ok: true,
-      body: { proofMethod: "GOOGLE", twoFactorCode: google.body.twoFactorCode, confirmed: true },
+      body: { proofMethod: "GOOGLE", twoFactorCode: parsed.body.twoFactorCode, confirmed: true },
     }
   }
-
-  const password = await parseRequest({
-    request,
-    expectedSiteUrl,
-    allowedKeys: ["proofMethod", "password", "twoFactorCode", "confirmed"],
-  })
-  if (!password.ok) return password
   if (
-    password.body.proofMethod !== "PASSWORD"
-    || typeof password.body.password !== "string"
-    || typeof password.body.twoFactorCode !== "string"
-    || password.body.confirmed !== true
+    parsed.body.proofMethod !== "PASSWORD"
+    || typeof parsed.body.password !== "string"
+    || typeof parsed.body.twoFactorCode !== "string"
+    || parsed.body.confirmed !== true
   ) {
     return { ok: false, code: "INVALID_REQUEST" }
   }
@@ -142,8 +138,8 @@ async function parseManageRequest(
     ok: true,
     body: {
       proofMethod: "PASSWORD",
-      password: password.body.password,
-      twoFactorCode: password.body.twoFactorCode,
+      password: parsed.body.password,
+      twoFactorCode: parsed.body.twoFactorCode,
       confirmed: true,
     },
   }
@@ -155,11 +151,14 @@ function requestFailure(code: "UNTRUSTED_REQUEST" | "INVALID_REQUEST") {
 
 function serviceFailure(code: string, retryAfterSeconds?: number) {
   if (code === "RATE_LIMITED") {
-    if (!Number.isSafeInteger(retryAfterSeconds) || (retryAfterSeconds ?? 0) < 1) return jsonCode("CONFLICT", 409)
-    return jsonCode("RATE_LIMITED", 429, { "Retry-After": String(retryAfterSeconds) })
+    return jsonCode("RATE_LIMITED", 429, { "Retry-After": retryAfterHeader(retryAfterSeconds) })
   }
   const status = failureStatus(code)
   return status === null ? jsonCode("CONFLICT", 409) : jsonCode(code, status)
+}
+
+function retryAfterHeader(value?: number) {
+  return String(Number.isSafeInteger(value) && (value ?? 0) > 0 ? value : 1)
 }
 
 function failureStatus(code: string): number | null {

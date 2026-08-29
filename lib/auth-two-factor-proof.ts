@@ -25,7 +25,8 @@ export type PreparedTwoFactorProof = {
 
 export type CurrentTwoFactorProofResult =
   | { status: "VERIFIED"; proof: PreparedTwoFactorProof }
-  | { status: "NOT_ENABLED" | "TWO_FACTOR_REQUIRED" | "TWO_FACTOR_INVALID" | "RATE_LIMITED" }
+  | { status: "NOT_ENABLED" | "TWO_FACTOR_REQUIRED" | "TWO_FACTOR_INVALID" }
+  | { status: "RATE_LIMITED"; retryAfterSeconds: number }
 
 type LoadedTwoFactorUser = {
   id: string
@@ -150,7 +151,9 @@ export async function prepareCurrentTwoFactorProof(input: {
     now,
   }
   const decision = await checkCredentialRateLimit(limiterInput)
-  if (!decision.allowed) return { status: "RATE_LIMITED" }
+  if (!decision.allowed) {
+    return { status: "RATE_LIMITED", retryAfterSeconds: decision.retryAfterSeconds }
+  }
 
   const result = await proveLoadedTwoFactorCode({
     user,

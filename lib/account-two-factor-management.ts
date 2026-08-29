@@ -226,7 +226,9 @@ export async function startTwoFactorEnrollment(
     } catch {
       return rejected("CONFLICT")
     }
-    if (proof.status === "RATE_LIMITED") return rejected("RATE_LIMITED")
+    if (proof.status === "RATE_LIMITED") {
+      return rejected("RATE_LIMITED", proof.retryAfterSeconds)
+    }
     if (
       proof.status !== "VERIFIED"
       || proof.userId !== preflight.id
@@ -544,7 +546,12 @@ async function manageEnabledTwoFactor(
     } catch {
       return rejected("CONFLICT")
     }
-    if (proof.status !== "VERIFIED") return rejected(passwordManagementFailure(proof.status))
+    if (proof.status !== "VERIFIED") {
+      return rejected(
+        passwordManagementFailure(proof.status),
+        proof.status === "RATE_LIMITED" ? proof.retryAfterSeconds : undefined,
+      )
+    }
     if (
       proof.userId !== preflight.id
       || proof.authSessionVersion !== preflight.authSessionVersion
@@ -575,7 +582,12 @@ async function manageEnabledTwoFactor(
     } catch {
       return rejected("CONFLICT")
     }
-    if (proof.status !== "VERIFIED") return rejected(currentFactorFailure(proof.status))
+    if (proof.status !== "VERIFIED") {
+      return rejected(
+        currentFactorFailure(proof.status),
+        proof.status === "RATE_LIMITED" ? proof.retryAfterSeconds : undefined,
+      )
+    }
     if (!preparedProofMatchesState(proof.proof, preflight, enabledSecret)) {
       return rejected("CONFLICT")
     }

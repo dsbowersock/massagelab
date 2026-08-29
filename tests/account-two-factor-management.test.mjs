@@ -113,6 +113,22 @@ describe("proved and browser-bound two-factor enrollment", () => {
     assert.equal(database.events.indexOf("render-qr") < database.events.indexOf("transaction"), true)
   })
 
+  it("preserves the exact password-proof retry duration through setup", async () => {
+    const database = createDatabase()
+    const result = await start(database, {
+      dependencies: dependencies({
+        passwordResult: { status: "RATE_LIMITED", retryAfterSeconds: 137 },
+      }),
+    })
+
+    assert.deepEqual(result, {
+      status: "REJECTED",
+      code: "RATE_LIMITED",
+      retryAfterSeconds: 137,
+    })
+    assert.equal(database.secret, null)
+  })
+
   it("accepts either password or one-use fresh Google proof for a linked account", async () => {
     const passwordDatabase = createDatabase({ googleLinked: true })
     assertSetupReady(await start(passwordDatabase))
@@ -428,6 +444,39 @@ describe("dual-proof destructive two-factor management", () => {
         code: "PRIMARY_PROOF_INVALID",
       })
       assert.deepEqual(inconsistent.snapshot(), inconsistentBefore)
+    }
+  })
+
+  it("preserves exact password-management and Google-factor retry durations", async () => {
+    for (const operation of [service.disableTwoFactor, service.regenerateBackupCodes]) {
+      const passwordDatabase = createDatabase({ enabled: true })
+      assert.deepEqual(await operation(manageInput(passwordDatabase, {
+        dependencies: dependencies({
+          database: passwordDatabase,
+          passwordManagementResult: { status: "RATE_LIMITED", retryAfterSeconds: 149 },
+        }),
+      })), {
+        status: "REJECTED",
+        code: "RATE_LIMITED",
+        retryAfterSeconds: 149,
+      })
+
+      const googleDatabase = createDatabase({
+        enabled: true,
+        googleLinked: true,
+        googleIntent: freshGoogleIntent(),
+      })
+      assert.deepEqual(await operation(manageInput(googleDatabase, {
+        primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
+        dependencies: dependencies({
+          database: googleDatabase,
+          currentFactorResult: { status: "RATE_LIMITED", retryAfterSeconds: 163 },
+        }),
+      })), {
+        status: "REJECTED",
+        code: "RATE_LIMITED",
+        retryAfterSeconds: 163,
+      })
     }
   })
 

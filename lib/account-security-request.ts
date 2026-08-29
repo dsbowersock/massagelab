@@ -4,31 +4,48 @@ type TrustedJsonResult =
   | { ok: true; body: Record<string, unknown> }
   | { ok: false; code: "UNTRUSTED_REQUEST" | "INVALID_REQUEST" }
 
+type BoundedJsonResult =
+  | { ok: true; body: Record<string, unknown> }
+  | { ok: false; code: "INVALID_REQUEST" }
+
+type ExactKeyContract =
+  | { allowedKeys: readonly string[]; allowedKeySets?: never }
+  | { allowedKeys?: never; allowedKeySets: readonly (readonly string[])[] }
+
 /**
  * Parses a small account-security JSON object only after exact browser
  * same-origin evidence is established from caller-owned configuration.
  * Request headers never expand the trusted origin and no metadata-free path
  * is accepted for these state-changing browser operations.
  */
-export async function parseTrustedAccountSecurityJson<T extends Record<string, unknown>>(input: {
+export async function parseTrustedAccountSecurityJson(input: {
   request: Request
   expectedSiteUrl: string
-  allowedKeys: readonly string[]
   maxBytes?: number
-}): Promise<TrustedJsonResult> {
-  const expectedOrigin = configuredWebOrigin(input.expectedSiteUrl)
-  const requestOrigin = requestUrlOrigin(input.request)
-  const suppliedOrigin = input.request.headers.get("origin")
-
-  if (
-    !expectedOrigin
-    || requestOrigin !== expectedOrigin
-    || suppliedOrigin !== expectedOrigin
-    || input.request.headers.get("sec-fetch-site") !== "same-origin"
-  ) {
+} & ExactKeyContract): Promise<TrustedJsonResult> {
+  if (!hasTrustedAccountSecurityProvenance(input.request, input.expectedSiteUrl)) {
     return { ok: false, code: "UNTRUSTED_REQUEST" }
   }
 
+  const parsed = await parseBoundedAccountSecurityJson({
+    request: input.request,
+    maxBytes: input.maxBytes,
+  })
+  if (!parsed.ok) return parsed
+
+  return validateTrustedAccountSecurityJson({
+    request: input.request,
+    expectedSiteUrl: input.expectedSiteUrl,
+    body: parsed.body,
+    ...exactKeyContract(input),
+  })
+}
+
+/** Reads one small JSON object without applying purpose-specific provenance. */
+export async function parseBoundedAccountSecurityJson(input: {
+  request: Request
+  maxBytes?: number
+}): Promise<BoundedJsonResult> {
   const mediaType = (input.request.headers.get("content-type") ?? "")
     .split(";", 1)[0]
     .trim()
@@ -42,14 +59,6 @@ export async function parseTrustedAccountSecurityJson<T extends Record<string, u
     return { ok: false, code: "INVALID_REQUEST" }
   }
 
-  const allowedKeys = new Set(input.allowedKeys)
-  if (
-    allowedKeys.size !== input.allowedKeys.length
-    || input.allowedKeys.some((key) => typeof key !== "string" || key.length === 0)
-  ) {
-    return { ok: false, code: "INVALID_REQUEST" }
-  }
-
   const serialized = await readBoundedUtf8(input.request, maxBytes)
   if (serialized === null) return { ok: false, code: "INVALID_REQUEST" }
 
@@ -60,17 +69,73 @@ export async function parseTrustedAccountSecurityJson<T extends Record<string, u
     return { ok: false, code: "INVALID_REQUEST" }
   }
 
-  if (!isJsonObject(body)) return { ok: false, code: "INVALID_REQUEST" }
-  const keys = Object.keys(body)
-  if (
-    keys.length !== allowedKeys.size
-    || keys.some((key) => !allowedKeys.has(key))
-    || input.allowedKeys.some((key) => !Object.hasOwn(body, key))
-  ) {
+  return isJsonObject(body)
+    ? { ok: true, body }
+    : { ok: false, code: "INVALID_REQUEST" }
+}
+
+/** Validates trusted browser provenance and one of the caller's exact body shapes. */
+export function validateTrustedAccountSecurityJson(input: {
+  request: Request
+  expectedSiteUrl: string
+  body: Record<string, unknown>
+} & ExactKeyContract): TrustedJsonResult {
+  if (!hasTrustedAccountSecurityProvenance(input.request, input.expectedSiteUrl)) {
+    return { ok: false, code: "UNTRUSTED_REQUEST" }
+  }
+
+  const allowedKeySets = exactKeySets(input)
+  if (!allowedKeySets) {
     return { ok: false, code: "INVALID_REQUEST" }
   }
 
-  return { ok: true, body: body as T }
+  const keys = Object.keys(input.body)
+  if (!allowedKeySets.some((allowedKeys) => (
+    keys.length === allowedKeys.size
+    && keys.every((key) => allowedKeys.has(key))
+  ))) {
+    return { ok: false, code: "INVALID_REQUEST" }
+  }
+
+  return { ok: true, body: input.body }
+}
+
+function hasTrustedAccountSecurityProvenance(request: Request, expectedSiteUrl: string) {
+  const expectedOrigin = configuredWebOrigin(expectedSiteUrl)
+  const requestOrigin = requestUrlOrigin(request)
+  const suppliedOrigin = request.headers.get("origin")
+
+  return Boolean(
+    expectedOrigin
+    && requestOrigin === expectedOrigin
+    && suppliedOrigin === expectedOrigin
+    && request.headers.get("sec-fetch-site") === "same-origin"
+  )
+}
+
+function exactKeySets(input: ExactKeyContract): Array<Set<string>> | null {
+  const keySets = "allowedKeys" in input && input.allowedKeys !== undefined
+    ? [input.allowedKeys]
+    : input.allowedKeySets
+  if (
+    !Array.isArray(keySets)
+    || keySets.length === 0
+    || keySets.some((keys) => (
+      !Array.isArray(keys)
+      || keys.length === 0
+      || new Set(keys).size !== keys.length
+      || keys.some((key) => typeof key !== "string" || key.length === 0)
+    ))
+  ) {
+    return null
+  }
+  return keySets.map((keys) => new Set(keys))
+}
+
+function exactKeyContract(input: ExactKeyContract): ExactKeyContract {
+  return "allowedKeys" in input && input.allowedKeys !== undefined
+    ? { allowedKeys: input.allowedKeys }
+    : { allowedKeySets: input.allowedKeySets }
 }
 
 /** Returns the shared private-cache policy for every account-security JSON response. */

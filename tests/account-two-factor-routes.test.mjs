@@ -132,6 +132,34 @@ describe("two-factor management route boundaries", () => {
     })
   }
 
+  it("rejects oversized union bodies promptly before session, proof, service, or cache work", { timeout: 2_000 }, async () => {
+    const oversizedBodies = {
+      setup: { ...ROUTES.setup.body, password: "x".repeat(5_000) },
+      disable: { ...ROUTES.disable.body, password: "x".repeat(5_000) },
+      regenerate: { ...ROUTES.regenerate.body, password: "x".repeat(5_000) },
+    }
+
+    for (const [name, body] of Object.entries(oversizedBodies)) {
+      const scenario = loadRoute(name)
+      const response = await settlesWithin(
+        scenario.POST(routeRequest(name, body)),
+        500,
+        `${name} oversized request did not settle`,
+      )
+
+      assert.equal(response.status, 400, name)
+      assert.deepEqual(await response.json(), { code: "INVALID_REQUEST" }, name)
+      assert.deepEqual(scenario.counts(), {
+        session: 0,
+        intent: 0,
+        service: 0,
+        cache: 0,
+        email: 0,
+      }, name)
+      assertNoStore(response)
+    }
+  })
+
   it("validates exact discriminated bodies and forwards only the server session owner plus network identifier", async () => {
     const invalidCases = [
       ["setup", { proofMethod: "GOOGLE", password: "must-not-be-accepted", confirmed: true }],
@@ -253,6 +281,31 @@ describe("two-factor management route boundaries", () => {
     }
   })
 
+  it("clears the enable binding when session lookup fails before service work", async () => {
+    const scenario = loadRoute("enable", { sessionError: new Error("private session failure") })
+    const response = await scenario.POST(routeRequest("enable", ROUTES.enable.body))
+
+    assert.equal(response.status, 409)
+    assert.deepEqual(await response.json(), { code: "CONFLICT" })
+    assert.equal(scenario.serviceCalls.length, 0)
+    assertEnrollmentCookieCleared(response)
+    assertNoStore(response)
+  })
+
+  it("keeps RATE_LIMITED public when a real service result omits retry metadata", async () => {
+    for (const name of Object.keys(ROUTES)) {
+      const scenario = loadRoute(name, {
+        result: { status: "REJECTED", code: "RATE_LIMITED" },
+      })
+      const response = await scenario.POST(routeRequest(name, ROUTES[name].body))
+
+      assert.equal(response.status, 429, name)
+      assert.deepEqual(await response.json(), { code: "RATE_LIMITED" }, name)
+      assert.equal(response.headers.get("Retry-After"), "1", name)
+      assertNoStore(response)
+    }
+  })
+
   it("maps only allowlisted service failures to fixed status/code-only no-store responses", async () => {
     const cases = [
       ["setup", "INVALID_REQUEST", 400],
@@ -292,6 +345,7 @@ describe("two-factor management route boundaries", () => {
 
 function loadRoute(name, {
   session = { user: { id: "user-1", email: "ignored-client@example.test" } },
+  sessionError,
   result = ROUTES[name].success,
   resolvedIntent = { id: "intent-1", targetUserId: "user-1" },
   secureCookies = false,
@@ -345,7 +399,11 @@ function loadRoute(name, {
   const POST = typeof factory === "function"
     ? factory({
         prismaClient,
-        getSession: async () => { sessionCalls.push(true); return session },
+        getSession: async () => {
+          sessionCalls.push(true)
+          if (sessionError) throw sessionError
+          return session
+        },
         expectedSiteUrl: SITE_URL,
         parseRequest: parseTrustedAccountSecurityJson,
         secret: "route-secret",
@@ -446,4 +504,18 @@ function assertEnrollmentCookieCleared(response) {
     secure: false,
     path: "/api/account/security/totp",
   })
+}
+
+async function settlesWithin(promise, timeoutMs, message) {
+  let timeoutId
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs)
+      }),
+    ])
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }

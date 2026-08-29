@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
-import { noStoreJsonHeaders, parseTrustedAccountSecurityJson } from "@/lib/account-security-request"
+import {
+  noStoreJsonHeaders,
+  parseBoundedAccountSecurityJson,
+  validateTrustedAccountSecurityJson,
+} from "@/lib/account-security-request"
 import { getAuthSecret, getSiteUrl } from "@/lib/auth-env"
 import { consumeGoogleIntentStartRateLimit } from "@/lib/auth-rate-limit"
 import {
@@ -21,7 +25,7 @@ type IntentHandlerDependencies = {
   startIntent?: typeof startAuthMethodIntent
   clock?: () => Date
   expectedSiteUrl?: string
-  parseRequest?: typeof parseTrustedAccountSecurityJson
+  parseRequest?: typeof parseGoogleIntentRequest
 }
 
 /**
@@ -36,30 +40,17 @@ export function createGoogleIntentHandler({
   startIntent = startAuthMethodIntent,
   clock = () => new Date(),
   expectedSiteUrl = getSiteUrl(),
-  parseRequest = parseTrustedAccountSecurityJson,
+  parseRequest = parseGoogleIntentRequest,
 }: IntentHandlerDependencies) {
   return async function googleIntentHandler(request: Request) {
-    let body = await request.clone().json().catch(() => ({})) as { purpose?: unknown; callbackUrl?: unknown }
-    const purpose = googleIntentPurpose(body.purpose)
-    if (!purpose) return NextResponse.json({ ok: false }, { status: 400 })
-
-    if (purpose === "LINK_GOOGLE") {
-      const parsed = await parseRequest({
-        request,
-        expectedSiteUrl,
-        allowedKeys: ["purpose"],
+    const parsed = await parseRequest({ request, expectedSiteUrl })
+    if (!parsed.ok) {
+      return NextResponse.json({ ok: false }, {
+        status: parsed.code === "UNTRUSTED_REQUEST" ? 403 : 400,
+        headers: noStoreJsonHeaders(),
       })
-      if (!parsed.ok) {
-        return NextResponse.json({ ok: false }, {
-          status: parsed.code === "UNTRUSTED_REQUEST" ? 403 : 400,
-          headers: noStoreJsonHeaders(),
-        })
-      }
-      if (parsed.body.purpose !== "LINK_GOOGLE") {
-        return NextResponse.json({ ok: false }, { status: 400, headers: noStoreJsonHeaders() })
-      }
-      body = parsed.body
     }
+    const { body, purpose } = parsed
 
     const now = clock()
     const decision = await consumeLimit({
@@ -119,6 +110,34 @@ export function createGoogleIntentHandler({
   }
 }
 
+async function parseGoogleIntentRequest({
+  request,
+  expectedSiteUrl,
+}: {
+  request: Request
+  expectedSiteUrl: string
+}): Promise<
+  | { ok: true; body: Record<string, unknown>; purpose: GoogleIntentPurpose }
+  | { ok: false; code: "UNTRUSTED_REQUEST" | "INVALID_REQUEST" }
+> {
+  const bounded = await parseBoundedAccountSecurityJson({ request })
+  if (!bounded.ok) return bounded
+
+  const purpose = googleIntentPurpose(bounded.body.purpose)
+  if (!purpose) return { ok: false, code: "INVALID_REQUEST" }
+  if (purpose !== "LINK_GOOGLE") return { ok: true, body: bounded.body, purpose }
+
+  const trusted = validateTrustedAccountSecurityJson({
+    request,
+    expectedSiteUrl,
+    body: bounded.body,
+    allowedKeys: ["purpose"],
+  })
+  if (!trusted.ok) return trusted
+  if (trusted.body.purpose !== "LINK_GOOGLE") return { ok: false, code: "INVALID_REQUEST" }
+  return { ok: true, body: trusted.body, purpose }
+}
+
 function googleIntentPurpose(value: unknown): GoogleIntentPurpose | null {
   return value === "SIGN_IN_OR_LINK" || value === "LINK_GOOGLE" || value === "ADD_PASSWORD" || value === "REMOVE_PASSWORD"
     ? value
@@ -136,5 +155,5 @@ export const POST = createGoogleIntentHandler({
   secret: getAuthSecret(),
   getSession: getCurrentSession,
   expectedSiteUrl: getSiteUrl(),
-  parseRequest: parseTrustedAccountSecurityJson,
+  parseRequest: parseGoogleIntentRequest,
 })

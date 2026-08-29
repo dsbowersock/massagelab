@@ -116,32 +116,32 @@ async function parseSetupRequest(
   expectedSiteUrl: string,
   parseRequest: typeof parseTrustedAccountSecurityJson,
 ): Promise<{ ok: true; body: SetupBody } | { ok: false; code: "UNTRUSTED_REQUEST" | "INVALID_REQUEST" }> {
-  const google = await parseRequest({
-    request: request.clone(),
-    expectedSiteUrl,
-    allowedKeys: ["proofMethod", "confirmed"],
-  })
-  if (!google.ok && google.code === "UNTRUSTED_REQUEST") return google
-  if (google.ok && google.body.proofMethod === "GOOGLE" && google.body.confirmed === true) {
-    return { ok: true, body: { proofMethod: "GOOGLE", confirmed: true } }
-  }
-
-  const password = await parseRequest({
+  const parsed = await parseRequest({
     request,
     expectedSiteUrl,
-    allowedKeys: ["proofMethod", "password", "confirmed"],
+    allowedKeySets: [
+      ["proofMethod", "confirmed"],
+      ["proofMethod", "password", "confirmed"],
+    ],
   })
-  if (!password.ok) return password
+  if (!parsed.ok) return parsed
   if (
-    password.body.proofMethod !== "PASSWORD"
-    || typeof password.body.password !== "string"
-    || password.body.confirmed !== true
+    parsed.body.proofMethod === "GOOGLE"
+    && !Object.hasOwn(parsed.body, "password")
+    && parsed.body.confirmed === true
+  ) {
+    return { ok: true, body: { proofMethod: "GOOGLE", confirmed: true } }
+  }
+  if (
+    parsed.body.proofMethod !== "PASSWORD"
+    || typeof parsed.body.password !== "string"
+    || parsed.body.confirmed !== true
   ) {
     return { ok: false, code: "INVALID_REQUEST" }
   }
   return {
     ok: true,
-    body: { proofMethod: "PASSWORD", password: password.body.password, confirmed: true },
+    body: { proofMethod: "PASSWORD", password: parsed.body.password, confirmed: true },
   }
 }
 
@@ -151,11 +151,14 @@ function requestFailure(code: "UNTRUSTED_REQUEST" | "INVALID_REQUEST") {
 
 function serviceFailure(code: string, retryAfterSeconds?: number) {
   if (code === "RATE_LIMITED") {
-    if (!Number.isSafeInteger(retryAfterSeconds) || (retryAfterSeconds ?? 0) < 1) return jsonCode("CONFLICT", 409)
-    return jsonCode("RATE_LIMITED", 429, { "Retry-After": String(retryAfterSeconds) })
+    return jsonCode("RATE_LIMITED", 429, { "Retry-After": retryAfterHeader(retryAfterSeconds) })
   }
   const status = failureStatus(code)
   return status === null ? jsonCode("CONFLICT", 409) : jsonCode(code, status)
+}
+
+function retryAfterHeader(value?: number) {
+  return String(Number.isSafeInteger(value) && (value ?? 0) > 0 ? value : 1)
 }
 
 function failureStatus(code: string): number | null {

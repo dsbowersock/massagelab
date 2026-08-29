@@ -56,7 +56,9 @@ export function createTwoFactorEnableHandler({
     try {
       session = await getSession()
     } catch {
-      return serviceFailure("CONFLICT")
+      const response = serviceFailure("CONFLICT")
+      clearEnrollmentCookie(response, secureCookies)
+      return response
     }
     const userId = typeof session?.user?.id === "string" ? session.user.id : ""
     if (!userId) return serviceFailure("AUTHENTICATION_REQUIRED")
@@ -102,11 +104,14 @@ function requestFailure(code: "UNTRUSTED_REQUEST" | "INVALID_REQUEST") {
 
 function serviceFailure(code: string, retryAfterSeconds?: number) {
   if (code === "RATE_LIMITED") {
-    if (!Number.isSafeInteger(retryAfterSeconds) || (retryAfterSeconds ?? 0) < 1) return jsonCode("CONFLICT", 409)
-    return jsonCode("RATE_LIMITED", 429, { "Retry-After": String(retryAfterSeconds) })
+    return jsonCode("RATE_LIMITED", 429, { "Retry-After": retryAfterHeader(retryAfterSeconds) })
   }
   const status = failureStatus(code)
   return status === null ? jsonCode("CONFLICT", 409) : jsonCode(code, status)
+}
+
+function retryAfterHeader(value?: number) {
+  return String(Number.isSafeInteger(value) && (value ?? 0) > 0 ? value : 1)
 }
 
 function failureStatus(code: string): number | null {
