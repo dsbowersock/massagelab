@@ -14,10 +14,11 @@ describe("Auth account linking helpers", () => {
     assert.equal(isVerifiedGoogleProfile({ email_verified: true }), false)
   })
 
-  it("blocks Google unlinking unless email/password remains available", () => {
-    assert.equal(canUnlinkOAuthAccount({ provider: "google", hasPasswordCredential: true, emailVerified: true }), true)
-    assert.equal(canUnlinkOAuthAccount({ provider: "google", hasPasswordCredential: false, emailVerified: true }), false)
-    assert.equal(canUnlinkOAuthAccount({ provider: "google", hasPasswordCredential: true, emailVerified: false }), false)
-    assert.equal(canUnlinkOAuthAccount({ provider: "github", hasPasswordCredential: true, emailVerified: true }), false)
+  it("blocks Google unlinking unless a recent direct proof and verified password method remain", () => {
+    assert.equal(canUnlinkOAuthAccount({ provider: "google", hasPasswordCredential: true, emailVerified: true, passwordProofVerified: true }), true)
+    assert.equal(canUnlinkOAuthAccount({ provider: "google", hasPasswordCredential: true, emailVerified: true, passwordProofVerified: false }), false)
+    assert.equal(canUnlinkOAuthAccount({ provider: "google", hasPasswordCredential: false, emailVerified: true, passwordProofVerified: true }), false)
+    assert.equal(canUnlinkOAuthAccount({ provider: "google", hasPasswordCredential: true, emailVerified: false, passwordProofVerified: true }), false)
+    assert.equal(canUnlinkOAuthAccount({ provider: "github", hasPasswordCredential: true, emailVerified: true, passwordProofVerified: true }), false)
   })
 })
