@@ -175,6 +175,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.roles = state.roles
           token.roleAssignments = state.roleAssignments
           token.capabilities = state.capabilities
+          token.featureKeys = state.featureKeys
           token.emailVerified = state.emailVerified
           token.twoFactorEnabled = state.twoFactorEnabled
         } catch (error) {
@@ -184,6 +185,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.roles = ["USER"]
           token.roleAssignments = [{ role: "USER", status: "VERIFIED" }]
           token.capabilities = defaultAccountCapabilities("USER")
+          token.featureKeys = []
           token.emailVerified = false
           token.twoFactorEnabled = false
         }
@@ -202,6 +204,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           roles: AccountRole[]
           roleAssignments: Array<{ role: AccountRole; status: VerificationStatus }>
           capabilities: AccountCapabilities
+          featureKeys: string[]
           emailVerified: boolean
           twoFactorEnabled: boolean
         }
@@ -213,6 +216,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           ? (token.roleAssignments as Array<{ role: AccountRole; status: VerificationStatus }>)
           : sessionUser.roles.map((role) => ({ role, status: "VERIFIED" as VerificationStatus }))
         sessionUser.capabilities = (token.capabilities ?? defaultAccountCapabilities(sessionUser.role)) as AccountCapabilities
+        sessionUser.featureKeys = Array.isArray(token.featureKeys)
+          ? token.featureKeys.filter((value): value is string => typeof value === "string")
+          : []
         sessionUser.emailVerified = Boolean(token.emailVerified)
         sessionUser.twoFactorEnabled = Boolean(token.twoFactorEnabled)
       }

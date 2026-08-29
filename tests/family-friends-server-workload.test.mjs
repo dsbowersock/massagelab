@@ -29,6 +29,91 @@ function callCount(source, callPattern) {
   return source.match(callPattern)?.length ?? 0
 }
 
+function authSnapshotWorkload(calls) {
+  const database = {
+    user: {
+      async findUnique() {
+        calls.userGraphReads += 1
+        return {
+          email: "workload@example.test",
+          emailVerified: new Date("2026-08-29T12:00:00.000Z"),
+          authSessionVersion: 0,
+          roles: [{ role: "USER", status: "VERIFIED" }],
+          membershipSubscriptions: [],
+          studentAccess: null,
+          twoFactorSecret: null,
+        }
+      },
+    },
+    userRole: { findUnique: async () => null, upsert: async () => {} },
+  }
+  const loadTemporaryGrants = async (receivedDatabase) => {
+    assert.equal(receivedDatabase, database)
+    calls.temporaryGrantReads += 1
+    return []
+  }
+  const { getUserAuthState } = loadCompiledModule(authUsersSource, "lib/auth-users.workload.test.ts", {
+    "@/lib/auth-env": { isAdminEmail: () => false },
+    "@/lib/account-permissions": {
+      buildAccountCapabilities: (_roles, input) => ({ featureCount: input.features.length }),
+      highestRole: () => "USER",
+      normalizeRoleAssignments: (roles) => roles,
+    },
+    "@/lib/commerce/transactions": { runCommerceTransaction: async () => {} },
+    "@/lib/membership": {
+      buildEntitlements: () => ({ features: ["calendar_basic"] }),
+      loadActiveTemporaryGrants: loadTemporaryGrants,
+    },
+    "@/lib/phi-sync": { isHostedClinicalSyncEnabled: () => false },
+    "@/lib/prisma": { prisma: database },
+  })
+  return { database, getUserAuthState, loadTemporaryGrants }
+}
+
+function sidebarNavigationWorkload(calls) {
+  const database = {
+    practiceMembership: {
+      async findMany() {
+        calls.practiceRoleReads += 1
+        return []
+      },
+    },
+    membershipSubscription: {
+      async findMany() {
+        calls.entitlementReads += 1
+        return []
+      },
+    },
+    studentAccess: {
+      async findUnique() {
+        calls.entitlementReads += 1
+        return null
+      },
+    },
+    temporaryFeatureGrant: {
+      async findMany() {
+        calls.entitlementReads += 1
+        return []
+      },
+    },
+    userRole: {
+      async findMany() {
+        calls.entitlementReads += 1
+        return []
+      },
+    },
+  }
+  const compiled = loadCompiledModule(sidebarSource, "components/sidebar/sidebar.workload.test.tsx", {
+    "@/auth": { getCurrentSession: async () => null },
+    "@/components/sidebar/app-sidebar-client": { AppSidebarClient: () => null },
+    "@/lib/account-preferences": { canSyncAccountPreferences: () => false },
+    "@/lib/membership": { FEATURE_KEYS: { therapistDocumentationTools: "therapist_documentation_tools" } },
+    "@/lib/navigation": { resolveNavigation: (context) => context },
+    "@/lib/prisma": { prisma: database },
+  })
+  return { database, getSidebarNavigationContext: compiled.getSidebarNavigationContext }
+}
+
 function membershipSummary() {
   return {
     stripeCustomer: { stripeCustomerId: "provider-customer-sentinel" },
@@ -71,6 +156,7 @@ function checkoutDependencies(calls) {
       redirect: (url, status) => ({ url, status }),
     },
     getCurrentSession: async () => ({ user: { id: "workload-user" } }),
+    getPublicLaunchControls: () => ({ supporterCheckoutOpen: true }),
     getSiteUrl: () => "https://massagelab.app",
     isPublicSupporterCheckoutSelection: (input) => (
       input.membershipLevel === "SUPPORTER"
@@ -136,31 +222,39 @@ function portalPost(calls) {
 }
 
 describe("family-and-friends server workload baseline", () => {
-  it("locks the ordinary verified-auth and signed-in sidebar call counts", () => {
+  it("locks the ordinary verified-auth and signed-in sidebar call counts", async () => {
     const authRefresh = namedFunctionSlice(
       authUsersSource,
       "export async function getUserAuthState",
       null,
     )
-    const sidebarEntitlements = namedFunctionSlice(
-      sidebarSource,
-      "async function loadSidebarFeatureKeys",
-      "async function loadSidebarPracticeRoles",
-    )
-
     const backgroundCreditProvisionerCalls = callCount(
       authRefresh,
       /ensureVerifiedUserBackgroundCredits\s*\(/g,
     )
-    const separateMembershipEntitlementLoads = callCount(
-      sidebarEntitlements,
-      /getUserEntitlementState\s*\(/g,
+    const authCalls = { userGraphReads: 0, temporaryGrantReads: 0 }
+    const authWorkload = authSnapshotWorkload(authCalls)
+    const authState = await authWorkload.getUserAuthState(
+      "workload-user",
+      authWorkload.database,
+      authWorkload.loadTemporaryGrants,
     )
+    const sidebarCalls = { entitlementReads: 0, practiceRoleReads: 0 }
+    const sidebarWorkload = sidebarNavigationWorkload(sidebarCalls)
+    assert.equal(typeof sidebarWorkload.getSidebarNavigationContext, "function")
+    const navigationContext = await sidebarWorkload.getSidebarNavigationContext({
+      id: "workload-user",
+      featureKeys: authState.featureKeys,
+      capabilities: authState.capabilities,
+    }, sidebarWorkload.database)
 
     assert.equal(backgroundCreditProvisionerCalls, 0)
-    assert.equal(separateMembershipEntitlementLoads, 1)
+    assert.deepEqual(authCalls, { userGraphReads: 1, temporaryGrantReads: 1 })
+    assert.deepEqual(sidebarCalls, { entitlementReads: 0, practiceRoleReads: 1 })
+    assert.deepEqual(navigationContext.featureKeys, ["calendar_basic"])
     console.log(`verified auth refresh: background-credit provisioner calls = ${backgroundCreditProvisionerCalls}`)
-    console.log(`signed-in sidebar: separate membership entitlement loads = ${separateMembershipEntitlementLoads}`)
+    console.log(`verified auth refresh: user graph reads = ${authCalls.userGraphReads}; temporary-grant reads = ${authCalls.temporaryGrantReads}`)
+    console.log(`signed-in sidebar: separate membership entitlement loads = ${sidebarCalls.entitlementReads}; practice-role reads = ${sidebarCalls.practiceRoleReads}`)
   })
 
   it("loads one persisted membership return summary without Stripe", async () => {

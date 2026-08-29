@@ -73,11 +73,15 @@ export async function ensureGoogleUserState(userId: string, email?: string | nul
  * claims, and remain separate from paid membership level. The request-time
  * snapshot is read-only with respect to background-credit provisioning.
  */
-export async function getUserAuthState(userId: string) {
+export async function getUserAuthState(
+  userId: string,
+  database: AuthDatabase = prisma,
+  loadTemporaryGrants: typeof loadActiveTemporaryGrants = loadActiveTemporaryGrants,
+) {
   // Capture one boundary for both the database predicate and defensive pure
   // resolver so a grant cannot change state midway through one auth refresh.
   const now = new Date()
-  const [user, temporaryGrants] = await Promise.all([prisma.user.findUnique({
+  const [user, temporaryGrants] = await Promise.all([database.user.findUnique({
     where: { id: userId },
     select: {
       email: true,
@@ -104,7 +108,7 @@ export async function getUserAuthState(userId: string) {
         select: { enabledAt: true },
       },
     },
-  }), loadActiveTemporaryGrants(prisma, userId, now)])
+  }), loadTemporaryGrants(database, userId, now)])
 
   const roleAssignments = normalizeRoleAssignments(user?.roles.map((role) => ({
     role: role.role,
@@ -116,8 +120,8 @@ export async function getUserAuthState(userId: string) {
     assignment.role === "ADMIN" && assignment.status === "VERIFIED"
   ))
   if (user?.email && isAdminEmail(user.email) && !hasVerifiedAdminRole) {
-    await ensureUserRole(userId, user.email)
-    const persistedAdminRole = await prisma.userRole.findUnique({
+    await ensureUserRole(userId, user.email, database)
+    const persistedAdminRole = await database.userRole.findUnique({
       where: { userId_role: { userId, role: "ADMIN" } },
       select: { role: true, status: true },
     })
@@ -131,6 +135,13 @@ export async function getUserAuthState(userId: string) {
   const adminAccess = roleAssignments.some((assignment) => (
     assignment.role === "ADMIN" && assignment.status === "VERIFIED"
   ))
+  const entitlements = buildEntitlements({
+    adminAccess,
+    subscriptions: user?.membershipSubscriptions ?? [],
+    studentAccess: user?.studentAccess ?? null,
+    temporaryGrants,
+    now,
+  })
 
   return {
     authSessionVersion: user?.authSessionVersion,
@@ -138,15 +149,10 @@ export async function getUserAuthState(userId: string) {
     roles,
     roleAssignments,
     capabilities: buildAccountCapabilities(roleAssignments, {
-      features: buildEntitlements({
-        adminAccess,
-        subscriptions: user?.membershipSubscriptions ?? [],
-        studentAccess: user?.studentAccess ?? null,
-        temporaryGrants,
-        now,
-      }).features,
+      features: entitlements.features,
       hostedClinicalSyncEnabled: isHostedClinicalSyncEnabled(),
     }),
+    featureKeys: entitlements.features,
     emailVerified: Boolean(user?.emailVerified),
     twoFactorEnabled: Boolean(user?.twoFactorSecret?.enabledAt),
   }

@@ -2,9 +2,11 @@ import { getCurrentSession } from "@/auth"
 import { AppSidebarClient } from "@/components/sidebar/app-sidebar-client"
 import type { SidebarNavigation, SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { canSyncAccountPreferences } from "@/lib/account-preferences"
-import { FEATURE_KEYS, getUserEntitlementState } from "@/lib/membership"
+import { FEATURE_KEYS } from "@/lib/membership"
 import { resolveNavigation } from "@/lib/navigation"
 import { prisma } from "@/lib/prisma"
+
+type SidebarDatabase = Pick<typeof prisma, "practiceMembership">
 
 export async function getAppSidebarData() {
   const session = await getCurrentSession()
@@ -18,6 +20,7 @@ export async function getAppSidebarData() {
       roles?: string[] | null
       roleAssignments?: Array<{ role: string; status: string }> | null
       capabilities?: Record<string, boolean> | null
+      featureKeys?: string[] | null
     }
     | undefined
   const [quickActionOnboarding, navigationContext] = await Promise.all([
@@ -78,21 +81,20 @@ async function loadSidebarQuickActionOnboarding(userId?: string) {
   }
 }
 
-async function getSidebarNavigationContext(sessionUser?: {
+export async function getSidebarNavigationContext(sessionUser?: {
   id?: string
   role?: string | null
   roles?: string[] | null
   roleAssignments?: Array<{ role: string; status: string }> | null
   capabilities?: Record<string, boolean> | null
-}) {
+  featureKeys?: string[] | null
+}, database: SidebarDatabase = prisma) {
   if (!sessionUser?.id) {
     return { authState: "anonymous" as const }
   }
 
-  const [featureKeys, practiceRoles] = await Promise.all([
-    loadSidebarFeatureKeys(sessionUser.id, sessionUser.capabilities),
-    loadSidebarPracticeRoles(sessionUser.id),
-  ])
+  const featureKeys = sidebarFeatureKeys(sessionUser)
+  const practiceRoles = await loadSidebarPracticeRoles(sessionUser.id, database)
 
   return {
     authState: "signed-in" as const,
@@ -111,19 +113,18 @@ function objectRecord(value: unknown) {
     : {}
 }
 
-async function loadSidebarFeatureKeys(userId: string, capabilities?: Record<string, boolean> | null) {
-  try {
-    const entitlements = await getUserEntitlementState(prisma, userId)
-    return entitlements.features
-  } catch (error) {
-    logSidebarContextLoadError("Failed to load sidebar entitlement context", error)
-    return featureKeysFromCapabilities(capabilities)
-  }
+function sidebarFeatureKeys(sessionUser: {
+  featureKeys?: string[] | null
+  capabilities?: Record<string, boolean> | null
+}) {
+  return Array.isArray(sessionUser.featureKeys)
+    ? sessionUser.featureKeys
+    : featureKeysFromCapabilities(sessionUser.capabilities)
 }
 
-async function loadSidebarPracticeRoles(userId: string) {
+async function loadSidebarPracticeRoles(userId: string, database: SidebarDatabase = prisma) {
   try {
-    return await prisma.practiceMembership.findMany({
+    return await database.practiceMembership.findMany({
       where: { userId },
       select: { practiceId: true, role: true },
       orderBy: { createdAt: "asc" },
