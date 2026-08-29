@@ -17,6 +17,8 @@
     "test": "node --test tests/*.test.mjs",
     "test:browser": "playwright test",
     "test:browser:build": "npm run build:browser-qa && npm run test:browser",
+    "readiness:timings": "node scripts/family-friends-route-timings.mjs",
+    "readiness:timing-receipt": "node scripts/family-friends-timing-receipt.mjs",
     "atmoshaper:assert-production-bundle": "node scripts/assert-atmoshaper-production-bundle.mjs",
     "atmoshaper:sounds:audit": "node scripts/atmoshaper-signature-sound-audit.mjs",
     "atmoshaper:sounds:curate-review": "node scripts/atmoshaper-signature-sound-listening-review.mjs",
