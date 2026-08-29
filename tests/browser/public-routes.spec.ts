@@ -1032,18 +1032,39 @@ test("Breathing guide route runs separately from Music stations", async ({ page 
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("first station Play activation stays hidden before carousel readiness", async ({ browser }, testInfo) => {
+test("first station Play activation stays hidden before carousel readiness", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Mobile Chromium owns the first-action contract.")
-  const context = await browser.newContext({ javaScriptEnabled: false })
-  const page = await context.newPage()
+  let carouselBundleHeld = false
+  let releaseCarouselBundle: () => void = () => undefined
+  const carouselBundleGate = new Promise<void>((resolve) => {
+    releaseCarouselBundle = resolve
+  })
+
+  await page.route("**/_next/static/chunks/*.js", async (route) => {
+    const response = await route.fetch()
+    const body = await response.body()
+    if (body.includes("carousel-ready")) {
+      carouselBundleHeld = true
+      await carouselBundleGate
+    }
+    await route.fulfill({ response, body })
+  })
+
   try {
-    await page.goto("/music", { waitUntil: "domcontentloaded" })
+    // Commit returns once the document response begins, allowing the streamed
+    // server markup to expose the real pre-hydration carousel state while its
+    // own client bundle remains behind the deterministic route gate above.
+    await page.goto("/music", { waitUntil: "commit" })
+    await expect.poll(() => carouselBundleHeld).toBe(true)
     const carousel = page.getByRole("region", { name: "Station carousel" })
     await expect(carousel).toHaveAttribute("data-carousel-ready", "false")
     await expect(carousel.locator("[data-carousel-primary-action]").first()).toHaveCSS("visibility", "hidden")
-    await expect(carousel.locator("[data-carousel-favorite-action]").first()).toHaveCSS("visibility", "hidden")
+
+    releaseCarouselBundle()
+    await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+    await expect(carousel.locator("[data-carousel-primary-action]").first()).toHaveCSS("visibility", "visible")
   } finally {
-    await context.close()
+    releaseCarouselBundle()
   }
 })
 
