@@ -86,7 +86,7 @@ describe("transaction-safe account method mutations", () => {
       userId: "user-1",
       mode: "CHANGE",
       currentPassword: "old-password",
-      newPasswordHash: "new-hash",
+      newPassword: "raw-new-password",
       networkIdentifier: "network",
       confirmed: true,
       now: NOW,
@@ -95,6 +95,7 @@ describe("transaction-safe account method mutations", () => {
         db.user("user-1").authSessionVersion += 1
         return { status: "VERIFIED", backupCodeConsumed: false, authSessionVersion: 0 }
       },
+      hashPasswordFn: async () => "new-hash",
     })
 
     assert.equal(proofCalls.length, 1)
@@ -102,6 +103,79 @@ describe("transaction-safe account method mutations", () => {
     assert.equal(proofCalls[0].insideTransaction, false)
     assert.deepEqual(result, { status: "REJECTED", code: "CONFLICT" })
     assert.equal(db.passwordFor("user-1").passwordHash, "old-hash")
+  })
+
+  it("does not hash a replacement password until CHANGE proof succeeds", async () => {
+    for (const proofStatus of ["INVALID", "RATE_LIMITED", "TWO_FACTOR_REQUIRED", "TWO_FACTOR_INVALID"]) {
+      const db = createMethodDatabase({ passwordCredentials: [{ id: "password-1", userId: "user-1", passwordHash: "old-hash" }] })
+      const events = []
+      const result = await setPasswordMethod({
+        prismaClient: db,
+        userId: "user-1",
+        mode: "CHANGE",
+        currentPassword: "old-password",
+        newPassword: "raw-new-password",
+        networkIdentifier: "network",
+        confirmed: true,
+        now: NOW,
+        verifyPasswordMethodProofFn: async () => { events.push("proof"); return { status: proofStatus } },
+        hashPasswordFn: async () => { events.push("hash"); return "new-hash" },
+      })
+
+      assert.equal(result.status, "REJECTED", proofStatus)
+      assert.deepEqual(events, ["proof"], proofStatus)
+      assert.equal(db.transactionCount, 0, proofStatus)
+    }
+  })
+
+  it("hashes a CHANGE password exactly once after proof and before the transaction", async () => {
+    const db = createMethodDatabase({ passwordCredentials: [{ id: "password-1", userId: "user-1", passwordHash: "old-hash" }] })
+    const events = []
+    const result = await setPasswordMethod({
+      prismaClient: db,
+      userId: "user-1",
+      mode: "CHANGE",
+      currentPassword: "old-password",
+      newPassword: "raw-new-password",
+      networkIdentifier: "network",
+      confirmed: true,
+      now: NOW,
+      verifyPasswordMethodProofFn: async () => { events.push(`proof:${db.insideTransaction}`); return { status: "VERIFIED", authSessionVersion: 0 } },
+      hashPasswordFn: async (password) => { events.push(`hash:${password}:${db.insideTransaction}`); return "new-hash" },
+    })
+    events.push(`done:${db.transactionCount}`)
+
+    assert.equal(result.status, "UPDATED")
+    assert.deepEqual(events, ["proof:false", "hash:raw-new-password:false", "done:1"])
+    assert.equal(db.passwordFor("user-1").passwordHash, "new-hash")
+  })
+
+  it("requires cookie-bound ADD preflight before hashing and revalidates it in the transaction", async () => {
+    const db = createMethodDatabase({ accounts: [googleAccount()] })
+    const intent = db.addGoogleReauthIntent("ADD_PASSWORD")
+    let hashes = 0
+    const base = {
+      prismaClient: db,
+      userId: "user-1",
+      mode: "ADD",
+      intentId: intent.id,
+      newPassword: "raw-new-password",
+      confirmed: true,
+      now: NOW,
+      hashPasswordFn: async () => { hashes += 1; return "new-hash" },
+    }
+
+    assert.deepEqual(await setPasswordMethod(base), { status: "REJECTED", code: "INVALID_PROOF" })
+    assert.equal(hashes, 0)
+    assert.equal(db.transactionCount, 0)
+
+    const result = await setPasswordMethod({
+      ...base,
+      googleReauthPreflight: { intentId: intent.id, targetUserId: "user-1" },
+    })
+    assert.equal(result.status, "UPDATED")
+    assert.equal(hashes, 1)
+    assert.equal(db.passwordFor("user-1").passwordHash, "new-hash")
   })
 
   it("maps invalid direct proof results to safe rejection codes without starting mutation transactions", async () => {
@@ -199,13 +273,22 @@ function linkInput(db, intentId, overrides = {}) {
 }
 
 function passwordAddInput(db, intentId) {
-  return { prismaClient: db, userId: "user-1", intentId, mode: "ADD", newPasswordHash: "new-hash", confirmed: true, now: NOW }
+  return {
+    prismaClient: db,
+    userId: "user-1",
+    mode: "ADD",
+    googleReauthPreflight: { intentId, targetUserId: "user-1" },
+    newPassword: "raw-new-password",
+    hashPasswordFn: async () => "new-hash",
+    confirmed: true,
+    now: NOW,
+  }
 }
 
 function passwordChangeInput(db) {
   return {
-    prismaClient: db, userId: "user-1", mode: "CHANGE", currentPassword: "old-password", newPasswordHash: "new-hash",
-    networkIdentifier: "network", confirmed: true, now: NOW, verifyPasswordMethodProofFn: verifiedProof,
+    prismaClient: db, userId: "user-1", mode: "CHANGE", currentPassword: "old-password", newPassword: "raw-new-password",
+    networkIdentifier: "network", confirmed: true, now: NOW, verifyPasswordMethodProofFn: verifiedProof, hashPasswordFn: async () => "new-hash",
   }
 }
 

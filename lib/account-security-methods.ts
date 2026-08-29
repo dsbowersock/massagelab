@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto"
 import type { PrismaClient } from "@prisma/client"
 
 import { getAuthSecret } from "./auth-env.ts"
-import { normalizeEmail } from "./auth-security.js"
+import { hashPassword, normalizeEmail } from "./auth-security.js"
 import { runCommerceTransaction } from "./commerce/transactions.ts"
 import { prisma } from "./prisma.ts"
 import { queueAccountSecurityEmail } from "./account-security-email-intents.ts"
@@ -98,18 +98,19 @@ export async function confirmGoogleLink(input: {
 export async function setPasswordMethod(input: {
   prismaClient?: MethodClient
   userId: string
-  intentId?: string
+  googleReauthPreflight?: { intentId: string; targetUserId: string | null }
   mode: "ADD" | "CHANGE"
   currentPassword?: string
-  newPasswordHash: string
+  newPassword: string
   twoFactorCode?: string
   networkIdentifier?: string
   confirmed: boolean
   now?: Date
   verifyPasswordMethodProofFn?: ProofFunction
+  hashPasswordFn?: (password: string) => Promise<string>
 }): Promise<AuthMethodMutationResult> {
   const now = captureNow(input.now)
-  if (!now || input.confirmed !== true || !validIdentifier(input.userId) || !validHash(input.newPasswordHash)) return rejected("INVALID_PROOF")
+  if (!now || input.confirmed !== true || !validIdentifier(input.userId) || !validNewPassword(input.newPassword)) return rejected("INVALID_PROOF")
   const client = input.prismaClient ?? prisma
   let provedVersion: number | null = null
   if (input.mode === "CHANGE") {
@@ -123,9 +124,21 @@ export async function setPasswordMethod(input: {
     })
     if (proof.status === "REJECTED") return proof
     provedVersion = proof.authSessionVersion
-  } else if (input.mode !== "ADD" || !validIdentifier(input.intentId ?? "")) {
+  } else if (
+    input.mode !== "ADD"
+    || !validIdentifier(input.googleReauthPreflight?.intentId ?? "")
+    || input.googleReauthPreflight?.targetUserId !== input.userId
+  ) {
     return rejected("INVALID_PROOF")
   }
+
+  let newPasswordHash: string
+  try {
+    newPasswordHash = await (input.hashPasswordFn ?? hashPassword)(input.newPassword)
+  } catch {
+    return rejected("CONFLICT")
+  }
+  if (!validHash(newPasswordHash)) return rejected("CONFLICT")
 
   return safelyMutate(client, async (tx) => {
     const user = await loadMethodUser(tx, input.userId)
@@ -136,16 +149,16 @@ export async function setPasswordMethod(input: {
 
     let consumedIntentId: string | null = null
     if (input.mode === "ADD") {
-      const intent = await tx.authMethodIntent.findUnique({ where: { id: input.intentId } })
+      const intent = await tx.authMethodIntent.findUnique({ where: { id: input.googleReauthPreflight?.intentId } })
       if (!isFreshGoogleReauth(intent, "ADD_PASSWORD", user.id, now)) return rejected("INTENT_EXPIRED")
       if (!user.accounts.some((account: { provider: string; providerAccountId: string }) => account.provider === "google" && account.providerAccountId === intent.providerAccountId)) {
         return rejected("CONFLICT")
       }
       if (!await consumeGoogleReauth(tx, intent, now)) return rejected("INTENT_EXPIRED")
       consumedIntentId = intent.id
-      await tx.passwordCredential.create({ data: { userId: user.id, passwordHash: input.newPasswordHash } })
+      await tx.passwordCredential.create({ data: { userId: user.id, passwordHash: newPasswordHash } })
     } else {
-      await tx.passwordCredential.update({ where: { userId: user.id }, data: { passwordHash: input.newPasswordHash } })
+      await tx.passwordCredential.update({ where: { userId: user.id }, data: { passwordHash: newPasswordHash } })
       await incrementSessionVersion(tx, user.id)
     }
 
@@ -342,6 +355,10 @@ function validIdentifier(value: unknown): value is string {
 
 function validHash(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= 512
+}
+
+function validNewPassword(value: unknown): value is string {
+  return typeof value === "string" && value.length >= 12 && value.length <= 1024
 }
 
 function rejected(code: AuthMethodMutationRejectionCode): AuthMethodMutationResult {

@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client"
 import type { consumeEmailWorkRateLimit } from "./auth-rate-limit.ts"
 import { resolveNormalizedUserId } from "./normalized-user-email.ts"
+import { isUserEmailUniqueConstraint } from "./prisma-identity-unique-constraint.ts"
 
 export type PublicAuthWorkResult =
   | { status: "ACCEPTED" }
@@ -48,7 +49,7 @@ export type RegisterPasswordAccountInput = {
   sendVerification(email: string, token: string, callbackUrl: string): Promise<unknown>
   sendPasswordReset(email: string, token: string): Promise<unknown>
   sendExistingAccountNotice(email: string): Promise<unknown>
-  scheduleDelivery(delivery: () => Promise<void>): void
+  scheduleAccountWork(work: () => Promise<void>): void
 }
 
 export const PUBLIC_ACCOUNT_ENTRY_MESSAGE =
@@ -57,7 +58,7 @@ export const PUBLIC_ACCOUNT_ENTRY_MESSAGE =
 /**
  * Performs bounded password registration without exposing account state.
  * Quota is consumed before every expensive or persistent operation, and all
- * delivery work happens only after its recoverable database state commits.
+ * accepted requests schedule exactly one post-response account-work task.
  */
 export async function registerPasswordAccount(
   input: RegisterPasswordAccountInput,
@@ -77,10 +78,19 @@ export async function registerPasswordAccount(
     return { status: "RATE_LIMITED", retryAfterSeconds: rateLimit.retryAfterSeconds }
   }
 
+  scheduleAccountWork(input, () => runRegistrationAccountWork(input, email, now))
+  return { status: "ACCEPTED" }
+}
+
+async function runRegistrationAccountWork(
+  input: RegisterPasswordAccountInput,
+  email: string,
+  now: Date,
+): Promise<void> {
   const existing = await findAccount(input.prismaClient, email)
   if (existing) {
     await handleExistingAccount(input, existing, email, now)
-    return { status: "ACCEPTED" }
+    return
   }
 
   const passwordHash = await input.hashPassword(input.password)
@@ -113,15 +123,14 @@ export async function registerPasswordAccount(
       await input.ensureUserRole(user.id, user.email, tx)
     }, { isolationLevel: "Serializable" })
   } catch (error) {
-    if (!isUserEmailIdentityConflict(error)) throw error
+    if (!isUserEmailUniqueConstraint(error)) throw error
     const racedAccount = await findAccount(input.prismaClient, email)
     if (!racedAccount) throw error
     await handleExistingAccount(input, racedAccount, email, now)
-    return { status: "ACCEPTED" }
+    return
   }
 
-  scheduleDelivery(input, () => input.sendVerification(email, verificationToken, input.callbackUrl))
-  return { status: "ACCEPTED" }
+  await ignoreDeliveryFailure(() => input.sendVerification(email, verificationToken, input.callbackUrl))
 }
 
 async function handleExistingAccount(
@@ -160,12 +169,12 @@ async function handleExistingAccount(
         metadata: input.legalMetadata,
       })
     }, { isolationLevel: "Serializable" })
-    scheduleDelivery(input, () => input.sendVerification(recipient, token, input.callbackUrl))
+    await ignoreDeliveryFailure(() => input.sendVerification(recipient, token, input.callbackUrl))
     return
   }
 
   if (user.emailVerified && user.passwordCredential) {
-    scheduleDelivery(input, () => input.sendExistingAccountNotice(recipient))
+    await ignoreDeliveryFailure(() => input.sendExistingAccountNotice(recipient))
     return
   }
 
@@ -186,7 +195,7 @@ async function handleExistingAccount(
         },
       })
     }, { isolationLevel: "Serializable" })
-    scheduleDelivery(input, () => input.sendPasswordReset(recipient, token))
+    await ignoreDeliveryFailure(() => input.sendPasswordReset(recipient, token))
   }
 }
 
@@ -199,21 +208,19 @@ async function findAccount(prismaClient: RegistrationClient, email: string) {
   })
 }
 
-function isUserEmailIdentityConflict(error: unknown): boolean {
-  if (!error || typeof error !== "object" || (error as { code?: unknown }).code !== "P2002") return false
-  const meta = (error as { meta?: { modelName?: unknown; target?: unknown } }).meta
-  if (meta?.modelName !== "User") return false
-  return meta.target === "User_normalized_email_key"
-    || meta.target === "User_email_key"
-    || (Array.isArray(meta.target) && meta.target.length === 1 && meta.target[0] === "email")
+function scheduleAccountWork(input: RegisterPasswordAccountInput, work: () => Promise<void>): void {
+  try {
+    input.scheduleAccountWork(() => sanitizeAccountWorkFailure(work, "Scheduled registration account work failed."))
+  } catch {
+    // Scheduling failure remains response-neutral and reveals no account state.
+  }
 }
 
-function scheduleDelivery(input: RegisterPasswordAccountInput, deliver: () => Promise<unknown>): void {
+async function sanitizeAccountWorkFailure(work: () => Promise<void>, safeMessage: string): Promise<void> {
   try {
-    input.scheduleDelivery(() => ignoreDeliveryFailure(deliver))
+    await work()
   } catch {
-    // Scheduling failure cannot alter the neutral response; committed state
-    // remains recoverable through another verification/recovery request.
+    throw new Error(safeMessage)
   }
 }
 

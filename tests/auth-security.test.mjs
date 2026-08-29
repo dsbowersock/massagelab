@@ -54,7 +54,7 @@ describe("Auth security helpers", () => {
       /tx\.passwordResetToken\.create\(\{[\s\S]*?userId: user\.id,[\s\S]*?tokenHash: input\.hashToken\(token\),[\s\S]*?expiresAt: input\.tokenExpiresAt\(60\)/,
     )
     assert.match(selfServicePasswordResetRouteSource, /resetWork = requestPasswordReset/)
-    assert.match(selfServicePasswordResetRouteSource, /scheduleDelivery: \(delivery\) => after\(delivery\)/)
+    assert.match(selfServicePasswordResetRouteSource, /scheduleAccountWork: \(work\) => after\(work\)/)
     assert.doesNotMatch(passwordResetRequestServiceSource, /accountSecurityEmailIntent|emailIntent|issuer|adminAction/i)
     assert.doesNotMatch(selfServicePasswordResetRouteSource, /accountSecurityEmailIntent|emailIntent|issuer|adminAction/i)
   })

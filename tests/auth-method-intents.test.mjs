@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 import { runCommerceTransaction } from "../lib/commerce/transactions.ts"
 import { buildRegistrationLegalProviderRedirectPath } from "../lib/legal-acceptance-gate.js"
+import { isGoogleIdentityUniqueConstraint } from "../lib/prisma-identity-unique-constraint.ts"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
@@ -17,6 +18,7 @@ async function loadService() {
     "@/lib/normalized-user-email": {
       resolveNormalizedUserId: async ({ prismaClient, email }) => prismaClient.resolveNormalizedUserId(email),
     },
+    "@/lib/prisma-identity-unique-constraint": { isGoogleIdentityUniqueConstraint },
     "@/lib/prisma": { prisma: {} },
   })
 }
@@ -25,7 +27,10 @@ async function loadAccountSecurityMethods() {
   const source = await readFile(new URL("../lib/account-security-methods.ts", import.meta.url), "utf8")
   return loadCompiledModule(source, "account-security-methods.integration.test.ts", {
     "./auth-env.ts": { getAuthSecret: () => "intent-test-secret" },
-    "./auth-security.js": { normalizeEmail: (value) => typeof value === "string" ? value.trim().toLowerCase() : "" },
+    "./auth-security.js": {
+      hashPassword: async () => "hash",
+      normalizeEmail: (value) => typeof value === "string" ? value.trim().toLowerCase() : "",
+    },
     "./commerce/transactions.ts": { runCommerceTransaction },
     "./prisma.ts": { prisma: {} },
     "./account-security-email-intents.ts": {
@@ -347,6 +352,53 @@ describe("private Google auth-method intents", () => {
     assert.equal(db.rolledBackTransactions >= 1, true)
   })
 
+  for (const scenario of [
+    {
+      name: "installed-adapter User email constraint",
+      constraint: { fields: ["email"] },
+      expectedKind: "LINK_REQUIRED",
+      beforeUserCreate(state) {
+        state.users.push({ id: "password-winner", email: "family@example.com", emailVerified: new Date() })
+      },
+    },
+    {
+      name: "real Account provider constraint name",
+      constraint: { index: "Account_provider_providerAccountId_key" },
+      expectedKind: "CONTINUE",
+      beforeUserCreate(state) {
+        state.users.push({ id: "google-winner", email: "family@example.com", emailVerified: new Date() })
+        state.accounts.push({ id: "account-winner", userId: "google-winner", type: "oauth", provider: "google", providerAccountId: "sub-race" })
+      },
+    },
+    {
+      name: "installed-adapter Account provider fields",
+      constraint: { fields: ["provider", "providerAccountId"] },
+      expectedKind: "CONTINUE",
+      beforeUserCreate(state) {
+        state.users.push({ id: "google-winner", email: "family@example.com", emailVerified: new Date() })
+        state.accounts.push({ id: "account-winner", userId: "google-winner", type: "oauth", provider: "google", providerAccountId: "sub-race" })
+      },
+    },
+  ]) {
+    it(`retries a production-shaped ${scenario.name} race`, async () => {
+      const service = await loadService()
+      let inserted = false
+      const db = createIntentDatabase({
+        identityUniqueError: driverAdapterUniqueError(scenario.constraint),
+        beforeUserCreate(state) {
+          if (inserted) return
+          inserted = true
+          scenario.beforeUserCreate(state)
+        },
+      })
+      const intent = await start(service, db)
+      const result = await service.prepareGoogleAuthentication(googleInput(db, "family@example.com", "sub-race", intent))
+
+      assert.equal(result.kind, scenario.expectedKind)
+      assert.equal(db.identityUniqueConflicts, 1)
+    })
+  }
+
   it("rate limits before intent access and returns a private cookie plus callback only", async () => {
     const routeSource = await readFile(new URL("../app/api/auth/google/intent/route.ts", import.meta.url), "utf8")
     assert.ok(routeSource.indexOf("consumeGoogleIntentStartRateLimit") < routeSource.indexOf("startAuthMethodIntent"))
@@ -633,14 +685,14 @@ function transactionClient(state, root, seed) {
         }
         if (root.state.users.some((row) => row.email === data.email)) {
           root.identityUniqueConflicts += 1
-          throw uniqueError("User", ["email"])
+            throw seed.identityUniqueError ?? uniqueError("User", ["email"])
         }
-        if (state.users.some((row) => row.email === data.email)) throw uniqueError("User", ["email"])
+          if (state.users.some((row) => row.email === data.email)) throw seed.identityUniqueError ?? uniqueError("User", ["email"])
         const accounts = data.accounts?.create ? [data.accounts.create] : []
         for (const account of accounts) {
           if (root.state.accounts.some((row) => row.provider === account.provider && row.providerAccountId === account.providerAccountId)) {
             root.identityUniqueConflicts += 1
-            throw uniqueError("Account", ["provider", "providerAccountId"])
+            throw seed.identityUniqueError ?? uniqueError("Account", ["provider", "providerAccountId"])
           }
           if (state.accounts.some((row) => row.provider === account.provider && row.providerAccountId === account.providerAccountId)) {
             throw uniqueError("Account", ["provider", "providerAccountId"])
@@ -684,6 +736,23 @@ function normalizeEmail(value) {
 
 function uniqueError(modelName, target) {
   return Object.assign(new Error("unique constraint"), { code: "P2002", meta: { modelName, target } })
+}
+
+function driverAdapterUniqueError(constraint) {
+  return Object.assign(new Error("production unique constraint"), {
+    code: "P2002",
+    meta: {
+      driverAdapterError: {
+        name: "DriverAdapterError",
+        cause: {
+          kind: "UniqueConstraintViolation",
+          originalCode: "23505",
+          originalMessage: "duplicate key value violates unique constraint",
+          constraint,
+        },
+      },
+    },
+  })
 }
 
 function serializationError() {

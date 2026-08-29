@@ -5,6 +5,7 @@ import { normalizeEmail } from "@/lib/auth-security"
 import { ensureUserRole } from "@/lib/auth-users"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { resolveNormalizedUserId } from "@/lib/normalized-user-email"
+import { isGoogleIdentityUniqueConstraint } from "@/lib/prisma-identity-unique-constraint"
 import { prisma } from "@/lib/prisma"
 
 export const AUTH_METHOD_INTENT_COOKIE = "ml-auth-method-binding"
@@ -267,7 +268,7 @@ export async function prepareGoogleAuthentication({
   } catch (error) {
     // A different browser may win the normalized User or Google Account unique
     // constraint after our initial read. Restart once to resolve its committed owner.
-    if (!isRelevantIdentityUniqueRace(error)) throw error
+    if (!isGoogleIdentityUniqueConstraint(error)) throw error
     return operation()
   }
 }
@@ -346,22 +347,6 @@ function rejected(purpose: GoogleIntentPurpose, session: SessionIdentity, unavai
     kind: "REJECTED",
     recoveryPath: unavailable ? "/login?auth=google-unavailable" : "/login?auth=google-retry",
   }
-}
-
-function isRelevantIdentityUniqueRace(error: unknown) {
-  if (!error || typeof error !== "object" || (error as { code?: unknown }).code !== "P2002") return false
-  const meta = (error as { meta?: unknown }).meta
-  if (!meta || typeof meta !== "object") return false
-  const modelName = (meta as { modelName?: unknown }).modelName
-  const target = (meta as { target?: unknown }).target
-  const userIdentityRace = modelName === "User" && (
-    target === "User_normalized_email_key"
-    || target === "User_email_key"
-    || (Array.isArray(target) && target.length === 1 && target[0] === "email")
-  )
-  if (!Array.isArray(target) && !userIdentityRace) return false
-  return userIdentityRace
-    || (modelName === "Account" && target.length === 2 && target.includes("provider") && target.includes("providerAccountId"))
 }
 
 function isGoogleIntentPurpose(value: unknown): value is GoogleIntentPurpose {

@@ -69,7 +69,7 @@ describe("registration email delivery policy", () => {
     const { POST } = await loadRegistrationRoute({
       afterCallbacks,
       registerWork: async (input) => {
-        input.scheduleDelivery(() => {
+        input.scheduleAccountWork(() => {
           providerStarted = true
           return provider
         })

@@ -17,10 +17,11 @@ describe("registerPasswordAccount", () => {
     const db = createRegistrationDatabase()
 
     const result = await registerPasswordAccount(registrationInput(db))
+    await db.runScheduledDeliveries()
 
     assert.deepEqual(result, { status: "ACCEPTED" })
     assert.equal(PUBLIC_ACCOUNT_ENTRY_MESSAGE, "Check that email address for the appropriate sign-in, verification, or recovery next step.")
-    assert.deepEqual(db.events.slice(0, 4), ["limit:ACCOUNT", "limit:NETWORK", "normalized-email.query", "hashPassword"])
+    assert.deepEqual(db.events.slice(0, 5), ["limit:ACCOUNT", "limit:NETWORK", "delivery.schedule", "normalized-email.query", "hashPassword"])
     assert.equal(db.users.length, 1)
     assert.equal(db.profiles.length, 1)
     assert.equal(db.passwordCredentials.length, 1)
@@ -37,12 +38,31 @@ describe("registerPasswordAccount", () => {
     const db = createRegistrationDatabase({ duplicateRace: true })
 
     assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" })
+    await db.runScheduledDeliveries()
 
     assert.equal(db.users.length, 1)
     assert.equal(db.userCreateAttempts, 1)
     assert.equal(db.sentExistingMessages.length, 1)
     assert.equal(db.sentVerificationMessages.length, 0)
   })
+
+  for (const [name, constraint] of [
+    ["installed-adapter email fields", { fields: ["email"] }],
+    ["normalized database index", { index: "User_normalized_email_key" }],
+    ["exact-email database index", { index: "User_email_key" }],
+  ]) {
+    it(`reloads a production-shaped ${name} race`, async () => {
+      const db = createRegistrationDatabase({
+        duplicateRace: true,
+        uniqueError: driverAdapterUniqueError(constraint),
+      })
+
+      assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" })
+      await db.runScheduledDeliveries()
+      assert.equal(db.users.length, 1)
+      assert.equal(db.sentExistingMessages.length, 1)
+    })
+  }
 
   it("resolves a padded mixed-case stored email through the parameterized functional-index rule", async () => {
     const db = createRegistrationDatabase({
@@ -54,6 +74,7 @@ describe("registerPasswordAccount", () => {
     })
 
     assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" })
+    await db.runScheduledDeliveries()
 
     assert.equal(db.users.length, 1)
     assert.equal(db.userCreateAttempts, 0)
@@ -71,6 +92,7 @@ describe("registerPasswordAccount", () => {
     })
 
     const result = await registerPasswordAccount(registrationInput(db))
+    await db.runScheduledDeliveries()
 
     assert.deepEqual(result, { status: "ACCEPTED" })
     assert.equal(db.users.length, 1)
@@ -94,6 +116,7 @@ describe("registerPasswordAccount", () => {
       })
 
       assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" })
+      await db.runScheduledDeliveries()
       assert.equal(db.users.length, 1)
       assert.equal(db.userCreateAttempts, 1)
       assert.equal(db.sentExistingMessages.length, 1)
@@ -108,9 +131,20 @@ describe("registerPasswordAccount", () => {
       Object.assign(new Error("wrong case"), { code: "P2002", meta: { modelName: "User", target: ["Email"] } }),
       Object.assign(new Error("other model"), { code: "P2002", meta: { modelName: "EmailVerificationToken", target: "User_email_key" } }),
       Object.assign(new Error("not unique"), { code: "P2024" }),
+      driverAdapterUniqueError(undefined),
+      driverAdapterUniqueError({ fields: ["name"] }),
+      driverAdapterUniqueError({ fields: ["email", "name"] }),
+      driverAdapterUniqueError({ index: "User_name_key" }),
+      driverAdapterUniqueError({ index: "User_email_key" }, { originalCode: "23503" }),
+      driverAdapterUniqueError({ index: "User_email_key" }, { code: "P2024" }),
+      driverAdapterUniqueError({ index: "User_email_key" }, { modelName: "EmailVerificationToken" }),
     ]) {
       const db = createRegistrationDatabase({ uniqueError: error })
-      await assert.rejects(() => registerPasswordAccount(registrationInput(db)), (received) => received === error)
+      assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" })
+      await assert.rejects(
+        () => db.runScheduledDeliveries(),
+        (received) => received !== error && received?.message === "Scheduled registration account work failed.",
+      )
       assert.equal(db.userCreateAttempts, 1)
     }
   })
@@ -129,12 +163,33 @@ describe("registerPasswordAccount", () => {
     ])
     assert.deepEqual(settled, { status: "ACCEPTED" })
     assert.equal(db.scheduledDeliveries.length, 1)
-    assert.equal(db.verificationTokens.length, 1)
-    assert.ok(db.events.indexOf("transaction.commit") < db.events.indexOf("delivery.schedule"))
+    assert.equal(db.verificationTokens.length, 0)
+    assert.deepEqual(db.events, ["limit:ACCOUNT", "limit:NETWORK", "delivery.schedule"])
 
     const delivery = db.runScheduledDeliveries()
+    await waitFor(() => db.events.includes("transaction.commit"))
+    assert.equal(db.verificationTokens.length, 1)
+    assert.ok(db.events.indexOf("delivery.schedule") < db.events.indexOf("transaction.commit"))
     releaseProvider({ delivered: false })
     await delivery
+  })
+
+  it("accepts new and existing registrations before any account-dependent work and schedules exactly one task", async () => {
+    for (const [name, user] of [
+      ["new", null],
+      ["existing", existingUser({ emailVerified: NOW, passwordCredential: { passwordHash: "stored-hash" } })],
+    ]) {
+      const db = createRegistrationDatabase({ user, deferDelivery: true })
+
+      assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" }, name)
+      assert.deepEqual(db.events, ["limit:ACCOUNT", "limit:NETWORK", "delivery.schedule"], name)
+      assert.equal(db.scheduledDeliveries.length, 1, name)
+      assert.equal(db.transactionCount, 0, name)
+      assert.equal(db.users.length, user ? 1 : 0, name)
+
+      await db.runScheduledDeliveries()
+      assert.ok(db.events.includes("normalized-email.query"), name)
+    }
   })
 
   it("keeps every accepted account state publicly identical after quota consumption", async () => {
@@ -164,9 +219,10 @@ describe("registerPasswordAccount", () => {
     for (const scenario of cases) {
       const db = createRegistrationDatabase({ user: scenario.user })
       const result = await registerPasswordAccount(registrationInput(db))
+      await db.runScheduledDeliveries()
 
       assert.deepEqual(result, { status: "ACCEPTED" }, scenario.name)
-      assert.deepEqual(db.events.slice(0, 4), ["limit:ACCOUNT", "limit:NETWORK", "normalized-email.query", "user.findUnique"], scenario.name)
+      assert.deepEqual(db.events.slice(0, 5), ["limit:ACCOUNT", "limit:NETWORK", "delivery.schedule", "normalized-email.query", "user.findUnique"], scenario.name)
       assert.equal(db.sentVerificationMessages.length, scenario.expected.verification, scenario.name)
       assert.equal(db.sentExistingMessages.length, scenario.expected.existing, scenario.name)
       assert.equal(db.sentResetMessages.length, scenario.expected.reset, scenario.name)
@@ -183,6 +239,8 @@ describe("registerPasswordAccount", () => {
 
     assert.deepEqual(await registerPasswordAccount(registrationInput(fresh)), { status: "ACCEPTED" })
     assert.deepEqual(await registerPasswordAccount(registrationInput(resend)), { status: "ACCEPTED" })
+    await fresh.runScheduledDeliveries()
+    await resend.runScheduledDeliveries()
 
     assert.equal(fresh.users.length, 1)
     assert.equal(fresh.verificationTokens.length, 1)
@@ -237,7 +295,7 @@ function registrationInput(db, overrides = {}) {
     sendVerification: async (email, token, callbackUrl) => db.sendVerification(email, token, callbackUrl),
     sendPasswordReset: async (email, token) => db.sendReset(email, token),
     sendExistingAccountNotice: async (email) => db.sendExisting(email),
-    scheduleDelivery: (delivery) => db.scheduleDelivery(delivery),
+    scheduleAccountWork: (work) => db.scheduleDelivery(work),
     ...overrides,
   }
 }
@@ -246,13 +304,34 @@ function existingUser(overrides) {
   return { id: "user-existing", email: "person@example.com", name: "Person", ...overrides }
 }
 
+function driverAdapterUniqueError(constraint, {
+  code = "P2002",
+  originalCode = "23505",
+  modelName,
+} = {}) {
+  return Object.assign(new Error("production unique constraint"), {
+    code,
+    meta: {
+      ...(modelName ? { modelName } : {}),
+      driverAdapterError: {
+        name: "DriverAdapterError",
+        cause: {
+          kind: "UniqueConstraintViolation",
+          originalCode,
+          originalMessage: "duplicate key value violates unique constraint",
+          constraint,
+        },
+      },
+    },
+  })
+}
+
 function createRegistrationDatabase({
   user = null,
   duplicateRace = false,
   raceWinnerEmail = "person@example.com",
   uniqueError = null,
   deliveryFailure = false,
-  deferDelivery = false,
   rateLimited = false,
 } = {}) {
   let state = {
@@ -395,7 +474,6 @@ function createRegistrationDatabase({
     scheduleDelivery(delivery) {
       events.push("delivery.schedule")
       scheduledDeliveries.push(delivery)
-      if (!deferDelivery) void delivery()
     },
     async runScheduledDeliveries() {
       await Promise.all(scheduledDeliveries.splice(0).map((delivery) => delivery()))
@@ -412,4 +490,12 @@ function createRegistrationDatabase({
     userCreateAttempts: { get: () => userCreateAttempts },
   })
   return database
+}
+
+async function waitFor(predicate) {
+  for (let index = 0; index < 100; index += 1) {
+    if (predicate()) return
+    await new Promise((resolve) => setImmediate(resolve))
+  }
+  throw new Error("condition not reached")
 }

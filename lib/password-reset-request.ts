@@ -17,13 +17,14 @@ export type RequestPasswordResetInput = {
   hashToken(token: string): string
   tokenExpiresAt(minutes: number): Date
   sendPasswordReset(email: string, token: string): Promise<unknown>
-  scheduleDelivery(delivery: () => Promise<void>): void
+  scheduleAccountWork(work: () => Promise<void>): void
 }
 
 /**
  * Requests password recovery without revealing whether the normalized account
  * exists. Both privacy-safe buckets are consumed before any account or token
- * access, and provider failure leaves the committed token recoverable.
+ * access. Accepted requests schedule one post-response task that owns lookup,
+ * token persistence, cleanup, and provider delivery.
  */
 export async function requestPasswordReset(
   input: RequestPasswordResetInput,
@@ -43,12 +44,21 @@ export async function requestPasswordReset(
     return { status: "RATE_LIMITED", retryAfterSeconds: rateLimit.retryAfterSeconds }
   }
 
+  scheduleAccountWork(input, () => runPasswordResetAccountWork(input, email, now))
+  return { status: "ACCEPTED" }
+}
+
+async function runPasswordResetAccountWork(
+  input: RequestPasswordResetInput,
+  email: string,
+  now: Date,
+): Promise<void> {
   const userId = await resolveNormalizedUserId({ prismaClient: input.prismaClient, email })
   const user = userId ? await input.prismaClient.user.findUnique({
     where: { id: userId },
     select: { id: true, email: true, emailVerified: true },
   }) : null
-  if (!user?.emailVerified || !user.email) return { status: "ACCEPTED" }
+  if (!user?.emailVerified || !user.email) return
   const recipientEmail = normalizeEmail(user.email)
 
   const token = input.generateToken()
@@ -69,17 +79,26 @@ export async function requestPasswordReset(
   }, { isolationLevel: "Serializable" })
 
   try {
-    input.scheduleDelivery(async () => {
-      try {
-        await input.sendPasswordReset(recipientEmail, token)
-      } catch {
-        // The token remains usable; provider details and existence never escape.
-      }
-    })
+    await input.sendPasswordReset(recipientEmail, token)
   } catch {
-    // Scheduling failure is response-neutral and leaves the committed token.
+    // The committed token remains usable; provider details never escape.
   }
-  return { status: "ACCEPTED" }
+}
+
+function scheduleAccountWork(input: RequestPasswordResetInput, work: () => Promise<void>): void {
+  try {
+    input.scheduleAccountWork(() => sanitizeAccountWorkFailure(work))
+  } catch {
+    // Scheduling failure remains response-neutral and reveals no account state.
+  }
+}
+
+async function sanitizeAccountWorkFailure(work: () => Promise<void>): Promise<void> {
+  try {
+    await work()
+  } catch {
+    throw new Error("Scheduled password-reset account work failed.")
+  }
 }
 
 function normalizeEmail(value: string): string {

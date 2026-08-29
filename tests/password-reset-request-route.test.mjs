@@ -35,6 +35,7 @@ const NOW = new Date("2026-08-28T12:00:00.000Z")
 
 describe("password reset limiter cutover", () => {
   it("persists both hashed buckets before reset work", async () => {
+    afterCallbacks.length = 0
     const database = createDatabase()
     let snapshot
     database.onUserLookup = () => { snapshot = structuredClone(database.rows) }
@@ -45,6 +46,8 @@ describe("password reset limiter cutover", () => {
       shouldPrune: () => false,
     })
     const response = await handler(request("Person@Example.com", "203.0.113.5"))
+    assert.equal(afterCallbacks.length, 1)
+    await afterCallbacks.shift()()
 
     assert.equal(response.status, 202)
     assert.equal(snapshot.length, 2)
@@ -68,7 +71,7 @@ describe("password reset limiter cutover", () => {
       clock: () => NOW,
       shouldPrune: () => false,
       resetWork: async (input) => {
-        input.scheduleDelivery(() => {
+        input.scheduleAccountWork(() => {
           providerStarted = true
           return provider
         })
@@ -88,9 +91,14 @@ describe("password reset limiter cutover", () => {
   })
 
   it("maps a blocked decision to exact 429 metadata without invoking reset work", async () => {
+    afterCallbacks.length = 0
     const database = createDatabase()
     const handler = route.createPasswordResetRequestHandler({ prismaClient: database, secret: "secret", clock: () => NOW, shouldPrune: () => false })
-    for (let index = 0; index < 5; index += 1) await handler(request("person@example.com", "203.0.113.5"))
+    for (let index = 0; index < 5; index += 1) {
+      await handler(request("person@example.com", "203.0.113.5"))
+      assert.equal(afterCallbacks.length, 1)
+      await afterCallbacks.shift()()
+    }
     const response = await handler(request("person@example.com", "203.0.113.5"))
 
     assert.equal(response.status, 429)

@@ -44,7 +44,7 @@ export function createPasswordResetRequestHandler({
       hashToken,
       tokenExpiresAt: tokenExpiresIn,
       sendPasswordReset: sendPasswordResetEmail,
-      scheduleDelivery: (delivery) => after(delivery),
+      scheduleAccountWork: (work) => after(work),
     })
     if (result.status === "RATE_LIMITED") {
       return NextResponse.json(

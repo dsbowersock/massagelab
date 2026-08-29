@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       EXISTING_ACCOUNT_NOTICE_SUBJECT,
       EXISTING_ACCOUNT_NOTICE_MESSAGE,
     ),
-    scheduleDelivery: (delivery) => after(delivery),
+    scheduleAccountWork: (work) => after(work),
   })
 
   if (result.status === "RATE_LIMITED") {

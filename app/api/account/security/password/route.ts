@@ -68,18 +68,18 @@ export function createPasswordMethodHandler({
       intentId = intent.id
     }
 
-    const newPasswordHash = await hash(body.newPassword)
     const result = await mutate({
       prismaClient,
       userId,
       mode: body.mode,
-      intentId,
+      googleReauthPreflight: intentId ? { intentId, targetUserId: userId } : undefined,
       currentPassword: body.currentPassword,
-      newPasswordHash,
+      newPassword: body.newPassword,
       twoFactorCode: body.twoFactorCode,
       networkIdentifier: requestIp(request),
       confirmed: true,
       now,
+      hashPasswordFn: hash,
     })
     if (result.status === "REJECTED") return rejectedResponse(result.code)
 

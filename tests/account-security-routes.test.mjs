@@ -142,6 +142,25 @@ describe("account security route adapters", () => {
     }
   })
 
+  it("proves ADD before hashing and passes only raw new password into the proof-owning service", async () => {
+    const events = []
+    const scenario = loadRoute("password", {
+      onResolveIntent: () => events.push("preflight"),
+      onHash: () => events.push("route-hash"),
+      onMutate: (input) => {
+        events.push("service")
+        assert.equal(input.newPassword, "a-long-new-password")
+        assert.equal(Object.hasOwn(input, "newPasswordHash"), false)
+        assert.deepEqual(input.googleReauthPreflight, { intentId: "intent-1", targetUserId: "user-1" })
+      },
+    })
+
+    const response = await scenario.POST(requestFor("password", validBody("password")))
+
+    assert.equal(response.status, 200)
+    assert.deepEqual(events, ["preflight", "service"])
+  })
+
   it("keeps raw proof and provider material out of responses, logs, and route-owned persistence", () => {
     for (const [name, source] of Object.entries(routeSources)) {
       assert.doesNotMatch(source, /console\s*\.|logger\s*\./, name)
@@ -210,6 +229,9 @@ function loadRoute(routeName, {
   },
   result,
   resolvedIntent = { id: "intent-1", targetUserId: "user-1" },
+  onResolveIntent = () => {},
+  onHash = () => {},
+  onMutate = () => {},
 } = {}) {
   const source = routeSources[routeName]
   const scheduled = []
@@ -220,7 +242,7 @@ function loadRoute(routeName, {
   const services = {
     async confirmGoogleLink(input) { serviceCalls.push(publicServiceInput(input)); return result ?? UPDATED },
     async removeGoogleMethod(input) { serviceCalls.push(publicServiceInput(input)); return result ?? { ...UPDATED, googleLinked: false } },
-    async setPasswordMethod(input) { serviceCalls.push(publicServiceInput(input)); return result ?? UPDATED },
+    async setPasswordMethod(input) { onMutate(input); serviceCalls.push(publicServiceInput(input)); return result ?? UPDATED },
     async removePasswordMethod(input) { serviceCalls.push(publicServiceInput(input)); return result ?? { ...UPDATED, passwordEnabled: false } },
   }
   const dependencies = {
@@ -238,13 +260,14 @@ function loadRoute(routeName, {
     "@/lib/auth-method-intents": {
       AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
       resolveBoundAuthMethodIntent: async (input) => {
+        onResolveIntent(input)
         intentCalls.push({ cookieValue: input.cookieValue, purpose: input.purpose, status: input.status })
         assert.equal(input.prismaClient, prisma)
         assert.equal(input.secret, "route-secret")
         return resolvedIntent
       },
     },
-    "@/lib/auth-security": { hashPassword: async () => "argon2-hash" },
+    "@/lib/auth-security": { hashPassword: async () => { onHash(); return "argon2-hash" } },
     "@/lib/prisma": { prisma },
   }
   const routeModule = loadCompiledModule(source, `${routeName}-account-security-route.test.ts`, dependencies)
@@ -279,6 +302,9 @@ function publicServiceInput(input) {
   delete copy.prismaClient
   delete copy.verifyPasswordMethodProofFn
   delete copy.newPasswordHash
+  delete copy.newPassword
+  delete copy.hashPasswordFn
+  delete copy.googleReauthPreflight
   delete copy.secret
   delete copy.now
   delete copy.networkIdentifier
