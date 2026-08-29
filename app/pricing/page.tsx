@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
 import { createPublicPageMetadata } from "@/lib/seo"
 import { safeErrorCode } from "@/lib/safe-error-code"
+import { getPublicLaunchControls } from "@/lib/public-launch-controls"
 
 export const metadata = createPublicPageMetadata("/pricing")
 
@@ -88,6 +89,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
           activeMembershipLevel={membershipStatus?.activeMembershipLevel}
           mode={pricingMode}
           portalActionAvailable={Boolean(membershipStatus?.stripeCustomer)}
+          supporterCheckoutOpen={getPublicLaunchControls().supporterCheckoutOpen}
         />
 
         <AppSurface

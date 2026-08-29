@@ -41,6 +41,40 @@ function formatResponse(response: Response) {
   return `${response.status()} ${url.pathname}`
 }
 
+test("public launch pauses preserve existing-account paths without starting registration or Checkout", async ({ page }) => {
+  test.skip(
+    process.env.MASSAGELAB_BROWSER_QA_PUBLIC_PAUSES !== "1",
+    "Public pause controls are exercised only by the explicit launch-control lane.",
+  )
+
+  const acquisitionRequests: string[] = []
+  page.on("request", (request) => {
+    const url = new URL(request.url())
+    if (
+      url.hostname === "api.stripe.com"
+      || url.hostname === "checkout.stripe.com"
+      || url.pathname === "/api/account/register"
+      || url.pathname === "/api/auth/google/intent"
+      || url.pathname === "/api/billing/checkout"
+    ) {
+      acquisitionRequests.push(`${request.method()} ${url.hostname}${url.pathname}`)
+    }
+  })
+
+  await page.goto("/register", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("status").filter({ hasText: /New account registration is temporarily paused/i })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeDisabled()
+  await expect(page.getByRole("button", { name: "Create account with email" })).toBeDisabled()
+  await expect(page.getByRole("link", { name: "Sign in instead" })).toHaveAttribute("href", /\/login\?callbackUrl=/)
+  await expect(page.getByRole("link", { name: "Set or reset password" })).toHaveAttribute("href", "/forgot-password")
+
+  await page.goto("/pricing", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("status").filter({ hasText: /New Supporter checkout is temporarily paused/i })).toBeVisible()
+  await expect(page.locator('form[action="/api/billing/checkout"]')).toHaveCount(0)
+  await expect(page.locator('form[action="/api/billing/donation"]')).not.toHaveCount(0)
+  expect(acquisitionRequests, "registration, Google, Stripe, and membership Checkout requests").toEqual([])
+})
+
 /** Sends a browser-native Chromium touch drag across an adaptive carousel viewport. */
 async function swipeCarouselStage(
   page: Page,

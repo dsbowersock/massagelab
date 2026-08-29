@@ -11,6 +11,41 @@ import {
 } from "./helpers/membership-pricing-cards.mjs"
 
 describe("MembershipPricingCards configured price rendering", () => {
+  it("shows the Checkout pause without hiding an existing member's Portal actions", async () => {
+    const [checkoutCards, portalCards] = await Promise.all([
+      renderMembershipPricingCards({
+        mode: "checkout",
+        supporterCheckoutOpen: false,
+      }),
+      renderMembershipPricingCards({
+        mode: "portal",
+        supporterCheckoutOpen: false,
+      }),
+    ])
+
+    for (const cards of [checkoutCards, portalCards]) {
+      assert.match(
+        elementText(cards),
+        /New Supporter checkout is temporarily paused\. Existing memberships and the billing portal remain available\./,
+      )
+      assert.equal(
+        findElements(
+          cards,
+          (element) => element.type === "form" && element.props.action === "/api/billing/checkout",
+        ).length,
+        0,
+      )
+    }
+    assert.equal(
+      findElements(
+        portalCards,
+        (element) => element.type === "form" && element.props.action === "/api/billing/portal",
+      ).length,
+      2,
+    )
+    assert.match(elementText(portalCards), /Current member/)
+  })
+
   it("advertises only lookup-verified prices in portal and pre-auth modes", async () => {
     const configuredPrice = supporterMonthlyPrice()
     const amountChoices = [

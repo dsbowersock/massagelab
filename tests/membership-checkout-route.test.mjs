@@ -9,6 +9,48 @@ const MEMBERSHIP_BILLING_DOCUMENT = Object.freeze({
 })
 
 describe("Membership Checkout POST route", () => {
+  it("returns a paused JSON response after authentication and before membership, legal, customer, or Stripe work", async () => {
+    const calls = checkoutCallCounts({
+      legalAcceptanceLookup: 0,
+      selectionValidation: 0,
+    })
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      captureGuardCalls: true,
+      supporterCheckoutOpen: false,
+    }))(jsonRequest({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-1" }))
+
+    assert.deepEqual(response, {
+      body: {
+        error: "New Supporter checkout is temporarily paused. Existing memberships and the billing portal remain available.",
+      },
+      status: 503,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+      legalAcceptanceLookup: 0,
+      selectionValidation: 0,
+    })
+  })
+
+  it("redirects a paused form to the account notice before new Checkout work", async () => {
+    const calls = checkoutCallCounts()
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      supporterCheckoutOpen: false,
+    }))(formRequest({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-1" }))
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/account?billing=checkout-paused",
+      status: 303,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+  })
+
   it("returns JSON 401 for an anonymous API request before billing work", async () => {
     const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
@@ -1021,6 +1063,7 @@ function checkoutDependencies(calls, {
   captureSelectionInputs = false,
   captureGuardCalls = false,
   siteUrl = "https://massagelab.app",
+  supporterCheckoutOpen = true,
 } = {}) {
   const prisma = {
     user: {
@@ -1048,6 +1091,10 @@ function checkoutDependencies(calls, {
       return session
     },
     getSiteUrl: () => siteUrl,
+    getPublicLaunchControls: () => ({
+      registrationOpen: true,
+      supporterCheckoutOpen,
+    }),
     isPublicSupporterCheckoutSelection: (input) => {
       if (captureGuardCalls) calls.selectionValidation = (calls.selectionValidation ?? 0) + 1
       if (selectionError) throw selectionError

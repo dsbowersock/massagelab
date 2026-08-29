@@ -29,6 +29,7 @@ import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
 import { FEATURE_KEYS, resolveMembershipPricingMode } from "@/lib/membership"
+import { getPublicLaunchControls, SUPPORTER_CHECKOUT_PAUSED_MESSAGE } from "@/lib/public-launch-controls"
 import type { AccountRole, VerificationStatus } from "@/lib/domain-types"
 import { cn } from "@/lib/utils"
 import {
@@ -817,6 +818,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
           activeMembershipLevel={membershipSummary.entitlements.paidLevel}
           mode={subscriptionPricingMode}
           portalActionAvailable={canOpenBillingPortal}
+          supporterCheckoutOpen={getPublicLaunchControls().supporterCheckoutOpen}
         />
       </div>
 
@@ -1184,6 +1186,7 @@ function accountNotice({
 }
 
 function billingMessage(code: string) {
+  if (code === "checkout-paused") return SUPPORTER_CHECKOUT_PAUSED_MESSAGE
   if (code === "unsupported-plan") return "That membership option is not available yet."
   if (code === "price-not-configured") return "That membership option is not available yet."
   if (code === "existing-subscription") return "Use Change support amount or billing period to update your current membership."

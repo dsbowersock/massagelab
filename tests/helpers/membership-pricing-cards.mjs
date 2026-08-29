@@ -79,6 +79,10 @@ const pricingCards = loadCompiledModule(
     "@/lib/membership-pricing": {
       resolveMembershipPriceForInterval,
     },
+    "@/lib/public-launch-controls": {
+      SUPPORTER_CHECKOUT_PAUSED_MESSAGE:
+        "New Supporter checkout is temporarily paused. Existing memberships and the billing portal remain available.",
+    },
     "@/lib/utils": {
       cn: (...classes) => classes.filter(Boolean).join(" "),
     },
@@ -146,6 +150,7 @@ export function renderMembershipPricingCards({
   activeMembershipLevel = mode === "portal" ? "SUPPORTER" : null,
   amountChoices = defaultAmountChoices(),
   portalActionAvailable = true,
+  supporterCheckoutOpen = true,
   interval = "month",
 }) {
   const catalog = {
@@ -171,5 +176,6 @@ export function renderMembershipPricingCards({
     catalog,
     mode,
     portalActionAvailable,
+    supporterCheckoutOpen,
   }))
 }

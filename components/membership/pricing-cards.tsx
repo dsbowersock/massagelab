@@ -14,6 +14,7 @@ import type {
 import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { resolveMembershipPriceForInterval } from "@/lib/membership-pricing"
+import { SUPPORTER_CHECKOUT_PAUSED_MESSAGE } from "@/lib/public-launch-controls"
 import { cn } from "@/lib/utils"
 
 type MembershipPlan = {
@@ -51,6 +52,7 @@ type MembershipPricingCardsProps = {
   activeMembershipLevel?: string | null
   mode: "checkout" | "auth" | "portal"
   portalActionAvailable?: boolean
+  supporterCheckoutOpen?: boolean
   className?: string
 }
 
@@ -59,6 +61,7 @@ export function MembershipPricingCards({
   activeMembershipLevel = null,
   mode,
   portalActionAvailable = true,
+  supporterCheckoutOpen = true,
   className,
 }: MembershipPricingCardsProps) {
   return (
@@ -76,6 +79,12 @@ export function MembershipPricingCards({
           </p>
         </div>
       </div>
+
+      {!supporterCheckoutOpen ? (
+        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-muted-foreground" role="status">
+          {SUPPORTER_CHECKOUT_PAUSED_MESSAGE}
+        </p>
+      ) : null}
 
       <Tabs defaultValue={catalog.defaultInterval} className="space-y-4">
         <TabsList className="ml-pricing-interval-tabs grid h-auto w-full grid-cols-2 gap-1 rounded-md border border-border/80 bg-background/80 p-1 sm:w-[26rem]">
@@ -102,6 +111,7 @@ export function MembershipPricingCards({
                   active={activeMembershipLevel === plan.membershipLevel}
                   mode={mode}
                   portalActionAvailable={portalActionAvailable}
+                  supporterCheckoutOpen={supporterCheckoutOpen}
                 />
               ))}
             </div>
@@ -118,12 +128,14 @@ function PlanCard({
   active,
   mode,
   portalActionAvailable,
+  supporterCheckoutOpen,
 }: {
   plan: MembershipPlan
   interval: string
   active: boolean
   mode: "checkout" | "auth" | "portal"
   portalActionAvailable: boolean
+  supporterCheckoutOpen: boolean
 }) {
   const resolvedAmountChoices = plan.amountChoices.flatMap((choice) => {
     const price = resolveMembershipPriceForInterval(choice, interval)
@@ -183,6 +195,7 @@ function PlanCard({
           plan={plan}
           mode={mode}
           portalActionAvailable={portalActionAvailable}
+          supporterCheckoutOpen={supporterCheckoutOpen}
           resolvedAmountChoices={resolvedAmountChoices}
           availableAmountChoices={availableAmountChoices}
         />
@@ -202,12 +215,14 @@ function PlanActions({
   plan,
   mode,
   portalActionAvailable,
+  supporterCheckoutOpen,
   resolvedAmountChoices,
   availableAmountChoices,
 }: {
   plan: MembershipPlan
   mode: "checkout" | "auth" | "portal"
   portalActionAvailable: boolean
+  supporterCheckoutOpen: boolean
   resolvedAmountChoices: ResolvedAmountChoice[]
   availableAmountChoices: ResolvedAmountChoice[]
 }) {
@@ -283,6 +298,12 @@ function PlanActions({
         Billing management is temporarily unavailable. Contact support if you need help with an existing membership.
       </p>
     )
+  }
+
+  // Pausing new Checkout removes only public acquisition actions. The Portal
+  // branch above remains fully available to existing members.
+  if (!supporterCheckoutOpen) {
+    return null
   }
 
   // The Portal branch exits above, so child actions receive only their narrow
