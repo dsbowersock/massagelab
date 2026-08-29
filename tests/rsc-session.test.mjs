@@ -34,6 +34,8 @@ const rscSessionConsumers = [
   "app/support/page.tsx",
   "app/tools/business-planner/income/page.tsx",
   "app/wellness/page.tsx",
+  "app/book/public-booking-page.tsx",
+  "app/notes/therapist-notes-gate.tsx",
   "app/dev/rsc-session-proof/page.tsx",
 ]
 
@@ -101,6 +103,8 @@ describe("RSC session snapshot proof boundary", () => {
       "app/api/account/profile/route.ts",
       "app/api/billing/checkout/route.ts",
       "app/api/billing/portal/route.ts",
+      "app/api/book/[practiceSlug]/sequence-options/route.ts",
+      "app/account/actions.ts",
     ]) {
       const route = source(relativePath)
       assert.match(route, /from "@\/auth"/)
