@@ -24,6 +24,10 @@ const selfServicePasswordResetRouteSource = await readFile(
   new URL("../app/api/account/password-reset/request/route.ts", import.meta.url),
   "utf8",
 )
+const passwordResetRequestServiceSource = await readFile(
+  new URL("../lib/password-reset-request.ts", import.meta.url),
+  "utf8",
+)
 
 describe("Auth security helpers", () => {
   it("normalizes emails before auth lookups", () => {
@@ -46,10 +50,13 @@ describe("Auth security helpers", () => {
 
   it("keeps self-service reset issuance limited to the shared opaque-token schema", () => {
     assert.match(
-      selfServicePasswordResetRouteSource,
-      /prisma\.passwordResetToken\.create\(\{[\s\S]*?userId: user\.id,[\s\S]*?tokenHash: hashToken\(resetToken\),[\s\S]*?expiresAt:/,
+      passwordResetRequestServiceSource,
+      /tx\.passwordResetToken\.create\(\{[\s\S]*?userId: user\.id,[\s\S]*?tokenHash: input\.hashToken\(token\),[\s\S]*?expiresAt: input\.tokenExpiresAt\(60\)/,
     )
-    assert.doesNotMatch(selfServicePasswordResetRouteSource, /issuer|emailIntent|adminAction/i)
+    assert.match(selfServicePasswordResetRouteSource, /resetWork = requestPasswordReset/)
+    assert.match(selfServicePasswordResetRouteSource, /scheduleDelivery: \(delivery\) => after\(delivery\)/)
+    assert.doesNotMatch(passwordResetRequestServiceSource, /issuer|adminAction/i)
+    assert.doesNotMatch(selfServicePasswordResetRouteSource, /issuer|adminAction/i)
   })
 
   it("checks token expiry and consumed state", () => {

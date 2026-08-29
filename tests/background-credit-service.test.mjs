@@ -278,12 +278,10 @@ describe("verified-account background credit provisioning", () => {
     assert.match(authUsers, /ensureVerifiedUserBackgroundCredits\(tx, userId\)/)
     assert.match(authUsers, /if \(user\?\.emailVerified\)[\s\S]*ensureVerifiedUserBackgroundCredits\(prisma, userId\)/)
     const verifyTransaction = verifyPage.match(/await runCommerceTransaction\(prisma, async \(txValue\) => \{([\s\S]*?)\n      \}\)/)?.[1]
-    const passwordTransaction = passwordRoute.match(/await runCommerceTransaction\(prisma, async \(txValue\) => \{([\s\S]*?)\n  \}\)/)?.[1]
     assert.ok(verifyTransaction)
-    assert.ok(passwordTransaction)
     assert.doesNotMatch(verifyTransaction, /ensureVerifiedUserBackgroundCredits/)
-    assert.doesNotMatch(passwordTransaction, /ensureVerifiedUserBackgroundCredits/)
     assert.match(verifyPage, /ensureVerifiedUserBackgroundCredits\(prisma, record\.userId\)\.catch/)
-    assert.match(passwordRoute, /after\(\(\) => ensureVerifiedUserBackgroundCredits\(prisma, user\.id\)\.catch/)
+    assert.doesNotMatch(passwordRoute, /ensureVerifiedUserBackgroundCredits/)
+    assert.doesNotMatch(passwordRoute, /runCommerceTransaction/)
   })
 })
