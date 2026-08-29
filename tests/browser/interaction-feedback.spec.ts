@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test"
+import { expect, test, type Page, type Route } from "@playwright/test"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
@@ -8,7 +8,10 @@ import ts from "typescript"
 import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
 import { centerCarouselItem } from "./carousel-test-helpers"
 import {
+  discardRouteFeedbackAccessibilityObserver,
   expectNoHorizontalViewportOverflow,
+  expectVisibleRouteProgressBar,
+  expectVisibleRouteLoaderCanvas,
   focusWithKeyboard,
   installRouteFeedbackAccessibilityObserver,
   readRouteFeedbackAccessibilityObserver,
@@ -334,6 +337,60 @@ async function delayNavigationResponse(page: Page, pathname: string, delayMs = 5
   })
 }
 
+/** Holds one real RSC response until the test explicitly releases it, then always unregisters. */
+async function holdNavigationResponse(page: Page, pathname: string) {
+  const pattern = `**${pathname}*`
+  let releaseHold: () => void = () => undefined
+  let requestStarted = false
+  let requestFinished = false
+  let markRequestStarted: () => void = () => undefined
+  let markRequestFinished: () => void = () => undefined
+  const hold = new Promise<void>((resolve) => {
+    releaseHold = resolve
+  })
+  const started = new Promise<void>((resolve) => {
+    markRequestStarted = resolve
+  })
+  const finished = new Promise<void>((resolve) => {
+    markRequestFinished = resolve
+  })
+  const handler = async (route: Route) => {
+    const request = route.request()
+    const headers = request.headers()
+    if (headers["next-router-prefetch"] || headers["purpose"] === "prefetch") {
+      await route.abort()
+      return
+    }
+
+    if (headers.rsc || request.isNavigationRequest()) {
+      requestStarted = true
+      markRequestStarted()
+      try {
+        const response = await route.fetch()
+        await hold
+        await route.fulfill({ response })
+      } finally {
+        requestFinished = true
+        markRequestFinished()
+      }
+      return
+    }
+
+    await route.continue()
+  }
+  await page.route(pattern, handler)
+
+  return {
+    waitForRequest: () => started,
+    release: releaseHold,
+    async releaseAndCleanup() {
+      releaseHold()
+      if (requestStarted && !requestFinished) await finished
+      await page.unroute(pattern, handler)
+    },
+  }
+}
+
 async function installPremiumAccount(page: Page) {
   await page.route("**/api/auth/session", async (route) => {
     await route.fulfill({
@@ -474,30 +531,153 @@ test("mobile portrait action feedback stays operable with enlarged text and keyb
 })
 
 test("compact landscape route feedback remains visible and static with reduced motion", async ({ page }) => {
+  test.setTimeout(120_000)
   await page.setViewportSize({ width: 844, height: 390 })
   await page.emulateMedia({ reducedMotion: "reduce" })
-  await delayNavigationResponse(page, "/clock", 1_100)
-  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  const clockHold = await holdNavigationResponse(page, "/clock")
+  let clockObserverInstalled = false
+  let toolbar: Awaited<ReturnType<typeof startProofDrone>> | undefined
+  try {
+    toolbar = await startProofDrone(page)
+    await toolbar.evaluate((element) => {
+      Reflect.set(window, "__interactionFeedbackPersistentToolbar", element)
+    })
 
-  const openClock = page.getByRole("link", { name: "Open clock" }).filter({ visible: true }).first()
-  await focusWithKeyboard(page, openClock)
-  await installRouteFeedbackAccessibilityObserver(page)
-  await page.keyboard.press("Enter")
-  await expect(page).toHaveURL(/\/clock/)
-  expect(await readRouteFeedbackAccessibilityObserver(page)).toMatchObject({
-    barAnimationName: "none",
-    controlCentersUncovered: true,
-    feedbackOwnedFocus: false,
-    loaderAnimationName: "none",
-    maximumConcurrentStatusCount: 1,
-    maximumHorizontalOverflow: 0,
-    pointerEvents: "none",
-    progressSeen: true,
-    statusOccurrences: 1,
-    statusTexts: ["Loading page"],
-  })
-  await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
-  await expectNoHorizontalViewportOverflow(page)
+    const openClock = page.getByRole("link", { name: "Open clock" }).filter({ visible: true }).first()
+    await focusWithKeyboard(page, openClock)
+    await installRouteFeedbackAccessibilityObserver(page)
+    clockObserverInstalled = true
+    await page.keyboard.press("Enter")
+    await clockHold.waitForRequest()
+
+    await expect(openClock).toHaveAttribute("data-navigation-pending", "true")
+    const routeProgress = page.locator('[data-route-progress="pending"]')
+    await expect(routeProgress).toHaveCount(1)
+    await expect(routeProgress).toHaveAttribute("data-route-feedback-owner", "link")
+    await expectVisibleRouteProgressBar(routeProgress)
+
+    const routeLoader = routeProgress.locator('[data-route-loader="shell-safe"]')
+    await expectVisibleRouteLoaderCanvas(routeLoader)
+    await expect(routeProgress).toHaveAttribute("data-route-feedback-announcement", "live")
+    const reducedRouteLoaderInitial = await routeLoader.screenshot({ scale: "css" })
+    expect(reducedRouteLoaderInitial.byteLength).toBeGreaterThan(0)
+    const routeLoaderCanvas = routeLoader.locator("canvas")
+    await routeLoaderCanvas.evaluate((canvas) => {
+      canvas.style.visibility = "hidden"
+    })
+    const reducedRouteLoaderWithoutCanvas = await routeLoader.screenshot({ scale: "css" })
+    await routeLoaderCanvas.evaluate((canvas) => {
+      canvas.style.visibility = "visible"
+    })
+    const reducedRouteLoaderRestored = await routeLoader.screenshot({ scale: "css" })
+    expect(
+      reducedRouteLoaderWithoutCanvas.equals(reducedRouteLoaderInitial),
+      "The real route Loader canvas should contribute nontransparent visible pixels.",
+    ).toBe(false)
+    expect(
+      reducedRouteLoaderRestored.equals(reducedRouteLoaderInitial),
+      "Restoring the real route Loader canvas should restore the same visible pixels.",
+    ).toBe(true)
+    await page.waitForTimeout(400)
+    await expectVisibleRouteLoaderCanvas(routeLoader)
+    const reducedRouteLoaderLater = await routeLoader.screenshot({ scale: "css" })
+    expect(
+      reducedRouteLoaderLater.equals(reducedRouteLoaderInitial),
+      "The visible reduced-motion route Loader should keep identical rendered pixels across 400ms.",
+    ).toBe(true)
+
+    clockHold.release()
+    await expect(page).toHaveURL(/\/clock/)
+    await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
+    const clockReceipt = await readRouteFeedbackAccessibilityObserver(page)
+    clockObserverInstalled = false
+    expect(clockReceipt).toMatchObject({
+      barAnimationName: "none",
+      controlCentersUncovered: true,
+      feedbackOwnedFocus: false,
+      maximumConcurrentProgressCount: 1,
+      maximumConcurrentStatusCount: 1,
+      maximumHorizontalOverflow: 0,
+      pointerEvents: "none",
+      progressSeen: true,
+      statusOccurrences: 1,
+      statusTexts: ["Loading page"],
+    })
+    const clockLinkLive = clockReceipt.ownerPresentations.indexOf("link:live")
+    const clockRootVisual = clockReceipt.ownerPresentations.indexOf("root:visual-only")
+    expect(clockLinkLive).toBeGreaterThanOrEqual(0)
+    expect(clockRootVisual).toBeGreaterThan(clockLinkLive)
+    expect(await page.evaluate(() => (
+      Reflect.has(window, "__interactionFeedbackAccessibilityObserver")
+      || Reflect.has(window, "__interactionFeedbackAccessibilityFocusListener")
+      || Reflect.has(window, "__interactionFeedbackAccessibilityCleanup")
+    ))).toBe(false)
+    expect(await page.evaluate(() => (
+      Reflect.get(window, "__interactionFeedbackPersistentToolbar")
+      === document.querySelector('[data-testid="music-player-toolbar"]')
+    ))).toBe(true)
+  } finally {
+    clockHold.release()
+    if (clockObserverInstalled) await discardRouteFeedbackAccessibilityObserver(page)
+    await clockHold.releaseAndCleanup()
+  }
+
+  if (!toolbar) throw new Error("The persistent toolbar marker was not established.")
+  await page.goBack()
+  await expect(page).toHaveURL(/\/music/)
+  expect(await page.evaluate(() => (
+    Reflect.get(window, "__interactionFeedbackPersistentToolbar")
+    === document.querySelector('[data-testid="music-player-toolbar"]')
+  ))).toBe(true)
+
+  const secondClockHold = await holdNavigationResponse(page, "/clock")
+  let secondClockObserverInstalled = false
+  try {
+    const secondOpenClock = page.getByRole("link", { name: "Open clock" }).filter({ visible: true }).first()
+    await focusWithKeyboard(page, secondOpenClock)
+    await installRouteFeedbackAccessibilityObserver(page)
+    secondClockObserverInstalled = true
+    await page.keyboard.press("Enter")
+    await secondClockHold.waitForRequest()
+
+    await expect(secondOpenClock).toHaveAttribute("data-navigation-pending", "true")
+    const secondRouteProgress = page.locator('[data-route-progress="pending"]')
+    await expect(secondRouteProgress).toHaveCount(1)
+    await expect(secondRouteProgress).toHaveAttribute("data-route-feedback-owner", "link")
+    await expectVisibleRouteProgressBar(secondRouteProgress)
+    await expectVisibleRouteLoaderCanvas(secondRouteProgress.locator('[data-route-loader="shell-safe"]'))
+    await expect(secondRouteProgress).toHaveAttribute("data-route-feedback-announcement", "live")
+
+    secondClockHold.release()
+    await expect(page).toHaveURL(/\/clock/)
+    await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
+    const secondClockReceipt = await readRouteFeedbackAccessibilityObserver(page)
+    secondClockObserverInstalled = false
+    expect(secondClockReceipt).toMatchObject({
+      feedbackOwnedFocus: false,
+      maximumConcurrentProgressCount: 1,
+      maximumConcurrentStatusCount: 1,
+      statusOccurrences: 1,
+      statusTexts: ["Loading page"],
+    })
+    const secondClockLinkLive = secondClockReceipt.ownerPresentations.indexOf("link:live")
+    expect(secondClockLinkLive).toBeGreaterThanOrEqual(0)
+    expect(await page.evaluate(() => (
+      Reflect.has(window, "__interactionFeedbackAccessibilityObserver")
+      || Reflect.has(window, "__interactionFeedbackAccessibilityFocusListener")
+      || Reflect.has(window, "__interactionFeedbackAccessibilityCleanup")
+    ))).toBe(false)
+    await expect(toolbar).toHaveAttribute("data-playback-state", "playing")
+    expect(await page.evaluate(() => (
+      Reflect.get(window, "__interactionFeedbackPersistentToolbar")
+      === document.querySelector('[data-testid="music-player-toolbar"]')
+    ))).toBe(true)
+    await expectNoHorizontalViewportOverflow(page)
+  } finally {
+    secondClockHold.release()
+    if (secondClockObserverInstalled) await discardRouteFeedbackAccessibilityObserver(page)
+    await secondClockHold.releaseAndCleanup()
+  }
 })
 
 test("keeps the proof-drone session through the real music visualizer Link", async ({ page }) => {
