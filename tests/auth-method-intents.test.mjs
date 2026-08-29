@@ -362,6 +362,14 @@ describe("private Google auth-method intents", () => {
       },
     },
     {
+      name: "installed-adapter functional User email constraint",
+      constraint: { fields: ["lower(btrim(email"] },
+      expectedKind: "LINK_REQUIRED",
+      beforeUserCreate(state) {
+        state.users.push({ id: "password-winner", email: "family@example.com", emailVerified: new Date() })
+      },
+    },
+    {
       name: "real Account provider constraint name",
       constraint: { index: "Account_provider_providerAccountId_key" },
       expectedKind: "CONTINUE",

@@ -2,6 +2,9 @@ type IdentityUniqueOwner = "USER_EMAIL" | "GOOGLE_ACCOUNT"
 
 const USER_INDEXES = new Set(["User_normalized_email_key", "User_email_key"])
 const ACCOUNT_INDEXES = new Set(["Account_provider_providerAccountId_key"])
+// The installed Neon adapter's PostgreSQL DETAIL parser stops at the first
+// closing parenthesis in `Key (lower(btrim(email)))=...`.
+const NEON_NORMALIZED_EMAIL_FIELD = "lower(btrim(email"
 
 /**
  * Recognizes only identity constraints whose committed owner can safely be
@@ -53,7 +56,10 @@ function adapterConstraintMatches(constraint: unknown, allowed: Set<IdentityUniq
       || (allowed.has("GOOGLE_ACCOUNT") && ACCOUNT_INDEXES.has(constraint.index))
   }
   if (!Array.isArray(constraint.fields)) return false
-  return (allowed.has("USER_EMAIL") && exactFields(constraint.fields, ["email"]))
+  return (allowed.has("USER_EMAIL") && (
+    exactFields(constraint.fields, ["email"])
+    || exactFields(constraint.fields, [NEON_NORMALIZED_EMAIL_FIELD])
+  ))
     || (allowed.has("GOOGLE_ACCOUNT") && exactFields(constraint.fields, ["provider", "providerAccountId"]))
 }
 

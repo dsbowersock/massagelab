@@ -57,7 +57,7 @@ describe("requestPasswordReset", () => {
   })
 
   it("returns before unresolved reset transport and schedules only after token commit", async () => {
-    const db = createResetRequestDatabase({ deferDelivery: true })
+    const db = createResetRequestDatabase()
     let releaseProvider
     const provider = new Promise((resolve) => { releaseProvider = resolve })
     const work = requestPasswordReset(resetInput(db, "known@example.com", {
@@ -83,7 +83,7 @@ describe("requestPasswordReset", () => {
 
   it("accepts known and unknown accounts before lookup, token work, or mail and schedules one task each", async () => {
     for (const email of ["known@example.com", "unknown@example.com"]) {
-      const db = createResetRequestDatabase({ deferDelivery: true })
+      const db = createResetRequestDatabase()
 
       assert.deepEqual(await requestPasswordReset(resetInput(db, email)), { status: "ACCEPTED" })
       assert.deepEqual(db.events, ["limit:ACCOUNT", "limit:NETWORK", "delivery.schedule"], email)
@@ -142,7 +142,6 @@ function createResetRequestDatabase({
   includeExpiredToken = false,
   includeUsableToken = false,
   mixedCaseKnownUser = false,
-  deferDelivery = false,
 } = {}) {
   const users = [
     { id: "known-user", email: "known@example.com", emailVerified: NOW },

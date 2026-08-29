@@ -5,6 +5,11 @@ import {
   PUBLIC_ACCOUNT_ENTRY_MESSAGE,
   registerPasswordAccount,
 } from "../lib/auth-registration-service.ts"
+import {
+  isApprovedIdentityUniqueConstraint,
+  isGoogleIdentityUniqueConstraint,
+  isUserEmailUniqueConstraint,
+} from "../lib/prisma-identity-unique-constraint.ts"
 
 const NOW = new Date("2026-08-28T16:00:00.000Z")
 const DOCUMENTS = [
@@ -63,6 +68,43 @@ describe("registerPasswordAccount", () => {
       assert.equal(db.sentExistingMessages.length, 1)
     })
   }
+
+  it("reloads the exact functional-email field shape parsed by the installed Neon adapter", async () => {
+    const uniqueError = neonFunctionalEmailUniqueError()
+    assert.deepEqual(
+      uniqueError.meta.driverAdapterError.cause.constraint,
+      { fields: ["lower(btrim(email"] },
+    )
+    const db = createRegistrationDatabase({ duplicateRace: true, uniqueError })
+
+    assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" })
+    await db.runScheduledDeliveries()
+
+    assert.equal(db.users.length, 1)
+    assert.equal(db.sentExistingMessages.length, 1)
+  })
+
+  it("allowlists only the exact Neon functional-email field for the User owner", () => {
+    const exact = neonFunctionalEmailUniqueError()
+    assert.equal(isUserEmailUniqueConstraint(exact), true)
+    assert.equal(isGoogleIdentityUniqueConstraint(exact), true)
+    assert.equal(isApprovedIdentityUniqueConstraint(exact, ["GOOGLE_ACCOUNT"]), false)
+
+    for (const error of [
+      driverAdapterUniqueError({ fields: ["lower(btrim(email))"] }),
+      driverAdapterUniqueError({ fields: ["LOWER(btrim(email"] }),
+      driverAdapterUniqueError({ fields: [" lower(btrim(email"] }),
+      driverAdapterUniqueError({ fields: ["lower(btrim(email "] }),
+      driverAdapterUniqueError({ fields: ["lower(email"] }),
+      driverAdapterUniqueError({ fields: ["lower(btrim(email", "email"] }),
+      driverAdapterUniqueError({ fields: ["lower(btrim(email"] }, { kind: "ForeignKeyConstraintViolation" }),
+      driverAdapterUniqueError({ fields: ["lower(btrim(email"] }, { originalCode: "23503" }),
+      driverAdapterUniqueError({ fields: ["lower(btrim(email"] }, { code: "P2024" }),
+    ]) {
+      assert.equal(isUserEmailUniqueConstraint(error), false)
+      assert.equal(isGoogleIdentityUniqueConstraint(error), false)
+    }
+  })
 
   it("resolves a padded mixed-case stored email through the parameterized functional-index rule", async () => {
     const db = createRegistrationDatabase({
@@ -306,6 +348,7 @@ function existingUser(overrides) {
 
 function driverAdapterUniqueError(constraint, {
   code = "P2002",
+  kind = "UniqueConstraintViolation",
   originalCode = "23505",
   modelName,
 } = {}) {
@@ -316,7 +359,7 @@ function driverAdapterUniqueError(constraint, {
       driverAdapterError: {
         name: "DriverAdapterError",
         cause: {
-          kind: "UniqueConstraintViolation",
+          kind,
           originalCode,
           originalMessage: "duplicate key value violates unique constraint",
           constraint,
@@ -324,6 +367,12 @@ function driverAdapterUniqueError(constraint, {
       },
     },
   })
+}
+
+function neonFunctionalEmailUniqueError() {
+  const detail = "Key (lower(btrim(email)))=(person@example.com) already exists."
+  const fields = detail.match(/Key \(([^)]+)\)/)?.at(1)?.split(", ")
+  return driverAdapterUniqueError(fields === undefined ? undefined : { fields })
 }
 
 function createRegistrationDatabase({
