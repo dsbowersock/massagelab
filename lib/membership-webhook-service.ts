@@ -338,11 +338,25 @@ function currentTime(now: () => Date): Date {
   return new Date(value)
 }
 
-function isExactMembershipReceiptConstraint(value: unknown): boolean {
-  if (value === MEMBERSHIP_RECEIPT_UNIQUE_INDEX) return true
+function isExactMembershipReceiptFields(value: unknown): boolean {
   return Array.isArray(value)
     && value.length === MEMBERSHIP_RECEIPT_UNIQUE_FIELDS.length
     && MEMBERSHIP_RECEIPT_UNIQUE_FIELDS.every((field, index) => value[index] === field)
+}
+
+function isExactMembershipReceiptIndex(value: unknown): boolean {
+  return value === MEMBERSHIP_RECEIPT_UNIQUE_INDEX
+}
+
+function isExactLegacyMembershipReceiptTarget(value: unknown): boolean {
+  return isExactMembershipReceiptFields(value) || isExactMembershipReceiptIndex(value)
+}
+
+function isExactAdapterMembershipReceiptConstraint(constraint: Record<string, unknown> | null): boolean {
+  if (!constraint || Object.keys(constraint).length !== 1) return false
+  if ("fields" in constraint) return isExactMembershipReceiptFields(constraint.fields)
+  if ("index" in constraint) return isExactMembershipReceiptIndex(constraint.index)
+  return false
 }
 
 /**
@@ -360,7 +374,7 @@ function isMembershipReceiptCreationRace(error: unknown): boolean {
 
   if ("target" in meta) {
     return meta.modelName === MEMBERSHIP_RECEIPT_MODEL
-      && isExactMembershipReceiptConstraint(meta.target)
+      && isExactLegacyMembershipReceiptTarget(meta.target)
   }
 
   const adapterError = objectRecord(meta.driverAdapterError)
@@ -369,9 +383,7 @@ function isMembershipReceiptCreationRace(error: unknown): boolean {
   return adapterError?.name === "DriverAdapterError"
     && cause?.kind === "UniqueConstraintViolation"
     && cause.originalCode === "23505"
-    && Boolean(constraint)
-    && (isExactMembershipReceiptConstraint(constraint?.fields)
-      || isExactMembershipReceiptConstraint(constraint?.index))
+    && isExactAdapterMembershipReceiptConstraint(constraint)
 }
 
 /**

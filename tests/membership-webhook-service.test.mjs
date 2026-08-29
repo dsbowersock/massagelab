@@ -745,6 +745,12 @@ describe("membership webhook service", () => {
       adapterReceiptUniqueError({ fields: ["provider", "providerEventId"] }, { originalCode: "23503" }),
       adapterReceiptUniqueError({ fields: ["provider"] }),
       adapterReceiptUniqueError({ fields: ["providerEventId", "provider"] }),
+      adapterReceiptUniqueError({ fields: "MembershipWebhookReceipt_provider_providerEventId_key" }),
+      adapterReceiptUniqueError({ index: ["provider", "providerEventId"] }),
+      adapterReceiptUniqueError({
+        fields: ["provider", "providerEventId"],
+        index: "MembershipWebhookReceipt_provider_providerEventId_key",
+      }),
       adapterReceiptUniqueError({ index: "CommerceWebhookReceipt_provider_providerEventId_key" }),
       adapterReceiptUniqueError({ index: "MembershipWebhookReceipt_provider_providerEventId_key" }, { modelName: "CommerceWebhookReceipt" }),
     ]
