@@ -40,18 +40,23 @@ describe("App settings helpers", () => {
     const toolLink = readFileSync(new URL("../components/shell/app-tool-link.tsx", import.meta.url), "utf8")
     const topBar = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
     const mobileBar = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")
+    const linkProps = toolLink.slice(toolLink.indexOf("  const linkProps = {"), toolLink.indexOf("  const contentProps ="))
+
     assert.match(toolLink, /isNavigationRouteActive/)
-    assert.match(toolLink, /aria-current=\{active \? "page" : undefined\}/)
+    assert.match(linkProps, /"aria-current": active \? "page" as const : undefined/)
+    assert.match(toolLink, /<Link \{\.\.\.linkProps\}>/)
     assert.match(topBar, /ml-calendar-drawer-trigger/)
     assert.match(mobileBar, /AppToolLink/)
   })
 
   it("forwards tooltip trigger props and refs through the shared tool link", () => {
     const toolLink = readFileSync(new URL("../components/shell/app-tool-link.tsx", import.meta.url), "utf8")
+    const linkProps = toolLink.slice(toolLink.indexOf("  const linkProps = {"), toolLink.indexOf("  const contentProps ="))
 
     assert.match(toolLink, /forwardRef<HTMLAnchorElement/)
-    assert.match(toolLink, /\.\.\.triggerProps/)
-    assert.match(toolLink, /<Link[\s\S]*\{\.\.\.triggerProps\}[\s\S]*ref=\{ref\}/)
+    assert.match(linkProps, /\.\.\.triggerProps/)
+    assert.match(linkProps, /\n    ref,/)
+    assert.match(toolLink, /<Link \{\.\.\.linkProps\}>/)
   })
 
   it("uses the shared Metal ring for active tool routes without replacing CTA Blue", () => {
