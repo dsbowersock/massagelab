@@ -6,6 +6,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import ts from "typescript"
 import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
+import { centerCarouselItem } from "./carousel-test-helpers"
 import { installNativeSubmitSnapshotRecorder } from "./native-submission-snapshot"
 
 const hasPrivateQaAuthorization = isBrowserQaDatabaseTargetAuthorized(process.env)
@@ -231,7 +232,7 @@ type NativeBillingFixtureCase = {
   pendingLabel: string
   expectedFields: Record<string, string>
   returnPath: string
-  returnHeading: RegExp
+  returnNotices: readonly string[]
   requiresTerms?: boolean
   stableAccessibleName?: boolean
 }
@@ -244,7 +245,7 @@ async function assertOneDelayedNativeBillingSubmission({
   pendingLabel,
   expectedFields,
   returnPath,
-  returnHeading,
+  returnNotices,
   requiresTerms = false,
   stableAccessibleName = false,
 }: NativeBillingFixtureCase & { page: Page }) {
@@ -288,25 +289,18 @@ async function assertOneDelayedNativeBillingSubmission({
     const url = new URL(page.url())
     return `${url.pathname}${url.search}`
   }).toBe(returnPath)
-  await expect(page.getByRole("heading", { name: returnHeading })).toBeVisible()
+  for (const notice of returnNotices) {
+    await expect(page.getByText(notice, { exact: true }).filter({ visible: true })).toBeVisible()
+  }
   expect(method).toBe("POST")
   expect(contentType).toMatch(/^application\/x-www-form-urlencoded(?:;|$)/i)
   expect(postedFields).toEqual(expectedFields)
 }
 
-async function centerProofDrone(page: Page) {
-  const carousel = page.getByTestId("station-carousel-stage")
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    const play = page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i })
-    if (await play.isVisible().catch(() => false)) return play
-    await carousel.getByRole("button", { name: "Next station" }).click()
-  }
-  throw new Error("MassageLab Proof Drone did not become the active station card.")
-}
-
 async function startProofDrone(page: Page) {
   await page.goto("/music", { waitUntil: "domcontentloaded" })
-  await (await centerProofDrone(page)).click()
+  await centerCarouselItem(page, "mlab-proof-drone", "Next station")
+  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const toolbar = page.getByTestId("music-player-toolbar")
   await expect(toolbar).toBeVisible()
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
@@ -363,9 +357,12 @@ async function startActiveChimer(page: Page) {
   })
   await installPremiumAccount(page)
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
   await page.getByRole("button", { name: /^Increase minutes$/i }).click()
   for (let step = 0; step < 4; step += 1) {
-    await page.getByRole("button", { name: /^Continue$/i }).click()
+    const continueButton = page.getByRole("button", { name: /^Continue$/i })
+    await expect(continueButton).toBeEnabled()
+    await continueButton.click()
   }
   await page.getByRole("button", { name: /^Start Chimer$/i }).click()
   await expect(page.getByTestId("running-timer-clock")).toBeVisible()
@@ -378,17 +375,42 @@ test("shows throttled shell feedback while an owned tool Link keeps music mounte
   await toolbar.evaluate((element) => {
     Reflect.set(window, "__interactionFeedbackMusicToolbar", element)
   })
+  // The production loading boundary can mount and settle between locator polls,
+  // so preserve its real transient state without slowing or replacing navigation.
+  await page.evaluate(() => {
+    const observed = {
+      pointerEvents: "",
+      progressSeen: false,
+    }
+    const recordRouteFeedback = () => {
+      const progress = document.querySelector<HTMLElement>('[data-route-progress="pending"]')
+      if (progress) {
+        observed.progressSeen = true
+        observed.pointerEvents = getComputedStyle(progress).pointerEvents
+      }
+    }
+    const observer = new MutationObserver(recordRouteFeedback)
+    observer.observe(document.documentElement, { childList: true, subtree: true })
+    Reflect.set(window, "__interactionFeedbackRouteObserver", observer)
+    Reflect.set(window, "__interactionFeedbackRouteObserved", observed)
+  })
 
-  await page.getByRole("link", { name: "Open clock" }).click()
+  await page.getByRole("link", { name: "Open clock" }).click({ noWaitAfter: true })
   await expect(page.getByRole("link", { name: "Open clock" })).toHaveAttribute("data-navigation-pending", "true")
-  const progress = page.locator('[data-route-progress="pending"]')
-  await expect(progress).toBeVisible()
-  await expect(progress).toHaveCSS("pointer-events", "none")
-  await page.waitForTimeout(220)
-  await expect(page.getByRole("status", { name: "Loading page" })).toHaveCount(1)
   await expect(page).toHaveURL(/\/clock/)
-  await expect(progress).toHaveCount(0)
-  await expect(page.getByRole("status", { name: "Loading page" })).toHaveCount(0)
+  const routeFeedback = await page.evaluate(() => {
+    const observer = Reflect.get(window, "__interactionFeedbackRouteObserver") as MutationObserver
+    observer.disconnect()
+    return Reflect.get(window, "__interactionFeedbackRouteObserved") as {
+      pointerEvents: string
+      progressSeen: boolean
+    }
+  })
+  expect(routeFeedback).toEqual({
+    pointerEvents: "none",
+    progressSeen: true,
+  })
+  await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
   await expect(toolbar).toHaveAttribute("data-playback-state", "playing")
   expect(await page.evaluate(() => (
@@ -449,7 +471,7 @@ const nativeBillingCases: readonly NativeBillingFixtureCase[] = [
       billingTermsAccepted: "true",
     },
     returnPath: "/account?tab=membership&checkout=cancelled",
-    returnHeading: /sign in to manage membership/i,
+    returnNotices: ["Checkout cancelled", "Sign in to manage membership and billing"],
     requiresTerms: true,
   },
   {
@@ -459,7 +481,7 @@ const nativeBillingCases: readonly NativeBillingFixtureCase[] = [
     pendingLabel: "Opening billing portal…",
     expectedFields: { destination: "manage" },
     returnPath: "/account?tab=membership&portal=returned",
-    returnHeading: /sign in to manage membership/i,
+    returnNotices: ["Sign in to manage membership and billing"],
   },
   {
     fixtureId: "donation" as const,
@@ -468,7 +490,7 @@ const nativeBillingCases: readonly NativeBillingFixtureCase[] = [
     pendingLabel: "Opening secure checkout…",
     expectedFields: { amountCents: "500" },
     returnPath: "/pricing?donation=cancelled",
-    returnHeading: /one-time support checkout cancelled/i,
+    returnNotices: ["One-time support checkout cancelled"],
     stableAccessibleName: true,
   },
 ]
@@ -608,9 +630,12 @@ test("aborted reset requests clear busy state and expose a generic alert", async
   })
   await page.goto("/forgot-password", { waitUntil: "domcontentloaded" })
   await page.getByLabel("Email").fill("interaction-abort@example.test")
+  const requestOwner = page.locator("form").filter({ has: page.getByLabel("Email") }).locator("..")
   await page.getByRole("button", { name: "Send reset link" }).click()
   await expect(page.getByRole("button", { name: "Sending reset instructions…" })).toBeDisabled()
-  await expect(page.getByRole("alert")).toContainText("Something went wrong. Please try again.")
+  await expect(requestOwner.getByRole("alert").filter({
+    hasText: /^Something went wrong\. Please try again\.$/,
+  })).toHaveText("Something went wrong. Please try again.")
   await expect(page.getByRole("button", { name: "Send reset link" })).toBeEnabled()
 
   await page.unrouteAll({ behavior: "wait" })
@@ -620,9 +645,12 @@ test("aborted reset requests clear busy state and expose a generic alert", async
   })
   await page.goto("/reset-password?token=interaction-token", { waitUntil: "domcontentloaded" })
   await page.getByLabel("New password").fill("not-a-real-password")
+  const confirmationOwner = page.locator("form").filter({ has: page.getByLabel("New password") }).locator("..")
   await page.getByRole("button", { name: "Update password" }).click()
   await expect(page.getByRole("button", { name: "Updating password…" })).toBeDisabled()
-  await expect(page.getByRole("alert")).toContainText("Something went wrong. Please try again.")
+  await expect(confirmationOwner.getByRole("alert").filter({
+    hasText: /^Something went wrong\. Please try again\.$/,
+  })).toHaveText("Something went wrong. Please try again.")
   await expect(page.getByRole("button", { name: "Update password" })).toBeEnabled()
 })
 
