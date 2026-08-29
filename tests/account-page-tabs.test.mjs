@@ -67,6 +67,36 @@ function topLevelFunctionSource(source, functionName, fileName) {
   return source.slice(declaration.start, declaration.end)
 }
 
+/** Executes one production-local AccountPage initializer against controlled params. */
+function loadAccountPageInitializer(variableName) {
+  const sourceFile = ts.createSourceFile(
+    "app/account/page.tsx",
+    accountPageSource,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  let initializer = null
+  function visit(node) {
+    if (
+      ts.isVariableDeclaration(node)
+      && ts.isIdentifier(node.name)
+      && node.name.text === variableName
+      && node.initializer
+    ) {
+      initializer = node.initializer.getText(sourceFile)
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  assert.ok(initializer, `app/account/page.tsx must define ${variableName}`)
+  return loadCompiledModule(
+    `export function resolve(params) { return ${initializer} }`,
+    `app/account/${variableName}.test.ts`,
+  ).resolve
+}
+
 /** Executes the production return normalizer together with its real notice mapper. */
 function loadAccountReturnContract() {
   const source = [
@@ -79,6 +109,29 @@ function loadAccountReturnContract() {
 }
 
 describe("Account page tab model", () => {
+  it("treats only exact reauth=two-factor as display state and passes it through the security tab", () => {
+    const resolve = loadAccountPageInitializer("googlePrimaryProofReady")
+    assert.equal(resolve({ reauth: "two-factor" }), true)
+    for (const params of [
+      undefined,
+      {},
+      { reauth: "complete" },
+      { reauth: "TWO-FACTOR" },
+      { reauth: "two-factor " },
+      { reauth: "two-factor", proof: "private" },
+    ]) {
+      assert.equal(resolve(params), params?.reauth === "two-factor")
+    }
+    assert.match(
+      accountPageSource,
+      /<ActiveAccountTab[\s\S]*googlePrimaryProofReady=\{googlePrimaryProofReady\}/,
+    )
+    assert.match(
+      accountPageSource,
+      /<SecurityPanel[\s\S]*googlePrimaryProofReady=\{googlePrimaryProofReady\}/,
+    )
+  })
+
   it("extracts only lexical top-level function declarations", () => {
     const fixture = [
       "async function Target() {",
@@ -586,6 +639,7 @@ async function renderMembershipTab({
       formatAccountDate,
       formatMembershipLevel,
       getAccountSurfaceData,
+      getPublicLaunchControls,
       resolveMembershipPricingMode,
       settingsInsetClassName,
       settingsSurfaceClassName,
@@ -632,6 +686,7 @@ async function renderMembershipTab({
           subscriptions,
         },
       }),
+      getPublicLaunchControls: () => ({ supporterCheckoutOpen: true }),
       resolveMembershipPricingMode,
       settingsInsetClassName: "settings-inset",
       settingsSurfaceClassName: "settings-surface",

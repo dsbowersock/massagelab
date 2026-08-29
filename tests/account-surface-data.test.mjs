@@ -199,6 +199,27 @@ describe("account surface data loader", () => {
     assert.deepEqual(calls, ["passwordCredential.findUnique", "account.findFirst"])
   })
 
+  it("projects every two-factor UI method state from booleans without exposing account rows", async () => {
+    for (const [passwordCredential, googleAccount, expected] of [
+      [{ id: "password-private" }, null, { hasPasswordCredential: true, googleLinked: false }],
+      [{ id: "password-private" }, { id: "google-private" }, { hasPasswordCredential: true, googleLinked: true }],
+      [null, { id: "google-private" }, { hasPasswordCredential: false, googleLinked: true }],
+      [null, null, { hasPasswordCredential: false, googleLinked: false }],
+    ]) {
+      const loader = createAccountSurfaceDataLoader({
+        prismaClient: {
+          passwordCredential: { async findUnique() { return passwordCredential } },
+          account: { async findFirst() { return googleAccount } },
+        },
+      })
+
+      const data = await loader.getAccountSurfaceData("security", "user-1", sessionUser)
+
+      assert.deepEqual(data, { surface: "security", ...expected })
+      assert.doesNotMatch(JSON.stringify(data), /password-private|google-private|user-1/)
+    }
+  })
+
   it("loads only the signed-in user's newest fifty safe activity rows", async () => {
     const calls = []
     let rows = [{

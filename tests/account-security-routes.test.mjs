@@ -21,6 +21,10 @@ const linkFormSource = await readFile(new URL("../app/account/link-google/link-g
 const linkPageSource = await readFile(new URL("../app/account/link-google/page.tsx", import.meta.url), "utf8")
 const methodsPanelSource = await readFile(new URL("../app/account/security/sign-in-methods-panel.tsx", import.meta.url), "utf8")
 const securityPanelSource = await readFile(new URL("../app/account/security/security-panel.tsx", import.meta.url), "utf8")
+const twoFactorPanelUrl = new URL("../app/account/security/two-factor-management-panel.tsx", import.meta.url)
+const twoFactorPanelSource = existsSync(fileURLToPath(twoFactorPanelUrl))
+  ? await readFile(twoFactorPanelUrl, "utf8")
+  : ""
 const linkRecoveryUrl = new URL("../lib/google-link-confirmation-recovery.ts", import.meta.url)
 
 const UPDATED = {
@@ -256,15 +260,20 @@ describe("recoverable account-method UI contracts", () => {
     assert.match(linkPageSource, /validIntent/)
   })
 
-  it("splits method controls from TOTP and uses explicit recoverable states", () => {
+  it("keeps the security shell composition-only and gives two-factor recovery one owner", () => {
     assert.match(securityPanelSource, /<SignInMethodsPanel/)
-    assert.doesNotMatch(securityPanelSource, /\/api\/account\/security\/(?:password|google\/unlink)/)
-    assert.match(securityPanelSource, /Authenticator-app 2FA/)
+    assert.match(securityPanelSource, /<TwoFactorManagementPanel/)
+    assert.doesNotMatch(securityPanelSource, /\/api\/account\/security\//)
+    assert.doesNotMatch(securityPanelSource, /qrCode|manualCode|backupCodes|verificationCode/)
+    assert.match(twoFactorPanelSource, /Authenticator-app 2FA/)
     assert.match(methodsPanelSource, /type MethodActionState\s*=\s*"idle"\s*\|\s*"proving"\s*\|\s*"saving"\s*\|\s*"redirecting"\s*\|\s*"success"\s*\|\s*"error"/)
     assert.match(methodsPanelSource, /try\s*\{[\s\S]*catch[\s\S]*finally/)
     assert.match(methodsPanelSource, /aria-busy/)
     assert.match(methodsPanelSource, /role=\{[^}]*"alert"[^}]*"status"/)
     assert.match(methodsPanelSource, /aria-live=\{[^}]*"assertive"[^}]*"polite"/)
+    assert.match(twoFactorPanelSource, /resolveTwoFactorManagementRecovery/)
+    assert.doesNotMatch(twoFactorPanelSource, /result\.message/)
+    assert.doesNotMatch(twoFactorPanelSource, /localStorage|sessionStorage|useRouter|router\.refresh|console\s*\.|logger\s*\./)
   })
 
   it("keeps every sign-in method action's proof and confirmation state isolated", () => {

@@ -56,6 +56,7 @@ type AccountPageProps = {
     legal?: string
     portal?: string
     profile?: string
+    reauth?: string
     tab?: string
   }>
 }
@@ -127,6 +128,7 @@ const typedAccountPageTabs = accountPageTabs as AccountPageTab[]
 
 export default async function AccountPage({ searchParams }: AccountPageProps) {
   const params = await searchParams
+  const googlePrimaryProofReady = params?.reauth === "two-factor"
   const returnState = normalizeAccountReturnState(params)
   const session = await getCurrentSession()
   const defaultTab = selectAccountTab(params?.tab, {
@@ -283,7 +285,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
         }}
       >
         <Suspense fallback={<AccountTabLoading tabId={defaultTab} />}>
-          <ActiveAccountTab tabId={defaultTab} userId={session.user.id} sessionUser={session.user as AccountSessionUser} />
+          <ActiveAccountTab tabId={defaultTab} userId={session.user.id} sessionUser={session.user as AccountSessionUser} googlePrimaryProofReady={googlePrimaryProofReady} />
         </Suspense>
       </AccountSettingsShell>
     </AccountShell>
@@ -323,17 +325,19 @@ async function ActiveAccountTab({
   tabId,
   userId,
   sessionUser,
+  googlePrimaryProofReady,
 }: {
   tabId: string
   userId: string
   sessionUser: AccountSessionUser
+  googlePrimaryProofReady: boolean
 }) {
   if (tabId === "profile") {
     return <ProfileTab userId={userId} sessionUser={sessionUser} />
   }
 
   if (tabId === "security") {
-    return <SecurityTab userId={userId} sessionUser={sessionUser} />
+    return <SecurityTab userId={userId} sessionUser={sessionUser} googlePrimaryProofReady={googlePrimaryProofReady} />
   }
 
   if (tabId === "credentials") {
@@ -465,7 +469,15 @@ async function OverviewTab({ userId, sessionUser }: { userId: string; sessionUse
   )
 }
 
-async function SecurityTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
+async function SecurityTab({
+  userId,
+  sessionUser,
+  googlePrimaryProofReady,
+}: {
+  userId: string
+  sessionUser: AccountSessionUser
+  googlePrimaryProofReady: boolean
+}) {
   const data = await getAccountSurfaceData("security", userId, sessionUser)
 
   return (
@@ -476,6 +488,7 @@ async function SecurityTab({ userId, sessionUser }: { userId: string; sessionUse
           twoFactorEnabled={Boolean(sessionUser.twoFactorEnabled)}
           hasPasswordCredential={data.hasPasswordCredential}
           googleLinked={data.googleLinked}
+          googlePrimaryProofReady={googlePrimaryProofReady}
         />
       </div>
     </TabsContent>
