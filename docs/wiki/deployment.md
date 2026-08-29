@@ -29,12 +29,14 @@ Auth configuration:
 
 ```text
 AUTH_SECRET=
-AUTH_URL=https://massagelab.app
+AUTH_URL=https://<verified-production-auth-host>
 AUTH_GOOGLE_ID=
 AUTH_GOOGLE_SECRET=
 TOTP_ENCRYPTION_KEY=
 ADMIN_EMAILS=
 ```
+
+The concrete Production `AUTH_URL` host is intentionally not fixed in this repository example. Set it only after the external callback/origin readback below proves the exact canonical Production auth host.
 
 SMTP configuration:
 
@@ -51,11 +53,11 @@ SMTP_FROM=MassageLab <no-reply@massagelab.app>
 Do not print auth, database, OAuth, SMTP, target, or fingerprint configuration values in release evidence. The identity rollout is expand, cut over, drain, and only then clean up:
 
 1. Run `npm run auth:check-normalized-emails` against the separately selected direct, non-pooler maintenance target. The command is read-only and may report only `normalized_collision_count=<number>`. Stop unless the count is zero; resolve collisions through a separately reviewed account-recovery process before applying or deploying identity code.
-2. Apply the expansion migration `20260828120000_identity_method_safety` before deploying the new runtime. It creates `AuthRateLimitBucket`, `AuthMethodIntent`, and `AccountSecurityEmailIntent`, adds their supporting enums/indexes, and deliberately leaves `AuthAttempt` and its original contract untouched so old instances and rollback remain viable. The migration committed on the identity branch is local code only; Task 7 did not apply it to any database.
+2. Apply the expansion migration `20260828120000_identity_method_safety` before deploying the new runtime. It creates `AuthRateLimitBucket`, `AuthMethodIntent`, and `AccountSecurityEmailIntent`, adds their supporting enums/indexes, and expands the shared `AuthAttemptPurpose` enum with `GOOGLE_INTENT` for forward/rollback compatibility. The `AuthAttempt` table's columns, indexes, and data remain untouched so old instances and rollback remain viable. The migration committed on the identity branch is local code only; Task 7 did not apply it to any database.
 3. Deploy the Task 2 runtime cutover atomically. Every new serving caller must use `AuthRateLimitBucket`; there is no dual-write or fallback to `AuthAttempt`. Old instances can still write raw legacy `AuthAttempt.key` values during a rolling deployment. Confirm the exact reviewed deployment is serving and every old instance has drained before concluding that legacy identifiers have stopped growing or that `AuthAttempt` is no longer active limiter state.
 4. Keep `AuthAttempt` through the rollback window. Read-only target fingerprinting with `npm run auth:cleanup-legacy-attempts -- --print-fingerprint` and any cleanup are later release actions, not part of deployment. After cutover/drain evidence, separately authorize the exact production fingerprint and bounded mutation scope before each approved invocation of `npm run auth:cleanup-legacy-attempts -- --expected-fingerprint=<64 lowercase hex> --max-rows=<1..100>`. Record only `legacy_auth_attempt_rows_deleted=<number>`; never record target values, row identifiers, raw keys, email addresses, or network identifiers. No cleanup or future table-drop contract migration occurred in Task 7. Dropping `AuthAttempt` requires its own reviewed migration and authorization after rollback is retired.
 
-The active limiter uses one 15-minute window and persists only a domain-separated HMAC-SHA-256 `keyHash`, purpose, scope, counts, times, and block state. Thresholds are `REGISTER` 5/account and 12/network, `PASSWORD_RESET` 5/account and 20/network, `LOGIN` 8/account and 30/network, `TWO_FACTOR` 8/account and 30/network, and `GOOGLE_INTENT` 30/network. Successful credential proof clears only that account's `LOGIN` and `TWO_FACTOR` buckets, not the network buckets. Best-effort stale cleanup is sampled once per 64 limiter operations, selects at most 100 buckets inactive for 24 hours, and deletes only buckets with no active block; it never changes the already-committed limiter decision.
+The active limiter uses one 15-minute window and persists only a domain-separated HMAC-SHA-256 `keyHash`, purpose, scope, counts, times, and block state. Thresholds are `REGISTER` 5/account and 12/network, `PASSWORD_RESET` 5/account and 20/network, `LOGIN` 8/account and 30/network, `TWO_FACTOR` 8/account and 30/network, and `GOOGLE_INTENT` 30/network. Successful credential proof clears only that account's `LOGIN` and `TWO_FACTOR` buckets, not the network buckets. Best-effort stale cleanup is sampled once per 64 limiter operations, selects at most 100 buckets inactive for 24 hours, and repeats the inactive/non-blocked predicates when deleting so a bucket reactivated after selection survives; it never changes the already-committed limiter decision.
 
 Every MassageLab-owned Google entry point must first consume the `GOOGLE_INTENT` network quota, create a 10-minute `AuthMethodIntent`, and bind it to the initiating browser through the `ml-auth-method-binding` HttpOnly, SameSite=Lax cookie (Secure in Production). Only the cookie contains the opaque intent id plus binding token; persistence contains the binding hash. Intent ids, binding tokens, provider ids, provider email hashes, and OAuth tokens must not appear in URLs, local/session storage, client-rendered data, logs, or release evidence. `allowDangerousEmailAccountLinking` must remain absent. A matching Google email may link to an existing password account only after provider proof and an explicit fresh Credentials confirmation; signed-in cross-account proof and provider collisions fail closed, and removing a method must leave another sign-in credential.
 
