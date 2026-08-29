@@ -4,9 +4,8 @@ import {
   classifyStripeCheckoutSessionPurpose,
   getStripeClient,
   getStripeWebhookSecret,
-  recordCheckoutSessionCompleted,
   retrieveBackgroundPurchaseCheckoutSessionForFulfillment,
-  upsertMembershipSubscriptionFromStripe,
+  retrieveStripeSubscription,
   verifyStripeWebhookSignature,
 } from "@/lib/stripe-billing"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
@@ -15,6 +14,10 @@ import {
   applyStripeDisputeEvent,
   applyStripeRefundEvent,
 } from "@/lib/commerce/reversal-service"
+import {
+  MembershipWebhookRetryableError,
+  processStripeMembershipEvent,
+} from "@/lib/membership-webhook-service"
 import { prisma } from "@/lib/prisma"
 import {
   STRIPE_BACKGROUND_CHECKOUT_WEBHOOK_EVENTS,
@@ -36,6 +39,29 @@ function processorObjectId(value: unknown) {
     return typeof value.id === "string" ? value.id : ""
   }
   return ""
+}
+
+/**
+ * Delegates one signed membership event to the convergence owner and maps only
+ * its safe retry signal to Stripe's retryable HTTP contract.
+ */
+async function processMembershipEvent(event: unknown) {
+  try {
+    const result = await processStripeMembershipEvent({
+      prismaClient: prisma,
+      event,
+      retrieveSubscription: retrieveStripeSubscription,
+    })
+    if (result.changed) {
+      clearAccountSurfaceDataCache(result.userId, "membership")
+    }
+    return null
+  } catch (error) {
+    if (error instanceof MembershipWebhookRetryableError) {
+      return NextResponse.json({ received: false, retry: true }, { status: 503 })
+    }
+    return NextResponse.json({ received: false }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
@@ -71,19 +97,16 @@ export async function POST(request: Request) {
         clearAccountSurfaceDataCache(result.userId, "membership")
       }
     } else if (event.type === "checkout.session.completed" && purpose === "membership") {
-      const result = await recordCheckoutSessionCompleted(prisma, object)
-      clearAccountSurfaceDataCache(
-        result?.customer?.userId ?? result?.subscription?.userId,
-        "membership",
-      )
+      const response = await processMembershipEvent(event)
+      if (response) return response
     }
     // Donation and unknown explicit purposes are acknowledged without
     // membership or commerce mutation, preserving the existing donation path.
   }
 
   if (MEMBERSHIP_EVENT_TYPES.has(event?.type)) {
-    const subscription = await upsertMembershipSubscriptionFromStripe(prisma, object)
-    clearAccountSurfaceDataCache(subscription?.userId, "membership")
+    const response = await processMembershipEvent(event)
+    if (response) return response
   }
 
   if (REFUND_EVENT_TYPES.has(event?.type)) {
