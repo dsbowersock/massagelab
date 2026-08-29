@@ -379,11 +379,23 @@ test("shows throttled shell feedback while an owned tool Link keeps music mounte
   // so preserve its real transient state without slowing or replacing navigation.
   await page.evaluate(() => {
     const observed = {
+      maximumConcurrentStatusCount: 0,
       pointerEvents: "",
       progressSeen: false,
+      statusOccurrences: 0, statusTexts: [] as string[],
     }
+    const seenStatuses = new Set<HTMLElement>()
     const recordRouteFeedback = () => {
       const progress = document.querySelector<HTMLElement>('[data-route-progress="pending"]')
+      const statuses = [...document.querySelectorAll<HTMLElement>('[role="status"]')]
+        .filter((status) => (status.getAttribute("aria-label")?.trim() || status.textContent?.trim()) === "Loading page")
+      observed.maximumConcurrentStatusCount = Math.max(observed.maximumConcurrentStatusCount, statuses.length)
+      for (const status of statuses) {
+        if (seenStatuses.has(status)) continue
+        seenStatuses.add(status)
+        observed.statusOccurrences += 1
+        observed.statusTexts.push(status.getAttribute("aria-label")?.trim() || status.textContent?.trim() || "")
+      }
       if (progress) {
         observed.progressSeen = true
         observed.pointerEvents = getComputedStyle(progress).pointerEvents
@@ -402,15 +414,20 @@ test("shows throttled shell feedback while an owned tool Link keeps music mounte
     const observer = Reflect.get(window, "__interactionFeedbackRouteObserver") as MutationObserver
     observer.disconnect()
     return Reflect.get(window, "__interactionFeedbackRouteObserved") as {
+      maximumConcurrentStatusCount: number; statusOccurrences: number; statusTexts: string[]
       pointerEvents: string
       progressSeen: boolean
     }
   })
   expect(routeFeedback).toEqual({
+    maximumConcurrentStatusCount: 1,
     pointerEvents: "none",
     progressSeen: true,
+    statusOccurrences: 1,
+    statusTexts: ["Loading page"],
   })
   await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
+  await expect(page.getByRole("status").filter({ hasText: /^Loading page$/ })).toHaveCount(0)
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
   await expect(toolbar).toHaveAttribute("data-playback-state", "playing")
   expect(await page.evaluate(() => (
