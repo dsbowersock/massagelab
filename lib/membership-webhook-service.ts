@@ -11,6 +11,9 @@ import { STRIPE_MEMBERSHIP_WEBHOOK_EVENTS } from "./stripe-webhook-contract.js"
 
 const PROVIDER = "stripe"
 const CHECKOUT_COMPLETED = "checkout.session.completed"
+const MEMBERSHIP_RECEIPT_MODEL = "MembershipWebhookReceipt"
+const MEMBERSHIP_RECEIPT_UNIQUE_INDEX = "MembershipWebhookReceipt_provider_providerEventId_key"
+const MEMBERSHIP_RECEIPT_UNIQUE_FIELDS = ["provider", "providerEventId"] as const
 const MEMBERSHIP_EVENT_TYPES = new Set<string>(STRIPE_MEMBERSHIP_WEBHOOK_EVENTS)
 const RETRYABLE_CODES = Object.freeze({
   malformed_event: "The membership event could not be processed safely.",
@@ -41,6 +44,7 @@ type EventEnvelope = {
 
 type SubscriptionSnapshot = {
   id?: string
+  updatedAt: Date
   userId: string
   stripeSubscriptionId: string
   stripeCustomerId: string
@@ -109,25 +113,10 @@ export async function processStripeMembershipEvent({
 }): Promise<MembershipWebhookResult> {
   const envelope = parseEventEnvelope(event)
   const attemptedAt = currentTime(now)
+  const loadOrCreateReceipt = createMembershipReceiptLoader()
 
   const initial = await runCommerceTransaction(prismaClient, async (tx) => {
-    const receipt = await tx.membershipWebhookReceipt.upsert({
-      where: {
-        provider_providerEventId: {
-          provider: PROVIDER,
-          providerEventId: envelope.eventId,
-        },
-      },
-      create: {
-        provider: PROVIDER,
-        providerEventId: envelope.eventId,
-        eventType: envelope.eventType,
-        providerEventCreatedAt: envelope.eventCreatedAt,
-        providerObjectId: envelope.providerObjectId,
-        stripeSubscriptionId: envelope.stripeSubscriptionId,
-      },
-      update: {},
-    })
+    const receipt = await loadOrCreateReceipt(tx, envelope)
 
     if (isTerminalReceipt(receipt.status)) {
       return { kind: "result", result: terminalResult(receipt) } satisfies InitialResult
@@ -213,6 +202,7 @@ export async function processStripeMembershipEvent({
       eventId: envelope.eventId,
       eventCreatedAt: envelope.eventCreatedAt,
       authoritativeAt: undefined,
+      preserveUpdatedAt: changed ? undefined : ownership.subscription?.updatedAt,
     })
     return {
       kind: "result",
@@ -285,6 +275,7 @@ export async function processStripeMembershipEvent({
       eventId: initial.envelope.eventId,
       eventCreatedAt: initial.envelope.eventCreatedAt,
       authoritativeAt: authoritativeReadStartedAt,
+      preserveUpdatedAt: changed ? undefined : ownership.subscription?.updatedAt,
     })
     return { kind: "result" as const, result: appliedResult(changed, ownership.userId) }
   }, { maxRetries: 3 })
@@ -345,6 +336,82 @@ function currentTime(now: () => Date): Date {
     throw new MembershipWebhookRetryableError("malformed_event")
   }
   return new Date(value)
+}
+
+function isExactMembershipReceiptConstraint(value: unknown): boolean {
+  if (value === MEMBERSHIP_RECEIPT_UNIQUE_INDEX) return true
+  return Array.isArray(value)
+    && value.length === MEMBERSHIP_RECEIPT_UNIQUE_FIELDS.length
+    && MEMBERSHIP_RECEIPT_UNIQUE_FIELDS.every((field, index) => value[index] === field)
+}
+
+/**
+ * Recognizes only the receipt constraint at the membership-receipt insert site.
+ * Prisma's legacy client reports model/target metadata, while the installed
+ * Neon adapter reports SQLSTATE 23505 plus constraint fields or an index name.
+ */
+function isMembershipReceiptCreationRace(error: unknown): boolean {
+  const candidate = objectRecord(error)
+  if (candidate?.code !== "P2002") return false
+
+  const meta = objectRecord(candidate.meta)
+  if (!meta) return false
+  if (meta.modelName !== undefined && meta.modelName !== MEMBERSHIP_RECEIPT_MODEL) return false
+
+  if ("target" in meta) {
+    return meta.modelName === MEMBERSHIP_RECEIPT_MODEL
+      && isExactMembershipReceiptConstraint(meta.target)
+  }
+
+  const adapterError = objectRecord(meta.driverAdapterError)
+  const cause = objectRecord(adapterError?.cause)
+  const constraint = objectRecord(cause?.constraint)
+  return adapterError?.name === "DriverAdapterError"
+    && cause?.kind === "UniqueConstraintViolation"
+    && cause.originalCode === "23505"
+    && Boolean(constraint)
+    && (isExactMembershipReceiptConstraint(constraint?.fields)
+      || isExactMembershipReceiptConstraint(constraint?.index))
+}
+
+/**
+ * Prisma 7 may compile the no-op receipt upsert as SELECT then INSERT. Only an
+ * exact first-insert loser is converted once to P2034 so the shared bounded
+ * transaction runner abandons the failed snapshot and reloads the winner.
+ */
+function createMembershipReceiptLoader(): (
+  tx: Prisma.TransactionClient,
+  envelope: EventEnvelope,
+) => Promise<MembershipWebhookReceipt> {
+  let receiptCreationRestartIssued = false
+
+  return async (tx, envelope) => {
+    try {
+      return await tx.membershipWebhookReceipt.upsert({
+        where: {
+          provider_providerEventId: {
+            provider: PROVIDER,
+            providerEventId: envelope.eventId,
+          },
+        },
+        create: {
+          provider: PROVIDER,
+          providerEventId: envelope.eventId,
+          eventType: envelope.eventType,
+          providerEventCreatedAt: envelope.eventCreatedAt,
+          providerObjectId: envelope.providerObjectId,
+          stripeSubscriptionId: envelope.stripeSubscriptionId,
+        },
+        update: {},
+      })
+    } catch (error) {
+      if (receiptCreationRestartIssued || !isMembershipReceiptCreationRace(error)) {
+        throw error
+      }
+      receiptCreationRestartIssued = true
+      throw Object.assign(new Error("Membership receipt creation snapshot conflict."), { code: "P2034" })
+    }
+  }
 }
 
 async function resolveOwnership(tx: Prisma.TransactionClient, envelope: EventEnvelope): Promise<{ userId: string; subscription: SubscriptionSnapshot | null } | null> {
@@ -496,12 +563,14 @@ async function writeSubscriptionSnapshot(tx: Prisma.TransactionClient, {
   eventId,
   eventCreatedAt,
   authoritativeAt,
+  preserveUpdatedAt,
 }: {
   normalized: NormalizedSubscription
   userId: string
   eventId: string
   eventCreatedAt: Date
   authoritativeAt: Date | undefined
+  preserveUpdatedAt: Date | undefined
 }) {
   const normalizedFields = {
     stripeCustomerId: normalized.stripeCustomerId,
@@ -527,7 +596,10 @@ async function writeSubscriptionSnapshot(tx: Prisma.TransactionClient, {
       ...normalizedFields,
       ...(!authoritativeAt ? { lastStripeAuthoritativeAt: null } : {}),
     },
-    update: normalizedFields,
+    update: {
+      ...normalizedFields,
+      ...(preserveUpdatedAt ? { updatedAt: preserveUpdatedAt } : {}),
+    },
   })
 }
 

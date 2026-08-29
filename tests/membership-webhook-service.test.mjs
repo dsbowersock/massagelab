@@ -83,6 +83,7 @@ function persistedSubscription(overrides = {}) {
     lastStripeEventId: "evt_seed",
     lastStripeEventCreatedAt: new Date("2026-08-28T11:59:00.000Z"),
     lastStripeAuthoritativeAt: null,
+    updatedAt: new Date("2026-08-28T10:00:00.000Z"),
     ...overrides,
   }
 }
@@ -126,6 +127,49 @@ function receiptKey(provider, providerEventId) {
   return `${provider}:${providerEventId}`
 }
 
+function legacyReceiptUniqueError({
+  code = "P2002",
+  modelName = "MembershipWebhookReceipt",
+  target = ["provider", "providerEventId"],
+} = {}) {
+  return Object.assign(new Error("legacy receipt unique constraint"), {
+    code,
+    meta: { modelName, target },
+  })
+}
+
+function adapterReceiptUniqueError(constraint = { fields: ["provider", "providerEventId"] }, {
+  code = "P2002",
+  kind = "UniqueConstraintViolation",
+  originalCode = "23505",
+  modelName,
+} = {}) {
+  return Object.assign(new Error("adapter receipt unique constraint"), {
+    code,
+    meta: {
+      ...(modelName ? { modelName } : {}),
+      driverAdapterError: {
+        name: "DriverAdapterError",
+        cause: {
+          kind,
+          originalCode,
+          originalMessage: "duplicate key value violates unique constraint",
+          constraint,
+        },
+      },
+    },
+  })
+}
+
+function semanticSubscriptionState(subscription) {
+  const semanticState = clone(subscription)
+  delete semanticState.lastStripeEventId
+  delete semanticState.lastStripeEventCreatedAt
+  delete semanticState.lastStripeAuthoritativeAt
+  delete semanticState.updatedAt
+  return semanticState
+}
+
 /**
  * Provides optimistic Serializable snapshots so concurrent service calls prove
  * whole-transaction retry and conditional receipt ownership without a real DB.
@@ -135,15 +179,18 @@ function createPrismaFixture({
   subscriptions = [],
   receipts = [],
   conflicts = 0,
+  receiptCreateRaces = [],
 } = {}) {
   let state = {
     customers: new Map(customers.map((row) => [row.stripeCustomerId, clone(row)])),
     subscriptions: new Map(subscriptions.map((row) => [row.stripeSubscriptionId, clone(row)])),
     receipts: new Map(receipts.map((row) => [receiptKey(row.provider, row.providerEventId), clone(row)])),
     subscriptionMutations: 0,
+    nextUpdatedAtMs: BASE_TIME.getTime(),
   }
   let version = 0
   let conflictsRemaining = conflicts
+  const pendingReceiptCreateRaces = [...receiptCreateRaces]
   let activeTransactionCallbacks = 0
   const transactionOptions = []
 
@@ -167,9 +214,24 @@ function createPrismaFixture({
         findUnique: async ({ where }) => clone(working.subscriptions.get(where.stripeSubscriptionId) ?? null),
         upsert: async ({ where, create, update }) => {
           const existing = working.subscriptions.get(where.stripeSubscriptionId)
-          const next = existing
-            ? applyData(existing, update)
-            : { id: `membership_${working.subscriptions.size + 1}`, ...clone(create) }
+          let next
+          if (existing) {
+            const explicitlyPreservesRevision = Object.hasOwn(update, "updatedAt")
+            const previousUpdatedAt = new Date(existing.updatedAt)
+            next = applyData(existing, update)
+            if (!explicitlyPreservesRevision) {
+              const nextRevisionMs = Math.max(working.nextUpdatedAtMs, previousUpdatedAt.getTime() + 1)
+              next.updatedAt = new Date(nextRevisionMs)
+              working.nextUpdatedAtMs = nextRevisionMs + 1
+            }
+          } else {
+            next = {
+              id: `membership_${working.subscriptions.size + 1}`,
+              updatedAt: new Date(working.nextUpdatedAtMs),
+              ...clone(create),
+            }
+            working.nextUpdatedAtMs += 1
+          }
           working.subscriptions.set(where.stripeSubscriptionId, next)
           working.subscriptionMutations += 1
           return clone(next)
@@ -183,6 +245,23 @@ function createPrismaFixture({
           if (existing) {
             applyData(existing, update)
             return clone(existing)
+          }
+          const createRace = pendingReceiptCreateRaces.shift()
+          if (createRace) {
+            const winner = {
+              id: `receipt_winner_${state.receipts.size + 1}`,
+              status: "RECEIVED",
+              attemptCount: 0,
+              failureCode: null,
+              receivedAt: new Date(BASE_TIME),
+              lastAttemptedAt: null,
+              processedAt: null,
+              ...clone(create),
+              ...clone(createRace.winner),
+            }
+            state.receipts.set(key, winner)
+            version += 1
+            throw createRace.error
           }
           const created = {
             id: `receipt_${working.receipts.size + 1}`,
@@ -333,8 +412,9 @@ describe("membership webhook service", () => {
         },
       })
       assert.equal(retrievals, 1, scenario.name)
-      assert.equal(result.outcome, "applied", scenario.name)
+      assert.deepEqual(result, { outcome: "applied", changed: true, userId: "user_123" }, scenario.name)
       assert.equal(fixture.subscriptions[0].status, "canceled", scenario.name)
+      assert.equal(fixture.subscriptions[0].updatedAt > scenario.stored.updatedAt, true, scenario.name)
       assert.equal(fixture.subscriptions[0].lastStripeEventId, scenario.event.id, scenario.name)
       assert.deepEqual(fixture.subscriptions[0].lastStripeAuthoritativeAt, BASE_TIME, scenario.name)
     }
@@ -456,21 +536,45 @@ describe("membership webhook service", () => {
 
   it("updates a mapped Price without changing feature-key rules", async () => {
     const fixture = createPrismaFixture({ subscriptions: [persistedSubscription()] })
+    const previousUpdatedAt = fixture.subscriptions[0].updatedAt
     const result = await process(fixture, subscriptionEvent({ eventId: "evt_price", created: 1787918500, priceId: "price_supporter_2" }))
 
     assert.deepEqual(result, { outcome: "applied", changed: true, userId: "user_123" })
     assert.equal(fixture.subscriptions[0].stripePriceId, "price_supporter_2")
+    assert.equal(fixture.subscriptions[0].updatedAt > previousUpdatedAt, true)
     assert.equal(buildEntitlements({ subscriptions: fixture.subscriptions }).hasFeature(FEATURE_KEYS.premiumBackgrounds), true)
   })
 
-  it("reports watermark-only writes as non-changing with the resolved owner", async () => {
+  it("preserves the membership revision for a direct watermark-only write", async () => {
     const fixture = createPrismaFixture({ subscriptions: [persistedSubscription()] })
+    const previous = fixture.subscriptions[0]
 
     const result = await process(fixture, subscriptionEvent({ eventId: "evt_same_state", created: 1787918460 }))
 
     assert.deepEqual(result, { outcome: "applied", changed: false, userId: "user_123" })
+    assert.deepEqual(fixture.subscriptions[0].updatedAt, previous.updatedAt)
+    assert.deepEqual(semanticSubscriptionState(fixture.subscriptions[0]), semanticSubscriptionState(previous))
     assert.equal(fixture.subscriptions[0].lastStripeEventId, "evt_same_state")
     assert.equal(fixture.receipts[0].status, "APPLIED")
+  })
+
+  it("preserves a legacy membership revision during watermark-only provider reconciliation", async () => {
+    const fixture = createPrismaFixture({
+      subscriptions: [persistedSubscription({
+        lastStripeEventId: null,
+        lastStripeEventCreatedAt: null,
+        lastStripeAuthoritativeAt: null,
+      })],
+    })
+    const previous = fixture.subscriptions[0]
+
+    const result = await process(fixture, subscriptionEvent({ eventId: "evt_legacy_revision", created: 1787918460 }))
+
+    assert.deepEqual(result, { outcome: "applied", changed: false, userId: "user_123" })
+    assert.deepEqual(fixture.subscriptions[0].updatedAt, previous.updatedAt)
+    assert.deepEqual(semanticSubscriptionState(fixture.subscriptions[0]), semanticSubscriptionState(previous))
+    assert.equal(fixture.subscriptions[0].lastStripeEventId, "evt_legacy_revision")
+    assert.deepEqual(fixture.subscriptions[0].lastStripeAuthoritativeAt, BASE_TIME)
   })
 
   it("persists only allowlisted normalized metadata instead of provider payload fields", async () => {
@@ -583,6 +687,79 @@ describe("membership webhook service", () => {
     assert.equal(fixture.transactionOptions.length, 3)
     assert.equal(fixture.transactionOptions.every(({ isolationLevel }) => isolationLevel === "Serializable"), true)
     assert.equal(fixture.receipts.length, 0)
+  })
+
+  it("recovers the exact legacy receipt-creation unique race from a fresh transaction snapshot", async () => {
+    const event = subscriptionEvent({ eventId: "evt_legacy_receipt_race", created: 1800 })
+    const fixture = createPrismaFixture({
+      subscriptions: [persistedSubscription({
+        lastStripeEventId: event.id,
+        lastStripeEventCreatedAt: new Date(event.created * 1000),
+      })],
+      receiptCreateRaces: [{
+        error: legacyReceiptUniqueError(),
+        winner: {
+          userId: "user_123",
+          status: "APPLIED",
+          processedAt: new Date(BASE_TIME),
+        },
+      }],
+    })
+
+    const result = await process(fixture, event)
+
+    assert.deepEqual(result, { outcome: "duplicate", changed: false, userId: "user_123" })
+    assert.equal(fixture.transactionOptions.length, 2)
+    assert.equal(fixture.subscriptionMutations, 0)
+    assert.equal(fixture.receipts.length, 1)
+  })
+
+  it("recovers the installed Neon adapter receipt-creation unique race exactly once", async () => {
+    const event = subscriptionEvent({ eventId: "evt_adapter_receipt_race", created: 1900 })
+    const fixture = createPrismaFixture({
+      receiptCreateRaces: [{
+        error: adapterReceiptUniqueError(),
+        winner: {},
+      }],
+    })
+
+    const result = await process(fixture, event)
+
+    assert.deepEqual(result, { outcome: "applied", changed: true, userId: "user_123" })
+    assert.equal(fixture.transactionOptions.length, 2)
+    assert.equal(fixture.subscriptionMutations, 1)
+    assert.equal(fixture.receipts.length, 1)
+    assert.equal(fixture.receipts[0].status, "APPLIED")
+  })
+
+  it("does not retry unrelated or ambiguous receipt-creation errors", async () => {
+    const nearMisses = [
+      legacyReceiptUniqueError({ code: "P2003" }),
+      legacyReceiptUniqueError({ modelName: "CommerceWebhookReceipt" }),
+      legacyReceiptUniqueError({ target: ["provider", "id"] }),
+      legacyReceiptUniqueError({ target: ["providerEventId", "provider"] }),
+      legacyReceiptUniqueError({ target: "provider_providerEventId" }),
+      Object.assign(new Error("missing metadata"), { code: "P2002" }),
+      adapterReceiptUniqueError({ fields: ["provider", "providerEventId"] }, { code: "P2024" }),
+      adapterReceiptUniqueError({ fields: ["provider", "providerEventId"] }, { kind: "ForeignKeyConstraintViolation" }),
+      adapterReceiptUniqueError({ fields: ["provider", "providerEventId"] }, { originalCode: "23503" }),
+      adapterReceiptUniqueError({ fields: ["provider"] }),
+      adapterReceiptUniqueError({ fields: ["providerEventId", "provider"] }),
+      adapterReceiptUniqueError({ index: "CommerceWebhookReceipt_provider_providerEventId_key" }),
+      adapterReceiptUniqueError({ index: "MembershipWebhookReceipt_provider_providerEventId_key" }, { modelName: "CommerceWebhookReceipt" }),
+    ]
+
+    for (const [index, error] of nearMisses.entries()) {
+      const fixture = createPrismaFixture({
+        receiptCreateRaces: [{ error, winner: {} }],
+      })
+      await assert.rejects(
+        process(fixture, subscriptionEvent({ eventId: `evt_near_miss_${index}`, created: 2000 + index })),
+        (received) => received === error,
+      )
+      assert.equal(fixture.transactionOptions.length, 1, index)
+      assert.equal(fixture.subscriptionMutations, 0, index)
+    }
   })
 
   it("changes one snapshot once under concurrent duplicate delivery", async () => {
