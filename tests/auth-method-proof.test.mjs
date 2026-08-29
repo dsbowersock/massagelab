@@ -13,11 +13,24 @@ const limiter = loadCompiledModule(limiterSource, "auth-rate-limit.proof-test.ts
   "@/lib/auth-security": { normalizeEmail },
   "@/lib/commerce/transactions": { runCommerceTransaction },
 })
+const twoFactorProofSource = await readFile(new URL("../lib/auth-two-factor-proof.ts", import.meta.url), "utf8")
+const twoFactorProof = loadCompiledModule(twoFactorProofSource, "auth-two-factor-proof.method-test.ts", {
+  "@/lib/prisma": { prisma: {} },
+  "@/lib/auth-env": { getAuthSecret: () => "secret" },
+  "@/lib/auth-rate-limit": limiter,
+  "@/lib/auth-security": {
+    decryptSecret: () => "",
+    normalizeEmail,
+    verifyBackupCode: async () => false,
+    verifyTotpCode: () => false,
+  },
+})
 const proofSource = await readFile(new URL("../lib/auth-method-proof.ts", import.meta.url), "utf8")
 const proof = loadCompiledModule(proofSource, "auth-method-proof.test.ts", {
   "@/lib/prisma": { prisma: {} },
   "@/lib/auth-env": { getAuthSecret: () => "secret" },
   "@/lib/auth-rate-limit": limiter,
+  "@/lib/auth-two-factor-proof": twoFactorProof,
   "@/lib/auth-security": {
     decryptSecret: () => "",
     normalizeEmail,
@@ -103,6 +116,36 @@ describe("shared password method proof with the real limiter", () => {
     assert.equal(scenario.database.backupUpdateCalls.every((call) => call.where.usedAt === null), true)
     assert.equal(scenario.database.rows.some((row) => row.purpose === "TWO_FACTOR" && row.scope === "NETWORK" && row.count === 1), true)
   })
+
+  it("defers backup consumption only when explicitly requested while preserving the immediate default", async () => {
+    const deferred = proofInput({
+      twoFactorEnabled: true,
+      twoFactorCode: "backup",
+      backupValid: true,
+      backupCodeConsumption: "DEFERRED",
+    })
+
+    const deferredResult = await proof.verifyPasswordMethodProof(deferred.input)
+    assert.equal(deferredResult.status, "VERIFIED")
+    assert.equal(deferredResult.backupCodeConsumed, false)
+    assert.equal(deferredResult.preparedTwoFactorProof.kind, "BACKUP_CODE")
+    assert.equal(deferredResult.preparedTwoFactorProof.backupCodeId, "backup-1")
+    assert.equal(deferred.database.backupUpdateCalls.length, 0)
+    assert.equal(Object.hasOwn(deferredResult.preparedTwoFactorProof, "twoFactorCode"), false)
+    assert.equal(Object.hasOwn(deferredResult.preparedTwoFactorProof, "encryptedSecret"), false)
+    assert.equal(Object.hasOwn(deferredResult.preparedTwoFactorProof, "codeHash"), false)
+    assert.doesNotMatch(JSON.stringify(deferredResult.preparedTwoFactorProof), /totp-secret/i)
+
+    const immediate = proofInput({ twoFactorEnabled: true, twoFactorCode: "backup", backupValid: true })
+    const immediateResult = await proof.verifyPasswordMethodProof(immediate.input)
+    assert.deepEqual(immediateResult, {
+      status: "VERIFIED",
+      userId: "user-1",
+      backupCodeConsumed: true,
+      authSessionVersion: 7,
+    })
+    assert.equal(immediate.database.backupUpdateCalls.length, 1)
+  })
 })
 
 function proofInput({
@@ -112,6 +155,7 @@ function proofInput({
   twoFactorCode = "",
   totpValid = false,
   backupValid = false,
+  backupCodeConsumption,
   userId,
   storedEmail = "person@example.com",
 } = {}) {
@@ -122,8 +166,14 @@ function proofInput({
     emailVerified,
     authSessionVersion: 7,
     passwordCredential: { passwordHash: "hash" },
-    twoFactorSecret: twoFactorEnabled ? { enabledAt: NOW, encryptedSecret: "encrypted" } : null,
-    backupCodes: backupValid ? [{ id: "backup-1", codeHash: "backup-hash" }] : [],
+    twoFactorSecret: twoFactorEnabled ? {
+      id: "two-factor-1",
+      userId: "user-1",
+      enabledAt: NOW,
+      updatedAt: NOW,
+      encryptedSecret: "encrypted",
+    } : null,
+    backupCodes: backupValid ? [{ id: "backup-1", userId: "user-1", codeHash: "backup-hash" }] : [],
   }
   const database = createProofDatabase(user)
   return {
@@ -137,6 +187,7 @@ function proofInput({
       networkIdentifier: "192.0.2.1",
       secret: "secret",
       now: NOW,
+      ...(backupCodeConsumption ? { backupCodeConsumption } : {}),
       dependencies: {
         async verifyPassword() { calls.push("password"); return passwordValid },
         decryptSecret() { return "totp-secret" },

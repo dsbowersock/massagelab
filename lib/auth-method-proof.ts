@@ -12,11 +12,21 @@ import {
   verifyPassword,
   verifyTotpCode,
 } from "@/lib/auth-security"
+import {
+  proveLoadedTwoFactorCode,
+  type PreparedTwoFactorProof,
+} from "@/lib/auth-two-factor-proof"
 import { prisma } from "@/lib/prisma"
 import { resolveNormalizedUserId } from "@/lib/normalized-user-email"
 
 export type PasswordMethodProofResult =
-  | { status: "VERIFIED"; userId: string; backupCodeConsumed: boolean; authSessionVersion: number }
+  | {
+      status: "VERIFIED"
+      userId: string
+      backupCodeConsumed: boolean
+      authSessionVersion: number
+      preparedTwoFactorProof?: PreparedTwoFactorProof
+    }
   | { status: "EMAIL_UNVERIFIED" | "INVALID" | "TWO_FACTOR_REQUIRED" | "TWO_FACTOR_INVALID" | "RATE_LIMITED" }
 
 type ProofDependencies = {
@@ -33,7 +43,7 @@ type ProofDependencies = {
 
 type ProofPrismaClient = Pick<PrismaClient, "user" | "backupCode" | "authRateLimitBucket" | "$transaction" | "$queryRaw">
 
-type VerifyPasswordMethodProofInput = {
+export type VerifyPasswordMethodProofInput = {
   prismaClient?: ProofPrismaClient
   userId?: string
   email?: string
@@ -42,6 +52,7 @@ type VerifyPasswordMethodProofInput = {
   networkIdentifier: string
   secret?: string
   now?: Date
+  backupCodeConsumption?: "IMMEDIATE" | "DEFERRED"
   dependencies?: Partial<ProofDependencies>
 }
 
@@ -115,32 +126,37 @@ export async function verifyPasswordMethodProof(
   if (!user.emailVerified) return { status: "EMAIL_UNVERIFIED" }
 
   let backupCodeConsumed = false
+  let preparedTwoFactorProof: PreparedTwoFactorProof | undefined
   if (user.twoFactorSecret?.enabledAt) {
-    const code = input.twoFactorCode ?? ""
-    if (!code) return { status: "TWO_FACTOR_REQUIRED" }
-
-    let validTotp = false
-    try {
-      validTotp = deps.verifyTotpCode(deps.decryptSecret(user.twoFactorSecret.encryptedSecret), code)
-    } catch {
-      validTotp = false
+    const factorResult = await proveLoadedTwoFactorCode({
+      user,
+      twoFactorCode: input.twoFactorCode ?? "",
+      dependencies: {
+        decryptSecret: deps.decryptSecret,
+        verifyTotpCode: deps.verifyTotpCode,
+        verifyBackupCode: deps.verifyBackupCode,
+      },
+    })
+    if (factorResult.status !== "VERIFIED") {
+      if (factorResult.status === "TWO_FACTOR_INVALID") {
+        await deps.recordCredentialFailure({ ...limiterInput, purpose: "TWO_FACTOR" })
+      }
+      if (factorResult.status === "TWO_FACTOR_REQUIRED") return { status: "TWO_FACTOR_REQUIRED" }
+      if (factorResult.status === "RATE_LIMITED") return { status: "RATE_LIMITED" }
+      return { status: "TWO_FACTOR_INVALID" }
     }
 
-    if (!validTotp) {
-      let validBackupCodeId: string | null = null
-      for (const backupCode of user.backupCodes) {
-        if (await deps.verifyBackupCode(backupCode.codeHash, code)) {
-          validBackupCodeId = backupCode.id
-          break
-        }
-      }
-      if (validBackupCodeId) {
-        const consumed = await prismaClient.backupCode.updateMany({
-          where: { id: validBackupCodeId, usedAt: null },
-          data: { usedAt: now },
-        })
-        backupCodeConsumed = consumed.count === 1
-      }
+    preparedTwoFactorProof = factorResult.proof
+    if (preparedTwoFactorProof.kind === "BACKUP_CODE" && input.backupCodeConsumption !== "DEFERRED") {
+      const consumed = await prismaClient.backupCode.updateMany({
+        where: {
+          id: preparedTwoFactorProof.backupCodeId ?? "",
+          userId: user.id,
+          usedAt: null,
+        },
+        data: { usedAt: now },
+      })
+      backupCodeConsumed = consumed.count === 1
       if (!backupCodeConsumed) {
         await deps.recordCredentialFailure({ ...limiterInput, purpose: "TWO_FACTOR" })
         return { status: "TWO_FACTOR_INVALID" }
@@ -149,12 +165,15 @@ export async function verifyPasswordMethodProof(
   }
 
   await deps.clearCredentialAccountFailures({ prismaClient, email: accountEmail, secret })
-  return {
+  const verified: PasswordMethodProofResult = {
     status: "VERIFIED",
     userId: user.id,
     backupCodeConsumed,
     authSessionVersion: user.authSessionVersion,
   }
+  return input.backupCodeConsumption === "DEFERRED" && preparedTwoFactorProof
+    ? { ...verified, preparedTwoFactorProof }
+    : verified
 }
 
 async function credentialProofAllowed(
