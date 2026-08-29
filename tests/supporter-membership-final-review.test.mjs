@@ -108,6 +108,12 @@ async function renderPublicPricing({
           plans: [],
         }),
       },
+      "@/lib/public-launch-controls": {
+        getPublicLaunchControls: () => ({
+          registrationOpen: true,
+          supporterCheckoutOpen: true,
+        }),
+      },
       "@/lib/prisma": {
         prisma: {
           stripeCustomer: {
