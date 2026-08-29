@@ -7,14 +7,18 @@ import { setTimeout as delay } from "node:timers/promises"
 import { pathToFileURL } from "node:url"
 
 import {
+  ANONYMOUS_REQUEST_TIMEOUT_MS,
+  fetchAnonymousHtml,
   formatReadinessTimingSummary,
   measureReadinessRoutes,
   parseReadinessTimingArgs,
 } from "./family-friends-route-timings.mjs"
 
 const READINESS_TIMEOUT_MS = 60_000
+const READINESS_REQUEST_TIMEOUT_MS = 5_000
 const STOP_TIMEOUT_MS = 5_000
 const OUTPUT_BUFFER_LIMIT = 64 * 1024
+const ownedChildLifecycles = new WeakMap()
 
 /**
  * Probes one loopback port without contacting the application. The temporary
@@ -61,6 +65,78 @@ function waitForChild(child) {
   })
 }
 
+function ownedChildLifecycle(child) {
+  const existing = ownedChildLifecycles.get(child)
+  if (existing) return existing
+
+  let hasSpawned = false
+  let isSettled = false
+  let settledResult = null
+  let resolveSettlement
+  let resolveStarted
+  let rejectStarted
+  const settlement = new Promise((resolvePromise) => {
+    resolveSettlement = resolvePromise
+  })
+  const started = new Promise((resolvePromise, reject) => {
+    resolveStarted = resolvePromise
+    rejectStarted = reject
+  })
+  // Teardown may begin with an injected child that was not started through
+  // this helper. Keep that unused startup branch from becoming unhandled.
+  started.catch(() => {})
+  const settle = (result) => {
+    if (isSettled) return
+    isSettled = true
+    settledResult = result
+    resolveSettlement(result)
+  }
+
+  child.once("spawn", () => {
+    if (isSettled) return
+    hasSpawned = true
+    resolveStarted(child)
+  })
+  // Keep this observer for the whole owned lifecycle. ChildProcess can emit an
+  // error after its initial spawn, including from a Windows kill operation.
+  child.on("error", () => {
+    settle({ kind: "error" })
+    if (!hasSpawned) {
+      rejectStarted(new Error("Fresh production server failed to spawn."))
+    }
+  })
+  child.once("exit", (code, signal) => {
+    settle({ kind: "exit", code, signal })
+    if (!hasSpawned) {
+      rejectStarted(new Error("Fresh production server exited before spawn."))
+    }
+  })
+
+  const lifecycle = {
+    isSettled: () => isSettled,
+    result: () => settledResult,
+    settlement,
+    started,
+  }
+  ownedChildLifecycles.set(child, lifecycle)
+
+  if (child.exitCode !== null || child.signalCode !== null) {
+    settle({ kind: "exit", code: child.exitCode, signal: child.signalCode })
+    rejectStarted(new Error("Fresh production server exited before spawn."))
+  }
+  return lifecycle
+}
+
+/** Awaits the real ChildProcess spawn event while retaining lifecycle observers. */
+export function superviseOwnedChild(child) {
+  return ownedChildLifecycle(child).started
+}
+
+/** Resolves with sanitized error-or-exit evidence for exactly one owned child. */
+export function waitForOwnedChildSettlement(child) {
+  return ownedChildLifecycle(child).settlement
+}
+
 /** Runs a child to completion while keeping its output out of the receipt. */
 async function runBufferedChild(command, args) {
   const child = spawn(command, args, {
@@ -100,30 +176,41 @@ export async function buildCurrentHead() {
 }
 
 /** Starts the just-built Next production server as one directly owned process. */
-export async function startBuiltServer({ hostname, port }) {
-  const nextCli = resolve("node_modules", "next", "dist", "bin", "next")
-  const child = spawn(process.execPath, [
-    nextCli,
-    "start",
-    "--hostname",
-    hostname,
-    "--port",
-    String(port),
-  ], {
-    cwd: process.cwd(),
-    env: process.env,
-    shell: false,
-    stdio: ["ignore", "pipe", "pipe"],
-    windowsHide: true,
-  })
+export async function startBuiltServer({
+  hostname,
+  port,
+  spawnImpl = spawn,
+  nodeExecutable = process.execPath,
+  nextCli = resolve("node_modules", "next", "dist", "bin", "next"),
+}) {
+  let child
+  try {
+    child = spawnImpl(nodeExecutable, [
+      nextCli,
+      "start",
+      "--hostname",
+      hostname,
+      "--port",
+      String(port),
+    ], {
+      cwd: process.cwd(),
+      env: process.env,
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    })
+  } catch {
+    throw new Error("Fresh production server failed to spawn.")
+  }
   bufferChildOutput(child)
-  return child
+  return superviseOwnedChild(child)
 }
 
 /** Waits at most one minute for the anonymous root route to answer. */
 export async function waitForBuiltServer({
   baseUrl,
   timeoutMs = READINESS_TIMEOUT_MS,
+  requestTimeoutMs = READINESS_REQUEST_TIMEOUT_MS,
   fetchImpl = fetch,
   clock = () => Date.now(),
   delayImpl = delay,
@@ -131,44 +218,73 @@ export async function waitForBuiltServer({
   const deadline = clock() + timeoutMs
   while (clock() < deadline) {
     try {
-      const response = await fetchImpl(new URL("/", baseUrl), {
-        method: "GET",
-        redirect: "follow",
-        headers: { accept: "text/html" },
+      const remainingMs = Math.max(1, deadline - clock())
+      await fetchAnonymousHtml({
+        url: new URL("/", baseUrl),
+        fetchImpl,
+        timeoutMs: Math.min(requestTimeoutMs, remainingMs),
       })
-      await response.arrayBuffer()
       return
     } catch {
-      await delayImpl(200)
+      const remainingMs = deadline - clock()
+      if (remainingMs <= 0) break
+      await delayImpl(Math.min(200, remainingMs))
     }
   }
   throw new Error("Timing server readiness timed out.")
 }
 
-function ownedChildExit(child) {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve()
-  }
-  return new Promise((resolvePromise) => child.once("exit", resolvePromise))
-}
-
 /** Terminates and awaits only the production server created by this receipt. */
-export async function stopBuiltServer(child) {
-  const exited = ownedChildExit(child)
-  if (child.exitCode !== null || child.signalCode !== null) {
-    await exited
+export async function stopBuiltServer(child, {
+  timeoutMs = STOP_TIMEOUT_MS,
+  delayImpl = delay,
+} = {}) {
+  const lifecycle = ownedChildLifecycle(child)
+  if (lifecycle.isSettled() || child.exitCode !== null || child.signalCode !== null) {
+    const outcome = lifecycle.result() ?? await lifecycle.settlement
+    if (outcome.kind === "error") {
+      throw new Error("Owned timing server stop failed.")
+    }
     return
   }
 
-  child.kill("SIGTERM")
-  const stopped = await Promise.race([
-    exited.then(() => true),
-    delay(STOP_TIMEOUT_MS).then(() => false),
-  ])
-  if (!stopped) {
-    child.kill("SIGKILL")
-    await exited
+  try {
+    child.kill("SIGTERM")
+  } catch {
+    throw new Error("Owned timing server stop failed.")
   }
+  const gracefulOutcome = await Promise.race([
+    lifecycle.settlement,
+    delayImpl(timeoutMs).then(() => null),
+  ])
+  if (gracefulOutcome?.kind === "exit") return
+  if (gracefulOutcome?.kind === "error") {
+    throw new Error("Owned timing server stop failed.")
+  }
+
+  try {
+    child.kill("SIGKILL")
+  } catch {
+    throw new Error("Owned timing server stop failed.")
+  }
+  const forcedOutcome = await Promise.race([
+    lifecycle.settlement,
+    delayImpl(timeoutMs).then(() => null),
+  ])
+  if (forcedOutcome?.kind !== "exit") {
+    throw new Error("Owned timing server stop failed.")
+  }
+}
+
+async function runWhileOwnedChildLives(operation, child) {
+  const lifecycle = ownedChildLifecycles.get(child)
+  if (!lifecycle) return operation
+  return Promise.race([
+    operation,
+    lifecycle.settlement.then(() => {
+      throw new Error("Owned timing server stopped unexpectedly.")
+    }),
+  ])
 }
 
 /**
@@ -215,12 +331,22 @@ export async function runFamilyFriendsTimingReceipt({
       throw new Error("Fresh production server failed to start.")
     }
     try {
-      await waitForReadiness({ baseUrl, timeoutMs: READINESS_TIMEOUT_MS })
+      await runWhileOwnedChildLives(
+        waitForReadiness({ baseUrl, timeoutMs: READINESS_TIMEOUT_MS }),
+        ownedChild,
+      )
     } catch {
       throw new Error("Timing server did not become ready.")
     }
     try {
-      results = await measureRoutes({ baseUrl, samples })
+      results = await runWhileOwnedChildLives(
+        measureRoutes({
+          baseUrl,
+          samples,
+          requestTimeoutMs: ANONYMOUS_REQUEST_TIMEOUT_MS,
+        }),
+        ownedChild,
+      )
     } catch {
       throw new Error("Anonymous route timing failed.")
     }

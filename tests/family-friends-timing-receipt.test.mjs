@@ -1,9 +1,18 @@
 import assert from "node:assert/strict"
+import { EventEmitter } from "node:events"
 import { describe, it } from "node:test"
 import {
+  ANONYMOUS_REQUEST_TIMEOUT_MS,
+  measureReadinessRoutes,
+} from "../scripts/family-friends-route-timings.mjs"
+import * as timingReceipt from "../scripts/family-friends-timing-receipt.mjs"
+
+const {
   resolveBuildCommand,
   runFamilyFriendsTimingReceipt,
-} from "../scripts/family-friends-timing-receipt.mjs"
+  stopBuiltServer,
+  waitForBuiltServer,
+} = timingReceipt
 
 const MEASURED_RESULT = Object.freeze([{
   route: "/",
@@ -80,6 +89,7 @@ describe("family-and-friends self-contained timing receipt", () => {
     assert.deepEqual(events[4][1], {
       baseUrl: "http://127.0.0.1:3034",
       samples: 2,
+      requestTimeoutMs: ANONYMOUS_REQUEST_TIMEOUT_MS,
     })
     assert.equal(events[5][1], dependencies.ownedChild)
     assert.deepEqual(result, MEASURED_RESULT)
@@ -141,4 +151,146 @@ describe("family-and-friends self-contained timing receipt", () => {
 
     assert.deepEqual(events.map(([event]) => event), ["port check", "build"])
   })
+
+  it("awaits a successful child spawn and converts an asynchronous spawn error safely", async () => {
+    const child = fakeChild()
+    const started = timingReceipt.startBuiltServer({
+      hostname: "127.0.0.1",
+      port: 3034,
+      nodeExecutable: "node-test-runtime",
+      nextCli: "next-test-cli",
+      spawnImpl: () => child,
+    })
+
+    queueMicrotask(() => child.emit("error", new Error("private spawn detail")))
+
+    await assert.rejects(started, /Fresh production server failed to spawn/)
+    assert.equal(child.listenerCount("error") > 0, true)
+  })
+
+  it("keeps supervising errors after spawn and settles the child lifecycle on error", async () => {
+    assert.equal(typeof timingReceipt.superviseOwnedChild, "function")
+    assert.equal(typeof timingReceipt.waitForOwnedChildSettlement, "function")
+    const child = fakeChild()
+    const started = timingReceipt.superviseOwnedChild(child)
+    child.emit("spawn")
+    assert.equal(await started, child)
+
+    const settled = timingReceipt.waitForOwnedChildSettlement(child)
+    child.emit("error", new Error("private runtime detail"))
+
+    assert.deepEqual(await settled, { kind: "error" })
+    assert.equal(child.listenerCount("error") > 0, true)
+  })
+
+  it("escalates an unresponsive owned child from SIGTERM to SIGKILL and awaits exit", async () => {
+    const signals = []
+    let delayCalls = 0
+    const child = fakeChild({
+      kill(signal) {
+        signals.push(signal)
+        if (signal === "SIGKILL") {
+          queueMicrotask(() => {
+            child.signalCode = "SIGKILL"
+            child.emit("exit", null, "SIGKILL")
+          })
+        }
+        return true
+      },
+    })
+
+    await stopBuiltServer(child, {
+      timeoutMs: 1,
+      delayImpl: async () => {
+        delayCalls += 1
+        if (delayCalls > 1) return new Promise(() => {})
+      },
+    })
+
+    assert.deepEqual(signals, ["SIGTERM", "SIGKILL"])
+    assert.equal(delayCalls, 2)
+    assert.equal(child.signalCode, "SIGKILL")
+  })
+
+  it("converts an asynchronous kill error into a fixed teardown failure", async () => {
+    const signals = []
+    const child = fakeChild({
+      kill(signal) {
+        signals.push(signal)
+        if (signal === "SIGKILL") {
+          queueMicrotask(() => child.emit("error", new Error("private kill detail")))
+        }
+        return true
+      },
+    })
+
+    await assert.rejects(stopBuiltServer(child, {
+      timeoutMs: 1,
+      delayImpl: async () => {},
+    }), /Owned timing server stop failed/)
+
+    assert.deepEqual(signals, ["SIGTERM", "SIGKILL"])
+  })
+
+  it("aborts stalled readiness and still tears down only the owned server", async () => {
+    const events = []
+    const dependencies = receiptDependencies(events)
+    let requestSignal
+    let tick = 0
+    dependencies.waitForReadiness = ({ baseUrl }) => waitForBuiltServer({
+      baseUrl,
+      timeoutMs: 5,
+      requestTimeoutMs: 1,
+      clock: () => { tick += 3; return tick },
+      delayImpl: async () => {},
+      fetchImpl: async (_url, init) => {
+        requestSignal = init.signal
+        assert.ok(requestSignal, "readiness must propagate an abort signal")
+        return new Promise(() => {})
+      },
+    })
+
+    await assert.rejects(runFamilyFriendsTimingReceipt({
+      args: ["--base-url=http://127.0.0.1:3034", "--samples=1"],
+      ...dependencies,
+    }), /Timing server did not become ready/)
+
+    assert.equal(requestSignal?.aborted, true)
+    assert.equal(events.at(-1)[0], "stop")
+    assert.equal(events.at(-1)[1], dependencies.ownedChild)
+  })
+
+  it("aborts stalled measurement and still tears down only the owned server", async () => {
+    const events = []
+    const dependencies = receiptDependencies(events)
+    let requestSignal
+    dependencies.measureRoutes = (options) => measureReadinessRoutes({
+      ...options,
+      requestTimeoutMs: 1,
+      fetchImpl: async (_url, init) => {
+        requestSignal = init.signal
+        assert.ok(requestSignal, "measurement must propagate an abort signal")
+        return new Promise(() => {})
+      },
+    })
+
+    await assert.rejects(runFamilyFriendsTimingReceipt({
+      args: ["--base-url=http://127.0.0.1:3034", "--samples=1"],
+      ...dependencies,
+    }), /Anonymous route timing failed/)
+
+    assert.equal(requestSignal?.aborted, true)
+    assert.equal(events.at(-1)[0], "stop")
+    assert.equal(events.at(-1)[1], dependencies.ownedChild)
+  })
 })
+
+function fakeChild(overrides = {}) {
+  return Object.assign(new EventEmitter(), {
+    exitCode: null,
+    signalCode: null,
+    stdout: null,
+    stderr: null,
+    kill: () => true,
+  }, overrides)
+}

@@ -4,6 +4,8 @@ import { performance } from "node:perf_hooks"
 import { resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 
+export const ANONYMOUS_REQUEST_TIMEOUT_MS = 15_000
+
 export const READINESS_TIMING_ROUTES = Object.freeze([
   "/", "/login", "/register", "/pricing", "/clock", "/music", "/account",
 ])
@@ -30,6 +32,54 @@ export function parseReadinessTimingArgs(args) {
 }
 
 /**
+ * Completes one anonymous HTML request within a fixed deadline. The same abort
+ * signal covers both connection establishment and response-body consumption.
+ */
+export async function fetchAnonymousHtml({
+  url,
+  fetchImpl = fetch,
+  timeoutMs = ANONYMOUS_REQUEST_TIMEOUT_MS,
+  createAbortController = () => new AbortController(),
+  setTimeoutImpl = setTimeout,
+  clearTimeoutImpl = clearTimeout,
+}) {
+  const controller = createAbortController()
+  let timedOut = false
+  let timeoutId
+  const deadline = new Promise((_, reject) => {
+    timeoutId = setTimeoutImpl(() => {
+      timedOut = true
+      reject(new Error("Anonymous route timing request timed out."))
+      controller.abort()
+    }, timeoutMs)
+  })
+  const request = (async () => {
+    const response = await fetchImpl(url, {
+      method: "GET",
+      redirect: "follow",
+      headers: { accept: "text/html" },
+      signal: controller.signal,
+    })
+    const status = response.status
+    await response.arrayBuffer()
+    return { status }
+  })()
+
+  try {
+    return await Promise.race([request, deadline])
+  } catch {
+    if (timedOut || controller.signal.aborted) {
+      throw new Error("Anonymous route timing request timed out.")
+    }
+    throw new Error("Anonymous route timing request failed.")
+  } finally {
+    clearTimeoutImpl(timeoutId)
+    // This also cancels a response body that won the race after its deadline.
+    controller.abort()
+  }
+}
+
+/**
  * Times anonymous GETs without sending account state or retaining response
  * content. The injected fetch and clock make the request contract repeatable.
  */
@@ -38,17 +88,17 @@ export async function measureReadinessRoutes({
   samples,
   fetchImpl = fetch,
   clock = () => performance.now(),
+  requestTimeoutMs = ANONYMOUS_REQUEST_TIMEOUT_MS,
 }) {
   const results = []
   for (const route of READINESS_TIMING_ROUTES) {
     for (let sample = 1; sample <= samples; sample += 1) {
       const startedAt = clock()
-      const response = await fetchImpl(new URL(route, baseUrl), {
-        method: "GET",
-        redirect: "follow",
-        headers: { accept: "text/html" },
+      const response = await fetchAnonymousHtml({
+        url: new URL(route, baseUrl),
+        fetchImpl,
+        timeoutMs: requestTimeoutMs,
       })
-      await response.arrayBuffer()
       results.push({
         route,
         sampleKind: sample === 1 ? "first" : "warm",

@@ -54,4 +54,43 @@ describe("family-and-friends route timings", () => {
     assert.doesNotMatch(summary, /cookie|authorization|response body|cold|\?/i)
     assert.equal(results.every(({ durationMs }) => Number.isInteger(durationMs)), true)
   })
+
+  it("aborts and safely rejects a stalled route connection at its per-request deadline", async () => {
+    let requestSignal
+
+    await assert.rejects(measureReadinessRoutes({
+      baseUrl: "http://127.0.0.1:3010",
+      samples: 1,
+      requestTimeoutMs: 5,
+      fetchImpl: async (_url, init) => {
+        requestSignal = init.signal
+        assert.ok(requestSignal, "the anonymous request must receive an abort signal")
+        return new Promise(() => {})
+      },
+    }), /Anonymous route timing request timed out/)
+
+    assert.equal(requestSignal?.aborted, true)
+  })
+
+  it("aborts and safely rejects when the response body stalls", async () => {
+    let requestSignal
+
+    await assert.rejects(measureReadinessRoutes({
+      baseUrl: "http://127.0.0.1:3010",
+      samples: 1,
+      requestTimeoutMs: 5,
+      fetchImpl: async (_url, init) => {
+        requestSignal = init.signal
+        return {
+          status: 200,
+          arrayBuffer: async () => {
+            assert.ok(requestSignal, "the response body must share the request abort signal")
+            return new Promise(() => {})
+          },
+        }
+      },
+    }), /Anonymous route timing request timed out/)
+
+    assert.equal(requestSignal?.aborted, true)
+  })
 })
