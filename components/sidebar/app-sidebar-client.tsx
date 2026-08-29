@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import {
   BadgeDollarSign,
@@ -49,6 +49,7 @@ import {
   Wrench,
 } from "lucide-react"
 import { InstallMassageLabDialog } from "@/components/pwa/install-massagelab-dialog"
+import { LinkPendingIndicator } from "@/components/shell/link-pending-indicator"
 import { usePwaInstall } from "@/components/providers/pwa-install-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -250,7 +251,6 @@ function initials(name: string, email: string) {
 
 function useSidebarNavigation() {
   const { isMobile, setOpenMobile } = useSidebar()
-  const router = useRouter()
 
   const closeMobileSidebar = React.useCallback(() => {
     if (isMobile) {
@@ -258,26 +258,7 @@ function useSidebarNavigation() {
     }
   }, [isMobile, setOpenMobile])
 
-  const navigateFromSidebar = React.useCallback((event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (
-      !isMobile
-      || event.defaultPrevented
-      || event.button !== 0
-      || event.metaKey
-      || event.ctrlKey
-      || event.altKey
-      || event.shiftKey
-      || event.currentTarget.target
-    ) {
-      return
-    }
-
-    event.preventDefault()
-    router.push(href)
-    setOpenMobile(false)
-  }, [isMobile, router, setOpenMobile])
-
-  return { closeMobileSidebar, navigateFromSidebar }
+  return { closeMobileSidebar }
 }
 
 function SidebarRoute({
@@ -292,7 +273,7 @@ function SidebarRoute({
   tooltipSide: "left" | "right"
 }) {
   const Icon = routeIcons[route.icon] ?? Home
-  const { navigateFromSidebar } = useSidebarNavigation()
+  const { closeMobileSidebar } = useSidebarNavigation()
 
   return (
     <SidebarMenuItem>
@@ -302,8 +283,11 @@ function SidebarRoute({
         tooltip={{ children: route.label, side: tooltipSide }}
         className={cn("ml-sidebar-route", nested && primaryChildRouteButtonClass)}
       >
-        <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
-          <Icon />
+        <Link href={route.href} onNavigate={closeMobileSidebar} className="group relative">
+          <span className="relative flex size-4 shrink-0 items-center justify-center">
+            <Icon className="size-4 group-data-[navigation-pending=true]:opacity-0" />
+            <LinkPendingIndicator />
+          </span>
           <span>{route.label}</span>
         </Link>
       </SidebarMenuButton>
@@ -465,7 +449,7 @@ function CalendarSidebarRoute({
   const { isMobile } = useSidebar()
   const { settings } = useSettings()
   const { calendarContext } = useSidebarCalendarContext()
-  const { navigateFromSidebar } = useSidebarNavigation()
+  const { closeMobileSidebar } = useSidebarNavigation()
   const menuSide = isMobile ? "bottom" : settings.sidebarPosition === "right" ? "left" : "right"
   const menuAlign = isMobile ? "end" : "start"
   const pendingAppointmentRequestCount = calendarContext.pendingAppointmentRequestCount ?? 0
@@ -479,7 +463,7 @@ function CalendarSidebarRoute({
         tooltip={{ children: "Calendar", side: tooltipSide }}
         className={cn("ml-sidebar-route max-w-full group-has-[[data-sidebar=menu-action]]/menu-item:pr-9 md:group-has-[[data-sidebar=menu-action]]/menu-item:pr-[5.75rem]", nested && primaryChildRouteButtonClass)}
       >
-        <Link href="/calendar" onClick={(event) => navigateFromSidebar(event, "/calendar")}>
+        <Link href="/calendar" onNavigate={closeMobileSidebar}>
           <CalendarDays />
           <span>Calendar</span>
         </Link>
@@ -509,7 +493,7 @@ function CalendarSidebarRoute({
 
               return (
                 <DropdownMenuItem key={route.id} asChild>
-                  <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
+                  <Link href={route.href} onNavigate={closeMobileSidebar}>
                     <Icon className="mr-2 h-4 w-4" />
                     {route.label}
                   </Link>
@@ -532,7 +516,7 @@ function NavSecondary({
   pathname: string
   secondaryRoutes: NavigationRoute[]
 }) {
-  const { navigateFromSidebar } = useSidebarNavigation()
+  const { closeMobileSidebar } = useSidebarNavigation()
 
   if (secondaryRoutes.length === 0) {
     return null
@@ -553,7 +537,7 @@ function NavSecondary({
                   isActive={isNavigationRouteActive(pathname, route.href)}
                   className={cn("ml-sidebar-route", compact && "h-8 px-2 text-xs")}
                 >
-                  <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
+                  <Link href={route.href} onNavigate={closeMobileSidebar}>
                     <Icon />
                     <span>{route.label}</span>
                   </Link>
@@ -581,7 +565,7 @@ function AccountMenu({
   const { isMobile } = useSidebar()
   const { status, requestInstall } = usePwaInstall()
   const { settings } = useSettings()
-  const { closeMobileSidebar, navigateFromSidebar } = useSidebarNavigation()
+  const { closeMobileSidebar } = useSidebarNavigation()
   const [installInstructionsOpen, setInstallInstructionsOpen] = React.useState(false)
   const name = user?.name || "Guest"
   const email = user?.email || "Sign in to sync"
@@ -656,7 +640,7 @@ function AccountMenu({
 
                     return (
                       <DropdownMenuItem key={route.id} asChild>
-                        <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
+                        <Link href={route.href} onNavigate={closeMobileSidebar}>
                           <Icon className="mr-2 h-4 w-4" />
                           {route.label}
                         </Link>
@@ -676,13 +660,13 @@ function AccountMenu({
             ) : (
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link href="/login" onClick={(event) => navigateFromSidebar(event, "/login")}>
+                  <Link href="/login" onNavigate={closeMobileSidebar}>
                     <LogIn className="mr-2 h-4 w-4" />
                     Login
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/register" onClick={(event) => navigateFromSidebar(event, "/register")}>
+                  <Link href="/register" onNavigate={closeMobileSidebar}>
                     <UserPlus className="mr-2 h-4 w-4" />
                     Create Account
                   </Link>
@@ -695,7 +679,7 @@ function AccountMenu({
                 <DropdownMenuItem asChild>
                   <Link
                     href={siteSettingsRoute.href}
-                    onClick={(event) => navigateFromSidebar(event, siteSettingsRoute.href)}
+                    onNavigate={closeMobileSidebar}
                   >
                     <Settings2 className="mr-2 h-4 w-4" />
                     Site Settings
@@ -713,7 +697,7 @@ function AccountMenu({
 
                 return (
                   <DropdownMenuItem key={route.id} asChild>
-                    <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
+                    <Link href={route.href} onNavigate={closeMobileSidebar}>
                       <Icon className="mr-2 h-4 w-4" />
                       {route.label}
                     </Link>
