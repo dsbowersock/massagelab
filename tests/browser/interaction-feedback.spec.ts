@@ -543,6 +543,94 @@ test("compact landscape route feedback remains visible and static with reduced m
       Reflect.set(window, "__interactionFeedbackPersistentToolbar", element)
     })
 
+    await test.step("capture-phase feedback-focus positive control", async () => {
+      const positiveControl = page.locator('[data-interaction-feedback-positive-control="true"]')
+      let positiveControlObserverInstalled = false
+      try {
+        await page.evaluate(() => {
+          const owner = document.createElement("div")
+          owner.setAttribute("data-route-progress", "pending")
+          owner.setAttribute("data-interaction-feedback-positive-control", "true")
+          const status = document.createElement("div")
+          status.setAttribute("role", "status")
+          status.setAttribute("aria-label", "Loading page")
+          const focusTarget = document.createElement("button")
+          focusTarget.type = "button"
+          focusTarget.textContent = "Positive feedback focus target"
+          status.append(focusTarget)
+          owner.append(status)
+          document.body.append(owner)
+        })
+        await installRouteFeedbackAccessibilityObserver(page)
+        positiveControlObserverInstalled = true
+        await page.evaluate(() => {
+          Reflect.set(
+            window,
+            "__interactionFeedbackPositiveControlReceipt",
+            Reflect.get(window, "__interactionFeedbackAccessibilityObserved"),
+          )
+        })
+
+        const positiveFocusTarget = positiveControl.getByRole("button", {
+          name: "Positive feedback focus target",
+        })
+        await positiveFocusTarget.focus()
+        await expect(positiveFocusTarget).toBeFocused()
+        const positiveReceipt = await readRouteFeedbackAccessibilityObserver(page)
+        positiveControlObserverInstalled = false
+        expect(positiveReceipt.feedbackOwnedFocus).toBe(true)
+        expect(await page.evaluate(() => (
+          Reflect.has(window, "__interactionFeedbackAccessibilityObserver")
+          || Reflect.has(window, "__interactionFeedbackAccessibilityFocusListener")
+          || Reflect.has(window, "__interactionFeedbackAccessibilityCleanup")
+        ))).toBe(false)
+
+        const postCleanupReceipt = await page.evaluate(async () => {
+          const receipt = Reflect.get(
+            window,
+            "__interactionFeedbackPositiveControlReceipt",
+          ) as {
+            feedbackOwnedFocus: boolean
+            progressSeen: boolean
+            statusOccurrences: number
+          }
+          receipt.feedbackOwnedFocus = false
+          receipt.progressSeen = false
+          receipt.statusOccurrences = 0
+          document.body.tabIndex = -1
+          document.body.focus()
+          document.querySelector<HTMLElement>(
+            '[data-interaction-feedback-positive-control="true"] button',
+          )?.focus()
+          document.querySelector(
+            '[data-interaction-feedback-positive-control="true"]',
+          )?.append(document.createElement("span"))
+          await new Promise((resolve) => setTimeout(resolve, 0))
+          return {
+            feedbackOwnedFocus: receipt.feedbackOwnedFocus,
+            progressSeen: receipt.progressSeen,
+            statusOccurrences: receipt.statusOccurrences,
+          }
+        })
+        expect(postCleanupReceipt).toEqual({
+          feedbackOwnedFocus: false,
+          progressSeen: false,
+          statusOccurrences: 0,
+        })
+      } finally {
+        if (positiveControlObserverInstalled) {
+          await discardRouteFeedbackAccessibilityObserver(page)
+        }
+        await page.evaluate(() => {
+          document.querySelector(
+            '[data-interaction-feedback-positive-control="true"]',
+          )?.remove()
+          Reflect.deleteProperty(window, "__interactionFeedbackPositiveControlReceipt")
+        })
+      }
+      await expect(positiveControl).toHaveCount(0)
+    })
+
     const openClock = page.getByRole("link", { name: "Open clock" }).filter({ visible: true }).first()
     await focusWithKeyboard(page, openClock)
     await installRouteFeedbackAccessibilityObserver(page)
