@@ -2,11 +2,20 @@ import { getCurrentSession } from "@/auth"
 import { AppSidebarClient } from "@/components/sidebar/app-sidebar-client"
 import type { SidebarNavigation, SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { canSyncAccountPreferences } from "@/lib/account-preferences"
+import { projectAccountShellAppSettings } from "@/lib/account-shell-bootstrap"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { resolveNavigation } from "@/lib/navigation"
 import { prisma } from "@/lib/prisma"
 
 type SidebarDatabase = Pick<typeof prisma, "practiceMembership">
+
+export type AccountShellBootstrap = {
+  ownerKey: string | null
+  syncEnabled: boolean
+  preferenceStatus: "anonymous" | "ready" | "failed"
+  appSettings: ReturnType<typeof projectAccountShellAppSettings>
+  hasPracticeMembership: boolean
+}
 
 export async function getAppSidebarData() {
   const session = await getCurrentSession()
@@ -23,8 +32,8 @@ export async function getAppSidebarData() {
       featureKeys?: string[] | null
     }
     | undefined
-  const [quickActionOnboarding, navigationContext] = await Promise.all([
-    loadSidebarQuickActionOnboarding(sessionUser?.id),
+  const [preferenceContext, navigationContext] = await Promise.all([
+    loadSidebarAccountPreference(sessionUser?.id),
     getSidebarNavigationContext(sessionUser),
   ])
   const user: SidebarUser = sessionUser
@@ -32,13 +41,23 @@ export async function getAppSidebarData() {
       name: sessionUser.name ?? "MassageLab user",
       email: sessionUser.email ?? "",
       image: sessionUser.image ?? "",
-      quickActionOnboarding,
+      quickActionOnboarding: preferenceContext.quickActionOnboarding,
     }
     : null
   const canSyncAccountSettings = canSyncAccountPreferences(sessionUser)
   const navigation = resolveNavigation(navigationContext) as SidebarNavigation
+  const accountBootstrap: AccountShellBootstrap = {
+    ownerKey: canSyncAccountSettings ? sessionUser?.id ?? null : null,
+    syncEnabled: canSyncAccountSettings,
+    preferenceStatus: preferenceContext.preferenceStatus,
+    appSettings: preferenceContext.appSettings,
+    hasPracticeMembership: (
+      navigationContext.authState === "signed-in"
+      && navigationContext.practiceRoles.length > 0
+    ),
+  }
 
-  return { user, canSyncAccountSettings, navigation }
+  return { user, canSyncAccountSettings, navigation, accountBootstrap }
 }
 
 export async function AppSidebar() {
@@ -48,13 +67,16 @@ export async function AppSidebar() {
 }
 
 /**
- * Loads signed-in quick-action onboarding preferences for shell hydration.
- * Returns undefined for anonymous users, empty onboarding payloads, or read
- * failures so navigation can fall back to catalog defaults.
+ * Loads the root-owned account preference once, keeping onboarding separate
+ * from the allowlisted app settings that may hydrate every shell consumer.
  */
-async function loadSidebarQuickActionOnboarding(userId?: string) {
+async function loadSidebarAccountPreference(userId?: string) {
   if (!userId) {
-    return undefined
+    return {
+      quickActionOnboarding: undefined,
+      preferenceStatus: "anonymous" as const,
+      appSettings: projectAccountShellAppSettings(undefined),
+    }
   }
 
   try {
@@ -63,21 +85,27 @@ async function loadSidebarQuickActionOnboarding(userId?: string) {
       select: { appSettings: true },
     })
     const appSettings = objectRecord(preference?.appSettings)
-    // Preference JSON may be absent or malformed; normalize before projection.
     const onboarding = objectRecord(appSettings.onboarding)
-
-    if (Object.keys(onboarding).length === 0) {
-      return undefined
-    }
+    const quickActionOnboarding = Object.keys(onboarding).length === 0
+      ? undefined
+      : {
+        primaryRole: onboarding.primaryRole,
+        useCases: onboarding.useCases,
+        quickActions: onboarding.quickActions,
+      }
 
     return {
-      primaryRole: onboarding.primaryRole,
-      useCases: onboarding.useCases,
-      quickActions: onboarding.quickActions,
+      quickActionOnboarding,
+      preferenceStatus: "ready" as const,
+      appSettings: projectAccountShellAppSettings(appSettings),
     }
   } catch (error) {
     logSidebarContextLoadError("Failed to load sidebar quick-action preferences", error)
-    return undefined
+    return {
+      quickActionOnboarding: undefined,
+      preferenceStatus: "failed" as const,
+      appSettings: projectAccountShellAppSettings(undefined),
+    }
   }
 }
 

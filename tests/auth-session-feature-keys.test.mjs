@@ -114,6 +114,7 @@ function loadSidebar(database) {
     "@/auth": { getCurrentSession: async () => null },
     "@/components/sidebar/app-sidebar-client": { AppSidebarClient: () => null },
     "@/lib/account-preferences": { canSyncAccountPreferences: () => false },
+    "@/lib/account-shell-bootstrap": { projectAccountShellAppSettings: () => ({}) },
     "@/lib/membership": {
       FEATURE_KEYS: { therapistDocumentationTools: "therapist_documentation_tools" },
     },

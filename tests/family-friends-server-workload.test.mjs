@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import { BILLING_PORTAL_DESTINATIONS } from "../lib/billing-portal-destinations.js"
+import { projectAccountShellAppSettings } from "../lib/account-shell-bootstrap.js"
 import { createMembershipCheckoutPostHandler } from "../lib/membership-checkout.js"
 import { getMembershipConvergenceStatus } from "../lib/membership-convergence.ts"
 import { hasSubscriptionBlockingNewCheckout } from "../lib/membership.js"
@@ -61,7 +62,10 @@ function authSnapshotWorkload(calls) {
     },
     "@/lib/commerce/transactions": { runCommerceTransaction: async () => {} },
     "@/lib/membership": {
-      buildEntitlements: () => ({ features: ["calendar_basic"] }),
+      buildEntitlements: () => {
+        calls.entitlementBuilds += 1
+        return { features: ["calendar_basic"] }
+      },
       loadActiveTemporaryGrants: loadTemporaryGrants,
     },
     "@/lib/phi-sync": { isHostedClinicalSyncEnabled: () => false },
@@ -72,6 +76,25 @@ function authSnapshotWorkload(calls) {
 
 function sidebarNavigationWorkload(calls) {
   const database = {
+    userPreference: {
+      async findUnique() {
+        calls.preferenceReads += 1
+        return {
+          appSettings: {
+            appBarPosition: "top",
+            sidebarPosition: "right",
+            themeMode: "system",
+            musicVisualizer: {
+              defaultBackgroundId: "aurora",
+              showClock: true,
+              token: "must-not-cross",
+            },
+            onboarding: { primaryRole: "therapist" },
+            soapDraft: "must-not-cross",
+          },
+        }
+      },
+    },
     practiceMembership: {
       async findMany() {
         calls.practiceRoleReads += 1
@@ -104,14 +127,27 @@ function sidebarNavigationWorkload(calls) {
     },
   }
   const compiled = loadCompiledModule(sidebarSource, "components/sidebar/sidebar.workload.test.tsx", {
-    "@/auth": { getCurrentSession: async () => null },
+    "@/auth": {
+      getCurrentSession: async () => {
+        calls.authSnapshots += 1
+        return {
+          user: {
+            id: "workload-user",
+            name: "Workload Test",
+            email: "workload@example.test",
+            featureKeys: ["calendar_basic"],
+          },
+        }
+      },
+    },
     "@/components/sidebar/app-sidebar-client": { AppSidebarClient: () => null },
-    "@/lib/account-preferences": { canSyncAccountPreferences: () => false },
+    "@/lib/account-preferences": { canSyncAccountPreferences: () => true },
+    "@/lib/account-shell-bootstrap": { projectAccountShellAppSettings },
     "@/lib/membership": { FEATURE_KEYS: { therapistDocumentationTools: "therapist_documentation_tools" } },
     "@/lib/navigation": { resolveNavigation: (context) => context },
     "@/lib/prisma": { prisma: database },
   })
-  return { database, getSidebarNavigationContext: compiled.getSidebarNavigationContext }
+  return { getAppSidebarData: compiled.getAppSidebarData }
 }
 
 function membershipSummary() {
@@ -232,29 +268,75 @@ describe("family-and-friends server workload baseline", () => {
       authRefresh,
       /ensureVerifiedUserBackgroundCredits\s*\(/g,
     )
-    const authCalls = { userGraphReads: 0, temporaryGrantReads: 0 }
+    const authCalls = { userGraphReads: 0, temporaryGrantReads: 0, entitlementBuilds: 0 }
     const authWorkload = authSnapshotWorkload(authCalls)
     const authState = await authWorkload.getUserAuthState(
       "workload-user",
       authWorkload.database,
       authWorkload.loadTemporaryGrants,
     )
-    const sidebarCalls = { entitlementReads: 0, practiceRoleReads: 0 }
+    const sidebarCalls = {
+      authSnapshots: 0,
+      preferenceReads: 0,
+      practiceRoleReads: 0,
+      entitlementReads: 0,
+      clientBootstrapEndpointRequests: 0,
+      commerceSnapshotLoads: 0,
+    }
     const sidebarWorkload = sidebarNavigationWorkload(sidebarCalls)
-    assert.equal(typeof sidebarWorkload.getSidebarNavigationContext, "function")
-    const navigationContext = await sidebarWorkload.getSidebarNavigationContext({
-      id: "workload-user",
-      featureKeys: authState.featureKeys,
-      capabilities: authState.capabilities,
-    }, sidebarWorkload.database)
+    assert.equal(typeof sidebarWorkload.getAppSidebarData, "function")
+    const shell = await sidebarWorkload.getAppSidebarData()
+    if (shell.accountBootstrap?.preferenceStatus !== "ready") {
+      sidebarCalls.clientBootstrapEndpointRequests += 1
+    }
+
+    const logicalOrmOperations = (
+      authCalls.userGraphReads
+      + authCalls.temporaryGrantReads
+      + sidebarCalls.preferenceReads
+      + sidebarCalls.practiceRoleReads
+    )
 
     assert.equal(backgroundCreditProvisionerCalls, 0)
-    assert.deepEqual(authCalls, { userGraphReads: 1, temporaryGrantReads: 1 })
-    assert.deepEqual(sidebarCalls, { entitlementReads: 0, practiceRoleReads: 1 })
-    assert.deepEqual(navigationContext.featureKeys, ["calendar_basic"])
+    assert.deepEqual(authCalls, {
+      userGraphReads: 1,
+      temporaryGrantReads: 1,
+      entitlementBuilds: 1,
+    })
+    assert.deepEqual(sidebarCalls, {
+      authSnapshots: 1,
+      preferenceReads: 1,
+      practiceRoleReads: 1,
+      entitlementReads: 0,
+      clientBootstrapEndpointRequests: 0,
+      commerceSnapshotLoads: 0,
+    })
+    assert.equal(logicalOrmOperations, 4)
+    assert.deepEqual(shell.navigation.featureKeys, authState.featureKeys)
+    assert.deepEqual(shell.accountBootstrap, {
+      ownerKey: "workload-user",
+      syncEnabled: true,
+      preferenceStatus: "ready",
+      appSettings: {
+        app: {
+          appBarPosition: "top",
+          sidebarPosition: "right",
+          sidebarTriggerPosition: "top",
+          ambientMotionMode: "system",
+          themeMode: "system",
+          hapticFeedbackEnabled: true,
+        },
+        musicVisualizer: {
+          defaultBackgroundId: "aurora",
+          showClock: true,
+        },
+      },
+      hasPracticeMembership: false,
+    })
     console.log(`verified auth refresh: background-credit provisioner calls = ${backgroundCreditProvisionerCalls}`)
-    console.log(`verified auth refresh: user graph reads = ${authCalls.userGraphReads}; temporary-grant reads = ${authCalls.temporaryGrantReads}`)
-    console.log(`signed-in sidebar: separate membership entitlement loads = ${sidebarCalls.entitlementReads}; practice-role reads = ${sidebarCalls.practiceRoleReads}`)
+    console.log(`ordinary signed-in shell: auth snapshots = ${sidebarCalls.authSnapshots}; auth user graph reads = ${authCalls.userGraphReads}; temporary-grant reads = ${authCalls.temporaryGrantReads}; entitlement builds = ${authCalls.entitlementBuilds}`)
+    console.log(`ordinary signed-in shell: preference reads = ${sidebarCalls.preferenceReads}; practice-role reads = ${sidebarCalls.practiceRoleReads}; separate membership entitlement loads = ${sidebarCalls.entitlementReads}; logical ORM operations = ${logicalOrmOperations}`)
+    console.log(`ordinary signed-in shell: client bootstrap endpoint requests = ${sidebarCalls.clientBootstrapEndpointRequests}; commerce snapshot loads = ${sidebarCalls.commerceSnapshotLoads}`)
   })
 
   it("loads one persisted membership return summary without Stripe", async () => {
