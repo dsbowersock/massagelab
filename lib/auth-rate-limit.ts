@@ -124,7 +124,13 @@ export async function pruneAuthRateLimits({ prismaClient = prisma, before, maxRo
     select: { id: true },
   })
   if (stale.length === 0) return 0
-  const deleted = await prismaClient.authRateLimitBucket.deleteMany({ where: { id: { in: stale.map(({ id }) => id) } } })
+  const deleted = await prismaClient.authRateLimitBucket.deleteMany({
+    where: {
+      id: { in: stale.map(({ id }) => id) },
+      updatedAt: { lt: before },
+      OR: [{ blockedUntil: null }, { blockedUntil: { lt: before } }],
+    },
+  })
   return deleted.count
 }
 

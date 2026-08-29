@@ -55,8 +55,8 @@ describe("Auth security helpers", () => {
     )
     assert.match(selfServicePasswordResetRouteSource, /resetWork = requestPasswordReset/)
     assert.match(selfServicePasswordResetRouteSource, /scheduleDelivery: \(delivery\) => after\(delivery\)/)
-    assert.doesNotMatch(passwordResetRequestServiceSource, /issuer|adminAction/i)
-    assert.doesNotMatch(selfServicePasswordResetRouteSource, /issuer|adminAction/i)
+    assert.doesNotMatch(passwordResetRequestServiceSource, /accountSecurityEmailIntent|emailIntent|issuer|adminAction/i)
+    assert.doesNotMatch(selfServicePasswordResetRouteSource, /accountSecurityEmailIntent|emailIntent|issuer|adminAction/i)
   })
 
   it("checks token expiry and consumed state", () => {

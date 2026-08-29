@@ -137,6 +137,26 @@ describe("privacy-safe auth rate limits", () => {
     assert.equal(database.rows.length, 10)
   })
 
+  it("preserves a selected bucket that becomes active before bounded deletion", async () => {
+    const database = createRateLimitDatabase({
+      afterPruneSelection(rows, selectedIds) {
+        assert.deepEqual(selectedIds, ["reactivated", "still-stale"])
+        const reactivated = rows.find((row) => row.id === "reactivated")
+        reactivated.updatedAt = new Date(NOW)
+        reactivated.blockedUntil = plusMinutes(15)
+      },
+    })
+    database.seed({ id: "reactivated", purpose: "LOGIN", scope: "ACCOUNT", keyHash: "a".repeat(64), count: 8, windowStart: new Date(0), blockedUntil: null, updatedAt: new Date(0) })
+    database.seed({ id: "still-stale", purpose: "LOGIN", scope: "ACCOUNT", keyHash: "b".repeat(64), count: 1, windowStart: new Date(0), blockedUntil: null, updatedAt: new Date(0) })
+
+    assert.equal(await limiter.pruneAuthRateLimits({ prismaClient: database, before: NOW, maxRows: 100 }), 1)
+    assert.deepEqual(database.rows.map(({ id, updatedAt, blockedUntil }) => ({ id, updatedAt, blockedUntil })), [{
+      id: "reactivated",
+      updatedAt: NOW,
+      blockedUntil: plusMinutes(15),
+    }])
+  })
+
   it("keeps serving sources off the legacy AuthAttempt API", async () => {
     const paths = ["lib/auth-rate-limit.ts", "auth.ts", "app/api/account/register/route.ts", "app/api/account/password-reset/request/route.ts"]
     const contents = await Promise.all(paths.map((path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")))
@@ -179,7 +199,7 @@ function assertHasOnlyHashes(database) {
  * Simulates optimistic Serializable transactions: each callback mutates a private
  * snapshot and a stale snapshot receives Prisma's P2034 before any state commits.
  */
-function createRateLimitDatabase({ pruneFailure = null } = {}) {
+function createRateLimitDatabase({ pruneFailure = null, afterPruneSelection = null } = {}) {
   let committedRows = []
   let version = 0
   const metrics = { transactionAttempts: 0, serializationConflicts: 0, transactionOptions: [] }
@@ -188,7 +208,7 @@ function createRateLimitDatabase({ pruneFailure = null } = {}) {
     get rows() { return committedRows },
     replace(rows) { committedRows = rows },
   }
-  const rootDelegate = createBucketDelegate(store, { pruneFailure })
+  const rootDelegate = createBucketDelegate(store, { pruneFailure, afterPruneSelection })
   const database = {
     get rows() { return committedRows },
     get transactionAttempts() { return metrics.transactionAttempts },
@@ -219,7 +239,7 @@ function createRateLimitDatabase({ pruneFailure = null } = {}) {
   return database
 }
 
-function createBucketDelegate(store, { pruneFailure = null } = {}) {
+function createBucketDelegate(store, { pruneFailure = null, afterPruneSelection = null } = {}) {
   return {
     async findUnique({ where }) {
       const key = where.purpose_scope_keyHash
@@ -233,10 +253,12 @@ function createBucketDelegate(store, { pruneFailure = null } = {}) {
     },
     async findMany({ where, take }) {
       if (pruneFailure) throw pruneFailure
-      return store.rows
+      const selected = store.rows
         .filter((row) => row.updatedAt < where.updatedAt.lt && (row.blockedUntil === null || row.blockedUntil < where.OR[1].blockedUntil.lt))
         .slice(0, take)
         .map(({ id }) => ({ id }))
+      if (afterPruneSelection) afterPruneSelection(store.rows, selected.map(({ id }) => id))
+      return selected
     },
     async deleteMany({ where }) {
       const before = store.rows.length
@@ -246,7 +268,15 @@ function createBucketDelegate(store, { pruneFailure = null } = {}) {
         const matchesScope = where.scope ? row.scope === where.scope : true
         const matchesPurpose = where.purpose?.in ? where.purpose.in.includes(row.purpose) : where.purpose ? row.purpose === where.purpose : true
         const matchesHash = where.keyHash ? row.keyHash === where.keyHash : true
-        return !(matchesIds && matchesScope && matchesPurpose && matchesHash)
+        const matchesUpdatedAt = where.updatedAt?.lt ? row.updatedAt < where.updatedAt.lt : true
+        const matchesBlockedUntil = where.OR
+          ? where.OR.some((clause) => Object.hasOwn(clause, "blockedUntil") && (
+            clause.blockedUntil === null
+              ? row.blockedUntil === null
+              : row.blockedUntil !== null && row.blockedUntil < clause.blockedUntil.lt
+          ))
+          : true
+        return !(matchesIds && matchesScope && matchesPurpose && matchesHash && matchesUpdatedAt && matchesBlockedUntil)
       }))
       return { count: before - store.rows.length }
     },
