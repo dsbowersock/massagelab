@@ -41,6 +41,7 @@
     "production:migrations:check": "node scripts/assert-production-migrations-current.mjs",
     "auth:check-normalized-emails": "node scripts/check-normalized-email-collisions.mjs",
     "auth:cleanup-legacy-attempts": "node scripts/cleanup-legacy-auth-attempts.mjs",
+    "auth:retry-security-notices": "node scripts/retry-account-security-email-intents.mjs",
     "admin:grant": "node scripts/grant-admin.mjs",
     "anatomy:seed": "node --experimental-strip-types prisma/seed.ts",
     "anatomy:grant-editor": "node scripts/grant-anatomy-admin.mjs",
