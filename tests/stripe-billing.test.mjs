@@ -154,6 +154,12 @@ describe("Stripe billing helpers", () => {
     assert.equal(stripeTimestampToDate(null), null)
   })
 
+  it("retains the Task 2 route-compatibility exports until the webhook cutover", () => {
+    assert.equal(typeof stripeBilling.normalizeStripeSubscription, "function")
+    assert.equal(typeof stripeBilling.recordCheckoutSessionCompleted, "function")
+    assert.equal(typeof stripeBilling.upsertMembershipSubscriptionFromStripe, "function")
+  })
+
   it("uses subscription item billing periods when Stripe omits top-level periods", () => {
     const env = {
       STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",

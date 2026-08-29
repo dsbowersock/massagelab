@@ -354,6 +354,16 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(isActiveSubscriptionStatus("incomplete"), false)
   })
 
+  it("keeps every non-active Stripe billing state outside paid feature access", () => {
+    for (const status of ["past_due", "unpaid", "paused", "canceled"]) {
+      const entitlements = buildEntitlements({
+        subscriptions: [{ status, membershipLevel: "SUPPORTER" }],
+      })
+
+      assert.equal(entitlements.hasFeature(FEATURE_KEYS.premiumBackgrounds), false, status)
+    }
+  })
+
   it("grants verified full admins the maximum current non-PHI features without inventing a paid membership", () => {
     const entitlements = buildEntitlements({
       adminAccess: true,
