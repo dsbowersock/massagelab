@@ -74,8 +74,9 @@ Capture each local route-timing receipt from a fresh Production build with:
 npm run readiness:timing-receipt -- --base-url=http://127.0.0.1:3010 --samples=3
 ```
 
-The `first` sample is only the first request made by this local harness. It is
-not proof of a provider or platform cold start; subsequent samples are `warm`.
+The `first` sample for each route is only the first measured sample for that
+route after the fresh Production server passes readiness. It is not proof of a
+provider or platform cold start; subsequent samples for that route are `warm`.
 Compare baseline and final receipts only when they use the same machine,
 loopback port, sample count, and environment shape.
 

@@ -31,8 +31,8 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
   `npm run readiness:timing-receipt -- --base-url=http://127.0.0.1:3010 --samples=3`
   once at each head. Each receipt must build its own fresh Production output and
   use the same machine, loopback port, sample count, and environment shape.
-  Treat `first` as the first harness request, not as a platform or provider
-  cold start.
+  Treat `first` as the first measured sample for that route after the fresh
+  server passes readiness, not as a platform or provider cold start.
 - Attach the exact before/after matrix from
   `tests/family-friends-server-workload.test.mjs`: verified-auth
   background-credit calls `1 -> 0`; signed-in-sidebar membership-entitlement
