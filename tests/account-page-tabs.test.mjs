@@ -179,12 +179,25 @@ describe("Account page tab model", () => {
     assert.equal(selectAccountTab(undefined, { billing: "checkout-error" }), "membership")
   })
 
-  it("renders persisted return status only for exact Checkout and Portal returns without session-id authority", () => {
+  it("renders one persisted return controller with deterministic Checkout-success precedence", () => {
+    const source = `export ${topLevelFunctionSource(
+      accountPageSource,
+      "membershipReturnKind",
+      "app/account/page.tsx",
+    )}`
+    const { membershipReturnKind } = loadCompiledModule(
+      source,
+      "app/account/membership-return-kind.test.ts",
+    )
+
+    assert.equal(membershipReturnKind({ checkout: "success", portal: "returned" }), "checkout")
+    assert.equal(membershipReturnKind({ checkout: "success" }), "checkout")
+    assert.equal(membershipReturnKind({ portal: "returned" }), "portal")
+    assert.equal(membershipReturnKind({ checkout: "cancelled", portal: "returned" }), "portal")
+    assert.equal(membershipReturnKind({ checkout: "other", portal: "other" }), null)
     assert.match(accountPageSource, /MembershipReturnStatus/)
-    assert.match(accountPageSource, /params\?\.checkout === "success"/)
-    assert.match(accountPageSource, /<MembershipReturnStatus kind="checkout" \/>/)
-    assert.match(accountPageSource, /params\?\.portal === "returned"/)
-    assert.match(accountPageSource, /<MembershipReturnStatus kind="portal" \/>/)
+    assert.equal((accountPageSource.match(/<MembershipReturnStatus/g) ?? []).length, 1)
+    assert.match(accountPageSource, /<MembershipReturnStatus kind=\{returnKind\} \/>/)
     assert.doesNotMatch(accountPageSource, /session_id|CHECKOUT_SESSION_ID/)
     assert.match(accountPageSource, /checkout === "cancelled"/)
     assert.match(accountPageSource, /portal === "error"/)

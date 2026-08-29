@@ -15,15 +15,15 @@ const PRIVATE_NO_STORE_HEADERS = {
  * cannot become status authority.
  */
 export async function GET() {
-  const session = await getCurrentSession()
-  if (!session?.user?.id) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401, headers: PRIVATE_NO_STORE_HEADERS },
-    )
-  }
-
   try {
+    const session = await getCurrentSession()
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: PRIVATE_NO_STORE_HEADERS },
+      )
+    }
+
     const status = await getMembershipConvergenceStatus({
       prismaClient: prisma,
       userId: session.user.id,

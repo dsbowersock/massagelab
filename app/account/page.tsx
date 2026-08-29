@@ -56,6 +56,16 @@ type AccountPageProps = {
   }>
 }
 
+/** Selects one return-state owner, with Checkout success winning malformed dual returns. */
+function membershipReturnKind(params: {
+  checkout?: string
+  portal?: string
+} | undefined) {
+  if (params?.checkout === "success") return "checkout" as const
+  if (params?.portal === "returned") return "portal" as const
+  return null
+}
+
 type AccountPageTab = {
   id: string
   label: string
@@ -66,6 +76,7 @@ const typedAccountPageTabs = accountPageTabs as AccountPageTab[]
 
 export default async function AccountPage({ searchParams }: AccountPageProps) {
   const params = await searchParams
+  const returnKind = membershipReturnKind(params)
   const session = await getCurrentSession()
   const defaultTab = selectAccountTab(params?.tab, {
     billing: params?.billing,
@@ -211,8 +222,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
         legal={params?.legal}
         portal={params?.portal}
       />
-      {params?.checkout === "success" ? <MembershipReturnStatus kind="checkout" /> : null}
-      {params?.portal === "returned" ? <MembershipReturnStatus kind="portal" /> : null}
+      {returnKind ? <MembershipReturnStatus kind={returnKind} /> : null}
 
       <AccountSettingsShell
         defaultValue={defaultTab}

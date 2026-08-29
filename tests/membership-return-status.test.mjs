@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
+import { fetchJsonWithTimeout } from "../lib/client-fetch.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -13,6 +14,7 @@ const {
   MEMBERSHIP_RETURN_POLL_DELAYS_MS,
   parseMembershipConvergenceStatus,
   pollMembershipReturnStatus,
+  readPersistedMembershipStatus,
 } = loadCompiledModule(
   membershipReturnSource,
   "app/account/membership-return-status.tsx",
@@ -34,6 +36,7 @@ const {
     "@/lib/billing-portal-destinations": {
       BILLING_PORTAL_DESTINATIONS: { MANAGE: "manage" },
     },
+    "@/lib/client-fetch": { fetchJsonWithTimeout },
   },
 )
 
@@ -76,6 +79,22 @@ function pollingFixture(sequence) {
         return value
       },
       onStatus: (status) => displays.push(status),
+    },
+  }
+}
+
+function installStalledMembershipFetch(onStart = () => {}) {
+  const originalFetch = globalThis.fetch
+  const requestSignals = []
+  globalThis.fetch = (_input, init = {}) => new Promise((_resolve, reject) => {
+    requestSignals.push(init.signal)
+    onStart()
+    init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true })
+  })
+  return {
+    requestSignals,
+    restore() {
+      globalThis.fetch = originalFetch
     },
   }
 }
@@ -154,6 +173,96 @@ describe("bounded membership return polling", () => {
     assert.equal(fixture.reads, 5)
     assert.deepEqual(fixture.waits, [0, 1_000, 2_000, 4_000, 8_000])
     assert.deepEqual(fixture.displays, [])
+  })
+
+  it("consumes five deadline-aborted stalled reads before clearing to the safe retry outcome", { timeout: 500 }, async () => {
+    const stalledFetch = installStalledMembershipFetch()
+    const owner = new AbortController()
+    const waits = []
+    const displays = []
+
+    try {
+      const result = await pollMembershipReturnStatus({
+        kind: "checkout",
+        signal: owner.signal,
+        wait: async (delay) => waits.push(delay),
+        readStatus: () => readPersistedMembershipStatus(owner.signal, 5),
+        onStatus: (status) => displays.push(status),
+      })
+
+      assert.equal(result.outcome, "exhausted")
+      assert.equal(result.attempts, 5)
+      assert.equal(owner.signal.aborted, false)
+      assert.deepEqual(waits, [0, 1_000, 2_000, 4_000, 8_000])
+      assert.deepEqual(displays, [])
+      assert.equal(stalledFetch.requestSignals.length, 5)
+      assert.equal(stalledFetch.requestSignals.every((signal) => signal?.aborted), true)
+      assert.equal(stalledFetch.requestSignals.every((signal) => signal?.reason?.name === "TimeoutError"), true)
+    } finally {
+      stalledFetch.restore()
+    }
+  })
+
+  it("composes owner abort with a stalled deadline read without publishing post-unmount state", { timeout: 500 }, async () => {
+    let notifyStarted
+    const started = new Promise((resolve) => {
+      notifyStarted = resolve
+    })
+    const stalledFetch = installStalledMembershipFetch(notifyStarted)
+    const owner = new AbortController()
+    const displays = []
+
+    try {
+      const pending = pollMembershipReturnStatus({
+        kind: "portal",
+        signal: owner.signal,
+        wait: async () => {},
+        readStatus: () => readPersistedMembershipStatus(owner.signal, 1_000),
+        onStatus: (status) => displays.push(status),
+      })
+      await started
+      owner.abort(new DOMException("Membership return unmounted.", "AbortError"))
+
+      const result = await pending
+      assert.equal(result.outcome, "aborted")
+      assert.equal(result.attempts, 0)
+      assert.deepEqual(displays, [])
+      assert.equal(stalledFetch.requestSignals.length, 1)
+      assert.equal(stalledFetch.requestSignals[0]?.reason?.name, "AbortError")
+    } finally {
+      stalledFetch.restore()
+    }
+  })
+
+  it("does not publish a read that settles after its owner has unmounted", async () => {
+    let resolveRead
+    let notifyReadStarted
+    const delayedStatus = new Promise((resolve) => {
+      resolveRead = resolve
+    })
+    const readStarted = new Promise((resolve) => {
+      notifyReadStarted = resolve
+    })
+    const owner = new AbortController()
+    const displays = []
+    const pending = pollMembershipReturnStatus({
+      kind: "portal",
+      signal: owner.signal,
+      wait: async () => {},
+      readStatus: () => {
+        notifyReadStarted()
+        return delayedStatus
+      },
+      onStatus: (status) => displays.push(status),
+    })
+
+    await readStarted
+    owner.abort(new DOMException("Membership return unmounted.", "AbortError"))
+    resolveRead(persistedStatus())
+
+    const result = await pending
+    assert.equal(result.outcome, "aborted")
+    assert.deepEqual(displays, [])
   })
 
   it("shows Portal persisted state on the first read while watching for a changed revision", async () => {

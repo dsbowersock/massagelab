@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Loader } from "@/components/ui/loader"
 import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
+import { fetchJsonWithTimeout } from "@/lib/client-fetch"
 import type { MembershipConvergenceStatus } from "@/lib/membership-convergence"
 
 export const MEMBERSHIP_RETURN_POLL_DELAYS_MS = [0, 1_000, 2_000, 4_000, 8_000] as const
@@ -92,6 +93,9 @@ export async function pollMembershipReturnStatus({
 
     try {
       const status = await readStatus()
+      if (signal?.aborted) {
+        return { outcome: "aborted", attempts: index, baselineRevision, status: lastStatus }
+      }
       lastStatus = status
 
       if (kind === "portal") {
@@ -136,16 +140,18 @@ export async function pollMembershipReturnStatus({
 }
 
 /** Reads only the authenticated, private database projection used by the bounded watcher. */
-async function readPersistedMembershipStatus(signal: AbortSignal) {
-  const response = await fetch("/api/billing/membership-status", {
+export async function readPersistedMembershipStatus(signal: AbortSignal, timeoutMs?: number) {
+  // The shared helper keeps both fetch and JSON consumption under one deadline
+  // while composing that deadline with this effect owner's unmount signal.
+  const { response, json } = await fetchJsonWithTimeout<unknown>("/api/billing/membership-status", {
     cache: "no-store",
     credentials: "same-origin",
     headers: { Accept: "application/json" },
     method: "GET",
     signal,
-  })
+  }, timeoutMs)
   if (!response.ok) throw new Error("Membership status is temporarily unavailable.")
-  return parseMembershipConvergenceStatus(await response.json())
+  return parseMembershipConvergenceStatus(json)
 }
 
 function statusMessage(status: MembershipConvergenceStatus | null, exhausted: boolean, kind: MembershipReturnKind) {

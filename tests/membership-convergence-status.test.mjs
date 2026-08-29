@@ -150,6 +150,7 @@ describe("persisted membership convergence status", () => {
 describe("private membership status endpoint", () => {
   async function loadRoute({
     session,
+    sessionError = null,
     projectedStatus = buildMembershipConvergenceStatus(summary()),
     statusError = null,
   } = {}) {
@@ -170,7 +171,10 @@ describe("private membership status endpoint", () => {
         },
       },
       "@/auth": {
-        getCurrentSession: async () => session,
+        getCurrentSession: async () => {
+          if (sessionError) throw sessionError
+          return session
+        },
       },
       "@/lib/membership-convergence": {
         getMembershipConvergenceStatus: async (input) => {
@@ -193,6 +197,19 @@ describe("private membership status endpoint", () => {
     assert.equal(response.status, 401)
     assert.equal(response.headers.get("cache-control"), "private, no-store")
     assert.deepEqual(await response.json(), { error: "Unauthorized" })
+    assert.deepEqual(calls, [])
+  })
+
+  it("keeps a rejected session lookup private and does not load membership state", async () => {
+    const { calls, GET } = await loadRoute({
+      sessionError: new Error("session store unavailable with private details"),
+    })
+
+    const response = await GET()
+
+    assert.equal(response.status, 503)
+    assert.equal(response.headers.get("cache-control"), "private, no-store")
+    assert.deepEqual(await response.json(), { error: "Membership status unavailable" })
     assert.deepEqual(calls, [])
   })
 
