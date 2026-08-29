@@ -230,7 +230,7 @@ function CalendarDrawerButton({
   }, [isPending, pathname, push])
 
   return (
-    <Sheet open={open} onOpenChange={updateOpen}>
+    <Sheet open={open || isPending} onOpenChange={updateOpen}>
       <Tooltip>
         <TooltipTrigger asChild>
           <SheetTrigger asChild>
@@ -241,7 +241,7 @@ function CalendarDrawerButton({
               data-active={isNavigationRouteActive(pathname, "/calendar")}
               className="ml-calendar-drawer-trigger ml-shell-main-bar-control relative shrink-0"
               aria-label="Open calendar"
-              aria-expanded={open}
+              aria-expanded={open || isPending}
               aria-haspopup="dialog"
             >
               <CalendarDays data-icon="inline-start" />
@@ -304,6 +304,11 @@ function CalendarDrawerButton({
                 aria-busy={isPending}
                 className="mx-auto w-full rounded-md border border-border/70 bg-background/70 p-2 text-sm [--cell-size:1.65rem]"
               />
+              {isPending ? (
+                <p role="status" className="text-center text-xs text-muted-foreground">
+                  Loading selected calendar date…
+                </p>
+              ) : null}
 
               <div className="grid gap-1">
                 {calendarActions.map((action) => {

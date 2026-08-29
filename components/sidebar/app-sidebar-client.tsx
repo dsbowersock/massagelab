@@ -261,6 +261,30 @@ function useSidebarNavigation() {
   return { closeMobileSidebar }
 }
 
+/**
+ * Keeps the existing sidebar icon footprint stable while its owning Link shows
+ * a decorative local-pending loader.
+ */
+function SidebarPendingLinkContent({
+  icon: Icon,
+  children,
+  className,
+}: {
+  icon: LucideIcon
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <>
+      <span className={cn("relative flex size-4 shrink-0 items-center justify-center", className)}>
+        <Icon aria-hidden="true" className="size-4 group-data-[navigation-pending=true]:opacity-0" />
+        <LinkPendingIndicator />
+      </span>
+      {children}
+    </>
+  )
+}
+
 function SidebarRoute({
   nested = false,
   route,
@@ -284,11 +308,9 @@ function SidebarRoute({
         className={cn("ml-sidebar-route", nested && primaryChildRouteButtonClass)}
       >
         <Link href={route.href} onNavigate={closeMobileSidebar} className="group relative">
-          <span className="relative flex size-4 shrink-0 items-center justify-center">
-            <Icon className="size-4 group-data-[navigation-pending=true]:opacity-0" />
-            <LinkPendingIndicator />
-          </span>
-          <span>{route.label}</span>
+          <SidebarPendingLinkContent icon={Icon}>
+            <span>{route.label}</span>
+          </SidebarPendingLinkContent>
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -463,9 +485,10 @@ function CalendarSidebarRoute({
         tooltip={{ children: "Calendar", side: tooltipSide }}
         className={cn("ml-sidebar-route max-w-full group-has-[[data-sidebar=menu-action]]/menu-item:pr-9 md:group-has-[[data-sidebar=menu-action]]/menu-item:pr-[5.75rem]", nested && primaryChildRouteButtonClass)}
       >
-        <Link href="/calendar" onNavigate={closeMobileSidebar}>
-          <CalendarDays />
-          <span>Calendar</span>
+        <Link href="/calendar" onNavigate={closeMobileSidebar} className="group relative">
+          <SidebarPendingLinkContent icon={CalendarDays}>
+            <span>Calendar</span>
+          </SidebarPendingLinkContent>
         </Link>
       </SidebarMenuButton>
       <CalendarRequestBadges
@@ -493,9 +516,10 @@ function CalendarSidebarRoute({
 
               return (
                 <DropdownMenuItem key={route.id} asChild>
-                  <Link href={route.href} onNavigate={closeMobileSidebar}>
-                    <Icon className="mr-2 h-4 w-4" />
-                    {route.label}
+                  <Link href={route.href} onNavigate={closeMobileSidebar} className="group relative">
+                    <SidebarPendingLinkContent icon={Icon} className="mr-2">
+                      {route.label}
+                    </SidebarPendingLinkContent>
                   </Link>
                 </DropdownMenuItem>
               )
@@ -537,9 +561,10 @@ function NavSecondary({
                   isActive={isNavigationRouteActive(pathname, route.href)}
                   className={cn("ml-sidebar-route", compact && "h-8 px-2 text-xs")}
                 >
-                  <Link href={route.href} onNavigate={closeMobileSidebar}>
-                    <Icon />
-                    <span>{route.label}</span>
+                  <Link href={route.href} onNavigate={closeMobileSidebar} className="group relative">
+                    <SidebarPendingLinkContent icon={Icon}>
+                      <span>{route.label}</span>
+                    </SidebarPendingLinkContent>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -640,9 +665,10 @@ function AccountMenu({
 
                     return (
                       <DropdownMenuItem key={route.id} asChild>
-                        <Link href={route.href} onNavigate={closeMobileSidebar}>
-                          <Icon className="mr-2 h-4 w-4" />
-                          {route.label}
+                        <Link href={route.href} onNavigate={closeMobileSidebar} className="group relative">
+                          <SidebarPendingLinkContent icon={Icon} className="mr-2">
+                            {route.label}
+                          </SidebarPendingLinkContent>
                         </Link>
                       </DropdownMenuItem>
                     )
@@ -660,15 +686,17 @@ function AccountMenu({
             ) : (
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link href="/login" onNavigate={closeMobileSidebar}>
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Login
+                  <Link href="/login" onNavigate={closeMobileSidebar} className="group relative">
+                    <SidebarPendingLinkContent icon={LogIn} className="mr-2">
+                      Login
+                    </SidebarPendingLinkContent>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/register" onNavigate={closeMobileSidebar}>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Create Account
+                  <Link href="/register" onNavigate={closeMobileSidebar} className="group relative">
+                    <SidebarPendingLinkContent icon={UserPlus} className="mr-2">
+                      Create Account
+                    </SidebarPendingLinkContent>
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
@@ -680,9 +708,11 @@ function AccountMenu({
                   <Link
                     href={siteSettingsRoute.href}
                     onNavigate={closeMobileSidebar}
+                    className="group relative"
                   >
-                    <Settings2 className="mr-2 h-4 w-4" />
-                    Site Settings
+                    <SidebarPendingLinkContent icon={Settings2} className="mr-2">
+                      Site Settings
+                    </SidebarPendingLinkContent>
                   </Link>
                 </DropdownMenuItem>
               ) : null}
@@ -697,9 +727,10 @@ function AccountMenu({
 
                 return (
                   <DropdownMenuItem key={route.id} asChild>
-                    <Link href={route.href} onNavigate={closeMobileSidebar}>
-                      <Icon className="mr-2 h-4 w-4" />
-                      {route.label}
+                    <Link href={route.href} onNavigate={closeMobileSidebar} className="group relative">
+                      <SidebarPendingLinkContent icon={Icon} className="mr-2">
+                        {route.label}
+                      </SidebarPendingLinkContent>
                     </Link>
                   </DropdownMenuItem>
                 )

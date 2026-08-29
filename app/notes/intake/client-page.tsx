@@ -897,7 +897,7 @@ function DashboardPanel({
             <AlertDialogTrigger asChild>
               <Button type="button" variant="outline" disabled={!selectedDocument || isUsingSelectedDocumentInSoap} aria-busy={isUsingSelectedDocumentInSoap}>
                 <FileText className="mr-2 h-4 w-4" />
-                Use in SOAP
+                {isUsingSelectedDocumentInSoap ? "Opening SOAP editor…" : "Use in SOAP"}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -911,15 +911,20 @@ function DashboardPanel({
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 {hasExistingSoapDraft ? (
                   <>
-                    <AlertDialogAction disabled={isUsingSelectedDocumentInSoap} aria-busy={isUsingSelectedDocumentInSoap} onClick={() => onUseSelectedDocumentInSoap("append")}>Append to SOAP</AlertDialogAction>
-                    <AlertDialogAction disabled={isUsingSelectedDocumentInSoap} aria-busy={isUsingSelectedDocumentInSoap} onClick={() => onUseSelectedDocumentInSoap("replace")}>Replace SOAP</AlertDialogAction>
+                    <AlertDialogAction disabled={isUsingSelectedDocumentInSoap} aria-busy={isUsingSelectedDocumentInSoap} onClick={() => onUseSelectedDocumentInSoap("append")}>{isUsingSelectedDocumentInSoap ? "Saving SOAP…" : "Append to SOAP"}</AlertDialogAction>
+                    <AlertDialogAction disabled={isUsingSelectedDocumentInSoap} aria-busy={isUsingSelectedDocumentInSoap} onClick={() => onUseSelectedDocumentInSoap("replace")}>{isUsingSelectedDocumentInSoap ? "Saving SOAP…" : "Replace SOAP"}</AlertDialogAction>
                   </>
                 ) : (
-                  <AlertDialogAction disabled={isUsingSelectedDocumentInSoap} aria-busy={isUsingSelectedDocumentInSoap} onClick={() => onUseSelectedDocumentInSoap("replace")}>Start SOAP note</AlertDialogAction>
+                  <AlertDialogAction disabled={isUsingSelectedDocumentInSoap} aria-busy={isUsingSelectedDocumentInSoap} onClick={() => onUseSelectedDocumentInSoap("replace")}>{isUsingSelectedDocumentInSoap ? "Saving SOAP…" : "Start SOAP note"}</AlertDialogAction>
                 )}
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          {isUsingSelectedDocumentInSoap ? (
+            <p role="status" className="self-center text-xs text-muted-foreground">
+              Saving intake and opening SOAP editor…
+            </p>
+          ) : null}
           <PlaintextOutputWarningAction
             label="Export DOC"
             description="This creates an unencrypted editable clinical document outside the vault. Use encrypted vault bundles for normal transfer."

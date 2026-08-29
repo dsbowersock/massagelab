@@ -32,9 +32,10 @@ export function RouteLoadingFeedback({
       <div aria-hidden="true" className="h-full w-2/5 animate-pulse bg-primary motion-reduce:animate-none" />
       {showLoader ? (
         <Loader
+          data-route-loader="shell-safe"
           label={label}
           size={16}
-          className="absolute right-3 top-2 text-primary"
+          className="fixed left-1/2 top-20 -translate-x-1/2 text-primary"
         />
       ) : null}
     </div>
