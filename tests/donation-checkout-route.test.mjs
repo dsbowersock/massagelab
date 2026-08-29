@@ -42,7 +42,7 @@ async function renderPricingPage() {
         ShieldCheck: Div,
         Sparkles: Div,
       },
-      "@/auth": { getCurrentSession: async () => null },
+      "@/lib/rsc-session": { getCurrentRscSession: async () => null },
       "@/lib/donations": { DONATION_OPTIONS },
       "@/lib/membership": {
         getUserMembershipPricingStatus: async () => null,
