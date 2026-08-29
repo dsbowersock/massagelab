@@ -1,0 +1,713 @@
+import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
+import { describe, it } from "node:test"
+
+import * as enrollmentBinding from "../lib/two-factor-enrollment-binding.ts"
+import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+
+const NOW = new Date("2026-08-29T12:00:00.000Z")
+const AUTH_SECRET = "task-four-auth-secret"
+const NETWORK = "203.0.113.44"
+const MANUAL_CODE = "JBSWY3DPEHPK3PXP"
+const ENCRYPTED_SECRET = "encrypted-task-four-secret"
+const OTPAUTH_URL = "otpauth://totp/MassageLab:member@example.test?secret=redacted"
+const QR_CODE = "data:image/png;base64,task-four-qr"
+
+const source = await readFile(
+  new URL("../lib/account-two-factor-management.ts", import.meta.url),
+  "utf8",
+).catch(() => "")
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const service = source
+  ? loadCompiledModule(source, "account-two-factor-management.test.ts", {
+      "@/lib/auth-env": { getAuthSecret: () => AUTH_SECRET },
+      "@/lib/auth-method-intent-proof": {
+        isFreshConsumedGoogleReauth: defaultIsFreshGoogleProof,
+        consumeFreshGoogleReauth: defaultConsumeGoogleProof,
+      },
+      "@/lib/auth-method-proof": { verifyPasswordMethodProof: async () => ({ status: "INVALID" }) },
+      "@/lib/auth-rate-limit": {
+        checkCredentialRateLimit: async () => ({ allowed: true }),
+        clearCredentialAccountFailure: async () => {},
+        recordCredentialFailure: async () => ({ allowed: true }),
+      },
+      "@/lib/auth-security": { normalizeEmail: (value) => String(value ?? "").trim().toLowerCase() },
+      "@/lib/commerce/transactions": {
+        runCommerceTransaction: (client, callback) => client.$transaction(callback, { isolationLevel: "Serializable" }),
+      },
+      "@/lib/prisma": { prisma: {} },
+      "@/lib/two-factor-enrollment-binding": enrollmentBinding,
+      "qrcode": { toDataURL: async () => QR_CODE },
+    })
+  : {}
+
+describe("proved and browser-bound two-factor enrollment", () => {
+  it("exports only the planned setup and enable state-machine entry points", () => {
+    assert.equal(typeof service.startTwoFactorEnrollment, "function")
+    assert.equal(typeof service.enableTwoFactor, "function")
+  })
+
+  it("requires exact confirmation and a correct password for password-only setup", async () => {
+    const unconfirmed = createDatabase()
+    assert.deepEqual(
+      await start(unconfirmed, { confirmed: false }),
+      { status: "REJECTED", code: "INVALID_REQUEST" },
+    )
+    assert.equal(unconfirmed.reads, 0)
+
+    const wrong = createDatabase()
+    const wrongDeps = dependencies({ passwordResult: { status: "INVALID" } })
+    assert.deepEqual(await start(wrong, { dependencies: wrongDeps }), {
+      status: "REJECTED",
+      code: "PRIMARY_PROOF_INVALID",
+    })
+    assert.equal(wrong.secret, null)
+
+    const database = createDatabase()
+    const result = await start(database)
+    assertSetupReady(result)
+    assert.equal(database.secret.enabledAt, null)
+    assert.equal(database.secret.encryptedSecret, ENCRYPTED_SECRET)
+    assert.equal(database.user.authSessionVersion, 7)
+    assert.equal(database.sessions.length, 2)
+    assert.equal(database.backups.length, 1, "setup must not replace orphan codes")
+    assert.deepEqual(database.transactionOptions, [{ isolationLevel: "Serializable" }])
+    assert.equal(database.events.indexOf("generate-secret") < database.events.indexOf("transaction"), true)
+    assert.equal(database.events.indexOf("encrypt-secret") < database.events.indexOf("transaction"), true)
+    assert.equal(database.events.indexOf("render-qr") < database.events.indexOf("transaction"), true)
+  })
+
+  it("accepts either password or one-use fresh Google proof for a linked account", async () => {
+    const passwordDatabase = createDatabase({ googleLinked: true })
+    assertSetupReady(await start(passwordDatabase))
+
+    const googleDatabase = createDatabase({ googleLinked: true, googleIntent: freshGoogleIntent() })
+    const result = await start(googleDatabase, {
+      primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
+    })
+    assertSetupReady(result)
+    assert.equal(googleDatabase.intent.providerProvenAt, null)
+    assert.equal(googleDatabase.events.includes("consume-google"), true)
+    assert.equal(googleDatabase.events.indexOf("transaction") < googleDatabase.events.indexOf("consume-google"), true)
+  })
+
+  it("rolls Google proof back when its pending-row write loses the exact CAS", async () => {
+    const database = createDatabase({
+      googleLinked: true,
+      googleIntent: freshGoogleIntent(),
+      pending: true,
+    })
+    database.failPoint = "after-secret-cas"
+    const before = database.snapshot()
+
+    assert.deepEqual(await start(database, {
+      primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
+    }), { status: "REJECTED", code: "CONFLICT" })
+    assert.deepEqual(database.snapshot(), before)
+    assert.notEqual(database.intent.providerProvenAt, null)
+  })
+
+  it("rejects Google-only setup before proof, generation, or writes", async () => {
+    for (const primaryProof of [
+      { kind: "PASSWORD", password: "correct-password" },
+      { kind: "GOOGLE", intentId: "intent-1" },
+    ]) {
+      const database = createDatabase({ passwordEnabled: false, googleLinked: true, googleIntent: freshGoogleIntent() })
+      const deps = dependencies()
+      const result = await start(database, { primaryProof, dependencies: deps })
+      assert.deepEqual(result, { status: "REJECTED", code: "PASSWORD_REQUIRED" })
+      assert.deepEqual(database.events, [])
+      assert.equal(database.secret, null)
+      assert.notEqual(database.intent.providerProvenAt, null)
+    }
+  })
+
+  it("keeps an enabled row immutable before password, Google, generation, encryption, or QR work", async () => {
+    for (const primaryProof of [
+      { kind: "PASSWORD", password: "correct-password" },
+      { kind: "GOOGLE", intentId: "intent-1" },
+    ]) {
+      const database = createDatabase({ enabled: true, googleLinked: true, googleIntent: freshGoogleIntent() })
+      const before = database.snapshot()
+      assert.deepEqual(await start(database, { primaryProof }), {
+        status: "REJECTED",
+        code: "ALREADY_ENABLED",
+      })
+      assert.deepEqual(database.snapshot(), before)
+      assert.deepEqual(database.events, [])
+    }
+  })
+
+  it("replaces a legacy pending row only after fresh proof and makes its old row unusable", async () => {
+    const database = createDatabase({ pending: true })
+    const legacyRow = structuredClone(database.secret)
+    const oldBinding = enrollmentBinding.signTwoFactorEnrollmentBinding({
+      authSecret: AUTH_SECRET,
+      userId: database.user.id,
+      authSessionVersion: database.user.authSessionVersion,
+      twoFactorSecretId: legacyRow.id,
+      encryptedSecret: legacyRow.encryptedSecret,
+      updatedAt: legacyRow.updatedAt,
+      now: NOW,
+    })
+
+    assert.deepEqual(await service.enableTwoFactor(enableInput(database, "")), {
+      status: "REJECTED",
+      code: "ENROLLMENT_EXPIRED",
+    })
+
+    const replacement = await start(database)
+    assertSetupReady(replacement)
+    assert.equal(database.secret.id, legacyRow.id)
+    assert.notEqual(database.secret.encryptedSecret, legacyRow.encryptedSecret)
+    assert.deepEqual(await service.enableTwoFactor(enableInput(database, oldBinding)), {
+      status: "REJECTED",
+      code: "ENROLLMENT_EXPIRED",
+    })
+    assert.equal((await service.enableTwoFactor(enableInput(database, replacement.enrollmentBinding))).status, "ENABLED")
+  })
+
+  for (const failingStep of ["generate-secret", "encrypt-secret", "render-qr"]) {
+    it(`leaves no pending row when ${failingStep} fails before the transaction`, async () => {
+      const database = createDatabase()
+      const result = await start(database, { dependencies: dependencies({ throwAt: failingStep }) })
+      assert.deepEqual(result, { status: "REJECTED", code: "CONFLICT" })
+      assert.equal(database.secret, null)
+      assert.equal(database.transactions, 0)
+    })
+  }
+
+  it("allows exactly one concurrent setup to own the committed pending fingerprint", async () => {
+    const database = createDatabase()
+    const gate = deferred()
+    let proofCalls = 0
+    const deps = dependencies({
+      async verifyPasswordMethodProof() {
+        proofCalls += 1
+        if (proofCalls === 2) gate.resolve()
+        await gate.promise
+        return { status: "VERIFIED", userId: "user-1", authSessionVersion: 7, backupCodeConsumed: false }
+      },
+      generateTotpSecret() {
+        const suffix = String(proofCalls)
+        return { secret: `${MANUAL_CODE}${suffix}`, otpauthUrl: `${OTPAUTH_URL}&attempt=${suffix}` }
+      },
+      encryptSecret(secret) { return `encrypted-${secret}` },
+    })
+
+    const results = await Promise.all([
+      start(database, { dependencies: deps }),
+      start(database, { dependencies: deps }),
+    ])
+    assert.deepEqual(results.map((result) => result.status).sort(), ["REJECTED", "SETUP_READY"])
+    assert.equal(results.find((result) => result.status === "REJECTED").code, "CONFLICT")
+    const winner = results.find((result) => result.status === "SETUP_READY")
+    const loserBinding = results.find((result) => result.status === "REJECTED")?.enrollmentBinding ?? ""
+    assert.equal((await service.enableTwoFactor(enableInput(database, winner.enrollmentBinding, { dependencies: deps }))).status, "ENABLED")
+    if (loserBinding) {
+      assert.equal((await service.enableTwoFactor(enableInput(database, loserBinding, { dependencies: deps }))).status, "REJECTED")
+    }
+  })
+
+  it("rejects missing, tampered, expired, wrong-user, wrong-version, and wrong-row bindings", async () => {
+    const setupCases = [
+      ["missing", () => ""],
+      ["tampered", (value) => `${value.slice(0, -1)}${value.endsWith("A") ? "B" : "A"}`],
+      ["expired", (value) => value, { now: new Date(NOW.getTime() + 5 * 60_000) }],
+      ["wrong-user", (value) => value, { mutate: (db) => { db.user.id = "user-2" } }],
+      ["wrong-version", (value) => value, { mutate: (db) => { db.user.authSessionVersion += 1 } }],
+      ["wrong-row", (value) => value, { mutate: (db) => { db.secret.id = "different-row" } }],
+      ["wrong-fingerprint", (value) => value, { mutate: (db) => { db.secret.encryptedSecret += "-changed" } }],
+    ]
+    for (const [label, change, options = {}] of setupCases) {
+      const database = createDatabase()
+      const setup = await start(database)
+      options.mutate?.(database)
+      const before = database.snapshot()
+      const result = await service.enableTwoFactor(enableInput(database, change(setup.enrollmentBinding), { now: options.now }))
+      assert.deepEqual(result, { status: "REJECTED", code: "ENROLLMENT_EXPIRED" }, label)
+      assert.deepEqual(database.snapshot(), before, label)
+    }
+  })
+
+  it("rate-limits before decrypt and records invalid new-code pressure with exact retry", async () => {
+    const blocked = createDatabase()
+    const blockedSetup = await start(blocked)
+    let decryptCalls = 0
+    assert.deepEqual(await service.enableTwoFactor(enableInput(blocked, blockedSetup.enrollmentBinding, {
+      dependencies: dependencies({
+        checkRateLimit: { allowed: false, retryAfterSeconds: 73 },
+        decryptSecret() { decryptCalls += 1; return MANUAL_CODE },
+      }),
+    })), { status: "REJECTED", code: "RATE_LIMITED", retryAfterSeconds: 73 })
+    assert.equal(decryptCalls, 0)
+
+    const invalid = createDatabase()
+    const invalidSetup = await start(invalid)
+    const result = await service.enableTwoFactor(enableInput(invalid, invalidSetup.enrollmentBinding, {
+      code: "000000",
+      dependencies: dependencies({ validTotpCode: "123456", failureRetryAfterSeconds: 61 }),
+    }))
+    assert.deepEqual(result, { status: "REJECTED", code: "TWO_FACTOR_INVALID", retryAfterSeconds: 61 })
+    assert.equal(invalid.events.includes("record-factor-failure"), true)
+    assert.equal(invalid.secret.enabledAt, null)
+  })
+
+  it("requires exact enable confirmation before binding, limiter, or database work", async () => {
+    const database = createDatabase()
+    const setup = await start(database)
+    const readsBefore = database.reads
+    const eventsBefore = [...database.events]
+
+    assert.deepEqual(await service.enableTwoFactor(enableInput(database, setup.enrollmentBinding, {
+      confirmed: false,
+    })), { status: "REJECTED", code: "INVALID_REQUEST" })
+    assert.equal(database.reads, readsBefore)
+    assert.deepEqual(database.events, eventsBefore)
+    assert.equal(database.secret.enabledAt, null)
+  })
+
+  it("prehashes exactly eight codes before enabling and atomically revokes sessions", async () => {
+    const database = createDatabase()
+    const setup = await start(database)
+    const deps = dependencies({ database })
+    const result = await service.enableTwoFactor(enableInput(database, setup.enrollmentBinding, { dependencies: deps }))
+
+    assert.deepEqual(result, { status: "ENABLED", backupCodes: backupCodes() })
+    assert.equal(database.secret.enabledAt.getTime(), NOW.getTime())
+    assert.equal(database.backups.length, 8)
+    assert.deepEqual(database.backups.map(({ codeHash }) => codeHash), backupCodes().map((code) => `hash:${code}`))
+    assert.equal(database.backups.some((row) => backupCodes().includes(row.codeHash)), false)
+    assert.equal(database.user.authSessionVersion, 8)
+    assert.equal(database.sessions.length, 0)
+    assert.equal(database.events.filter((event) => event.startsWith("hash:")).length, 8)
+    assert.equal(database.events.lastIndexOf("hash:BACKUP-00008") < database.events.lastIndexOf("transaction"), true)
+  })
+
+  it("reports the committed enable when best-effort limiter cleanup is unavailable", async () => {
+    const database = createDatabase()
+    const setup = await start(database)
+    const result = await service.enableTwoFactor(enableInput(database, setup.enrollmentBinding, {
+      dependencies: dependencies({
+        database,
+        async clearCredentialAccountFailure() { throw new Error("limiter cleanup unavailable") },
+      }),
+    }))
+
+    assert.equal(result.status, "ENABLED")
+    assert.equal(database.secret.enabledAt.getTime(), NOW.getTime())
+    assert.equal(database.user.authSessionVersion, 8)
+    assert.equal(database.sessions.length, 0)
+  })
+
+  for (const failurePoint of [
+    "after-secret-cas",
+    "after-backup-delete",
+    "after-backup-create",
+    "after-session-version",
+    "after-adapter-session-delete",
+  ]) {
+    it(`rolls back every enable write at ${failurePoint}`, async () => {
+      const database = createDatabase()
+      const setup = await start(database)
+      const before = database.snapshot()
+      database.failPoint = failurePoint
+
+      assert.deepEqual(
+        await service.enableTwoFactor(enableInput(database, setup.enrollmentBinding)),
+        { status: "REJECTED", code: "CONFLICT" },
+      )
+      assert.deepEqual(database.snapshot(), before)
+    })
+  }
+
+  it("permits one concurrent enable winner, one version increment, and one final code set", async () => {
+    const database = createDatabase()
+    const setup = await start(database)
+    const input = enableInput(database, setup.enrollmentBinding)
+
+    const results = await Promise.all([
+      service.enableTwoFactor(input),
+      service.enableTwoFactor(input),
+    ])
+
+    assert.equal(results.filter((result) => result.status === "ENABLED").length, 1)
+    assert.equal(results.filter((result) => result.status === "REJECTED" && ["CONFLICT", "ALREADY_ENABLED"].includes(result.code)).length, 1)
+    assert.equal(database.user.authSessionVersion, 8)
+    assert.equal(database.backups.length, 8)
+    assert.equal(database.sessions.length, 0)
+    assert.equal(database.committedSessionDeletes, 1)
+  })
+})
+
+function start(database, overrides = {}) {
+  return service.startTwoFactorEnrollment({
+    prismaClient: database,
+    userId: "user-1",
+    primaryProof: { kind: "PASSWORD", password: "correct-password" },
+    networkIdentifier: NETWORK,
+    confirmed: true,
+    authSecret: AUTH_SECRET,
+    now: NOW,
+    dependencies: dependencies({ database }),
+    ...overrides,
+  })
+}
+
+function enableInput(database, binding, overrides = {}) {
+  return {
+    prismaClient: database,
+    userId: "user-1",
+    enrollmentBinding: binding,
+    code: "123456",
+    confirmed: true,
+    networkIdentifier: NETWORK,
+    authSecret: AUTH_SECRET,
+    now: NOW,
+    dependencies: dependencies({ database }),
+    ...overrides,
+  }
+}
+
+function dependencies(overrides = {}) {
+  return {
+    async verifyPasswordMethodProof() {
+      return overrides.passwordResult ?? {
+        status: "VERIFIED",
+        userId: "user-1",
+        authSessionVersion: 7,
+        backupCodeConsumed: false,
+      }
+    },
+    isFreshConsumedGoogleReauth: defaultIsFreshGoogleProof,
+    consumeFreshGoogleReauth: defaultConsumeGoogleProof,
+    generateTotpSecret: overrides.generateTotpSecret ?? (() => {
+      overrides.database?.events.push("generate-secret")
+      if (overrides.throwAt === "generate-secret") throw new Error("generation failed")
+      return { secret: MANUAL_CODE, otpauthUrl: OTPAUTH_URL }
+    }),
+    encryptSecret: overrides.encryptSecret ?? (() => {
+      overrides.database?.events.push("encrypt-secret")
+      if (overrides.throwAt === "encrypt-secret") throw new Error("encryption failed")
+      return ENCRYPTED_SECRET
+    }),
+    renderQrCode: async () => {
+      overrides.database?.events.push("render-qr")
+      if (overrides.throwAt === "render-qr") throw new Error("QR failed")
+      return QR_CODE
+    },
+    decryptSecret: overrides.decryptSecret ?? (() => MANUAL_CODE),
+    verifyTotpCode: (_secret, code) => code === (overrides.validTotpCode ?? "123456"),
+    generateBackupCodes: () => backupCodes(),
+    async hashBackupCode(code) {
+      overrides.database?.events.push(`hash:${code}`)
+      return `hash:${code}`
+    },
+    async checkCredentialRateLimit(input) {
+      input.prismaClient.events.push("check-factor-limit")
+      return overrides.checkRateLimit ?? { allowed: true }
+    },
+    async recordCredentialFailure(input) {
+      input.prismaClient.events.push("record-factor-failure")
+      return overrides.failureRetryAfterSeconds
+        ? { allowed: false, retryAfterSeconds: overrides.failureRetryAfterSeconds }
+        : { allowed: true }
+    },
+    async clearCredentialAccountFailure(input) {
+      input.prismaClient.events.push("clear-factor-account-limit")
+    },
+    ...overrides,
+  }
+}
+
+function backupCodes() {
+  return Array.from({ length: 8 }, (_, index) => `BACKUP-${String(index + 1).padStart(5, "0")}`)
+}
+
+function assertSetupReady(result) {
+  assert.equal(result.status, "SETUP_READY")
+  assert.equal(result.qrCode, QR_CODE)
+  assert.equal(result.manualCode, MANUAL_CODE)
+  assert.equal(typeof result.enrollmentBinding, "string")
+  assert.equal(result.enrollmentBinding.includes(MANUAL_CODE), false)
+  assert.equal(result.enrollmentBinding.includes(ENCRYPTED_SECRET), false)
+}
+
+function freshGoogleIntent(overrides = {}) {
+  return {
+    id: "intent-1",
+    targetUserId: "user-1",
+    purpose: "LINK_GOOGLE",
+    status: "CONSUMED",
+    provider: "google",
+    providerAccountId: "google-subject-1",
+    providerProvenAt: NOW,
+    expiresAt: new Date(NOW.getTime() + 60_000),
+    ...overrides,
+  }
+}
+
+function defaultIsFreshGoogleProof(intent, purpose, userId, now) {
+  return Boolean(intent
+    && intent.targetUserId === userId
+    && intent.purpose === purpose
+    && intent.status === "CONSUMED"
+    && intent.provider === "google"
+    && intent.providerProvenAt instanceof Date
+    && now.getTime() - intent.providerProvenAt.getTime() >= 0
+    && now.getTime() - intent.providerProvenAt.getTime() <= 5 * 60_000
+    && intent.expiresAt > now)
+}
+
+async function defaultConsumeGoogleProof(tx, intent, now) {
+  const result = await tx.authMethodIntent.updateMany({
+    where: {
+      id: intent.id,
+      targetUserId: intent.targetUserId,
+      purpose: intent.purpose,
+      status: intent.status,
+      provider: intent.provider,
+      providerAccountId: intent.providerAccountId,
+      providerProvenAt: intent.providerProvenAt,
+      expiresAt: { gt: now },
+    },
+    data: { providerProvenAt: null },
+  })
+  tx.__database.events.push("consume-google")
+  return result.count === 1
+}
+
+function createDatabase({
+  passwordEnabled = true,
+  googleLinked = false,
+  googleIntent = null,
+  enabled = false,
+  pending = false,
+} = {}) {
+  const database = {
+    user: {
+      id: "user-1",
+      email: "member@example.test",
+      emailVerified: NOW,
+      authSessionVersion: 7,
+      passwordCredential: passwordEnabled ? { id: "password-1", userId: "user-1" } : null,
+      accounts: googleLinked
+        ? [{ id: "account-1", userId: "user-1", provider: "google", providerAccountId: "google-subject-1" }]
+        : [],
+    },
+    secret: enabled || pending
+      ? {
+          id: "two-factor-legacy",
+          userId: "user-1",
+          encryptedSecret: "legacy-encrypted-secret",
+          enabledAt: enabled ? new Date(NOW.getTime() - 86_400_000) : null,
+          createdAt: new Date(NOW.getTime() - 86_400_000),
+          updatedAt: new Date(NOW.getTime() - 86_400_000),
+        }
+      : null,
+    backups: [{ id: "orphan-backup", userId: "user-1", codeHash: "orphan-hash", usedAt: null, createdAt: NOW }],
+    sessions: [
+      { id: "session-1", userId: "user-1" },
+      { id: "session-2", userId: "user-1" },
+    ],
+    intent: googleIntent ? structuredClone(googleIntent) : null,
+    events: [],
+    failPoint: null,
+    reads: 0,
+    transactions: 0,
+    transactionOptions: [],
+    committedSessionDeletes: 0,
+    sequence: 1,
+    queue: Promise.resolve(),
+    snapshot() {
+      return structuredClone({
+        user: userData(this.user),
+        secret: this.secret,
+        backups: this.backups,
+        sessions: this.sessions,
+        intent: this.intent,
+      })
+    },
+    async $transaction(callback, options) {
+      const operation = async () => {
+        this.transactions += 1
+        this.transactionOptions.push(options)
+        this.events.push("transaction")
+        const before = this.snapshot()
+        const beforeDeletes = this.committedSessionDeletes
+        const tx = transactionClient(this)
+        try {
+          const result = await callback(tx)
+          return result
+        } catch (error) {
+          this.user = before.user
+          this.secret = before.secret
+          this.backups = before.backups
+          this.sessions = before.sessions
+          this.intent = before.intent
+          this.committedSessionDeletes = beforeDeletes
+          const restored = transactionClient(this)
+          Object.assign(this.user, restored.user)
+          this.twoFactorSecret = restored.twoFactorSecret
+          this.backupCode = restored.backupCode
+          this.session = restored.session
+          this.authMethodIntent = restored.authMethodIntent
+          this.authRateLimitBucket = restored.authRateLimitBucket
+          throw error
+        }
+      }
+      const result = this.queue.then(operation, operation)
+      this.queue = result.catch(() => {})
+      return result
+    },
+  }
+  const rootClient = transactionClient(database)
+  database.userDelegate = rootClient.user
+  database.user = Object.assign(database.user, rootClient.user)
+  database.twoFactorSecret = rootClient.twoFactorSecret
+  database.backupCode = rootClient.backupCode
+  database.session = rootClient.session
+  database.authMethodIntent = rootClient.authMethodIntent
+  database.authRateLimitBucket = rootClient.authRateLimitBucket
+  return database
+}
+
+function transactionClient(database) {
+  const userRecord = () => {
+    return {
+      ...structuredClone(userData(database.user)),
+      passwordCredential: structuredClone(database.user.passwordCredential),
+      accounts: structuredClone(database.user.accounts),
+      twoFactorSecret: structuredClone(database.secret),
+    }
+  }
+  return {
+    __database: database,
+    user: {
+      async findUnique({ where }) {
+        database.reads += 1
+        return database.user.id === where.id ? userRecord() : null
+      },
+      async findFirst({ where }) {
+        database.reads += 1
+        return matches(database.user, where) ? userRecord() : null
+      },
+      async updateMany({ where, data }) {
+        if (!matches(database.user, where)) return { count: 0 }
+        if (data.authSessionVersion?.increment) database.user.authSessionVersion += data.authSessionVersion.increment
+        maybeFail(database, "after-session-version")
+        return { count: 1 }
+      },
+    },
+    twoFactorSecret: {
+      async findUnique({ where }) {
+        database.reads += 1
+        if (!database.secret) return null
+        return matches(database.secret, where) ? structuredClone(database.secret) : null
+      },
+      async findFirst({ where }) {
+        database.reads += 1
+        if (!database.secret) return null
+        return matches(database.secret, where) ? structuredClone(database.secret) : null
+      },
+      async create({ data }) {
+        if (database.secret) throw Object.assign(new Error("unique pending owner"), { code: "P2002" })
+        database.secret = {
+          id: data.id ?? `two-factor-${database.sequence++}`,
+          userId: data.userId,
+          encryptedSecret: data.encryptedSecret,
+          enabledAt: data.enabledAt ?? null,
+          createdAt: data.createdAt ?? NOW,
+          updatedAt: data.updatedAt ?? NOW,
+        }
+        return structuredClone(database.secret)
+      },
+      async updateMany({ where, data }) {
+        if (!database.secret || !matches(database.secret, where)) return { count: 0 }
+        Object.assign(database.secret, structuredClone(data))
+        maybeFail(database, "after-secret-cas")
+        return { count: 1 }
+      },
+    },
+    backupCode: {
+      async deleteMany({ where }) {
+        const before = database.backups.length
+        database.backups = database.backups.filter((row) => !matches(row, where))
+        maybeFail(database, "after-backup-delete")
+        return { count: before - database.backups.length }
+      },
+      async createMany({ data }) {
+        for (const row of data) {
+          database.backups.push({
+            id: row.id ?? `backup-${database.sequence++}`,
+            usedAt: null,
+            createdAt: NOW,
+            ...structuredClone(row),
+          })
+        }
+        maybeFail(database, "after-backup-create")
+        return { count: data.length }
+      },
+    },
+    session: {
+      async deleteMany({ where }) {
+        const before = database.sessions.length
+        database.sessions = database.sessions.filter((row) => !matches(row, where))
+        maybeFail(database, "after-adapter-session-delete")
+        database.committedSessionDeletes += 1
+        return { count: before - database.sessions.length }
+      },
+    },
+    authMethodIntent: {
+      async findUnique({ where }) {
+        database.reads += 1
+        return database.intent && matches(database.intent, where) ? structuredClone(database.intent) : null
+      },
+      async updateMany({ where, data }) {
+        if (!database.intent || !matches(database.intent, where)) return { count: 0 }
+        Object.assign(database.intent, structuredClone(data))
+        return { count: 1 }
+      },
+    },
+    authRateLimitBucket: {
+      async findUnique() { return null },
+      async deleteMany() { return { count: 0 } },
+      async upsert() { return {} },
+    },
+  }
+}
+
+function userData(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    emailVerified: user.emailVerified,
+    authSessionVersion: user.authSessionVersion,
+    passwordCredential: user.passwordCredential,
+    accounts: user.accounts,
+  }
+}
+
+function matches(row, where = {}) {
+  return Object.entries(where).every(([key, expected]) => {
+    const actual = row[key]
+    if (expected && typeof expected === "object" && !(expected instanceof Date)) {
+      if (Object.hasOwn(expected, "gt")) return actual > expected.gt
+      if (Object.hasOwn(expected, "in")) return expected.in.includes(actual)
+    }
+    if (actual instanceof Date || expected instanceof Date) {
+      return actual instanceof Date && expected instanceof Date && actual.getTime() === expected.getTime()
+    }
+    return actual === expected
+  })
+}
+
+function maybeFail(database, point) {
+  if (database.failPoint === point) throw new Error(`injected ${point}`)
+}
+
+function deferred() {
+  let resolve
+  const promise = new Promise((resolver) => { resolve = resolver })
+  return { promise, resolve }
+}
