@@ -1,7 +1,9 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useLinkStatus } from "next/link"
+import { RouteLoadingFeedback } from "@/components/shell/route-loading-feedback"
 import { Loader } from "@/components/ui/loader"
 
 /**
@@ -11,6 +13,11 @@ import { Loader } from "@/components/ui/loader"
 export function LinkPendingIndicator() {
   const { pending } = useLinkStatus()
   const indicatorRef = useRef<HTMLSpanElement | null>(null)
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    setPortalHost(document.body)
+  }, [])
 
   useEffect(() => {
     const link = indicatorRef.current?.closest("a")
@@ -26,8 +33,13 @@ export function LinkPendingIndicator() {
   }, [pending])
 
   return (
-    <span ref={indicatorRef} className="absolute inset-0 flex items-center justify-center">
-      {pending ? <Loader aria-hidden="true" size={16} /> : null}
-    </span>
+    <>
+      <span ref={indicatorRef} className="absolute inset-0 flex items-center justify-center">
+        {pending ? <Loader aria-hidden="true" size={16} /> : null}
+      </span>
+      {pending && portalHost
+        ? createPortal(<RouteLoadingFeedback owner="link" />, portalHost)
+        : null}
+    </>
   )
 }

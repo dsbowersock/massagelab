@@ -70,6 +70,28 @@ test("persistent-shell navigation feedback has focused owners and preserves rout
   assert.match(runningTimer, /router\.push\(intent\.href\)/)
 })
 
+test("an owned Link promotes one shared fixed feedback owner for its full pending lifetime", () => {
+  const rootLoading = source("app/loading.tsx")
+  const routeFeedback = source("components/shell/route-loading-feedback.tsx")
+  const linkIndicator = source("components/shell/link-pending-indicator.tsx")
+
+  assert.match(rootLoading, /<RouteLoadingFeedback owner="root" \/>/)
+  assert.match(routeFeedback, /owner\?: "root" \| "link"/)
+  assert.match(routeFeedback, /registerRouteFeedbackOwner/)
+  assert.match(routeFeedback, /loaderReady: boolean/)
+  assert.match(routeFeedback, /routeFeedbackAnnouncementOwnerId/)
+  assert.match(routeFeedback, /routeFeedbackAnnouncementResetTimeoutId/)
+  assert.match(routeFeedback, /clearTimeout\(routeFeedbackAnnouncementResetTimeoutId\)/)
+  assert.match(routeFeedback, /scheduleRouteFeedbackAnnouncementReset/)
+  assert.match(routeFeedback, /aria-hidden=\{presentation\.announce \? undefined : "true"\}/)
+  assert.match(routeFeedback, /data-route-feedback-owner=\{owner\}/)
+  assert.match(linkIndicator, /createPortal/)
+  assert.match(linkIndicator, /RouteLoadingFeedback/)
+  assert.match(linkIndicator, /pending && portalHost/)
+  assert.match(linkIndicator, /<RouteLoadingFeedback owner="link" \/>/)
+  assert.doesNotMatch(routeFeedback, /addEventListener\("click"|history\.(?:pushState|replaceState)/)
+})
+
 test("shared async action button exposes one stable accessible pending owner", () => {
   const asyncButton = source("components/forms/async-action-button.tsx")
   assert.match(asyncButton, /export type AsyncActionButtonProps\s*=\s*\n?\s*Omit<React\.ComponentProps<typeof Button>, "children" \| "aria-busy">/)
