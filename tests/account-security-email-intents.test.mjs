@@ -42,9 +42,10 @@ describe("durable account-security email intents", () => {
     })
 
     assert.equal(db.state.intents[0].subject, "Password sign-in added or replaced for your MassageLab account")
-    assert.match(db.state.intents[0].message, /add email and password to an account that already uses Google/i)
+    assert.match(db.state.intents[0].message, /add email and password to an existing account/i)
     assert.match(db.state.intents[0].message, /replace an existing password/i)
-    assert.match(db.state.intents[0].message, /Google sign-in remains connected/i)
+    assert.match(db.state.intents[0].message, /Existing sign-in methods remain connected/i)
+    assert.doesNotMatch(db.state.intents[0].message, /Google/i)
   })
 
   it("claims PENDING delivery with a hashed five-minute lease and delivers by exact CAS", async () => {

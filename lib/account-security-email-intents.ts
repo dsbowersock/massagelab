@@ -28,7 +28,7 @@ const SECURITY_EMAIL_COPY: Record<AccountSecurityEmailKind, { subject: string; m
   },
   PASSWORD_RECOVERED: {
     subject: "Password sign-in added or replaced for your MassageLab account",
-    message: "Password sign-in was added or replaced for your MassageLab account. This can add email and password to an account that already uses Google, or replace an existing password. Existing Google sign-in remains connected. If you made this change, no action is needed. If you did not, contact support. You may receive this notice more than once if delivery had to be retried.",
+    message: "Password sign-in was added or replaced for your MassageLab account. This can add email and password to an existing account, or replace an existing password. Existing sign-in methods remain connected. If you made this change, no action is needed. If you did not, contact support. You may receive this notice more than once if delivery had to be retried.",
   },
 }
 

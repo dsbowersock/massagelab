@@ -138,6 +138,21 @@ describe("registration email delivery policy", () => {
     assert.match(loginForm, /let navigationStarted = false[\s\S]*router\.push\(callbackUrl\)[\s\S]*router\.refresh\(\)[\s\S]*navigationStarted = true[\s\S]*finally \{[\s\S]*if \(!navigationStarted\)/)
   })
 
+  it("uses fixed truthful setup copy for Google-linked and other passwordless accounts", async () => {
+    const authMail = await import("../lib/auth-mail.ts")
+    assert.equal(typeof authMail.passwordSetupEmailCopy, "function")
+
+    const google = authMail.passwordSetupEmailCopy("https://massagelab.app/reset-password?token=safe", true)
+    const other = authMail.passwordSetupEmailCopy("https://massagelab.app/reset-password?token=safe", false)
+
+    assert.match(google.text, /same MassageLab account/i)
+    assert.match(google.text, /does not create a duplicate account/i)
+    assert.match(google.text, /does not disconnect Google sign-in/i)
+    assert.match(other.text, /existing MassageLab account/i)
+    assert.match(other.text, /existing sign-in methods remain connected/i)
+    assert.doesNotMatch(other.text, /Google/i)
+  })
+
   it("offers privacy-neutral verification resend from login and every unresolved verification state", async () => {
     const loginForm = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
     const verifyPage = await readFile(new URL("../app/verify-email/page.tsx", import.meta.url), "utf8")

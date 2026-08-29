@@ -16,6 +16,13 @@ const DOCUMENTS = [
   { key: "terms", version: "2026-08-01", shortLabel: "Terms" },
   { key: "privacy", version: "2026-08-01", shortLabel: "Privacy Policy" },
 ]
+const GOOGLE_ACCOUNT = {
+  id: "google-account-1",
+  userId: "user-existing",
+  type: "oidc",
+  provider: "google",
+  providerAccountId: "google-subject-1",
+}
 
 describe("registerPasswordAccount", () => {
   it("consumes both quotas before hashing or account work and creates the complete account atomically", async () => {
@@ -248,8 +255,13 @@ describe("registerPasswordAccount", () => {
       },
       {
         name: "Google-first account",
-        user: existingUser({ emailVerified: NOW, passwordCredential: null }),
-        expected: { verification: 0, existing: 0, setup: 1 },
+        user: existingUser({ emailVerified: NOW, passwordCredential: null, accounts: [GOOGLE_ACCOUNT] }),
+        expected: { verification: 0, existing: 0, setup: 1, googleLinked: true },
+      },
+      {
+        name: "verified non-Google passwordless account",
+        user: existingUser({ emailVerified: NOW, passwordCredential: null, accounts: [] }),
+        expected: { verification: 0, existing: 0, setup: 1, googleLinked: false },
       },
       {
         name: "mismatched password",
@@ -268,8 +280,34 @@ describe("registerPasswordAccount", () => {
       assert.equal(db.sentVerificationMessages.length, scenario.expected.verification, scenario.name)
       assert.equal(db.sentExistingMessages.length, scenario.expected.existing, scenario.name)
       assert.equal(db.sentSetupMessages.length, scenario.expected.setup, scenario.name)
+      if (scenario.expected.googleLinked !== undefined) {
+        assert.equal(db.sentSetupMessages[0].googleLinked, scenario.expected.googleLinked, scenario.name)
+      }
       assert.equal(db.persistedRawIdentifiers.length, 0, scenario.name)
     }
+  })
+
+  it("issues a setup token for the exact Google-first user without persisting the submitted password", async () => {
+    const user = existingUser({ emailVerified: NOW, passwordCredential: null, accounts: [GOOGLE_ACCOUNT] })
+    const originalAccounts = structuredClone(user.accounts)
+    const db = createRegistrationDatabase({ user })
+
+    assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" })
+    await db.runScheduledDeliveries()
+
+    assert.equal(db.users.length, 1)
+    assert.equal(db.resetTokens.length, 1)
+    assert.equal(db.resetTokens[0].userId, user.id)
+    assert.equal(db.passwordCredentials.length, 0)
+    assert.equal(db.events.includes("hashPassword"), false)
+    assert.equal(JSON.stringify(db.users).includes("a-long-password"), false)
+    assert.equal(JSON.stringify(db.resetTokens).includes("a-long-password"), false)
+    assert.deepEqual(db.users[0].accounts, originalAccounts)
+    assert.deepEqual(db.sentSetupMessages, [{
+      email: "person@example.com",
+      token: "raw-token",
+      googleLinked: true,
+    }])
   })
 
   it("preserves recoverable account and token state when delivery fails", async () => {
@@ -335,7 +373,7 @@ function registrationInput(db, overrides = {}) {
       for (const document of documents) prismaClient.__state.legalAcceptances.push({ userId, ...document })
     },
     sendVerification: async (email, token, callbackUrl) => db.sendVerification(email, token, callbackUrl),
-    sendPasswordSetup: async (email, token) => db.sendSetup(email, token),
+    sendPasswordSetup: async (email, token, googleLinked) => db.sendSetup(email, token, googleLinked),
     sendExistingAccountNotice: async (email) => db.sendExisting(email),
     scheduleAccountWork: (work) => db.scheduleDelivery(work),
     ...overrides,
@@ -343,7 +381,7 @@ function registrationInput(db, overrides = {}) {
 }
 
 function existingUser(overrides) {
-  return { id: "user-existing", email: "person@example.com", name: "Person", ...overrides }
+  return { id: "user-existing", email: "person@example.com", name: "Person", accounts: [], ...overrides }
 }
 
 function driverAdapterUniqueError(constraint, {
@@ -407,8 +445,12 @@ function createRegistrationDatabase({
       __transaction: transaction,
       __state: snapshot,
       user: {
-        async findUnique({ where }) {
+        async findUnique({ where, include }) {
           events.push("user.findUnique")
+          assert.deepEqual(include, {
+            passwordCredential: true,
+            accounts: { select: { provider: true } },
+          })
           return structuredClone(snapshot.users.find((candidate) => candidate.id === where.id) ?? null)
         },
         async create({ data }) {
@@ -514,9 +556,9 @@ function createRegistrationDatabase({
       if (deliveryFailure) throw new Error("provider unavailable")
       return { delivered: true }
     },
-    async sendSetup(email, token) {
+    async sendSetup(email, token, googleLinked) {
       events.push("sendSetup")
-      sentSetupMessages.push({ email, token })
+      sentSetupMessages.push({ email, token, googleLinked })
       if (deliveryFailure) throw new Error("provider unavailable")
       return { delivered: true }
     },
@@ -533,6 +575,7 @@ function createRegistrationDatabase({
     profiles: { get: () => state.profiles },
     passwordCredentials: { get: () => state.passwordCredentials },
     verificationTokens: { get: () => state.verificationTokens },
+    resetTokens: { get: () => state.resetTokens },
     legalAcceptances: { get: () => state.legalAcceptances },
     roles: { get: () => state.roles },
     transactionCount: { get: () => transactionCount },
