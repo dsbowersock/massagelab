@@ -88,15 +88,16 @@ boundaries:
 | Verified auth refresh | Background-credit provisioner calls: `1` | Background-credit provisioner calls: `0` |
 | Signed-in sidebar | Separate membership entitlement loads: `1` | Separate membership entitlement loads: `0` |
 | Membership status read | Persisted summary loads: `1`; Stripe calls: `0` | Persisted summary loads: `1`; Stripe calls: `0` |
-| Valid explicit Checkout | Checkout-session creates: `1`; ordinary render: `0` | Checkout-session creates: `1`; ordinary render: `0` |
-| Valid explicit Portal action | Portal-session creates: `1`; ordinary render: `0` | Portal-session creates: `1`; ordinary render: `0` |
+| Valid explicit Checkout | Checkout-session creates: `1`; tested launch/pricing render Checkout-session creates: `0` | Checkout-session creates: `1`; tested launch/pricing render Checkout-session creates: `0` |
+| Valid explicit Portal action | Portal-session creates: `1`; tested launch/pricing render Portal-session creates: `0` | Portal-session creates: `1`; tested launch/pricing render Portal-session creates: `0` |
 
 Ordinary verified auth refresh must not open a credit-provisioning transaction,
 and sidebar navigation must reuse feature keys already carried in the session.
 Calendar context remains deferred behind its authenticated endpoint rather than
-the global layout. Ordinary page rendering must call neither Stripe nor an
-email provider; Checkout and Portal provider calls remain explicit user
-actions.
+the global layout. The tested launch/pricing ordinary-render slice creates zero
+Checkout sessions and zero Portal sessions. This workload does not establish
+site-wide absence of Stripe or email calls; Admin Billing preview is outside
+this row, and provider-wide/email render verification remains `NOT RUN`.
 
 The deployed exact commit needs a separate read-only Vercel aggregate that
 distinguishes observed platform cold-start latency from warm invocation
