@@ -7,7 +7,10 @@ import {
   isFreshConsumedGoogleReauth,
   type FreshGoogleReauthIntent,
 } from "@/lib/auth-method-intent-proof"
-import { verifyPasswordMethodProof } from "@/lib/auth-method-proof"
+import {
+  preparePasswordMethodProofForTwoFactorManagement,
+  verifyPasswordMethodProof,
+} from "@/lib/auth-method-proof"
 import {
   checkCredentialRateLimit,
   clearCredentialAccountFailure,
@@ -23,6 +26,11 @@ import {
   normalizeEmail,
   verifyTotpCode,
 } from "@/lib/auth-security"
+import {
+  consumePreparedTwoFactorProof,
+  prepareCurrentTwoFactorProof,
+  type PreparedTwoFactorProof,
+} from "@/lib/auth-two-factor-proof"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { prisma } from "@/lib/prisma"
 import {
@@ -54,6 +62,14 @@ export type StartEnrollmentResult =
 
 export type EnableTwoFactorResult =
   | { status: "ENABLED"; backupCodes: string[] }
+  | { status: "REJECTED"; code: TwoFactorManagementFailureCode; retryAfterSeconds?: number }
+
+export type ManageTwoFactorResult =
+  | { status: "DISABLED" }
+  | { status: "REJECTED"; code: TwoFactorManagementFailureCode; retryAfterSeconds?: number }
+
+export type RegenerateBackupCodesResult =
+  | { status: "BACKUP_CODES_REGENERATED"; backupCodes: string[] }
   | { status: "REJECTED"; code: TwoFactorManagementFailureCode; retryAfterSeconds?: number }
 
 export type PrimaryProof =
@@ -94,6 +110,9 @@ type PasswordProofService = typeof verifyPasswordMethodProof
 
 type TwoFactorManagementDependencies = {
   verifyPasswordMethodProof: PasswordProofService
+  preparePasswordMethodProofForTwoFactorManagement: typeof preparePasswordMethodProofForTwoFactorManagement
+  prepareCurrentTwoFactorProof: typeof prepareCurrentTwoFactorProof
+  consumePreparedTwoFactorProof: typeof consumePreparedTwoFactorProof
   isFreshConsumedGoogleReauth: typeof isFreshConsumedGoogleReauth
   consumeFreshGoogleReauth: typeof consumeFreshGoogleReauth
   generateTotpSecret: typeof generateTotpSecret
@@ -131,8 +150,22 @@ type EnableTwoFactorInput = {
   dependencies?: Partial<TwoFactorManagementDependencies>
 }
 
+export type DisableTwoFactorInput = {
+  prismaClient?: TwoFactorManagementClient
+  userId: string
+  primaryProof: PrimaryProof
+  twoFactorCode: string
+  networkIdentifier: string
+  confirmed: boolean
+  now?: Date
+  dependencies?: Partial<TwoFactorManagementDependencies>
+}
+
 const defaultDependencies: TwoFactorManagementDependencies = {
   verifyPasswordMethodProof,
+  preparePasswordMethodProofForTwoFactorManagement,
+  prepareCurrentTwoFactorProof,
+  consumePreparedTwoFactorProof,
   isFreshConsumedGoogleReauth,
   consumeFreshGoogleReauth,
   generateTotpSecret,
@@ -430,6 +463,238 @@ export async function enableTwoFactor(input: EnableTwoFactorInput): Promise<Enab
   }
 }
 
+/** Disables an enabled authenticator only after independent primary and factor proof. */
+export async function disableTwoFactor(
+  input: DisableTwoFactorInput,
+): Promise<ManageTwoFactorResult> {
+  return manageEnabledTwoFactor(input, "DISABLE")
+}
+
+/** Replaces backup codes only after independent primary and current-factor proof. */
+export async function regenerateBackupCodes(
+  input: DisableTwoFactorInput,
+): Promise<RegenerateBackupCodesResult> {
+  return manageEnabledTwoFactor(input, "REGENERATE")
+}
+
+type DestructiveAction = "DISABLE" | "REGENERATE"
+type DestructiveResult = ManageTwoFactorResult | RegenerateBackupCodesResult
+
+/**
+ * Owns destructive 2FA changes so current-factor consumption, optional Google
+ * proof consumption, exact state mutation, version rotation, and compatibility
+ * Session deletion share one serializable transaction and rollback boundary.
+ */
+function manageEnabledTwoFactor(
+  input: DisableTwoFactorInput,
+  action: "DISABLE",
+): Promise<ManageTwoFactorResult>
+function manageEnabledTwoFactor(
+  input: DisableTwoFactorInput,
+  action: "REGENERATE",
+): Promise<RegenerateBackupCodesResult>
+async function manageEnabledTwoFactor(
+  input: DisableTwoFactorInput,
+  action: DestructiveAction,
+): Promise<DestructiveResult> {
+  const now = captureNow(input.now)
+  if (
+    !now
+    || input.confirmed !== true
+    || !validIdentifier(input.userId)
+    || !validNetworkIdentifier(input.networkIdentifier)
+    || !validPrimaryProof(input.primaryProof)
+    || typeof input.twoFactorCode !== "string"
+  ) {
+    return rejected("INVALID_REQUEST")
+  }
+  if (input.twoFactorCode.trim().length === 0) return rejected("TWO_FACTOR_REQUIRED")
+
+  const client = input.prismaClient ?? prisma
+  const deps = { ...defaultDependencies, ...input.dependencies }
+  let authSecret: string
+  try {
+    authSecret = getAuthSecret()
+  } catch {
+    return rejected("CONFLICT")
+  }
+
+  const preflight = await loadMethodState(client, input.userId)
+  const enabledSecret = preflight?.twoFactorSecret
+  if (!preflight || !enabledSecret?.enabledAt) return rejected("NOT_ENABLED")
+  if (!preflight.passwordCredential && !hasLinkedGoogle(preflight)) {
+    return rejected("PRIMARY_PROOF_INVALID")
+  }
+
+  let factorProof: PreparedTwoFactorProof
+  let googleIntent: FreshGoogleReauthIntent | null = null
+  if (input.primaryProof.kind === "PASSWORD") {
+    if (!preflight.passwordCredential) return rejected("PRIMARY_PROOF_INVALID")
+    let proof
+    try {
+      proof = await deps.preparePasswordMethodProofForTwoFactorManagement({
+        prismaClient: client,
+        userId: preflight.id,
+        password: input.primaryProof.password,
+        twoFactorCode: input.twoFactorCode,
+        networkIdentifier: input.networkIdentifier,
+        secret: authSecret,
+        now,
+      })
+    } catch {
+      return rejected("CONFLICT")
+    }
+    if (proof.status !== "VERIFIED") return rejected(passwordManagementFailure(proof.status))
+    if (
+      proof.userId !== preflight.id
+      || proof.authSessionVersion !== preflight.authSessionVersion
+      || !preparedProofMatchesState(proof.preparedTwoFactorProof, preflight, enabledSecret)
+    ) {
+      return rejected("CONFLICT")
+    }
+    factorProof = proof.preparedTwoFactorProof
+  } else {
+    if (!hasLinkedGoogle(preflight)) return rejected("PRIMARY_PROOF_INVALID")
+    const intent = await client.authMethodIntent.findUnique({ where: { id: input.primaryProof.intentId } })
+    if (!deps.isFreshConsumedGoogleReauth(intent, "LINK_GOOGLE", preflight.id, now)) {
+      return rejected("GOOGLE_PROOF_EXPIRED")
+    }
+    if (!googleAccountMatchesIntent(preflight, intent)) return rejected("PRIMARY_PROOF_INVALID")
+    googleIntent = intent
+
+    let proof
+    try {
+      proof = await deps.prepareCurrentTwoFactorProof({
+        prismaClient: client,
+        userId: preflight.id,
+        twoFactorCode: input.twoFactorCode,
+        networkIdentifier: input.networkIdentifier,
+        secret: authSecret,
+        now,
+      })
+    } catch {
+      return rejected("CONFLICT")
+    }
+    if (proof.status !== "VERIFIED") return rejected(currentFactorFailure(proof.status))
+    if (!preparedProofMatchesState(proof.proof, preflight, enabledSecret)) {
+      return rejected("CONFLICT")
+    }
+    factorProof = proof.proof
+  }
+
+  let plaintextCodes: string[] = []
+  let codeHashes: string[] = []
+  if (action === "REGENERATE") {
+    try {
+      plaintextCodes = deps.generateBackupCodes(8)
+      if (!validBackupCodes(plaintextCodes)) throw new EnrollmentConflict()
+      codeHashes = await Promise.all(plaintextCodes.map((code) => deps.hashBackupCode(code)))
+      if (!validBackupHashes(codeHashes)) throw new EnrollmentConflict()
+    } catch {
+      return rejected("CONFLICT")
+    }
+  }
+
+  try {
+    return await runCommerceTransaction(client, async (tx) => {
+      const current = await loadMethodState(tx, input.userId)
+      if (
+        !current
+        || current.authSessionVersion !== preflight.authSessionVersion
+        || methodSnapshotChanged(preflight, current)
+        || !exactSecretSnapshot(current.twoFactorSecret, enabledSecret)
+      ) {
+        throw new EnrollmentConflict()
+      }
+      if (input.primaryProof.kind === "PASSWORD" && !current.passwordCredential) {
+        throw new EnrollmentConflict()
+      }
+      if (googleIntent) {
+        const currentIntent = await tx.authMethodIntent.findUnique({ where: { id: googleIntent.id } })
+        if (
+          !deps.isFreshConsumedGoogleReauth(currentIntent, "LINK_GOOGLE", current.id, now)
+          || !googleAccountMatchesIntent(current, currentIntent)
+        ) {
+          throw new EnrollmentConflict()
+        }
+      }
+
+      if (!await deps.consumePreparedTwoFactorProof(tx, factorProof, now)) {
+        throw new EnrollmentConflict()
+      }
+      if (googleIntent && !await deps.consumeFreshGoogleReauth(tx, googleIntent, now)) {
+        throw new EnrollmentConflict()
+      }
+
+      if (action === "DISABLE") {
+        const deleted = await tx.twoFactorSecret.deleteMany({
+          where: exactSecretWhere(enabledSecret),
+        })
+        if (deleted.count !== 1) throw new EnrollmentConflict()
+        await tx.backupCode.deleteMany({ where: { userId: current.id } })
+      } else {
+        await tx.backupCode.deleteMany({ where: { userId: current.id } })
+        const created = await tx.backupCode.createMany({
+          data: codeHashes.map((codeHash) => ({ userId: current.id, codeHash })),
+        })
+        if (created.count !== codeHashes.length) throw new EnrollmentConflict()
+      }
+
+      const version = await tx.user.updateMany({
+        where: { id: current.id, authSessionVersion: preflight.authSessionVersion },
+        data: { authSessionVersion: { increment: 1 } },
+      })
+      if (version.count !== 1) throw new EnrollmentConflict()
+      await tx.session.deleteMany({ where: { userId: current.id } })
+
+      return action === "DISABLE"
+        ? { status: "DISABLED" } as const
+        : { status: "BACKUP_CODES_REGENERATED", backupCodes: plaintextCodes } as const
+    })
+  } catch {
+    return rejected("CONFLICT")
+  }
+}
+
+function passwordManagementFailure(
+  status: "EMAIL_UNVERIFIED" | "INVALID" | "TWO_FACTOR_REQUIRED" | "TWO_FACTOR_INVALID" | "RATE_LIMITED",
+): TwoFactorManagementFailureCode {
+  if (status === "TWO_FACTOR_REQUIRED" || status === "TWO_FACTOR_INVALID" || status === "RATE_LIMITED") {
+    return status
+  }
+  return "PRIMARY_PROOF_INVALID"
+}
+
+function currentFactorFailure(
+  status: "NOT_ENABLED" | "TWO_FACTOR_REQUIRED" | "TWO_FACTOR_INVALID" | "RATE_LIMITED",
+): TwoFactorManagementFailureCode {
+  return status === "NOT_ENABLED" ? "CONFLICT" : status
+}
+
+function preparedProofMatchesState(
+  proof: PreparedTwoFactorProof,
+  user: MethodState,
+  secret: SecretRow,
+): boolean {
+  return proof.userId === user.id
+    && proof.authSessionVersion === user.authSessionVersion
+    && proof.twoFactorSecretId === secret.id
+    && proof.enabledAtMs === secret.enabledAt?.getTime()
+    && proof.updatedAtMs === secret.updatedAt.getTime()
+    && ((proof.kind === "TOTP" && proof.backupCodeId === null)
+      || (proof.kind === "BACKUP_CODE" && validIdentifier(proof.backupCodeId)))
+}
+
+function exactSecretWhere(secret: SecretRow) {
+  return {
+    id: secret.id,
+    userId: secret.userId,
+    encryptedSecret: secret.encryptedSecret,
+    enabledAt: secret.enabledAt,
+    updatedAt: secret.updatedAt,
+  }
+}
+
 async function writeExactPendingSecret(input: {
   tx: Prisma.TransactionClient
   expected: SecretRow | null
@@ -484,7 +749,7 @@ async function loadMethodState(
 }
 
 function methodSnapshotChanged(before: MethodState, current: MethodState): boolean {
-  return Boolean(before.passwordCredential) !== Boolean(current.passwordCredential)
+  return (before.passwordCredential?.id ?? null) !== (current.passwordCredential?.id ?? null)
     || googleAccountIds(before).join("\0") !== googleAccountIds(current).join("\0")
 }
 

@@ -25,13 +25,20 @@ const service = source
         isFreshConsumedGoogleReauth: defaultIsFreshGoogleProof,
         consumeFreshGoogleReauth: defaultConsumeGoogleProof,
       },
-      "@/lib/auth-method-proof": { verifyPasswordMethodProof: async () => ({ status: "INVALID" }) },
+      "@/lib/auth-method-proof": {
+        verifyPasswordMethodProof: async () => ({ status: "INVALID" }),
+        preparePasswordMethodProofForTwoFactorManagement: async () => ({ status: "INVALID" }),
+      },
       "@/lib/auth-rate-limit": {
         checkCredentialRateLimit: async () => ({ allowed: true }),
         clearCredentialAccountFailure: async () => {},
         recordCredentialFailure: async () => ({ allowed: true }),
       },
       "@/lib/auth-security": { normalizeEmail: (value) => String(value ?? "").trim().toLowerCase() },
+      "@/lib/auth-two-factor-proof": {
+        prepareCurrentTwoFactorProof: async () => ({ status: "TWO_FACTOR_INVALID" }),
+        consumePreparedTwoFactorProof: async () => false,
+      },
       "@/lib/commerce/transactions": {
         runCommerceTransaction: (client, callback) => client.$transaction(callback, { isolationLevel: "Serializable" }),
       },
@@ -42,9 +49,11 @@ const service = source
   : {}
 
 describe("proved and browser-bound two-factor enrollment", () => {
-  it("exports only the planned setup and enable state-machine entry points", () => {
+  it("exports every planned two-factor state-machine entry point", () => {
     assert.equal(typeof service.startTwoFactorEnrollment, "function")
     assert.equal(typeof service.enableTwoFactor, "function")
+    assert.equal(typeof service.disableTwoFactor, "function")
+    assert.equal(typeof service.regenerateBackupCodes, "function")
   })
 
   it("requires exact confirmation and a correct password for password-only setup", async () => {
@@ -340,6 +349,255 @@ describe("proved and browser-bound two-factor enrollment", () => {
   })
 })
 
+describe("dual-proof destructive two-factor management", () => {
+  it("requires exact confirmation and independent password plus current-factor proof", async () => {
+    const unconfirmed = createDatabase({ enabled: true })
+    assert.deepEqual(await service.disableTwoFactor(manageInput(unconfirmed, { confirmed: false })), {
+      status: "REJECTED",
+      code: "INVALID_REQUEST",
+    })
+    assert.equal(unconfirmed.reads, 0)
+
+    const passwordOnly = createDatabase({ enabled: true })
+    assert.deepEqual(await service.disableTwoFactor(manageInput(passwordOnly, { twoFactorCode: "" })), {
+      status: "REJECTED",
+      code: "TWO_FACTOR_REQUIRED",
+    })
+    assert.equal(passwordOnly.transactions, 0)
+
+    const factorOnly = createDatabase({ enabled: true })
+    assert.deepEqual(await service.disableTwoFactor(manageInput(factorOnly, {
+      primaryProof: { kind: "PASSWORD", password: "wrong-password" },
+    })), { status: "REJECTED", code: "PRIMARY_PROOF_INVALID" })
+    assert.equal(factorOnly.transactions, 0)
+
+    const googleOnly = createDatabase({
+      enabled: true,
+      googleLinked: true,
+      googleIntent: freshGoogleIntent(),
+    })
+    assert.deepEqual(await service.disableTwoFactor(manageInput(googleOnly, {
+      primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
+      twoFactorCode: "",
+    })), { status: "REJECTED", code: "TWO_FACTOR_REQUIRED" })
+    assert.notEqual(googleOnly.intent.providerProvenAt, null)
+    assert.equal(googleOnly.transactions, 0)
+  })
+
+  it("rejects absent enabled state without deleting orphan codes and preserves admin recovery", async () => {
+    for (const operation of [service.disableTwoFactor, service.regenerateBackupCodes]) {
+      const disabled = createDatabase()
+      const before = disabled.snapshot()
+      assert.deepEqual(await operation(manageInput(disabled)), {
+        status: "REJECTED",
+        code: "NOT_ENABLED",
+      })
+      assert.deepEqual(disabled.snapshot(), before)
+
+      const inconsistent = createDatabase({ enabled: true, passwordEnabled: false })
+      const inconsistentBefore = inconsistent.snapshot()
+      assert.deepEqual(await operation(manageInput(inconsistent)), {
+        status: "REJECTED",
+        code: "PRIMARY_PROOF_INVALID",
+      })
+      assert.deepEqual(inconsistent.snapshot(), inconsistentBefore)
+    }
+  })
+
+  it("disables password-only and linked accounts with password plus TOTP or unused backup", async () => {
+    for (const [label, googleLinked, twoFactorCode] of [
+      ["password-only TOTP", false, "123456"],
+      ["linked password backup", true, "BACKUP-CURRENT"],
+    ]) {
+      const database = createDatabase({ enabled: true, googleLinked })
+      const result = await service.disableTwoFactor(manageInput(database, { twoFactorCode }))
+      assert.deepEqual(result, { status: "DISABLED" }, label)
+      assert.equal(database.secret, null, label)
+      assert.equal(database.backups.length, 0, label)
+      assert.equal(database.user.authSessionVersion, 8, label)
+      assert.equal(database.sessions.length, 0, label)
+      assert.equal(database.committedSessionDeletes, 1, label)
+      if (twoFactorCode === "BACKUP-CURRENT") {
+        assert.equal(database.events.includes("consume-factor:BACKUP_CODE"), true, label)
+      }
+    }
+  })
+
+  it("allows linked and legacy Google-only accounts to manage with Google plus current factor", async () => {
+    for (const [operation, expectedStatus, passwordEnabled, twoFactorCode] of [
+      [service.disableTwoFactor, "DISABLED", true, "123456"],
+      [service.regenerateBackupCodes, "BACKUP_CODES_REGENERATED", false, "BACKUP-CURRENT"],
+    ]) {
+      const database = createDatabase({
+        enabled: true,
+        passwordEnabled,
+        googleLinked: true,
+        googleIntent: freshGoogleIntent(),
+      })
+      const result = await operation(manageInput(database, {
+        primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
+        twoFactorCode,
+      }))
+      assert.equal(result.status, expectedStatus)
+      assert.equal(database.intent.providerProvenAt, null)
+      assert.equal(database.user.authSessionVersion, 8)
+      assert.equal(database.sessions.length, 0)
+    }
+  })
+
+  it("regenerates eight prehashed codes while leaving the enabled secret exact", async () => {
+    const database = createDatabase({ enabled: true, googleLinked: true })
+    const secretBefore = structuredClone(database.secret)
+    const result = await service.regenerateBackupCodes(manageInput(database, {
+      twoFactorCode: "BACKUP-CURRENT",
+    }))
+
+    assert.deepEqual(result, {
+      status: "BACKUP_CODES_REGENERATED",
+      backupCodes: backupCodes(),
+    })
+    assert.deepEqual(database.secret, secretBefore)
+    assert.equal(database.backups.length, 8)
+    assert.deepEqual(database.backups.map(({ codeHash }) => codeHash), backupCodes().map((code) => `hash:${code}`))
+    assert.equal(database.backups.some((row) => backupCodes().includes(row.codeHash)), false)
+    assert.equal(database.events.filter((event) => event.startsWith("hash:")).length, 8)
+    assert.equal(database.events.lastIndexOf("hash:BACKUP-00008") < database.events.lastIndexOf("transaction"), true)
+    assert.equal(database.user.authSessionVersion, 8)
+    assert.equal(database.sessions.length, 0)
+  })
+
+  it("rejects stale version, replaced secret, used backup, consumed Google, and method change", async () => {
+    const cases = [
+      ["stale version", (database) => ({
+        async preparePasswordMethodProofForTwoFactorManagement() {
+          database.user.authSessionVersion += 1
+          return verifiedPasswordManagementProof(database, { authSessionVersion: 7 })
+        },
+      })],
+      ["replaced secret", (database) => ({
+        async preparePasswordMethodProofForTwoFactorManagement() {
+          const proof = verifiedPasswordManagementProof(database)
+          database.secret.updatedAt = new Date(database.secret.updatedAt.getTime() + 1)
+          database.secret.encryptedSecret = "replacement-secret"
+          return proof
+        },
+      })],
+      ["used backup", (database) => ({
+        async preparePasswordMethodProofForTwoFactorManagement() {
+          const proof = verifiedPasswordManagementProof(database, { kind: "BACKUP_CODE" })
+          database.backups.find((row) => row.id === "backup-current").usedAt = NOW
+          return proof
+        },
+      })],
+      ["method change", (database) => ({
+        async preparePasswordMethodProofForTwoFactorManagement() {
+          const proof = verifiedPasswordManagementProof(database)
+          database.user.passwordCredential = null
+          return proof
+        },
+      })],
+      ["password method replacement", (database) => ({
+        async preparePasswordMethodProofForTwoFactorManagement() {
+          const proof = verifiedPasswordManagementProof(database)
+          database.user.passwordCredential.id = "password-replacement"
+          return proof
+        },
+      })],
+    ]
+    for (const [label, dependencyFactory] of cases) {
+      const database = createDatabase({ enabled: true })
+      const secretBefore = structuredClone(database.secret)
+      const backupsBefore = structuredClone(database.backups)
+      const sessionsBefore = structuredClone(database.sessions)
+      const result = await service.regenerateBackupCodes(manageInput(database, {
+        twoFactorCode: label === "used backup" ? "BACKUP-CURRENT" : "123456",
+        dependencies: dependencies({ database, ...dependencyFactory(database) }),
+      }))
+      assert.deepEqual(result, { status: "REJECTED", code: "CONFLICT" }, label)
+      assert.deepEqual(database.secret, label === "replaced secret" ? database.secret : secretBefore, label)
+      if (label !== "used backup") assert.deepEqual(database.backups, backupsBefore, label)
+      assert.deepEqual(database.sessions, sessionsBefore, label)
+    }
+
+    const google = createDatabase({ enabled: true, googleLinked: true, googleIntent: freshGoogleIntent() })
+    const googleBefore = google.snapshot()
+    const result = await service.disableTwoFactor(manageInput(google, {
+      primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
+      dependencies: dependencies({
+        database: google,
+        async prepareCurrentTwoFactorProof() {
+          google.intent.providerProvenAt = null
+          return { status: "VERIFIED", proof: preparedFactor(google) }
+        },
+      }),
+    }))
+    assert.deepEqual(result, { status: "REJECTED", code: "CONFLICT" })
+    assert.deepEqual(google.secret, googleBefore.secret)
+    assert.deepEqual(google.backups, googleBefore.backups)
+    assert.deepEqual(google.sessions, googleBefore.sessions)
+  })
+
+  for (const [operationName, operation, proofKind, failurePoints] of [
+    ["disable", (...args) => service.disableTwoFactor(...args), "TOTP", [
+      "after-factor-consume",
+      "after-google-consume",
+      "after-secret-delete",
+      "after-backup-delete",
+      "after-session-version",
+      "after-adapter-session-delete",
+    ]],
+    ["regenerate", (...args) => service.regenerateBackupCodes(...args), "BACKUP_CODE", [
+      "after-factor-consume",
+      "after-google-consume",
+      "after-backup-delete",
+      "after-backup-create",
+      "after-session-version",
+      "after-adapter-session-delete",
+    ]],
+  ]) {
+    for (const failurePoint of failurePoints) {
+      it(`rolls back ${operationName} at ${failurePoint}`, async () => {
+        const database = createDatabase({
+          enabled: true,
+          googleLinked: true,
+          googleIntent: freshGoogleIntent(),
+        })
+        const before = database.snapshot()
+        database.failPoint = failurePoint
+        const result = await operation(manageInput(database, {
+          primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
+          twoFactorCode: proofKind === "BACKUP_CODE" ? "BACKUP-CURRENT" : "123456",
+        }))
+        assert.deepEqual(result, { status: "REJECTED", code: "CONFLICT" })
+        assert.deepEqual(database.snapshot(), before)
+      })
+    }
+  }
+
+  for (const [operationName, operation, successStatus] of [
+    ["disable", (...args) => service.disableTwoFactor(...args), "DISABLED"],
+    ["regenerate", (...args) => service.regenerateBackupCodes(...args), "BACKUP_CODES_REGENERATED"],
+  ]) {
+    it(`permits exactly one concurrent ${operationName} winner`, async () => {
+      const database = createDatabase({ enabled: true })
+      const input = manageInput(database)
+      const results = await Promise.all([operation(input), operation(input)])
+      assert.equal(results.filter((result) => result.status === successStatus).length, 1)
+      assert.equal(results.filter((result) => result.status === "REJECTED").length, 1)
+      assert.equal(database.user.authSessionVersion, 8)
+      assert.equal(database.sessions.length, 0)
+      assert.equal(database.committedSessionDeletes, 1)
+      if (operationName === "disable") {
+        assert.equal(database.secret, null)
+        assert.equal(database.backups.length, 0)
+      } else {
+        assert.equal(database.secret.enabledAt instanceof Date, true)
+        assert.equal(database.backups.length, 8)
+      }
+    })
+  }
+})
+
 function start(database, overrides = {}) {
   return service.startTwoFactorEnrollment({
     prismaClient: database,
@@ -363,6 +621,20 @@ function enableInput(database, binding, overrides = {}) {
     confirmed: true,
     networkIdentifier: NETWORK,
     authSecret: AUTH_SECRET,
+    now: NOW,
+    dependencies: dependencies({ database }),
+    ...overrides,
+  }
+}
+
+function manageInput(database, overrides = {}) {
+  return {
+    prismaClient: database,
+    userId: "user-1",
+    primaryProof: { kind: "PASSWORD", password: "correct-password" },
+    twoFactorCode: "123456",
+    confirmed: true,
+    networkIdentifier: NETWORK,
     now: NOW,
     dependencies: dependencies({ database }),
     ...overrides,
@@ -416,8 +688,74 @@ function dependencies(overrides = {}) {
     async clearCredentialAccountFailure(input) {
       input.prismaClient.events.push("clear-factor-account-limit")
     },
+    async preparePasswordMethodProofForTwoFactorManagement(input) {
+      if (overrides.passwordManagementResult) return overrides.passwordManagementResult
+      if (input.password !== "correct-password") return { status: "INVALID" }
+      if (!input.twoFactorCode) return { status: "TWO_FACTOR_REQUIRED" }
+      return verifiedPasswordManagementProof(input.prismaClient, {
+        kind: input.twoFactorCode === "BACKUP-CURRENT" ? "BACKUP_CODE" : "TOTP",
+      })
+    },
+    async prepareCurrentTwoFactorProof(input) {
+      if (overrides.currentFactorResult) return overrides.currentFactorResult
+      if (!input.twoFactorCode) return { status: "TWO_FACTOR_REQUIRED" }
+      return {
+        status: "VERIFIED",
+        proof: preparedFactor(input.prismaClient, {
+          kind: input.twoFactorCode === "BACKUP-CURRENT" ? "BACKUP_CODE" : "TOTP",
+        }),
+      }
+    },
+    consumePreparedTwoFactorProof: defaultConsumeFactorProof,
     ...overrides,
   }
+}
+
+function verifiedPasswordManagementProof(database, overrides = {}) {
+  const proof = preparedFactor(database, overrides)
+  return {
+    status: "VERIFIED",
+    userId: database.user.id,
+    authSessionVersion: overrides.authSessionVersion ?? database.user.authSessionVersion,
+    preparedTwoFactorProof: proof,
+  }
+}
+
+function preparedFactor(database, { kind = "TOTP", authSessionVersion = database.user.authSessionVersion } = {}) {
+  return {
+    userId: database.user.id,
+    authSessionVersion,
+    twoFactorSecretId: database.secret.id,
+    enabledAtMs: database.secret.enabledAt.getTime(),
+    updatedAtMs: database.secret.updatedAt.getTime(),
+    kind,
+    backupCodeId: kind === "BACKUP_CODE" ? "backup-current" : null,
+  }
+}
+
+async function defaultConsumeFactorProof(tx, proof, now) {
+  const user = await tx.user.findFirst({
+    where: { id: proof.userId, authSessionVersion: proof.authSessionVersion },
+  })
+  const secret = await tx.twoFactorSecret.findFirst({
+    where: {
+      id: proof.twoFactorSecretId,
+      userId: proof.userId,
+      enabledAt: new Date(proof.enabledAtMs),
+      updatedAt: new Date(proof.updatedAtMs),
+    },
+  })
+  if (!user || !secret) return false
+  if (proof.kind === "BACKUP_CODE") {
+    const consumed = await tx.backupCode.updateMany({
+      where: { id: proof.backupCodeId, userId: proof.userId, usedAt: null },
+      data: { usedAt: now },
+    })
+    if (consumed.count !== 1) return false
+  }
+  tx.__database.events.push(`consume-factor:${proof.kind}`)
+  maybeFail(tx.__database, "after-factor-consume")
+  return true
 }
 
 function backupCodes() {
@@ -474,6 +812,7 @@ async function defaultConsumeGoogleProof(tx, intent, now) {
     data: { providerProvenAt: null },
   })
   tx.__database.events.push("consume-google")
+  maybeFail(tx.__database, "after-google-consume")
   return result.count === 1
 }
 
@@ -505,7 +844,12 @@ function createDatabase({
           updatedAt: new Date(NOW.getTime() - 86_400_000),
         }
       : null,
-    backups: [{ id: "orphan-backup", userId: "user-1", codeHash: "orphan-hash", usedAt: null, createdAt: NOW }],
+    backups: enabled
+      ? [
+          { id: "backup-current", userId: "user-1", codeHash: "hash:BACKUP-CURRENT", usedAt: null, createdAt: NOW },
+          { id: "backup-other", userId: "user-1", codeHash: "hash:BACKUP-OTHER", usedAt: null, createdAt: NOW },
+        ]
+      : [{ id: "orphan-backup", userId: "user-1", codeHash: "orphan-hash", usedAt: null, createdAt: NOW }],
     sessions: [
       { id: "session-1", userId: "user-1" },
       { id: "session-2", userId: "user-1" },
@@ -628,8 +972,20 @@ function transactionClient(database) {
         maybeFail(database, "after-secret-cas")
         return { count: 1 }
       },
+      async deleteMany({ where }) {
+        if (!database.secret || !matches(database.secret, where)) return { count: 0 }
+        database.secret = null
+        maybeFail(database, "after-secret-delete")
+        return { count: 1 }
+      },
     },
     backupCode: {
+      async updateMany({ where, data }) {
+        const row = database.backups.find((candidate) => matches(candidate, where))
+        if (!row) return { count: 0 }
+        Object.assign(row, structuredClone(data))
+        return { count: 1 }
+      },
       async deleteMany({ where }) {
         const before = database.backups.length
         database.backups = database.backups.filter((row) => !matches(row, where))
