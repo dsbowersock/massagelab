@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { claimVerifiedCredential } from "../lib/credential-claims.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
@@ -59,8 +60,10 @@ describe("account action outcome mapping", () => {
     const actionsSource = await readFile(new URL("../app/account/actions.ts", import.meta.url), "utf8")
     const outcomeSource = await readFile(new URL("../lib/account-action-outcome.ts", import.meta.url), "utf8")
     const { settleAccountAction } = loadCompiledModule(outcomeSource, "lib/account-action-outcome.test.ts")
-    const state = { legal: [], credentials: [], roles: [], students: [] }
+    const state = { legal: [], credentials: [], roles: [], students: [], claims: [] }
     let failLate = true
+    let claimRacePending = false
+    let ohioResult = null
 
     function transactionClient(draft) {
       return {
@@ -70,27 +73,68 @@ describe("account action outcome mapping", () => {
           },
         },
         credentialVerification: {
-          findFirst: async () => draft.credentials[0] ?? null,
+          findFirst: async ({ where }) => draft.credentials.find((row) =>
+            row.userId === where.userId
+            && row.kind === where.kind
+            && row.jurisdictionCode === where.jurisdictionCode
+            && row.credentialNumber === where.credentialNumber) ?? null,
           create: async ({ data }) => {
-            const row = { ...data, id: "credential-1" }
+            const row = { ...data, id: `credential-${draft.credentials.length + 1}` }
             draft.credentials.push(row)
             return row
           },
-          update: async ({ data }) => Object.assign(draft.credentials[0], data),
+          update: async ({ where, data }) => Object.assign(
+            draft.credentials.find((row) => row.id === where.id),
+            data,
+          ),
         },
         userRole: {
-          findUnique: async () => draft.roles[0] ?? null,
+          findUnique: async ({ where }) => draft.roles.find((row) =>
+            row.userId === where.userId_role.userId && row.role === where.userId_role.role) ?? null,
           create: async ({ data }) => {
             draft.roles.push(data)
             return data
           },
-          update: async ({ data }) => Object.assign(draft.roles[0], data),
+          update: async ({ where, data }) => Object.assign(
+            draft.roles.find((row) => row.userId === where.userId_role.userId && row.role === where.userId_role.role),
+            data,
+          ),
         },
         studentAccess: {
           upsert: async ({ create, update }) => {
             if (failLate) throw new Error("private late ORM failure")
             if (draft.students[0]) Object.assign(draft.students[0], update)
             else draft.students.push(create)
+          },
+        },
+        verifiedCredentialClaim: {
+          findUnique: async ({ where }) => {
+            const key = where.kind_jurisdictionCode_normalizedCredentialNumber
+            return draft.claims.find((claim) =>
+              claim.kind === key.kind
+              && claim.jurisdictionCode === key.jurisdictionCode
+              && claim.normalizedCredentialNumber === key.normalizedCredentialNumber) ?? null
+          },
+          createMany: async ({ data, skipDuplicates }) => {
+            assert.equal(skipDuplicates, true)
+            if (claimRacePending) {
+              claimRacePending = false
+              draft.claims.push({
+                ...data[0],
+                id: "competing-claim",
+                userId: "other-user",
+              })
+              return { count: 0 }
+            }
+            draft.claims.push({ id: "created-claim", ...data[0] })
+            return { count: 1 }
+          },
+          update: async ({ where, data }) => {
+            const key = where.kind_jurisdictionCode_normalizedCredentialNumber
+            return Object.assign(draft.claims.find((claim) =>
+              claim.kind === key.kind
+              && claim.jurisdictionCode === key.jurisdictionCode
+              && claim.normalizedCredentialNumber === key.normalizedCredentialNumber), data)
           },
         },
       }
@@ -120,7 +164,7 @@ describe("account action outcome mapping", () => {
         roleStatusForCredentialStatus: () => "PENDING",
         shouldUpdateCredentialRole: () => false,
       },
-      "@/lib/credential-claims": { claimVerifiedCredential: async () => { throw new Error("unexpected claim") } },
+      "@/lib/credential-claims": { claimVerifiedCredential },
       "@/lib/legal-acceptance": {
         acceptedDocumentIdsFromInput: () => [],
         legalHeadersMetadata: () => ({}),
@@ -142,7 +186,10 @@ describe("account action outcome mapping", () => {
       "@/lib/ohio-license-verifier": {
         OHIO_LICENSE_VERIFIER_NAME: "Ohio eLicense",
         ohioExpirationDateToDate: () => null,
-        verifyOhioMassageLicense: async () => { throw new Error("provider must stay outside this student path") },
+        verifyOhioMassageLicense: async () => {
+          if (!ohioResult) throw new Error("provider must stay outside this student path")
+          return ohioResult
+        },
       },
       "@/lib/prisma": { prisma },
     })
@@ -155,7 +202,7 @@ describe("account action outcome mapping", () => {
       requestCredentialVerificationAction(submission),
       (error) => error.destination === "/account?tab=credentials&credential=submit-failed",
     )
-    assert.deepEqual(state, { legal: [], credentials: [], roles: [], students: [] })
+    assert.deepEqual(state, { legal: [], credentials: [], roles: [], students: [], claims: [] })
 
     failLate = false
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -166,7 +213,33 @@ describe("account action outcome mapping", () => {
     }
     assert.deepEqual(
       Object.fromEntries(Object.entries(state).map(([key, rows]) => [key, rows.length])),
-      { legal: 1, credentials: 1, roles: 1, students: 1 },
+      { legal: 1, credentials: 1, roles: 1, students: 1, claims: 0 },
+    )
+
+    ohioResult = {
+      status: "VERIFIED",
+      checkedAt: "2026-08-29T12:00:00.000Z",
+      reasonCode: "OHIO_VERIFIED",
+      match: { licenseNumber: true, name: true },
+      proof: { expirationDate: null },
+    }
+    claimRacePending = true
+    const duplicateSubmission = new FormData()
+    duplicateSubmission.set("therapistAgreementAccepted", "true")
+    duplicateSubmission.set("credential_kind", "MASSAGE_LICENSE")
+    duplicateSubmission.set("jurisdiction_code", "OH")
+    duplicateSubmission.set("credential_number", "33.019598")
+    duplicateSubmission.set("legal_first_name", "Test")
+    duplicateSubmission.set("legal_last_name", "Therapist")
+    await assert.rejects(
+      requestCredentialVerificationAction(duplicateSubmission),
+      (error) => error.destination === "/account?tab=credentials&credential=submitted",
+    )
+    assert.equal(state.claims[0]?.userId, "other-user")
+    assert.equal(state.credentials.find((row) => row.kind === "MASSAGE_LICENSE")?.status, "PENDING")
+    assert.equal(
+      state.credentials.find((row) => row.kind === "MASSAGE_LICENSE")?.verificationPayload?.credentialClaim?.reasonCode,
+      "DUPLICATE_CREDENTIAL_REVIEW",
     )
   })
 })

@@ -186,7 +186,11 @@ test("function actions recover after real React DOM resolution and rejection", {
   assert.match(pendingFormSource, /class PendingSubmissionErrorBoundary/)
   assert.match(pendingFormSource, /Something went wrong\. Please try again\./)
 
-  const fixtureRoot = mkdtempSync(path.join(tmpdir(), "massagelab-form-settlement-"))
+  let fixtureRoot = null
+  let server = null
+  let browser = null
+  try {
+  fixtureRoot = mkdtempSync(path.join(tmpdir(), "massagelab-form-settlement-"))
   const outputRoot = path.join(fixtureRoot, "dist")
   const componentPath = path.join(fixtureRoot, "pending-submission-form.js")
   const buttonPath = path.join(fixtureRoot, "async-action-button.js")
@@ -243,7 +247,7 @@ test("function actions recover after real React DOM resolution and rejection", {
     })
   })
 
-  const server = createServer((request, response) => {
+  server = createServer((request, response) => {
     response.setHeader("content-type", request.url === "/fixture.js" ? "text/javascript; charset=utf-8" : "text/html; charset=utf-8")
     response.end(request.url === "/fixture.js"
       ? readFileSync(path.join(outputRoot, "fixture.js"))
@@ -253,8 +257,7 @@ test("function actions recover after real React DOM resolution and rejection", {
   const address = server.address()
   assert.ok(address && typeof address === "object")
   const { chromium } = require("playwright")
-  const browser = await chromium.launch({ headless: true })
-  try {
+  browser = await chromium.launch({ headless: true })
     const page = await browser.newPage()
     await page.goto(`http://127.0.0.1:${address.port}`)
     const button = page.getByRole("button", { name: "Save" })
@@ -274,10 +277,25 @@ test("function actions recover after real React DOM resolution and rejection", {
     await page.getByRole("button", { name: "Save" }).waitFor()
     assert.equal(await page.getByRole("button", { name: "Save" }).isEnabled(), true)
   } finally {
-    await browser.close()
-    await new Promise((resolve) => server.close(resolve))
-    rmSync(fixtureRoot, { recursive: true, force: true })
+    try {
+      if (browser) await browser.close()
+    } finally {
+      try {
+        if (server?.listening) await new Promise((resolve) => server.close(resolve))
+      } finally {
+        if (fixtureRoot) rmSync(fixtureRoot, { recursive: true, force: true })
+      }
+    }
   }
+})
+
+test("real React DOM harness owns setup failures inside its cleanup boundary", () => {
+  const interactionTest = source("tests/interaction-feedback.test.mjs")
+  const harness = interactionTest.slice(interactionTest.indexOf('test("function actions recover'))
+  assert.match(harness, /let server = null/)
+  assert.match(harness, /let browser = null/)
+  assert.match(harness, /try \{[\s\S]*server = createServer[\s\S]*browser = await chromium\.launch/)
+  assert.match(harness, /finally \{[\s\S]*if \(browser\)[\s\S]*if \(server\?\.listening\)[\s\S]*rmSync\(fixtureRoot/)
 })
 
 test("affected client account actions declare recoverable settlement boundaries", () => {
