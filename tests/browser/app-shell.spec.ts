@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page, type Route } from "@playwright/test"
 import { withPlayerViewportCollisionPadding } from "../../components/ui/use-player-viewport-insets"
+import { exerciseSpecializedProviderHarness } from "../helpers/specialized-provider-browser-harness.mjs"
 import { centerCarouselItem, waitForStableSlideGeometry } from "./carousel-test-helpers"
 
 const desktopProject = "desktop-chromium"
@@ -68,21 +69,22 @@ async function gotoShell(page: Page, path: string) {
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
 }
 
-test("anonymous bootstrap leaves therapist and calendar specialization dormant", async ({ page }) => {
-  const reads = { calendar: 0, therapist: 0 }
-  await page.route("**/api/account/profile", async (route) => {
-    if (route.request().method() === "GET") reads.therapist += 1
-    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
-  })
-  await page.route("**/api/calendar/sidebar-context", async (route) => {
-    if (route.request().method() === "GET") reads.calendar += 1
-    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
-  })
+test("signed-in inert bootstrap defers therapist and practice specialization until demand", async ({ page }) => {
+  test.setTimeout(45_000)
+  const result = await exerciseSpecializedProviderHarness(page)
 
-  await gotoShell(page, "/music")
-  await page.waitForTimeout(250)
-
-  expect(reads).toEqual({ calendar: 0, therapist: 0 })
+  expect(result.mounted.profileGets).toBe(0)
+  expect(result.mounted.calendarGets).toBe(0)
+  expect(result.firstConsumer.profileGets).toBe(1)
+  expect(result.firstConsumer.calendarGets).toBe(0)
+  expect(result.concurrentConsumer.profileGets).toBe(1)
+  expect(result.hydrated.consumerNames).toEqual([
+    "Synthetic Therapist",
+    "Synthetic Therapist",
+  ])
+  expect(result.practiceEnabled.calendarGets).toBe(1)
+  expect(result.practiceEnabled.practiceId).toBe("practice-inert")
+  expect(result.practiceEnabled.errors).toEqual([])
 })
 
 /** Aborts a held fixture request unless the app's own cancellation already won the race. */
