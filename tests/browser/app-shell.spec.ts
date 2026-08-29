@@ -7,6 +7,20 @@ const mobileProject = "mobile-chromium"
 const FAVORITES_MIN_TO_CENTER_CARD_RATIO = 1.3
 const FAVORITES_BALANCED_FILL_RATIO = 0.8
 
+/** Detects App Router's streamed production 404 without hiding the development fixture. */
+async function isDevelopmentReviewUnavailable(page: Page, responseStatus: number | undefined) {
+  if (responseStatus === 404) return true
+
+  const reviewHeading = page.getByRole("heading", { name: "Control system review", level: 1 })
+  const notFoundHeading = page.getByRole("heading", {
+    name: "This page could not be found.",
+    exact: true,
+    level: 2,
+  })
+  await expect(reviewHeading.or(notFoundHeading)).toBeVisible()
+  return notFoundHeading.isVisible()
+}
+
 async function expectFavoritesMosaicTracksCenteredCard(mosaic: Locator, centeredCard: Locator) {
   await expect.poll(async () => {
     const mosaicBox = await mosaic.boundingBox()
@@ -1317,6 +1331,7 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
 
   await page.setViewportSize({ width: 390, height: 844 })
   const toolbar = await startProofDrone(page)
+  await expect(toolbar).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
   const interruptionNotice = page.getByTestId("music-interruption-notice")
   if (await interruptionNotice.isVisible().catch(() => false)) {
     await interruptionNotice.getByRole("button", { name: "Close" }).click()
@@ -2697,7 +2712,10 @@ test("player rail keeps overlays clear in the popover fixture", async ({ page },
   // observable without adding test-only production components.
   await page.setViewportSize({ width: 844, height: 390 })
   const response = await page.goto("/dev/buttons", { waitUntil: "domcontentloaded" })
-  test.skip(response?.status() === 404, "The real Popover fixture is intentionally development-only.")
+  test.skip(
+    await isDevelopmentReviewUnavailable(page, response?.status()),
+    "The real Popover fixture is intentionally development-only.",
+  )
   await expect(page.getByRole("heading", { name: "Control system review" })).toBeVisible()
   await page.locator("body").evaluate((body) => {
     body.style.setProperty("--ml-player-right-safe", "320px")
@@ -4530,6 +4548,7 @@ test("Atmosphere expanded player actions expose session and saved interruption p
   await installInterruptionNoticeMediaFakes(page)
   await page.setViewportSize({ width: 390, height: 844 })
   const player = await startInterruptionNoticeSession(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
   const controls = player.getByTestId("music-player-toolbar-controls")
   const notice = page.getByRole("region", { name: "Interruption preference" })
 
@@ -5285,6 +5304,7 @@ test("mobile top player consumes its safe inset exactly once while expanded and 
 
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toBeVisible()
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
   await placeRenderedToolbarAtTop(player, safeTop)
   await expect(player).toHaveAttribute("data-placement", "top")
 
