@@ -6,6 +6,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import ts from "typescript"
 import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
+import { installNativeSubmitSnapshotRecorder } from "./native-submission-snapshot"
 
 const hasPrivateQaAuthorization = isBrowserQaDatabaseTargetAuthorized(process.env)
 const PRIVATE_QA_SKIP_REASON = "Account action browser QA requires the missing explicit disposable-database opt-in/authorization."
@@ -99,7 +100,8 @@ async function buildBillingFixtureBundle() {
       {
         id: "donation",
         action: "/api/billing/donation",
-        idleLabel: "Support with $5",
+        idleLabel: "$5",
+        ariaLabel: "$5 Small project support",
         pendingLabel: "Opening secure checkout…",
         fields: [["amountCents", "500"]],
       },
@@ -131,6 +133,7 @@ async function buildBillingFixtureBundle() {
           ) : null,
           React.createElement(PendingSubmitButton, {
             type: "submit",
+            "aria-label": form.ariaLabel,
             pendingLabel: form.pendingLabel,
             presentation: form.id === "donation" ? "button" : "metal-attention",
             metalFullWidth: form.id !== "donation",
@@ -178,7 +181,7 @@ async function openBillingFixture(page: Page) {
     await route.fulfill({
       status: 200,
       contentType: "text/html; charset=utf-8",
-      body: '<main id="root"></main><script src="/__interaction-feedback-billing-fixture.js"></script>',
+      body: '<style>.invisible{visibility:hidden}</style><main id="root"></main><script src="/__interaction-feedback-billing-fixture.js"></script>',
     })
   })
   await page.goto("/__interaction-feedback-billing-fixture", { waitUntil: "domcontentloaded" })
@@ -224,24 +227,26 @@ async function assertOneDelayedJsonSubmission({
 type NativeBillingFixtureCase = {
   fixtureId: "subscription" | "portal" | "donation"
   action: string
-  idleLabel: string
+  controlName: string
   pendingLabel: string
   expectedFields: Record<string, string>
   returnPath: string
   returnHeading: RegExp
   requiresTerms?: boolean
+  stableAccessibleName?: boolean
 }
 
 async function assertOneDelayedNativeBillingSubmission({
   page,
   fixtureId,
   action,
-  idleLabel,
+  controlName,
   pendingLabel,
   expectedFields,
   returnPath,
   returnHeading,
   requiresTerms = false,
+  stableAccessibleName = false,
 }: NativeBillingFixtureCase & { page: Page }) {
   let requests = 0
   let method = ""
@@ -262,18 +267,21 @@ async function assertOneDelayedNativeBillingSubmission({
   await expect(form).toHaveAttribute("method", "post")
   if (requiresTerms) await form.getByRole("checkbox").check()
 
-  await form.getByRole("button", { name: idleLabel }).evaluate((element) => {
+  const control = form.getByRole("button", { name: controlName })
+  const recorder = await installNativeSubmitSnapshotRecorder({ page, form, pendingLabel })
+  await control.evaluate((element) => {
     ;(element as HTMLButtonElement).click()
   })
-  const pending = form.getByRole("button", { name: pendingLabel })
-  await expect(pending).toBeDisabled()
-  await expect(pending).toHaveAttribute("aria-busy", "true")
-  await expect(form).toHaveAttribute("aria-busy", "true")
-  await expect(form.getByRole("status")).toHaveCount(1)
-  await expect(form.getByRole("status")).toHaveText(pendingLabel)
-  await form.evaluate((element) => {
-    ;(element as HTMLFormElement).requestSubmit()
+  const pendingSnapshot = await recorder.snapshot
+  expect(pendingSnapshot).toMatchObject({
+    buttonAriaBusy: "true",
+    buttonDisabled: true,
+    formAriaBusy: "true",
+    pendingCopyVisible: true,
+    statusCount: 1,
+    statusText: pendingLabel,
   })
+  if (stableAccessibleName) expect(pendingSnapshot.buttonAriaLabel).toBe(controlName)
   await expect.poll(() => requests).toBe(1)
 
   await expect.poll(() => {
@@ -431,7 +439,7 @@ const nativeBillingCases: readonly NativeBillingFixtureCase[] = [
   {
     fixtureId: "subscription" as const,
     action: "/api/billing/checkout",
-    idleLabel: "Start membership checkout",
+    controlName: "Start membership checkout",
     pendingLabel: "Opening secure subscription checkout…",
     expectedFields: {
       membershipLevel: "SUPPORTER",
@@ -447,7 +455,7 @@ const nativeBillingCases: readonly NativeBillingFixtureCase[] = [
   {
     fixtureId: "portal" as const,
     action: "/api/billing/portal",
-    idleLabel: "Manage billing account",
+    controlName: "Manage billing account",
     pendingLabel: "Opening billing portal…",
     expectedFields: { destination: "manage" },
     returnPath: "/account?tab=membership&portal=returned",
@@ -456,13 +464,94 @@ const nativeBillingCases: readonly NativeBillingFixtureCase[] = [
   {
     fixtureId: "donation" as const,
     action: "/api/billing/donation",
-    idleLabel: "Support with $5",
+    controlName: "$5 Small project support",
     pendingLabel: "Opening secure checkout…",
     expectedFields: { amountCents: "500" },
     returnPath: "/pricing?donation=cancelled",
     returnHeading: /one-time support checkout cancelled/i,
+    stableAccessibleName: true,
   },
 ]
+
+test("donation fixture keeps its production label while pending copy is announced", async ({ page }) => {
+  let requests = 0
+  await page.route("**/api/billing/donation", async (route) => {
+    requests += 1
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    await route.fulfill({ status: 204, body: "" })
+  })
+  await openBillingFixture(page)
+  const form = page.getByTestId("billing-form-donation")
+  const controlName = "$5 Small project support"
+  const pendingLabel = "Opening secure checkout…"
+  const control = form.getByRole("button", { name: controlName })
+  const recorder = await installNativeSubmitSnapshotRecorder({ page, form, pendingLabel })
+
+  await control.evaluate((element) => {
+    ;(element as HTMLButtonElement).click()
+  })
+  const pendingSnapshot = await recorder.snapshot
+  expect(pendingSnapshot).toMatchObject({
+    buttonAriaBusy: "true",
+    buttonAriaLabel: controlName,
+    buttonDisabled: true,
+    formAriaBusy: "true",
+    pendingCopyVisible: true,
+    statusCount: 1,
+    statusText: pendingLabel,
+  })
+  await expect.poll(() => requests).toBe(1)
+  await expect(page).toHaveURL(/__interaction-feedback-billing-fixture$/)
+})
+
+test("native constraint validation stays idle until the billing form is valid", async ({ page }) => {
+  let requests = 0
+  await page.route("**/api/billing/checkout", async (route) => {
+    requests += 1
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    await route.fulfill({ status: 204, body: "" })
+  })
+  await openBillingFixture(page)
+  const form = page.getByTestId("billing-form-subscription")
+  const control = form.getByRole("button", { name: "Start membership checkout" })
+  await form.evaluate((element) => {
+    Reflect.set(window, "__billingSubmitEvents", 0)
+    element.addEventListener("submit", () => {
+      const submits = Number(Reflect.get(window, "__billingSubmitEvents") ?? 0)
+      Reflect.set(window, "__billingSubmitEvents", submits + 1)
+    })
+  })
+
+  await control.click()
+  await page.waitForTimeout(100)
+  expect(requests).toBe(0)
+  expect(await page.evaluate(() => Reflect.get(window, "__billingSubmitEvents"))).toBe(0)
+  await expect(form).toHaveAttribute("aria-busy", "false")
+  await expect(control).toBeEnabled()
+  await expect(control).toHaveAttribute("aria-busy", "false")
+  await expect(form.getByRole("status")).toHaveCount(0)
+  await expect(form.getByText("Opening secure subscription checkout…", { exact: true })).toBeHidden()
+
+  await form.getByRole("checkbox").check()
+  const recorder = await installNativeSubmitSnapshotRecorder({
+    page,
+    form,
+    pendingLabel: "Opening secure subscription checkout…",
+  })
+  await control.evaluate((element) => {
+    ;(element as HTMLButtonElement).click()
+  })
+  const pendingSnapshot = await recorder.snapshot
+  expect(pendingSnapshot).toMatchObject({
+    buttonAriaBusy: "true",
+    buttonDisabled: true,
+    formAriaBusy: "true",
+    pendingCopyVisible: true,
+    statusCount: 1,
+  })
+  await expect.poll(() => requests).toBe(1)
+  await expect(page).toHaveURL(/__interaction-feedback-billing-fixture$/)
+})
 
 for (const billingCase of nativeBillingCases) {
   test(`${billingCase.fixtureId} native redirect owns one delayed POST and returns through the app`, async ({ page }) => {

@@ -212,6 +212,17 @@ test("pending submission form keeps function identity and owns native first-subm
   )
 })
 
+test("billing browser evidence covers native invalid-form idleness and the production donation label", () => {
+  const browserSpec = source("tests/browser/interaction-feedback.spec.ts")
+  const nativeSnapshot = source("tests/browser/native-submission-snapshot.ts")
+
+  assert.match(browserSpec, /test\("native constraint validation stays idle until the billing form is valid"/)
+  assert.match(browserSpec, /test\("donation fixture keeps its production label while pending copy is announced"/)
+  assert.match(browserSpec, /ariaLabel: "\$5 Small project support"/)
+  assert.match(browserSpec, /form\.getByRole\("status"\)\)\.toHaveCount\(0\)/)
+  assert.match(nativeSnapshot, /requestSubmit\(\)/)
+})
+
 test("function actions recover after real React DOM resolution and rejection", { timeout: 45_000 }, async () => {
   const pendingFormSource = source("components/forms/pending-submission-form.tsx")
   assert.match(pendingFormSource, /class PendingSubmissionErrorBoundary/)
