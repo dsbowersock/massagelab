@@ -208,6 +208,9 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
           <Link href="/forgot-password" className="text-brand-orange underline-offset-4 hover:underline">
             Forgot password?
           </Link>
+          <Link href="/verify-email" className="text-brand-orange underline-offset-4 hover:underline">
+            Resend verification email
+          </Link>
         </div>
     </AppSurface>
   )

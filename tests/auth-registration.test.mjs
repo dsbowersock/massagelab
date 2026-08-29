@@ -138,6 +138,18 @@ describe("registration email delivery policy", () => {
     assert.match(loginForm, /let navigationStarted = false[\s\S]*router\.push\(callbackUrl\)[\s\S]*router\.refresh\(\)[\s\S]*navigationStarted = true[\s\S]*finally \{[\s\S]*if \(!navigationStarted\)/)
   })
 
+  it("offers privacy-neutral verification resend from login and every unresolved verification state", async () => {
+    const loginForm = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
+    const verifyPage = await readFile(new URL("../app/verify-email/page.tsx", import.meta.url), "utf8")
+    const resendForm = await readFile(new URL("../app/verify-email/resend-verification-form.tsx", import.meta.url), "utf8")
+
+    assert.match(loginForm, /href="\/verify-email"[\s\S]*Resend verification email/)
+    assert.match(verifyPage, /import \{ ResendVerificationForm \}/)
+    assert.match(verifyPage, /!verified[\s\S]*<ResendVerificationForm callbackUrl=\{callbackUrl\}/)
+    assert.match(resendForm, /JSON\.stringify\(\{ email, callbackUrl \}\)/)
+    assert.doesNotMatch(resendForm, /[?&]email=|searchParams\.set\("email"/)
+  })
+
   it("preserves an app-local callback through email verification and sign-in", async () => {
     const authMail = await readFile(new URL("../lib/auth-mail.ts", import.meta.url), "utf8")
     const verifyPage = await readFile(new URL("../app/verify-email/page.tsx", import.meta.url), "utf8")

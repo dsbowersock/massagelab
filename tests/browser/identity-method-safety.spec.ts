@@ -145,6 +145,41 @@ test.describe("public account-entry recovery", () => {
     expect(googleRequests).toBe(1)
     expect(providerRequests).toEqual([])
   })
+
+  test("verification resend keeps email out of the URL and announces intercepted local work", async ({ page }) => {
+    const providerRequests = await blockLiveGoogleProviderRequests(page)
+    const submittedEmail = "browser-verification@example.test"
+    let requests = 0
+    let requestBody: { email?: string; callbackUrl?: string } = {}
+    await page.route("**/api/account/email-verification/request", async (route) => {
+      requests += 1
+      requestBody = route.request().postDataJSON()
+      await new Promise((resolve) => setTimeout(resolve, 750))
+      await route.fulfill({
+        status: 202,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "Check that email address for the appropriate sign-in, verification, or recovery next step." }),
+      })
+    })
+
+    await page.goto("/verify-email", { waitUntil: "domcontentloaded" })
+    await page.getByLabel("Email").fill(submittedEmail)
+    const submit = page.getByRole("button", { name: "Send another verification email" })
+    await submit.click()
+    const pending = page.getByRole("button", { name: "Sending verification email…" })
+    await expect(pending).toBeDisabled()
+    await pending.click({ force: true })
+    await expect(page.getByRole("status")).toContainText(/check that email address/i)
+
+    expect(requests).toBe(1)
+    expect(requestBody).toEqual({ email: submittedEmail, callbackUrl: "/onboarding" })
+    expect(page.url()).not.toContain(submittedEmail)
+    expect(new URL(page.url()).searchParams.has("email")).toBe(false)
+    expect(providerRequests).toEqual([])
+
+    await page.goto("/login", { waitUntil: "domcontentloaded" })
+    await expect(page.getByRole("link", { name: "Resend verification email" })).toHaveAttribute("href", "/verify-email")
+  })
 })
 
 test.describe("private identity-method journeys", () => {
