@@ -156,9 +156,12 @@ test.describe("public account-entry recovery", () => {
       requestBody = route.request().postDataJSON()
       await new Promise((resolve) => setTimeout(resolve, 750))
       await route.fulfill({
-        status: 202,
+        status: requests === 1 ? 202 : requests === 2 ? 429 : 503,
         contentType: "application/json",
-        body: JSON.stringify({ message: "Check that email address for the appropriate sign-in, verification, or recovery next step." }),
+        body: JSON.stringify({
+          code: "INTERNAL_PROVIDER_DETAIL",
+          message: "Account browser-verification@example.test uses private-provider-id-991.",
+        }),
       })
     })
 
@@ -169,16 +172,28 @@ test.describe("public account-entry recovery", () => {
     const pending = page.getByRole("button", { name: "Sending verification email…" })
     await expect(pending).toBeDisabled()
     await pending.click({ force: true })
-    await expect(page.getByRole("status")).toContainText(/check that email address/i)
+    await expect(page.getByRole("status")).toContainText(/if that email still needs verification/i)
+    await expect(page.locator("body")).not.toContainText("browser-verification@example.test uses private-provider-id-991")
+    await expect(page.locator("body")).not.toContainText("INTERNAL_PROVIDER_DETAIL")
 
-    expect(requests).toBe(1)
+    await page.getByRole("button", { name: "Send another verification email" }).click()
+    await expect(page.locator('p[role="alert"]')).toContainText(/too many requests/i)
+    await expect(page.locator("body")).not.toContainText("private-provider-id-991")
+    await page.getByRole("button", { name: "Send another verification email" }).click()
+    await expect(page.locator('p[role="alert"]')).toContainText(/could not request another verification email/i)
+    await expect(page.locator("body")).not.toContainText("private-provider-id-991")
+
+    expect(requests).toBe(3)
     expect(requestBody).toEqual({ email: submittedEmail, callbackUrl: "/onboarding" })
     expect(page.url()).not.toContain(submittedEmail)
     expect(new URL(page.url()).searchParams.has("email")).toBe(false)
     expect(providerRequests).toEqual([])
 
-    await page.goto("/login", { waitUntil: "domcontentloaded" })
-    await expect(page.getByRole("link", { name: "Resend verification email" })).toHaveAttribute("href", "/verify-email")
+    await page.goto("/login?callbackUrl=%2Fclock%3Fsource%3Dmusic%26panel%3Dbackground", { waitUntil: "domcontentloaded" })
+    await expect(page.getByRole("link", { name: "Resend verification email" })).toHaveAttribute(
+      "href",
+      "/verify-email?callbackUrl=%2Fclock%3Fsource%3Dmusic%26panel%3Dbackground",
+    )
   })
 })
 

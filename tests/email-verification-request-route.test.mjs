@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import { requestEmailVerification } from "../lib/email-verification-request.ts"
+import { buildVerificationRequestPath } from "../lib/auth-registration.js"
 import { runCommerceTransaction } from "../lib/commerce/transactions.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
@@ -116,6 +117,29 @@ describe("email verification request route", () => {
     assert.deepEqual(await response.json(), { message: PUBLIC_MESSAGE })
     assert.equal(afterCallbacks.length, 0)
   })
+
+  it("treats every non-object JSON body as generic invalid input without account work", async () => {
+    afterCallbacks.length = 0
+    let workCalls = 0
+    const handler = safeCreateHandler({
+      prismaClient: createRouteDatabase(),
+      secret: "secret",
+      verificationWork: async () => {
+        workCalls += 1
+        return { status: "ACCEPTED" }
+      },
+    })
+    assert.equal(typeof handler, "function")
+
+    for (const payload of [null, [], ["person@example.com"], 42, "person@example.com"]) {
+      const response = await handler(requestPayload(payload))
+
+      assert.equal(response.status, 202)
+      assert.deepEqual(await response.json(), { message: PUBLIC_MESSAGE })
+    }
+    assert.equal(workCalls, 0)
+    assert.equal(afterCallbacks.length, 0)
+  })
 })
 
 describe("verification resend form contract", () => {
@@ -129,7 +153,26 @@ describe("verification resend form contract", () => {
     assert.match(source, /pendingLabel="Sending verification email…"/)
     assert.match(source, /role=\{statusIsError \? "alert" : "status"\}/)
     assert.match(source, /aria-live=\{statusIsError \? "assertive" : "polite"\}/)
+    assert.doesNotMatch(source, /response\.json|result\.message/)
+    assert.match(source, /response\.status === 202/)
+    assert.match(source, /response\.status === 429/)
     assert.doesNotMatch(source, /URLSearchParams|router\.push|window\.location/)
+  })
+
+  it("preserves only a sanitized callback in the login resend link", async () => {
+    const loginSource = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
+    const callbackUrl = "/clock?source=music&panel=background"
+
+    assert.equal(
+      buildVerificationRequestPath(callbackUrl),
+      "/verify-email?callbackUrl=%2Fclock%3Fsource%3Dmusic%26panel%3Dbackground",
+    )
+    for (const unsafeCallback of ["//example.com/clock", "https://example.com/clock", "/api/account/preferences"]) {
+      assert.equal(buildVerificationRequestPath(unsafeCallback), "/verify-email?callbackUrl=%2Fonboarding")
+    }
+    assert.match(loginSource, /buildVerificationRequestPath\(callbackUrl\)/)
+    assert.match(loginSource, /href=\{verificationRequestHref\}[\s\S]*Resend verification email/)
+    assert.doesNotMatch(loginSource, /verify-email[^\n]*email=/)
   })
 })
 
@@ -142,10 +185,14 @@ function safeCreateHandler(dependencies) {
 }
 
 function request(email, callbackUrl) {
+  return requestPayload({ email, callbackUrl })
+}
+
+function requestPayload(payload) {
   return new Request("https://massagelab.app/api/account/email-verification/request", {
     method: "POST",
     headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.29" },
-    body: JSON.stringify({ email, callbackUrl }),
+    body: JSON.stringify(payload),
   })
 }
 

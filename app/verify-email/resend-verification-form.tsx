@@ -6,8 +6,8 @@ import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset } from "@/components/ui/app-surface"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-registration-service"
-
+const REQUEST_ACCEPTED_MESSAGE = "If that email still needs verification, check its inbox for the next step."
+const RATE_LIMIT_MESSAGE = "Too many requests. Please try again later."
 const REQUEST_FAILED_MESSAGE = "We could not request another verification email right now. Please try again."
 
 /** Collects an email in a request body without putting account data in the URL. */
@@ -32,9 +32,16 @@ export function ResendVerificationForm({ callbackUrl }: { callbackUrl: string })
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, callbackUrl }),
       })
-      const result = await response.json().catch(() => ({})) as { message?: string }
-      setStatus(result.message ?? (response.ok ? PUBLIC_ACCOUNT_ENTRY_MESSAGE : REQUEST_FAILED_MESSAGE))
-      setStatusIsError(!response.ok)
+      if (response.status === 202) {
+        setStatus(REQUEST_ACCEPTED_MESSAGE)
+        setStatusIsError(false)
+      } else if (response.status === 429) {
+        setStatus(RATE_LIMIT_MESSAGE)
+        setStatusIsError(true)
+      } else {
+        setStatus(REQUEST_FAILED_MESSAGE)
+        setStatusIsError(true)
+      }
     } catch {
       setStatus(REQUEST_FAILED_MESSAGE)
       setStatusIsError(true)

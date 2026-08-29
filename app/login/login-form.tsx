@@ -9,7 +9,8 @@ import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
+import { buildVerificationRequestPath } from "@/lib/auth-registration"
+import { buildRegistrationLegalProviderRedirectPath, safePostLegalAcceptanceCallback } from "@/lib/legal-acceptance-gate"
 
 type LoginFormProps = {
   googleEnabled: boolean
@@ -25,19 +26,15 @@ const ERROR_MESSAGES: Record<string, string> = {
   CredentialsSignin: "Email or password is incorrect.",
 }
 
-function safeCallbackUrl(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/account"
-  return value
-}
-
 export function LoginForm({ googleEnabled }: LoginFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const hasCallbackUrl = searchParams.has("callbackUrl")
-  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"))
+  const callbackUrl = safePostLegalAcceptanceCallback(searchParams.get("callbackUrl"), "/account")
   // Google OAuth defaults to onboarding only when no callback was requested.
   const googleCallbackUrl = hasCallbackUrl ? callbackUrl : "/onboarding"
   const googleRedirectTo = buildRegistrationLegalProviderRedirectPath(googleCallbackUrl)
+  const verificationRequestHref = buildVerificationRequestPath(callbackUrl)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [twoFactorCode, setTwoFactorCode] = useState("")
@@ -208,7 +205,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
           <Link href="/forgot-password" className="text-brand-orange underline-offset-4 hover:underline">
             Forgot password?
           </Link>
-          <Link href="/verify-email" className="text-brand-orange underline-offset-4 hover:underline">
+          <Link href={verificationRequestHref} className="text-brand-orange underline-offset-4 hover:underline">
             Resend verification email
           </Link>
         </div>

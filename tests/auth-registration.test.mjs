@@ -158,7 +158,7 @@ describe("registration email delivery policy", () => {
     const verifyPage = await readFile(new URL("../app/verify-email/page.tsx", import.meta.url), "utf8")
     const resendForm = await readFile(new URL("../app/verify-email/resend-verification-form.tsx", import.meta.url), "utf8")
 
-    assert.match(loginForm, /href="\/verify-email"[\s\S]*Resend verification email/)
+    assert.match(loginForm, /href=\{verificationRequestHref\}[\s\S]*Resend verification email/)
     assert.match(verifyPage, /import \{ ResendVerificationForm \}/)
     assert.match(verifyPage, /!verified[\s\S]*<ResendVerificationForm callbackUrl=\{callbackUrl\}/)
     assert.match(resendForm, /JSON\.stringify\(\{ email, callbackUrl \}\)/)

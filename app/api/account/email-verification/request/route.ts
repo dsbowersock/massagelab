@@ -28,7 +28,10 @@ export function createEmailVerificationRequestHandler({
   verificationWork = requestEmailVerification,
 }: EmailVerificationRequestDependencies) {
   return async function emailVerificationRequestHandler(request: Request) {
-    const body = await request.json().catch(() => ({}))
+    const body = await request.json().catch(() => null)
+    if (!isRequestBody(body)) {
+      return NextResponse.json({ message: PUBLIC_ACCOUNT_ENTRY_MESSAGE }, { status: 202 })
+    }
     const email = normalizeEmail(body.email)
     if (!validPublicEmail(email)) {
       return NextResponse.json({ message: PUBLIC_ACCOUNT_ENTRY_MESSAGE }, { status: 202 })
@@ -59,6 +62,11 @@ export function createEmailVerificationRequestHandler({
     }
     return NextResponse.json({ message: PUBLIC_ACCOUNT_ENTRY_MESSAGE }, { status: 202 })
   }
+}
+
+/** Rejects JSON primitives and arrays before reading public request fields. */
+function isRequestBody(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 function requestIp(request: Request): string {
