@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { env as processEnv } from "node:process"
 import {
   BACKGROUND_PURCHASE_PURPOSE,
   classifyStripeCheckoutSessionPurpose,
@@ -32,6 +33,7 @@ const BACKGROUND_CHECKOUT_EVENT_TYPES = new Set(STRIPE_BACKGROUND_CHECKOUT_WEBHO
 const REFUND_EVENT_TYPES = new Set(STRIPE_BACKGROUND_REFUND_WEBHOOK_EVENTS)
 const DISPUTE_EVENT_TYPES = new Set(STRIPE_BACKGROUND_DISPUTE_WEBHOOK_EVENTS)
 const MEMBERSHIP_EVENT_TYPES = new Set(STRIPE_MEMBERSHIP_WEBHOOK_EVENTS)
+const MEMBERSHIP_WEBHOOK_WRITES_PAUSED_ENV = "MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED"
 
 function processorObjectId(value: unknown) {
   if (typeof value === "string") return value
@@ -39,6 +41,19 @@ function processorObjectId(value: unknown) {
     return typeof value.id === "string" ? value.id : ""
   }
   return ""
+}
+
+/**
+ * Owns the two-deployment cutover bridge while old legacy-writer invocations
+ * drain. The first convergence deployment uses exact `1` to make Stripe retry;
+ * only a later deployment removes it or sets `0` and lets convergence write.
+ */
+function membershipWebhookWritesPaused(environment: NodeJS.ProcessEnv) {
+  return environment[MEMBERSHIP_WEBHOOK_WRITES_PAUSED_ENV] === "1"
+}
+
+function membershipRetryResponse() {
+  return NextResponse.json({ received: false, retry: true }, { status: 503 })
 }
 
 /**
@@ -58,7 +73,7 @@ async function processMembershipEvent(event: unknown) {
     return null
   } catch (error) {
     if (error instanceof MembershipWebhookRetryableError) {
-      return NextResponse.json({ received: false, retry: true }, { status: 503 })
+      return membershipRetryResponse()
     }
     return NextResponse.json({ received: false }, { status: 500 })
   }
@@ -97,6 +112,7 @@ export async function POST(request: Request) {
         clearAccountSurfaceDataCache(result.userId, "membership")
       }
     } else if (event.type === "checkout.session.completed" && purpose === "membership") {
+      if (membershipWebhookWritesPaused(processEnv)) return membershipRetryResponse()
       const response = await processMembershipEvent(event)
       if (response) return response
     }
@@ -105,6 +121,7 @@ export async function POST(request: Request) {
   }
 
   if (MEMBERSHIP_EVENT_TYPES.has(event?.type)) {
+    if (membershipWebhookWritesPaused(processEnv)) return membershipRetryResponse()
     const response = await processMembershipEvent(event)
     if (response) return response
   }

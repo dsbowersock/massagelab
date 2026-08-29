@@ -19,6 +19,8 @@ const routeSource = readFileSync(
   new URL("../app/api/billing/webhook/route.ts", import.meta.url),
   "utf8",
 )
+const envExample = readFileSync(new URL("../.env.example", import.meta.url), "utf8")
+const MEMBERSHIP_WRITES_PAUSED_ENV = "MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED"
 
 describe("signed membership webhook route", () => {
   it("verifies the exact raw body and signature before parsing or writing", async () => {
@@ -33,6 +35,64 @@ describe("signed membership webhook route", () => {
       ["signature", rawBody, "sig_invalid", "whsec_test"],
     ])
   })
+
+  it("documents the deployment bridge as a blank non-secret environment input", () => {
+    assert.match(envExample, /^MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED=$/m)
+    assert.doesNotMatch(envExample, /^MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED=.+$/m)
+  })
+
+  it("returns the retry contract for paused membership Checkout before processor, provider, database, or cache work", async () => {
+    const harness = createWebhookHarness({
+      environment: { [MEMBERSHIP_WRITES_PAUSED_ENV]: "1" },
+      membershipResult: { outcome: "applied", changed: true, userId: "user_123" },
+    })
+    const event = checkoutEvent({ purpose: "membership", mode: "subscription" })
+
+    const response = await harness.POST(webhookRequest(JSON.stringify(event)))
+
+    assert.equal(response.status, 503)
+    assert.deepEqual(await response.json(), { received: false, retry: true })
+    assert.deepEqual(harness.calls.map(([name]) => name), ["signature", "classify"])
+    assert.deepEqual(harness.membershipInputs, [])
+    assert.deepEqual(harness.subscriptionRetrievals, [])
+    assert.deepEqual(harness.databaseAccesses, [])
+  })
+
+  for (const eventType of STRIPE_MEMBERSHIP_WEBHOOK_EVENTS) {
+    it(`returns the retry contract for paused ${eventType} before any membership work`, async () => {
+      const harness = createWebhookHarness({
+        environment: { [MEMBERSHIP_WRITES_PAUSED_ENV]: "1" },
+      })
+
+      const response = await harness.POST(webhookRequest(JSON.stringify(
+        subscriptionEvent(eventType),
+      )))
+
+      assert.equal(response.status, 503)
+      assert.deepEqual(await response.json(), { received: false, retry: true })
+      assert.deepEqual(harness.calls.map(([name]) => name), ["signature"])
+      assert.deepEqual(harness.membershipInputs, [])
+      assert.deepEqual(harness.subscriptionRetrievals, [])
+      assert.deepEqual(harness.databaseAccesses, [])
+    })
+  }
+
+  for (const flagValue of [undefined, "0", "true", "yes", " 1 ", "1 "]) {
+    it(`keeps ordinary convergence for the ${flagValue === undefined ? "missing" : JSON.stringify(flagValue)} pause value`, async () => {
+      const environment = flagValue === undefined
+        ? {}
+        : { [MEMBERSHIP_WRITES_PAUSED_ENV]: flagValue }
+      const harness = createWebhookHarness({ environment })
+
+      const response = await harness.POST(webhookRequest(JSON.stringify(
+        subscriptionEvent("customer.subscription.updated"),
+      )))
+
+      assert.equal(response.status, 200)
+      assert.deepEqual(await response.json(), { received: true })
+      assert.equal(harness.membershipInputs.length, 1)
+    })
+  }
 
   it("routes membership-purpose Checkout completion through convergence with the current retrieval owner", async () => {
     const harness = createWebhookHarness({
@@ -52,6 +112,7 @@ describe("signed membership webhook route", () => {
     )
     assert.deepEqual(harness.calls.map(([name]) => name), [
       "signature",
+      "classify",
       "membership",
       "cache",
     ])
@@ -151,14 +212,16 @@ describe("signed membership webhook route", () => {
     ["future-purpose", "subscription"],
   ]) {
     it(`acknowledges ${purpose} Checkout without entitlement or commerce writes`, async () => {
-      const harness = createWebhookHarness()
+      const harness = createWebhookHarness({
+        environment: { [MEMBERSHIP_WRITES_PAUSED_ENV]: "1" },
+      })
       const event = checkoutEvent({ purpose, mode })
 
       const response = await harness.POST(webhookRequest(JSON.stringify(event)))
 
       assert.equal(response.status, 200)
       assert.deepEqual(await response.json(), { received: true })
-      assert.deepEqual(harness.calls.map(([name]) => name), ["signature"])
+      assert.deepEqual(harness.calls.map(([name]) => name), ["signature", "classify"])
     })
   }
 })
@@ -166,7 +229,10 @@ describe("signed membership webhook route", () => {
 describe("non-membership billing webhook routing", () => {
   for (const eventType of STRIPE_BACKGROUND_CHECKOUT_WEBHOOK_EVENTS) {
     it(`preserves ${eventType} background fulfillment routing`, async () => {
-      const harness = createWebhookHarness({ backgroundChanged: true })
+      const harness = createWebhookHarness({
+        backgroundChanged: true,
+        environment: { [MEMBERSHIP_WRITES_PAUSED_ENV]: "1" },
+      })
       const event = checkoutEvent({
         eventType,
         purpose: BACKGROUND_PURCHASE_PURPOSE,
@@ -187,7 +253,9 @@ describe("non-membership billing webhook routing", () => {
 
   for (const eventType of STRIPE_BACKGROUND_REFUND_WEBHOOK_EVENTS) {
     it(`preserves ${eventType} refund routing`, async () => {
-      const harness = createWebhookHarness()
+      const harness = createWebhookHarness({
+        environment: { [MEMBERSHIP_WRITES_PAUSED_ENV]: "1" },
+      })
       const event = processorEvent(eventType, {
         id: "re_123",
         payment_intent: "pi_123",
@@ -205,7 +273,9 @@ describe("non-membership billing webhook routing", () => {
 
   for (const eventType of STRIPE_BACKGROUND_DISPUTE_WEBHOOK_EVENTS) {
     it(`preserves ${eventType} dispute routing`, async () => {
-      const harness = createWebhookHarness()
+      const harness = createWebhookHarness({
+        environment: { [MEMBERSHIP_WRITES_PAUSED_ENV]: "1" },
+      })
       const event = processorEvent(eventType, {
         id: "dp_123",
         charge: { id: "ch_123", payment_intent: "pi_123" },
@@ -223,7 +293,9 @@ describe("non-membership billing webhook routing", () => {
   }
 
   it("preserves dispute charge retrieval before reversal processing", async () => {
-    const harness = createWebhookHarness()
+    const harness = createWebhookHarness({
+      environment: { [MEMBERSHIP_WRITES_PAUSED_ENV]: "1" },
+    })
     const event = processorEvent("charge.dispute.created", {
       id: "dp_123",
       charge: "ch_123",
@@ -244,6 +316,7 @@ function createWebhookHarness({
   membershipError = null,
   membershipPending = null,
   backgroundChanged = false,
+  environment = {},
 } = {}) {
   const calls = []
   const membershipInputs = []
@@ -252,13 +325,26 @@ function createWebhookHarness({
   const disputeInputs = []
   const backgroundRetrievals = []
   const chargeRetrievals = []
-  const prismaClient = { owner: "test-prisma" }
+  const subscriptionRetrievals = []
+  const databaseAccesses = []
+  const prismaClient = new Proxy({ owner: "test-prisma" }, {
+    get(target, property, receiver) {
+      databaseAccesses.push(String(property))
+      return Reflect.get(target, property, receiver)
+    },
+  })
   const retrievedBackgroundSession = { id: "cs_background_retrieved" }
-  const retrieveStripeSubscription = async (subscriptionId) => ({ id: subscriptionId })
+  const retrieveStripeSubscription = async (subscriptionId) => {
+    subscriptionRetrievals.push(subscriptionId)
+    return { id: subscriptionId }
+  }
 
   const stripeBilling = {
     BACKGROUND_PURCHASE_PURPOSE,
-    classifyStripeCheckoutSessionPurpose,
+    classifyStripeCheckoutSessionPurpose: (session) => {
+      calls.push(["classify"])
+      return classifyStripeCheckoutSessionPurpose(session)
+    },
     getStripeClient: () => ({
       charges: {
         retrieve: async (chargeId) => {
@@ -295,6 +381,7 @@ function createWebhookHarness({
   }
 
   const routeModule = loadCompiledModule(routeSource, "billing-webhook-route.test.ts", {
+    "node:process": { env: environment },
     "next/server": {
       NextResponse: {
         json: (body, init = {}) => Response.json(body, { status: init.status ?? 200 }),
@@ -343,6 +430,7 @@ function createWebhookHarness({
     backgroundRetrievals,
     calls,
     chargeRetrievals,
+    databaseAccesses,
     disputeInputs,
     fulfillmentInputs,
     membershipInputs,
@@ -350,6 +438,7 @@ function createWebhookHarness({
     refundInputs,
     retrievedBackgroundSession,
     retrieveStripeSubscription,
+    subscriptionRetrievals,
   }
 }
 
