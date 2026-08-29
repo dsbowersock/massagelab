@@ -69,9 +69,6 @@ CREATE UNIQUE INDEX "AccountSecurityEmailIntent_idempotencyKey_key" ON "AccountS
 CREATE INDEX "AccountSecurityEmailIntent_status_claimExpiresAt_idx" ON "AccountSecurityEmailIntent"("status", "claimExpiresAt");
 CREATE INDEX "AccountSecurityEmailIntent_userId_createdAt_idx" ON "AccountSecurityEmailIntent"("userId", "createdAt");
 
-CREATE UNIQUE INDEX "User_normalized_email_key"
-  ON "User" (lower(btrim("email"))) WHERE "email" IS NOT NULL;
-
 ALTER TABLE "AuthMethodIntent"
   ADD CONSTRAINT "AuthMethodIntent_targetUserId_fkey"
   FOREIGN KEY ("targetUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

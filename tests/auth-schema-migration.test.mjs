@@ -13,15 +13,21 @@ const {
 const directUrl = "postgresql://operator:secret@ep-example.us-east-2.aws.neon.tech:5432/massagelab?sslmode=require"
 const pooledUrl = "postgresql://operator:secret@ep-example-pooler.us-east-2.aws.neon.tech/massagelab?sslmode=require"
 
-const [schema, migration, preflight, cleanup, packageJsonSource] = await Promise.all([
+const [schema, migration, normalizedIndexMigration, preflight, cleanup, packageJsonSource, deployment, releaseChecklist] = await Promise.all([
   readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8"),
   readFile(
     new URL("../prisma/migrations/20260828120000_identity_method_safety/migration.sql", import.meta.url),
     "utf8",
   ).catch(() => ""),
+  readFile(
+    new URL("../prisma/migrations/20260828121000_identity_normalized_email_index/migration.sql", import.meta.url),
+    "utf8",
+  ).catch(() => ""),
   readFile(new URL("../scripts/check-normalized-email-collisions.mjs", import.meta.url), "utf8").catch(() => ""),
   readFile(new URL("../scripts/cleanup-legacy-auth-attempts.mjs", import.meta.url), "utf8").catch(() => ""),
   readFile(new URL("../package.json", import.meta.url), "utf8"),
+  readFile(new URL("../docs/wiki/deployment.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/wiki/release-checklist.md", import.meta.url), "utf8"),
 ])
 const packageJson = JSON.parse(packageJsonSource)
 
@@ -62,11 +68,25 @@ describe("identity method safety persistence", () => {
     assert.match(migration, /CREATE TABLE "AuthRateLimitBucket"/)
     assert.doesNotMatch(migration, /(?:"AuthAttempt"|\bAuthAttempt\b)/)
     assert.doesNotMatch(migration, /\bAuthAttempt_purpose_key_key\b/)
-    assert.match(migration, /CREATE UNIQUE INDEX "User_normalized_email_key"[\s\S]*lower\(btrim\("email"\)\)/)
+    assert.doesNotMatch(migration, /User_normalized_email_key/)
+    assert.equal(
+      normalizedIndexMigration.trim(),
+      'CREATE UNIQUE INDEX CONCURRENTLY "User_normalized_email_key"\n  ON "User" (lower(btrim("email"))) WHERE "email" IS NOT NULL;',
+    )
     assert.match(migration, /CREATE TABLE "AuthMethodIntent"/)
     assert.match(migration, /CREATE TABLE "AccountSecurityEmailIntent"/)
     assert.match(preflight, /normalized_collision_count/)
     assert.doesNotMatch(preflight, /SELECT[\s\S]*email[\s\S]*console\.log/i)
+  })
+
+  it("documents collision preflight, concurrent index recovery, and the required recovery notice without contradiction", () => {
+    assert.match(deployment, /CREATE UNIQUE INDEX CONCURRENTLY/)
+    assert.match(deployment, /invalid index/i)
+    assert.match(deployment, /stop[^.]*migration/i)
+    assert.match(releaseChecklist, /second Admin evidence(?:\/action)? bundle/i)
+    assert.match(releaseChecklist, /PASSWORD_RECOVERED/)
+    assert.match(releaseChecklist, /account-security[^.]*deliver(?:y|ed)|deliver(?:y|ed)[^.]*account-security/i)
+    assert.doesNotMatch(releaseChecklist, /must not create[^\n]*account-change email intent/i)
   })
 
   it("registers privacy-safe preflight and dormant cleanup commands", () => {
