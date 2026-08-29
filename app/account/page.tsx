@@ -21,6 +21,7 @@ import { SecurityPanel } from "@/app/account/security/security-panel"
 import { SignOutButton } from "@/app/account/sign-out-button"
 import { SupporterInterestsPanel } from "@/app/account/supporter-interests-panel"
 import { BackgroundCommercePanel } from "@/components/account/BackgroundCommercePanel"
+import { PendingSubmissionForm, PendingSubmitButton } from "@/components/forms/pending-submission-form"
 import { accountPageGroups, accountPageTabs, formatAccountDate, selectAccountTab } from "@/lib/account-page"
 import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
 import { getAccountSurfaceData, sessionHasActiveMembershipBenefits } from "@/lib/account-surface-data"
@@ -50,8 +51,10 @@ type AccountPageProps = {
   searchParams?: Promise<{
     billing?: string
     checkout?: string
+    credential?: string
     legal?: string
     portal?: string
+    profile?: string
     tab?: string
   }>
 }
@@ -59,8 +62,10 @@ type AccountPageProps = {
 type AccountNoticeInput = {
   billing?: string
   checkout?: string
+  credential?: string
   legal?: string
   portal?: string
+  profile?: string
 }
 
 type NormalizedAccountReturnState = {
@@ -75,8 +80,10 @@ type NormalizedAccountReturnState = {
 function normalizeAccountReturnState(params: {
   billing?: string
   checkout?: string
+  credential?: string
   legal?: string
   portal?: string
+  profile?: string
 } | undefined): NormalizedAccountReturnState {
   if (params?.checkout === "success") {
     return { kind: "checkout", notice: {} }
@@ -96,6 +103,12 @@ function normalizeAccountReturnState(params: {
   }
   if (params?.legal === "therapist-agreement-required") {
     return { kind: null, notice: { legal: params.legal } }
+  }
+  if (params?.profile === "saved" || params?.profile === "save-failed") {
+    return { kind: null, notice: { profile: params.profile } }
+  }
+  if (params?.credential === "submitted" || params?.credential === "submit-failed") {
+    return { kind: null, notice: { credential: params.credential } }
   }
   if (params?.billing) {
     return { kind: null, notice: { billing: params.billing } }
@@ -121,7 +134,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     legal: params?.legal,
     portal: params?.portal,
   })
-  const showMobileIndexFirst = !params?.tab && !params?.billing && !params?.checkout && !params?.legal && !params?.portal
+  const showMobileIndexFirst = !params?.tab && !params?.billing && !params?.checkout && !params?.credential && !params?.legal && !params?.portal && !params?.profile
 
   if (!session?.user?.id) {
     return (
@@ -483,7 +496,7 @@ async function ProfileTab({ userId, sessionUser }: { userId: string; sessionUser
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={saveProfileAction} className="space-y-5">
+          <PendingSubmissionForm action={saveProfileAction} className="space-y-5">
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="display_name">Display name</Label>
@@ -512,10 +525,8 @@ async function ProfileTab({ userId, sessionUser }: { userId: string; sessionUser
                 <Input id="npi_number" name="npi_number" defaultValue={profile?.npiNumber ?? ""} />
               </div>
             </div>
-            <Button type="submit">
-              Save profile
-            </Button>
-          </form>
+            <PendingSubmitButton type="submit" idleLabel="Save profile" pendingLabel="Saving profile…" />
+          </PendingSubmissionForm>
         </CardContent>
       </Card>
     </TabsContent>
@@ -579,7 +590,7 @@ async function CredentialsTab({ userId, sessionUser }: { userId: string; session
             </div>
           ) : null}
 
-          <form action={requestCredentialVerificationAction} className="grid gap-4 border-t border-border/80 pt-5 md:grid-cols-2">
+          <PendingSubmissionForm action={requestCredentialVerificationAction} className="grid gap-4 border-t border-border/80 pt-5 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="credential_kind">Credential type</Label>
               <select
@@ -657,11 +668,9 @@ async function CredentialsTab({ userId, sessionUser }: { userId: string; session
               </span>
             </label>
             <div className="md:col-span-2">
-              <Button type="submit" variant="outline">
-                Request verification
-              </Button>
+              <PendingSubmitButton type="submit" variant="outline" idleLabel="Request verification" pendingLabel="Submitting verification…" />
             </div>
-          </form>
+          </PendingSubmissionForm>
         </CardContent>
       </Card>
     </TabsContent>
@@ -1066,10 +1075,12 @@ function AccountActionLink({
 function AccountNotice({
   billing,
   checkout,
+  credential,
   legal,
   portal,
+  profile,
 }: AccountNoticeInput) {
-  const notice = accountNotice({ billing, checkout, legal, portal })
+  const notice = accountNotice({ billing, checkout, credential, legal, portal, profile })
 
   if (!notice) {
     return null
@@ -1083,8 +1094,10 @@ function AccountNotice({
 function accountNotice({
   billing,
   checkout,
+  credential,
   legal,
   portal,
+  profile,
 }: AccountNoticeInput) {
   if (checkout === "cancelled") {
     return {
@@ -1123,6 +1136,38 @@ function accountNotice({
     return {
       title: "Therapist Agreement required",
       description: "Accept the Therapist Agreement before requesting professional or practice access.",
+      tone: "destructive" as const,
+    }
+  }
+
+  if (profile === "saved") {
+    return {
+      title: "Profile saved",
+      description: "Your account profile was saved.",
+      tone: "default" as const,
+    }
+  }
+
+  if (profile === "save-failed") {
+    return {
+      title: "Profile could not be saved",
+      description: "Something went wrong. Please try again.",
+      tone: "destructive" as const,
+    }
+  }
+
+  if (credential === "submitted") {
+    return {
+      title: "Verification submitted",
+      description: "Your verification request was submitted.",
+      tone: "default" as const,
+    }
+  }
+
+  if (credential === "submit-failed") {
+    return {
+      title: "Verification could not be submitted",
+      description: "Something went wrong. Please try again.",
       tone: "destructive" as const,
     }
   }

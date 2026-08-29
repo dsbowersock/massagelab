@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signIn } from "next-auth/react"
 
+import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -66,9 +67,9 @@ export function LinkGoogleForm({ validIntent }: { validIntent: boolean }) {
       setMessage("Linked. Redirecting to account security…")
       router.push("/account?tab=security")
       router.refresh()
-    } catch (error) {
+    } catch {
       setActionState("error")
-      setMessage(error instanceof Error ? error.message : "The account could not be linked. Try again.")
+      setMessage("Something went wrong. Please try again.")
     } finally {
       actionLock.current = false
       if (!completed) {
@@ -106,14 +107,18 @@ export function LinkGoogleForm({ validIntent }: { validIntent: boolean }) {
               <Input id="linkAccountTwoFactor" autoComplete="one-time-code" value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value)} required disabled={busy} />
             </div>
           ) : null}
-          <Button type="submit" className="w-full" disabled={busy}>
-            {actionState === "proving" ? "Checking password…" : actionState === "saving" ? "Linking sign-in methods…" : actionState === "redirecting" ? "Redirecting…" : "Confirm same MassageLab account"}
-          </Button>
+          <AsyncActionButton
+            type="submit"
+            className="w-full"
+            pending={busy}
+            idleLabel="Confirm same MassageLab account"
+            pendingLabel="Connecting Google…"
+          />
         </form>
       )}
       {message ? (
         <AppInset className="p-3 text-sm">
-          <p role={actionState === "error" ? "alert" : "status"} aria-live={actionState === "error" ? "assertive" : "polite"}>{message}</p>
+          <p role={actionState === "error" ? "alert" : busy ? undefined : "status"} aria-live={actionState === "error" ? "assertive" : busy ? undefined : "polite"}>{message}</p>
         </AppInset>
       ) : null}
     </AppSurface>

@@ -267,6 +267,25 @@ describe("Account page tab model", () => {
     assert.match(accountPageSource, /portal === "error"/)
   })
 
+  it("maps profile and credential action outcomes to explicit safe notices", () => {
+    const { accountNotice, normalizeAccountReturnState } = loadAccountReturnContract()
+    const cases = [
+      [{ profile: "saved" }, "Profile saved"],
+      [{ profile: "save-failed" }, "Profile could not be saved"],
+      [{ credential: "submitted" }, "Verification submitted"],
+      [{ credential: "submit-failed" }, "Verification could not be submitted"],
+    ]
+    for (const [params, expectedTitle] of cases) {
+      const state = normalizeAccountReturnState(params)
+      assert.deepEqual(state, { kind: null, notice: params })
+      assert.equal(accountNotice(state.notice)?.title, expectedTitle)
+    }
+    assert.match(accountPageSource, /<PendingSubmissionForm action=\{saveProfileAction\}/)
+    assert.match(accountPageSource, /pendingLabel="Saving profile…"/)
+    assert.match(accountPageSource, /<PendingSubmissionForm action=\{requestCredentialVerificationAction\}/)
+    assert.match(accountPageSource, /pendingLabel="Submitting verification…"/)
+  })
+
   it("builds stable account tab hrefs for route-backed navigation", () => {
     assert.equal(getAccountTabHref("orders-invoices"), "/account?tab=orders-invoices")
     assert.equal(getAccountTabHref("profile"), "/account?tab=profile")

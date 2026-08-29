@@ -5,8 +5,8 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { signIn } from "next-auth/react"
 import { Mail, ShieldCheck } from "lucide-react"
+import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
@@ -15,7 +15,7 @@ type LoginFormProps = {
   googleEnabled: boolean
 }
 
-type EntryAction = "idle" | "email" | "google"
+type ActiveSubmission = "email" | "google" | null
 
 const ERROR_MESSAGES: Record<string, string> = {
   EMAIL_UNVERIFIED: "Verify your email before signing in.",
@@ -44,24 +44,25 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
   const [needsTwoFactor, setNeedsTwoFactor] = useState(false)
   const [status, setStatus] = useState(searchParams.get("verified") ? "Email verified. You can sign in now." : "")
   const [statusIsError, setStatusIsError] = useState(false)
-  const [entryAction, setEntryAction] = useState<EntryAction>("idle")
-  const entryActionLock = useRef(false)
+  const [activeSubmission, setActiveSubmission] = useState<ActiveSubmission>(null)
+  const submissionLock = useRef(false)
 
-  function beginEntryAction(action: Exclude<EntryAction, "idle">) {
-    if (entryActionLock.current) return false
-    entryActionLock.current = true
-    setEntryAction(action)
+  function beginSubmission(action: Exclude<ActiveSubmission, null>) {
+    if (submissionLock.current) return false
+    submissionLock.current = true
+    setActiveSubmission(action)
     return true
   }
 
-  function finishEntryAction() {
-    entryActionLock.current = false
-    setEntryAction("idle")
+  function finishSubmission() {
+    submissionLock.current = false
+    setActiveSubmission(null)
   }
 
   async function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!beginEntryAction("email")) return
+    if (!beginSubmission("email")) return
+    let navigationStarted = false
     setStatus("")
     setStatusIsError(false)
     try {
@@ -74,6 +75,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
       if (!result?.error) {
         router.push(callbackUrl)
         router.refresh()
+        navigationStarted = true
         return
       }
       const errorCode = result.code ?? result.error
@@ -86,15 +88,15 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
       setStatus((errorCode ? ERROR_MESSAGES[errorCode] : undefined) ?? "Sign in failed. Try again.")
       setStatusIsError(true)
     } catch {
-      setStatus("Sign in failed. Try again.")
+      setStatus("Something went wrong. Please try again.")
       setStatusIsError(true)
     } finally {
-      finishEntryAction()
+      if (!navigationStarted) finishSubmission()
     }
   }
 
   async function handleGoogleLogin() {
-    if (!beginEntryAction("google")) return
+    if (!beginSubmission("google")) return
     setStatus("")
     setStatusIsError(false)
     try {
@@ -107,10 +109,10 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
       if (!response.ok || !result.ok || !result.callbackUrl) throw new Error("Google intent unavailable")
       await signIn("google", { redirectTo: result.callbackUrl })
     } catch {
-      setStatus("Google sign-in could not be started. Try again or use email and password.")
+      setStatus("Something went wrong. Please try again.")
       setStatusIsError(true)
     } finally {
-      finishEntryAction()
+      finishSubmission()
     }
   }
 
@@ -124,7 +126,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
       }
       contentClassName="gap-5"
     >
-        <form className="space-y-3" onSubmit={handleEmailLogin} aria-busy={entryAction === "email"}>
+        <form className="space-y-3" onSubmit={handleEmailLogin}>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -160,17 +162,29 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
               />
             </div>
           )}
-          <Button type="submit" className="w-full" disabled={entryAction !== "idle"}>
-            <Mail className="mr-2 h-4 w-4" />
-            {entryAction === "email" ? "Signing in…" : "Sign in with email"}
-          </Button>
+          <AsyncActionButton
+            type="submit"
+            className="w-full"
+            disabled={activeSubmission !== null}
+            pending={activeSubmission === "email"}
+            idleLabel="Sign in with email"
+            pendingLabel="Signing in…"
+            icon={<Mail className="h-4 w-4" />}
+          />
         </form>
 
         {googleEnabled ? (
-          <Button type="button" variant="outline" className="w-full" disabled={entryAction !== "idle"} onClick={handleGoogleLogin}>
-            <ShieldCheck className="mr-2 h-4 w-4" />
-            {entryAction === "google" ? "Starting Google sign-in…" : "Continue with Google"}
-          </Button>
+          <AsyncActionButton
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={activeSubmission !== null}
+            pending={activeSubmission === "google"}
+            idleLabel="Continue with Google"
+            pendingLabel="Connecting to Google…"
+            icon={<ShieldCheck className="h-4 w-4" />}
+            onClick={handleGoogleLogin}
+          />
         ) : (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
             Google sign-in is not available right now. Use email and password, or try Google again later.

@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react"
 import { signIn } from "next-auth/react"
 
+import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 type MethodActionState = "idle" | "proving" | "saving" | "redirecting" | "success" | "error"
+type PendingMethodAction = "google-proof" | "password" | "unlink-google" | "disable-password" | null
 type MethodResponse = { code?: string; message?: string; googleLinked?: boolean; hasPasswordCredential?: boolean }
 
 /** Owns recoverable client states while server routes retain every proof and mutation rule. */
@@ -33,17 +34,19 @@ export function SignInMethodsPanel({
   const [disablePasswordConfirmed, setDisablePasswordConfirmed] = useState(false)
   const [reauthComplete, setReauthComplete] = useState(false)
   const [actionState, setActionState] = useState<MethodActionState>("idle")
+  const [pendingAction, setPendingAction] = useState<PendingMethodAction>(null)
   const [message, setMessage] = useState("")
   const actionLock = useRef(false)
-  const busy = actionState === "proving" || actionState === "saving" || actionState === "redirecting"
+  const busy = pendingAction !== null
 
   useEffect(() => {
     setReauthComplete(new URLSearchParams(window.location.search).get("reauth") === "complete")
   }, [])
 
-  function begin(action: MethodActionState, status: string) {
+  function begin(pending: Exclude<PendingMethodAction, null>, action: MethodActionState, status: string) {
     if (actionLock.current) return false
     actionLock.current = true
+    setPendingAction(pending)
     setActionState(action)
     setMessage(status)
     return true
@@ -55,7 +58,7 @@ export function SignInMethodsPanel({
   }
 
   async function startGoogleProof(purpose: "SIGN_IN_OR_LINK" | "ADD_PASSWORD" | "REMOVE_PASSWORD") {
-    if (!begin("proving", "Preparing secure Google confirmation…")) return
+    if (!begin("google-proof", "proving", "Preparing secure Google confirmation…")) return
     try {
       const response = await fetch("/api/auth/google/intent", {
         method: "POST",
@@ -67,17 +70,18 @@ export function SignInMethodsPanel({
       setActionState("redirecting")
       setMessage("Redirecting to Google confirmation…")
       await signIn("google", { redirectTo: result.callbackUrl })
-    } catch (error) {
+    } catch {
       setActionState("error")
-      setMessage(error instanceof Error ? error.message : "Google confirmation could not be started. Try again.")
+      setMessage("Something went wrong. Please try again.")
     } finally {
       actionLock.current = false
+      setPendingAction(null)
     }
   }
 
   async function savePassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!begin("saving", passwordAvailable ? "Changing password…" : "Adding password sign-in…")) return
+    if (!begin("password", "saving", passwordAvailable ? "Changing password…" : "Adding password sign-in…")) return
     const mode = passwordAvailable ? "CHANGE" : "ADD"
     try {
       const response = await fetch("/api/account/security/password", {
@@ -95,11 +99,12 @@ export function SignInMethodsPanel({
       if (mode === "CHANGE") setChangePasswordConfirmed(false)
       else setAddPasswordConfirmed(false)
       setReauthComplete(false)
-    } catch (error) {
+    } catch {
       setActionState("error")
-      setMessage(error instanceof Error ? error.message : "The password change could not be saved. Try again.")
+      setMessage("Something went wrong. Please try again.")
     } finally {
       actionLock.current = false
+      setPendingAction(null)
       if (mode === "CHANGE") {
         setChangeCurrentPassword("")
         setChangeNewPassword("")
@@ -112,7 +117,7 @@ export function SignInMethodsPanel({
 
   async function unlinkGoogle(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!begin("saving", "Removing Google sign-in…")) return
+    if (!begin("unlink-google", "saving", "Removing Google sign-in…")) return
     try {
       const response = await fetch("/api/account/security/google/unlink", {
         method: "POST",
@@ -125,18 +130,19 @@ export function SignInMethodsPanel({
       setActionState("success")
       setMessage(result.message ?? "Google sign-in was removed.")
       setUnlinkGoogleConfirmed(false)
-    } catch (error) {
+    } catch {
       setActionState("error")
-      setMessage(error instanceof Error ? error.message : "Google sign-in could not be removed. Try again.")
+      setMessage("Something went wrong. Please try again.")
     } finally {
       actionLock.current = false
+      setPendingAction(null)
       setUnlinkPassword("")
       setUnlinkTwoFactorCode("")
     }
   }
 
   async function disablePassword() {
-    if (!begin("saving", "Disabling password sign-in…")) return
+    if (!begin("disable-password", "saving", "Disabling password sign-in…")) return
     try {
       const response = await fetch("/api/account/security/password/disable", {
         method: "POST",
@@ -150,11 +156,12 @@ export function SignInMethodsPanel({
       setMessage(result.message ?? "Password sign-in was disabled.")
       setDisablePasswordConfirmed(false)
       setReauthComplete(false)
-    } catch (error) {
+    } catch {
       setActionState("error")
-      setMessage(error instanceof Error ? error.message : "Password sign-in could not be disabled. Try again.")
+      setMessage("Something went wrong. Please try again.")
     } finally {
       actionLock.current = false
+      setPendingAction(null)
     }
   }
 
@@ -179,17 +186,13 @@ export function SignInMethodsPanel({
       </div>
 
       {!googleAccountLinked ? (
-        <Button type="button" variant="outline" disabled={busy} onClick={() => startGoogleProof("SIGN_IN_OR_LINK")}>
-          {actionState === "redirecting" ? "Redirecting to Google…" : "Link Google sign-in"}
-        </Button>
+        <AsyncActionButton type="button" variant="outline" disabled={busy} pending={pendingAction === "google-proof"} idleLabel="Link Google sign-in" pendingLabel="Saving sign-in method…" onClick={() => startGoogleProof("SIGN_IN_OR_LINK")} />
       ) : null}
 
       {!passwordAvailable && googleAccountLinked && !reauthComplete ? (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">Confirm your linked Google account before adding a password.</p>
-          <Button type="button" variant="outline" disabled={busy} onClick={() => startGoogleProof("ADD_PASSWORD")}>
-            {actionState === "redirecting" ? "Redirecting to Google…" : "Add password"}
-          </Button>
+          <AsyncActionButton type="button" variant="outline" disabled={busy} pending={pendingAction === "google-proof"} idleLabel="Add password" pendingLabel="Saving sign-in method…" onClick={() => startGoogleProof("ADD_PASSWORD")} />
         </div>
       ) : null}
 
@@ -211,9 +214,7 @@ export function SignInMethodsPanel({
             <input type="checkbox" checked={changePasswordConfirmed} onChange={(event) => setChangePasswordConfirmed(event.target.checked)} disabled={busy} />
             <span>Confirm this password sign-in change.</span>
           </label>
-          <Button type="submit" variant="outline" disabled={busy || !changePasswordConfirmed}>
-            {actionState === "saving" ? "Saving password…" : "Update password"}
-          </Button>
+          <AsyncActionButton type="submit" variant="outline" disabled={busy || !changePasswordConfirmed} pending={pendingAction === "password"} idleLabel="Update password" pendingLabel="Saving sign-in method…" />
         </form>
       ) : null}
 
@@ -227,9 +228,7 @@ export function SignInMethodsPanel({
             <input type="checkbox" checked={addPasswordConfirmed} onChange={(event) => setAddPasswordConfirmed(event.target.checked)} disabled={busy} />
             <span>Confirm this password sign-in change.</span>
           </label>
-          <Button type="submit" variant="outline" disabled={busy || !addPasswordConfirmed}>
-            {actionState === "saving" ? "Saving password…" : "Add password sign-in"}
-          </Button>
+          <AsyncActionButton type="submit" variant="outline" disabled={busy || !addPasswordConfirmed} pending={pendingAction === "password"} idleLabel="Add password sign-in" pendingLabel="Saving sign-in method…" />
         </form>
       ) : null}
 
@@ -247,18 +246,14 @@ export function SignInMethodsPanel({
             <input type="checkbox" aria-label="Confirm remove Google sign-in" checked={unlinkGoogleConfirmed} onChange={(event) => setUnlinkGoogleConfirmed(event.target.checked)} disabled={busy} />
             <span>Confirm that Google sign-in should be removed.</span>
           </label>
-          <Button type="submit" variant="outline" disabled={busy || !unlinkGoogleConfirmed}>
-            {actionState === "saving" ? "Removing Google…" : "Unlink Google"}
-          </Button>
+          <AsyncActionButton type="submit" variant="outline" disabled={busy || !unlinkGoogleConfirmed} pending={pendingAction === "unlink-google"} idleLabel="Unlink Google" pendingLabel="Saving sign-in method…" />
         </form>
       ) : googleAccountLinked ? (
         <p className="text-sm text-muted-foreground">Add a password before removing Google so you keep at least one sign-in method.</p>
       ) : null}
 
       {passwordAvailable && googleAccountLinked && !reauthComplete ? (
-        <Button type="button" variant="outline" disabled={busy} onClick={() => startGoogleProof("REMOVE_PASSWORD")}>
-          {actionState === "redirecting" ? "Redirecting to Google…" : "Confirm Google to disable password"}
-        </Button>
+        <AsyncActionButton type="button" variant="outline" disabled={busy} pending={pendingAction === "google-proof"} idleLabel="Confirm Google to disable password" pendingLabel="Saving sign-in method…" onClick={() => startGoogleProof("REMOVE_PASSWORD")} />
       ) : null}
       {canDisablePassword ? (
         <div className="space-y-3" aria-busy={busy}>
@@ -266,15 +261,13 @@ export function SignInMethodsPanel({
             <input type="checkbox" aria-label="Confirm disable password sign-in" checked={disablePasswordConfirmed} onChange={(event) => setDisablePasswordConfirmed(event.target.checked)} disabled={busy} />
             <span>Confirm that password sign-in should be disabled.</span>
           </label>
-          <Button type="button" variant="outline" disabled={busy || !disablePasswordConfirmed} onClick={disablePassword}>
-            {actionState === "saving" ? "Disabling password…" : "Disable password sign-in"}
-          </Button>
+          <AsyncActionButton type="button" variant="outline" disabled={busy || !disablePasswordConfirmed} pending={pendingAction === "disable-password"} idleLabel="Disable password sign-in" pendingLabel="Saving sign-in method…" onClick={disablePassword} />
         </div>
       ) : null}
 
       {message ? (
         <AppInset className="p-3 text-sm">
-          <p role={actionState === "error" ? "alert" : "status"} aria-live={actionState === "error" ? "assertive" : "polite"}>{message}</p>
+          <p role={actionState === "error" ? "alert" : busy ? undefined : "status"} aria-live={actionState === "error" ? "assertive" : busy ? undefined : "polite"}>{message}</p>
         </AppInset>
       ) : null}
     </AppSurface>

@@ -5,6 +5,7 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import type { Prisma, StudentAccessStatus, VerificationSourceType, VerificationStatus } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
+import { settleAccountAction } from "@/lib/account-action-outcome"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { roleStatusForCredentialStatus, shouldUpdateCredentialRole } from "@/lib/credential-verification-roles"
 import { claimVerifiedCredential } from "@/lib/credential-claims"
@@ -47,29 +48,37 @@ export async function saveProfileAction(formData: FormData) {
     redirect("/login")
   }
 
-  await prisma.userProfile.upsert({
-    where: { userId: session.user.id },
-    create: {
-      userId: session.user.id,
-      displayName: formString(formData, "display_name"),
-      therapistName: formString(formData, "therapist_name"),
-      therapistLocation: formString(formData, "therapist_location"),
-      licenseNumber: formString(formData, "license_number"),
-      licenseOrganization: formString(formData, "license_organization"),
-      npiNumber: formString(formData, "npi_number"),
+  const destination = await settleAccountAction({
+    run: async () => {
+      await prisma.userProfile.upsert({
+        where: { userId: session.user.id },
+        create: {
+          userId: session.user.id,
+          displayName: formString(formData, "display_name"),
+          therapistName: formString(formData, "therapist_name"),
+          therapistLocation: formString(formData, "therapist_location"),
+          licenseNumber: formString(formData, "license_number"),
+          licenseOrganization: formString(formData, "license_organization"),
+          npiNumber: formString(formData, "npi_number"),
+        },
+        update: {
+          displayName: formString(formData, "display_name"),
+          therapistName: formString(formData, "therapist_name"),
+          therapistLocation: formString(formData, "therapist_location"),
+          licenseNumber: formString(formData, "license_number"),
+          licenseOrganization: formString(formData, "license_organization"),
+          npiNumber: formString(formData, "npi_number"),
+        },
+      })
+
+      clearAccountSurfaceDataCache(session.user.id)
+      revalidatePath("/account")
     },
-    update: {
-      displayName: formString(formData, "display_name"),
-      therapistName: formString(formData, "therapist_name"),
-      therapistLocation: formString(formData, "therapist_location"),
-      licenseNumber: formString(formData, "license_number"),
-      licenseOrganization: formString(formData, "license_organization"),
-      npiNumber: formString(formData, "npi_number"),
-    },
+    successPath: "/account?tab=profile&profile=saved",
+    failurePath: "/account?tab=profile&profile=save-failed",
   })
 
-  clearAccountSurfaceDataCache(session.user.id)
-  revalidatePath("/account")
+  redirect(destination)
 }
 
 function credentialRole(kind: CredentialKind): AccountRole {
@@ -139,11 +148,34 @@ export async function requestCredentialVerificationAction(formData: FormData) {
     redirect("/account?tab=credentials&legal=therapist-agreement-required")
   }
 
+  const destination = await settleAccountAction({
+    run: () => submitCredentialVerificationOperation({
+      formData,
+      requiredDocuments,
+      userId: session.user.id,
+    }),
+    successPath: "/account?tab=credentials&credential=submitted",
+    failurePath: "/account?tab=credentials&credential=submit-failed",
+  })
+
+  redirect(destination)
+}
+
+/** Runs only after authentication and legal redirect checks so failures map safely. */
+async function submitCredentialVerificationOperation({
+  formData,
+  requiredDocuments,
+  userId,
+}: {
+  formData: FormData
+  requiredDocuments: ReturnType<typeof requiredLegalDocumentsForEvent>
+  userId: string
+}) {
   const requestHeaders = await headers()
 
   await recordLegalAcceptances({
     prismaClient: prisma,
-    userId: session.user.id,
+    userId,
     documents: requiredDocuments,
     metadata: legalHeadersMetadata(requestHeaders),
   })
@@ -214,7 +246,7 @@ export async function requestCredentialVerificationAction(formData: FormData) {
     jurisdictionCode && credentialNumber
       ? await prisma.credentialVerification.findFirst({
           where: {
-            userId: session.user.id,
+            userId,
             kind,
             jurisdictionCode,
             credentialNumber,
@@ -229,7 +261,7 @@ export async function requestCredentialVerificationAction(formData: FormData) {
       })
     : await prisma.credentialVerification.create({
         data: {
-          userId: session.user.id,
+          userId,
           ...verificationData,
         },
       })
@@ -237,7 +269,7 @@ export async function requestCredentialVerificationAction(formData: FormData) {
   if (verificationStatus === "VERIFIED" && jurisdictionCode && credentialNumber) {
     const credentialClaim = await claimVerifiedCredential({
       prismaClient: prisma,
-      userId: session.user.id,
+      userId,
       kind,
       jurisdictionCode,
       credentialNumber,
@@ -274,7 +306,7 @@ export async function requestCredentialVerificationAction(formData: FormData) {
   const existingRole = await prisma.userRole.findUnique({
     where: {
       userId_role: {
-        userId: session.user.id,
+        userId,
         role,
       },
     },
@@ -298,7 +330,7 @@ export async function requestCredentialVerificationAction(formData: FormData) {
   if (!existingRole) {
     await prisma.userRole.create({
       data: {
-        userId: session.user.id,
+        userId,
         role,
         status: roleStatus,
         source: roleSource,
@@ -311,7 +343,7 @@ export async function requestCredentialVerificationAction(formData: FormData) {
     await prisma.userRole.update({
       where: {
         userId_role: {
-          userId: session.user.id,
+          userId,
           role,
         },
       },
@@ -330,9 +362,9 @@ export async function requestCredentialVerificationAction(formData: FormData) {
 
     if (studentAccess) {
       await prisma.studentAccess.upsert({
-        where: { userId: session.user.id },
+        where: { userId },
         create: {
-          userId: session.user.id,
+          userId,
           studentStartDate: studentAccess.studentStartDate,
           studentAccessExpiresAt: studentAccess.studentAccessExpiresAt,
           studentStatus: studentAccess.studentStatus as StudentAccessStatus,
@@ -348,6 +380,6 @@ export async function requestCredentialVerificationAction(formData: FormData) {
     }
   }
 
-  clearAccountSurfaceDataCache(session.user.id)
+  clearAccountSurfaceDataCache(userId)
   revalidatePath("/account")
 }
