@@ -1,108 +1,116 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
-type SlideGeometry = NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>
-
 const QUIET_GEOMETRY_RANGE_CSS_PX = 1
 const QUIET_GEOMETRY_WINDOW_MS = 50
 const QUIET_GEOMETRY_SAMPLE_COUNT = 4
-
-function maxGeometryDelta(left: SlideGeometry, right: SlideGeometry) {
-  return Math.max(
-    Math.abs(left.x - right.x),
-    Math.abs(left.y - right.y),
-    Math.abs(left.width - right.width),
-    Math.abs(left.height - right.height),
-  )
-}
-
-function mergeGeometryBounds(
-  minimum: SlideGeometry,
-  maximum: SlideGeometry,
-  sample: SlideGeometry,
-) {
-  return {
-    minimum: {
-      x: Math.min(minimum.x, sample.x),
-      y: Math.min(minimum.y, sample.y),
-      width: Math.min(minimum.width, sample.width),
-      height: Math.min(minimum.height, sample.height),
-    },
-    maximum: {
-      x: Math.max(maximum.x, sample.x),
-      y: Math.max(maximum.y, sample.y),
-      width: Math.max(maximum.width, sample.width),
-      height: Math.max(maximum.height, sample.height),
-    },
-  }
-}
+const GEOMETRY_SAMPLE_INTERVAL_MS = 16
+const GEOMETRY_OBSERVATION_LIMIT_MS = 250
 
 /**
  * Requires a near-frame-cadence quiet window whose total geometry range stays
  * within one CSS pixel, rather than accepting a single easing-tail lull.
  */
 export async function waitForStableSlideGeometry(slide: Locator, label: string) {
-  let previousBox: SlideGeometry | null = null
-  let quietMinimumBox: SlideGeometry | null = null
-  let quietMaximumBox: SlideGeometry | null = null
-  let quietStartedAt = 0
-  let quietSampleCount = 0
-  const recentSamples: string[] = []
+  let recentSamples: string[] = []
   try {
     await expect.poll(async () => {
-      const box = await slide.boundingBox()
-      if (!box) {
-        // Discard pre-detachment samples so a reconnected slide must establish
-        // fresh consecutive geometry before it can be considered settled.
-        previousBox = null
-        quietMinimumBox = null
-        quietMaximumBox = null
-        quietStartedAt = 0
-        quietSampleCount = 0
-        recentSamples.push("detached")
-        recentSamples.splice(0, Math.max(0, recentSamples.length - 6))
-        return false
-      }
+      const observation = await slide.evaluate(async (element, limits) => {
+        type Geometry = { x: number; y: number; width: number; height: number }
 
-      const sampledAt = performance.now()
-      const stepDelta = previousBox === null ? null : maxGeometryDelta(box, previousBox)
-      if (quietMinimumBox === null || quietMaximumBox === null) {
-        quietMinimumBox = box
-        quietMaximumBox = box
-        quietStartedAt = sampledAt
-        quietSampleCount = 1
-      } else {
-        const candidateBounds = mergeGeometryBounds(quietMinimumBox, quietMaximumBox, box)
-        if (
-          maxGeometryDelta(candidateBounds.minimum, candidateBounds.maximum)
-          > QUIET_GEOMETRY_RANGE_CSS_PX
-        ) {
-          // Reseed after any per-axis peak-to-peak range exceeds the WebKit
-          // allowance, including damped motion on opposite sides of an anchor.
-          quietMinimumBox = box
-          quietMaximumBox = box
-          quietStartedAt = sampledAt
-          quietSampleCount = 1
-        } else {
-          quietMinimumBox = candidateBounds.minimum
-          quietMaximumBox = candidateBounds.maximum
-          quietSampleCount += 1
+        const maximumDelta = (left: Geometry, right: Geometry) => Math.max(
+          Math.abs(left.x - right.x),
+          Math.abs(left.y - right.y),
+          Math.abs(left.width - right.width),
+          Math.abs(left.height - right.height),
+        )
+        // Some headless WebKit runs throttle rAF while an async locator
+        // evaluation is pending. A page-context timer keeps all samples on one
+        // browser roundtrip while performance.now() supplies monotonic timing.
+        const nextSample = () => new Promise<void>((resolve) => {
+          setTimeout(resolve, limits.sampleIntervalMs)
+        })
+        const observedAt = performance.now()
+        let previous: Geometry | null = null
+        let minimum: Geometry | null = null
+        let maximum: Geometry | null = null
+        let quietStartedAt = observedAt
+        let quietSampleCount = 0
+        const samples: string[] = []
+
+        while (performance.now() - observedAt <= limits.observationLimitMs) {
+          if (!element.isConnected) {
+            return { recentSamples: ["detached"], settled: false }
+          }
+
+          const rect = element.getBoundingClientRect()
+          const box = { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+          const sampledAt = performance.now()
+          const stepDelta = previous === null ? null : maximumDelta(box, previous)
+          if (minimum === null || maximum === null) {
+            minimum = box
+            maximum = box
+            quietStartedAt = sampledAt
+            quietSampleCount = 1
+          } else {
+            const candidateMinimum: Geometry = {
+              x: Math.min(minimum.x, box.x),
+              y: Math.min(minimum.y, box.y),
+              width: Math.min(minimum.width, box.width),
+              height: Math.min(minimum.height, box.height),
+            }
+            const candidateMaximum: Geometry = {
+              x: Math.max(maximum.x, box.x),
+              y: Math.max(maximum.y, box.y),
+              width: Math.max(maximum.width, box.width),
+              height: Math.max(maximum.height, box.height),
+            }
+            if (maximumDelta(candidateMinimum, candidateMaximum) > limits.rangeCssPx) {
+              // Reseed after any per-axis peak-to-peak range exceeds the WebKit
+              // allowance, including damped motion on opposite sides of an anchor.
+              minimum = box
+              maximum = box
+              quietStartedAt = sampledAt
+              quietSampleCount = 1
+            } else {
+              minimum = candidateMinimum
+              maximum = candidateMaximum
+              quietSampleCount += 1
+            }
+          }
+
+          if (minimum === null || maximum === null) {
+            throw new Error("Geometry bounds were not seeded by the current sample.")
+          }
+          const quietRange = maximumDelta(minimum, maximum)
+          const quietDuration = sampledAt - quietStartedAt
+          previous = box
+          samples.push(
+            `x=${box.x.toFixed(2)},y=${box.y.toFixed(2)},w=${box.width.toFixed(2)},h=${box.height.toFixed(2)},step=${stepDelta?.toFixed(2) ?? "initial"},range=${quietRange.toFixed(2)},quiet=${quietDuration.toFixed(0)}ms`,
+          )
+          samples.splice(0, Math.max(0, samples.length - 6))
+          if (
+            quietSampleCount >= limits.sampleCount
+            && quietDuration >= limits.windowMs
+          ) {
+            return { recentSamples: samples, settled: true }
+          }
+          await nextSample()
         }
-      }
 
-      const quietRange = maxGeometryDelta(quietMinimumBox, quietMaximumBox)
-      const quietDuration = sampledAt - quietStartedAt
-      previousBox = box
-      recentSamples.push(
-        `x=${box.x.toFixed(2)},y=${box.y.toFixed(2)},w=${box.width.toFixed(2)},h=${box.height.toFixed(2)},step=${stepDelta?.toFixed(2) ?? "initial"},range=${quietRange.toFixed(2)},quiet=${quietDuration.toFixed(0)}ms`,
-      )
-      recentSamples.splice(0, Math.max(0, recentSamples.length - 6))
-      return quietSampleCount >= QUIET_GEOMETRY_SAMPLE_COUNT
-        && quietDuration >= QUIET_GEOMETRY_WINDOW_MS
+        return { recentSamples: samples, settled: false }
+      }, {
+        observationLimitMs: GEOMETRY_OBSERVATION_LIMIT_MS,
+        rangeCssPx: QUIET_GEOMETRY_RANGE_CSS_PX,
+        sampleCount: QUIET_GEOMETRY_SAMPLE_COUNT,
+        sampleIntervalMs: GEOMETRY_SAMPLE_INTERVAL_MS,
+        windowMs: QUIET_GEOMETRY_WINDOW_MS,
+      })
+      recentSamples = observation.recentSamples
+      return observation.settled
     }, {
       message: `${label} settled`,
-      // Browser-to-runner bounding-box reads are slower than rAF, but a 16ms
-      // polling cadence still supplies multiple samples inside the unchanged
-      // assertion timeout on Chromium and WebKit.
+      // Retry a bounded browser-side observation if the slide stayed in motion.
+      // The assertion timeout intentionally remains Playwright's 7.5s default.
       intervals: [16],
     }).toBe(true)
   } catch (error) {
