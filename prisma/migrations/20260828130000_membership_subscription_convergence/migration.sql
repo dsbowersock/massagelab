@@ -28,7 +28,7 @@ CREATE UNIQUE INDEX "MembershipWebhookReceipt_provider_providerEventId_key"
   ON "MembershipWebhookReceipt"("provider", "providerEventId");
 CREATE INDEX "MembershipWebhookReceipt_status_receivedAt_idx"
   ON "MembershipWebhookReceipt"("status", "receivedAt");
-CREATE INDEX "MembershipWebhookReceipt_stripeSubscriptionId_providerEventCreatedAt_idx"
+CREATE INDEX "MembershipWebhookReceipt_stripeSubscriptionId_providerEvent_idx"
   ON "MembershipWebhookReceipt"("stripeSubscriptionId", "providerEventCreatedAt");
 CREATE INDEX "MembershipWebhookReceipt_userId_receivedAt_idx"
   ON "MembershipWebhookReceipt"("userId", "receivedAt");
