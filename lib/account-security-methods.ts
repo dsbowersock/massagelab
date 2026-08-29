@@ -22,7 +22,7 @@ export type AuthMethodMutationResult =
   | { status: "UPDATED"; emailIntentId: string; googleLinked: boolean; passwordEnabled: boolean }
   | { status: "REJECTED"; code: AuthMethodMutationRejectionCode }
 
-type MethodClient = Pick<PrismaClient, "$transaction" | "user" | "backupCode" | "authRateLimitBucket">
+type MethodClient = Pick<PrismaClient, "$transaction" | "$queryRaw" | "user" | "backupCode" | "authRateLimitBucket">
 type ProofFunction = typeof import("./auth-method-proof.ts").verifyPasswordMethodProof
 
 type DirectProofInput = {

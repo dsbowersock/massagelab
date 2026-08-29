@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Link from "next/link"
 import { signIn } from "next-auth/react"
 import { Mail, ShieldCheck } from "lucide-react"
@@ -32,6 +32,8 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
   const [devLink, setDevLink] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
+  const registrationSubmissionLock = useRef(false)
+  const googleSubmissionLock = useRef(false)
 
   function toggleLegalDocument(documentId: string, checked: boolean) {
     setAcceptedLegalDocuments((current) => (
@@ -44,6 +46,8 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isSubmitting) return
+    if (registrationSubmissionLock.current) return
+    registrationSubmissionLock.current = true
 
     setIsSubmitting(true)
     setStatus("")
@@ -75,11 +79,13 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       setDevLink("")
     } finally {
       setIsSubmitting(false)
+      registrationSubmissionLock.current = false
     }
   }
 
   async function handleGoogleRegistration() {
-    if (isGoogleSubmitting) return
+    if (googleSubmissionLock.current) return
+    googleSubmissionLock.current = true
     setIsGoogleSubmitting(true)
     setStatus("")
     setStatusIsError(false)
@@ -96,6 +102,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       setStatus("Google registration could not be started. Try again or use email and password.")
       setStatusIsError(true)
     } finally {
+      googleSubmissionLock.current = false
       setIsGoogleSubmitting(false)
     }
   }
@@ -121,7 +128,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
         </div>
       )}
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleSubmit} aria-busy={isSubmitting}>
         <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
           <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
@@ -160,7 +167,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
         </div>
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           <Mail className="mr-2 h-4 w-4" />
-          Create account with email
+          {isSubmitting ? "Creating account…" : "Create account with email"}
         </Button>
       </form>
       {status && (

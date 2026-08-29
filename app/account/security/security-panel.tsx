@@ -6,6 +6,7 @@ import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SignInMethodsPanel } from "@/app/account/security/sign-in-methods-panel"
 
 type SecurityPanelProps = {
   twoFactorEnabled: boolean
@@ -20,10 +21,6 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
   const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [status, setStatus] = useState("")
   const [enabled, setEnabled] = useState(twoFactorEnabled)
-  const [passwordAvailable, setPasswordAvailable] = useState(hasPasswordCredential)
-  const [googleAccountLinked, setGoogleAccountLinked] = useState(googleLinked)
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
 
   async function startSetup() {
     setStatus("")
@@ -78,95 +75,9 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
     }
   }
 
-  async function savePassword(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const response = await fetch("/api/account/security/password", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        currentPassword,
-        password: newPassword,
-      }),
-    })
-    const result = await response.json()
-
-    setStatus(result.message ?? (response.ok ? "Password saved." : "Could not save password."))
-    if (response.ok) {
-      setPasswordAvailable(true)
-      setCurrentPassword("")
-      setNewPassword("")
-    }
-  }
-
-  async function unlinkGoogle() {
-    const response = await fetch("/api/account/security/google/unlink", { method: "POST" })
-    const result = await response.json()
-
-    setStatus(result.message ?? (response.ok ? "Google sign-in unlinked." : "Could not unlink Google sign-in."))
-    if (response.ok) {
-      setGoogleAccountLinked(false)
-    }
-  }
-
   return (
     <div className="space-y-6">
-      <AppSurface
-        title="Sign-in methods"
-        description={
-          <>
-            Keep at least one verified way to sign in. Google can be unlinked only after email/password sign-in is enabled.
-          </>
-        }
-        contentClassName="gap-5"
-      >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <AppInset className="p-3">
-              <p className="text-xs uppercase tracking-normal text-muted-foreground">Email/password</p>
-              <p className="mt-1 text-sm font-medium">{passwordAvailable ? "Enabled" : "Not enabled"}</p>
-            </AppInset>
-            <AppInset className="p-3">
-              <p className="text-xs uppercase tracking-normal text-muted-foreground">Google</p>
-              <p className="mt-1 text-sm font-medium">{googleAccountLinked ? "Linked" : "Not linked"}</p>
-            </AppInset>
-          </div>
-
-          <form className="space-y-3" onSubmit={savePassword}>
-            {passwordAvailable ? (
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">Current password</Label>
-                <Input
-                  id="currentPassword"
-                  type="password"
-                  autoComplete="current-password"
-                  value={currentPassword}
-                  onChange={(event) => setCurrentPassword(event.target.value)}
-                  required
-                />
-              </div>
-            ) : null}
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">{passwordAvailable ? "New password" : "Create password"}</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                autoComplete="new-password"
-                minLength={12}
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" variant="outline">
-              {passwordAvailable ? "Update password" : "Enable email/password"}
-            </Button>
-          </form>
-
-          {googleAccountLinked ? (
-            <Button type="button" variant="outline" onClick={unlinkGoogle} disabled={!passwordAvailable}>
-              Unlink Google
-            </Button>
-          ) : null}
-      </AppSurface>
+      <SignInMethodsPanel hasPasswordCredential={hasPasswordCredential} googleLinked={googleLinked} />
 
       <AppSurface
         title="Authenticator-app 2FA"

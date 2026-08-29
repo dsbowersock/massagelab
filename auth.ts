@@ -69,7 +69,7 @@ const providers: NextAuthConfig["providers"] = [
       if (proof.status === "INVALID") throw loginError("INVALID_CREDENTIALS")
       if (proof.status !== "VERIFIED") throw loginError(proof.status)
 
-      const user = await prisma.user.findUnique({ where: { email } })
+      const user = await prisma.user.findUnique({ where: { id: proof.userId } })
       if (!user) throw loginError("INVALID_CREDENTIALS")
       await ensureUserRole(user.id, user.email)
 

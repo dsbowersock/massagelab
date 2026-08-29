@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { signIn } from "next-auth/react"
@@ -41,44 +41,55 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
   const [twoFactorCode, setTwoFactorCode] = useState("")
   const [needsTwoFactor, setNeedsTwoFactor] = useState(false)
   const [status, setStatus] = useState(searchParams.get("verified") ? "Email verified. You can sign in now." : "")
+  const [statusIsError, setStatusIsError] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
+  const emailSubmissionLock = useRef(false)
+  const googleSubmissionLock = useRef(false)
 
   async function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (emailSubmissionLock.current) return
+    emailSubmissionLock.current = true
     setStatus("")
+    setStatusIsError(false)
     setIsSubmitting(true)
-
-    const result = await signIn("credentials", {
-      email,
-      password,
-      twoFactorCode,
-      redirect: false,
-    })
-
-    setIsSubmitting(false)
-
-    if (!result?.error) {
-      router.push(callbackUrl)
-      router.refresh()
-      return
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        twoFactorCode,
+        redirect: false,
+      })
+      if (!result?.error) {
+        router.push(callbackUrl)
+        router.refresh()
+        return
+      }
+      const errorCode = result.code ?? result.error
+      if (errorCode === "TWO_FACTOR_REQUIRED") {
+        setNeedsTwoFactor(true)
+        setStatus("Enter your authenticator app code or a backup code.")
+        setStatusIsError(false)
+        return
+      }
+      setStatus((errorCode ? ERROR_MESSAGES[errorCode] : undefined) ?? "Sign in failed. Try again.")
+      setStatusIsError(true)
+    } catch {
+      setStatus("Sign in failed. Try again.")
+      setStatusIsError(true)
+    } finally {
+      emailSubmissionLock.current = false
+      setIsSubmitting(false)
     }
-
-    const errorCode = result.code ?? result.error
-
-    if (errorCode === "TWO_FACTOR_REQUIRED") {
-      setNeedsTwoFactor(true)
-      setStatus("Enter your authenticator app code or a backup code.")
-      return
-    }
-
-    setStatus((errorCode ? ERROR_MESSAGES[errorCode] : undefined) ?? "Sign in failed. Try again.")
   }
 
   async function handleGoogleLogin() {
-    if (isGoogleSubmitting) return
+    if (googleSubmissionLock.current) return
+    googleSubmissionLock.current = true
     setIsGoogleSubmitting(true)
     setStatus("")
+    setStatusIsError(false)
     try {
       const response = await fetch("/api/auth/google/intent", {
         method: "POST",
@@ -90,7 +101,9 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
       await signIn("google", { redirectTo: result.callbackUrl })
     } catch {
       setStatus("Google sign-in could not be started. Try again or use email and password.")
+      setStatusIsError(true)
     } finally {
+      googleSubmissionLock.current = false
       setIsGoogleSubmitting(false)
     }
   }
@@ -105,7 +118,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
       }
       contentClassName="gap-5"
     >
-        <form className="space-y-3" onSubmit={handleEmailLogin}>
+        <form className="space-y-3" onSubmit={handleEmailLogin} aria-busy={isSubmitting}>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -143,14 +156,14 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
           )}
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             <Mail className="mr-2 h-4 w-4" />
-            Sign in with email
+            {isSubmitting ? "Signing in…" : "Sign in with email"}
           </Button>
         </form>
 
         {googleEnabled ? (
           <Button type="button" variant="outline" className="w-full" disabled={isGoogleSubmitting} onClick={handleGoogleLogin}>
             <ShieldCheck className="mr-2 h-4 w-4" />
-            Continue with Google
+            {isGoogleSubmitting ? "Starting Google sign-in…" : "Continue with Google"}
           </Button>
         ) : (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
@@ -159,8 +172,8 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
         )}
 
         {status && (
-          <AppInset className="p-3 text-sm text-muted-foreground">
-            {status}
+          <AppInset className={`p-3 text-sm ${statusIsError ? "text-amber-100" : "text-muted-foreground"}`}>
+            <p role={statusIsError ? "alert" : "status"} aria-live={statusIsError ? "assertive" : "polite"}>{status}</p>
           </AppInset>
         )}
 

@@ -4,12 +4,13 @@ import { getAuthSecret } from "@/lib/auth-env"
 import { normalizeEmail } from "@/lib/auth-security"
 import { ensureUserRole } from "@/lib/auth-users"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
+import { resolveNormalizedUserId } from "@/lib/normalized-user-email"
 import { prisma } from "@/lib/prisma"
 
 export const AUTH_METHOD_INTENT_COOKIE = "ml-auth-method-binding"
 
 export type GoogleIntentPurpose = "SIGN_IN_OR_LINK" | "LINK_GOOGLE" | "ADD_PASSWORD" | "REMOVE_PASSWORD"
-type AuthIntentClient = Pick<PrismaClient, "$transaction" | "authMethodIntent" | "user" | "account">
+type AuthIntentClient = Pick<PrismaClient, "$transaction" | "$queryRaw" | "authMethodIntent" | "user" | "account">
 type SessionIdentity = { id?: string | null; email?: string | null } | null | undefined
 type GoogleAccountProof = { type: string; provider: "google"; providerAccountId: string }
 type GoogleProfileProof = { email: string; name: string | null; image: string | null }
@@ -103,6 +104,44 @@ export function parseAuthMethodIntentBinding(value: unknown) {
 }
 
 /**
+ * Resolves the exact cookie-bound intent while returning only the internal ID
+ * and target needed by a server route. Provider proof fields never leave this
+ * service boundary or enter rendered markup.
+ */
+export async function resolveBoundAuthMethodIntent({
+  prismaClient = prisma,
+  cookieValue,
+  purpose,
+  status,
+  secret = getAuthSecret(),
+  now = new Date(),
+}: {
+  prismaClient?: AuthIntentClient
+  cookieValue: unknown
+  purpose: GoogleIntentPurpose
+  status: "PENDING" | "PROVIDER_PROVEN" | "CONSUMED"
+  secret?: string
+  now?: Date
+}): Promise<{ id: string; targetUserId: string | null } | null> {
+  const binding = parseAuthMethodIntentBinding(cookieValue)
+  if (!binding || !isGoogleIntentPurpose(purpose) || !["PENDING", "PROVIDER_PROVEN", "CONSUMED"].includes(status)) return null
+  const capturedNow = now instanceof Date && Number.isFinite(now.getTime()) ? now : null
+  if (!capturedNow) return null
+  const resolvedSecret = requireSecret(secret)
+  const intent = await prismaClient.authMethodIntent.findUnique({ where: { id: binding.intentId } })
+  if (
+    !intent
+    || intent.provider !== "google"
+    || intent.purpose !== purpose
+    || intent.status !== status
+    || (status === "CONSUMED" ? !intent.consumedAt : intent.consumedAt !== null)
+    || intent.expiresAt <= capturedNow
+    || !hashesEqual(intent.browserBindingHash, bindingHash(binding.browserBindingToken, resolvedSecret))
+  ) return null
+  return { id: intent.id, targetUserId: intent.targetUserId }
+}
+
+/**
  * Decides Google authentication before Auth.js adapter mutation. Serializable
  * retries plus exact predicate updates make one intent single-use under races.
  */
@@ -175,12 +214,13 @@ export async function prepareGoogleAuthentication({
       })
     }
 
-    const [userByEmail, accountByProvider] = await Promise.all([
-      tx.user.findUnique({ where: { email: profileProof.email } }),
+    const [resolvedUserId, accountByProvider] = await Promise.all([
+      resolveNormalizedUserId({ prismaClient: tx, email: profileProof.email }),
       tx.account.findUnique({
         where: { provider_providerAccountId: { provider: "google", providerAccountId: accountProof.providerAccountId } },
       }),
     ])
+    const userByEmail = resolvedUserId ? await tx.user.findUnique({ where: { id: resolvedUserId } }) : null
 
     if (accountByProvider) {
       const providerUser = await tx.user.findUnique({ where: { id: accountByProvider.userId } })
@@ -314,8 +354,13 @@ function isRelevantIdentityUniqueRace(error: unknown) {
   if (!meta || typeof meta !== "object") return false
   const modelName = (meta as { modelName?: unknown }).modelName
   const target = (meta as { target?: unknown }).target
-  if (!Array.isArray(target) || !target.every((field) => typeof field === "string")) return false
-  return (modelName === "User" && target.length === 1 && target[0] === "email")
+  const userIdentityRace = modelName === "User" && (
+    target === "User_normalized_email_key"
+    || target === "User_email_key"
+    || (Array.isArray(target) && target.length === 1 && target[0] === "email")
+  )
+  if (!Array.isArray(target) && !userIdentityRace) return false
+  return userIdentityRace
     || (modelName === "Account" && target.length === 2 && target.includes("provider") && target.includes("providerAccountId"))
 }
 

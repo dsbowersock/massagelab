@@ -14,6 +14,9 @@ async function loadService() {
     "@/lib/auth-security": { normalizeEmail: (value) => typeof value === "string" ? value.trim().toLowerCase() : "" },
     "@/lib/auth-users": { ensureUserRole: async () => "USER" },
     "@/lib/commerce/transactions": { runCommerceTransaction },
+    "@/lib/normalized-user-email": {
+      resolveNormalizedUserId: async ({ prismaClient, email }) => prismaClient.resolveNormalizedUserId(email),
+    },
     "@/lib/prisma": { prisma: {} },
   })
 }
@@ -52,6 +55,50 @@ describe("private Google auth-method intents", () => {
     assert.equal(db.state.intents.length, 1)
     assert.notEqual(db.state.intents[0].browserBindingHash, started.browserBindingToken)
     assert.equal(JSON.stringify(db.state.intents).includes(started.browserBindingToken), false)
+  })
+
+  it("resolves only the exact browser-bound intent and returns no provider proof fields", async () => {
+    const service = await loadService()
+    const db = createIntentDatabase()
+    const started = await start(service, db)
+    Object.assign(db.intent(started.intentId), {
+      targetUserId: "user-1",
+      status: "PROVIDER_PROVEN",
+      providerAccountId: "private-provider-id",
+      providerEmailHash: "a".repeat(64),
+    })
+    const exact = await service.resolveBoundAuthMethodIntent({
+      prismaClient: db,
+      cookieValue: service.serializeAuthMethodIntentBinding(started.intentId, started.browserBindingToken),
+      purpose: "SIGN_IN_OR_LINK",
+      status: "PROVIDER_PROVEN",
+      secret: "intent-test-secret",
+      now: new Date("2026-08-28T12:00:00.000Z"),
+    })
+    assert.deepEqual(exact, { id: started.intentId, targetUserId: "user-1" })
+    assert.equal(JSON.stringify(exact).includes("private-provider-id"), false)
+
+    db.intent(started.intentId).consumedAt = new Date("2026-08-28T11:59:00.000Z")
+    const alreadyConsumed = await service.resolveBoundAuthMethodIntent({
+      prismaClient: db,
+      cookieValue: service.serializeAuthMethodIntentBinding(started.intentId, started.browserBindingToken),
+      purpose: "SIGN_IN_OR_LINK",
+      status: "PROVIDER_PROVEN",
+      secret: "intent-test-secret",
+      now: new Date("2026-08-28T12:00:00.000Z"),
+    })
+    assert.equal(alreadyConsumed, null)
+    db.intent(started.intentId).consumedAt = null
+
+    const wrongBrowser = await service.resolveBoundAuthMethodIntent({
+      prismaClient: db,
+      cookieValue: service.serializeAuthMethodIntentBinding(started.intentId, "b".repeat(43)),
+      purpose: "SIGN_IN_OR_LINK",
+      status: "PROVIDER_PROVEN",
+      secret: "intent-test-secret",
+      now: new Date("2026-08-28T12:00:00.000Z"),
+    })
+    assert.equal(wrongBrowser, null)
   })
 
   it("requires target users for account-security purposes", async () => {
@@ -115,9 +162,9 @@ describe("private Google auth-method intents", () => {
     assert.equal(db.intentConsumeWins(started.intentId), 1)
   })
 
-  it("returns LINK_REQUIRED for a normalized password account without creating Account", async () => {
+  it("returns LINK_REQUIRED for a padded mixed-case stored password account without duplicate creation or retry", async () => {
     const service = await loadService()
-    const db = createIntentDatabase({ users: [{ id: "password-user", email: "family@example.com", emailVerified: new Date() }] })
+    const db = createIntentDatabase({ users: [{ id: "password-user", email: " Family@Example.com ", emailVerified: new Date() }] })
     const started = await start(service, db)
     const result = await service.prepareGoogleAuthentication(googleInput(db, " Family@Example.com ", "google-sub-a", started))
     assert.deepEqual(result, { kind: "LINK_REQUIRED", userId: "password-user" })
@@ -126,6 +173,9 @@ describe("private Google auth-method intents", () => {
     assert.equal(db.intent(started.intentId).targetUserId, "password-user")
     assert.match(db.intent(started.intentId).providerEmailHash, /^[a-f0-9]{64}$/)
     assert.equal(JSON.stringify(db.state.intents).includes("family@example.com"), false)
+    assert.deepEqual(db.normalizedLookups, ["family@example.com"])
+    assert.equal(db.rawEmailLookups, 0)
+    assert.equal(db.identityUniqueConflicts, 0)
   })
 
   it("feeds a real Task 3 provider-proven intent into matching-account confirmation", async () => {
@@ -460,6 +510,8 @@ function createIntentDatabase(seed = {}) {
     version: 0,
     serializationConflicts: 0,
     identityUniqueConflicts: 0,
+    normalizedLookups: [],
+    rawEmailLookups: 0,
     rolledBackTransactions: 0,
     transactionOptions: [],
     state: {
@@ -483,8 +535,15 @@ function createIntentDatabase(seed = {}) {
     get transactionOptions() { return root.transactionOptions },
     intent: (id) => root.state.intents.find((row) => row.id === id),
     intentConsumeWins: (id) => root.state.consumeWins.get(id) ?? 0,
-    usersByNormalizedEmail: (email) => root.state.users.filter((row) => row.email === email),
+    get normalizedLookups() { return root.normalizedLookups },
+    get rawEmailLookups() { return root.rawEmailLookups },
+    usersByNormalizedEmail: (email) => root.state.users.filter((row) => normalizeEmail(row.email) === normalizeEmail(email)),
     accountsByProviderId: (provider, providerAccountId) => root.state.accounts.filter((row) => row.provider === provider && row.providerAccountId === providerAccountId),
+    authMethodIntent: {
+      async findUnique({ where }) {
+        return root.state.intents.find((row) => row.id === where.id) ?? null
+      },
+    },
     async $transaction(callback, options) {
       root.transactionOptions.push(options)
       const baseVersion = root.version
@@ -514,6 +573,10 @@ function createIntentDatabase(seed = {}) {
 /** Builds one isolated transaction view; no mutation reaches root before commit. */
 function transactionClient(state, root, seed) {
   return {
+    resolveNormalizedUserId(email) {
+      root.normalizedLookups.push(email)
+      return state.users.find((row) => normalizeEmail(row.email) === normalizeEmail(email))?.id ?? null
+    },
     authMethodIntent: {
       async findMany({ where, take }) {
         return state.intents.filter((row) => row.consumedAt || row.expiresAt < where.OR[0].expiresAt.lt).slice(0, take).map(({ id }) => ({ id }))
@@ -549,6 +612,7 @@ function transactionClient(state, root, seed) {
     },
     user: {
       async findUnique({ where, include }) {
+        if (where.email) root.rawEmailLookups += 1
         const user = where.email
           ? state.users.find((row) => row.email === where.email) ?? null
           : state.users.find((row) => row.id === where.id) ?? null
@@ -612,6 +676,10 @@ function transactionClient(state, root, seed) {
       },
     },
   }
+}
+
+function normalizeEmail(value) {
+  return String(value ?? "").trim().toLowerCase()
 }
 
 function uniqueError(modelName, target) {

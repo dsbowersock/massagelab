@@ -25,6 +25,9 @@ const proof = loadCompiledModule(proofSource, "auth-method-proof.test.ts", {
     verifyPassword: async () => false,
     verifyTotpCode: () => false,
   },
+  "@/lib/normalized-user-email": {
+    resolveNormalizedUserId: async ({ prismaClient, email }) => prismaClient.resolveNormalizedUserId(email),
+  },
 })
 
 const NOW = new Date("2026-08-28T12:00:00.000Z")
@@ -40,10 +43,11 @@ describe("shared password method proof with the real limiter", () => {
     assert.equal(scenario.calls.includes("password"), false)
   })
 
-  it("uses normalized email for login lookup and atomically stores failed password account+network buckets", async () => {
-    const scenario = proofInput({ passwordValid: false })
+  it("resolves a padded mixed-case stored account by normalized email, then loads it by ID", async () => {
+    const scenario = proofInput({ passwordValid: false, storedEmail: " Person@Example.com " })
     assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), { status: "INVALID" })
-    assert.deepEqual(scenario.database.userLookups, [{ email: "person@example.com" }])
+    assert.deepEqual(scenario.database.normalizedLookups, ["person@example.com"])
+    assert.deepEqual(scenario.database.userLookups, [{ id: "user-1" }])
     assert.deepEqual(
       scenario.database.rows.map(({ purpose, scope, count }) => ({ purpose, scope, count })).sort((a, b) => a.scope.localeCompare(b.scope)),
       [
@@ -73,7 +77,7 @@ describe("shared password method proof with the real limiter", () => {
     ])
 
     const valid = proofInput({ twoFactorEnabled: true, twoFactorCode: "123456", totpValid: true })
-    assert.deepEqual(await proof.verifyPasswordMethodProof(valid.input), { status: "VERIFIED", backupCodeConsumed: false, authSessionVersion: 7 })
+    assert.deepEqual(await proof.verifyPasswordMethodProof(valid.input), { status: "VERIFIED", userId: "user-1", backupCodeConsumed: false, authSessionVersion: 7 })
     assert.equal(valid.database.rows.length, 0)
   })
 
@@ -82,7 +86,7 @@ describe("shared password method proof with the real limiter", () => {
     await limiter.recordCredentialFailure(rateInput(scenario.database, "LOGIN"))
     assert.equal(scenario.database.rows.length, 2)
 
-    assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), { status: "VERIFIED", backupCodeConsumed: false, authSessionVersion: 7 })
+    assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), { status: "VERIFIED", userId: "user-1", backupCodeConsumed: false, authSessionVersion: 7 })
     assert.deepEqual(scenario.database.userLookups, [{ id: "user-1" }])
     assert.deepEqual(scenario.database.rows.map(({ purpose, scope, count }) => ({ purpose, scope, count })), [
       { purpose: "LOGIN", scope: "NETWORK", count: 1 },
@@ -109,11 +113,12 @@ function proofInput({
   totpValid = false,
   backupValid = false,
   userId,
+  storedEmail = "person@example.com",
 } = {}) {
   const calls = []
   const user = {
     id: "user-1",
-    email: "person@example.com",
+    email: storedEmail,
     emailVerified,
     authSessionVersion: 7,
     passwordCredential: { passwordHash: "hash" },
@@ -138,6 +143,9 @@ function proofInput({
         verifyTotpCode() { return totpValid },
         async verifyBackupCode() { return backupValid },
         normalizeEmail,
+        async resolveNormalizedUserId({ prismaClient, email }) {
+          return prismaClient.resolveNormalizedUserId(email)
+        },
       },
     },
   }
@@ -165,13 +173,18 @@ function createProofDatabase(user) {
     get rows() { return committedRows },
     transactionOptions,
     userLookups: [],
+    normalizedLookups: [],
     backupUpdateCalls: [],
     authRateLimitBucket: createBucketDelegate(rootStore),
     user: {
       async findUnique({ where }) {
         database.userLookups.push(structuredClone(where))
-        return (where.id === user.id || where.email === user.email) ? structuredClone(user) : null
+        return where.id === user.id ? structuredClone(user) : null
       },
+    },
+    resolveNormalizedUserId(email) {
+      database.normalizedLookups.push(email)
+      return normalizeEmail(user.email) === email ? user.id : null
     },
     backupCode: {
       async updateMany(args) {

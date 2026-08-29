@@ -9,6 +9,7 @@
     "prebuild": "npm run production:migrations:check && prisma generate",
     "build": "next build",
     "build:browser-qa": "node scripts/build-browser-qa.mjs",
+    "browser-qa:db:target": "node scripts/assert-browser-qa-database-target.mjs",
     "build:next": "next build",
     "start": "next start",
     "lint": "eslint .",

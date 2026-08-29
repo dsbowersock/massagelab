@@ -236,6 +236,69 @@ describe("JWT session-version integration contract", () => {
     })
     assert.equal(Object.hasOwn(googleToken, "lastPasswordAuthenticatedAt"), false)
   })
+
+  it("Credentials authorization loads the normalized proof owner by ID instead of raw email equality", async () => {
+    const authSource = await read("auth.ts")
+    let capturedConfig
+    const userLookups = []
+    class CredentialsSignin extends Error {}
+    const NextAuth = (config) => {
+      capturedConfig = config
+      return { handlers: {}, auth() {}, signIn() {}, signOut() {} }
+    }
+    NextAuth.CredentialsSignin = CredentialsSignin
+    const prisma = {
+      user: {
+        async findUnique({ where }) {
+          userLookups.push(structuredClone(where))
+          if (where.id !== "user-1") return null
+          return { id: "user-1", email: " Person@Example.com ", name: "Person", image: null }
+        },
+      },
+    }
+    loadCompiledModule(authSource, "auth-credentials-normalized-owner.test.ts", {
+      "next-auth": NextAuth,
+      "next-auth/providers/credentials": (config) => config,
+      "next-auth/providers/google": (config) => config,
+      "next/headers": { cookies: async () => ({ get: () => undefined }) },
+      "@auth/prisma-adapter": { PrismaAdapter: () => ({}) },
+      "@/lib/prisma": { prisma },
+      "@/lib/auth-account-linking": { googleProfileEmail: () => "", isVerifiedGoogleProfile: () => true },
+      "@/lib/auth-env": { getAuthSecret: () => "test-secret", getGoogleAuthConfig: () => null, getSiteUrl: () => "http://localhost:3000" },
+      "@/lib/auth-method-proof": {
+        verifyPasswordMethodProof: async () => ({
+          status: "VERIFIED",
+          userId: "user-1",
+          backupCodeConsumed: false,
+          authSessionVersion: 0,
+        }),
+      },
+      "@/lib/auth-method-intents": {
+        AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
+        parseAuthMethodIntentBinding: () => null,
+        prepareGoogleAuthentication: async () => ({ kind: "REJECTED", recoveryPath: "/login?auth=google-retry" }),
+      },
+      "@/lib/auth-users": {
+        ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
+        getUserAuthState: async () => ({
+          authSessionVersion: 0, role: "USER", roles: ["USER"],
+          roleAssignments: [{ role: "USER", status: "VERIFIED" }], capabilities: {},
+          emailVerified: true, twoFactorEnabled: false,
+        }),
+      },
+      "@/lib/auth-session-version": { decideAuthSessionVersion },
+      "@/lib/auth-security": { normalizeEmail: (value) => String(value ?? "").trim().toLowerCase() },
+    })
+
+    const credentialsProvider = capturedConfig.providers[0]
+    const authorized = await credentialsProvider.authorize(
+      { email: "person@example.com", password: "valid-password", twoFactorCode: "" },
+      new Request("https://massagelab.test/api/auth/callback/credentials"),
+    )
+    assert.equal(authorized.id, "user-1")
+    assert.equal(authorized.email, " Person@Example.com ")
+    assert.deepEqual(userLookups, [{ id: "user-1" }])
+  })
 })
 
 /**

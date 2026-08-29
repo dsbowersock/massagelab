@@ -13,9 +13,10 @@ import {
   verifyTotpCode,
 } from "@/lib/auth-security"
 import { prisma } from "@/lib/prisma"
+import { resolveNormalizedUserId } from "@/lib/normalized-user-email"
 
 export type PasswordMethodProofResult =
-  | { status: "VERIFIED"; backupCodeConsumed: boolean; authSessionVersion: number }
+  | { status: "VERIFIED"; userId: string; backupCodeConsumed: boolean; authSessionVersion: number }
   | { status: "EMAIL_UNVERIFIED" | "INVALID" | "TWO_FACTOR_REQUIRED" | "TWO_FACTOR_INVALID" | "RATE_LIMITED" }
 
 type ProofDependencies = {
@@ -27,9 +28,10 @@ type ProofDependencies = {
   verifyTotpCode: typeof verifyTotpCode
   verifyBackupCode: typeof verifyBackupCode
   normalizeEmail: typeof normalizeEmail
+  resolveNormalizedUserId: typeof resolveNormalizedUserId
 }
 
-type ProofPrismaClient = Pick<PrismaClient, "user" | "backupCode" | "authRateLimitBucket" | "$transaction">
+type ProofPrismaClient = Pick<PrismaClient, "user" | "backupCode" | "authRateLimitBucket" | "$transaction" | "$queryRaw">
 
 type VerifyPasswordMethodProofInput = {
   prismaClient?: ProofPrismaClient
@@ -52,6 +54,7 @@ const defaultDependencies: ProofDependencies = {
   verifyTotpCode,
   verifyBackupCode,
   normalizeEmail,
+  resolveNormalizedUserId,
 }
 
 /**
@@ -76,14 +79,20 @@ export async function verifyPasswordMethodProof(
   if (!input.userId && !await credentialProofAllowed(deps, submittedLimiterInput)) {
     return { status: "RATE_LIMITED" }
   }
-  const user = await prismaClient.user.findUnique({
-    where: input.userId ? { id: input.userId } : { email: submittedEmail },
-    include: {
-      passwordCredential: true,
-      twoFactorSecret: true,
-      backupCodes: { where: { usedAt: null }, orderBy: { createdAt: "asc" } },
-    },
+  const resolvedUserId = input.userId ?? await deps.resolveNormalizedUserId({
+    prismaClient,
+    email: submittedEmail,
   })
+  const user = resolvedUserId
+    ? await prismaClient.user.findUnique({
+      where: { id: resolvedUserId },
+      include: {
+        passwordCredential: true,
+        twoFactorSecret: true,
+        backupCodes: { where: { usedAt: null }, orderBy: { createdAt: "asc" } },
+      },
+    })
+    : null
   const accountEmail = deps.normalizeEmail(user?.email ?? submittedEmail)
   const limiterInput = {
     prismaClient,
@@ -142,6 +151,7 @@ export async function verifyPasswordMethodProof(
   await deps.clearCredentialAccountFailures({ prismaClient, email: accountEmail, secret })
   return {
     status: "VERIFIED",
+    userId: user.id,
     backupCodeConsumed,
     authSessionVersion: user.authSessionVersion,
   }
