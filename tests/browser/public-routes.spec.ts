@@ -284,6 +284,58 @@ test("core public tool surfaces keep shell spacing and visible primary content",
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("active app-tool metal ring keeps valid SVG geometry when its renderer collapses", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "The MetalFx collapse regression is covered once in Chromium.")
+  const health = capturePageHealth(page)
+
+  await page.setViewportSize({ width: 1024, height: 720 })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+
+  const activeLink = page.getByRole("link", { name: /^Open music$/i }).filter({ visible: true })
+  const probe = activeLink.locator(
+    "xpath=ancestor::span[contains(concat(' ', normalize-space(@class), ' '), ' ml-app-tool-link-active-ring-probe ')][1]",
+  )
+  const metalRoot = probe.locator(":scope > .metal-fx-root")
+  await expect(metalRoot).toBeVisible()
+
+  const probeBox = await probe.boundingBox()
+  expect(probeBox?.width ?? 0, "active app-tool ring probe width").toBeGreaterThanOrEqual(3)
+  expect(probeBox?.height ?? 0, "active app-tool ring probe height").toBeGreaterThanOrEqual(3)
+
+  await probe.evaluate((element, bounds) => {
+    const probeElement = element as HTMLElement
+    probeElement.style.setProperty("display", "inline-flex", "important")
+    probeElement.style.setProperty("width", `${bounds.width}px`, "important")
+    probeElement.style.setProperty("height", `${bounds.height}px`, "important")
+  }, probeBox!)
+  await metalRoot.evaluate((element) => {
+    const root = element as HTMLElement
+    root.style.setProperty("box-sizing", "border-box", "important")
+    root.style.setProperty("flex", "0 0 0px", "important")
+    root.style.setProperty("min-width", "0", "important")
+    root.style.setProperty("min-height", "0", "important")
+    root.style.setProperty("width", "0", "important")
+    root.style.setProperty("height", "0", "important")
+    root.style.setProperty("padding", "0", "important")
+  })
+  await expect.poll(async () => metalRoot.evaluate((element) => {
+    const bounds = element.getBoundingClientRect()
+    return { height: bounds.height, width: bounds.width }
+  })).toEqual({ height: 0, width: 0 })
+  await page.evaluate(async () => {
+    for (let frame = 0; frame < 6; frame += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    }
+  })
+
+  const invalidRects = metalRoot.locator('rect[width^="-"], rect[height^="-"]')
+  await expect(invalidRects, "MetalFx SVG rectangles with negative dimensions").toHaveCount(0)
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("main bar exposes brand music clock quick create theme calendar and more controls", async ({ page }) => {
   const health = capturePageHealth(page)
 
