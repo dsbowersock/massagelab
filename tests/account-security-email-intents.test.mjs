@@ -109,6 +109,43 @@ describe("durable account-security email intents", () => {
     assert.deepEqual(result, { status: "DELIVERED", attempted: true, attemptCount: 2 })
   })
 
+  it("reports an attempted send as ambiguous when an expired-lease worker wins completion", async () => {
+    const db = createEmailIntentDatabase()
+    const queued = await queue(db)
+    let releaseFirst
+    let markFirstEntered
+    const firstEntered = new Promise((resolve) => { markFirstEntered = resolve })
+    const firstBlocked = new Promise((resolve) => { releaseFirst = resolve })
+    let providerCalls = 0
+
+    const first = deliverAccountSecurityEmailIntent({
+      prismaClient: db,
+      intentId: queued.id,
+      now: NOW,
+      randomBytesFn: () => Buffer.alloc(32, 4),
+      send: async () => {
+        providerCalls += 1
+        markFirstEntered()
+        await firstBlocked
+        return { delivered: true }
+      },
+    })
+    await firstEntered
+    const recovered = await deliverAccountSecurityEmailIntent({
+      prismaClient: db,
+      intentId: queued.id,
+      now: new Date(NOW.getTime() + 5 * 60_000 + 1),
+      randomBytesFn: () => Buffer.alloc(32, 5),
+      send: async () => { providerCalls += 1; return { delivered: true } },
+    })
+    releaseFirst()
+
+    assert.deepEqual(recovered, { status: "DELIVERED", attempted: true, attemptCount: 2 })
+    assert.deepEqual(await first, { status: "AMBIGUOUS", attempted: true, attemptCount: 1 })
+    assert.equal(providerCalls, 2)
+    assert.equal(db.intent(queued.id).status, "DELIVERED")
+  })
+
   it("records only an allowlisted failure code and retries FAILED without logging content", async () => {
     const db = createEmailIntentDatabase()
     const queued = await queue(db)

@@ -193,8 +193,9 @@ export async function prepareGoogleAuthentication({
 
     if (userByEmail) {
       const proved = await tx.authMethodIntent.updateMany({
-        where: { id: intent.id, status: "PENDING", consumedAt: null, expiresAt: { gt: now } },
+        where: { id: intent.id, targetUserId: null, status: "PENDING", consumedAt: null, expiresAt: { gt: now } },
         data: {
+          targetUserId: userByEmail.id,
           status: "PROVIDER_PROVEN",
           providerAccountId: accountProof.providerAccountId,
           providerEmailHash: emailHash(profileProof.email, resolvedSecret),

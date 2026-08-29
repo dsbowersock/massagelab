@@ -18,6 +18,24 @@ async function loadService() {
   })
 }
 
+async function loadAccountSecurityMethods() {
+  const source = await readFile(new URL("../lib/account-security-methods.ts", import.meta.url), "utf8")
+  return loadCompiledModule(source, "account-security-methods.integration.test.ts", {
+    "./auth-env.ts": { getAuthSecret: () => "intent-test-secret" },
+    "./auth-security.js": { normalizeEmail: (value) => typeof value === "string" ? value.trim().toLowerCase() : "" },
+    "./commerce/transactions.ts": { runCommerceTransaction },
+    "./prisma.ts": { prisma: {} },
+    "./account-security-email-intents.ts": {
+      queueAccountSecurityEmail: (tx, input) => tx.accountSecurityEmailIntent.upsert({
+        where: { idempotencyKey: input.idempotencyKey },
+        create: { ...input, subject: "fixed subject", message: "fixed message" },
+        update: {},
+        select: { id: true },
+      }),
+    },
+  })
+}
+
 describe("private Google auth-method intents", () => {
   it("creates browser-bound single-use intent material without persisting its token", async () => {
     const service = await loadService()
@@ -105,8 +123,43 @@ describe("private Google auth-method intents", () => {
     assert.deepEqual(result, { kind: "LINK_REQUIRED", userId: "password-user" })
     assert.equal(db.state.accounts.length, 0)
     assert.equal(db.intent(started.intentId).status, "PROVIDER_PROVEN")
+    assert.equal(db.intent(started.intentId).targetUserId, "password-user")
     assert.match(db.intent(started.intentId).providerEmailHash, /^[a-f0-9]{64}$/)
     assert.equal(JSON.stringify(db.state.intents).includes("family@example.com"), false)
+  })
+
+  it("feeds a real Task 3 provider-proven intent into matching-account confirmation", async () => {
+    const intentService = await loadService()
+    const methodService = await loadAccountSecurityMethods()
+    const db = createIntentDatabase({
+      users: [{
+        id: "password-user",
+        email: "family@example.com",
+        emailVerified: new Date("2026-08-28T11:00:00.000Z"),
+        authSessionVersion: 0,
+        passwordCredential: { id: "password-1", userId: "password-user", passwordHash: "opaque-hash" },
+      }],
+    })
+    const started = await start(intentService, db)
+    const produced = await intentService.prepareGoogleAuthentication(
+      googleInput(db, " Family@Example.com ", "google-sub-a", started),
+    )
+    assert.deepEqual(produced, { kind: "LINK_REQUIRED", userId: "password-user" })
+
+    const confirmed = await methodService.confirmGoogleLink({
+      prismaClient: db,
+      intentId: started.intentId,
+      sessionUserId: "password-user",
+      lastPasswordAuthenticatedAt: new Date("2026-08-28T12:00:00.000Z").getTime(),
+      confirmed: true,
+      secret: "intent-test-secret",
+      now: new Date("2026-08-28T12:00:00.000Z"),
+    })
+
+    assert.equal(confirmed.status, "UPDATED")
+    assert.equal(db.intent(started.intentId).status, "CONSUMED")
+    assert.equal(db.accountsByProviderId("google", "google-sub-a").length, 1)
+    assert.equal(db.state.securityEmails.length, 1)
   })
 
   it("continues an already linked normalized identity and rejects a provider attached elsewhere", async () => {
@@ -413,10 +466,12 @@ function createIntentDatabase(seed = {}) {
       intents: (seed.intents ?? []).map((row) => ({ ...row })),
       users: (seed.users ?? []).map((row) => ({ ...row })),
       accounts: (seed.accounts ?? []).map((row) => ({ ...row })),
+      securityEmails: [],
       consumeWins: new Map(),
       nextIntent: (seed.intents?.length ?? 0) + 1,
       nextUser: (seed.users?.length ?? 0) + 1,
       nextAccount: (seed.accounts?.length ?? 0) + 1,
+      nextSecurityEmail: 1,
     },
   }
 
@@ -480,6 +535,10 @@ function transactionClient(state, root, seed) {
           candidate.id === where.id
           && candidate.status === where.status
           && (!Object.hasOwn(where, "consumedAt") || candidate.consumedAt === where.consumedAt)
+          && (!Object.hasOwn(where, "targetUserId") || candidate.targetUserId === where.targetUserId)
+          && (!Object.hasOwn(where, "purpose") || candidate.purpose === where.purpose)
+          && (!Object.hasOwn(where, "provider") || candidate.provider === where.provider)
+          && (!Object.hasOwn(where, "providerAccountId") || candidate.providerAccountId === where.providerAccountId)
           && (!where.expiresAt?.gt || candidate.expiresAt > where.expiresAt.gt)
         ))
         if (!row) return { count: 0 }
@@ -489,10 +548,17 @@ function transactionClient(state, root, seed) {
       },
     },
     user: {
-      async findUnique({ where }) {
-        if (where.email) return state.users.find((row) => row.email === where.email) ?? null
-        if (where.id) return state.users.find((row) => row.id === where.id) ?? null
-        return null
+      async findUnique({ where, include }) {
+        const user = where.email
+          ? state.users.find((row) => row.email === where.email) ?? null
+          : state.users.find((row) => row.id === where.id) ?? null
+        if (!user || !include) return user
+        return {
+          ...user,
+          accounts: state.accounts.filter((row) => row.userId === user.id),
+          passwordCredential: user.passwordCredential ?? null,
+          twoFactorSecret: user.twoFactorSecret ?? null,
+        }
       },
       async create({ data }) {
         await Promise.resolve()
@@ -526,6 +592,23 @@ function transactionClient(state, root, seed) {
       async findUnique({ where }) {
         const key = where.provider_providerAccountId
         return state.accounts.find((row) => row.provider === key.provider && row.providerAccountId === key.providerAccountId) ?? null
+      },
+      async create({ data }) {
+        if (state.accounts.some((row) => row.provider === data.provider && row.providerAccountId === data.providerAccountId)) {
+          throw uniqueError("Account", ["provider", "providerAccountId"])
+        }
+        const account = { id: `account-${state.nextAccount++}`, ...data }
+        state.accounts.push(account)
+        return account
+      },
+    },
+    accountSecurityEmailIntent: {
+      async upsert({ where, create }) {
+        const existing = state.securityEmails.find((row) => row.idempotencyKey === where.idempotencyKey)
+        if (existing) return { id: existing.id }
+        const intent = { id: `security-email-${state.nextSecurityEmail++}`, ...create, status: "PENDING", attemptCount: 0 }
+        state.securityEmails.push(intent)
+        return { id: intent.id }
       },
     },
   }

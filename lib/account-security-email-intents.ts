@@ -38,6 +38,7 @@ type SecurityEmailSender = typeof sendAccountChangeEmail
 export type AccountSecurityEmailDeliveryResult =
   | { status: "DELIVERED"; attempted: true; attemptCount: number }
   | { status: "FAILED"; attempted: true; attemptCount: number; code: "DELIVERY_FAILED" }
+  | { status: "AMBIGUOUS"; attempted: true; attemptCount: number }
   | { status: "BUSY"; attempted: false; attemptCount: number }
 
 /** Queues immutable allowlisted copy in the same transaction as its credential mutation. */
@@ -73,7 +74,9 @@ export async function queueAccountSecurityEmail(
 /**
  * Claims one intent with a five-minute lease before transport and completes it
  * by exact token-hash CAS. Provider acceptance can be ambiguous, so expired
- * claims are intentionally retryable and delivery is at-least-once.
+ * claims are intentionally retryable and delivery is at-least-once. Once the
+ * provider has been called, a lost completion claim is AMBIGUOUS rather than
+ * BUSY because another worker may have retried the same notice.
  */
 export async function deliverAccountSecurityEmailIntent({
   prismaClient,
@@ -141,7 +144,7 @@ export async function deliverAccountSecurityEmailIntent({
     },
   })
   if (finished.count !== 1) {
-    return { status: "BUSY", attempted: false, attemptCount: current.attemptCount }
+    return { status: "AMBIGUOUS", attempted: true, attemptCount: current.attemptCount }
   }
   return delivered
     ? { status: "DELIVERED", attempted: true, attemptCount: current.attemptCount }
