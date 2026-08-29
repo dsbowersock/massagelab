@@ -149,3 +149,19 @@ export async function sendPasswordResetEmail(email: string, token: string) {
 
   return process.env.NODE_ENV === "production" ? result : { ...result, devLink: link }
 }
+
+/**
+ * Sends the fixed same-account setup explanation for a verified Google-first
+ * account. The established reset-token route remains the only credential
+ * mutation boundary; this message only explains what completing it does.
+ */
+export async function sendPasswordSetupEmail(email: string, token: string) {
+  const link = `${getSiteUrl()}/reset-password?token=${encodeURIComponent(token)}`
+  const result = await sendMail(
+    email,
+    "Add password sign-in to your MassageLab account",
+    `A password registration request was received for the same MassageLab account you already use with Google.\n\nComplete this secure link to add email and password sign-in to that same account:\n\n${link}\n\nThis does not create a duplicate account and does not disconnect Google sign-in. This link expires in 60 minutes. If you did not request this, ignore this email and nothing will change.`,
+  )
+
+  return process.env.NODE_ENV === "production" ? result : { ...result, devLink: link }
+}

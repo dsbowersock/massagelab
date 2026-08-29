@@ -31,6 +31,22 @@ describe("durable account-security email intents", () => {
     assert.match(db.state.intents[0].message, /If you made this change/i)
   })
 
+  it("uses one neutral durable notice when password recovery adds or replaces password sign-in", async () => {
+    const db = createEmailIntentDatabase()
+
+    await queueAccountSecurityEmail(db, {
+      userId: "user-1",
+      kind: "PASSWORD_RECOVERED",
+      recipientEmail: "user@example.com",
+      idempotencyKey: "password-recovered:reset-1",
+    })
+
+    assert.equal(db.state.intents[0].subject, "Password sign-in added or replaced for your MassageLab account")
+    assert.match(db.state.intents[0].message, /add email and password to an account that already uses Google/i)
+    assert.match(db.state.intents[0].message, /replace an existing password/i)
+    assert.match(db.state.intents[0].message, /Google sign-in remains connected/i)
+  })
+
   it("claims PENDING delivery with a hashed five-minute lease and delivers by exact CAS", async () => {
     const db = createEmailIntentDatabase()
     const queued = await queue(db)

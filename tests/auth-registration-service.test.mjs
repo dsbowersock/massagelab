@@ -239,22 +239,22 @@ describe("registerPasswordAccount", () => {
       {
         name: "unverified matching password",
         user: existingUser({ emailVerified: null, passwordCredential: { passwordHash: "stored-hash" } }),
-        expected: { verification: 1, existing: 0, reset: 0 },
+        expected: { verification: 1, existing: 0, setup: 0 },
       },
       {
         name: "verified password account",
         user: existingUser({ emailVerified: NOW, passwordCredential: { passwordHash: "stored-hash" } }),
-        expected: { verification: 0, existing: 1, reset: 0 },
+        expected: { verification: 0, existing: 1, setup: 0 },
       },
       {
         name: "Google-first account",
         user: existingUser({ emailVerified: NOW, passwordCredential: null }),
-        expected: { verification: 0, existing: 0, reset: 1 },
+        expected: { verification: 0, existing: 0, setup: 1 },
       },
       {
         name: "mismatched password",
         user: existingUser({ emailVerified: null, passwordCredential: { passwordHash: "different-hash" } }),
-        expected: { verification: 0, existing: 0, reset: 0 },
+        expected: { verification: 0, existing: 0, setup: 0 },
       },
     ]
 
@@ -267,7 +267,7 @@ describe("registerPasswordAccount", () => {
       assert.deepEqual(db.events.slice(0, 5), ["limit:ACCOUNT", "limit:NETWORK", "delivery.schedule", "normalized-email.query", "user.findUnique"], scenario.name)
       assert.equal(db.sentVerificationMessages.length, scenario.expected.verification, scenario.name)
       assert.equal(db.sentExistingMessages.length, scenario.expected.existing, scenario.name)
-      assert.equal(db.sentResetMessages.length, scenario.expected.reset, scenario.name)
+      assert.equal(db.sentSetupMessages.length, scenario.expected.setup, scenario.name)
       assert.equal(db.persistedRawIdentifiers.length, 0, scenario.name)
     }
   })
@@ -335,7 +335,7 @@ function registrationInput(db, overrides = {}) {
       for (const document of documents) prismaClient.__state.legalAcceptances.push({ userId, ...document })
     },
     sendVerification: async (email, token, callbackUrl) => db.sendVerification(email, token, callbackUrl),
-    sendPasswordReset: async (email, token) => db.sendReset(email, token),
+    sendPasswordSetup: async (email, token) => db.sendSetup(email, token),
     sendExistingAccountNotice: async (email) => db.sendExisting(email),
     scheduleAccountWork: (work) => db.scheduleDelivery(work),
     ...overrides,
@@ -395,7 +395,7 @@ function createRegistrationDatabase({
   const events = []
   const sentVerificationMessages = []
   const sentExistingMessages = []
-  const sentResetMessages = []
+  const sentSetupMessages = []
   const rawQueries = []
   const scheduledDeliveries = []
   let transactionCount = 0
@@ -468,7 +468,7 @@ function createRegistrationDatabase({
     events,
     sentVerificationMessages,
     sentExistingMessages,
-    sentResetMessages,
+    sentSetupMessages,
     rawQueries,
     scheduledDeliveries,
     persistedRawIdentifiers: [],
@@ -514,9 +514,9 @@ function createRegistrationDatabase({
       if (deliveryFailure) throw new Error("provider unavailable")
       return { delivered: true }
     },
-    async sendReset(email, token) {
-      events.push("sendReset")
-      sentResetMessages.push({ email, token })
+    async sendSetup(email, token) {
+      events.push("sendSetup")
+      sentSetupMessages.push({ email, token })
       if (deliveryFailure) throw new Error("provider unavailable")
       return { delivered: true }
     },

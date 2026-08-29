@@ -38,6 +38,7 @@ describe("registration email delivery policy", () => {
 
   it("delegates every valid account state to the enumeration-safe registration owner", async () => {
     const registerRoute = await readFile(new URL("../app/api/account/register/route.ts", import.meta.url), "utf8")
+    const authMail = await readFile(new URL("../lib/auth-mail.ts", import.meta.url), "utf8")
 
     assert.match(registerRoute, /registerPasswordAccount\(\{/)
     assert.match(registerRoute, /verifyPassword,/)
@@ -48,6 +49,13 @@ describe("registration email delivery policy", () => {
     assert.match(registerRoute, /PUBLIC_ACCOUNT_ENTRY_MESSAGE[\s\S]*status: 202/)
     assert.doesNotMatch(registerRoute, /prisma\.(?:user|emailVerificationToken|passwordResetToken)\./)
     assert.doesNotMatch(registerRoute, /account already exists/i)
+    assert.match(registerRoute, /sendPasswordSetup: sendPasswordSetupEmail/)
+    assert.doesNotMatch(registerRoute, /sendPasswordReset: sendPasswordResetEmail/)
+    assert.match(authMail, /export async function sendPasswordSetupEmail/)
+    assert.match(authMail, /same MassageLab account/i)
+    assert.match(authMail, /does not create a duplicate account/i)
+    assert.match(authMail, /does not disconnect Google sign-in/i)
+    assert.match(authMail, /ignore this email and nothing will change/i)
   })
 
   it("validates before delegating quota-first work and maps exact rate-limit metadata", async () => {
@@ -126,6 +134,7 @@ describe("registration email delivery policy", () => {
     assert.match(loginForm, /pendingLabel="Connecting to Google…"/)
     assert.match(registerForm, /pendingLabel="Creating account…"/)
     assert.match(registerForm, /pendingLabel="Connecting to Google…"/)
+    assert.match(registerForm, /matching email[\s\S]*same account[\s\S]*inbox/i)
     assert.match(loginForm, /let navigationStarted = false[\s\S]*router\.push\(callbackUrl\)[\s\S]*router\.refresh\(\)[\s\S]*navigationStarted = true[\s\S]*finally \{[\s\S]*if \(!navigationStarted\)/)
   })
 
@@ -232,6 +241,7 @@ async function loadRegistrationRoute({ afterCallbacks, registerWork }) {
     "@/lib/auth-env": { getAuthSecret: () => "secret" },
     "@/lib/auth-mail": {
       sendAccountChangeEmail: async () => ({ delivered: true }),
+      sendPasswordSetupEmail: async () => ({ delivered: true }),
       sendPasswordResetEmail: async () => ({ delivered: true }),
       sendVerificationEmail: async () => ({ delivered: true }),
     },

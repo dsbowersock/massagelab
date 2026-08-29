@@ -157,6 +157,9 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
           <Label htmlFor="password">Password</Label>
           <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={12} required />
         </div>
+        <p className="text-sm text-muted-foreground">
+          If you use a matching email for an existing MassageLab sign-in, we keep it with the same account and send the safe next step to that inbox.
+        </p>
         <div className="space-y-3">
           {registrationDocuments.map((document) => {
             const documentId = legalDocumentAcceptanceId(document)

@@ -1,6 +1,6 @@
 import { after, NextResponse } from "next/server"
 import { getAuthSecret } from "@/lib/auth-env"
-import { sendAccountChangeEmail, sendPasswordResetEmail, sendVerificationEmail } from "@/lib/auth-mail"
+import { sendAccountChangeEmail, sendPasswordSetupEmail, sendVerificationEmail } from "@/lib/auth-mail"
 import { consumeEmailWorkRateLimit } from "@/lib/auth-rate-limit"
 import {
   PUBLIC_ACCOUNT_ENTRY_MESSAGE,
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     sendVerification: (recipient, token, safeCallbackUrl) => (
       sendRegistrationVerification(sendVerificationEmail, recipient, token, safeCallbackUrl)
     ),
-    sendPasswordReset: sendPasswordResetEmail,
+    sendPasswordSetup: sendPasswordSetupEmail,
     sendExistingAccountNotice: (recipient) => sendAccountChangeEmail(
       recipient,
       EXISTING_ACCOUNT_NOTICE_SUBJECT,

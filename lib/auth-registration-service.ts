@@ -47,7 +47,7 @@ export type RegisterPasswordAccountInput = {
     metadata?: LegalMetadata
   }): Promise<unknown>
   sendVerification(email: string, token: string, callbackUrl: string): Promise<unknown>
-  sendPasswordReset(email: string, token: string): Promise<unknown>
+  sendPasswordSetup(email: string, token: string): Promise<unknown>
   sendExistingAccountNotice(email: string): Promise<unknown>
   scheduleAccountWork(work: () => Promise<void>): void
 }
@@ -195,7 +195,7 @@ async function handleExistingAccount(
         },
       })
     }, { isolationLevel: "Serializable" })
-    await ignoreDeliveryFailure(() => input.sendPasswordReset(recipient, token))
+    await ignoreDeliveryFailure(() => input.sendPasswordSetup(recipient, token))
   }
 }
 

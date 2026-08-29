@@ -27,8 +27,8 @@ const SECURITY_EMAIL_COPY: Record<AccountSecurityEmailKind, { subject: string; m
     message: "Password sign-in was disabled for your MassageLab account. If you made this change, no action is needed. If you did not, use your remaining sign-in method and contact support. You may receive this notice more than once if delivery had to be retried.",
   },
   PASSWORD_RECOVERED: {
-    subject: "MassageLab account password recovered",
-    message: "The password for your MassageLab account was reset through account recovery. If you made this change, no action is needed. If you did not, contact support. You may receive this notice more than once if delivery had to be retried.",
+    subject: "Password sign-in added or replaced for your MassageLab account",
+    message: "Password sign-in was added or replaced for your MassageLab account. This can add email and password to an account that already uses Google, or replace an existing password. Existing Google sign-in remains connected. If you made this change, no action is needed. If you did not, contact support. You may receive this notice more than once if delivery had to be retried.",
   },
 }
 
