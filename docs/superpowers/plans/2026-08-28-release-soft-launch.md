@@ -311,7 +311,7 @@ if ($collisionExit -ne 0) { exit $collisionExit }
 Write-Output "migration_status_exit=$migrationStatusExit"
 ```
 
-Record only `normalized_collision_count=0`, `migration_status_exit`, and applied/pending migration names/counts. A nonzero migration status is expected only when the output names exactly the two reviewed pending additive migrations; an unknown status failure or an additional migration is a stop. Never echo the source environment variable.
+Record only `normalized_collision_count=0`, `migration_status_exit`, and applied/pending migration names/counts. A nonzero migration status is expected only when the output names exactly these three reviewed pending migrations in order: `20260828120000_identity_method_safety`, `20260828121000_identity_normalized_email_index`, and `20260828130000_membership_subscription_convergence`. An unknown status failure, failed migration, omitted migration, reordered migration, or additional migration is a stop. Never echo the source environment variable.
 
 Do not run `prisma migrate deploy` in this task.
 
@@ -381,14 +381,15 @@ Present the zero-collision result, current production migration status, exact mi
 
 ```text
 20260828120000_identity_method_safety
+20260828121000_identity_normalized_email_index
 20260828130000_membership_subscription_convergence
 ```
 
-Include additive/limiter-row-deletion behavior, rollback compatibility, database target, and verification command. Request authorization only for applying these reviewed migrations.
+Include additive/limiter-row-deletion behavior, rollback compatibility, database target, verification command, and the concurrent-index monitoring/recovery boundary. Request authorization only for applying these three reviewed migrations in the displayed order after the zero-collision preflight.
 
 - [ ] **Step 2: Apply and verify only after approval**
 
-Use the documented direct Neon maintenance path to run `npm run prisma:migrate:deploy`, then read migration status again. Expected: both exact migrations applied and all committed migrations current. Stop on any unexpected migration or failure; do not resolve/baseline/repair automatically.
+Use the documented direct Neon maintenance path to run `npm run prisma:migrate:deploy`, then read migration status again. Expected: all three exact migrations applied in the reviewed order and all committed migrations current. Monitor the `20260828121000_identity_normalized_email_index` `CREATE UNIQUE INDEX CONCURRENTLY` build and use only its separately reviewed stop/recovery path if it fails. Stop on any omitted, reordered, additional, unexpected, or failed migration; do not resolve/baseline/repair automatically.
 
 - [ ] **Step 3: Construct and request authorization for one exact atomic main update/Production deploy**
 
