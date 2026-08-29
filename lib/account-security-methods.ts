@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto"
 import type { PrismaClient } from "@prisma/client"
 
 import { getAuthSecret } from "./auth-env.ts"
+import { consumeFreshGoogleReauth, isFreshConsumedGoogleReauth } from "./auth-method-intent-proof.ts"
 import { hashPassword, normalizeEmail } from "./auth-security.js"
 import { runCommerceTransaction } from "./commerce/transactions.ts"
 import { prisma } from "./prisma.ts"
@@ -150,11 +151,11 @@ export async function setPasswordMethod(input: {
     let consumedIntentId: string | null = null
     if (input.mode === "ADD") {
       const intent = await tx.authMethodIntent.findUnique({ where: { id: input.googleReauthPreflight?.intentId } })
-      if (!isFreshGoogleReauth(intent, "ADD_PASSWORD", user.id, now)) return rejected("INTENT_EXPIRED")
+      if (!isFreshConsumedGoogleReauth(intent, "ADD_PASSWORD", user.id, now)) return rejected("INTENT_EXPIRED")
       if (!user.accounts.some((account: { provider: string; providerAccountId: string }) => account.provider === "google" && account.providerAccountId === intent.providerAccountId)) {
         return rejected("CONFLICT")
       }
-      if (!await consumeGoogleReauth(tx, intent, now)) return rejected("INTENT_EXPIRED")
+      if (!await consumeFreshGoogleReauth(tx, intent, now)) return rejected("INTENT_EXPIRED")
       consumedIntentId = intent.id
       await tx.passwordCredential.create({ data: { userId: user.id, passwordHash: newPasswordHash } })
     } else {
@@ -219,11 +220,11 @@ export async function removePasswordMethod(input: {
       tx.authMethodIntent.findUnique({ where: { id: input.intentId } }),
     ])
     if (!user?.email) return rejected("CONFLICT")
-    if (!isFreshGoogleReauth(intent, "REMOVE_PASSWORD", user.id, now)) return rejected("INTENT_EXPIRED")
+    if (!isFreshConsumedGoogleReauth(intent, "REMOVE_PASSWORD", user.id, now)) return rejected("INTENT_EXPIRED")
     if (!user.passwordCredential) return rejected("INTENT_EXPIRED")
     const googleAccount = user.accounts.find((account: { provider: string; providerAccountId: string }) => account.provider === "google" && account.providerAccountId === intent.providerAccountId)
     if (!googleAccount) return rejected(user.accounts.some((account: { provider: string }) => account.provider === "google") ? "CONFLICT" : "LAST_METHOD")
-    if (!await consumeGoogleReauth(tx, intent, now)) return rejected("INTENT_EXPIRED")
+    if (!await consumeFreshGoogleReauth(tx, intent, now)) return rejected("INTENT_EXPIRED")
     const removed = await tx.passwordCredential.deleteMany({ where: { userId: user.id } })
     if (removed.count !== 1) return rejected("CONFLICT")
     await incrementSessionVersion(tx, user.id)
@@ -288,36 +289,6 @@ function isMatchingLinkIntent(intent: any, userId: string, now: Date): boolean {
     && intent.expiresAt > now)
 }
 
-function isFreshGoogleReauth(intent: any, purpose: "ADD_PASSWORD" | "REMOVE_PASSWORD", userId: string, now: Date): boolean {
-  return Boolean(intent
-    && intent.targetUserId === userId
-    && intent.purpose === purpose
-    && intent.status === "CONSUMED"
-    && intent.provider === "google"
-    && validIdentifier(intent.providerAccountId)
-    && intent.providerProvenAt instanceof Date
-    && freshDateClaim(intent.providerProvenAt, now)
-    && intent.expiresAt instanceof Date
-    && intent.expiresAt > now)
-}
-
-async function consumeGoogleReauth(tx: any, intent: any, now: Date): Promise<boolean> {
-  const consumed = await tx.authMethodIntent.updateMany({
-    where: {
-      id: intent.id,
-      targetUserId: intent.targetUserId,
-      purpose: intent.purpose,
-      status: "CONSUMED",
-      provider: "google",
-      providerAccountId: intent.providerAccountId,
-      providerProvenAt: intent.providerProvenAt,
-      expiresAt: { gt: now },
-    },
-    data: { providerProvenAt: null },
-  })
-  return consumed.count === 1
-}
-
 async function incrementSessionVersion(tx: any, userId: string): Promise<void> {
   await tx.user.update({ where: { id: userId }, data: { authSessionVersion: { increment: 1 } } })
 }
@@ -337,11 +308,6 @@ function freshEpochClaim(value: unknown, now: Date): boolean {
   if (typeof value !== "number" || !Number.isFinite(value)) return false
   const age = now.getTime() - value
   return age >= 0 && age <= FRESH_PROOF_MS
-}
-
-function freshDateClaim(value: Date, now: Date): boolean {
-  const age = now.getTime() - value.getTime()
-  return Number.isFinite(age) && age >= 0 && age <= FRESH_PROOF_MS
 }
 
 function captureNow(value?: Date): Date | null {

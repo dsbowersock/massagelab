@@ -34,7 +34,10 @@ describe("Google callback safety seam", () => {
     const authSource = await readFile(new URL("../auth.ts", import.meta.url), "utf8")
     assert.match(authSource, /result\.kind === "CONTINUE"\) return true/)
     assert.match(authSource, /result\.kind === "LINK_REQUIRED"\) return "\/account\/link-google"/)
-    assert.match(authSource, /result\.kind === "REAUTH_COMPLETE"\) return "\/account\?tab=security&reauth=complete"/)
+    assert.match(authSource, /result\.kind === "REAUTH_COMPLETE"/)
+    assert.match(authSource, /result\.purpose === "LINK_GOOGLE"/)
+    assert.match(authSource, /\/account\?tab=security&reauth=two-factor/)
+    assert.match(authSource, /\/account\?tab=security&reauth=complete/)
     assert.match(authSource, /return result\.recoveryPath/)
     assert.match(authSource, /\/login\?auth=google-unavailable/)
   })
@@ -77,7 +80,11 @@ describe("Google callback safety seam", () => {
     decision = { kind: "LINK_REQUIRED", userId: "user-1" }
     assert.equal(await capturedConfig.callbacks.signIn(google), "/account/link-google")
     decision = { kind: "REAUTH_COMPLETE", purpose: "LINK_GOOGLE", userId: "user-1" }
-    assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&reauth=complete")
+    assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&reauth=two-factor")
+    for (const purpose of ["ADD_PASSWORD", "REMOVE_PASSWORD"]) {
+      decision = { kind: "REAUTH_COMPLETE", purpose, userId: "user-1" }
+      assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&reauth=complete")
+    }
     currentSession = { user: { id: "user-a", email: "account-a@example.com" } }
     decision = { kind: "REJECTED", recoveryPath: "/account?tab=security&auth=google-retry" }
     assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&auth=google-retry")

@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { consumeFreshGoogleReauth, isFreshConsumedGoogleReauth } from "../lib/auth-method-intent-proof.ts"
 import { runCommerceTransaction } from "../lib/commerce/transactions.ts"
 import { buildRegistrationLegalProviderRedirectPath } from "../lib/legal-acceptance-gate.js"
 import { isGoogleIdentityUniqueConstraint } from "../lib/prisma-identity-unique-constraint.ts"
@@ -30,6 +31,7 @@ async function loadAccountSecurityMethods() {
   const source = await readFile(new URL("../lib/account-security-methods.ts", import.meta.url), "utf8")
   return loadCompiledModule(source, "account-security-methods.integration.test.ts", {
     "./auth-env.ts": { getAuthSecret: () => "intent-test-secret" },
+    "./auth-method-intent-proof.ts": { consumeFreshGoogleReauth, isFreshConsumedGoogleReauth },
     "./auth-security.js": {
       hashPassword: async () => "hash",
       normalizeEmail: (value) => typeof value === "string" ? value.trim().toLowerCase() : "",
