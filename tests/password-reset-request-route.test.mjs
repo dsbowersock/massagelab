@@ -14,8 +14,12 @@ const limiter = loadCompiledModule(limiterSource, "auth-rate-limit.route-test.ts
 })
 
 const routeSource = await readFile(new URL("../app/api/account/password-reset/request/route.ts", import.meta.url), "utf8")
+const afterCallbacks = []
 const route = loadCompiledModule(routeSource, "password-reset-request-route.test.ts", {
-  "next/server": { NextResponse: { json: (body, init) => Response.json(body, init) } },
+  "next/server": {
+    after: (callback) => afterCallbacks.push(callback),
+    NextResponse: { json: (body, init) => Response.json(body, init) },
+  },
   "@/lib/auth-security": { generateRandomToken: () => "token", hashToken: () => "hash", normalizeEmail: (value) => String(value ?? "").trim().toLowerCase(), tokenExpiresIn: () => new Date() },
   "@/lib/auth-mail": { sendPasswordResetEmail: async () => ({ delivered: true }) },
   "@/lib/auth-rate-limit": limiter,
@@ -53,6 +57,36 @@ describe("password reset limiter cutover", () => {
     assert.equal(JSON.stringify(snapshot).includes("203.0.113.5"), false)
   })
 
+  it("returns neutral 202 before an unresolved provider task scheduled through Next after", async () => {
+    afterCallbacks.length = 0
+    let providerStarted = false
+    let releaseProvider
+    const provider = new Promise((resolve) => { releaseProvider = resolve })
+    const handler = route.createPasswordResetRequestHandler({
+      prismaClient: createDatabase(),
+      secret: "secret",
+      clock: () => NOW,
+      shouldPrune: () => false,
+      resetWork: async (input) => {
+        input.scheduleDelivery(() => {
+          providerStarted = true
+          return provider
+        })
+        return { status: "ACCEPTED" }
+      },
+    })
+
+    const response = await handler(request("person@example.com", "203.0.113.5"))
+
+    assert.equal(response.status, 202)
+    assert.equal(providerStarted, false)
+    assert.equal(afterCallbacks.length, 1)
+    const delivery = afterCallbacks[0]()
+    assert.equal(providerStarted, true)
+    releaseProvider({ delivered: false })
+    await delivery
+  })
+
   it("maps a blocked decision to exact 429 metadata without invoking reset work", async () => {
     const database = createDatabase()
     const handler = route.createPasswordResetRequestHandler({ prismaClient: database, secret: "secret", clock: () => NOW, shouldPrune: () => false })
@@ -62,7 +96,7 @@ describe("password reset limiter cutover", () => {
     assert.equal(response.status, 429)
     assert.equal(response.headers.get("retry-after"), "900")
     assert.deepEqual(await response.json(), { message: "Too many requests. Please try again later." })
-    assert.equal(database.userLookupCount, 5)
+    assert.equal(database.normalizedLookupCount, 5)
   })
 })
 
@@ -77,6 +111,7 @@ function request(email, ip) {
 function createDatabase() {
   const rows = []
   let userLookupCount = 0
+  let normalizedLookupCount = 0
   const delegate = {
     async findUnique({ where }) {
       const key = where.purpose_scope_keyHash
@@ -95,8 +130,10 @@ function createDatabase() {
     rows,
     onUserLookup: null,
     get userLookupCount() { return userLookupCount },
+    get normalizedLookupCount() { return normalizedLookupCount },
     authRateLimitBucket: delegate,
     user: { async findUnique() { userLookupCount += 1; database.onUserLookup?.(); return null } },
+    async $queryRaw() { normalizedLookupCount += 1; database.onUserLookup?.(); return [] },
     passwordResetToken: { async create() {} },
     async $transaction(callback) { return callback({ authRateLimitBucket: delegate }) },
   }

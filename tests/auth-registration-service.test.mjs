@@ -20,7 +20,7 @@ describe("registerPasswordAccount", () => {
 
     assert.deepEqual(result, { status: "ACCEPTED" })
     assert.equal(PUBLIC_ACCOUNT_ENTRY_MESSAGE, "Check that email address for the appropriate sign-in, verification, or recovery next step.")
-    assert.deepEqual(db.events.slice(0, 4), ["limit:ACCOUNT", "limit:NETWORK", "user.findUnique", "hashPassword"])
+    assert.deepEqual(db.events.slice(0, 4), ["limit:ACCOUNT", "limit:NETWORK", "normalized-email.query", "hashPassword"])
     assert.equal(db.users.length, 1)
     assert.equal(db.profiles.length, 1)
     assert.equal(db.passwordCredentials.length, 1)
@@ -42,6 +42,63 @@ describe("registerPasswordAccount", () => {
     assert.equal(db.userCreateAttempts, 1)
     assert.equal(db.sentExistingMessages.length, 1)
     assert.equal(db.sentVerificationMessages.length, 0)
+  })
+
+  it("resolves a padded mixed-case stored email through the parameterized functional-index rule", async () => {
+    const db = createRegistrationDatabase({
+      user: existingUser({
+        email: " Person@Example.com ",
+        emailVerified: NOW,
+        passwordCredential: { passwordHash: "stored-hash" },
+      }),
+    })
+
+    assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" })
+
+    assert.equal(db.users.length, 1)
+    assert.equal(db.userCreateAttempts, 0)
+    assert.equal(db.sentExistingMessages.length, 1)
+    assert.equal(db.rawQueries.length, 1)
+    assert.match(db.rawQueries[0].strings.join("?"), /lower\(btrim\("email"\)\)\s*=\s*\?/)
+    assert.doesNotMatch(db.rawQueries[0].strings.join(""), /person@example\.com/i)
+    assert.deepEqual(db.rawQueries[0].values, ["person@example.com"])
+  })
+
+  it("recognizes only the exact normalized-email index race metadata", async () => {
+    const exact = createRegistrationDatabase({ duplicateRace: true })
+    assert.deepEqual(await registerPasswordAccount(registrationInput(exact)), { status: "ACCEPTED" })
+
+    for (const uniqueError of [
+      Object.assign(new Error("other unique"), { code: "P2002", meta: { modelName: "User", target: "User_email_key" } }),
+      Object.assign(new Error("unknown unique"), { code: "P2002", meta: { modelName: "User" } }),
+      Object.assign(new Error("other model"), { code: "P2002", meta: { modelName: "EmailVerificationToken", target: "User_normalized_email_key" } }),
+    ]) {
+      const db = createRegistrationDatabase({ uniqueError })
+      await assert.rejects(() => registerPasswordAccount(registrationInput(db)), (error) => error === uniqueError)
+      assert.equal(db.userCreateAttempts, 1)
+    }
+  })
+
+  it("returns before unresolved verification transport and schedules only after commit", async () => {
+    const db = createRegistrationDatabase({ deferDelivery: true })
+    let releaseProvider
+    const provider = new Promise((resolve) => { releaseProvider = resolve })
+    const work = registerPasswordAccount(registrationInput(db, {
+      sendVerification: async () => provider,
+    }))
+
+    const settled = await Promise.race([
+      work,
+      new Promise((resolve) => setImmediate(() => resolve("STILL_PENDING"))),
+    ])
+    assert.deepEqual(settled, { status: "ACCEPTED" })
+    assert.equal(db.scheduledDeliveries.length, 1)
+    assert.equal(db.verificationTokens.length, 1)
+    assert.ok(db.events.indexOf("transaction.commit") < db.events.indexOf("delivery.schedule"))
+
+    const delivery = db.runScheduledDeliveries()
+    releaseProvider({ delivered: false })
+    await delivery
   })
 
   it("keeps every accepted account state publicly identical after quota consumption", async () => {
@@ -73,7 +130,7 @@ describe("registerPasswordAccount", () => {
       const result = await registerPasswordAccount(registrationInput(db))
 
       assert.deepEqual(result, { status: "ACCEPTED" }, scenario.name)
-      assert.deepEqual(db.events.slice(0, 3), ["limit:ACCOUNT", "limit:NETWORK", "user.findUnique"], scenario.name)
+      assert.deepEqual(db.events.slice(0, 4), ["limit:ACCOUNT", "limit:NETWORK", "normalized-email.query", "user.findUnique"], scenario.name)
       assert.equal(db.sentVerificationMessages.length, scenario.expected.verification, scenario.name)
       assert.equal(db.sentExistingMessages.length, scenario.expected.existing, scenario.name)
       assert.equal(db.sentResetMessages.length, scenario.expected.reset, scenario.name)
@@ -144,6 +201,7 @@ function registrationInput(db, overrides = {}) {
     sendVerification: async (email, token, callbackUrl) => db.sendVerification(email, token, callbackUrl),
     sendPasswordReset: async (email, token) => db.sendReset(email, token),
     sendExistingAccountNotice: async (email) => db.sendExisting(email),
+    scheduleDelivery: (delivery) => db.scheduleDelivery(delivery),
     ...overrides,
   }
 }
@@ -152,7 +210,14 @@ function existingUser(overrides) {
   return { id: "user-existing", email: "person@example.com", name: "Person", ...overrides }
 }
 
-function createRegistrationDatabase({ user = null, duplicateRace = false, deliveryFailure = false, rateLimited = false } = {}) {
+function createRegistrationDatabase({
+  user = null,
+  duplicateRace = false,
+  uniqueError = null,
+  deliveryFailure = false,
+  deferDelivery = false,
+  rateLimited = false,
+} = {}) {
   let state = {
     users: user ? [structuredClone(user)] : [],
     profiles: [],
@@ -166,9 +231,11 @@ function createRegistrationDatabase({ user = null, duplicateRace = false, delive
   const sentVerificationMessages = []
   const sentExistingMessages = []
   const sentResetMessages = []
+  const rawQueries = []
+  const scheduledDeliveries = []
   let transactionCount = 0
   let userCreateAttempts = 0
-  let firstLookup = true
+  let firstNormalizedLookup = true
 
   function client(snapshot, transaction = false) {
     return {
@@ -177,20 +244,22 @@ function createRegistrationDatabase({ user = null, duplicateRace = false, delive
       user: {
         async findUnique({ where }) {
           events.push("user.findUnique")
-          if (duplicateRace && firstLookup) {
-            firstLookup = false
-            return null
-          }
-          return structuredClone(snapshot.users.find((candidate) => candidate.email === where.email) ?? null)
+          return structuredClone(snapshot.users.find((candidate) => candidate.id === where.id) ?? null)
         },
         async create({ data }) {
           events.push("user.create")
           userCreateAttempts += 1
-          if (duplicateRace) {
+          const normalizedCollision = snapshot.users.some((candidate) => (
+            candidate.email?.trim().toLowerCase() === data.email.trim().toLowerCase()
+          ))
+          if (duplicateRace || uniqueError || normalizedCollision) {
             if (!snapshot.users.some((candidate) => candidate.email === "person@example.com")) {
               snapshot.users.push(existingUser({ emailVerified: NOW, passwordCredential: { passwordHash: "stored-hash" } }))
             }
-            throw Object.assign(new Error("unique email"), { code: "P2002", meta: { target: ["email"] } })
+            throw uniqueError ?? Object.assign(new Error("unique email"), {
+              code: "P2002",
+              meta: { modelName: "User", target: "User_normalized_email_key" },
+            })
           }
           const created = { id: "user-new", email: data.email, name: data.name, emailVerified: null }
           snapshot.users.push(created)
@@ -230,10 +299,23 @@ function createRegistrationDatabase({ user = null, duplicateRace = false, delive
     sentVerificationMessages,
     sentExistingMessages,
     sentResetMessages,
+    rawQueries,
+    scheduledDeliveries,
     persistedRawIdentifiers: [],
     async consumeRateLimit() {
       events.push("limit:ACCOUNT", "limit:NETWORK")
       return rateLimited ? { allowed: false, retryAfterSeconds: 73 } : { allowed: true }
+    },
+    async $queryRaw(query) {
+      events.push("normalized-email.query")
+      rawQueries.push(query)
+      if (duplicateRace && firstNormalizedLookup) {
+        firstNormalizedLookup = false
+        return []
+      }
+      const normalized = query.values[0]
+      const match = state.users.find((candidate) => candidate.email?.trim().toLowerCase() === normalized)
+      return match ? [{ id: match.id }] : []
     },
     async $transaction(callback, options) {
       transactionCount += 1
@@ -267,6 +349,14 @@ function createRegistrationDatabase({ user = null, duplicateRace = false, delive
       sentResetMessages.push({ email, token })
       if (deliveryFailure) throw new Error("provider unavailable")
       return { delivered: true }
+    },
+    scheduleDelivery(delivery) {
+      events.push("delivery.schedule")
+      scheduledDeliveries.push(delivery)
+      if (!deferDelivery) void delivery()
+    },
+    async runScheduledDeliveries() {
+      await Promise.all(scheduledDeliveries.splice(0).map((delivery) => delivery()))
     },
   })
   Object.defineProperties(database, {

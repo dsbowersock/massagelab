@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { after, NextResponse } from "next/server"
 import { getAuthSecret } from "@/lib/auth-env"
 import { sendPasswordResetEmail } from "@/lib/auth-mail"
 import { consumeEmailWorkRateLimit } from "@/lib/auth-rate-limit"
@@ -44,6 +44,7 @@ export function createPasswordResetRequestHandler({
       hashToken,
       tokenExpiresAt: tokenExpiresIn,
       sendPasswordReset: sendPasswordResetEmail,
+      scheduleDelivery: (delivery) => after(delivery),
     })
     if (result.status === "RATE_LIMITED") {
       return NextResponse.json(

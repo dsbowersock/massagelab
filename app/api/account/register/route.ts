@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { after, NextResponse } from "next/server"
 import { getAuthSecret } from "@/lib/auth-env"
 import { sendAccountChangeEmail, sendPasswordResetEmail, sendVerificationEmail } from "@/lib/auth-mail"
 import { consumeEmailWorkRateLimit } from "@/lib/auth-rate-limit"
@@ -74,6 +74,7 @@ export async function POST(request: Request) {
       EXISTING_ACCOUNT_NOTICE_SUBJECT,
       EXISTING_ACCOUNT_NOTICE_MESSAGE,
     ),
+    scheduleDelivery: (delivery) => after(delivery),
   })
 
   if (result.status === "RATE_LIMITED") {

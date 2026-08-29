@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 import {
   buildVerificationEmailUrl,
   buildVerificationLoginPath,
@@ -10,6 +11,8 @@ import {
   registrationVerificationResponse,
   sendRegistrationVerification,
 } from "../lib/auth-registration.js"
+
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 describe("registration email delivery policy", () => {
   it("returns success only when verification has a deliverable path", () => {
@@ -56,6 +59,37 @@ describe("registration email delivery policy", () => {
     assert.match(registerRoute, /result\.retryAfterSeconds/)
     assert.match(registerRoute, /"Retry-After": String\(result\.retryAfterSeconds\)/)
     assert.doesNotMatch(registerRoute, /assertRateLimit|recordFailedAttempt|rateLimitKey|prisma\.authAttempt/)
+  })
+
+  it("returns neutral 202 before an unresolved provider task scheduled through Next after", async () => {
+    const afterCallbacks = []
+    let providerStarted = false
+    let releaseProvider
+    const provider = new Promise((resolve) => { releaseProvider = resolve })
+    const { POST } = await loadRegistrationRoute({
+      afterCallbacks,
+      registerWork: async (input) => {
+        input.scheduleDelivery(() => {
+          providerStarted = true
+          return provider
+        })
+        return { status: "ACCEPTED" }
+      },
+    })
+
+    const response = await POST(new Request("https://massagelab.app/api/account/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "person@example.com", password: "a-long-password", acceptedLegalDocuments: [] }),
+    }))
+
+    assert.equal(response.status, 202)
+    assert.equal(providerStarted, false)
+    assert.equal(afterCallbacks.length, 1)
+    const delivery = afterCallbacks[0]()
+    assert.equal(providerStarted, true)
+    releaseProvider({ delivered: false })
+    await delivery
   })
 
   it("presents Google registration and email-password registration on the register page", async () => {
@@ -173,3 +207,43 @@ describe("registration email delivery policy", () => {
     assert.match(verifyPage, /buildVerificationLoginPath\(verified, callbackUrl\)/)
   })
 })
+
+async function loadRegistrationRoute({ afterCallbacks, registerWork }) {
+  const source = await readFile(new URL("../app/api/account/register/route.ts", import.meta.url), "utf8")
+  return loadCompiledModule(source, "account-register-route.review-test.ts", {
+    "next/server": {
+      after: (callback) => afterCallbacks.push(callback),
+      NextResponse: { json: (body, init) => Response.json(body, init) },
+    },
+    "@/lib/auth-env": { getAuthSecret: () => "secret" },
+    "@/lib/auth-mail": {
+      sendAccountChangeEmail: async () => ({ delivered: true }),
+      sendPasswordResetEmail: async () => ({ delivered: true }),
+      sendVerificationEmail: async () => ({ delivered: true }),
+    },
+    "@/lib/auth-rate-limit": { consumeEmailWorkRateLimit: async () => ({ allowed: true }) },
+    "@/lib/auth-registration-service": {
+      PUBLIC_ACCOUNT_ENTRY_MESSAGE: "Check that email address for the appropriate sign-in, verification, or recovery next step.",
+      registerPasswordAccount: registerWork,
+    },
+    "@/lib/auth-registration": { sendRegistrationVerification: (sender, ...args) => sender(...args) },
+    "@/lib/auth-security": {
+      generateRandomToken: () => "token",
+      hashPassword: async () => "hash",
+      hashToken: () => "token-hash",
+      normalizeEmail: (value) => String(value ?? "").trim().toLowerCase(),
+      tokenExpiresIn: () => new Date(),
+      verifyPassword: async () => true,
+    },
+    "@/lib/auth-users": { ensureUserRole: async () => "USER" },
+    "@/lib/legal-acceptance": {
+      acceptedDocumentIdsFromInput: () => new Set(),
+      legalRequestMetadata: () => ({}),
+      missingRequiredLegalDocuments: () => [],
+      recordLegalAcceptances: async () => [],
+    },
+    "@/lib/legal-acceptance-gate": { safePostLegalAcceptanceCallback: () => "/onboarding" },
+    "@/lib/legal-documents": { requiredLegalDocumentsForEvent: () => [] },
+    "@/lib/prisma": { prisma: {} },
+  })
+}

@@ -1,8 +1,9 @@
 import type { PrismaClient } from "@prisma/client"
 import type { consumeEmailWorkRateLimit } from "./auth-rate-limit.ts"
 import type { PublicAuthWorkResult } from "./auth-registration-service.ts"
+import { resolveNormalizedUserId } from "./normalized-user-email.ts"
 
-type ResetClient = Pick<PrismaClient, "$transaction" | "authRateLimitBucket" | "user">
+type ResetClient = Pick<PrismaClient, "$queryRaw" | "$transaction" | "authRateLimitBucket" | "user">
 
 export type RequestPasswordResetInput = {
   prismaClient: ResetClient
@@ -16,6 +17,7 @@ export type RequestPasswordResetInput = {
   hashToken(token: string): string
   tokenExpiresAt(minutes: number): Date
   sendPasswordReset(email: string, token: string): Promise<unknown>
+  scheduleDelivery(delivery: () => Promise<void>): void
 }
 
 /**
@@ -41,11 +43,13 @@ export async function requestPasswordReset(
     return { status: "RATE_LIMITED", retryAfterSeconds: rateLimit.retryAfterSeconds }
   }
 
-  const user = await input.prismaClient.user.findUnique({
-    where: { email },
+  const userId = await resolveNormalizedUserId({ prismaClient: input.prismaClient, email })
+  const user = userId ? await input.prismaClient.user.findUnique({
+    where: { id: userId },
     select: { id: true, email: true, emailVerified: true },
-  })
+  }) : null
   if (!user?.emailVerified || !user.email) return { status: "ACCEPTED" }
+  const recipientEmail = normalizeEmail(user.email)
 
   const token = input.generateToken()
   await input.prismaClient.$transaction(async (tx) => {
@@ -65,9 +69,15 @@ export async function requestPasswordReset(
   }, { isolationLevel: "Serializable" })
 
   try {
-    await input.sendPasswordReset(normalizeEmail(user.email), token)
+    input.scheduleDelivery(async () => {
+      try {
+        await input.sendPasswordReset(recipientEmail, token)
+      } catch {
+        // The token remains usable; provider details and existence never escape.
+      }
+    })
   } catch {
-    // The token remains usable; provider details and existence never escape.
+    // Scheduling failure is response-neutral and leaves the committed token.
   }
   return { status: "ACCEPTED" }
 }

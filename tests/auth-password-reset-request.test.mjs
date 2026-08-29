@@ -17,7 +17,7 @@ describe("requestPasswordReset", () => {
     assert.equal(db.rateBucket("PASSWORD_RESET", "NETWORK", "203.0.113.20").count, 2)
     assert.equal(db.sentResetMessages.length, 1)
     assert.equal(db.persistedRawIdentifiers.length, 0)
-    assert.deepEqual(db.events.slice(0, 3), ["limit:ACCOUNT", "limit:NETWORK", "user.findUnique"])
+    assert.deepEqual(db.events.slice(0, 4), ["limit:ACCOUNT", "limit:NETWORK", "normalized-email.query", "user.findUnique"])
   })
 
   it("returns the exact retry delay before lookup, token, cleanup, transaction, or email work", async () => {
@@ -41,6 +41,40 @@ describe("requestPasswordReset", () => {
     assert.equal(db.sentResetMessages.length, 1)
   })
 
+  it("resolves padded mixed-case stored users with a bound functional-index query", async () => {
+    const db = createResetRequestDatabase({ mixedCaseKnownUser: true })
+
+    assert.deepEqual(await requestPasswordReset(resetInput(db, "person@example.com")), { status: "ACCEPTED" })
+
+    assert.equal(db.resetTokens.length, 1)
+    assert.equal(db.sentResetMessages.length, 1)
+    assert.match(db.rawQueries[0].strings.join("?"), /lower\(btrim\("email"\)\)\s*=\s*\?/)
+    assert.doesNotMatch(db.rawQueries[0].strings.join(""), /person@example\.com/i)
+    assert.deepEqual(db.rawQueries[0].values, ["person@example.com"])
+  })
+
+  it("returns before unresolved reset transport and schedules only after token commit", async () => {
+    const db = createResetRequestDatabase({ deferDelivery: true })
+    let releaseProvider
+    const provider = new Promise((resolve) => { releaseProvider = resolve })
+    const work = requestPasswordReset(resetInput(db, "known@example.com", {
+      sendPasswordReset: async () => provider,
+    }))
+
+    const settled = await Promise.race([
+      work,
+      new Promise((resolve) => setImmediate(() => resolve("STILL_PENDING"))),
+    ])
+    assert.deepEqual(settled, { status: "ACCEPTED" })
+    assert.equal(db.scheduledDeliveries.length, 1)
+    assert.equal(db.resetTokens.length, 1)
+    assert.ok(db.events.indexOf("transaction.commit") < db.events.indexOf("delivery.schedule"))
+
+    const delivery = db.runScheduledDeliveries()
+    releaseProvider({ delivered: false })
+    await delivery
+  })
+
   it("cleans expired tokens only after quota consumption and retains usable links", async () => {
     const db = createResetRequestDatabase({ includeExpiredToken: true, includeUsableToken: true })
 
@@ -62,7 +96,7 @@ describe("requestPasswordReset", () => {
   })
 })
 
-function resetInput(db, email) {
+function resetInput(db, email, overrides = {}) {
   return {
     prismaClient: db,
     email,
@@ -74,6 +108,8 @@ function resetInput(db, email) {
     hashToken: (token) => `hash:${token}`,
     tokenExpiresAt: (minutes) => new Date(NOW.getTime() + minutes * 60_000),
     sendPasswordReset: async (recipient, token) => db.sendReset(recipient, token),
+    scheduleDelivery: (delivery) => db.scheduleDelivery(delivery),
+    ...overrides,
   }
 }
 
@@ -82,10 +118,13 @@ function createResetRequestDatabase({
   deliveryFailure = false,
   includeExpiredToken = false,
   includeUsableToken = false,
+  mixedCaseKnownUser = false,
+  deferDelivery = false,
 } = {}) {
   const users = [
     { id: "known-user", email: "known@example.com", emailVerified: NOW },
     { id: "unverified-user", email: "unverified@example.com", emailVerified: null },
+    ...(mixedCaseKnownUser ? [{ id: "mixed-user", email: " Person@Example.com ", emailVerified: NOW }] : []),
   ]
   let resetTokens = [
     ...(includeExpiredToken ? [{ id: "expired", userId: "known-user", tokenHash: "expired", expiresAt: new Date(NOW.getTime() - 1), consumedAt: null }] : []),
@@ -94,6 +133,8 @@ function createResetRequestDatabase({
   const buckets = new Map()
   const events = []
   const sentResetMessages = []
+  const rawQueries = []
+  const scheduledDeliveries = []
   let transactionCount = 0
 
   function client(snapshot, transaction = false) {
@@ -103,7 +144,7 @@ function createResetRequestDatabase({
         async findUnique({ where, select }) {
           events.push("user.findUnique")
           assert.deepEqual(select, { id: true, email: true, emailVerified: true })
-          return structuredClone(users.find((user) => user.email === where.email) ?? null)
+          return structuredClone(users.find((user) => user.id === where.id) ?? null)
         },
       },
       passwordResetToken: {
@@ -129,6 +170,8 @@ function createResetRequestDatabase({
   const database = Object.assign(client(resetTokens), {
     events,
     sentResetMessages,
+    rawQueries,
+    scheduledDeliveries,
     persistedRawIdentifiers: [],
     rateBucket(purpose, scope, identifier) {
       return { count: buckets.get(`${purpose}:${scope}:${identifier}`) ?? 0 }
@@ -140,6 +183,13 @@ function createResetRequestDatabase({
         buckets.set(key, (buckets.get(key) ?? 0) + 1)
       }
       return rateLimited ? { allowed: false, retryAfterSeconds: 91 } : { allowed: true }
+    },
+    async $queryRaw(query) {
+      events.push("normalized-email.query")
+      rawQueries.push(query)
+      const normalized = query.values[0]
+      const match = users.find((user) => user.email.trim().toLowerCase() === normalized)
+      return match ? [{ id: match.id }] : []
     },
     async $transaction(callback, options) {
       transactionCount += 1
@@ -155,6 +205,14 @@ function createResetRequestDatabase({
       sentResetMessages.push({ email, token })
       if (deliveryFailure) throw new Error("provider unavailable")
       return { delivered: true }
+    },
+    scheduleDelivery(delivery) {
+      events.push("delivery.schedule")
+      scheduledDeliveries.push(delivery)
+      if (!deferDelivery) void delivery()
+    },
+    async runScheduledDeliveries() {
+      await Promise.all(scheduledDeliveries.splice(0).map((delivery) => delivery()))
     },
   })
   Object.defineProperties(database, {

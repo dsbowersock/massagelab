@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client"
 import type { consumeEmailWorkRateLimit } from "./auth-rate-limit.ts"
+import { resolveNormalizedUserId } from "./normalized-user-email.ts"
 
 export type PublicAuthWorkResult =
   | { status: "ACCEPTED" }
@@ -17,7 +18,7 @@ type LegalMetadata = {
 }
 
 type ExistingUser = Prisma.UserGetPayload<{ include: { passwordCredential: true } }>
-type RegistrationClient = Pick<PrismaClient, "$transaction" | "authRateLimitBucket" | "user">
+type RegistrationClient = Pick<PrismaClient, "$queryRaw" | "$transaction" | "authRateLimitBucket" | "user">
 
 export type RegisterPasswordAccountInput = {
   prismaClient: RegistrationClient
@@ -47,6 +48,7 @@ export type RegisterPasswordAccountInput = {
   sendVerification(email: string, token: string, callbackUrl: string): Promise<unknown>
   sendPasswordReset(email: string, token: string): Promise<unknown>
   sendExistingAccountNotice(email: string): Promise<unknown>
+  scheduleDelivery(delivery: () => Promise<void>): void
 }
 
 export const PUBLIC_ACCOUNT_ENTRY_MESSAGE =
@@ -118,7 +120,7 @@ export async function registerPasswordAccount(
     return { status: "ACCEPTED" }
   }
 
-  await ignoreDeliveryFailure(() => input.sendVerification(email, verificationToken, input.callbackUrl))
+  scheduleDelivery(input, () => input.sendVerification(email, verificationToken, input.callbackUrl))
   return { status: "ACCEPTED" }
 }
 
@@ -158,12 +160,12 @@ async function handleExistingAccount(
         metadata: input.legalMetadata,
       })
     }, { isolationLevel: "Serializable" })
-    await ignoreDeliveryFailure(() => input.sendVerification(recipient, token, input.callbackUrl))
+    scheduleDelivery(input, () => input.sendVerification(recipient, token, input.callbackUrl))
     return
   }
 
   if (user.emailVerified && user.passwordCredential) {
-    await ignoreDeliveryFailure(() => input.sendExistingAccountNotice(recipient))
+    scheduleDelivery(input, () => input.sendExistingAccountNotice(recipient))
     return
   }
 
@@ -184,23 +186,32 @@ async function handleExistingAccount(
         },
       })
     }, { isolationLevel: "Serializable" })
-    await ignoreDeliveryFailure(() => input.sendPasswordReset(recipient, token))
+    scheduleDelivery(input, () => input.sendPasswordReset(recipient, token))
   }
 }
 
-function findAccount(prismaClient: RegistrationClient, email: string) {
+async function findAccount(prismaClient: RegistrationClient, email: string) {
+  const userId = await resolveNormalizedUserId({ prismaClient, email })
+  if (!userId) return null
   return prismaClient.user.findUnique({
-    where: { email },
+    where: { id: userId },
     include: { passwordCredential: true },
   })
 }
 
 function isNormalizedEmailUniqueConflict(error: unknown): boolean {
   if (!error || typeof error !== "object" || (error as { code?: unknown }).code !== "P2002") return false
-  const target = (error as { meta?: { target?: unknown } }).meta?.target
-  return target === undefined
-    || target === "User_email_key"
-    || (Array.isArray(target) && target.includes("email"))
+  const meta = (error as { meta?: { modelName?: unknown; target?: unknown } }).meta
+  return meta?.modelName === "User" && meta.target === "User_normalized_email_key"
+}
+
+function scheduleDelivery(input: RegisterPasswordAccountInput, deliver: () => Promise<unknown>): void {
+  try {
+    input.scheduleDelivery(() => ignoreDeliveryFailure(deliver))
+  } catch {
+    // Scheduling failure cannot alter the neutral response; committed state
+    // remains recoverable through another verification/recovery request.
+  }
 }
 
 async function ignoreDeliveryFailure(deliver: () => Promise<unknown>): Promise<void> {
