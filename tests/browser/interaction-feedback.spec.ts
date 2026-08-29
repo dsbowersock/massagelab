@@ -1,8 +1,192 @@
 import { expect, test, type Page } from "@playwright/test"
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { createRequire } from "node:module"
+import { tmpdir } from "node:os"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+import ts from "typescript"
 import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
 
 const hasPrivateQaAuthorization = isBrowserQaDatabaseTargetAuthorized(process.env)
 const PRIVATE_QA_SKIP_REASON = "Account action browser QA requires the missing explicit disposable-database opt-in/authorization."
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
+const require = createRequire(import.meta.url)
+let billingFixtureRoot: string | null = null
+let billingFixtureBundle: string | null = null
+
+/** Bundles the production pending-form owner into a disposable local browser fixture. */
+async function buildBillingFixtureBundle() {
+  if (billingFixtureBundle) return billingFixtureBundle
+
+  billingFixtureRoot = mkdtempSync(path.join(tmpdir(), "massagelab-billing-feedback-"))
+  const outputRoot = path.join(billingFixtureRoot, "dist")
+  const componentPath = path.join(billingFixtureRoot, "pending-submission-form.js")
+  const buttonPath = path.join(billingFixtureRoot, "button.js")
+  const asyncButtonPath = path.join(billingFixtureRoot, "async-action-button.js")
+  const loaderPath = path.join(billingFixtureRoot, "loader.js")
+  const metalButtonPath = path.join(billingFixtureRoot, "metal-attention-button.js")
+  const utilsPath = path.join(billingFixtureRoot, "utils.js")
+  const entryPath = path.join(billingFixtureRoot, "entry.js")
+  const pendingFormSource = readFileSync(
+    path.join(projectRoot, "components/forms/pending-submission-form.tsx"),
+    "utf8",
+  )
+  writeFileSync(componentPath, ts.transpileModule(pendingFormSource, {
+    compilerOptions: {
+      jsx: ts.JsxEmit.ReactJSX,
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2020,
+    },
+  }).outputText)
+  writeFileSync(buttonPath, `
+    import React from "react";
+    export function Button({ children, ...props }) {
+      return React.createElement("button", props, children);
+    }
+  `)
+  writeFileSync(asyncButtonPath, `
+    import React from "react";
+    export function AsyncActionButton({ pending, idleLabel, pendingLabel, ...props }) {
+      return React.createElement("button", {
+        ...props,
+        disabled: Boolean(props.disabled || pending),
+        "aria-busy": pending,
+      }, pending ? pendingLabel : idleLabel);
+    }
+  `)
+  writeFileSync(loaderPath, `
+    import React from "react";
+    export function Loader(props) { return React.createElement("span", props); }
+  `)
+  writeFileSync(metalButtonPath, `
+    import React from "react";
+    export function MetalAttentionButton({ children, metalFullWidth, ...props }) {
+      return React.createElement("button", {
+        ...props,
+        "data-metal-full-width": metalFullWidth ? "true" : undefined,
+      }, children);
+    }
+  `)
+  writeFileSync(utilsPath, `
+    export function cn(...values) { return values.filter(Boolean).join(" "); }
+  `)
+  writeFileSync(entryPath, `
+    import React from "react";
+    import { createRoot } from "react-dom/client";
+    import { PendingSubmissionForm, PendingSubmitButton } from ${JSON.stringify(componentPath)};
+
+    const forms = [
+      {
+        id: "subscription",
+        action: "/api/billing/checkout",
+        idleLabel: "Start membership checkout",
+        pendingLabel: "Opening secure subscription checkout…",
+        fields: [
+          ["membershipLevel", "SUPPORTER"],
+          ["supporterAmountChoiceId", "support-1"],
+          ["interval", "month"],
+          ["acceptedLegalDocuments", "membership-billing-refunds:test"],
+        ],
+        requiresTerms: true,
+      },
+      {
+        id: "portal",
+        action: "/api/billing/portal",
+        idleLabel: "Manage billing account",
+        pendingLabel: "Opening billing portal…",
+        fields: [["destination", "manage"]],
+      },
+      {
+        id: "donation",
+        action: "/api/billing/donation",
+        idleLabel: "Support with $5",
+        pendingLabel: "Opening secure checkout…",
+        fields: [["amountCents", "500"]],
+      },
+    ];
+
+    createRoot(document.getElementById("root")).render(
+      React.createElement("main", null, forms.map((form) =>
+        React.createElement(PendingSubmissionForm, {
+          key: form.id,
+          action: form.action,
+          method: "post",
+          pendingLabel: form.pendingLabel,
+          "data-testid": "billing-form-" + form.id,
+        },
+          ...form.fields.map(([name, value]) => React.createElement("input", {
+            key: name,
+            type: "hidden",
+            name,
+            value,
+          })),
+          form.requiresTerms ? React.createElement("label", null,
+            React.createElement("input", {
+              type: "checkbox",
+              name: "billingTermsAccepted",
+              value: "true",
+              required: true,
+            }),
+            "I agree to the membership billing terms",
+          ) : null,
+          React.createElement(PendingSubmitButton, {
+            type: "submit",
+            pendingLabel: form.pendingLabel,
+            presentation: form.id === "donation" ? "button" : "metal-attention",
+            metalFullWidth: form.id !== "donation",
+          }, form.idleLabel),
+        )
+      )),
+    );
+  `)
+
+  const webpack = require("next/dist/compiled/webpack/webpack").webpack
+  await new Promise<void>((resolve, reject) => {
+    webpack({
+      mode: "development",
+      context: projectRoot,
+      entry: entryPath,
+      output: { path: outputRoot, filename: "fixture.js" },
+      resolve: {
+        extensions: [".js"],
+        alias: {
+          "@/components/forms/async-action-button": asyncButtonPath,
+          "@/components/ui/button": buttonPath,
+          "@/components/ui/loader": loaderPath,
+          "@/components/ui/metal-attention-button": metalButtonPath,
+          "@/lib/utils": utilsPath,
+        },
+        modules: [path.join(projectRoot, "node_modules"), "node_modules"],
+      },
+    }, (error: Error | null, stats: { hasErrors(): boolean; toString(options: object): string } | undefined) => {
+      if (error) return reject(error)
+      if (stats?.hasErrors()) return reject(new Error(stats.toString({ errors: true, warnings: false })))
+      resolve()
+    })
+  })
+
+  billingFixtureBundle = readFileSync(path.join(outputRoot, "fixture.js"), "utf8")
+  return billingFixtureBundle
+}
+
+async function openBillingFixture(page: Page) {
+  const bundle = await buildBillingFixtureBundle()
+  await page.route("**/__interaction-feedback-billing-fixture.js", async (route) => {
+    await route.fulfill({ status: 200, contentType: "text/javascript; charset=utf-8", body: bundle })
+  })
+  await page.route((url) => url.pathname === "/__interaction-feedback-billing-fixture", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html; charset=utf-8",
+      body: '<main id="root"></main><script src="/__interaction-feedback-billing-fixture.js"></script>',
+    })
+  })
+  await page.goto("/__interaction-feedback-billing-fixture", { waitUntil: "domcontentloaded" })
+}
+
+test.afterAll(() => {
+  if (billingFixtureRoot) rmSync(billingFixtureRoot, { recursive: true, force: true })
+})
 
 async function assertOneDelayedJsonSubmission({
   page,
@@ -35,6 +219,71 @@ async function assertOneDelayedJsonSubmission({
   await pending.click({ force: true })
   await expect.poll(() => requests).toBe(1)
   return { requests: () => requests }
+}
+
+type NativeBillingFixtureCase = {
+  fixtureId: "subscription" | "portal" | "donation"
+  action: string
+  idleLabel: string
+  pendingLabel: string
+  expectedFields: Record<string, string>
+  returnPath: string
+  returnHeading: RegExp
+  requiresTerms?: boolean
+}
+
+async function assertOneDelayedNativeBillingSubmission({
+  page,
+  fixtureId,
+  action,
+  idleLabel,
+  pendingLabel,
+  expectedFields,
+  returnPath,
+  returnHeading,
+  requiresTerms = false,
+}: NativeBillingFixtureCase & { page: Page }) {
+  let requests = 0
+  let method = ""
+  let contentType = ""
+  let postedFields: Record<string, string> = {}
+  await page.route(`**${action}`, async (route) => {
+    const request = route.request()
+    requests += 1
+    method = request.method()
+    contentType = request.headers()["content-type"] ?? ""
+    postedFields = Object.fromEntries(new URLSearchParams(request.postData() ?? ""))
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    await route.fulfill({ status: 303, headers: { location: returnPath }, body: "" })
+  })
+  await openBillingFixture(page)
+  const form = page.getByTestId(`billing-form-${fixtureId}`)
+  await expect(form).toHaveAttribute("action", action)
+  await expect(form).toHaveAttribute("method", "post")
+  if (requiresTerms) await form.getByRole("checkbox").check()
+
+  await form.getByRole("button", { name: idleLabel }).evaluate((element) => {
+    ;(element as HTMLButtonElement).click()
+  })
+  const pending = form.getByRole("button", { name: pendingLabel })
+  await expect(pending).toBeDisabled()
+  await expect(pending).toHaveAttribute("aria-busy", "true")
+  await expect(form).toHaveAttribute("aria-busy", "true")
+  await expect(form.getByRole("status")).toHaveCount(1)
+  await expect(form.getByRole("status")).toHaveText(pendingLabel)
+  await form.evaluate((element) => {
+    ;(element as HTMLFormElement).requestSubmit()
+  })
+  await expect.poll(() => requests).toBe(1)
+
+  await expect.poll(() => {
+    const url = new URL(page.url())
+    return `${url.pathname}${url.search}`
+  }).toBe(returnPath)
+  await expect(page.getByRole("heading", { name: returnHeading })).toBeVisible()
+  expect(method).toBe("POST")
+  expect(contentType).toMatch(/^application\/x-www-form-urlencoded(?:;|$)/i)
+  expect(postedFields).toEqual(expectedFields)
 }
 
 async function centerProofDrone(page: Page) {
@@ -177,6 +426,49 @@ test("keeps the running Chimer timer node through a Visual draft edit", async ({
   ))).toBe(true)
   await expect.poll(async () => (await timer.textContent())?.replace(/\s+/g, "")).not.toBe(before)
 })
+
+const nativeBillingCases: readonly NativeBillingFixtureCase[] = [
+  {
+    fixtureId: "subscription" as const,
+    action: "/api/billing/checkout",
+    idleLabel: "Start membership checkout",
+    pendingLabel: "Opening secure subscription checkout…",
+    expectedFields: {
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+      acceptedLegalDocuments: "membership-billing-refunds:test",
+      billingTermsAccepted: "true",
+    },
+    returnPath: "/account?tab=membership&checkout=cancelled",
+    returnHeading: /sign in to manage membership/i,
+    requiresTerms: true,
+  },
+  {
+    fixtureId: "portal" as const,
+    action: "/api/billing/portal",
+    idleLabel: "Manage billing account",
+    pendingLabel: "Opening billing portal…",
+    expectedFields: { destination: "manage" },
+    returnPath: "/account?tab=membership&portal=returned",
+    returnHeading: /sign in to manage membership/i,
+  },
+  {
+    fixtureId: "donation" as const,
+    action: "/api/billing/donation",
+    idleLabel: "Support with $5",
+    pendingLabel: "Opening secure checkout…",
+    expectedFields: { amountCents: "500" },
+    returnPath: "/pricing?donation=cancelled",
+    returnHeading: /one-time support checkout cancelled/i,
+  },
+]
+
+for (const billingCase of nativeBillingCases) {
+  test(`${billingCase.fixtureId} native redirect owns one delayed POST and returns through the app`, async ({ page }) => {
+    await assertOneDelayedNativeBillingSubmission({ page, ...billingCase })
+  })
+}
 
 test("registration immediately announces one delayed request and blocks repeat activation", async ({ page }) => {
   await page.goto("/register", { waitUntil: "domcontentloaded" })

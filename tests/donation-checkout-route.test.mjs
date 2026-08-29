@@ -2,7 +2,14 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
-import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import {
+  createCompiledModuleLoader,
+  createElement,
+  findElements,
+  passThroughElement,
+  renderFunctionComponents,
+} from "./helpers/compiled-module.mjs"
+import { DONATION_OPTIONS } from "../lib/donations.js"
 import { safeErrorCode } from "../lib/safe-error-code.js"
 import {
   isBrowserFormRequest,
@@ -14,6 +21,55 @@ const donationRouteSource = await readFile(
   new URL("../app/api/billing/donation/route.ts", import.meta.url),
   "utf8",
 )
+const pricingPageSource = await readFile(
+  new URL("../app/pricing/page.tsx", import.meta.url),
+  "utf8",
+)
+
+/** Renders the public pricing page with local read-only doubles around its billing forms. */
+async function renderPricingPage() {
+  const Div = passThroughElement("div")
+  const Button = passThroughElement("button")
+  const Form = passThroughElement("form")
+  const pricingPage = loadCompiledModule(
+    pricingPageSource,
+    "app/pricing/page.tsx",
+    {
+      "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
+      "next/link": passThroughElement("a"),
+      "lucide-react": {
+        HeartHandshake: Div,
+        ShieldCheck: Div,
+        Sparkles: Div,
+      },
+      "@/auth": { getCurrentSession: async () => null },
+      "@/lib/donations": { DONATION_OPTIONS },
+      "@/lib/membership": {
+        getUserMembershipPricingStatus: async () => null,
+        resolveMembershipPricingMode: () => "auth",
+      },
+      "@/lib/membership-pricing": { getMembershipPricingCatalog: async () => ({}) },
+      "@/lib/prisma": { prisma: {} },
+      "@/components/membership/pricing-cards": { MembershipPricingCards: Div },
+      "@/components/forms/pending-submission-form": {
+        PendingSubmissionForm: Form,
+        PendingSubmitButton: Button,
+      },
+      "@/components/ui/app-surface": {
+        AppNotice: Div,
+        AppPageShell: Div,
+        AppSurface: Div,
+        appCalloutClassName: "test-callout",
+      },
+      "@/components/ui/button": { Button },
+      "@/components/ui/metal-attention-button": { MetalAttentionButton: Button },
+      "@/lib/seo": { createPublicPageMetadata: () => ({}) },
+      "@/lib/safe-error-code": { safeErrorCode },
+    },
+  )
+
+  return renderFunctionComponents(await pricingPage.default({ searchParams: Promise.resolve({}) }))
+}
 
 /**
  * Loads the production route with deterministic amount lookup and billing
@@ -99,6 +155,33 @@ function formRequest({
 }
 
 describe("one-time support Checkout route", () => {
+  it("keeps every catalog donation as a native POST with its exact submitted amount", async () => {
+    const pricingPage = await renderPricingPage()
+    const donationForms = findElements(
+      pricingPage,
+      (element) => element.type === "form" && element.props.action === "/api/billing/donation",
+    )
+
+    assert.equal(donationForms.length, DONATION_OPTIONS.length)
+    assert.deepEqual(
+      donationForms.map((form) => ({
+        action: form.props.action,
+        method: form.props.method,
+        pendingLabel: form.props.pendingLabel,
+        amountCents: findElements(
+          form,
+          (element) => element.type === "input" && element.props.name === "amountCents",
+        )[0]?.props.value,
+      })),
+      DONATION_OPTIONS.map((option) => ({
+        action: "/api/billing/donation",
+        method: "post",
+        pendingLabel: "Opening secure checkout…",
+        amountCents: option.amountCents,
+      })),
+    )
+  })
+
   it("recognizes mixed-case browser form content types", () => {
     for (const contentType of [
       "Application/X-WWW-Form-Urlencoded; Charset=UTF-8",

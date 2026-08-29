@@ -89,6 +89,10 @@ describe("MembershipPricingCards configured price rendering", () => {
     )
     assert.equal(portalForms.length, 2)
     assert.deepEqual(
+      portalForms.map((form) => form.props.pendingLabel),
+      ["Opening billing portal…", "Opening billing portal…"],
+    )
+    assert.deepEqual(
       portalForms.map((form) => findElements(
         form,
         (element) => (
@@ -127,6 +131,42 @@ describe("MembershipPricingCards configured price rendering", () => {
 
     const support1Checkout = checkoutChoices.get("support-1")
     assert.equal(support1Checkout.type, "form")
+    assert.equal(support1Checkout.props.action, "/api/billing/checkout")
+    assert.equal(support1Checkout.props.method, "post")
+    assert.equal(support1Checkout.props.pendingLabel, "Opening secure subscription checkout…")
+    assert.deepEqual(
+      Object.fromEntries(findElements(
+        support1Checkout,
+        (element) => element.type === "input" && element.props.type === "hidden",
+      ).map((element) => [element.props.name, element.props.value])),
+      {
+        acceptedLegalDocuments: "membership-billing-refunds:test",
+        interval: "month",
+        membershipLevel: "SUPPORTER",
+        supporterAmountChoiceId: "support-1",
+      },
+    )
+    const [billingTermsLabel] = findElements(
+      support1Checkout,
+      (element) => element.type === "label",
+    )
+    const [billingTermsCheckbox] = findElements(
+      billingTermsLabel,
+      (element) => element.type === "input" && element.props.type === "checkbox",
+    )
+    const [billingTermsLink] = findElements(
+      billingTermsLabel,
+      (element) => element.type === "a",
+    )
+    assert.deepEqual(
+      {
+        name: billingTermsCheckbox.props.name,
+        required: billingTermsCheckbox.props.required,
+        value: billingTermsCheckbox.props.value,
+      },
+      { name: "billingTermsAccepted", required: true, value: "true" },
+    )
+    assert.equal(billingTermsLink.props.href, "/legal/membership-billing-refunds")
     const [support1Button] = findElements(
       support1Checkout,
       (element) => element.type === "button" && /Support with/.test(elementText(element)),
@@ -136,6 +176,9 @@ describe("MembershipPricingCards configured price rendering", () => {
       support1Button.props.disabled,
       false,
     )
+    assert.equal(support1Button.props.pendingLabel, "Opening secure subscription checkout…")
+    assert.equal(support1Button.props.presentation, "metal-attention")
+    assert.equal(support1Button.props.metalFullWidth, true)
 
     const support2Checkout = checkoutChoices.get("support-2")
     assert.equal(support2Checkout.type, "button")

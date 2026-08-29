@@ -112,6 +112,8 @@ test("shared async action button exposes one stable accessible pending owner", (
 
 test("pending submission form keeps function identity and owns native first-submit claiming", () => {
   const pendingForm = source("components/forms/pending-submission-form.tsx")
+  assert.match(pendingForm, /export type PendingSubmissionFormProps = Omit<\s*React\.ComponentPropsWithoutRef<"form">,\s*"onSubmit" \| "aria-busy"\s*> & \{ pendingLabel: string \}/s)
+  assert.match(pendingForm, /export type PendingSubmitButtonProps =\s*Omit<React\.ComponentProps<typeof Button>, "children" \| "aria-busy"> & \{\s*children: React\.ReactNode\s*pendingLabel: string\s*presentation\?: "button" \| "metal-attention"\s*metalFullWidth\?: boolean\s*\}/s)
   assert.match(pendingForm, /typeof action === "function"/)
   assert.match(pendingForm, /action=\{action\}/)
   assert.match(pendingForm, /useFormStatus\(\)/)
@@ -137,9 +139,13 @@ test("pending submission form keeps function identity and owns native first-subm
     },
     "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
     "@/components/forms/async-action-button": { AsyncActionButton: passThroughElement("async-button") },
+    "@/components/ui/button": { Button: passThroughElement("button") },
+    "@/components/ui/loader": { Loader: passThroughElement("loader") },
+    "@/components/ui/metal-attention-button": { MetalAttentionButton: passThroughElement("metal-button") },
+    "@/lib/utils": { cn: (...values) => values.filter(Boolean).join(" ") },
   })
   const action = async () => {}
-  const formTree = compiled.PendingSubmissionForm({ action, method: "post", children: createElement("input", { name: "kept" }) })
+  const formTree = compiled.PendingSubmissionForm({ action, method: "post", pendingLabel: "Saving…", children: createElement("input", { name: "kept" }) })
   const form = findElement(formTree, ({ type }) => type === "form")
   assert.equal(form.props.action, action)
   assert.equal(form.props.method, "post")
@@ -148,6 +154,7 @@ test("pending submission form keeps function identity and owns native first-subm
   const nativeTree = renderFunctionComponents(compiled.PendingSubmissionForm({
     action: "/native-target",
     method: "post",
+    pendingLabel: "Opening…",
     children: createElement("input", { type: "hidden", name: "token", value: "kept" }),
   }))
   const nativeForm = findElement(nativeTree, ({ type }) => type === "form")
@@ -165,7 +172,7 @@ test("pending submission form keeps function identity and owns native first-subm
   assert.equal(flushes, 1)
   assert.equal(prevented, 1)
 
-  const invalidTree = renderFunctionComponents(compiled.PendingSubmissionForm({ action: "/native-target" }))
+  const invalidTree = renderFunctionComponents(compiled.PendingSubmissionForm({ action: "/native-target", pendingLabel: "Opening…" }))
   const invalidForm = findElement(invalidTree, ({ type }) => type === "form")
   invalidForm.props.onSubmit({
     defaultPrevented: false,
@@ -175,10 +182,34 @@ test("pending submission form keeps function identity and owns native first-subm
   assert.equal(flushes, 1)
 
   formPending = true
-  const buttonTree = renderFunctionComponents(compiled.PendingSubmitButton({ idleLabel: "Save", pendingLabel: "Saving…" }))
-  const button = findElement(buttonTree, ({ type }) => type === "async-button")
-  assert.equal(button.props.pending, true)
-  assert.equal(button.props.pendingLabel, "Saving…")
+  const buttonTree = renderFunctionComponents(compiled.PendingSubmitButton({
+    children: "Save",
+    pendingLabel: "Saving…",
+    presentation: "metal-attention",
+    metalFullWidth: true,
+  }))
+  const button = findElement(buttonTree, ({ type }) => type === "metal-button")
+  assert.equal(button.props.disabled, true)
+  assert.equal(button.props["aria-busy"], true)
+  assert.equal(button.props.metalFullWidth, true)
+  assert.match(elementText(button), /Saving…/)
+  const loader = findElement(buttonTree, ({ type }) => type === "loader")
+  assert.equal(loader.props.size, 18)
+  assert.equal(loader.props["aria-hidden"], "true")
+  assert.equal(findElement(buttonTree, ({ props }) => props.role === "status").props.role, "status")
+
+  formPending = false
+  const legacyButtonTree = renderFunctionComponents(compiled.PendingSubmitButton({
+    idleLabel: "Save",
+    pendingLabel: "Saving…",
+  }))
+  assert.equal(
+    elementText(findElement(
+      legacyButtonTree,
+      ({ type, props }) => type === "span" && props["aria-hidden"] === false,
+    )),
+    "Save",
+  )
 })
 
 test("function actions recover after real React DOM resolution and rejection", { timeout: 45_000 }, async () => {
@@ -201,6 +232,18 @@ test("function actions recover after real React DOM resolution and rejection", {
   writeFileSync(componentPath, transpiled)
   writeFileSync(buttonPath, `
     import React from "react";
+    export function Button({ children, ...props }) {
+      return React.createElement("button", props, children);
+    }
+    export function MetalAttentionButton({ children, metalFullWidth, ...props }) {
+      return React.createElement("button", { ...props, "data-metal-full-width": metalFullWidth }, children);
+    }
+    export function Loader(props) {
+      return React.createElement("span", props);
+    }
+    export function cn(...values) {
+      return values.filter(Boolean).join(" ");
+    }
     export function AsyncActionButton({ pending, idleLabel, pendingLabel, ...props }) {
       return React.createElement("button", { ...props, disabled: Boolean(props.disabled || pending) }, pending ? pendingLabel : idleLabel);
     }
@@ -221,8 +264,8 @@ test("function actions recover after real React DOM resolution and rejection", {
       reject: () => reject(new Error("private provider detail")),
     };
     createRoot(document.getElementById("root")).render(
-      React.createElement(PendingSubmissionForm, { action, method: "post" },
-        React.createElement(PendingSubmitButton, { idleLabel: "Save", pendingLabel: "Saving…" })
+      React.createElement(PendingSubmissionForm, { action, method: "post", pendingLabel: "Saving…" },
+        React.createElement(PendingSubmitButton, { pendingLabel: "Saving…" }, "Save")
       )
     );
   `)
@@ -237,7 +280,13 @@ test("function actions recover after real React DOM resolution and rejection", {
       output: { path: outputRoot, filename: "fixture.js" },
       resolve: {
         extensions: [".js"],
-        alias: { "@/components/forms/async-action-button": buttonPath },
+        alias: {
+          "@/components/forms/async-action-button": buttonPath,
+          "@/components/ui/button": buttonPath,
+          "@/components/ui/loader": buttonPath,
+          "@/components/ui/metal-attention-button": buttonPath,
+          "@/lib/utils": buttonPath,
+        },
         modules: [path.join(projectRoot, "node_modules"), "node_modules"],
       },
     }, (error, stats) => {
@@ -264,7 +313,7 @@ test("function actions recover after real React DOM resolution and rejection", {
     await button.click()
     await page.waitForFunction(() => window.calls === 1)
     await page.waitForFunction(() => document.querySelector("button")?.disabled === true)
-    assert.equal(await page.locator("button").textContent(), "Saving…")
+    await page.getByRole("button", { name: "Saving…" }).waitFor()
     await page.evaluate(() => window.formHarness.resolve())
     await button.waitFor()
     assert.equal(await button.isEnabled(), true)

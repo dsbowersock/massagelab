@@ -19,6 +19,7 @@ function TestComponent() {}
 const Div = passThroughElement("div")
 const Button = passThroughElement("button")
 const Link = passThroughElement("a")
+const Form = passThroughElement("form")
 const pricingCards = loadCompiledModule(
   pricingCardsSource,
   "components/membership/pricing-cards.tsx",
@@ -54,6 +55,10 @@ const pricingCards = loadCompiledModule(
     },
     "@/components/ui/metal-attention-button": {
       MetalAttentionButton: Button,
+    },
+    "@/components/forms/pending-submission-form": {
+      PendingSubmissionForm: Form,
+      PendingSubmitButton: Button,
     },
     "@/components/ui/tabs": {
       Tabs: Div,
