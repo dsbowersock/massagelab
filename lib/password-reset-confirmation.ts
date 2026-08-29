@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client"
 
+import { queueAccountSecurityEmail } from "./account-security-email-intents.ts"
 import { runCommerceTransaction } from "./commerce/transactions.ts"
 
 /**
@@ -18,7 +19,7 @@ export type ConfirmPasswordResetInput = {
 }
 
 export type ConfirmPasswordResetResult =
-  | { status: "UPDATED" }
+  | { status: "UPDATED"; emailIntentId: string }
   | { status: "INVALID" }
 
 export type PasswordResetTokenEligibilityInput = {
@@ -105,13 +106,20 @@ export async function confirmPasswordReset(
       where: { userId: token.userId, consumedAt: null },
       data: { consumedAt: now },
     })
-    await tx.user.update({
+    const updatedUser = await tx.user.update({
       where: { id: token.userId },
       data: { authSessionVersion: { increment: 1 } },
     })
     await tx.session.deleteMany({ where: { userId: token.userId } })
+    if (!updatedUser.email) throw new Error("Password recovery requires an account email.")
+    const emailIntent = await queueAccountSecurityEmail(tx, {
+      userId: token.userId,
+      kind: "PASSWORD_RECOVERED",
+      recipientEmail: updatedUser.email,
+      idempotencyKey: `password-recovered:${token.id}`,
+    })
 
-    return { status: "UPDATED" }
+    return { status: "UPDATED", emailIntentId: emailIntent.id }
   })
 }
 

@@ -33,34 +33,29 @@ describe("registration email delivery policy", () => {
     })
   })
 
-  it("lets unverified existing accounts request a fresh verification email with the same password", async () => {
+  it("delegates every valid account state to the enumeration-safe registration owner", async () => {
     const registerRoute = await readFile(new URL("../app/api/account/register/route.ts", import.meta.url), "utf8")
 
-    assert.match(registerRoute, /!existingUser\.emailVerified/)
-    assert.match(registerRoute, /verifyPassword\(existingUser\.passwordCredential\.passwordHash, password\)/)
-    assert.match(registerRoute, /const emailVerificationToken = await prisma\.emailVerificationToken\.create/)
-    assert.match(registerRoute, /userId: existingUser\.id/)
-    assert.match(registerRoute, /metadata: legalRequestMetadata\(request\)/)
+    assert.match(registerRoute, /registerPasswordAccount\(\{/)
+    assert.match(registerRoute, /verifyPassword,/)
+    assert.match(registerRoute, /ensureUserRole,/)
+    assert.match(registerRoute, /recordLegalAcceptances,/)
+    assert.match(registerRoute, /legalMetadata: legalRequestMetadata\(request\)/)
     assert.match(registerRoute, /safePostLegalAcceptanceCallback\(body\.callbackUrl\)/)
-    assert.match(
-      registerRoute,
-      /registrationVerificationResponse\(\s*await sendRegistrationVerification\(sendVerificationEmail, email, verificationToken, callbackUrl\),\s*\)/,
-    )
-    assert.match(registerRoute, /Preserve usable links from overlapping resend requests/)
-    assert.match(registerRoute, /if \(resendResult\.status === 200\)/)
-    assert.match(registerRoute, /id: \{ not: emailVerificationToken\.id \}/)
-    assert.match(registerRoute, /expiresAt: \{ lt: resendRequestedAt \}/)
-    assert.match(registerRoute, /id: emailVerificationToken\.id/)
+    assert.match(registerRoute, /PUBLIC_ACCOUNT_ENTRY_MESSAGE[\s\S]*status: 202/)
+    assert.doesNotMatch(registerRoute, /prisma\.(?:user|emailVerificationToken|passwordResetToken)\./)
+    assert.doesNotMatch(registerRoute, /account already exists/i)
   })
 
-  it("consumes privacy-safe account and network registration quota before account work", async () => {
+  it("validates before delegating quota-first work and maps exact rate-limit metadata", async () => {
     const registerRoute = await readFile(new URL("../app/api/account/register/route.ts", import.meta.url), "utf8")
 
-    assert.match(registerRoute, /consumeEmailWorkRateLimit\(\{[\s\S]*purpose: "REGISTER"/)
-    assert.match(registerRoute, /retryAfterSeconds/)
-    assert.match(registerRoute, /"Retry-After"/)
+    assert.ok(registerRoute.indexOf("validPublicEmail(email)") < registerRoute.indexOf("registerPasswordAccount({"))
+    assert.ok(registerRoute.indexOf("missingLegalDocuments.length") < registerRoute.indexOf("registerPasswordAccount({"))
+    assert.match(registerRoute, /consumeRateLimit: consumeEmailWorkRateLimit/)
+    assert.match(registerRoute, /result\.retryAfterSeconds/)
+    assert.match(registerRoute, /"Retry-After": String\(result\.retryAfterSeconds\)/)
     assert.doesNotMatch(registerRoute, /assertRateLimit|recordFailedAttempt|rateLimitKey|prisma\.authAttempt/)
-    assert.ok(registerRoute.indexOf("consumeEmailWorkRateLimit") < registerRoute.indexOf("prisma.user.findUnique"))
   })
 
   it("presents Google registration and email-password registration on the register page", async () => {

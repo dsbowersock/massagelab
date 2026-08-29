@@ -13,7 +13,7 @@ const routeSource = await readFile(
 /** Loads the confirm route with only its public dependencies and records owner handoff ordering. */
 function loadRoute({
   eligible = true,
-  result = { status: "UPDATED" },
+  result = { status: "UPDATED", emailIntentId: "intent-recovered" },
   hashPassword = async () => "password-hash",
 } = {}) {
   const calls = []
@@ -28,6 +28,7 @@ function loadRoute({
     "app/api/account/password-reset/confirm/route.ts",
     {
       "next/server": {
+        after: (callback) => callback(),
         NextResponse: {
           json: (body, init = {}) => ({ body, status: init.status ?? 200 }),
         },
@@ -57,6 +58,13 @@ function loadRoute({
           assert.equal(input.prismaClient, prisma)
           capturedTimes.confirmationInput = input
           return typeof result === "function" ? result(input) : result
+        },
+      },
+      "@/lib/account-security-email-intents": {
+        deliverAccountSecurityEmailIntent: async (input) => {
+          calls.push(["deliverAccountSecurityEmailIntent", { intentId: input.intentId }])
+          assert.equal(input.prismaClient, prisma)
+          return { status: "DELIVERED", attempted: true, attemptCount: 1 }
         },
       },
       "@/lib/prisma": { prisma },
@@ -100,6 +108,7 @@ describe("password reset confirmation route", () => {
       ["isPasswordResetTokenEligible", { tokenHash: "token-hash" }],
       ["hashPassword", "a-long-new-password"],
       ["confirmPasswordReset", { tokenHash: "token-hash", passwordHash: "password-hash" }],
+      ["deliverAccountSecurityEmailIntent", { intentId: "intent-recovered" }],
     ])
     assert.equal(capturedTimes.eligibility instanceof Date, true)
     assert.equal(Object.hasOwn(capturedTimes.confirmationInput, "now"), false)
@@ -196,7 +205,7 @@ describe("password reset confirmation route", () => {
     assert.doesNotMatch(routeSource, /passwordResetToken\.(findUnique|update)/)
     assert.doesNotMatch(routeSource, /passwordCredential\.upsert/)
     assert.doesNotMatch(routeSource, /\$transaction|\.(?:create|updateMany|upsert|deleteMany)\s*\(/)
-    assert.doesNotMatch(routeSource, /issuer|emailIntent|adminAction/i)
+    assert.doesNotMatch(routeSource, /issuer|adminAction/i)
     assert.doesNotMatch(routeSource, /\b(?:console|logger)\s*\./)
     assert.doesNotMatch(routeSource, /\bselect\s*:/)
   })

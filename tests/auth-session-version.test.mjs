@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { decideAuthSessionVersion } from "../lib/auth-session-version.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { queueAccountSecurityEmail } from "../lib/account-security-email-intents.ts"
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -69,6 +70,7 @@ describe("JWT session-version integration contract", () => {
       "./commerce/transactions.ts": {
         runCommerceTransaction: (prismaClient, callback) => prismaClient.$transaction(callback),
       },
+      "./account-security-email-intents.ts": { queueAccountSecurityEmail },
     })
 
     assert.deepEqual(await confirmPasswordReset({
@@ -76,7 +78,11 @@ describe("JWT session-version integration contract", () => {
       tokenHash: "active-reset-token",
       passwordHash: "new-password-hash",
       clock: () => new Date("2026-08-11T12:00:00.000Z"),
-    }), { status: "UPDATED" })
+    }), { status: "UPDATED", emailIntentId: "intent-1" })
+    assert.deepEqual(database.state.emailIntents.map(({ kind, recipientEmail }) => ({ kind, recipientEmail })), [{
+      kind: "PASSWORD_RECOVERED",
+      recipientEmail: "person@example.com",
+    }])
 
     const decision = decideAuthSessionVersion({
       currentVersion: database.state.user.authSessionVersion,
@@ -238,7 +244,7 @@ describe("JWT session-version integration contract", () => {
  */
 function createResetConsumptionDatabase() {
   const state = {
-    user: { id: "user-1", authSessionVersion: 4 },
+    user: { id: "user-1", email: "person@example.com", authSessionVersion: 4 },
     passwordCredential: { userId: "user-1", passwordHash: "old-password-hash" },
     passwordResetTokens: [{
       id: "reset-1",
@@ -248,6 +254,7 @@ function createResetConsumptionDatabase() {
       consumedAt: null,
     }],
     sessions: [{ id: "session-1", userId: "user-1" }],
+    emailIntents: [],
   }
 
   return {
@@ -290,6 +297,13 @@ function createResetConsumptionDatabase() {
             const previousCount = state.sessions.length
             state.sessions = state.sessions.filter((session) => session.userId !== where.userId)
             return { count: previousCount - state.sessions.length }
+          },
+        },
+        accountSecurityEmailIntent: {
+          async upsert({ create }) {
+            const intent = { id: `intent-${state.emailIntents.length + 1}`, ...create }
+            state.emailIntents.push(intent)
+            return { id: intent.id }
           },
         },
       })

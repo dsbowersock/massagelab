@@ -8,7 +8,7 @@ import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { REGISTRATION_VERIFICATION_SENT_MESSAGE } from "@/lib/auth-registration"
+import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-registration-service"
 import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
 import { legalDocumentAcceptanceId, requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
 
@@ -66,7 +66,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       })
       const result = (await response.json().catch(() => ({}))) as { message?: string; devLink?: string }
 
-      setStatus(result.message ?? (response.ok ? REGISTRATION_VERIFICATION_SENT_MESSAGE : REGISTRATION_REQUEST_FAILED_MESSAGE))
+      setStatus(result.message ?? (response.ok ? PUBLIC_ACCOUNT_ENTRY_MESSAGE : REGISTRATION_REQUEST_FAILED_MESSAGE))
       setStatusIsError(!response.ok)
       setDevLink(result.devLink ?? "")
     } catch {

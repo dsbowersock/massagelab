@@ -152,7 +152,7 @@ describe("confirmPasswordReset", () => {
     })
 
     const state = database.state
-    assert.deepEqual(result, { status: "UPDATED" })
+    assert.deepEqual(result, { status: "UPDATED", emailIntentId: "intent-1" })
     assert.equal(Object.hasOwn(result, "sessionCount"), false)
     assert.equal(Object.hasOwn(result, "deletedSessionCount"), false)
     assert.equal(state.passwordCredential.passwordHash, "new-password-hash")
@@ -162,7 +162,16 @@ describe("confirmPasswordReset", () => {
     assert.equal(state.sessions.length, 0)
     assert.equal(state.adminActions.length, 0)
     assert.equal(state.activities.length, 0)
-    assert.equal(state.emailIntents.length, 0)
+    assert.equal(state.emailIntents.length, 1)
+    assert.deepEqual(state.emailIntents[0], {
+      id: "intent-1",
+      userId: state.user.id,
+      kind: "PASSWORD_RECOVERED",
+      recipientEmail: "person@example.com",
+      subject: "MassageLab account password recovered",
+      message: "The password for your MassageLab account was reset through account recovery. If you made this change, no action is needed. If you did not, contact support. You may receive this notice more than once if delivery had to be retried.",
+      idempotencyKey: "password-recovered:reset-active-a",
+    })
   })
 
   it("rolls back every mutation when final Session deletion fails", async () => {
@@ -247,7 +256,7 @@ describe("confirmPasswordReset", () => {
       tokenHash: "active-token-hash-a",
       passwordHash: "retried-password-hash",
       clock: () => NOW,
-    }), { status: "UPDATED" })
+    }), { status: "UPDATED", emailIntentId: "intent-1" })
 
     assert.equal(database.transactionAttempts, 2)
     assert.equal(database.state.passwordCredential.passwordHash, "retried-password-hash")
@@ -312,7 +321,7 @@ function createResetDatabase({
   serializationConflicts = 0,
 } = {}) {
   let state = {
-    user: { id: "user-1", authSessionVersion: 4 },
+    user: { id: "user-1", email: "person@example.com", authSessionVersion: 4 },
     passwordCredential: { id: "credential-1", userId: "user-1", passwordHash: "old-password-hash" },
     passwordResetTokens: [
       {
@@ -449,6 +458,19 @@ function createResetDatabase({
             snapshot.user.authSessionVersion += 1
             dirty = true
             return structuredClone(snapshot.user)
+          },
+        },
+        accountSecurityEmailIntent: {
+          async upsert({ where, create, update, select }) {
+            assert.deepEqual(where, { idempotencyKey: create.idempotencyKey })
+            assert.deepEqual(update, {})
+            assert.deepEqual(select, { id: true })
+            const existing = snapshot.emailIntents.find((intent) => intent.idempotencyKey === create.idempotencyKey)
+            if (existing) return { id: existing.id }
+            const intent = { id: `intent-${snapshot.emailIntents.length + 1}`, ...create }
+            snapshot.emailIntents.push(intent)
+            dirty = true
+            return { id: intent.id }
           },
         },
         session: {

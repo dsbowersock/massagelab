@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { requestPasswordReset } from "../lib/password-reset-request.ts"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const limiterSource = await readFile(new URL("../lib/auth-rate-limit.ts", import.meta.url), "utf8")
@@ -18,6 +19,10 @@ const route = loadCompiledModule(routeSource, "password-reset-request-route.test
   "@/lib/auth-security": { generateRandomToken: () => "token", hashToken: () => "hash", normalizeEmail: (value) => String(value ?? "").trim().toLowerCase(), tokenExpiresIn: () => new Date() },
   "@/lib/auth-mail": { sendPasswordResetEmail: async () => ({ delivered: true }) },
   "@/lib/auth-rate-limit": limiter,
+  "@/lib/auth-registration-service": {
+    PUBLIC_ACCOUNT_ENTRY_MESSAGE: "Check that email address for the appropriate sign-in, verification, or recovery next step.",
+  },
+  "@/lib/password-reset-request": { requestPasswordReset },
   "@/lib/auth-env": { getAuthSecret: () => "secret" },
   "@/lib/prisma": { prisma: {} },
 })
@@ -28,16 +33,16 @@ describe("password reset limiter cutover", () => {
   it("persists both hashed buckets before reset work", async () => {
     const database = createDatabase()
     let snapshot
+    database.onUserLookup = () => { snapshot = structuredClone(database.rows) }
     const handler = route.createPasswordResetRequestHandler({
       prismaClient: database,
       secret: "secret",
       clock: () => NOW,
       shouldPrune: () => false,
-      resetWork: async () => { snapshot = structuredClone(database.rows); return {} },
     })
     const response = await handler(request("Person@Example.com", "203.0.113.5"))
 
-    assert.equal(response.status, 200)
+    assert.equal(response.status, 202)
     assert.equal(snapshot.length, 2)
     assert.deepEqual(snapshot.map(({ purpose, scope }) => ({ purpose, scope })).sort((a, b) => a.scope.localeCompare(b.scope)), [
       { purpose: "PASSWORD_RESET", scope: "ACCOUNT" },
@@ -50,15 +55,14 @@ describe("password reset limiter cutover", () => {
 
   it("maps a blocked decision to exact 429 metadata without invoking reset work", async () => {
     const database = createDatabase()
-    let workCalls = 0
-    const handler = route.createPasswordResetRequestHandler({ prismaClient: database, secret: "secret", clock: () => NOW, shouldPrune: () => false, resetWork: async () => { workCalls += 1; return {} } })
+    const handler = route.createPasswordResetRequestHandler({ prismaClient: database, secret: "secret", clock: () => NOW, shouldPrune: () => false })
     for (let index = 0; index < 5; index += 1) await handler(request("person@example.com", "203.0.113.5"))
     const response = await handler(request("person@example.com", "203.0.113.5"))
 
     assert.equal(response.status, 429)
     assert.equal(response.headers.get("retry-after"), "900")
     assert.deepEqual(await response.json(), { message: "Too many requests. Please try again later." })
-    assert.equal(workCalls, 5)
+    assert.equal(database.userLookupCount, 5)
   })
 })
 
@@ -72,6 +76,7 @@ function request(email, ip) {
 
 function createDatabase() {
   const rows = []
+  let userLookupCount = 0
   const delegate = {
     async findUnique({ where }) {
       const key = where.purpose_scope_keyHash
@@ -86,11 +91,14 @@ function createDatabase() {
     async findMany() { return [] },
     async deleteMany() { return { count: 0 } },
   }
-  return {
+  const database = {
     rows,
+    onUserLookup: null,
+    get userLookupCount() { return userLookupCount },
     authRateLimitBucket: delegate,
-    user: { async findUnique() { return null } },
+    user: { async findUnique() { userLookupCount += 1; database.onUserLookup?.(); return null } },
     passwordResetToken: { async create() {} },
     async $transaction(callback) { return callback({ authRateLimitBucket: delegate }) },
   }
+  return database
 }

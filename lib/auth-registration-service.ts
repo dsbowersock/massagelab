@@ -1,0 +1,223 @@
+import type { Prisma, PrismaClient } from "@prisma/client"
+import type { consumeEmailWorkRateLimit } from "./auth-rate-limit.ts"
+
+export type PublicAuthWorkResult =
+  | { status: "ACCEPTED" }
+  | { status: "RATE_LIMITED"; retryAfterSeconds: number }
+
+type RequiredLegalDocument = {
+  key: string
+  version: string
+  shortLabel: string
+}
+
+type LegalMetadata = {
+  ipAddress?: string | null
+  userAgent?: string | null
+}
+
+type ExistingUser = Prisma.UserGetPayload<{ include: { passwordCredential: true } }>
+type RegistrationClient = Pick<PrismaClient, "$transaction" | "authRateLimitBucket" | "user">
+
+export type RegisterPasswordAccountInput = {
+  prismaClient: RegistrationClient
+  email: string
+  password: string
+  name: string
+  callbackUrl: string
+  networkIdentifier: string
+  secret: string
+  requiredDocuments: RequiredLegalDocument[]
+  legalMetadata?: LegalMetadata
+  now?: Date
+  shouldPrune?: () => boolean
+  consumeRateLimit: typeof consumeEmailWorkRateLimit
+  hashPassword(password: string): Promise<string>
+  verifyPassword(passwordHash: string, password: string): Promise<boolean>
+  generateToken(): string
+  hashToken(token: string): string
+  tokenExpiresAt(minutes: number): Date
+  ensureUserRole(userId: string, email: string | null, tx: Prisma.TransactionClient): Promise<unknown>
+  recordLegalAcceptances(input: {
+    prismaClient: Prisma.TransactionClient
+    userId: string
+    documents: RequiredLegalDocument[]
+    metadata?: LegalMetadata
+  }): Promise<unknown>
+  sendVerification(email: string, token: string, callbackUrl: string): Promise<unknown>
+  sendPasswordReset(email: string, token: string): Promise<unknown>
+  sendExistingAccountNotice(email: string): Promise<unknown>
+}
+
+export const PUBLIC_ACCOUNT_ENTRY_MESSAGE =
+  "Check that email address for the appropriate sign-in, verification, or recovery next step."
+
+/**
+ * Performs bounded password registration without exposing account state.
+ * Quota is consumed before every expensive or persistent operation, and all
+ * delivery work happens only after its recoverable database state commits.
+ */
+export async function registerPasswordAccount(
+  input: RegisterPasswordAccountInput,
+): Promise<PublicAuthWorkResult> {
+  const email = normalizeEmail(input.email)
+  const now = captureNow(input.now)
+  const rateLimit = await input.consumeRateLimit({
+    prismaClient: input.prismaClient,
+    purpose: "REGISTER",
+    email,
+    networkIdentifier: input.networkIdentifier,
+    secret: input.secret,
+    now,
+    shouldPrune: input.shouldPrune,
+  })
+  if (!rateLimit.allowed) {
+    return { status: "RATE_LIMITED", retryAfterSeconds: rateLimit.retryAfterSeconds }
+  }
+
+  const existing = await findAccount(input.prismaClient, email)
+  if (existing) {
+    await handleExistingAccount(input, existing, email, now)
+    return { status: "ACCEPTED" }
+  }
+
+  const passwordHash = await input.hashPassword(input.password)
+  const verificationToken = input.generateToken()
+  const verificationTokenHash = input.hashToken(verificationToken)
+
+  try {
+    await input.prismaClient.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          name: input.name,
+          passwordCredential: { create: { passwordHash } },
+          profile: { create: { displayName: input.name } },
+          emailVerificationTokens: {
+            create: {
+              email,
+              tokenHash: verificationTokenHash,
+              expiresAt: input.tokenExpiresAt(24 * 60),
+            },
+          },
+        },
+      })
+      await input.recordLegalAcceptances({
+        prismaClient: tx,
+        userId: user.id,
+        documents: input.requiredDocuments,
+        metadata: input.legalMetadata,
+      })
+      await input.ensureUserRole(user.id, user.email, tx)
+    }, { isolationLevel: "Serializable" })
+  } catch (error) {
+    if (!isNormalizedEmailUniqueConflict(error)) throw error
+    const racedAccount = await findAccount(input.prismaClient, email)
+    if (!racedAccount) throw error
+    await handleExistingAccount(input, racedAccount, email, now)
+    return { status: "ACCEPTED" }
+  }
+
+  await ignoreDeliveryFailure(() => input.sendVerification(email, verificationToken, input.callbackUrl))
+  return { status: "ACCEPTED" }
+}
+
+async function handleExistingAccount(
+  input: RegisterPasswordAccountInput,
+  user: ExistingUser,
+  normalizedEmail: string,
+  now: Date,
+): Promise<void> {
+  const recipient = user.email ? normalizeEmail(user.email) : normalizedEmail
+
+  if (!user.emailVerified && user.passwordCredential) {
+    const passwordMatches = await input.verifyPassword(user.passwordCredential.passwordHash, input.password)
+    if (!passwordMatches) return
+
+    const token = input.generateToken()
+    await input.prismaClient.$transaction(async (tx) => {
+      await tx.emailVerificationToken.create({
+        data: {
+          userId: user.id,
+          email: recipient,
+          tokenHash: input.hashToken(token),
+          expiresAt: input.tokenExpiresAt(24 * 60),
+        },
+      })
+      await tx.emailVerificationToken.deleteMany({
+        where: {
+          userId: user.id,
+          consumedAt: null,
+          expiresAt: { lt: now },
+        },
+      })
+      await input.recordLegalAcceptances({
+        prismaClient: tx,
+        userId: user.id,
+        documents: input.requiredDocuments,
+        metadata: input.legalMetadata,
+      })
+    }, { isolationLevel: "Serializable" })
+    await ignoreDeliveryFailure(() => input.sendVerification(recipient, token, input.callbackUrl))
+    return
+  }
+
+  if (user.emailVerified && user.passwordCredential) {
+    await ignoreDeliveryFailure(() => input.sendExistingAccountNotice(recipient))
+    return
+  }
+
+  if (user.emailVerified && !user.passwordCredential) {
+    const token = input.generateToken()
+    await input.prismaClient.$transaction(async (tx) => {
+      await tx.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: input.hashToken(token),
+          expiresAt: input.tokenExpiresAt(60),
+        },
+      })
+      await tx.passwordResetToken.deleteMany({
+        where: {
+          userId: user.id,
+          expiresAt: { lt: now },
+        },
+      })
+    }, { isolationLevel: "Serializable" })
+    await ignoreDeliveryFailure(() => input.sendPasswordReset(recipient, token))
+  }
+}
+
+function findAccount(prismaClient: RegistrationClient, email: string) {
+  return prismaClient.user.findUnique({
+    where: { email },
+    include: { passwordCredential: true },
+  })
+}
+
+function isNormalizedEmailUniqueConflict(error: unknown): boolean {
+  if (!error || typeof error !== "object" || (error as { code?: unknown }).code !== "P2002") return false
+  const target = (error as { meta?: { target?: unknown } }).meta?.target
+  return target === undefined
+    || target === "User_email_key"
+    || (Array.isArray(target) && target.includes("email"))
+}
+
+async function ignoreDeliveryFailure(deliver: () => Promise<unknown>): Promise<void> {
+  try {
+    await deliver()
+  } catch {
+    // Recoverable account/token state is already committed. Provider details
+    // and account identifiers must not influence the public response.
+  }
+}
+
+function normalizeEmail(value: string): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : ""
+}
+
+function captureNow(value?: Date): Date {
+  const now = value === undefined ? new Date() : new Date(value)
+  if (!Number.isFinite(now.getTime())) throw new Error("Provide a valid registration time.")
+  return now
+}
