@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page, type Route } from "@playwright/test"
+import { randomUUID } from "node:crypto"
 import { withPlayerViewportCollisionPadding } from "../../components/ui/use-player-viewport-insets"
 import { exerciseSpecializedProviderHarness } from "../helpers/specialized-provider-browser-harness.mjs"
 import { centerCarouselItem, waitForStableSlideGeometry } from "./carousel-test-helpers"
@@ -68,6 +69,21 @@ async function gotoShell(page: Page, path: string) {
   await page.goto(path, { waitUntil: "domcontentloaded" })
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
 }
+
+test("RSC session snapshot count is exactly one", async ({ page }) => {
+  const proofId = randomUUID()
+  await page.setExtraHTTPHeaders({ "x-massagelab-rsc-session-proof": proofId })
+
+  const response = await page.goto("/dev/rsc-session-proof", { waitUntil: "domcontentloaded" })
+  expect(response?.status()).toBe(200)
+  const receipt = page.locator("[data-rsc-session-count]")
+  await expect(receipt).toBeVisible()
+  const count = Number(await receipt.getAttribute("data-rsc-session-count"))
+  console.log(`RSC session snapshot count: ${count}`)
+
+  expect(Number.isInteger(count)).toBe(true)
+  expect(count).toBe(1)
+})
 
 test("signed-in inert bootstrap defers therapist and practice specialization until demand", async ({ page }) => {
   test.setTimeout(45_000)

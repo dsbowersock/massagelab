@@ -18,7 +18,7 @@ import {
   Timer,
   UserRound,
 } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { prisma } from "@/lib/prisma"
 import { FlipWords } from "@/components/home/flip-words"
 import { HomeToolRails } from "@/components/home/home-tool-rails"

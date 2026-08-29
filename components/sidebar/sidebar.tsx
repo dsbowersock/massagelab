@@ -1,4 +1,4 @@
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { AppSidebarClient } from "@/components/sidebar/app-sidebar-client"
 import type { SidebarNavigation, SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { canSyncAccountPreferences } from "@/lib/account-preferences"

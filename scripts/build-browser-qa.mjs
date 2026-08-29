@@ -5,6 +5,7 @@ const result = spawnSync(process.execPath, ["--run", "build:next"], {
   env: {
     ...process.env,
     NEXT_PUBLIC_ATMOSHAPER_BROWSER_QA: "1",
+    NEXT_PUBLIC_RSC_SESSION_PROOF: "1",
   },
   stdio: "inherit",
 })

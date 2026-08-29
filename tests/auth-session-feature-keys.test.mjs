@@ -115,6 +115,7 @@ function loadSidebar(database) {
     "@/components/sidebar/app-sidebar-client": { AppSidebarClient: () => null },
     "@/lib/account-preferences": { canSyncAccountPreferences: () => false },
     "@/lib/account-shell-bootstrap": { projectAccountShellAppSettings: () => ({}) },
+    "@/lib/rsc-session": { getCurrentRscSession: async () => null },
     "@/lib/membership": {
       FEATURE_KEYS: { therapistDocumentationTools: "therapist_documentation_tools" },
     },

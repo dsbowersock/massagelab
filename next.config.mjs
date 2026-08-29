@@ -10,6 +10,7 @@ const atmoShaperBrowserQaEnabled = process.env.NEXT_PUBLIC_ATMOSHAPER_BROWSER_QA
 const atmoShaperBrowserQaModule = atmoShaperBrowserQaEnabled
   ? "./lib/atmoshaper/browser-qa.ts"
   : "./lib/atmoshaper/browser-qa-disabled.ts"
+const rscSessionProofEnabled = process.env.NEXT_PUBLIC_RSC_SESSION_PROOF === "1"
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -54,16 +55,29 @@ const nextConfig = {
       },
     ]
   },
+  async rewrites() {
+    return {
+      beforeFiles: rscSessionProofEnabled
+        ? []
+        : [{ source: "/dev/rsc-session-proof", destination: "/_not-found" }],
+      afterFiles: [],
+      fallback: [],
+    }
+  },
   turbopack: {
     root,
     resolveAlias: {
       "@/lib/atmoshaper/browser-qa": atmoShaperBrowserQaModule,
+      ...(rscSessionProofEnabled ? { "@/auth": "./lib/rsc-session-proof.ts" } : {}),
       "regenerator-runtime/runtime.js": "./lib/atmosphere/regenerator-runtime-shim.js",
       tone: "tone/build/esm/index.js",
     },
   },
   webpack(config) {
     config.resolve.alias["@/lib/atmoshaper/browser-qa"] = resolve(root, atmoShaperBrowserQaModule)
+    if (rscSessionProofEnabled) {
+      config.resolve.alias["@/auth"] = resolve(root, "./lib/rsc-session-proof.ts")
+    }
     return config
   },
 }

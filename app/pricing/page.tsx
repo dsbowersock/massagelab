@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react"
 import Link from "next/link"
 import { HeartHandshake, ShieldCheck, Sparkles } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { DONATION_OPTIONS } from "@/lib/donations"
 import {
   getUserMembershipPricingStatus,
