@@ -173,6 +173,20 @@ describe("registration email delivery policy", () => {
     assert.match(loginForm, /let navigationStarted = false[\s\S]*router\.push\(callbackUrl\)[\s\S]*router\.refresh\(\)[\s\S]*navigationStarted = true[\s\S]*finally \{[\s\S]*if \(!navigationStarted\)/)
   })
 
+  it("preserves one sanitized legal-accept callback in the login registration handoff", async () => {
+    const loginForm = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
+
+    assert.match(loginForm, /const requestedCallbackUrl = searchParams\.get\("callbackUrl"\)/)
+    assert.match(
+      loginForm,
+      /isRegistrationLegalAcceptancePath\(requestedCallbackUrl\)[\s\S]*buildRegistrationLegalProviderRedirectPath\(requestedCallbackUrl\)[\s\S]*safePostLegalAcceptanceCallback\(requestedCallbackUrl, "\/account"\)/,
+    )
+    assert.match(
+      loginForm,
+      /href=\{`\/register\?callbackUrl=\$\{encodeURIComponent\(callbackUrl\)\}`\}/,
+    )
+  })
+
   it("uses fixed truthful setup copy for Google-linked and other passwordless accounts", async () => {
     const authMail = await import("../lib/auth-mail.ts")
     assert.equal(typeof authMail.passwordSetupEmailCopy, "function")

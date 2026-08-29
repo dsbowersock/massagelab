@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page, type Response } from "@playwright/test"
+import { readFile } from "node:fs/promises"
 import { centerCarouselItem } from "./carousel-test-helpers"
 import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
@@ -35,6 +36,43 @@ const forbiddenAnonymousEndpoints = [
   "/api/account/preferences",
   "/api/account/profile",
 ] as const
+
+const externalFontUrl = "https://db.onlinewebfonts.com/t/8e22783d707ad140bffe18b2a3812529.woff2"
+const ablyCdnUrl = "https://cdn.ably.com/lib/ably.min-2.js"
+const chimerPreviewUrl = (name: string) => `https://media.massagelab.app/chimer/background-previews/${name}.webm`
+const atmosphereSampleIndexUrl = (pieceId: string) => (
+  `https://media.massagelab.app/atmosphere/${pieceId === "observable-streams"
+    ? "observable-streams-vsco-adaptation"
+    : `generative-fm/${pieceId}`}/sample-index.opus.json`
+)
+const initialAtmosphereSampleIndexUrls = [
+  "aisatsana",
+  "at-sunrise",
+  "day-dream",
+  "eno-machine",
+  "lemniscate",
+  "observable-streams",
+  "peace",
+  "trees",
+].map(atmosphereSampleIndexUrl)
+const deterministicAtmospherePayloadUrls = {
+  observableCorAnglais: "https://media.massagelab.app/atmosphere/browser-qa/observable-streams/cor-anglais-c4.opus",
+  observablePiano: "https://media.massagelab.app/atmosphere/browser-qa/observable-streams/piano-c4.opus",
+  observableViolin: "https://media.massagelab.app/atmosphere/browser-qa/observable-streams/violin-c4.opus",
+  lastTransitTruck: "/audio/atmosphere/media-session-carrier.mp3",
+  peaceFlute: "https://media.massagelab.app/atmosphere/browser-qa/peace/flute-c4.opus",
+  treesPiano: "https://media.massagelab.app/atmosphere/browser-qa/trees/piano-c4.opus",
+} as const
+
+function buildChromaticNoteFixture(payloadUrl: string) {
+  const notes: Record<string, string> = {}
+  for (let octave = 1; octave <= 7; octave += 1) {
+    for (const pitchClass of ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]) {
+      notes[`${pitchClass}${octave}`] = payloadUrl
+    }
+  }
+  return notes
+}
 
 function formatResponse(response: Response) {
   const url = new URL(response.url())
@@ -182,6 +220,7 @@ function isLocalHttpUrl(urlString: string) {
 
 function capturePageHealth(page: Page) {
   const consoleErrors: string[] = []
+  const failedExternalRequests: string[] = []
   const pageErrors: string[] = []
   const failedLocalResponses: string[] = []
   const forbiddenRequests: string[] = []
@@ -203,6 +242,11 @@ function capturePageHealth(page: Page) {
     }
   })
 
+  page.on("requestfailed", (request) => {
+    if (isLocalHttpUrl(request.url())) return
+    failedExternalRequests.push(`${request.failure()?.errorText ?? "unknown failure"} ${request.url()}`)
+  })
+
   page.on("response", (response) => {
     if (response.status() >= 400 && isLocalHttpUrl(response.url())) {
       failedLocalResponses.push(formatResponse(response))
@@ -211,9 +255,105 @@ function capturePageHealth(page: Page) {
 
   return {
     consoleErrors,
+    failedExternalRequests,
     failedLocalResponses,
     forbiddenRequests,
     pageErrors,
+  }
+}
+
+/** Serves the one externally hosted display font from a deterministic local dependency fixture. */
+async function installExternalFontFixture(page: Page) {
+  await page.route(externalFontUrl, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "font/woff2",
+      body: await readFile(new URL("../../node_modules/next/dist/next-devtools/server/font/geist-latin.woff2", import.meta.url)),
+    })
+  })
+}
+
+/** Fulfills only the named Chimer preview requests; other external media remains visible to health checks. */
+async function installChimerPreviewFixtures(page: Page, names: string[]) {
+  for (const name of names) {
+    await page.route(chimerPreviewUrl(name), async (route) => {
+      await route.fulfill({ status: 204, contentType: "video/webm", body: "" })
+    })
+  }
+}
+
+/**
+ * Provides exact sample-index and payload fixtures for public Atmosphere journeys.
+ * Empty indexes isolate opportunistic prewarm, while playback stations receive
+ * the package instrument names and valid repository-owned audio bytes they need.
+ */
+async function installAtmosphereFixtures(
+  page: Page,
+  playbackPieceIds: Array<"observable-streams" | "last-transit" | "peace" | "trees"> = [],
+) {
+  const fixtureHits = new Map<string, number>()
+  const recordHit = (url: string) => fixtureHits.set(url, (fixtureHits.get(url) ?? 0) + 1)
+  const playbackIndexes: Record<string, Record<string, Record<string, string> | string[]>> = {
+    "observable-streams": {
+      "observable-streams__sso-cor-anglais": buildChromaticNoteFixture(deterministicAtmospherePayloadUrls.observableCorAnglais),
+      "observable-streams__vsco2-piano-mf": buildChromaticNoteFixture(deterministicAtmospherePayloadUrls.observablePiano),
+      "observable-streams__vsco2-violin-arcvib": buildChromaticNoteFixture(deterministicAtmospherePayloadUrls.observableViolin),
+    },
+    "last-transit": {
+      "last-transit__idling-truck": [deterministicAtmospherePayloadUrls.lastTransitTruck],
+    },
+    peace: {
+      "peace__native-american-flute-susvib": buildChromaticNoteFixture(deterministicAtmospherePayloadUrls.peaceFlute),
+    },
+    trees: {
+      "trees__vsco2-piano-mf": buildChromaticNoteFixture(deterministicAtmospherePayloadUrls.treesPiano),
+    },
+  }
+  const sampleIndexUrls = new Set([
+    ...initialAtmosphereSampleIndexUrls,
+    atmosphereSampleIndexUrl("420hz-gamma-waves-for-big-brain"),
+    atmosphereSampleIndexUrl("last-transit"),
+  ])
+
+  for (const url of sampleIndexUrls) {
+    const pieceId = playbackPieceIds.find((candidate) => atmosphereSampleIndexUrl(candidate) === url)
+    await page.route(url, async (route) => {
+      recordHit(url)
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(pieceId ? playbackIndexes[pieceId] : {}),
+      })
+    })
+  }
+
+  const playbackPayloadUrls = playbackPieceIds.flatMap((pieceId) => {
+    if (pieceId === "observable-streams") {
+      return [
+        deterministicAtmospherePayloadUrls.observableCorAnglais,
+        deterministicAtmospherePayloadUrls.observablePiano,
+        deterministicAtmospherePayloadUrls.observableViolin,
+      ]
+    }
+    if (pieceId === "last-transit") return [deterministicAtmospherePayloadUrls.lastTransitTruck]
+    return pieceId === "peace"
+      ? [deterministicAtmospherePayloadUrls.peaceFlute]
+      : [deterministicAtmospherePayloadUrls.treesPiano]
+  })
+  for (const url of playbackPayloadUrls) {
+    if (url.startsWith("/")) continue
+    await page.route(url, async (route) => {
+      recordHit(url)
+      await route.fulfill({
+        status: 200,
+        contentType: "audio/mpeg",
+        body: await readFile(new URL("../../public/audio/atmosphere/media-session-carrier.mp3", import.meta.url)),
+      })
+    })
+  }
+
+  return {
+    hitCount: (url: string) => fixtureHits.get(url) ?? 0,
   }
 }
 
@@ -287,6 +427,9 @@ async function openQuickActionsAboveTrigger(page: Page, quickCreate: Locator) {
 for (const route of publicRoutes) {
   test(`anonymous public route ${route.path} renders without browser regressions`, async ({ page }) => {
     const health = capturePageHealth(page)
+    if (route.path === "/chimer" || route.path === "/clock") {
+      await installExternalFontFixture(page)
+    }
 
     await page.goto(route.path, { waitUntil: "domcontentloaded" })
     await expect(page.locator("body")).toContainText(route.expectedText)
@@ -294,6 +437,7 @@ for (const route of publicRoutes) {
     await page.waitForTimeout(250)
 
     expect(health.pageErrors, "uncaught page errors").toEqual([])
+    expect(health.failedExternalRequests, "failed external requests").toEqual([])
     expect(health.consoleErrors, "browser console errors").toEqual([])
     expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
     expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -528,6 +672,12 @@ test("mobile quick-create button opens a vertical speed dial", async ({ page }) 
 
 test("Chimer keeps the mobile main bar and opens quick actions above the plus button", async ({ page }) => {
   const health = capturePageHealth(page)
+  await installExternalFontFixture(page)
+  await installChimerPreviewFixtures(page, [
+    "massage-lab-hole-vertical",
+    "massage-lab-stars-vertical",
+    "massage-lab-moving-gradient-vertical",
+  ])
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
@@ -573,6 +723,7 @@ test("Chimer keeps the mobile main bar and opens quick actions above the plus bu
   await expect(page.locator(".ml-app-shell")).toHaveAttribute("data-main-bar-visible", "true")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -610,6 +761,7 @@ test("mobile primary bar keeps lighting controls available with a compact theme 
   )
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -718,6 +870,13 @@ test("Roadmap presents an unordered product portfolio", async ({ page }) => {
 
 test("Atmosphere visualizer action retains selected station across client routes", async ({ page }) => {
   const health = capturePageHealth(page)
+  await installAtmosphereFixtures(page)
+  await installChimerPreviewFixtures(page, [
+    "massage-lab-moving-gradient-vertical",
+    "massage-lab-stars-vertical",
+    "massage-lab-hole-vertical",
+    "massage-lab-retro-grid-vertical",
+  ])
   const origin = "/music?task8=public-route"
 
   await page.goto(origin, { waitUntil: "domcontentloaded" })
@@ -798,6 +957,7 @@ test("Atmosphere visualizer action retains selected station across client routes
   await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -832,6 +992,13 @@ test("non-Music compact landscape keeps the global rail without narrowing ordina
 
 test("Atmosphere restores the active station category after the Music route remounts", async ({ page }) => {
   const health = capturePageHealth(page)
+  await installAtmosphereFixtures(page, ["last-transit"])
+  await installChimerPreviewFixtures(page, [
+    "massage-lab-moving-gradient-vertical",
+    "massage-lab-stars-vertical",
+    "massage-lab-hole-vertical",
+    "massage-lab-retro-grid-vertical",
+  ])
 
   await page.goto("/music?active-category=restore", { waitUntil: "domcontentloaded" })
   const categoryGroup = page.getByRole("group", { name: "Station category" })
@@ -842,8 +1009,10 @@ test("Atmosphere restores the active station category after the Music route remo
   await centerCarouselItem(page, "generative-fm-last-transit", "Next station")
   await page.getByRole("button", { name: /^Play Last Transit$/i }).click()
   await expect(page.getByRole("button", { name: /^Stop Last Transit$/i })).toBeVisible({ timeout: 45_000 })
+  const playerToolbar = page.getByTestId("music-player-toolbar")
+  await expect(playerToolbar).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
 
-  await page.getByTestId("music-player-toolbar").getByRole("link", { name: /^Background$/i }).click()
+  await playerToolbar.getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   const backgroundDialog = page.getByRole("dialog", { name: "Background" })
   await expect(backgroundDialog).toBeVisible()
@@ -857,6 +1026,7 @@ test("Atmosphere restores the active station category after the Music route remo
   await page.getByRole("button", { name: /^Stop$/i }).last().click()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -1494,6 +1664,7 @@ for (const reducedMotion of [false, true] as const) {
 
 test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample station", async ({ page }) => {
   const health = capturePageHealth(page)
+  const atmosphereFixtures = await installAtmosphereFixtures(page, ["observable-streams", "peace", "trees"])
 
   await page.addInitScript(() => {
     window.addEventListener("massagelab:atmosphere-startup-timing", (event) => {
@@ -1611,7 +1782,21 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
     await expect(page.getByText(/Playing|Preparing audio|Preparing station/i)).toHaveCount(0)
   }
 
+  for (const pieceId of ["observable-streams", "peace", "trees"]) {
+    expect(atmosphereFixtures.hitCount(atmosphereSampleIndexUrl(pieceId)), `${pieceId} sample-index fixture hits`).toBeGreaterThan(0)
+  }
+  for (const payloadUrl of [
+    deterministicAtmospherePayloadUrls.observableCorAnglais,
+    deterministicAtmospherePayloadUrls.observablePiano,
+    deterministicAtmospherePayloadUrls.observableViolin,
+    deterministicAtmospherePayloadUrls.peaceFlute,
+    deterministicAtmospherePayloadUrls.treesPiano,
+  ]) {
+    expect(atmosphereFixtures.hitCount(payloadUrl), `${payloadUrl} fixture hits`).toBeGreaterThan(0)
+  }
+
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -1990,6 +2175,14 @@ test("anatomime shared game create failures stay visible in setup", async ({ pag
 
 test("anatomime player joins by code and submits typed guesses", async ({ page }) => {
   const health = capturePageHealth(page)
+  await installExternalFontFixture(page)
+  let ablyCdnRequestCount = 0
+  page.on("request", (request) => {
+    if (request.url() === ablyCdnUrl) ablyCdnRequestCount += 1
+  })
+  await page.route(ablyCdnUrl, async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/javascript", body: "" })
+  })
   await page.addInitScript(() => {
     window.Ably = {
       Realtime: class {
@@ -2093,8 +2286,10 @@ test("anatomime player joins by code and submits typed guesses", async ({ page }
   await page.getByRole("button", { name: /Submit Guess/i }).click()
   await expect(page.getByText("Correct. Your team scored.").first()).toBeVisible()
   await expect(page.getByText("2 of 4")).toBeVisible()
+  expect(ablyCdnRequestCount, "injected Ably fixture must prevent the CDN loader").toBe(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
