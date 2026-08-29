@@ -10,11 +10,22 @@ import { hasSubscriptionBlockingNewCheckout } from "../lib/membership.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
-const [authUsersSource, sidebarSource, pricingPageSource, portalRouteSource] = await Promise.all([
+const [
+  authUsersSource,
+  sidebarSource,
+  pricingPageSource,
+  portalRouteSource,
+  accountSurfaceDataSource,
+  membershipSource,
+  stripeBillingSource,
+] = await Promise.all([
   readFile(new URL("../lib/auth-users.ts", import.meta.url), "utf8"),
   readFile(new URL("../components/sidebar/sidebar.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/pricing/page.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/api/billing/portal/route.ts", import.meta.url), "utf8"),
+  readFile(new URL("../lib/account-surface-data.js", import.meta.url), "utf8"),
+  readFile(new URL("../lib/membership.js", import.meta.url), "utf8"),
+  readFile(new URL("../lib/stripe-billing.js", import.meta.url), "utf8"),
 ])
 
 /** Returns one named function body bounded by the next named owner. */
@@ -258,6 +269,13 @@ function portalPost(calls) {
 }
 
 describe("family-and-friends server workload baseline", () => {
+  it("keeps the shared display catalog out of membership, entitlement, and customer authority", () => {
+    assert.match(pricingPageSource, /import\s*\{\s*getMembershipPricingCatalog\s*\}\s*from\s*["']@\/lib\/membership-pricing["']/)
+    assert.match(accountSurfaceDataSource, /import\s*\{\s*getMembershipPricingCatalog\s*\}\s*from\s*["']\.\/membership-pricing\.js["']/)
+    assert.doesNotMatch(membershipSource, /membership-pricing(?:\.js)?["']/)
+    assert.doesNotMatch(stripeBillingSource, /membership-pricing(?:\.js)?["']/)
+  })
+
   it("locks the ordinary verified-auth and signed-in sidebar call counts", async () => {
     const authRefresh = namedFunctionSlice(
       authUsersSource,
