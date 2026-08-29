@@ -1,8 +1,29 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
+type SlideGeometry = NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>
+
+const QUIET_GEOMETRY_RANGE_CSS_PX = 1
+const QUIET_GEOMETRY_WINDOW_MS = 50
+const QUIET_GEOMETRY_SAMPLE_COUNT = 4
+
+function maxGeometryDelta(left: SlideGeometry, right: SlideGeometry) {
+  return Math.max(
+    Math.abs(left.x - right.x),
+    Math.abs(left.y - right.y),
+    Math.abs(left.width - right.width),
+    Math.abs(left.height - right.height),
+  )
+}
+
+/**
+ * Requires a near-frame-cadence quiet window whose total geometry range stays
+ * within one CSS pixel, rather than accepting a single easing-tail lull.
+ */
 export async function waitForStableSlideGeometry(slide: Locator, label: string) {
-  let previousBox: Awaited<ReturnType<Locator["boundingBox"]>> = null
-  let stableComparisons = 0
+  let previousBox: SlideGeometry | null = null
+  let quietAnchorBox: SlideGeometry | null = null
+  let quietStartedAt = 0
+  let quietSampleCount = 0
   const recentSamples: string[] = []
   try {
     await expect.poll(async () => {
@@ -11,35 +32,45 @@ export async function waitForStableSlideGeometry(slide: Locator, label: string) 
         // Discard pre-detachment samples so a reconnected slide must establish
         // fresh consecutive geometry before it can be considered settled.
         previousBox = null
-        stableComparisons = 0
+        quietAnchorBox = null
+        quietStartedAt = 0
+        quietSampleCount = 0
         recentSamples.push("detached")
+        recentSamples.splice(0, Math.max(0, recentSamples.length - 6))
         return false
       }
-      const maxDelta = previousBox === null
-        ? null
-        : Math.max(
-            Math.abs(box.x - previousBox.x),
-            Math.abs(box.y - previousBox.y),
-            Math.abs(box.width - previousBox.width),
-            Math.abs(box.height - previousBox.height),
-          )
-      // WebKit can report a visually stationary transformed slide with
-      // subpixel box jitter. One CSS pixel remains strict enough to reject an
-      // in-flight snap while avoiding a false timeout on rasterization noise.
-      const stable = maxDelta !== null && maxDelta <= 1
-      stableComparisons = stable ? stableComparisons + 1 : 0
+
+      const sampledAt = performance.now()
+      const stepDelta = previousBox === null ? null : maxGeometryDelta(box, previousBox)
+      if (quietAnchorBox === null) {
+        quietAnchorBox = box
+        quietStartedAt = sampledAt
+        quietSampleCount = 1
+      } else if (maxGeometryDelta(box, quietAnchorBox) > QUIET_GEOMETRY_RANGE_CSS_PX) {
+        // Reset the whole quiet window when cumulative movement exceeds the
+        // WebKit subpixel allowance, even if one intermediate step was small.
+        quietAnchorBox = box
+        quietStartedAt = sampledAt
+        quietSampleCount = 1
+      } else {
+        quietSampleCount += 1
+      }
+
+      const quietRange = maxGeometryDelta(box, quietAnchorBox)
+      const quietDuration = sampledAt - quietStartedAt
       previousBox = box
       recentSamples.push(
-        `x=${box.x.toFixed(2)},y=${box.y.toFixed(2)},w=${box.width.toFixed(2)},h=${box.height.toFixed(2)},delta=${maxDelta?.toFixed(2) ?? "initial"}`,
+        `x=${box.x.toFixed(2)},y=${box.y.toFixed(2)},w=${box.width.toFixed(2)},h=${box.height.toFixed(2)},step=${stepDelta?.toFixed(2) ?? "initial"},range=${quietRange.toFixed(2)},quiet=${quietDuration.toFixed(0)}ms`,
       )
       recentSamples.splice(0, Math.max(0, recentSamples.length - 6))
-      // Semantic readiness and exact centered identity are checked by the
-      // caller, so one additional bounded transition is enough to distinguish
-      // the requested slide from an in-flight snap without extending timeouts.
-      return stableComparisons >= 1
+      return quietSampleCount >= QUIET_GEOMETRY_SAMPLE_COUNT
+        && quietDuration >= QUIET_GEOMETRY_WINDOW_MS
     }, {
       message: `${label} settled`,
-      intervals: [50, 75, 100, 100, 100],
+      // Browser-to-runner bounding-box reads are slower than rAF, but a 16ms
+      // polling cadence still supplies multiple samples inside the unchanged
+      // assertion timeout on Chromium and WebKit.
+      intervals: [16],
     }).toBe(true)
   } catch (error) {
     throw new Error(
