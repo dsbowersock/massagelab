@@ -15,13 +15,35 @@ function maxGeometryDelta(left: SlideGeometry, right: SlideGeometry) {
   )
 }
 
+function mergeGeometryBounds(
+  minimum: SlideGeometry,
+  maximum: SlideGeometry,
+  sample: SlideGeometry,
+) {
+  return {
+    minimum: {
+      x: Math.min(minimum.x, sample.x),
+      y: Math.min(minimum.y, sample.y),
+      width: Math.min(minimum.width, sample.width),
+      height: Math.min(minimum.height, sample.height),
+    },
+    maximum: {
+      x: Math.max(maximum.x, sample.x),
+      y: Math.max(maximum.y, sample.y),
+      width: Math.max(maximum.width, sample.width),
+      height: Math.max(maximum.height, sample.height),
+    },
+  }
+}
+
 /**
  * Requires a near-frame-cadence quiet window whose total geometry range stays
  * within one CSS pixel, rather than accepting a single easing-tail lull.
  */
 export async function waitForStableSlideGeometry(slide: Locator, label: string) {
   let previousBox: SlideGeometry | null = null
-  let quietAnchorBox: SlideGeometry | null = null
+  let quietMinimumBox: SlideGeometry | null = null
+  let quietMaximumBox: SlideGeometry | null = null
   let quietStartedAt = 0
   let quietSampleCount = 0
   const recentSamples: string[] = []
@@ -32,7 +54,8 @@ export async function waitForStableSlideGeometry(slide: Locator, label: string) 
         // Discard pre-detachment samples so a reconnected slide must establish
         // fresh consecutive geometry before it can be considered settled.
         previousBox = null
-        quietAnchorBox = null
+        quietMinimumBox = null
+        quietMaximumBox = null
         quietStartedAt = 0
         quietSampleCount = 0
         recentSamples.push("detached")
@@ -42,21 +65,31 @@ export async function waitForStableSlideGeometry(slide: Locator, label: string) 
 
       const sampledAt = performance.now()
       const stepDelta = previousBox === null ? null : maxGeometryDelta(box, previousBox)
-      if (quietAnchorBox === null) {
-        quietAnchorBox = box
-        quietStartedAt = sampledAt
-        quietSampleCount = 1
-      } else if (maxGeometryDelta(box, quietAnchorBox) > QUIET_GEOMETRY_RANGE_CSS_PX) {
-        // Reset the whole quiet window when cumulative movement exceeds the
-        // WebKit subpixel allowance, even if one intermediate step was small.
-        quietAnchorBox = box
+      if (quietMinimumBox === null || quietMaximumBox === null) {
+        quietMinimumBox = box
+        quietMaximumBox = box
         quietStartedAt = sampledAt
         quietSampleCount = 1
       } else {
-        quietSampleCount += 1
+        const candidateBounds = mergeGeometryBounds(quietMinimumBox, quietMaximumBox, box)
+        if (
+          maxGeometryDelta(candidateBounds.minimum, candidateBounds.maximum)
+          > QUIET_GEOMETRY_RANGE_CSS_PX
+        ) {
+          // Reseed after any per-axis peak-to-peak range exceeds the WebKit
+          // allowance, including damped motion on opposite sides of an anchor.
+          quietMinimumBox = box
+          quietMaximumBox = box
+          quietStartedAt = sampledAt
+          quietSampleCount = 1
+        } else {
+          quietMinimumBox = candidateBounds.minimum
+          quietMaximumBox = candidateBounds.maximum
+          quietSampleCount += 1
+        }
       }
 
-      const quietRange = maxGeometryDelta(box, quietAnchorBox)
+      const quietRange = maxGeometryDelta(quietMinimumBox, quietMaximumBox)
       const quietDuration = sampledAt - quietStartedAt
       previousBox = box
       recentSamples.push(
