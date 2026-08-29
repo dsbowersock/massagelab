@@ -93,6 +93,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
 
   async function handleGoogleRegistration() {
     if (!beginSubmission("google")) return
+    let documentNavigationStarted = false
     setStatus("")
     setStatusIsError(false)
     try {
@@ -103,12 +104,15 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       })
       const result = await response.json().catch(() => ({})) as { ok?: boolean; callbackUrl?: string }
       if (!response.ok || !result.ok || !result.callbackUrl) throw new Error("Google intent unavailable")
+      const initialHref = window.location.href
       await signIn("google", { redirectTo: result.callbackUrl })
+      documentNavigationStarted = window.location.href !== initialHref
+      if (!documentNavigationStarted) throw new Error("Google navigation did not start")
     } catch {
       setStatus("Something went wrong. Please try again.")
       setStatusIsError(true)
     } finally {
-      finishSubmission()
+      if (!documentNavigationStarted) finishSubmission()
     }
   }
 

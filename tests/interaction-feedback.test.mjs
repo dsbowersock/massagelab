@@ -1,8 +1,12 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { existsSync, readFileSync } from "node:fs"
+import { createServer } from "node:http"
+import { createRequire } from "node:module"
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import ts from "typescript"
 import {
   createCompiledModuleLoader,
   createElement,
@@ -14,6 +18,7 @@ import {
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const require = createRequire(import.meta.url)
 
 function source(relativePath) {
   const absolutePath = path.join(projectRoot, relativePath)
@@ -120,6 +125,7 @@ test("pending submission form keeps function identity and owns native first-subm
   let flushes = 0
   const compiled = loadCompiledModule(pendingForm, "components/forms/pending-submission-form.test.tsx", {
     react: {
+      Component: class Component {},
       createContext: () => ({ Provider: passThroughElement("provider") }),
       useContext: () => false,
       useRef: (value) => ({ current: value }),
@@ -133,9 +139,10 @@ test("pending submission form keeps function identity and owns native first-subm
     "@/components/forms/async-action-button": { AsyncActionButton: passThroughElement("async-button") },
   })
   const action = async () => {}
-  const formTree = renderFunctionComponents(compiled.PendingSubmissionForm({ action, children: createElement("input", { name: "kept" }) }))
+  const formTree = compiled.PendingSubmissionForm({ action, method: "post", children: createElement("input", { name: "kept" }) })
   const form = findElement(formTree, ({ type }) => type === "form")
   assert.equal(form.props.action, action)
+  assert.equal(form.props.method, "post")
   assert.equal(findElement(formTree, ({ type }) => type === "input").props.name, "kept")
 
   const nativeTree = renderFunctionComponents(compiled.PendingSubmissionForm({
@@ -174,6 +181,105 @@ test("pending submission form keeps function identity and owns native first-subm
   assert.equal(button.props.pendingLabel, "Saving…")
 })
 
+test("function actions recover after real React DOM resolution and rejection", { timeout: 45_000 }, async () => {
+  const pendingFormSource = source("components/forms/pending-submission-form.tsx")
+  assert.match(pendingFormSource, /class PendingSubmissionErrorBoundary/)
+  assert.match(pendingFormSource, /Something went wrong\. Please try again\./)
+
+  const fixtureRoot = mkdtempSync(path.join(tmpdir(), "massagelab-form-settlement-"))
+  const outputRoot = path.join(fixtureRoot, "dist")
+  const componentPath = path.join(fixtureRoot, "pending-submission-form.js")
+  const buttonPath = path.join(fixtureRoot, "async-action-button.js")
+  const entryPath = path.join(fixtureRoot, "entry.js")
+  const transpiled = ts.transpileModule(pendingFormSource, {
+    compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
+  }).outputText
+  writeFileSync(componentPath, transpiled)
+  writeFileSync(buttonPath, `
+    import React from "react";
+    export function AsyncActionButton({ pending, idleLabel, pendingLabel, ...props }) {
+      return React.createElement("button", { ...props, disabled: Boolean(props.disabled || pending) }, pending ? pendingLabel : idleLabel);
+    }
+  `)
+  writeFileSync(entryPath, `
+    import React from "react";
+    import { createRoot } from "react-dom/client";
+    import { PendingSubmissionForm, PendingSubmitButton } from ${JSON.stringify(componentPath)};
+    let settle;
+    let reject;
+    window.calls = 0;
+    const action = () => {
+      window.calls += 1;
+      return new Promise((resolve, rejectPromise) => { settle = resolve; reject = rejectPromise; });
+    };
+    window.formHarness = {
+      resolve: () => settle(),
+      reject: () => reject(new Error("private provider detail")),
+    };
+    createRoot(document.getElementById("root")).render(
+      React.createElement(PendingSubmissionForm, { action, method: "post" },
+        React.createElement(PendingSubmitButton, { idleLabel: "Save", pendingLabel: "Saving…" })
+      )
+    );
+  `)
+
+  const webpackModule = require("next/dist/compiled/webpack/webpack")
+  const webpack = webpackModule.webpack
+  await new Promise((resolve, rejectPromise) => {
+    webpack({
+      mode: "development",
+      context: projectRoot,
+      entry: entryPath,
+      output: { path: outputRoot, filename: "fixture.js" },
+      resolve: {
+        extensions: [".js"],
+        alias: { "@/components/forms/async-action-button": buttonPath },
+        modules: [path.join(projectRoot, "node_modules"), "node_modules"],
+      },
+    }, (error, stats) => {
+      if (error) return rejectPromise(error)
+      if (stats?.hasErrors()) return rejectPromise(new Error(stats.toString({ errors: true, warnings: false })))
+      resolve()
+    })
+  })
+
+  const server = createServer((request, response) => {
+    response.setHeader("content-type", request.url === "/fixture.js" ? "text/javascript; charset=utf-8" : "text/html; charset=utf-8")
+    response.end(request.url === "/fixture.js"
+      ? readFileSync(path.join(outputRoot, "fixture.js"))
+      : '<div id="root"></div><script src="/fixture.js"></script>')
+  })
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
+  const address = server.address()
+  assert.ok(address && typeof address === "object")
+  const { chromium } = require("playwright")
+  const browser = await chromium.launch({ headless: true })
+  try {
+    const page = await browser.newPage()
+    await page.goto(`http://127.0.0.1:${address.port}`)
+    const button = page.getByRole("button", { name: "Save" })
+    await button.click()
+    await page.waitForFunction(() => window.calls === 1)
+    await page.waitForFunction(() => document.querySelector("button")?.disabled === true)
+    assert.equal(await page.locator("button").textContent(), "Saving…")
+    await page.evaluate(() => window.formHarness.resolve())
+    await button.waitFor()
+    assert.equal(await button.isEnabled(), true)
+
+    await button.click()
+    await page.waitForFunction(() => window.calls === 2)
+    await page.evaluate(() => window.formHarness.reject())
+    await page.getByRole("alert").waitFor()
+    assert.equal(await page.getByRole("alert").textContent(), "Something went wrong. Please try again.")
+    await page.getByRole("button", { name: "Save" }).waitFor()
+    assert.equal(await page.getByRole("button", { name: "Save" }).isEnabled(), true)
+  } finally {
+    await browser.close()
+    await new Promise((resolve) => server.close(resolve))
+    rmSync(fixtureRoot, { recursive: true, force: true })
+  }
+})
+
 test("affected client account actions declare recoverable settlement boundaries", () => {
   const affectedForms = [
     "app/login/login-form.tsx",
@@ -188,5 +294,32 @@ test("affected client account actions declare recoverable settlement boundaries"
     const client = source(path)
     assert.match(client, /try \{[\s\S]*catch(?: \([^)]*\))? \{[\s\S]*finally \{/, path)
     assert.match(client, /Something went wrong\. Please try again\./, path)
+  }
+})
+
+test("security mutations share one synchronous owner across sign-in methods and 2FA", () => {
+  const securityPanel = source("app/account/security/security-panel.tsx")
+  const methodsPanel = source("app/account/security/sign-in-methods-panel.tsx")
+  assert.match(securityPanel, /type PendingSecurityAction =[\s\S]*"google-proof"[\s\S]*"backup-codes"/)
+  assert.equal((securityPanel.match(/const actionLock = useRef<PendingSecurityAction>\(null\)/g) ?? []).length, 1)
+  assert.match(securityPanel, /<SignInMethodsPanel[\s\S]*pendingAction=\{pendingAction\}[\s\S]*beginAction=\{beginAction\}[\s\S]*finishAction=\{finishAction\}/)
+  assert.doesNotMatch(methodsPanel, /useRef/)
+  assert.doesNotMatch(methodsPanel, /setPendingAction/)
+  assert.match(methodsPanel, /pendingAction: PendingSecurityAction/)
+  assert.match(methodsPanel, /beginAction: \(action: Exclude<PendingSecurityAction, null>\) => boolean/)
+  assert.match(methodsPanel, /finishAction: \(action: Exclude<PendingSecurityAction, null>\) => void/)
+})
+
+test("Auth.js redirect flows retain their synchronous owner after document navigation starts", () => {
+  for (const relativePath of [
+    "app/login/login-form.tsx",
+    "app/register/register-form.tsx",
+    "app/account/security/sign-in-methods-panel.tsx",
+  ]) {
+    const client = source(relativePath)
+    assert.match(client, /let documentNavigationStarted = false/, relativePath)
+    assert.match(client, /const initialHref = window\.location\.href/, relativePath)
+    assert.match(client, /documentNavigationStarted = window\.location\.href !== initialHref/, relativePath)
+    assert.match(client, /if \(!documentNavigationStarted\)/, relativePath)
   }
 })

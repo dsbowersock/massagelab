@@ -10,6 +10,35 @@ import {
 
 const NativeSubmissionPendingContext = React.createContext(false)
 
+type PendingSubmissionErrorBoundaryState = {
+  failed: boolean
+  recoveryKey: number
+}
+
+/** Remounts the unchanged Server Action form after React reports a rejected submission. */
+class PendingSubmissionErrorBoundary extends React.Component<React.PropsWithChildren, PendingSubmissionErrorBoundaryState> {
+  state: PendingSubmissionErrorBoundaryState = { failed: false, recoveryKey: 0 }
+
+  static getDerivedStateFromError(): Pick<PendingSubmissionErrorBoundaryState, "failed"> {
+    return { failed: true }
+  }
+
+  componentDidCatch() {
+    this.setState((state) => ({ recoveryKey: state.recoveryKey + 1 }))
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children
+
+    return (
+      <>
+        <p role="alert" aria-live="assertive">Something went wrong. Please try again.</p>
+        <React.Fragment key={this.state.recoveryKey}>{this.props.children}</React.Fragment>
+      </>
+    )
+  }
+}
+
 export type PendingSubmissionFormProps = React.ComponentProps<"form">
 
 /**
@@ -29,9 +58,11 @@ export function PendingSubmissionForm({
   if (typeof action === "function") {
     return (
       <NativeSubmissionPendingContext.Provider value={false}>
-        <form {...formProps} action={action} onSubmit={onSubmit}>
-          {children}
-        </form>
+        <PendingSubmissionErrorBoundary>
+          <form {...formProps} action={action} method={method} onSubmit={onSubmit}>
+            {children}
+          </form>
+        </PendingSubmissionErrorBoundary>
       </NativeSubmissionPendingContext.Provider>
     )
   }

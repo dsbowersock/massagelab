@@ -158,7 +158,21 @@ export async function requestCredentialVerificationAction(formData: FormData) {
     failurePath: "/account?tab=credentials&credential=submit-failed",
   })
 
+  if (destination === "/account?tab=credentials&credential=submitted") {
+    refreshCredentialAccountSurface(session.user.id)
+  }
+
   redirect(destination)
+}
+
+/** Cache refresh is best-effort after a durable commit and never changes its outcome. */
+function refreshCredentialAccountSurface(userId: string) {
+  try {
+    clearAccountSurfaceDataCache(userId)
+    revalidatePath("/account")
+  } catch {
+    // A committed submission remains successful if local cache invalidation fails.
+  }
 }
 
 /** Runs only after authentication and legal redirect checks so failures map safely. */
@@ -172,13 +186,6 @@ async function submitCredentialVerificationOperation({
   userId: string
 }) {
   const requestHeaders = await headers()
-
-  await recordLegalAcceptances({
-    prismaClient: prisma,
-    userId,
-    documents: requiredDocuments,
-    metadata: legalHeadersMetadata(requestHeaders),
-  })
 
   const rawKind = formString(formData, "credential_kind")
   const kind: CredentialKind = rawKind === "STUDENT_ENROLLMENT" ? "STUDENT_ENROLLMENT" : "MASSAGE_LICENSE"
@@ -242,24 +249,29 @@ async function submitCredentialVerificationOperation({
     rejectedAt: verificationStatus === "REJECTED" ? checkedAt : null,
   }
 
-  const existingVerification =
-    jurisdictionCode && credentialNumber
-      ? await prisma.credentialVerification.findFirst({
-          where: {
-            userId,
-            kind,
-            jurisdictionCode,
-            credentialNumber,
-          },
-        })
-      : null
+  await prisma.$transaction(async (transaction) => {
+    await recordLegalAcceptances({
+      prismaClient: transaction,
+      userId,
+      documents: requiredDocuments,
+      metadata: legalHeadersMetadata(requestHeaders),
+    })
+
+  const existingVerification = await transaction.credentialVerification.findFirst({
+    where: {
+      userId,
+      kind,
+      jurisdictionCode,
+      credentialNumber,
+    },
+  })
 
   let verification = existingVerification
-    ? await prisma.credentialVerification.update({
+    ? await transaction.credentialVerification.update({
         where: { id: existingVerification.id },
         data: verificationData,
       })
-    : await prisma.credentialVerification.create({
+    : await transaction.credentialVerification.create({
         data: {
           userId,
           ...verificationData,
@@ -268,7 +280,7 @@ async function submitCredentialVerificationOperation({
 
   if (verificationStatus === "VERIFIED" && jurisdictionCode && credentialNumber) {
     const credentialClaim = await claimVerifiedCredential({
-      prismaClient: prisma,
+      prismaClient: transaction,
       userId,
       kind,
       jurisdictionCode,
@@ -293,7 +305,7 @@ async function submitCredentialVerificationOperation({
       verificationStatus = "PENDING"
     }
 
-    verification = await prisma.credentialVerification.update({
+    verification = await transaction.credentialVerification.update({
       where: { id: verification.id },
       data: {
         status: verificationStatus,
@@ -303,7 +315,7 @@ async function submitCredentialVerificationOperation({
     })
   }
 
-  const existingRole = await prisma.userRole.findUnique({
+  const existingRole = await transaction.userRole.findUnique({
     where: {
       userId_role: {
         userId,
@@ -328,7 +340,7 @@ async function submitCredentialVerificationOperation({
       }
 
   if (!existingRole) {
-    await prisma.userRole.create({
+    await transaction.userRole.create({
       data: {
         userId,
         role,
@@ -340,7 +352,7 @@ async function submitCredentialVerificationOperation({
       },
     })
   } else if (shouldUpdateCredentialRole(existingRole.status, verificationStatus)) {
-    await prisma.userRole.update({
+    await transaction.userRole.update({
       where: {
         userId_role: {
           userId,
@@ -361,7 +373,7 @@ async function submitCredentialVerificationOperation({
     const studentAccess = buildStudentAccessState({ studentStartDate })
 
     if (studentAccess) {
-      await prisma.studentAccess.upsert({
+      await transaction.studentAccess.upsert({
         where: { userId },
         create: {
           userId,
@@ -380,6 +392,5 @@ async function submitCredentialVerificationOperation({
     }
   }
 
-  clearAccountSurfaceDataCache(userId)
-  revalidatePath("/account")
+  })
 }

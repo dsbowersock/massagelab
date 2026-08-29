@@ -14,7 +14,16 @@ type SecurityPanelProps = {
   googleLinked: boolean
 }
 
-type PendingSecurityAction = "setup" | "enable" | "disable" | "backup-codes" | null
+export type PendingSecurityAction =
+  | "google-proof"
+  | "password"
+  | "unlink-google"
+  | "disable-password"
+  | "setup"
+  | "enable"
+  | "disable"
+  | "backup-codes"
+  | null
 
 export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleLinked }: SecurityPanelProps) {
   const [qrCode, setQrCode] = useState("")
@@ -25,19 +34,20 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
   const [statusIsError, setStatusIsError] = useState(false)
   const [enabled, setEnabled] = useState(twoFactorEnabled)
   const [pendingAction, setPendingAction] = useState<PendingSecurityAction>(null)
-  const actionLock = useRef(false)
+  const actionLock = useRef<PendingSecurityAction>(null)
 
   function beginAction(action: Exclude<PendingSecurityAction, null>) {
-    if (actionLock.current) return false
-    actionLock.current = true
+    if (actionLock.current !== null) return false
+    actionLock.current = action
     setPendingAction(action)
     setStatus("")
     setStatusIsError(false)
     return true
   }
 
-  function finishAction() {
-    actionLock.current = false
+  function finishAction(action: Exclude<PendingSecurityAction, null>) {
+    if (actionLock.current !== action) return
+    actionLock.current = null
     setPendingAction(null)
   }
 
@@ -59,7 +69,7 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
       setStatus("Something went wrong. Please try again.")
       setStatusIsError(true)
     } finally {
-      finishAction()
+      finishAction("setup")
     }
   }
 
@@ -85,7 +95,7 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
       setStatus("Something went wrong. Please try again.")
       setStatusIsError(true)
     } finally {
-      finishAction()
+      finishAction("enable")
     }
   }
 
@@ -104,7 +114,7 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
       setStatus("Something went wrong. Please try again.")
       setStatusIsError(true)
     } finally {
-      finishAction()
+      finishAction("disable")
     }
   }
 
@@ -120,13 +130,19 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
       setStatus("Something went wrong. Please try again.")
       setStatusIsError(true)
     } finally {
-      finishAction()
+      finishAction("backup-codes")
     }
   }
 
   return (
     <div className="space-y-6">
-      <SignInMethodsPanel hasPasswordCredential={hasPasswordCredential} googleLinked={googleLinked} />
+      <SignInMethodsPanel
+        hasPasswordCredential={hasPasswordCredential}
+        googleLinked={googleLinked}
+        pendingAction={pendingAction}
+        beginAction={beginAction}
+        finishAction={finishAction}
+      />
 
       <AppSurface
         title="Authenticator-app 2FA"

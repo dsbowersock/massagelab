@@ -1,24 +1,30 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { signIn } from "next-auth/react"
 
 import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import type { PendingSecurityAction } from "@/app/account/security/security-panel"
 
 type MethodActionState = "idle" | "proving" | "saving" | "redirecting" | "success" | "error"
-type PendingMethodAction = "google-proof" | "password" | "unlink-google" | "disable-password" | null
 type MethodResponse = { code?: string; message?: string; googleLinked?: boolean; hasPasswordCredential?: boolean }
 
 /** Owns recoverable client states while server routes retain every proof and mutation rule. */
 export function SignInMethodsPanel({
   hasPasswordCredential,
   googleLinked,
+  pendingAction,
+  beginAction,
+  finishAction,
 }: {
   hasPasswordCredential: boolean
   googleLinked: boolean
+  pendingAction: PendingSecurityAction
+  beginAction: (action: Exclude<PendingSecurityAction, null>) => boolean
+  finishAction: (action: Exclude<PendingSecurityAction, null>) => void
 }) {
   const [passwordAvailable, setPasswordAvailable] = useState(hasPasswordCredential)
   const [googleAccountLinked, setGoogleAccountLinked] = useState(googleLinked)
@@ -34,19 +40,15 @@ export function SignInMethodsPanel({
   const [disablePasswordConfirmed, setDisablePasswordConfirmed] = useState(false)
   const [reauthComplete, setReauthComplete] = useState(false)
   const [actionState, setActionState] = useState<MethodActionState>("idle")
-  const [pendingAction, setPendingAction] = useState<PendingMethodAction>(null)
   const [message, setMessage] = useState("")
-  const actionLock = useRef(false)
   const busy = pendingAction !== null
 
   useEffect(() => {
     setReauthComplete(new URLSearchParams(window.location.search).get("reauth") === "complete")
   }, [])
 
-  function begin(pending: Exclude<PendingMethodAction, null>, action: MethodActionState, status: string) {
-    if (actionLock.current) return false
-    actionLock.current = true
-    setPendingAction(pending)
+  function begin(pending: Exclude<PendingSecurityAction, null>, action: MethodActionState, status: string) {
+    if (!beginAction(pending)) return false
     setActionState(action)
     setMessage(status)
     return true
@@ -59,6 +61,7 @@ export function SignInMethodsPanel({
 
   async function startGoogleProof(purpose: "SIGN_IN_OR_LINK" | "ADD_PASSWORD" | "REMOVE_PASSWORD") {
     if (!begin("google-proof", "proving", "Preparing secure Google confirmation…")) return
+    let documentNavigationStarted = false
     try {
       const response = await fetch("/api/auth/google/intent", {
         method: "POST",
@@ -69,13 +72,15 @@ export function SignInMethodsPanel({
       if (!response.ok || !result.ok || !result.callbackUrl) throw new Error("Google confirmation could not be started. Try again.")
       setActionState("redirecting")
       setMessage("Redirecting to Google confirmation…")
+      const initialHref = window.location.href
       await signIn("google", { redirectTo: result.callbackUrl })
+      documentNavigationStarted = window.location.href !== initialHref
+      if (!documentNavigationStarted) throw new Error("Google navigation did not start")
     } catch {
       setActionState("error")
       setMessage("Something went wrong. Please try again.")
     } finally {
-      actionLock.current = false
-      setPendingAction(null)
+      if (!documentNavigationStarted) finishAction("google-proof")
     }
   }
 
@@ -103,8 +108,7 @@ export function SignInMethodsPanel({
       setActionState("error")
       setMessage("Something went wrong. Please try again.")
     } finally {
-      actionLock.current = false
-      setPendingAction(null)
+      finishAction("password")
       if (mode === "CHANGE") {
         setChangeCurrentPassword("")
         setChangeNewPassword("")
@@ -134,8 +138,7 @@ export function SignInMethodsPanel({
       setActionState("error")
       setMessage("Something went wrong. Please try again.")
     } finally {
-      actionLock.current = false
-      setPendingAction(null)
+      finishAction("unlink-google")
       setUnlinkPassword("")
       setUnlinkTwoFactorCode("")
     }
@@ -160,8 +163,7 @@ export function SignInMethodsPanel({
       setActionState("error")
       setMessage("Something went wrong. Please try again.")
     } finally {
-      actionLock.current = false
-      setPendingAction(null)
+      finishAction("disable-password")
     }
   }
 
