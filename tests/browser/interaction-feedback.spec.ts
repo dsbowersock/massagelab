@@ -7,6 +7,12 @@ import { fileURLToPath } from "node:url"
 import ts from "typescript"
 import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
 import { centerCarouselItem } from "./carousel-test-helpers"
+import {
+  expectNoHorizontalViewportOverflow,
+  focusWithKeyboard,
+  installRouteFeedbackAccessibilityObserver,
+  readRouteFeedbackAccessibilityObserver,
+} from "./interaction-feedback-accessibility-helpers"
 import { installNativeSubmitSnapshotRecorder } from "./native-submission-snapshot"
 
 const hasPrivateQaAuthorization = isBrowserQaDatabaseTargetAuthorized(process.env)
@@ -308,7 +314,7 @@ async function startProofDrone(page: Page) {
   return toolbar
 }
 
-async function delayNavigationResponse(page: Page, pathname: string) {
+async function delayNavigationResponse(page: Page, pathname: string, delayMs = 550) {
   await page.route(`**${pathname}*`, async (route) => {
     const request = route.request()
     const headers = request.headers()
@@ -319,7 +325,7 @@ async function delayNavigationResponse(page: Page, pathname: string) {
 
     if (headers.rsc || request.isNavigationRequest()) {
       const response = await route.fetch()
-      await new Promise((resolve) => setTimeout(resolve, 550))
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
       await route.fulfill({ response })
       return
     }
@@ -375,51 +381,12 @@ test("shows throttled shell feedback while an owned tool Link keeps music mounte
   await toolbar.evaluate((element) => {
     Reflect.set(window, "__interactionFeedbackMusicToolbar", element)
   })
-  // The production loading boundary can mount and settle between locator polls,
-  // so preserve its real transient state without slowing or replacing navigation.
-  await page.evaluate(() => {
-    const observed = {
-      maximumConcurrentStatusCount: 0,
-      pointerEvents: "",
-      progressSeen: false,
-      statusOccurrences: 0, statusTexts: [] as string[],
-    }
-    const seenStatuses = new Set<HTMLElement>()
-    const recordRouteFeedback = () => {
-      const progress = document.querySelector<HTMLElement>('[data-route-progress="pending"]')
-      const statuses = [...document.querySelectorAll<HTMLElement>('[role="status"]')]
-        .filter((status) => (status.getAttribute("aria-label")?.trim() || status.textContent?.trim()) === "Loading page")
-      observed.maximumConcurrentStatusCount = Math.max(observed.maximumConcurrentStatusCount, statuses.length)
-      for (const status of statuses) {
-        if (seenStatuses.has(status)) continue
-        seenStatuses.add(status)
-        observed.statusOccurrences += 1
-        observed.statusTexts.push(status.getAttribute("aria-label")?.trim() || status.textContent?.trim() || "")
-      }
-      if (progress) {
-        observed.progressSeen = true
-        observed.pointerEvents = getComputedStyle(progress).pointerEvents
-      }
-    }
-    const observer = new MutationObserver(recordRouteFeedback)
-    observer.observe(document.documentElement, { childList: true, subtree: true })
-    Reflect.set(window, "__interactionFeedbackRouteObserver", observer)
-    Reflect.set(window, "__interactionFeedbackRouteObserved", observed)
-  })
+  await installRouteFeedbackAccessibilityObserver(page)
 
   await page.getByRole("link", { name: "Open clock" }).click({ noWaitAfter: true })
   await expect(page.getByRole("link", { name: "Open clock" })).toHaveAttribute("data-navigation-pending", "true")
   await expect(page).toHaveURL(/\/clock/)
-  const routeFeedback = await page.evaluate(() => {
-    const observer = Reflect.get(window, "__interactionFeedbackRouteObserver") as MutationObserver
-    observer.disconnect()
-    return Reflect.get(window, "__interactionFeedbackRouteObserved") as {
-      maximumConcurrentStatusCount: number; statusOccurrences: number; statusTexts: string[]
-      pointerEvents: string
-      progressSeen: boolean
-    }
-  })
-  expect(routeFeedback).toEqual({
+  expect(await readRouteFeedbackAccessibilityObserver(page)).toMatchObject({
     maximumConcurrentStatusCount: 1,
     pointerEvents: "none",
     progressSeen: true,
@@ -434,6 +401,103 @@ test("shows throttled shell feedback while an owned tool Link keeps music mounte
     Reflect.get(window, "__interactionFeedbackMusicToolbar")
     === document.querySelector('[data-testid="music-player-toolbar"]')
   ))).toBe(true)
+})
+
+test("desktop route feedback keeps keyboard focus and persistent controls uncovered at 1280x900", async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await delayNavigationResponse(page, "/clock", 900)
+  const toolbar = await startProofDrone(page)
+  await toolbar.evaluate((element) => {
+    Reflect.set(window, "__interactionFeedbackViewportToolbar", element)
+  })
+
+  const openClock = page.getByRole("link", { name: "Open clock" }).filter({ visible: true }).first()
+  await focusWithKeyboard(page, openClock)
+  await expect(openClock).toBeFocused()
+  expect(await openClock.evaluate((element) => element.matches(":focus-visible"))).toBe(true)
+  await installRouteFeedbackAccessibilityObserver(page)
+  await page.keyboard.press("Enter")
+  await expect(page).toHaveURL(/\/clock/)
+  expect(await readRouteFeedbackAccessibilityObserver(page)).toMatchObject({
+    controlCentersUncovered: true,
+    controlsSeen: 2,
+    feedbackOwnedFocus: false,
+    maximumHorizontalOverflow: 0,
+    pointerEvents: "none",
+    progressSeen: true,
+  })
+  await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
+  await expectNoHorizontalViewportOverflow(page)
+  expect(await page.evaluate(() => (
+    Reflect.get(window, "__interactionFeedbackViewportToolbar")
+    === document.querySelector('[data-testid="music-player-toolbar"]')
+  ))).toBe(true)
+})
+
+test("mobile portrait action feedback stays operable with enlarged text and keyboard activation", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  let requests = 0
+  await page.route("**/api/account/password-reset/request", async (route) => {
+    requests += 1
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    await route.fulfill({
+      status: 202,
+      contentType: "application/json",
+      body: JSON.stringify({ message: "If that email is registered, a reset link has been sent." }),
+    })
+  })
+  await page.goto("/forgot-password", { waitUntil: "domcontentloaded" })
+  await page.addStyleTag({ content: "html { font-size: 200% !important; }" })
+  const email = page.getByLabel("Email")
+  await email.fill("interaction-enlarged@example.test")
+  await email.focus()
+  await page.keyboard.press("Tab")
+
+  const submit = page.getByRole("button", { name: "Send reset link" })
+  await expect(submit).toBeFocused()
+  expect(await submit.evaluate((element) => element.matches(":focus-visible"))).toBe(true)
+  await page.keyboard.press("Enter")
+
+  const pending = page.getByRole("button", { name: "Sending reset instructions…" })
+  await expect(pending).toBeDisabled()
+  await expect(pending).toHaveAttribute("aria-busy", "true")
+  expect(await page.evaluate(() => ({
+    insidePendingStatus: Boolean(document.activeElement?.closest('[role="status"]')),
+    tagName: document.activeElement?.tagName,
+  }))).toEqual({ insidePendingStatus: false, tagName: "BODY" })
+  await expect(page.getByRole("status").filter({ hasText: /^Sending reset instructions…$/ })).toHaveCount(1)
+  await expect(page.getByRole("navigation", { name: "MassageLab main navigation" })).toBeVisible()
+  await expectNoHorizontalViewportOverflow(page)
+  await expect.poll(() => requests).toBe(1)
+  await expect(submit).toBeEnabled()
+})
+
+test("compact landscape route feedback remains visible and static with reduced motion", async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 })
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await delayNavigationResponse(page, "/clock", 1_100)
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+
+  const openClock = page.getByRole("link", { name: "Open clock" }).filter({ visible: true }).first()
+  await focusWithKeyboard(page, openClock)
+  await installRouteFeedbackAccessibilityObserver(page)
+  await page.keyboard.press("Enter")
+  await expect(page).toHaveURL(/\/clock/)
+  expect(await readRouteFeedbackAccessibilityObserver(page)).toMatchObject({
+    barAnimationName: "none",
+    controlCentersUncovered: true,
+    feedbackOwnedFocus: false,
+    loaderAnimationName: "none",
+    maximumConcurrentStatusCount: 1,
+    maximumHorizontalOverflow: 0,
+    pointerEvents: "none",
+    progressSeen: true,
+    statusOccurrences: 1,
+    statusTexts: ["Loading page"],
+  })
+  await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
+  await expectNoHorizontalViewportOverflow(page)
 })
 
 test("keeps the proof-drone session through the real music visualizer Link", async ({ page }) => {

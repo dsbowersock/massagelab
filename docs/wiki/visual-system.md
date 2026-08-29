@@ -119,6 +119,14 @@ Use `components/ui/loader.tsx` for true indeterminate waits. The default randoml
 
 Every visible loader needs a useful label. If surrounding visible text owns the accessible name, mark the nested loader decorative. Keep skeletons when content shape is informative and progress bars when completion is measurable.
 
+Route changes use the App Router's root `loading.tsx` boundary. `RouteLoadingFeedback` mounts a fixed 3px top bar that is always `pointer-events: none`, then waits 180ms before showing the shared Loader so quick transitions do not flash a large indicator. The boundary exposes one polite `Loading page` status, stays clear of app-bar and music-player controls, and lives below the persistent root shell so route changes do not remount long-lived music or timer state. Reduced motion keeps the feedback visible while stopping its decorative animation.
+
+Owned Next links place `LinkPendingIndicator` inside the link and read only that link's `useLinkStatus` state. The pending link swaps its icon for the compact shared Loader without intercepting clicks or history. Imperative route changes use `usePendingNavigation`; each caller remains responsible for its own disabled state and useful pending copy. Do not introduce a global click, router, or history interception layer.
+
+Use `AsyncActionButton` for client-managed asynchronous actions. It keeps idle and pending labels in the same grid footprint, disables the control, sets `aria-busy`, renders a decorative Loader, and exposes exactly one polite status while its caller's pending state is true. The action owner must clear pending on both success and failure and must not replay an uncertain request.
+
+Use `PendingSubmissionForm` with `PendingSubmitButton` for forms that leave through a framework Server Action or a native POST/303 redirect. Function actions preserve the framework action and derive pending state from `useFormStatus`. String actions preserve the original `action`, `method`, hidden fields, and browser navigation; the form synchronously claims only the first valid submit, blocks duplicates, and owns the single native pending status. Invalid native forms remain unclaimed so built-in validation still works. Never replace billing or authentication authority with client-side request replay.
+
 ## App Surfaces And Navigation
 
 Use `components/ui/app-surface.tsx` for card, inset, route, dialog, popover, and flat/no-gradient construction. Structural surfaces must not borrow Button geometry.
