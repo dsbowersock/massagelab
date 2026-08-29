@@ -205,8 +205,8 @@ function OwnerScopedBackgroundCommerceProvider({
   const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
   const mutationActiveRef = useRef(false)
   const commerceRevisionRef = useRef(0)
-  const commerceIntentRef = useRef(false)
   const hydratedOwnerRef = useRef<string | null>(null)
+  const mutationStartedOwnerRef = useRef<string | null>(null)
   const activeOwnerKeyRef = useRef(ownerKey)
   const ownerGenerationRef = useRef(0)
   const [cartOpen, setCartOpen] = useState(false)
@@ -232,7 +232,6 @@ function OwnerScopedBackgroundCommerceProvider({
       return
     }
     if (activeOwnerKeyRef.current !== ownerKey) return
-    commerceIntentRef.current = true
     if (mutationActiveRef.current) {
       await mutationQueueRef.current
       return
@@ -275,7 +274,6 @@ function OwnerScopedBackgroundCommerceProvider({
       return Promise.resolve()
     }
     if (activeOwnerKeyRef.current !== ownerKey) return Promise.resolve()
-    commerceIntentRef.current = true
     if (hydratedOwnerRef.current === ownerKey) return Promise.resolve()
     if (snapshotPromiseRef.current) return snapshotPromiseRef.current
 
@@ -326,7 +324,6 @@ function OwnerScopedBackgroundCommerceProvider({
   ) => {
     const requestGeneration = ownerGenerationRef.current
     const requestOwnerKey = ownerKey
-    commerceIntentRef.current = true
     return enqueueSerializedOperation(async () => {
       if (
         !requestOwnerKey
@@ -343,6 +340,7 @@ function OwnerScopedBackgroundCommerceProvider({
       if (controller.signal.aborted) return
 
       commerceRevisionRef.current += 1
+      mutationStartedOwnerRef.current = requestOwnerKey
       readControllerRef.current?.abort()
       mutationActiveRef.current = true
       mutationControllersRef.current.add(controller)
@@ -482,7 +480,6 @@ function OwnerScopedBackgroundCommerceProvider({
     }
     const requestGeneration = ownerGenerationRef.current
     const requestOwnerKey = ownerKey
-    commerceIntentRef.current = true
     await enqueueSerializedOperation(async () => {
       if (
         !requestOwnerKey
@@ -490,6 +487,7 @@ function OwnerScopedBackgroundCommerceProvider({
         || requestOwnerKey !== activeOwnerKeyRef.current
       ) return
       commerceRevisionRef.current += 1
+      mutationStartedOwnerRef.current = requestOwnerKey
       readControllerRef.current?.abort()
       mutationActiveRef.current = true
       const id = requestId("checkout")
@@ -503,6 +501,11 @@ function OwnerScopedBackgroundCommerceProvider({
           consent,
           controller.signal,
         )
+        if (
+          controller.signal.aborted
+          || requestGeneration !== ownerGenerationRef.current
+          || requestOwnerKey !== activeOwnerKeyRef.current
+        ) return
         const record = response && typeof response === "object" && !Array.isArray(response)
           ? response as Record<string, unknown>
           : {}
@@ -569,7 +572,10 @@ function OwnerScopedBackgroundCommerceProvider({
     if (!signedIn) return
     const handleRefresh = () => {
       if (
-        !commerceIntentRef.current
+        (
+          hydratedOwnerRef.current !== ownerKey
+          && mutationStartedOwnerRef.current !== ownerKey
+        )
         || readControllerRef.current
         || mutationActiveRef.current
       ) return
@@ -581,7 +587,7 @@ function OwnerScopedBackgroundCommerceProvider({
       window.removeEventListener("focus", handleRefresh)
       window.removeEventListener("online", handleRefresh)
     }
-  }, [refresh, signedIn])
+  }, [ownerKey, refresh, signedIn])
 
   useLayoutEffect(() => () => {
     ownerGenerationRef.current += 1
