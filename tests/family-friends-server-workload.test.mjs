@@ -157,7 +157,7 @@ describe("family-and-friends server workload baseline", () => {
       /getUserEntitlementState\s*\(/g,
     )
 
-    assert.equal(backgroundCreditProvisionerCalls, 1)
+    assert.equal(backgroundCreditProvisionerCalls, 0)
     assert.equal(separateMembershipEntitlementLoads, 1)
     console.log(`verified auth refresh: background-credit provisioner calls = ${backgroundCreditProvisionerCalls}`)
     console.log(`signed-in sidebar: separate membership entitlement loads = ${separateMembershipEntitlementLoads}`)

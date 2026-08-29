@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient } from "@prisma/client"
 import { getAuthSecret } from "@/lib/auth-env"
 import { normalizeEmail } from "@/lib/auth-security"
 import { ensureUserRole } from "@/lib/auth-users"
+import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { resolveNormalizedUserId } from "@/lib/normalized-user-email"
 import { isGoogleIdentityUniqueConstraint } from "@/lib/prisma-identity-unique-constraint"
@@ -145,6 +146,7 @@ export async function resolveBoundAuthMethodIntent({
 /**
  * Decides Google authentication before Auth.js adapter mutation. Serializable
  * retries plus exact predicate updates make one intent single-use under races.
+ * Initial credits are provisioned only after a new identity commits durably.
  */
 export async function prepareGoogleAuthentication({
   prismaClient = prisma,
@@ -157,7 +159,7 @@ export async function prepareGoogleAuthentication({
   now = new Date(),
   ensureRole = ensureUserRole,
 }: {
-  prismaClient?: AuthIntentClient
+  prismaClient?: PrismaClient
   intentId: string
   browserBindingToken: string
   profile: unknown
@@ -263,14 +265,28 @@ export async function prepareGoogleAuthentication({
     return { kind: "CONTINUE" as const, userId: user.id, created: true }
   })
 
+  let decision: GoogleAuthenticationDecision
   try {
-    return await operation()
+    decision = await operation()
   } catch (error) {
     // A different browser may win the normalized User or Google Account unique
     // constraint after our initial read. Restart once to resolve its committed owner.
     if (!isGoogleIdentityUniqueConstraint(error)) throw error
-    return operation()
+    decision = await operation()
   }
+
+  if (decision.kind === "CONTINUE" && decision.created === true) {
+    const userId = decision.userId
+    try {
+      await ensureVerifiedUserBackgroundCredits(prismaClient, userId)
+    } catch {
+      // Identity creation is already durable; the idempotent commerce backfill
+      // remains the bounded repair path for a deferred initial grant.
+      console.error("Background credit provisioning deferred after Google account creation.")
+    }
+  }
+
+  return decision
 }
 
 async function prepareSecurityReauthentication({

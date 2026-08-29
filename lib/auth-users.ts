@@ -1,7 +1,6 @@
 import type { Prisma } from "@prisma/client"
 import { isAdminEmail } from "@/lib/auth-env"
 import { buildAccountCapabilities, highestRole as highestAccountRole, normalizeRoleAssignments } from "@/lib/account-permissions"
-import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { buildEntitlements, loadActiveTemporaryGrants } from "@/lib/membership"
 import { isHostedClinicalSyncEnabled } from "@/lib/phi-sync"
@@ -50,6 +49,10 @@ export async function ensureUserRole(userId: string, email?: string | null, data
   return "USER"
 }
 
+/**
+ * Refreshes verified identity and role state after Google authentication.
+ * Repeat sign-ins never open a background-credit provisioning transaction.
+ */
 export async function ensureGoogleUserState(userId: string, email?: string | null) {
   await runCommerceTransaction(prisma, async (txValue) => {
     const tx = txValue as Prisma.TransactionClient
@@ -60,7 +63,6 @@ export async function ensureGoogleUserState(userId: string, email?: string | nul
 
     if (updateResult.count > 0) {
       await ensureUserRole(userId, email, tx)
-      await ensureVerifiedUserBackgroundCredits(tx, userId)
     }
   })
 }
@@ -68,7 +70,8 @@ export async function ensureGoogleUserState(userId: string, email?: string | nul
 /**
  * Loads the request-time account snapshot used by authentication. Full-Admin
  * features come only from a verified persisted role, never from stale session
- * claims, and remain separate from paid membership level.
+ * claims, and remain separate from paid membership level. The request-time
+ * snapshot is read-only with respect to background-credit provisioning.
  */
 export async function getUserAuthState(userId: string) {
   // Capture one boundary for both the database predicate and defensive pure
@@ -108,11 +111,6 @@ export async function getUserAuthState(userId: string) {
     status: role.status,
   })) ?? [{ role: "USER", status: "VERIFIED" }]) as Array<{ role: AccountRole; status: VerificationStatus }>
   const roles = roleAssignments.map((role) => role.role)
-  // Safe deployment repair: the service independently reloads verification and
-  // remains idempotent when this account state is loaded repeatedly.
-  if (user?.emailVerified) {
-    await ensureVerifiedUserBackgroundCredits(prisma, userId)
-  }
 
   const hasVerifiedAdminRole = roleAssignments.some((assignment) => (
     assignment.role === "ADMIN" && assignment.status === "VERIFIED"

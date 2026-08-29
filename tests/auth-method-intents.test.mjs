@@ -8,12 +8,15 @@ import { isGoogleIdentityUniqueConstraint } from "../lib/prisma-identity-unique-
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
-async function loadService() {
+async function loadService({
+  provisionCredits = async () => ({ balance: 2, granted: true }),
+} = {}) {
   const source = await readFile(new URL("../lib/auth-method-intents.ts", import.meta.url), "utf8")
   return loadCompiledModule(source, "auth-method-intents.test.ts", {
     "@/lib/auth-env": { getAuthSecret: () => "intent-test-secret" },
     "@/lib/auth-security": { normalizeEmail: (value) => typeof value === "string" ? value.trim().toLowerCase() : "" },
     "@/lib/auth-users": { ensureUserRole: async () => "USER" },
+    "@/lib/commerce/credit-service": { ensureVerifiedUserBackgroundCredits: provisionCredits },
     "@/lib/commerce/transactions": { runCommerceTransaction },
     "@/lib/normalized-user-email": {
       resolveNormalizedUserId: async ({ prismaClient, email }) => prismaClient.resolveNormalizedUserId(email),
@@ -165,6 +168,60 @@ describe("private Google auth-method intents", () => {
     assert.equal(db.intent(started.intentId).status, "CONSUMED")
     assert.equal((await service.prepareGoogleAuthentication(input)).kind, "REJECTED")
     assert.equal(db.intentConsumeWins(started.intentId), 1)
+  })
+
+  it("provisions initial credits once only for a durably-created Google user", async () => {
+    const provisionedUserIds = []
+    const service = await loadService({
+      provisionCredits: async (_database, userId) => {
+        provisionedUserIds.push(userId)
+        return { balance: 2, granted: true }
+      },
+    })
+    const newUserDb = createIntentDatabase()
+    const newUserIntent = await start(service, newUserDb)
+    const created = await service.prepareGoogleAuthentication(
+      googleInput(newUserDb, "new-google-user@example.com", "google-new", newUserIntent),
+    )
+
+    const linkedDb = createIntentDatabase({
+      users: [{ id: "linked-user", email: "linked@example.com", emailVerified: new Date() }],
+      accounts: [{ id: "linked-account", userId: "linked-user", type: "oauth", provider: "google", providerAccountId: "google-linked" }],
+    })
+    const linkedIntent = await start(service, linkedDb)
+    const repeated = await service.prepareGoogleAuthentication(
+      googleInput(linkedDb, "linked@example.com", "google-linked", linkedIntent),
+    )
+
+    assert.equal(created.created, true)
+    assert.deepEqual(provisionedUserIds, [created.userId])
+    assert.deepEqual(repeated, { kind: "CONTINUE", userId: "linked-user" })
+  })
+
+  it("keeps a newly created Google identity valid when initial credit provisioning is deferred", async () => {
+    const service = await loadService({
+      provisionCredits: async () => {
+        throw new Error("private provider and account details")
+      },
+    })
+    const db = createIntentDatabase()
+    const intent = await start(service, db)
+    const logs = []
+    const originalConsoleError = console.error
+    console.error = (...fields) => logs.push(fields.join(" "))
+
+    try {
+      const result = await service.prepareGoogleAuthentication(
+        googleInput(db, "durable@example.com", "google-durable", intent),
+      )
+
+      assert.equal(result.created, true)
+      assert.equal(db.state.users.some(({ id }) => id === result.userId), true)
+      assert.equal(db.intent(intent.intentId).status, "CONSUMED")
+      assert.deepEqual(logs, ["Background credit provisioning deferred after Google account creation."])
+    } finally {
+      console.error = originalConsoleError
+    }
   })
 
   it("returns LINK_REQUIRED for a padded mixed-case stored password account without duplicate creation or retry", async () => {
