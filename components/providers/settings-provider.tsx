@@ -2,6 +2,7 @@
 
 import { fetchWithTimeout } from "@/lib/client-fetch"
 import { defaultAppSettings, normalizeAppSettings } from "@/lib/app-settings"
+import { useAccountShellBootstrap } from "@/components/providers/account-shell-bootstrap-provider"
 import { createContext, useContext, useEffect, useState } from "react"
 
 export type SidebarPosition = "left" | "right"
@@ -60,15 +61,11 @@ export function applyAppBarPositionAttribute(appBarPosition: AppBarPosition) {
   document.documentElement.dataset.appBarPosition = appBarPosition
 }
 
-export function SettingsProvider({
-  children,
-  syncEnabled = false,
-}: {
-  children: React.ReactNode
-  syncEnabled?: boolean
-}) {
+export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  const { ownerKey, syncEnabled, status, appSettings } = useAccountShellBootstrap()
   const [settings, setSettings] = useState<Settings>(defaultSettings)
-  const [canSync, setCanSync] = useState(false)
+  const [localHydrated, setLocalHydrated] = useState(false)
+  const canSync = Boolean(ownerKey && syncEnabled && status === "ready")
 
   useEffect(() => {
     applyThemeClass(settings.themeMode)
@@ -96,69 +93,31 @@ export function SettingsProvider({
   }, [settings.appBarPosition])
 
   useEffect(() => {
-    let isMounted = true
+    let nextSettings = defaultSettings
+    const savedSettings = localStorage.getItem("massage-lab-settings")
 
-    const loadLocalSettings = () => {
-      let nextSettings = defaultSettings
-      const savedSettings = localStorage.getItem("massage-lab-settings")
-
-      if (savedSettings) {
-        try {
-          nextSettings = normalizeSettings(JSON.parse(savedSettings))
-        } catch {
-          localStorage.removeItem("massage-lab-settings")
-        }
-      }
-
-      localStorage.setItem("massage-lab-settings", JSON.stringify(nextSettings))
-      setSettings(nextSettings)
-    }
-
-    async function syncCloudSettings() {
+    if (savedSettings) {
       try {
-        const response = await fetchWithTimeout("/api/account/preferences")
-
-        if (!isMounted) {
-          return
-        }
-
-        if (!response.ok) {
-          setCanSync(false)
-          return
-        }
-
-        const preferences = await response.json()
-
-        if (!isMounted) {
-          return
-        }
-
-        setCanSync(true)
-
-        if (preferences.appSettings && typeof preferences.appSettings === "object") {
-          const nextSettings = normalizeSettings(preferences.appSettings)
-          localStorage.setItem("massage-lab-settings", JSON.stringify(nextSettings))
-          setSettings(nextSettings)
-        }
+        nextSettings = normalizeSettings(JSON.parse(savedSettings))
       } catch {
-        if (!isMounted) {
-          return
-        }
-        setCanSync(false)
+        localStorage.removeItem("massage-lab-settings")
       }
     }
 
-    loadLocalSettings()
-    if (syncEnabled) {
-      void syncCloudSettings()
-    } else {
-      setCanSync(false)
+    localStorage.setItem("massage-lab-settings", JSON.stringify(nextSettings))
+    setSettings(nextSettings)
+    setLocalHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!localHydrated || !ownerKey || !syncEnabled || status !== "ready") {
+      return
     }
 
-    return () => {
-      isMounted = false
-    }
-  }, [syncEnabled])
+    const nextSettings = normalizeSettings(appSettings.app)
+    localStorage.setItem("massage-lab-settings", JSON.stringify(nextSettings))
+    setSettings(nextSettings)
+  }, [appSettings.app, localHydrated, ownerKey, status, syncEnabled])
 
   const updateSettings = (newSettings: Partial<Settings>) => {
     setSettings(prev => {

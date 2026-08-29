@@ -911,12 +911,14 @@ test("immersive context changes keep only the displays owned by Chimer, Clock, a
   await expect(page.getByTestId("running-current-time")).toBeVisible()
 })
 
-test("Music visualizer waits for preference hydration before mounting its saved background", async ({ page }) => {
-  let releaseSession!: () => void
-  const sessionGate = new Promise<void>((resolve) => {
-    releaseSession = resolve
+test("Music visualizer uses the anonymous shell bootstrap without client account discovery", async ({ page }) => {
+  const accountDiscoveryRequests: string[] = []
+  page.on("request", (request) => {
+    const url = new URL(request.url())
+    if (url.pathname === "/api/auth/session" || url.pathname === "/api/account/preferences") {
+      accountDiscoveryRequests.push(`${request.method()} ${url.pathname}`)
+    }
   })
-
   await page.addInitScript(() => {
     localStorage.setItem("massagelab-atmosphere-v2", JSON.stringify({
       version: 2,
@@ -950,25 +952,8 @@ test("Music visualizer waits for preference hydration before mounting its saved 
       }
     }).observe(document, { childList: true, subtree: true })
   })
-  await page.route("**/api/auth/session", async (route) => {
-    await sessionGate
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: "{}",
-    })
-  })
-
   await page.goto("/clock?source=music&returnTo=%2Fmusic", { waitUntil: "domcontentloaded" })
   await expect(page.getByLabel("Music visualizer")).toBeVisible()
-  await expect(page.getByTestId("chimer-premium-background")).toHaveCount(0)
-  expect(await page.evaluate(() => (
-    (window as typeof window & { __musicVisualizerBackgroundMounts?: string[] })
-      .__musicVisualizerBackgroundMounts ?? []
-  ))).toEqual([])
-
-  releaseSession()
-
   await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
     "data-background-id",
     "static-gradient",
@@ -977,10 +962,14 @@ test("Music visualizer waits for preference hydration before mounting its saved 
     (window as typeof window & { __musicVisualizerBackgroundMounts?: string[] })
       .__musicVisualizerBackgroundMounts ?? []
   ))).toEqual(["static-gradient"])
+  expect(accountDiscoveryRequests, "one Chimer auth check and no preference discovery").toEqual([
+    "GET /api/auth/session",
+  ])
 })
 
-test("Music background selection and account default actions preserve playback and device state", async ({ context, page }, testInfo) => {
+test("Music visualizer background selection and account default actions preserve playback and device state", async ({ context, page }, testInfo) => {
   const preferenceWrites: Array<Record<string, unknown>> = []
+  const accountRequests: string[] = []
   const accountVisualizer = {
     defaultBackgroundId: null,
     showClock: false,
@@ -1008,12 +997,11 @@ test("Music background selection and account default actions preserve playback a
       },
     }))
   })
-  await page.route("**/api/auth/session", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ user: { id: "music-qa-user", email: "music-qa@example.com" } }),
-    })
+  page.on("request", (request) => {
+    const url = new URL(request.url())
+    if (url.pathname === "/api/auth/session" || url.pathname === "/api/account/preferences") {
+      accountRequests.push(`${request.method()} ${url.pathname}`)
+    }
   })
   await page.route("**/api/account/preferences", async (route) => {
     if (route.request().method() === "GET") {
@@ -1097,6 +1085,92 @@ test("Music background selection and account default actions preserve playback a
     JSON.parse(localStorage.getItem("massagelab-atmosphere-v2") ?? "{}")
       .visualizer?.backgroundId
   ))).toBe("static-gradient")
+  expect(accountRequests.filter((request) => request === "GET /api/auth/session")).toEqual([
+    "GET /api/auth/session",
+  ])
+  expect(
+    accountRequests.filter((request) => request === "GET /api/account/preferences"),
+    "one shared shell fallback plus one Chimer-owned preference read",
+  ).toEqual([
+    "GET /api/account/preferences",
+    "GET /api/account/preferences",
+  ])
+  expect(accountRequests.filter((request) => request === "PUT /api/account/preferences").length)
+    .toBeGreaterThanOrEqual(1)
+})
+
+test("Music account preference owner switch ignores a delayed old-owner PUT", async ({ context, page }, testInfo) => {
+  let releaseOwnerAWrite!: () => void
+  let markOwnerAWriteStarted!: () => void
+  const ownerAWriteGate = new Promise<void>((resolve) => {
+    releaseOwnerAWrite = resolve
+  })
+  const ownerAWriteStarted = new Promise<void>((resolve) => {
+    markOwnerAWriteStarted = resolve
+  })
+
+  await installSignedInSessionCookie(context, String(testInfo.project.use.baseURL), {
+    id: "music-owner-a",
+    name: "Music Owner A",
+    email: "music-owner-a@example.com",
+  })
+  await page.addInitScript(() => {
+    localStorage.setItem("massagelab-atmosphere-v2", JSON.stringify({
+      version: 2,
+      favorites: [],
+      recentStations: [],
+      volume: 0.4,
+      miniPlayerCollapsed: false,
+      visualizer: { backgroundId: "static-gradient", showClock: false },
+      migrations: { legacyMusicBackground: true },
+    }))
+  })
+  await page.route("**/api/account/preferences", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ appSettings: { musicVisualizer: { defaultBackgroundId: null, showClock: false } } }),
+      })
+      return
+    }
+
+    const payload = route.request().postDataJSON() as {
+      appSettings?: { musicVisualizer?: { defaultBackgroundId?: string | null; showClock?: boolean } }
+    }
+    markOwnerAWriteStarted()
+    await ownerAWriteGate
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ appSettings: { musicVisualizer: payload.appSettings?.musicVisualizer } }),
+    }).catch(() => undefined)
+  })
+
+  await page.goto("/clock?source=music&returnTo=%2Fmusic", { waitUntil: "domcontentloaded" })
+  await expect(page.getByTestId("chimer-premium-background")).toHaveAttribute(
+    "data-background-id",
+    "static-gradient",
+  )
+  await page.getByRole("button", { name: "Visual", exact: true }).click()
+  await page.getByRole("button", { name: "Set as visualizer default", exact: true })
+    .evaluate((button) => (button as HTMLButtonElement).click())
+  await ownerAWriteStarted
+
+  await installSignedInSessionCookie(context, String(testInfo.project.use.baseURL), {
+    id: "music-owner-b",
+    name: "Music Owner B",
+    email: "music-owner-b@example.com",
+  })
+  await page.reload({ waitUntil: "domcontentloaded" })
+  await expect(page.getByLabel("Music visualizer")).toBeVisible()
+  await page.getByRole("button", { name: "Visual", exact: true }).click()
+  await expect(page.getByRole("button", { name: "Set as visualizer default", exact: true })).toBeVisible()
+
+  releaseOwnerAWrite()
+  await expect(page.getByRole("button", { name: "Set as visualizer default", exact: true })).toBeVisible()
+  await expect(page.getByText("Saving visualizer default…")).toHaveCount(0)
+  await expect(page.getByText(/visualizer preferences could not be saved/i)).toHaveCount(0)
 })
 
 test("Breathing guide route runs separately from Music stations", async ({ page }) => {

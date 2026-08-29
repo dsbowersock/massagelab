@@ -63,9 +63,9 @@ export default async function RootLayout({
             key={accountBootstrap.ownerKey ?? "anonymous"}
             initialBootstrap={accountBootstrap}
           >
-            <SettingsProvider syncEnabled={canSyncAccountSettings}>
+            <SettingsProvider>
               <TherapistSettingsProvider syncEnabled={canSyncAccountSettings}>
-                <MusicProvider accountSyncEnabled={canSyncAccountSettings}>
+                <MusicProvider>
                   <SidebarProvider className="h-[100dvh] min-h-0 overflow-hidden bg-background">
                     <SidebarCalendarProvider enabled={Boolean(user)}>
                       <AppSidebarClient user={user} navigation={navigation} />
