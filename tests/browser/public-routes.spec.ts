@@ -780,6 +780,7 @@ test("non-Music compact landscape keeps the global rail without narrowing ordina
 
   await page.getByRole("link", { name: "Open clock" }).click()
   await expect(page).toHaveURL(/\/clock$/)
+  await expect(page.locator("body")).toHaveClass(/chimer-running/)
   await expect(toolbar).toHaveAttribute("data-layout", "rail")
   await expect(page.locator("body")).toHaveClass(/ml-music-player-rail/)
   await expect(page.locator("body")).not.toHaveClass(/ml-music-player-music-route/)
