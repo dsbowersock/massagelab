@@ -147,7 +147,7 @@ the approved Supporter amounts.
 
 MassageLab creates Portal sessions on demand through two explicit actions.
 **Change support amount or billing period** uses Stripe's focused
-`subscription_update` flow for the account's persisted non-terminal
+`subscription_update` flow only for the account's persisted active or trialing
 subscription. **Manage billing account** opens the general Portal homepage for
 payment methods, billing address, invoices, and cancellation. After a focused
 change, Stripe returns the customer to the Portal homepage; both session types
