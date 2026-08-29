@@ -65,10 +65,19 @@ describe("registerPasswordAccount", () => {
   })
 
   it("reloads a functional normalized-email index race", async () => {
-    const db = createRegistrationDatabase({ duplicateRace: true })
-    assert.deepEqual(await registerPasswordAccount(registrationInput(db)), { status: "ACCEPTED" })
+    const db = createRegistrationDatabase({
+      duplicateRace: true,
+      raceWinnerEmail: " Person@Example.com ",
+    })
+
+    const result = await registerPasswordAccount(registrationInput(db))
+
+    assert.deepEqual(result, { status: "ACCEPTED" })
     assert.equal(db.users.length, 1)
+    assert.equal(db.users[0].email, " Person@Example.com ")
+    assert.equal(db.userCreateAttempts, 1)
     assert.equal(db.sentExistingMessages.length, 1)
+    assert.equal(db.rawQueries.length, 2)
   })
 
   for (const [name, target] of [
@@ -240,6 +249,7 @@ function existingUser(overrides) {
 function createRegistrationDatabase({
   user = null,
   duplicateRace = false,
+  raceWinnerEmail = "person@example.com",
   uniqueError = null,
   deliveryFailure = false,
   deferDelivery = false,
@@ -280,8 +290,13 @@ function createRegistrationDatabase({
             candidate.email?.trim().toLowerCase() === data.email.trim().toLowerCase()
           ))
           if (duplicateRace || uniqueError || normalizedCollision) {
-            if (!snapshot.users.some((candidate) => candidate.email === "person@example.com")) {
-              snapshot.users.push(existingUser({ emailVerified: NOW, passwordCredential: { passwordHash: "stored-hash" } }))
+            const normalizedRaceWinnerEmail = raceWinnerEmail.trim().toLowerCase()
+            if (!snapshot.users.some((candidate) => candidate.email?.trim().toLowerCase() === normalizedRaceWinnerEmail)) {
+              snapshot.users.push(existingUser({
+                email: raceWinnerEmail,
+                emailVerified: NOW,
+                passwordCredential: { passwordHash: "stored-hash" },
+              }))
             }
             throw uniqueError ?? Object.assign(new Error("unique email"), {
               code: "P2002",
