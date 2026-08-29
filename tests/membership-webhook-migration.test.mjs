@@ -17,6 +17,7 @@ const [schema, migration] = await Promise.all([
 function normalizeSql(value) {
   return value
     .replace(/\s+/g, " ")
+    .replace(/\s*,\s*/g, ", ")
     .replace(/\s+\(/g, "(")
     .replace(/\(\s+/g, "(")
     .replace(/\s+\)/g, ")")
@@ -52,6 +53,103 @@ function receiptTableEntries(source) {
     .map(normalizeSql)
 }
 
+/** Produces formatting-independent SQL statements without migration comments. */
+function sqlStatements(source) {
+  return source
+    .replace(/--[^\r\n]*/g, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split(";")
+    .map(normalizeSql)
+    .filter(Boolean)
+}
+
+/** Parses every ALTER that mentions either compatibility-sensitive table. */
+function targetedAlterStatements(source) {
+  return sqlStatements(source)
+    .filter((statement) => (
+      /\bALTER\s+TABLE\b/i.test(statement)
+      && /"(?:MembershipSubscription|MembershipWebhookReceipt)"/.test(statement)
+    ))
+    .map((statement) => {
+      const match = statement.match(
+        /^ALTER\s+TABLE\s+"(MembershipSubscription|MembershipWebhookReceipt)"\s+(.+)$/i,
+      )
+      assert.ok(match, `unrecognized targeted ALTER TABLE statement: ${statement}`)
+      return {
+        table: match[1],
+        operation: normalizeSql(match[2]),
+      }
+    })
+}
+
+const expectedWatermarkClauses = [
+  'ADD COLUMN "lastStripeEventId" TEXT',
+  'ADD COLUMN "lastStripeEventCreatedAt" TIMESTAMP(3)',
+  'ADD COLUMN "lastStripeAuthoritativeAt" TIMESTAMP(3)',
+]
+
+const expectedReceiptForeignKey = 'ADD CONSTRAINT "MembershipWebhookReceipt_userId_fkey" FOREIGN KEY("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE'
+
+/** Allows only the two reviewed ALTER statements and scans all receipt DDL. */
+function assertTargetedAlterContract(source) {
+  assert.deepEqual(targetedAlterStatements(source), [
+    {
+      table: "MembershipSubscription",
+      operation: expectedWatermarkClauses.join(", "),
+    },
+    {
+      table: "MembershipWebhookReceipt",
+      operation: expectedReceiptForeignKey,
+    },
+  ])
+
+  const receiptDdl = sqlStatements(source)
+    .filter((statement) => /"MembershipWebhookReceipt/i.test(statement))
+    .join("\n")
+  assert.doesNotMatch(receiptDdl, /payload|address|paymentMethod|secret|token/i)
+}
+
+const targetedAlterMutations = [
+  {
+    name: "SET NOT NULL",
+    sql: 'ALTER TABLE "MembershipSubscription" ALTER COLUMN "lastStripeEventId" SET NOT NULL;',
+  },
+  {
+    name: "SET DEFAULT",
+    sql: 'ALTER TABLE "MembershipSubscription" ALTER COLUMN "lastStripeEventCreatedAt" SET DEFAULT CURRENT_TIMESTAMP;',
+  },
+  {
+    name: "DROP COLUMN",
+    sql: 'ALTER TABLE "MembershipSubscription" DROP COLUMN "lastStripeAuthoritativeAt";',
+  },
+  {
+    name: "RENAME COLUMN",
+    sql: 'ALTER TABLE "MembershipSubscription" RENAME COLUMN "lastStripeEventId" TO "stripeEventId";',
+  },
+  {
+    name: "ALTER TYPE",
+    sql: 'ALTER TABLE "MembershipSubscription" ALTER COLUMN "lastStripeEventId" TYPE VARCHAR(255);',
+  },
+  {
+    name: "extra membership ADD COLUMN",
+    sql: 'ALTER TABLE "MembershipSubscription" ADD COLUMN "legacyState" TEXT;',
+  },
+  {
+    name: "receipt payload ADD COLUMN",
+    sql: 'ALTER TABLE "MembershipWebhookReceipt" ADD COLUMN "payload" JSONB;',
+  },
+  {
+    name: "receipt secret non-ALTER DDL",
+    sql: 'CREATE INDEX "MembershipWebhookReceipt_secret_idx" ON "MembershipWebhookReceipt"("secret");',
+  },
+  {
+    name: "second receipt FK ALTER",
+    sql: `ALTER TABLE "MembershipWebhookReceipt"
+      ADD CONSTRAINT "MembershipWebhookReceipt_userId_fkey"
+      FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;`,
+  },
+]
+
 describe("membership webhook persistence", () => {
   it("adds the durable privacy-safe Prisma receipt contract", () => {
     assert.match(
@@ -82,20 +180,7 @@ describe("membership webhook persistence", () => {
     assert.match(schema, /lastStripeEventId\s+String\?/)
     assert.match(schema, /lastStripeEventCreatedAt\s+DateTime\?/)
     assert.match(schema, /lastStripeAuthoritativeAt\s+DateTime\?/)
-
-    const watermarkClauses = requiredCapture(
-      migration,
-      /ALTER\s+TABLE\s+"MembershipSubscription"\s+([\s\S]*?);/i,
-      "MembershipSubscription watermark ALTER TABLE",
-    )
-      .split(",")
-      .map(normalizeSql)
-
-    assert.deepEqual(watermarkClauses, [
-      'ADD COLUMN "lastStripeEventId" TEXT',
-      'ADD COLUMN "lastStripeEventCreatedAt" TIMESTAMP(3)',
-      'ADD COLUMN "lastStripeAuthoritativeAt" TIMESTAMP(3)',
-    ])
+    assertTargetedAlterContract(migration)
   })
 
   it("creates the full receipt table with exact SQL nullability and defaults", () => {
@@ -156,20 +241,20 @@ describe("membership webhook persistence", () => {
   })
 
   it("keeps the migration additive, privacy-safe, and user-detachable", () => {
-    const normalizedMigration = normalizeSql(migration)
-    assert.match(
-      normalizedMigration,
-      /ALTER TABLE "MembershipWebhookReceipt" ADD CONSTRAINT "MembershipWebhookReceipt_userId_fkey" FOREIGN KEY\("userId"\) REFERENCES "User"\("id"\) ON DELETE SET NULL ON UPDATE CASCADE;/,
-    )
+    assertTargetedAlterContract(migration)
     assert.doesNotMatch(
       migration,
       /(?:UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+"MembershipSubscription"/i,
     )
-
-    const receiptColumnNames = receiptTableEntries(migration)
-      .map((entry) => entry.match(/^"([^"]+)"/)?.[1])
-      .filter(Boolean)
-      .join(" ")
-    assert.doesNotMatch(receiptColumnNames, /payload|address|paymentMethod|secret|token/i)
   })
+
+  for (const mutation of targetedAlterMutations) {
+    it(`rejects appended targeted ALTER mutation: ${mutation.name}`, () => {
+      assert.throws(
+        () => assertTargetedAlterContract(`${migration}\n${mutation.sql}`),
+        undefined,
+        `${mutation.name} must not satisfy the migration contract`,
+      )
+    })
+  }
 })
