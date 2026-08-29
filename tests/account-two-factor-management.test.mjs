@@ -13,6 +13,33 @@ const ENCRYPTED_SECRET = "encrypted-task-four-secret"
 const OTPAUTH_URL = "otpauth://totp/MassageLab:member@example.test?secret=redacted"
 const QR_CODE = "data:image/png;base64,task-four-qr"
 
+const googleManagementScenarios = [
+  {
+    label: "linked Google disable",
+    operation: "DISABLE",
+    passwordEnabled: true,
+    twoFactorCode: "123456",
+  },
+  {
+    label: "Google-only legacy regenerate",
+    operation: "REGENERATE",
+    passwordEnabled: false,
+    twoFactorCode: "BACKUP-CURRENT",
+  },
+  {
+    label: "linked Google regenerate",
+    operation: "REGENERATE",
+    passwordEnabled: true,
+    twoFactorCode: "123456",
+  },
+  {
+    label: "Google-only legacy disable",
+    operation: "DISABLE",
+    passwordEnabled: false,
+    twoFactorCode: "BACKUP-CURRENT",
+  },
+]
+
 const source = await readFile(
   new URL("../lib/account-two-factor-management.ts", import.meta.url),
   "utf8",
@@ -423,25 +450,58 @@ describe("dual-proof destructive two-factor management", () => {
     }
   })
 
+  it("covers both destructive changes for linked-Google and Google-only legacy accounts", () => {
+    assert.deepEqual(
+      googleManagementScenarios.map(({ label }) => label).sort(),
+      [
+        "Google-only legacy disable",
+        "Google-only legacy regenerate",
+        "linked Google disable",
+        "linked Google regenerate",
+      ],
+    )
+  })
+
   it("allows linked and legacy Google-only accounts to manage with Google plus current factor", async () => {
-    for (const [operation, expectedStatus, passwordEnabled, twoFactorCode] of [
-      [service.disableTwoFactor, "DISABLED", true, "123456"],
-      [service.regenerateBackupCodes, "BACKUP_CODES_REGENERATED", false, "BACKUP-CURRENT"],
-    ]) {
+    for (const scenario of googleManagementScenarios) {
       const database = createDatabase({
         enabled: true,
-        passwordEnabled,
+        passwordEnabled: scenario.passwordEnabled,
         googleLinked: true,
         googleIntent: freshGoogleIntent(),
       })
+      const secretBefore = structuredClone(database.secret)
+      const operation = scenario.operation === "DISABLE"
+        ? service.disableTwoFactor
+        : service.regenerateBackupCodes
+      const expectedStatus = scenario.operation === "DISABLE"
+        ? "DISABLED"
+        : "BACKUP_CODES_REGENERATED"
       const result = await operation(manageInput(database, {
         primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
-        twoFactorCode,
+        twoFactorCode: scenario.twoFactorCode,
       }))
-      assert.equal(result.status, expectedStatus)
-      assert.equal(database.intent.providerProvenAt, null)
-      assert.equal(database.user.authSessionVersion, 8)
-      assert.equal(database.sessions.length, 0)
+      if (scenario.operation === "DISABLE") {
+        assert.deepEqual(result, { status: expectedStatus }, scenario.label)
+        assert.equal(database.secret, null, scenario.label)
+        assert.equal(database.backups.length, 0, scenario.label)
+      } else {
+        assert.deepEqual(result, {
+          status: expectedStatus,
+          backupCodes: backupCodes(),
+        }, scenario.label)
+        assert.deepEqual(database.secret, secretBefore, scenario.label)
+        assert.deepEqual(
+          database.backups.map(({ codeHash }) => codeHash),
+          backupCodes().map((code) => `hash:${code}`),
+          scenario.label,
+        )
+      }
+      assert.equal(database.intent.providerProvenAt, null, scenario.label)
+      assert.equal(database.events.filter((event) => event === "consume-google").length, 1, scenario.label)
+      assert.equal(database.user.authSessionVersion, 8, scenario.label)
+      assert.equal(database.sessions.length, 0, scenario.label)
+      assert.equal(database.committedSessionDeletes, 1, scenario.label)
     }
   })
 
