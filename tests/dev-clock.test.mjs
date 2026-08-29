@@ -63,6 +63,8 @@ describe("development Clock review route", () => {
       /process\.env\.NODE_ENV !== "production" && !getAuthSecret\(\)[\s\S]*return Promise\.resolve\(null\)/,
     )
     assert.match(authSource, /return auth\(\)/)
+    assert.match(layoutSource, /<AccountShellBootstrapProvider/)
+    assert.match(layoutSource, /key=\{accountBootstrap\.ownerKey \?\? "anonymous"\}/)
     assert.match(layoutSource, /<MusicProvider accountSyncEnabled=\{canSyncAccountSettings\}>/)
     assert.match(
       musicProviderSource,

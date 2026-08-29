@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import { getAppSidebarData } from "@/components/sidebar/sidebar"
 import { AppSidebarClient } from "@/components/sidebar/app-sidebar-client"
 import { SidebarCalendarProvider } from "@/components/sidebar/sidebar-calendar-provider"
+import { AccountShellBootstrapProvider } from "@/components/providers/account-shell-bootstrap-provider"
 import { SettingsProvider } from "@/components/providers/settings-provider"
 import { ServiceWorkerProvider } from "@/components/providers/service-worker-provider"
 import { PwaInstallProvider } from "@/components/providers/pwa-install-provider"
@@ -46,7 +47,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user, canSyncAccountSettings, navigation } = await getAppSidebarData()
+  const { user, canSyncAccountSettings, navigation, accountBootstrap } = await getAppSidebarData()
   const seoJsonLd = createSeoJsonLd()
 
   return (
@@ -58,22 +59,27 @@ export default async function RootLayout({
         />
         <ServiceWorkerProvider />
         <PwaInstallProvider>
-          <SettingsProvider syncEnabled={canSyncAccountSettings}>
-            <TherapistSettingsProvider syncEnabled={canSyncAccountSettings}>
-              <MusicProvider accountSyncEnabled={canSyncAccountSettings}>
-                <SidebarProvider className="h-[100dvh] min-h-0 overflow-hidden bg-background">
-                  <SidebarCalendarProvider enabled={Boolean(user)}>
-                    <AppSidebarClient user={user} navigation={navigation} />
-                    <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
-                      <main className="relative h-full min-w-0 overflow-hidden">
-                        <LayoutWrapper user={user} navigation={navigation}>{children}</LayoutWrapper>
-                      </main>
-                    </SidebarInset>
-                  </SidebarCalendarProvider>
-                </SidebarProvider>
-              </MusicProvider>
-            </TherapistSettingsProvider>
-          </SettingsProvider>
+          <AccountShellBootstrapProvider
+            key={accountBootstrap.ownerKey ?? "anonymous"}
+            initialBootstrap={accountBootstrap}
+          >
+            <SettingsProvider syncEnabled={canSyncAccountSettings}>
+              <TherapistSettingsProvider syncEnabled={canSyncAccountSettings}>
+                <MusicProvider accountSyncEnabled={canSyncAccountSettings}>
+                  <SidebarProvider className="h-[100dvh] min-h-0 overflow-hidden bg-background">
+                    <SidebarCalendarProvider enabled={Boolean(user)}>
+                      <AppSidebarClient user={user} navigation={navigation} />
+                      <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
+                        <main className="relative h-full min-w-0 overflow-hidden">
+                          <LayoutWrapper user={user} navigation={navigation}>{children}</LayoutWrapper>
+                        </main>
+                      </SidebarInset>
+                    </SidebarCalendarProvider>
+                  </SidebarProvider>
+                </MusicProvider>
+              </TherapistSettingsProvider>
+            </SettingsProvider>
+          </AccountShellBootstrapProvider>
         </PwaInstallProvider>
       </body>
     </html>
