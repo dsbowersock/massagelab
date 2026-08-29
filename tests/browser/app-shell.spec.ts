@@ -68,6 +68,23 @@ async function gotoShell(page: Page, path: string) {
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
 }
 
+test("anonymous bootstrap leaves therapist and calendar specialization dormant", async ({ page }) => {
+  const reads = { calendar: 0, therapist: 0 }
+  await page.route("**/api/account/profile", async (route) => {
+    if (route.request().method() === "GET") reads.therapist += 1
+    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
+  })
+  await page.route("**/api/calendar/sidebar-context", async (route) => {
+    if (route.request().method() === "GET") reads.calendar += 1
+    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
+  })
+
+  await gotoShell(page, "/music")
+  await page.waitForTimeout(250)
+
+  expect(reads).toEqual({ calendar: 0, therapist: 0 })
+})
+
 /** Aborts a held fixture request unless the app's own cancellation already won the race. */
 async function abortHeldFixtureRequest(route: Route) {
   try {

@@ -47,7 +47,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user, canSyncAccountSettings, navigation, accountBootstrap } = await getAppSidebarData()
+  const { user, navigation, accountBootstrap } = await getAppSidebarData()
   const seoJsonLd = createSeoJsonLd()
 
   return (
@@ -64,10 +64,13 @@ export default async function RootLayout({
             initialBootstrap={accountBootstrap}
           >
             <SettingsProvider>
-              <TherapistSettingsProvider syncEnabled={canSyncAccountSettings}>
+              <TherapistSettingsProvider>
                 <MusicProvider>
                   <SidebarProvider className="h-[100dvh] min-h-0 overflow-hidden bg-background">
-                    <SidebarCalendarProvider enabled={Boolean(user)}>
+                    <SidebarCalendarProvider
+                      ownerKey={accountBootstrap.ownerKey}
+                      enabled={accountBootstrap.hasPracticeMembership}
+                    >
                       <AppSidebarClient user={user} navigation={navigation} />
                       <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
                         <main className="relative h-full min-w-0 overflow-hidden">
