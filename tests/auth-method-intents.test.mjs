@@ -11,6 +11,7 @@ const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 async function loadService({
   provisionCredits = async () => ({ balance: 2, granted: true }),
+  registrationOpen = true,
 } = {}) {
   const source = await readFile(new URL("../lib/auth-method-intents.ts", import.meta.url), "utf8")
   return loadCompiledModule(source, "auth-method-intents.test.ts", {
@@ -23,6 +24,9 @@ async function loadService({
       resolveNormalizedUserId: async ({ prismaClient, email }) => prismaClient.resolveNormalizedUserId(email),
     },
     "@/lib/prisma-identity-unique-constraint": { isGoogleIdentityUniqueConstraint },
+    "@/lib/public-launch-controls": {
+      getPublicLaunchControls: () => ({ registrationOpen, supporterCheckoutOpen: true }),
+    },
     "@/lib/prisma": { prisma: {} },
   })
 }
@@ -151,7 +155,7 @@ describe("private Google auth-method intents", () => {
     )
   })
 
-  it("creates the first normalized Google user, minimal account, profile, and consumes once", async () => {
+  it("defaults registration open and creates the first normalized Google user, minimal account, profile, and consumes once", async () => {
     const service = await loadService()
     const db = createIntentDatabase()
     const started = await start(service, db)
@@ -170,6 +174,83 @@ describe("private Google auth-method intents", () => {
     assert.equal(db.intent(started.intentId).status, "CONSUMED")
     assert.equal((await service.prepareGoogleAuthentication(input)).kind, "REJECTED")
     assert.equal(db.intentConsumeWins(started.intentId), 1)
+  })
+
+  it("keeps existing Google-provider sign-in available while public registration is paused", async () => {
+    const provisionedUserIds = []
+    const service = await loadService({
+      registrationOpen: false,
+      provisionCredits: async (_database, userId) => {
+        provisionedUserIds.push(userId)
+        return { balance: 2, granted: true }
+      },
+    })
+    const db = createIntentDatabase({
+      users: [{ id: "existing-google-user", email: "existing@example.com", emailVerified: new Date() }],
+      accounts: [{
+        id: "existing-google-account",
+        userId: "existing-google-user",
+        type: "oauth",
+        provider: "google",
+        providerAccountId: "existing-google-sub",
+      }],
+    })
+    const intent = await start(service, db)
+
+    const result = await service.prepareGoogleAuthentication(
+      googleInput(db, "existing@example.com", "existing-google-sub", intent),
+    )
+
+    assert.deepEqual(result, { kind: "CONTINUE", userId: "existing-google-user" })
+    assert.equal(db.intent(intent.intentId).status, "CONSUMED")
+    assert.deepEqual(provisionedUserIds, [])
+  })
+
+  it("keeps matching-email Google proof available for same-account linking while registration is paused", async () => {
+    const service = await loadService({ registrationOpen: false })
+    const db = createIntentDatabase({
+      users: [{ id: "password-user", email: " Family@Example.com ", emailVerified: new Date() }],
+    })
+    const intent = await start(service, db)
+
+    const result = await service.prepareGoogleAuthentication(
+      googleInput(db, "family@example.com", "new-google-sub", intent),
+    )
+
+    assert.deepEqual(result, { kind: "LINK_REQUIRED", userId: "password-user" })
+    assert.equal(db.state.users.length, 1)
+    assert.equal(db.state.accounts.length, 0)
+    assert.equal(db.intent(intent.intentId).status, "PROVIDER_PROVEN")
+  })
+
+  it("rejects only a brand-new Google identity while registration is paused before creation or provisioning", async () => {
+    let roleCalls = 0
+    const provisionedUserIds = []
+    const service = await loadService({
+      registrationOpen: false,
+      provisionCredits: async (_database, userId) => {
+        provisionedUserIds.push(userId)
+        return { balance: 2, granted: true }
+      },
+    })
+    const db = createIntentDatabase()
+    const intent = await start(service, db)
+
+    const result = await service.prepareGoogleAuthentication({
+      ...googleInput(db, "brand-new@example.com", "brand-new-google-sub", intent),
+      ensureRole: async () => {
+        roleCalls += 1
+        return "USER"
+      },
+    })
+
+    assert.deepEqual(result, { kind: "REGISTRATION_PAUSED" })
+    assert.equal(db.state.users.length, 0)
+    assert.equal(db.state.accounts.length, 0)
+    assert.equal(db.intent(intent.intentId).status, "PENDING")
+    assert.equal(db.intentConsumeWins(intent.intentId), 0)
+    assert.equal(roleCalls, 0)
+    assert.deepEqual(provisionedUserIds, [])
   })
 
   it("provisions initial credits once only for a durably-created Google user", async () => {

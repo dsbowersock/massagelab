@@ -40,6 +40,7 @@ describe("Google callback safety seam", () => {
     assert.match(authSource, /\/account\?tab=security&reauth=complete/)
     assert.match(authSource, /return result\.recoveryPath/)
     assert.match(authSource, /\/login\?auth=google-unavailable/)
+    assert.match(authSource, /result\.kind === "REGISTRATION_PAUSED"\) return "\/register"/)
   })
 
   it("returns fixed recoverable paths for callback rejection decisions", async () => {
@@ -79,6 +80,8 @@ describe("Google callback safety seam", () => {
     assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&auth=google-retry")
     decision = { kind: "LINK_REQUIRED", userId: "user-1" }
     assert.equal(await capturedConfig.callbacks.signIn(google), "/account/link-google")
+    decision = { kind: "REGISTRATION_PAUSED" }
+    assert.equal(await capturedConfig.callbacks.signIn(google), "/register")
     decision = { kind: "REAUTH_COMPLETE", purpose: "LINK_GOOGLE", userId: "user-1" }
     assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&reauth=two-factor")
     for (const purpose of ["ADD_PASSWORD", "REMOVE_PASSWORD"]) {
