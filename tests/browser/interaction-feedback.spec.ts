@@ -229,7 +229,10 @@ async function assertOneDelayedJsonSubmission({
   const pending = page.getByRole("button", { name: pendingLabel })
   await expect(pending).toBeDisabled()
   await expect(pending).toHaveAttribute("aria-busy", "true")
-  await expect(page.getByRole("status")).toHaveCount(1)
+  // Other controls may keep empty live regions mounted; this request owns one non-empty announcement.
+  const requestAnnouncement = page.getByRole("status").filter({ hasText: pendingLabel })
+  await expect(requestAnnouncement).toHaveCount(1)
+  await expect(requestAnnouncement).toHaveText(pendingLabel)
   await pending.click({ force: true })
   await expect.poll(() => requests).toBe(1)
   return { requests: () => requests }
