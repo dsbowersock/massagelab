@@ -9,7 +9,11 @@ type AccountActionOutcomeInput<Path extends string> = {
   failurePath: Path
 }
 
-/** Maps operational settlement to caller-owned fixed paths without redirecting. */
+/**
+ * Executes the caller-owned asynchronous `run`; its resolved value is ignored.
+ * Returns exactly `successPath` on resolution or `failurePath` on rejection.
+ * Failure logs must stay limited to the allowlisted operation and sanitized code.
+ */
 export async function settleAccountAction<Path extends string>({
   operation,
   run,

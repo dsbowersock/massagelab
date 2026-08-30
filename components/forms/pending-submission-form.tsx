@@ -8,6 +8,10 @@ import { Loader } from "@/components/ui/loader"
 import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
 import { cn } from "@/lib/utils"
 
+/**
+ * `null` means no native form owns pending state; function-action buttons use
+ * `useFormStatus` instead, while booleans represent native-form ownership.
+ */
 const NativeSubmissionPendingContext = React.createContext<boolean | null>(null)
 
 type PendingSubmissionErrorBoundaryState = {
@@ -76,6 +80,8 @@ export function PendingSubmissionForm({
   React.useEffect(() => {
     const resetRestoredSubmission = (event: PageTransitionEvent) => {
       if (!event.persisted) return
+      // A restored native navigation can retain its claimed UI; release both the
+      // synchronous duplicate guard and rendered pending state after bfcache.
       pendingRef.current = false
       setNativePending(false)
     }
@@ -83,6 +89,8 @@ export function PendingSubmissionForm({
     return () => window.removeEventListener("pageshow", resetRestoredSubmission)
   }, [])
 
+  // Function actions settle through React without document navigation, so native
+  // claiming would not observe settlement; `useFormStatus` owns their lifecycle.
   if (typeof action === "function") {
     return (
       <NativeSubmissionPendingContext.Provider value={null}>
