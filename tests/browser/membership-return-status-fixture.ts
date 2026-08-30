@@ -9,6 +9,7 @@ const SAFE_PROJECT_NAME = /^[a-z0-9-]+$/
 
 type FixtureStatus = "active" | "past_due" | "incomplete_expired"
 
+/** Builds deterministic project-scoped ids so parallel workers never share fixture rows. */
 function fixtureIdentity(projectName: string) {
   if (!SAFE_PROJECT_NAME.test(projectName)) {
     throw new Error("Membership return fixture requires a safe Playwright project name.")
@@ -46,6 +47,7 @@ async function requireMembershipConvergenceMigration() {
   }
 }
 
+/** Maps the allowed fixture status to the minimal persisted subscription fields under test. */
 function statusFields(status: FixtureStatus) {
   if (status === "active") {
     return {
