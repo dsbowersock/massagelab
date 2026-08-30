@@ -418,21 +418,23 @@ test("security mutations share one synchronous owner across sign-in methods and 
 test("Auth.js redirect flows retain their synchronous owner after document navigation starts", () => {
   const entryActions = source("lib/auth-entry-actions.ts")
   assert.match(entryActions, /const initialHref = currentHref\(\)/)
-  assert.match(entryActions, /await signInImpl\("google"/)
-  assert.match(entryActions, /if \(currentHref\(\) === initialHref\) throw/)
+  assert.match(entryActions, /await signInImpl\("google", \{ redirectTo: result\.callbackUrl \}\)/)
+  assert.match(entryActions, /if \(currentHref\(\) === initialHref\) throw new Error\("Google navigation did not start"\)/)
+  assert.match(entryActions, /return "navigating"/)
 
-  for (const relativePath of ["app/login/login-form.tsx", "app/register/register-form.tsx"]) {
+  for (const relativePath of [
+    "app/login/login-form.tsx",
+    "app/register/register-form.tsx",
+  ]) {
     const client = source(relativePath)
     assert.match(client, /let navigating = false/, relativePath)
-    assert.match(client, /startGoogleAuthMethodIntent\(googleRedirectTo\)/, relativePath)
+    assert.match(client, /navigating = await startGoogleAuthMethodIntent\(googleRedirectTo\) === "navigating"/, relativePath)
     assert.match(client, /if \(!navigating\) finishEntryAction\(\)/, relativePath)
   }
 
-  for (const relativePath of ["app/account/security/sign-in-methods-panel.tsx"]) {
-    const client = source(relativePath)
-    assert.match(client, /let documentNavigationStarted = false/, relativePath)
-    assert.match(client, /const initialHref = window\.location\.href/, relativePath)
-    assert.match(client, /documentNavigationStarted = window\.location\.href !== initialHref/, relativePath)
-    assert.match(client, /if \(!documentNavigationStarted\)/, relativePath)
-  }
+  const methodsPanel = source("app/account/security/sign-in-methods-panel.tsx")
+  assert.match(methodsPanel, /let documentNavigationStarted = false/)
+  assert.match(methodsPanel, /const initialHref = window\.location\.href/)
+  assert.match(methodsPanel, /documentNavigationStarted = window\.location\.href !== initialHref/)
+  assert.match(methodsPanel, /if \(!documentNavigationStarted\) finishAction\("google-proof"\)/)
 })
