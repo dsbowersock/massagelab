@@ -20,6 +20,7 @@ import {
   processStripeMembershipEvent,
 } from "@/lib/membership-webhook-service"
 import { prisma } from "@/lib/prisma"
+import { safeErrorCode } from "@/lib/safe-error-code"
 import {
   STRIPE_BACKGROUND_CHECKOUT_WEBHOOK_EVENTS,
   STRIPE_BACKGROUND_DISPUTE_WEBHOOK_EVENTS,
@@ -75,6 +76,7 @@ async function processMembershipEvent(event: unknown) {
     if (error instanceof MembershipWebhookRetryableError) {
       return membershipRetryResponse()
     }
+    console.error("Membership webhook processing failed", { code: safeErrorCode(error) })
     return NextResponse.json({ received: false }, { status: 500 })
   }
 }

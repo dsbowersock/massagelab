@@ -40,6 +40,7 @@ const {
   },
 )
 
+/** Creates the complete provider-free status projection consumed by the return watcher. */
 function persistedStatus({
   state = "active",
   revision = "2026-08-29T12:00:01.000Z",
@@ -60,6 +61,7 @@ function persistedStatus({
   }
 }
 
+/** Drives deterministic status/error reads while recording every wait and published status. */
 function pollingFixture(sequence) {
   const waits = []
   const displays = []
@@ -83,6 +85,7 @@ function pollingFixture(sequence) {
   }
 }
 
+/** Installs abort-only fetches for deadline/unmount tests and returns their signals plus cleanup. */
 function installStalledMembershipFetch(onStart = () => {}) {
   const originalFetch = globalThis.fetch
   const requestSignals = []

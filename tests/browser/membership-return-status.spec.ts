@@ -4,6 +4,7 @@ import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browse
 const PRIVATE_QA_SKIP_REASON = "Membership return database-backed browser QA requires an explicitly approved disposable target/fingerprint and applied 20260828130000_membership_subscription_convergence migration."
 const hasPrivateQaAuthorization = isBrowserQaDatabaseTargetAuthorized(process.env)
 
+/** Flags provider or provider-starting billing calls while allowing database-only status reads. */
 function recordsProviderRequest(urlValue: string) {
   const url = new URL(urlValue)
   return url.hostname.endsWith("stripe.com")
