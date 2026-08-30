@@ -16,6 +16,7 @@ import {
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const panelUrl = new URL("../app/account/security/two-factor-management-panel.tsx", import.meta.url)
+const securityPanelUrl = new URL("../app/account/security/security-panel.tsx", import.meta.url)
 const recoveryUrl = new URL("../lib/two-factor-management-recovery.ts", import.meta.url)
 
 function jsonResponse(status, body) {
@@ -150,6 +151,73 @@ async function createPanelHarness({
     restore() { globalThis.fetch = previousFetch },
   }
 }
+
+describe("security method coordination", () => {
+  it("publishes successful method changes to the sibling 2FA panel without weakening the shared action lock", async () => {
+    const securityPanelSource = await readFile(securityPanelUrl, "utf8")
+    const hooks = createHookRuntime()
+    let methodsProps
+    let twoFactorProps
+    const compiled = loadCompiledModule(
+      securityPanelSource,
+      "app/account/security/security-panel.coordination-test.tsx",
+      {
+        react: hooks.react,
+        "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
+        "@/app/account/security/sign-in-methods-panel": {
+          SignInMethodsPanel(props) {
+            methodsProps = props
+            return createElement("methods-panel", {})
+          },
+        },
+        "@/app/account/security/two-factor-management-panel": {
+          TwoFactorManagementPanel(props) {
+            twoFactorProps = props
+            return createElement("two-factor-panel", {})
+          },
+        },
+      },
+    )
+    const render = () => {
+      hooks.startRender()
+      const tree = renderFunctionComponents(compiled.SecurityPanel({
+        twoFactorEnabled: false,
+        hasPasswordCredential: false,
+        googleLinked: true,
+        googlePrimaryProofReady: false,
+      }))
+      hooks.finishRender()
+      return tree
+    }
+
+    render()
+    assert.equal(twoFactorProps.hasPasswordCredential, false)
+    assert.equal(twoFactorProps.googleLinked, true)
+    assert.equal(
+      typeof methodsProps.onMethodAvailabilityChange,
+      "function",
+      "the mutation owner must publish authoritative method availability",
+    )
+
+    methodsProps.onMethodAvailabilityChange({ hasPasswordCredential: true, googleLinked: true })
+    render()
+    assert.equal(twoFactorProps.hasPasswordCredential, true)
+    assert.equal(twoFactorProps.googleLinked, true)
+
+    methodsProps.onMethodAvailabilityChange({ googleLinked: false })
+    render()
+    assert.equal(twoFactorProps.hasPasswordCredential, true)
+    assert.equal(twoFactorProps.googleLinked, false)
+
+    assert.equal(methodsProps.beginAction("password"), true)
+    render()
+    assert.equal(twoFactorProps.pendingAction, "password")
+    assert.equal(twoFactorProps.beginAction("setup"), false)
+    methodsProps.finishAction("password")
+    render()
+    assert.equal(twoFactorProps.pendingAction, null)
+  })
+})
 
 describe("recoverable two-factor management UI", () => {
   it("presents the four method states without offering unsafe setup", async () => {

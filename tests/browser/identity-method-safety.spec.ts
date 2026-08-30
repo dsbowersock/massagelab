@@ -300,6 +300,8 @@ test.describe("private identity-method journeys", () => {
     await save.dblclick()
     await expect(page.getByRole("status")).toContainText(/enabled|saved/i)
     await expect(page.getByText("Enabled", { exact: true })).toBeVisible()
+    await expect(page.getByText(/Add a password first/i)).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "Start two-factor setup" })).toBeVisible()
   })
 
   test("disables password only after completed Google proof and keeps Google available", async ({ context, page }, testInfo) => {

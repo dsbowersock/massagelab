@@ -25,7 +25,12 @@ export type PendingSecurityAction =
   | "two-factor-sign-out"
   | null
 
-/** Coordinates one shared action lock while each security panel owns its state. */
+export type SignInMethodAvailability = {
+  hasPasswordCredential: boolean
+  googleLinked: boolean
+}
+
+/** Coordinates one shared action lock and the method availability consumed by both panels. */
 export function SecurityPanel({
   twoFactorEnabled,
   hasPasswordCredential,
@@ -33,6 +38,10 @@ export function SecurityPanel({
   googlePrimaryProofReady,
 }: SecurityPanelProps) {
   const [pendingAction, setPendingAction] = useState<PendingSecurityAction>(null)
+  const [methodAvailability, setMethodAvailability] = useState<SignInMethodAvailability>({
+    hasPasswordCredential,
+    googleLinked,
+  })
   const actionLock = useRef<PendingSecurityAction>(null)
 
   function beginAction(action: Exclude<PendingSecurityAction, null>) {
@@ -48,19 +57,28 @@ export function SecurityPanel({
     setPendingAction(null)
   }
 
+  /** Applies only fields returned by a successful method mutation. */
+  function updateMethodAvailability(update: Partial<SignInMethodAvailability>) {
+    setMethodAvailability((current) => ({
+      hasPasswordCredential: update.hasPasswordCredential ?? current.hasPasswordCredential,
+      googleLinked: update.googleLinked ?? current.googleLinked,
+    }))
+  }
+
   return (
     <div className="space-y-6">
       <SignInMethodsPanel
-        hasPasswordCredential={hasPasswordCredential}
-        googleLinked={googleLinked}
+        hasPasswordCredential={methodAvailability.hasPasswordCredential}
+        googleLinked={methodAvailability.googleLinked}
         pendingAction={pendingAction}
         beginAction={beginAction}
         finishAction={finishAction}
+        onMethodAvailabilityChange={updateMethodAvailability}
       />
       <TwoFactorManagementPanel
         twoFactorEnabled={twoFactorEnabled}
-        hasPasswordCredential={hasPasswordCredential}
-        googleLinked={googleLinked}
+        hasPasswordCredential={methodAvailability.hasPasswordCredential}
+        googleLinked={methodAvailability.googleLinked}
         googlePrimaryProofReady={googlePrimaryProofReady}
         pendingAction={pendingAction}
         beginAction={beginAction}

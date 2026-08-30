@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { PendingSubmissionForm, PendingSubmitButton } from "@/components/forms/pending-submission-form"
 import { Button } from "@/components/ui/button"
 import { Loader } from "@/components/ui/loader"
 import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
@@ -256,10 +257,20 @@ export function MembershipReturnStatus({ kind }: { kind: MembershipReturnKind })
           </Button>
         ) : null}
         {canManageBilling ? (
-          <form action="/api/billing/portal" method="post">
+          <PendingSubmissionForm
+            action="/api/billing/portal"
+            method="post"
+            pendingLabel="Opening billing portal…"
+          >
             <input type="hidden" name="destination" value={BILLING_PORTAL_DESTINATIONS.MANAGE} />
-            <Button type="submit" variant="outline">Manage billing account</Button>
-          </form>
+            <PendingSubmitButton
+              type="submit"
+              variant="outline"
+              pendingLabel="Opening billing portal…"
+            >
+              Manage billing account
+            </PendingSubmitButton>
+          </PendingSubmissionForm>
         ) : null}
         {!busy && exhausted ? (
           <Button type="button" variant="outline" onClick={retry}>Check status again</Button>

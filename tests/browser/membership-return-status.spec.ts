@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
+import { installNativeSubmitSnapshotRecorder } from "./native-submission-snapshot"
 
 const PRIVATE_QA_SKIP_REASON = "Membership return database-backed browser QA requires an explicitly approved disposable target/fingerprint and applied 20260828130000_membership_subscription_convergence migration."
 const hasPrivateQaAuthorization = isBrowserQaDatabaseTargetAuthorized(process.env)
@@ -136,5 +137,41 @@ test.describe("private persisted membership returns", () => {
     await expect(returnStatus).toHaveAttribute("aria-busy", "false")
     expect(statusReads).toBeGreaterThanOrEqual(2)
     expect(providerRequests).toEqual([])
+  })
+
+  test("Billing attention claims one delayed portal POST with accessible pending feedback", async ({ context, page }, testInfo) => {
+    const fixture = await import("./membership-return-status-fixture")
+    const baseURL = String(testInfo.project.use.baseURL)
+    await fixture.installMembershipReturnStatusFixture({
+      context,
+      baseURL,
+      projectName: testInfo.project.name,
+      status: "past_due",
+    })
+    let portalPosts = 0
+    await page.route("**/api/billing/portal", async (route) => {
+      portalPosts += 1
+      await new Promise((resolve) => setTimeout(resolve, 900))
+      await route.fulfill({ status: 204, body: "" })
+    })
+
+    await page.goto("/account?tab=membership&portal=returned", { waitUntil: "domcontentloaded" })
+    const form = page.locator('form[action="/api/billing/portal"]')
+    const pendingLabel = "Opening billing portal…"
+    const recorder = await installNativeSubmitSnapshotRecorder({ page, form, pendingLabel })
+    await form.getByRole("button", { name: "Manage billing account" }).evaluate((element) => {
+      ;(element as HTMLButtonElement).click()
+    })
+
+    const snapshot = await recorder.snapshot
+    expect(snapshot).toMatchObject({
+      buttonAriaBusy: "true",
+      buttonDisabled: true,
+      formAriaBusy: "true",
+      pendingCopyVisible: true,
+      statusCount: 1,
+      statusText: pendingLabel,
+    })
+    await expect.poll(() => portalPosts).toBe(1)
   })
 })
