@@ -1845,6 +1845,7 @@ for (const reducedMotion of [false, true] as const) {
   test(`Background default navigation and Background drag keep ${reducedMotion ? "reduced-motion finite" : "normal looped"} behavior`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-chromium", "Native Background drag coverage is owned by mobile Chromium.")
     const previewNames = [
+      "massage-lab-gradient-vertical",
       "massage-lab-moving-gradient-vertical",
       "massage-lab-stars-vertical",
       "massage-lab-hole-vertical",

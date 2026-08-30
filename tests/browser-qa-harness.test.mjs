@@ -92,6 +92,35 @@ test("Code quality provisions Chromium with Linux dependencies before Node tests
   )
 })
 
+test("browser QA enables the isolated RSC session proof at build and runtime", async () => {
+  const workflow = await readProjectFile(".github/workflows/ci.yml")
+
+  for (const jobId of ["browser_build", "browser_qa"]) {
+    assert.match(
+      getWorkflowJob(workflow, jobId),
+      /^      NEXT_PUBLIC_RSC_SESSION_PROOF: "1"$/m,
+    )
+  }
+})
+
+test("mobile Background carousel fixtures include the default preview", async () => {
+  const publicRoutesSpec = await readProjectFile("tests/browser/public-routes.spec.ts")
+  const fixtureStart = publicRoutesSpec.indexOf(
+    'test(`Background default navigation and Background drag keep',
+  )
+  const fixtureEnd = publicRoutesSpec.indexOf(
+    '\ntest("Atmosphere lists the Generative.fm catalog',
+    fixtureStart,
+  )
+
+  assert.notEqual(fixtureStart, -1)
+  assert.notEqual(fixtureEnd, -1)
+  assert.match(
+    publicRoutesSpec.slice(fixtureStart, fixtureEnd),
+    /"massage-lab-gradient-vertical"/,
+  )
+})
+
 test("browser QA lanes cover each ordinary project and spec exactly once", async () => {
   const expectedProjects = ["desktop-chromium", "mobile-chromium"]
   const expectedSpecs = [
