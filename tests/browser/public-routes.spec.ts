@@ -946,7 +946,9 @@ test("Chimer keeps the mobile main bar and opens quick actions above the plus bu
 })
 
 test("mobile primary bar keeps lighting controls available with a compact theme toggle", async ({ page }) => {
-  const health = await capturePageHealth(page, new Set())
+  const atmosphereFixtureUrls = new Set(atmosphereSampleIndexFixtureUrls)
+  const health = await capturePageHealth(page, atmosphereFixtureUrls)
+  await installAtmosphereFixtures(page, atmosphereFixtureUrls)
 
   await page.setViewportSize({ width: 319, height: 932 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
