@@ -33,13 +33,18 @@ describe("shared account-entry client behavior", () => {
   it("returns an explicit navigating outcome only after Google sign-in starts", async () => {
     assert.match(actionsSource, /export async function startGoogleAuthMethodIntent/)
     const calls = []
+    let href = "/register"
     const { startGoogleAuthMethodIntent } = loadActions()
     const result = await startGoogleAuthMethodIntent("/onboarding", {
       fetchImpl: async (url, init) => {
         calls.push(["fetch", url, JSON.parse(init.body)])
         return Response.json({ ok: true, callbackUrl: "/legal/accept?callbackUrl=%2Fonboarding" })
       },
-      signInImpl: async (...args) => calls.push(["signIn", ...args]),
+      signInImpl: async (...args) => {
+        calls.push(["signIn", ...args])
+        href = "https://accounts.google.com/o/oauth2/v2/auth"
+      },
+      currentHref: () => href,
     })
 
     assert.equal(result, "navigating")
@@ -47,6 +52,39 @@ describe("shared account-entry client behavior", () => {
       ["fetch", "/api/auth/google/intent", { purpose: "SIGN_IN_OR_LINK", callbackUrl: "/onboarding" }],
       ["signIn", "google", { redirectTo: "/legal/accept?callbackUrl=%2Fonboarding" }],
     ])
+  })
+
+  it("rejects a resolved sign-in without navigation so shared entry state is released", async () => {
+    assert.match(actionsSource, /export async function startGoogleAuthMethodIntent/)
+    const calls = []
+    const updates = []
+    const lock = { current: false }
+    const { startGoogleAuthMethodIntent, useEntryAction } = loadActions({
+      useRef: () => lock,
+      useState: () => ["idle", (value) => updates.push(value)],
+    })
+    const entry = useEntryAction()
+    let navigating = false
+
+    assert.equal(entry.beginEntryAction("google"), true)
+    try {
+      await assert.rejects(
+        async () => {
+          navigating = await startGoogleAuthMethodIntent("/onboarding", {
+            fetchImpl: async () => Response.json({ ok: true, callbackUrl: "/legal/accept?callbackUrl=%2Fonboarding" }),
+            signInImpl: async (...args) => calls.push(args),
+            currentHref: () => "/register",
+          }) === "navigating"
+        },
+        /Google navigation did not start/,
+      )
+    } finally {
+      if (!navigating) entry.finishEntryAction()
+    }
+
+    assert.equal(entry.beginEntryAction("email"), true)
+    assert.deepEqual(updates, ["google", "idle", "email"])
+    assert.deepEqual(calls, [["google", { redirectTo: "/legal/accept?callbackUrl=%2Fonboarding" }]])
   })
 
   it("rejects failed intent starts before Google sign-in", async () => {
@@ -68,6 +106,9 @@ describe("shared account-entry client behavior", () => {
     for (const source of [loginSource, registerSource]) {
       assert.match(source, /useEntryAction/)
       assert.match(source, /startGoogleAuthMethodIntent/)
+      assert.match(source, /let navigating = false/)
+      assert.match(source, /navigating = await startGoogleAuthMethodIntent/)
+      assert.match(source, /if \(!navigating\) finishEntryAction\(\)/)
       assert.doesNotMatch(source, /entryActionLock|useRef/)
     }
     assert.match(registerSource, /@\/lib\/auth-entry-messages/)

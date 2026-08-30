@@ -75,15 +75,14 @@ export async function startAuthMethodIntent({
   return { intentId: intent.id, expiresAt: intent.expiresAt, browserBindingToken }
 }
 
-/** Removes bounded stale rows after creation; maintenance failure never rejects a committed intent. */
+/**
+ * Removes bounded expired rows after creation; maintenance failure never rejects
+ * a committed intent. Unexpired consumed security proofs remain available for
+ * the subsequent account mutation that atomically clears their provider proof.
+ */
 async function pruneStaleAuthMethodIntents(prismaClient: AuthIntentClient, now: Date): Promise<void> {
   const stale = await prismaClient.authMethodIntent.findMany({
-    where: {
-      OR: [
-        { expiresAt: { lt: now } },
-        { consumedAt: { not: null } },
-      ],
-    },
+    where: { expiresAt: { lt: now } },
     orderBy: { updatedAt: "asc" },
     take: MAX_PRUNE_ROWS,
     select: { id: true },

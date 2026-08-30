@@ -28,16 +28,17 @@ export function useEntryAction() {
 type GoogleAuthDependencies = {
   fetchImpl?: typeof fetch
   signInImpl?: (provider: "google", options: { redirectTo: string }) => Promise<unknown>
+  currentHref?: () => string
 }
 
 /**
  * Creates the private Google method intent, starts NextAuth navigation, and
- * returns only after navigation has been requested. Callers retain their lock
- * on the navigating outcome and release it only when this function rejects.
+ * returns only after the document destination changes. A resolved sign-in that
+ * leaves the document in place rejects so callers can release their entry lock.
  */
 export async function startGoogleAuthMethodIntent(
   googleRedirectTo: string,
-  { fetchImpl = fetch, signInImpl = signIn }: GoogleAuthDependencies = {},
+  { fetchImpl = fetch, signInImpl = signIn, currentHref = () => window.location.href }: GoogleAuthDependencies = {},
 ): Promise<"navigating"> {
   const response = await fetchImpl("/api/auth/google/intent", {
     method: "POST",
@@ -46,6 +47,8 @@ export async function startGoogleAuthMethodIntent(
   })
   const result = await response.json().catch(() => ({})) as { ok?: boolean; callbackUrl?: string }
   if (!response.ok || !result.ok || !result.callbackUrl) throw new Error("Google intent unavailable")
+  const initialHref = currentHref()
   await signInImpl("google", { redirectTo: result.callbackUrl })
+  if (currentHref() === initialHref) throw new Error("Google navigation did not start")
   return "navigating"
 }
