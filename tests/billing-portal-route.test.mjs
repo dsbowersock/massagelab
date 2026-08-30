@@ -122,7 +122,7 @@ describe("Customer Portal POST route", () => {
     assert.deepEqual(calls.subscriptionQueries, [])
     assert.deepEqual(calls.portalInputs, [{
       customerId: "cus_supporter",
-      returnUrl: "https://massagelab.app/account?portal=returned",
+      returnUrl: "https://massagelab.app/account?tab=membership&portal=returned",
       subscriptionId: undefined,
     }])
   })
@@ -154,7 +154,7 @@ describe("Customer Portal POST route", () => {
     }])
     assert.deepEqual(calls.portalInputs, [{
       customerId: "cus_supporter",
-      returnUrl: "https://massagelab.app/account?portal=returned",
+      returnUrl: "https://massagelab.app/account?tab=membership&portal=returned",
       subscriptionId: "sub_supporter",
     }])
   })

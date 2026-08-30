@@ -278,6 +278,21 @@ function migrationStripeFixture(targetPrice) {
 }
 
 describe("Supporter membership final-review contracts", () => {
+  it("keeps return URLs identifier-free while preserving Checkout and Portal ownership", async () => {
+    const [checkoutSource, portalSource, accountSource] = await Promise.all([
+      readFile(new URL("../lib/membership-checkout.js", import.meta.url), "utf8"),
+      readFile(new URL("../app/api/billing/portal/route.ts", import.meta.url), "utf8"),
+      readFile(new URL("../app/account/page.tsx", import.meta.url), "utf8"),
+    ])
+
+    assert.match(checkoutSource, /account\?tab=membership&checkout=success/)
+    assert.match(checkoutSource, /account\?tab=membership&checkout=cancelled/)
+    assert.match(portalSource, /account\?tab=membership&portal=returned/)
+    assert.doesNotMatch(`${checkoutSource}\n${accountSource}`, /CHECKOUT_SESSION_ID|session_id/)
+    assert.match(checkoutSource, /resolveStripePriceId/)
+    assert.match(checkoutSource, /createStripeCheckoutSession/)
+    assert.match(portalSource, /createStripeCustomerPortalSession/)
+  })
   it("routes members to Portal mode and non-members to the appropriate pricing action", async () => {
     const member = await renderPublicPricing({
       session: { user: { id: "user_member" } },

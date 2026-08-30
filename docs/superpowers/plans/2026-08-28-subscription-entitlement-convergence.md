@@ -139,7 +139,7 @@ lastStripeAuthoritativeAt DateTime?
 
 - [ ] **Step 4: Add the migration**
 
-Create the enum/table/indexes/FK and three nullable columns. Do not backfill or rewrite a membership row. The old application must remain able to run against the expanded schema during rollback.
+Create the enum/table/indexes/FK and three nullable columns. Do not backfill or rewrite a membership row. Pre-bridge application instances must remain able to run against the expanded schema only through the later paused-bridge cutover and bounded drain. After that cutover, never use pre-bridge code for rollback; rollback means bridge-capable code with `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` exactly `1`, while the additive schema remains in place.
 
 - [ ] **Step 5: Verify and commit persistence**
 

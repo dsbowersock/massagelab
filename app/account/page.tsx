@@ -15,6 +15,7 @@ import { getCurrentSession } from "@/auth"
 import { requestCredentialVerificationAction, saveProfileAction } from "@/app/account/actions"
 import { AccountAppSettingsPanel, LocalTherapistDefaultsPanel } from "@/app/account/app-settings-panel"
 import { AccountSettingsShell } from "@/app/account/account-settings-shell"
+import { MembershipReturnStatus } from "@/app/account/membership-return-status"
 import { PreferenceSync } from "@/app/account/preference-sync"
 import { SecurityPanel } from "@/app/account/security/security-panel"
 import { SignOutButton } from "@/app/account/sign-out-button"
@@ -55,6 +56,53 @@ type AccountPageProps = {
   }>
 }
 
+type AccountNoticeInput = {
+  billing?: string
+  checkout?: string
+  legal?: string
+  portal?: string
+}
+
+type NormalizedAccountReturnState = {
+  kind: "checkout" | "portal" | null
+  notice: AccountNoticeInput
+}
+
+/**
+ * Selects exactly one account-return owner. Controller returns outrank notices,
+ * and Checkout success wins when malformed input contains both controllers.
+ */
+function normalizeAccountReturnState(params: {
+  billing?: string
+  checkout?: string
+  legal?: string
+  portal?: string
+} | undefined): NormalizedAccountReturnState {
+  if (params?.checkout === "success") {
+    return { kind: "checkout", notice: {} }
+  }
+  if (params?.portal === "returned") {
+    return { kind: "portal", notice: {} }
+  }
+  if (params?.checkout === "cancelled") {
+    return { kind: null, notice: { checkout: "cancelled" } }
+  }
+  if (
+    params?.portal === "customer-not-found"
+    || params?.portal === "subscription-not-found"
+    || params?.portal === "error"
+  ) {
+    return { kind: null, notice: { portal: params.portal } }
+  }
+  if (params?.legal === "therapist-agreement-required") {
+    return { kind: null, notice: { legal: params.legal } }
+  }
+  if (params?.billing) {
+    return { kind: null, notice: { billing: params.billing } }
+  }
+  return { kind: null, notice: {} }
+}
+
 type AccountPageTab = {
   id: string
   label: string
@@ -65,6 +113,7 @@ const typedAccountPageTabs = accountPageTabs as AccountPageTab[]
 
 export default async function AccountPage({ searchParams }: AccountPageProps) {
   const params = await searchParams
+  const returnState = normalizeAccountReturnState(params)
   const session = await getCurrentSession()
   const defaultTab = selectAccountTab(params?.tab, {
     billing: params?.billing,
@@ -77,7 +126,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   if (!session?.user?.id) {
     return (
       <AccountShell>
-        <AccountNotice billing={params?.billing} checkout={params?.checkout} legal={params?.legal} portal={params?.portal} />
+        <AccountNotice {...returnState.notice} />
         <AccountSettingsShell
           defaultValue={defaultTab}
           groups={accountPageGroups}
@@ -204,12 +253,8 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
 
   return (
     <AccountShell>
-      <AccountNotice
-        billing={params?.billing}
-        checkout={params?.checkout}
-        legal={params?.legal}
-        portal={params?.portal}
-      />
+      <AccountNotice {...returnState.notice} />
+      {returnState.kind ? <MembershipReturnStatus kind={returnState.kind} /> : null}
 
       <AccountSettingsShell
         defaultValue={defaultTab}
@@ -1023,12 +1068,7 @@ function AccountNotice({
   checkout,
   legal,
   portal,
-}: {
-  billing?: string
-  checkout?: string
-  legal?: string
-  portal?: string
-}) {
+}: AccountNoticeInput) {
   const notice = accountNotice({ billing, checkout, legal, portal })
 
   if (!notice) {
@@ -1045,33 +1085,12 @@ function accountNotice({
   checkout,
   legal,
   portal,
-}: {
-  billing?: string
-  checkout?: string
-  legal?: string
-  portal?: string
-}) {
-  if (checkout === "success") {
-    return {
-      title: "Checkout complete",
-      description: "Your membership is being updated. If it does not appear right away, refresh this page in a minute.",
-      tone: "accent" as const,
-    }
-  }
-
+}: AccountNoticeInput) {
   if (checkout === "cancelled") {
     return {
       title: "Checkout cancelled",
       description: "No membership changes were made. Free access remains available.",
       tone: "default" as const,
-    }
-  }
-
-  if (portal === "returned") {
-    return {
-      title: "Billing portal closed",
-      description: "Any subscription changes you made may take a moment to appear here. Refresh this page if they do not show right away.",
-      tone: "accent" as const,
     }
   }
 
