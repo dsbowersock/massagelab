@@ -4,10 +4,19 @@ import { SUPPORTER_AMOUNT_CHOICES } from "../lib/membership.js"
 import {
   MEMBERSHIP_PLAN_DETAILS,
   formatMembershipPrice,
-  getMembershipPricingCatalog,
   resolveMembershipPriceForInterval,
 } from "../lib/membership-pricing.js"
+import * as membershipPricing from "../lib/membership-pricing.js"
 import { TARGET_PRICE_SPECS } from "../lib/stripe-supporter-membership-migration-contract.js"
+
+const SIX_PRICE_ENVIRONMENT = Object.freeze({
+  STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_month",
+  STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_year",
+  STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_2_month",
+  STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_year",
+  STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_month",
+  STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_year",
+})
 
 function stripePrice({ id, amount, currency = "usd", interval }) {
   return {
@@ -16,6 +25,30 @@ function stripePrice({ id, amount, currency = "usd", interval }) {
     currency,
     recurring: { interval },
   }
+}
+
+function configuredStripePrices(amountOffset = 0) {
+  return new Map([
+    ["price_supporter_1_month", stripePrice({ id: "price_supporter_1_month", amount: 100 + amountOffset, interval: "month" })],
+    ["price_supporter_1_year", stripePrice({ id: "price_supporter_1_year", amount: 1000 + amountOffset, interval: "year" })],
+    ["price_supporter_2_month", stripePrice({ id: "price_supporter_2_month", amount: 200 + amountOffset, interval: "month" })],
+    ["price_supporter_2_year", stripePrice({ id: "price_supporter_2_year", amount: 2000 + amountOffset, interval: "year" })],
+    ["price_supporter_5_month", stripePrice({ id: "price_supporter_5_month", amount: 500 + amountOffset, interval: "month" })],
+    ["price_supporter_5_year", stripePrice({ id: "price_supporter_5_year", amount: 5000 + amountOffset, interval: "year" })],
+  ])
+}
+
+function createTestCatalogLoader(options) {
+  assert.equal(
+    typeof membershipPricing.createMembershipPricingCatalogLoader,
+    "function",
+    "membership pricing must expose an isolated catalog loader",
+  )
+  return membershipPricing.createMembershipPricingCatalogLoader(options)
+}
+
+async function loadIsolatedCatalog(options) {
+  return createTestCatalogLoader(options).get()
 }
 
 describe("Membership pricing catalog", () => {
@@ -79,7 +112,7 @@ describe("Membership pricing catalog", () => {
       },
     }
 
-    const catalog = await getMembershipPricingCatalog({ env, stripeClient })
+    const catalog = await loadIsolatedCatalog({ env, stripeClient })
     const supporter = catalog.plans[0]
 
     assert.equal(catalog.defaultInterval, "year")
@@ -137,7 +170,7 @@ describe("Membership pricing catalog", () => {
   })
 
   it("falls back safely when Stripe is not configured", async () => {
-    const catalog = await getMembershipPricingCatalog({ env: {} })
+    const catalog = await loadIsolatedCatalog({ env: {} })
 
     assert.equal(catalog.defaultInterval, "year")
     assert.equal(Object.hasOwn(catalog, "earlyAccess"), false)
@@ -160,7 +193,7 @@ describe("Membership pricing catalog", () => {
   })
 
   it("preserves configured yearly Price identity when Stripe lookup fails", async () => {
-    const catalog = await getMembershipPricingCatalog({
+    const catalog = await loadIsolatedCatalog({
       env: {
         STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_year",
       },
@@ -182,7 +215,7 @@ describe("Membership pricing catalog", () => {
   })
 
   it("keeps compliance-heavy documentation goals in the single Supporter offering roadmap notes", async () => {
-    const catalog = await getMembershipPricingCatalog({ env: {} })
+    const catalog = await loadIsolatedCatalog({ env: {} })
     const [supporter] = catalog.plans
 
     assert.ok(
@@ -191,6 +224,234 @@ describe("Membership pricing catalog", () => {
     )
     assert.ok(supporter.roadmapNotes.some((note) => note.includes("compliance review")))
     assert.equal(supporter.currentFeatures.some((feature) => /BAA|transcription|SOAP drafting|managed sync/i.test(feature)), false)
+  })
+
+  it("shares six bounded Stripe reads across concurrent cold callers and caches a complete catalog for five minutes", async () => {
+    let now = 1_000
+    const calls = []
+    const prices = configuredStripePrices()
+    const loader = createTestCatalogLoader({
+      env: SIX_PRICE_ENVIRONMENT,
+      now: () => now,
+      stripeClient: {
+        prices: {
+          async retrieve(priceId, params, options) {
+            calls.push({ priceId, params, options })
+            return prices.get(priceId)
+          },
+        },
+      },
+    })
+
+    const concurrent = await Promise.all(Array.from({ length: 20 }, () => loader.get()))
+
+    assert.equal(calls.length, 6)
+    assert.equal(new Set(concurrent).size, 1)
+    assert.equal(calls.every(({ params }) => JSON.stringify(params) === "{}"), true)
+    assert.equal(calls.every(({ options }) => (
+      options.timeout === 2_500 && options.maxNetworkRetries === 1
+    )), true)
+
+    await loader.get()
+    assert.equal(calls.length, 6)
+    now += 299_999
+    await loader.get()
+    assert.equal(calls.length, 6)
+    now += 1
+    await loader.get()
+    assert.equal(calls.length, 12)
+  })
+
+  it("uses the short TTL for an incomplete catalog and redacts provider failures", async () => {
+    let now = 10_000
+    const calls = []
+    const prices = configuredStripePrices()
+    const unavailablePriceId = "price_supporter_2_year"
+    const loader = createTestCatalogLoader({
+      env: SIX_PRICE_ENVIRONMENT,
+      now: () => now,
+      stripeClient: {
+        prices: {
+          async retrieve(priceId, params, options) {
+            calls.push({ priceId, params, options })
+            if (priceId === unavailablePriceId) {
+              throw new Error("provider-internal req_secret_123 price_private_456")
+            }
+            return prices.get(priceId)
+          },
+        },
+      },
+    })
+
+    const concurrent = await Promise.all(Array.from({ length: 20 }, () => loader.get()))
+    const catalog = concurrent[0]
+
+    assert.equal(calls.length, 6)
+    assert.equal(new Set(concurrent).size, 1)
+    assert.equal(catalog.plans[0].amountChoices[1].prices.year.displayPrice, "Price unavailable")
+    assert.equal(catalog.plans[0].amountChoices[1].prices.year.isConfigured, true)
+    assert.doesNotMatch(JSON.stringify(catalog), /provider-internal|req_secret_123|price_private_456/)
+
+    now += 14_999
+    await loader.get()
+    assert.equal(calls.length, 6)
+    now += 1
+    await loader.get()
+    assert.equal(calls.length, 12)
+  })
+
+  it("treats malformed currency and recurring projections as short-lived unavailable entries", async () => {
+    const malformedPrices = [
+      {
+        label: "missing currency",
+        price: stripePrice({ id: "price_supporter_1_month", amount: 100, currency: "", interval: "month" }),
+      },
+      {
+        label: "missing recurring interval",
+        price: {
+          id: "price_supporter_1_month",
+          unit_amount: 100,
+          currency: "usd",
+          recurring: null,
+        },
+      },
+      {
+        label: "mismatched recurring interval",
+        price: stripePrice({ id: "price_supporter_1_month", amount: 100, interval: "year" }),
+      },
+    ]
+
+    for (const { label, price } of malformedPrices) {
+      let now = 15_000
+      let calls = 0
+      const prices = configuredStripePrices()
+      prices.set("price_supporter_1_month", price)
+      const loader = createTestCatalogLoader({
+        env: SIX_PRICE_ENVIRONMENT,
+        now: () => now,
+        stripeClient: {
+          prices: {
+            async retrieve(priceId) {
+              calls += 1
+              return prices.get(priceId)
+            },
+          },
+        },
+      })
+
+      const catalog = await loader.get()
+      const projectedPrice = catalog.plans[0].amountChoices[0].prices.month
+
+      assert.equal(projectedPrice.displayPrice, "Price unavailable", label)
+      assert.equal(projectedPrice.isLookupAvailable, false, label)
+      now += 15_000
+      await loader.get()
+      assert.equal(calls, 12, `${label} should use the incomplete TTL`)
+    }
+  })
+
+  it("recovers from a failed rebuild after the short TTL", async () => {
+    let now = 20_000
+    const calls = []
+    const prices = configuredStripePrices()
+    const loader = createTestCatalogLoader({
+      env: SIX_PRICE_ENVIRONMENT,
+      now: () => now,
+      stripeClient: {
+        prices: {
+          async retrieve(priceId) {
+            calls.push(priceId)
+            const buildNumber = Math.ceil(calls.length / 6)
+            if (buildNumber === 2 && priceId === "price_supporter_5_month") {
+              throw new Error("temporary provider failure with private diagnostics")
+            }
+            return prices.get(priceId)
+          },
+        },
+      },
+    })
+
+    const initial = await loader.get()
+    assert.equal(calls.length, 6)
+    assert.equal(initial.plans[0].amountChoices[2].prices.month.isLookupAvailable, true)
+
+    now += 300_000
+    const failedRebuild = await loader.get()
+    assert.equal(calls.length, 12)
+    assert.equal(failedRebuild.plans[0].amountChoices[2].prices.month.displayPrice, "Price unavailable")
+    assert.doesNotMatch(JSON.stringify(failedRebuild), /private diagnostics/)
+
+    now += 14_999
+    assert.equal(await loader.get(), failedRebuild)
+    assert.equal(calls.length, 12)
+    now += 1
+    const recovered = await loader.get()
+    assert.equal(calls.length, 18)
+    assert.equal(recovered.plans[0].amountChoices[2].prices.month.displayPrice, "$5")
+  })
+
+  it("does not let a completion from before clear replace the newer cached catalog", async () => {
+    let useOldPrices = true
+    let releaseOldPrices
+    const calls = []
+    const oldPrices = configuredStripePrices()
+    const newPrices = configuredStripePrices(5_000)
+    const oldPriceGate = new Promise((resolve) => {
+      releaseOldPrices = resolve
+    })
+    const loader = createTestCatalogLoader({
+      env: SIX_PRICE_ENVIRONMENT,
+      stripeClient: {
+        prices: {
+          async retrieve(priceId) {
+            calls.push(priceId)
+            const priceSet = useOldPrices ? oldPrices : newPrices
+            if (useOldPrices) {
+              await oldPriceGate
+            }
+            return priceSet.get(priceId)
+          },
+        },
+      },
+    })
+
+    const staleBuild = loader.get()
+    assert.equal(calls.length, 6)
+    loader.clear()
+    useOldPrices = false
+    const currentCatalog = await loader.get()
+    assert.equal(calls.length, 12)
+    assert.equal(currentCatalog.plans[0].amountChoices[0].prices.month.displayPrice, "$51")
+
+    releaseOldPrices()
+    const staleCatalog = await staleBuild
+    assert.equal(staleCatalog.plans[0].amountChoices[0].prices.month.displayPrice, "$1")
+    assert.equal(await loader.get(), currentCatalog)
+    assert.equal(calls.length, 12)
+  })
+
+  it("freezes a shared cached catalog so one caller cannot corrupt later display reads", async () => {
+    const loader = createTestCatalogLoader({
+      env: SIX_PRICE_ENVIRONMENT,
+      stripeClient: {
+        prices: {
+          async retrieve(priceId) {
+            return configuredStripePrices().get(priceId)
+          },
+        },
+      },
+    })
+
+    const catalog = await loader.get()
+    const monthPrice = catalog.plans[0].amountChoices[0].prices.month
+
+    assert.equal(Object.isFrozen(catalog), true)
+    assert.equal(Object.isFrozen(catalog.plans), true)
+    assert.equal(Object.isFrozen(monthPrice), true)
+    assert.throws(() => {
+      monthPrice.displayPrice = "$999"
+    }, TypeError)
+    assert.equal((await loader.get()).plans[0].amountChoices[0].prices.month.displayPrice, "$1")
   })
 
   it("resolves only the price configured for the requested billing interval", () => {

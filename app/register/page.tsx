@@ -1,4 +1,5 @@
 import { hasGoogleAuthConfig } from "@/lib/auth-env"
+import { getPublicLaunchControls } from "@/lib/public-launch-controls"
 import { AppPageShell } from "@/components/ui/app-surface"
 import { RegisterForm } from "./register-form"
 
@@ -28,6 +29,7 @@ export default async function RegisterPage({
       <RegisterForm
         googleEnabled={hasGoogleAuthConfig()}
         initialCallbackUrl={callbackUrl}
+        registrationOpen={getPublicLaunchControls().registrationOpen}
       />
     </AppPageShell>
   )

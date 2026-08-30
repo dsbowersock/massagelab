@@ -167,6 +167,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
   const { settings: appSettings } = useSettings()
   const {
     state: backgroundCommerceState,
+    ensureSnapshot: ensureBackgroundCommerceSnapshot,
     captureOwnershipReconciliationRevision:
       captureBackgroundCommerceOwnershipRevision,
     reconcileOwnedBackgroundIds: reconcileBackgroundCommerceOwnership,
@@ -255,6 +256,11 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       transientOwnedBackgroundIds,
     ],
   )
+
+  useEffect(() => {
+    if (developmentSubscriberReview) return
+    void ensureBackgroundCommerceSnapshot()
+  }, [developmentSubscriberReview, ensureBackgroundCommerceSnapshot])
   const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const alertTimeout = useRef<number | null>(null)
   const timerStateRef = useRef(timerState)

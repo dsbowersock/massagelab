@@ -65,6 +65,34 @@ function captureTimersWithDelay(delayMs) {
 }
 
 describe("Stripe billing helpers", () => {
+  it("passes bounded per-request options through the read-only Price lookup", async () => {
+    const calls = []
+    const requestOptions = { timeout: 2_500, maxNetworkRetries: 1 }
+    const price = {
+      id: "price_public_display",
+      object: "price",
+      currency: "usd",
+      recurring: { interval: "month" },
+      unit_amount: 500,
+    }
+    const stripeClient = {
+      prices: {
+        async retrieve(...args) {
+          calls.push(args)
+          return price
+        },
+      },
+    }
+
+    const result = await stripeBilling.retrieveStripePrice("price_public_display", {
+      stripeClient,
+      requestOptions,
+    })
+
+    assert.equal(result, price)
+    assert.deepEqual(calls, [["price_public_display", {}, requestOptions]])
+  })
+
   it("keeps authority failures catchable, distinct, and private", () => {
     const {
       deadline,

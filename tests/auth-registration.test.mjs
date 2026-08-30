@@ -15,6 +15,36 @@ import {
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 describe("registration email delivery policy", () => {
+  it("returns the registration pause before parsing or account work", async () => {
+    const afterCallbacks = []
+    let jsonCalls = 0
+    let registrationCalls = 0
+    const { POST } = await loadRegistrationRoute({
+      afterCallbacks,
+      registrationOpen: false,
+      registerWork: async () => {
+        registrationCalls += 1
+        return { status: "ACCEPTED" }
+      },
+    })
+
+    const response = await POST({
+      headers: new Headers(),
+      json: async () => {
+        jsonCalls += 1
+        throw new Error("paused registration must not parse a body")
+      },
+    })
+
+    assert.equal(response.status, 503)
+    assert.deepEqual(await response.json(), {
+      message: "New account registration is temporarily paused. Existing users can still sign in or recover an account.",
+    })
+    assert.equal(jsonCalls, 0)
+    assert.equal(registrationCalls, 0)
+    assert.deepEqual(afterCallbacks, [])
+  })
+
   it("returns success only when verification has a deliverable path", () => {
     assert.deepEqual(registrationVerificationResponse({ delivered: true }), {
       status: 200,
@@ -106,11 +136,16 @@ describe("registration email delivery policy", () => {
     const loginForm = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
 
     assert.match(registerPage, /hasGoogleAuthConfig/)
+    assert.match(registerPage, /getPublicLaunchControls/)
+    assert.match(registerPage, /registrationOpen=\{getPublicLaunchControls\(\)\.registrationOpen\}/)
     assert.match(registerPage, /initialCallbackUrl=\{callbackUrl\}/)
     assert.match(registerPage, /Only allow same-origin, root-relative post-registration redirects/)
     assert.match(registerPage, /callbackUrl\?: string \| string\[\]/)
     assert.match(registerPage, /firstQueryValue\(\(await searchParams\)\.callbackUrl\)/)
     assert.match(registerForm, /Continue with Google/)
+    assert.match(registerForm, /REGISTRATION_PAUSED_MESSAGE/)
+    assert.match(registerForm, /role="status"/)
+    assert.match(registerForm, /disabled=\{!registrationOpen \|\| activeSubmission !== null\}/)
     assert.match(registerForm, /fetch\("\/api\/auth\/google\/intent"/)
     assert.match(registerForm, /purpose: "SIGN_IN_OR_LINK"/)
     assert.match(registerForm, /signIn\("google", \{ redirectTo: result\.callbackUrl \}\)/)
@@ -128,8 +163,8 @@ describe("registration email delivery policy", () => {
       assert.match(source, /const submissionLock = useRef\(false\)/, name)
       assert.match(source, /if \(submissionLock\.current\) return/, name)
       assert.doesNotMatch(source, /emailSubmissionLock|googleSubmissionLock|registrationSubmissionLock/, name)
-      assert.match(source, /disabled=\{activeSubmission !== null\}/, name)
     }
+    assert.match(loginForm, /disabled=\{activeSubmission !== null\}/)
     assert.match(loginForm, /pendingLabel="Signing in…"/)
     assert.match(loginForm, /pendingLabel="Connecting to Google…"/)
     assert.match(registerForm, /pendingLabel="Creating account…"/)
@@ -258,7 +293,7 @@ describe("registration email delivery policy", () => {
   })
 })
 
-async function loadRegistrationRoute({ afterCallbacks, registerWork }) {
+async function loadRegistrationRoute({ afterCallbacks, registerWork, registrationOpen = true }) {
   const source = await readFile(new URL("../app/api/account/register/route.ts", import.meta.url), "utf8")
   return loadCompiledModule(source, "account-register-route.review-test.ts", {
     "next/server": {
@@ -273,6 +308,14 @@ async function loadRegistrationRoute({ afterCallbacks, registerWork }) {
       sendVerificationEmail: async () => ({ delivered: true }),
     },
     "@/lib/auth-rate-limit": { consumeEmailWorkRateLimit: async () => ({ allowed: true }) },
+    "@/lib/public-launch-controls": {
+      getPublicLaunchControls: () => ({
+        registrationOpen,
+        supporterCheckoutOpen: true,
+      }),
+      REGISTRATION_PAUSED_MESSAGE:
+        "New account registration is temporarily paused. Existing users can still sign in or recover an account.",
+    },
     "@/lib/auth-registration-service": {
       PUBLIC_ACCOUNT_ENTRY_MESSAGE: "Check that email address for the appropriate sign-in, verification, or recovery next step.",
       registerPasswordAccount: registerWork,

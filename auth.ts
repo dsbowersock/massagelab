@@ -136,7 +136,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         })
         if (result.kind === "CONTINUE") return true
         if (result.kind === "LINK_REQUIRED") return "/account/link-google"
-        if (result.kind === "REAUTH_COMPLETE") return "/account?tab=security&reauth=complete"
+        if (result.kind === "REGISTRATION_PAUSED") return "/register"
+        if (result.kind === "REAUTH_COMPLETE") {
+          return result.purpose === "LINK_GOOGLE"
+            ? "/account?tab=security&reauth=two-factor"
+            : "/account?tab=security&reauth=complete"
+        }
         return result.recoveryPath
       }
 

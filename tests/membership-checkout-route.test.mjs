@@ -1,7 +1,16 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { createMembershipCheckoutPostHandler } from "../lib/membership-checkout.js"
-import { hasSubscriptionBlockingNewCheckout } from "../lib/membership.js"
+import {
+  hasSubscriptionBlockingNewCheckout,
+  resolveStripePriceId,
+} from "../lib/membership.js"
+
+const [checkoutRouteSource, membershipCheckoutSource] = await Promise.all([
+  readFile(new URL("../app/api/billing/checkout/route.ts", import.meta.url), "utf8"),
+  readFile(new URL("../lib/membership-checkout.js", import.meta.url), "utf8"),
+])
 
 const MEMBERSHIP_BILLING_DOCUMENT = Object.freeze({
   key: "membership-billing-refunds",
@@ -9,6 +18,53 @@ const MEMBERSHIP_BILLING_DOCUMENT = Object.freeze({
 })
 
 describe("Membership Checkout POST route", () => {
+  it("keeps the cached display catalog outside current Checkout price authority", () => {
+    assert.doesNotMatch(checkoutRouteSource, /membership-pricing(?:\.js)?["']/)
+    assert.doesNotMatch(membershipCheckoutSource, /membership-pricing(?:\.js)?["']/)
+  })
+
+  it("returns a paused JSON response after authentication and before membership, legal, customer, or Stripe work", async () => {
+    const calls = checkoutCallCounts({
+      legalAcceptanceLookup: 0,
+      selectionValidation: 0,
+    })
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      captureGuardCalls: true,
+      supporterCheckoutOpen: false,
+    }))(jsonRequest({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-1" }))
+
+    assert.deepEqual(response, {
+      body: {
+        error: "New Supporter checkout is temporarily paused. Existing memberships and the billing portal remain available.",
+      },
+      status: 503,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+      legalAcceptanceLookup: 0,
+      selectionValidation: 0,
+    })
+  })
+
+  it("redirects a paused form to the account notice before new Checkout work", async () => {
+    const calls = checkoutCallCounts()
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      supporterCheckoutOpen: false,
+    }))(formRequest({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-1" }))
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/account?billing=checkout-paused",
+      status: 303,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+    })
+  })
+
   it("returns JSON 401 for an anonymous API request before billing work", async () => {
     const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
@@ -461,6 +517,49 @@ describe("Membership Checkout POST route", () => {
       createCheckout: 0,
       membershipLookup: 0,
     })
+  })
+
+  it("rejects a stale displayed Price when current server configuration no longer contains it", async () => {
+    const calls = checkoutCallCounts({ displayCatalogReads: 0, priceResolutionInputs: [] })
+    const dependencies = checkoutDependencies(calls)
+    dependencies.getMembershipPricingCatalog = async () => {
+      calls.displayCatalogReads += 1
+      return {
+        defaultInterval: "month",
+        intervals: [{ id: "month" }],
+        plans: [{
+          membershipLevel: "SUPPORTER",
+          amountChoices: [{
+            id: "support-1",
+            prices: { month: { priceId: "price_old_display_cache" } },
+          }],
+        }],
+      }
+    }
+    dependencies.resolveStripePriceId = (input) => {
+      calls.priceResolutionInputs.push(input)
+      return resolveStripePriceId({ ...input, env: {} })
+    }
+
+    const response = await createMembershipCheckoutPostHandler(dependencies)(jsonRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }))
+
+    assert.deepEqual(response, {
+      body: { error: "Stripe price is not configured" },
+      status: 400,
+    })
+    assert.equal(calls.displayCatalogReads, 0)
+    assert.deepEqual(calls.priceResolutionInputs, [{
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }])
+    assert.equal(calls.membershipLookup, 0)
+    assert.equal(calls.ensureCustomer, 0)
+    assert.equal(calls.createCheckout, 0)
   })
 
   it("redirects an unconfigured form Supporter price before billing work", async () => {
@@ -1021,6 +1120,7 @@ function checkoutDependencies(calls, {
   captureSelectionInputs = false,
   captureGuardCalls = false,
   siteUrl = "https://massagelab.app",
+  supporterCheckoutOpen = true,
 } = {}) {
   const prisma = {
     user: {
@@ -1048,6 +1148,10 @@ function checkoutDependencies(calls, {
       return session
     },
     getSiteUrl: () => siteUrl,
+    getPublicLaunchControls: () => ({
+      registrationOpen: true,
+      supporterCheckoutOpen,
+    }),
     isPublicSupporterCheckoutSelection: (input) => {
       if (captureGuardCalls) calls.selectionValidation = (calls.selectionValidation ?? 0) + 1
       if (selectionError) throw selectionError

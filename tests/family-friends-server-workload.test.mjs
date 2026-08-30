@@ -3,17 +3,33 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import { BILLING_PORTAL_DESTINATIONS } from "../lib/billing-portal-destinations.js"
+import { projectAccountShellAppSettings } from "../lib/account-shell-bootstrap.js"
 import { createMembershipCheckoutPostHandler } from "../lib/membership-checkout.js"
 import { getMembershipConvergenceStatus } from "../lib/membership-convergence.ts"
 import { hasSubscriptionBlockingNewCheckout } from "../lib/membership.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
-const [authUsersSource, sidebarSource, pricingPageSource, portalRouteSource] = await Promise.all([
+const [
+  authUsersSource,
+  sidebarSource,
+  pricingPageSource,
+  portalRouteSource,
+  accountSurfaceDataSource,
+  membershipSource,
+  stripeBillingSource,
+  backgroundCommerceProviderSource,
+  layoutWrapperSource,
+] = await Promise.all([
   readFile(new URL("../lib/auth-users.ts", import.meta.url), "utf8"),
   readFile(new URL("../components/sidebar/sidebar.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/pricing/page.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/api/billing/portal/route.ts", import.meta.url), "utf8"),
+  readFile(new URL("../lib/account-surface-data.js", import.meta.url), "utf8"),
+  readFile(new URL("../lib/membership.js", import.meta.url), "utf8"),
+  readFile(new URL("../lib/stripe-billing.js", import.meta.url), "utf8"),
+  readFile(new URL("../components/backgrounds/BackgroundCommerceProvider.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../components/layout-wrapper.tsx", import.meta.url), "utf8"),
 ])
 
 /** Returns one named function body bounded by the next named owner. */
@@ -61,7 +77,10 @@ function authSnapshotWorkload(calls) {
     },
     "@/lib/commerce/transactions": { runCommerceTransaction: async () => {} },
     "@/lib/membership": {
-      buildEntitlements: () => ({ features: ["calendar_basic"] }),
+      buildEntitlements: () => {
+        calls.entitlementBuilds += 1
+        return { features: ["calendar_basic"] }
+      },
       loadActiveTemporaryGrants: loadTemporaryGrants,
     },
     "@/lib/phi-sync": { isHostedClinicalSyncEnabled: () => false },
@@ -72,6 +91,25 @@ function authSnapshotWorkload(calls) {
 
 function sidebarNavigationWorkload(calls) {
   const database = {
+    userPreference: {
+      async findUnique() {
+        calls.preferenceReads += 1
+        return {
+          appSettings: {
+            appBarPosition: "top",
+            sidebarPosition: "right",
+            themeMode: "system",
+            musicVisualizer: {
+              defaultBackgroundId: "aurora",
+              showClock: true,
+              token: "must-not-cross",
+            },
+            onboarding: { primaryRole: "therapist" },
+            soapDraft: "must-not-cross",
+          },
+        }
+      },
+    },
     practiceMembership: {
       async findMany() {
         calls.practiceRoleReads += 1
@@ -104,14 +142,27 @@ function sidebarNavigationWorkload(calls) {
     },
   }
   const compiled = loadCompiledModule(sidebarSource, "components/sidebar/sidebar.workload.test.tsx", {
-    "@/auth": { getCurrentSession: async () => null },
+    "@/auth": {
+      getCurrentSession: async () => {
+        calls.authSnapshots += 1
+        return {
+          user: {
+            id: "workload-user",
+            name: "Workload Test",
+            email: "workload@example.test",
+            featureKeys: ["calendar_basic"],
+          },
+        }
+      },
+    },
     "@/components/sidebar/app-sidebar-client": { AppSidebarClient: () => null },
-    "@/lib/account-preferences": { canSyncAccountPreferences: () => false },
+    "@/lib/account-preferences": { canSyncAccountPreferences: () => true },
+    "@/lib/account-shell-bootstrap": { projectAccountShellAppSettings },
     "@/lib/membership": { FEATURE_KEYS: { therapistDocumentationTools: "therapist_documentation_tools" } },
     "@/lib/navigation": { resolveNavigation: (context) => context },
     "@/lib/prisma": { prisma: database },
   })
-  return { database, getSidebarNavigationContext: compiled.getSidebarNavigationContext }
+  return { getAppSidebarData: compiled.getAppSidebarData }
 }
 
 function membershipSummary() {
@@ -222,6 +273,13 @@ function portalPost(calls) {
 }
 
 describe("family-and-friends server workload baseline", () => {
+  it("keeps the shared display catalog out of membership, entitlement, and customer authority", () => {
+    assert.match(pricingPageSource, /import\s*\{\s*getMembershipPricingCatalog\s*\}\s*from\s*["']@\/lib\/membership-pricing["']/)
+    assert.match(accountSurfaceDataSource, /import\s*\{\s*getMembershipPricingCatalog\s*\}\s*from\s*["']\.\/membership-pricing\.js["']/)
+    assert.doesNotMatch(membershipSource, /membership-pricing(?:\.js)?["']/)
+    assert.doesNotMatch(stripeBillingSource, /membership-pricing(?:\.js)?["']/)
+  })
+
   it("locks the ordinary verified-auth and signed-in sidebar call counts", async () => {
     const authRefresh = namedFunctionSlice(
       authUsersSource,
@@ -232,29 +290,81 @@ describe("family-and-friends server workload baseline", () => {
       authRefresh,
       /ensureVerifiedUserBackgroundCredits\s*\(/g,
     )
-    const authCalls = { userGraphReads: 0, temporaryGrantReads: 0 }
+    const authCalls = { userGraphReads: 0, temporaryGrantReads: 0, entitlementBuilds: 0 }
     const authWorkload = authSnapshotWorkload(authCalls)
     const authState = await authWorkload.getUserAuthState(
       "workload-user",
       authWorkload.database,
       authWorkload.loadTemporaryGrants,
     )
-    const sidebarCalls = { entitlementReads: 0, practiceRoleReads: 0 }
+    const sidebarCalls = {
+      authSnapshots: 0,
+      preferenceReads: 0,
+      practiceRoleReads: 0,
+      entitlementReads: 0,
+      clientBootstrapEndpointRequests: 0,
+      commerceSnapshotLoads: 0,
+    }
     const sidebarWorkload = sidebarNavigationWorkload(sidebarCalls)
-    assert.equal(typeof sidebarWorkload.getSidebarNavigationContext, "function")
-    const navigationContext = await sidebarWorkload.getSidebarNavigationContext({
-      id: "workload-user",
-      featureKeys: authState.featureKeys,
-      capabilities: authState.capabilities,
-    }, sidebarWorkload.database)
+    assert.equal(typeof sidebarWorkload.getAppSidebarData, "function")
+    const shell = await sidebarWorkload.getAppSidebarData()
+    if (shell.accountBootstrap?.preferenceStatus !== "ready") {
+      sidebarCalls.clientBootstrapEndpointRequests += 1
+    }
+
+    const logicalOrmOperations = (
+      authCalls.userGraphReads
+      + authCalls.temporaryGrantReads
+      + sidebarCalls.preferenceReads
+      + sidebarCalls.practiceRoleReads
+    )
 
     assert.equal(backgroundCreditProvisionerCalls, 0)
-    assert.deepEqual(authCalls, { userGraphReads: 1, temporaryGrantReads: 1 })
-    assert.deepEqual(sidebarCalls, { entitlementReads: 0, practiceRoleReads: 1 })
-    assert.deepEqual(navigationContext.featureKeys, ["calendar_basic"])
+    assert.deepEqual(authCalls, {
+      userGraphReads: 1,
+      temporaryGrantReads: 1,
+      entitlementBuilds: 1,
+    })
+    assert.deepEqual(sidebarCalls, {
+      authSnapshots: 1,
+      preferenceReads: 1,
+      practiceRoleReads: 1,
+      entitlementReads: 0,
+      clientBootstrapEndpointRequests: 0,
+      commerceSnapshotLoads: 0,
+    })
+    assert.equal(logicalOrmOperations, 4)
+    assert.match(backgroundCommerceProviderSource, /const ensureSnapshot/)
+    assert.doesNotMatch(
+      backgroundCommerceProviderSource,
+      /Account state must load even when there is no guest intent/,
+    )
+    assert.match(layoutWrapperSource, /ownerKey=\{ownerKey\}/)
+    assert.deepEqual(shell.navigation.featureKeys, authState.featureKeys)
+    assert.deepEqual(shell.accountBootstrap, {
+      ownerKey: "workload-user",
+      syncEnabled: true,
+      preferenceStatus: "ready",
+      appSettings: {
+        app: {
+          appBarPosition: "top",
+          sidebarPosition: "right",
+          sidebarTriggerPosition: "top",
+          ambientMotionMode: "system",
+          themeMode: "system",
+          hapticFeedbackEnabled: true,
+        },
+        musicVisualizer: {
+          defaultBackgroundId: "aurora",
+          showClock: true,
+        },
+      },
+      hasPracticeMembership: false,
+    })
     console.log(`verified auth refresh: background-credit provisioner calls = ${backgroundCreditProvisionerCalls}`)
-    console.log(`verified auth refresh: user graph reads = ${authCalls.userGraphReads}; temporary-grant reads = ${authCalls.temporaryGrantReads}`)
-    console.log(`signed-in sidebar: separate membership entitlement loads = ${sidebarCalls.entitlementReads}; practice-role reads = ${sidebarCalls.practiceRoleReads}`)
+    console.log(`ordinary signed-in shell: auth snapshots = ${sidebarCalls.authSnapshots}; auth user graph reads = ${authCalls.userGraphReads}; temporary-grant reads = ${authCalls.temporaryGrantReads}; entitlement builds = ${authCalls.entitlementBuilds}`)
+    console.log(`ordinary signed-in shell: preference reads = ${sidebarCalls.preferenceReads}; practice-role reads = ${sidebarCalls.practiceRoleReads}; separate membership entitlement loads = ${sidebarCalls.entitlementReads}; logical ORM operations = ${logicalOrmOperations}`)
+    console.log(`ordinary signed-in shell: client bootstrap endpoint requests = ${sidebarCalls.clientBootstrapEndpointRequests}; commerce snapshot loads = ${sidebarCalls.commerceSnapshotLoads}`)
   })
 
   it("loads one persisted membership return summary without Stripe", async () => {

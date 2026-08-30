@@ -8,6 +8,7 @@ import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { resolveNormalizedUserId } from "@/lib/normalized-user-email"
 import { isGoogleIdentityUniqueConstraint } from "@/lib/prisma-identity-unique-constraint"
 import { prisma } from "@/lib/prisma"
+import { getPublicLaunchControls } from "@/lib/public-launch-controls"
 
 export const AUTH_METHOD_INTENT_COOKIE = "ml-auth-method-binding"
 
@@ -21,6 +22,7 @@ type EnsureRole = (userId: string, email: string | null, database: Prisma.Transa
 export type GoogleAuthenticationDecision =
   | { kind: "CONTINUE"; userId: string; created?: boolean }
   | { kind: "LINK_REQUIRED"; userId: string }
+  | { kind: "REGISTRATION_PAUSED" }
   | { kind: "REAUTH_COMPLETE"; purpose: Exclude<GoogleIntentPurpose, "SIGN_IN_OR_LINK">; userId: string }
   | { kind: "REJECTED"; recoveryPath: GoogleRecoveryPath }
 
@@ -248,6 +250,12 @@ export async function prepareGoogleAuthentication({
       return proved.count === 1
         ? { kind: "LINK_REQUIRED" as const, userId: userByEmail.id }
         : rejected(purpose, currentSessionUser)
+    }
+
+    // Existing provider and same-email owners resolve above. Only the new
+    // identity branch observes the server-owned public registration pause.
+    if (!getPublicLaunchControls().registrationOpen) {
+      return { kind: "REGISTRATION_PAUSED" as const }
     }
 
     const user = await tx.user.create({

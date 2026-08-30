@@ -63,23 +63,24 @@ describe("development Clock review route", () => {
       /process\.env\.NODE_ENV !== "production" && !getAuthSecret\(\)[\s\S]*return Promise\.resolve\(null\)/,
     )
     assert.match(authSource, /return auth\(\)/)
-    assert.match(layoutSource, /<MusicProvider accountSyncEnabled=\{canSyncAccountSettings\}>/)
+    assert.match(layoutSource, /<AccountShellBootstrapProvider/)
+    assert.match(layoutSource, /key=\{accountBootstrap\.ownerKey \?\? "anonymous"\}/)
+    assert.match(layoutSource, /<MusicProvider>/)
+    assert.doesNotMatch(layoutSource, /accountSyncEnabled/)
+    assert.match(musicProviderSource, /useAccountShellBootstrap/)
     assert.match(
       musicProviderSource,
-      /if \(!accountSyncEnabled\) \{[\s\S]*setAccountStatus\("anonymous"\)[\s\S]*return[\s\S]*void syncVisualizerAccountPreferences\(\)/,
+      /bootstrapStatus === "anonymous"[\s\S]*setAccountStatus\("anonymous"\)/,
     )
     assert.match(
       musicProviderSource,
-      /if \(!accountSyncEnabled\) \{[\s\S]*accountRequestIdRef\.current \+= 1[\s\S]*accountAbortControllerRef\.current\?\.abort\(\)/,
+      /accountRequestIdRef\.current \+= 1[\s\S]*accountAbortControllerRef\.current\?\.abort\(\)[\s\S]*ownerKey/,
     )
     assert.match(
       musicProviderSource,
-      /const persistVisualizerAccountPreferences = useCallback\([\s\S]*?if \(!accountSyncEnabled\) \{[\s\S]*?return[\s\S]*?\}/,
+      /const persistVisualizerAccountPreferences = useCallback\([\s\S]*?if \(!syncEnabled \|\| !ownerKey\) \{[\s\S]*?return[\s\S]*?\}/,
     )
-    assert.match(
-      musicProviderSource,
-      /const syncVisualizerAccountPreferences = useCallback\([\s\S]*?if \(!accountSyncEnabled\) \{[\s\S]*?return[\s\S]*?\}/,
-    )
+    assert.doesNotMatch(musicProviderSource, /syncVisualizerAccountPreferences/)
     assert.match(wrapperSource, /pathname === "\/dev\/clock"/)
   })
 })

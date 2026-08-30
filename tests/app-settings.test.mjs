@@ -16,7 +16,29 @@ import {
   shouldExpandSidebarFromRail,
 } from "../lib/sidebar-layout.js"
 
+const settingsProviderSource = readFileSync(
+  new URL("../components/providers/settings-provider.tsx", import.meta.url),
+  "utf8",
+)
+const rootLayoutSource = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8")
+
 describe("App settings helpers", () => {
+  it("hydrates from the shared shell bootstrap and retains PUT as its only account request", () => {
+    assert.match(settingsProviderSource, /useAccountShellBootstrap/)
+    assert.equal((settingsProviderSource.match(/\/api\/account\/preferences/g) ?? []).length, 1)
+    assert.match(settingsProviderSource, /appSettings\.app/)
+    assert.doesNotMatch(settingsProviderSource, /syncEnabled\?: boolean/)
+    assert.match(settingsProviderSource, /localStorage\.getItem\("massage-lab-settings"\)/)
+    assert.match(settingsProviderSource, /body: JSON\.stringify\(\{ appSettings: updated \}\)/)
+  })
+
+  it("lets the shared bootstrap own Settings and Music account enablement", () => {
+    assert.match(rootLayoutSource, /<SettingsProvider>/)
+    assert.match(rootLayoutSource, /<MusicProvider>/)
+    assert.doesNotMatch(rootLayoutSource, /<SettingsProvider syncEnabled=/)
+    assert.doesNotMatch(rootLayoutSource, /<MusicProvider accountSyncEnabled=/)
+  })
+
   it("uses a single theme toggle across app bar layouts", () => {
     const source = readFileSync(new URL("../components/theme-switcher-multi-button.tsx", import.meta.url), "utf8")
 

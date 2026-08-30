@@ -11,17 +11,19 @@ import { Label } from "@/components/ui/label"
 import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-registration-service"
 import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
 import { legalDocumentAcceptanceId, requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
+import { REGISTRATION_PAUSED_MESSAGE } from "@/lib/public-launch-controls"
 
 const REGISTRATION_REQUEST_FAILED_MESSAGE = "We could not create your account right now. Please try again."
 
 type RegisterFormProps = {
   googleEnabled: boolean
   initialCallbackUrl: string
+  registrationOpen: boolean
 }
 
 type ActiveSubmission = "email" | "google" | null
 
-export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterFormProps) {
+export function RegisterForm({ googleEnabled, initialCallbackUrl, registrationOpen }: RegisterFormProps) {
   const registrationDocuments = requiredLegalDocumentsForEvent("registration")
   const googleRedirectTo = buildRegistrationLegalProviderRedirectPath(initialCallbackUrl)
   const loginHref = `/login?callbackUrl=${encodeURIComponent(initialCallbackUrl)}`
@@ -126,12 +128,18 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       }
       contentClassName="gap-5"
     >
+      {!registrationOpen ? (
+        <AppInset className="p-3 text-sm text-muted-foreground">
+          <p role="status">{REGISTRATION_PAUSED_MESSAGE}</p>
+        </AppInset>
+      ) : null}
+
       {googleEnabled ? (
         <AsyncActionButton
           type="button"
           variant="outline"
           className="w-full"
-          disabled={activeSubmission !== null}
+          disabled={!registrationOpen || activeSubmission !== null}
           pending={activeSubmission === "google"}
           idleLabel="Continue with Google"
           pendingLabel="Connecting to Google…"
@@ -147,15 +155,15 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
-          <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
+          <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" disabled={!registrationOpen} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
+          <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required disabled={!registrationOpen} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={12} required />
+          <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={12} required disabled={!registrationOpen} />
         </div>
         <p className="text-sm text-muted-foreground">
           If you use a matching email for an existing MassageLab sign-in, we keep it with the same account and send the safe next step to that inbox.
@@ -172,6 +180,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
                   checked={acceptedLegalDocuments.includes(documentId)}
                   onChange={(event) => toggleLegalDocument(documentId, event.target.checked)}
                   required
+                  disabled={!registrationOpen}
                 />
                 <span>
                   I agree to the{" "}
@@ -187,7 +196,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
         <AsyncActionButton
           type="submit"
           className="w-full"
-          disabled={activeSubmission !== null}
+          disabled={!registrationOpen || activeSubmission !== null}
           pending={activeSubmission === "email"}
           idleLabel="Create account with email"
           pendingLabel="Creating account…"

@@ -18,7 +18,7 @@ import {
   serializeAtmosphereStorage,
 } from "@/lib/atmosphere/storage"
 import { BACKGROUND_STORAGE_KEYS } from "@/lib/background-options"
-import { canSyncAccountPreferencesFromSession } from "@/lib/account-preferences"
+import { useAccountShellBootstrap } from "@/components/providers/account-shell-bootstrap-provider"
 import { fetchWithTimeout } from "@/lib/client-fetch"
 import { startAbortableGenerativeFmPrewarm } from "@/lib/atmosphere/generative-fm-provider"
 import {
@@ -483,13 +483,14 @@ const defaultMusicContext: MusicContextType = {
 
 const MusicContext = createContext<MusicContextType>(defaultMusicContext)
 
-export function MusicProvider({
-  children,
-  accountSyncEnabled = true,
-}: {
-  children: ReactNode
-  accountSyncEnabled?: boolean
-}) {
+export function MusicProvider({ children }: { children: ReactNode }) {
+  const {
+    ownerKey,
+    syncEnabled,
+    status: bootstrapStatus,
+    appSettings: bootstrapAppSettings,
+    retryFallback,
+  } = useAccountShellBootstrap()
   const [activePlaybackKind, setActivePlaybackKind] = useState<PlaybackKind>(null)
   const [activeStationId, setActiveStationId] = useState<string | null>(null)
   const [activeStationTitle, setActiveStationTitle] = useState<string | null>(null)
@@ -823,7 +824,7 @@ export function MusicProvider({
   ) => {
     // Local-only routes disable account sync, which must block account-backed writes
     // even when a public provider callback is invoked after the route changes.
-    if (!accountSyncEnabled) {
+    if (!syncEnabled || !ownerKey) {
       return
     }
 
@@ -880,90 +881,7 @@ export function MusicProvider({
       setAccountStatus("error")
       setAccountError("Music visualizer preferences could not be saved. Try again.")
     }
-  }, [accountSyncEnabled, beginAccountRequest])
-
-  const syncVisualizerAccountPreferences = useCallback(async () => {
-    // Local-only routes must not perform either the session read or preferences read.
-    if (!accountSyncEnabled) {
-      return
-    }
-
-    const { controller, requestId } = beginAccountRequest()
-    accountSyncVerifiedRef.current = false
-    accountPreferencesHydratedRef.current = false
-    setAccountSignedIn(false)
-    setAccountStatus("loading")
-    setAccountError(null)
-
-    try {
-      const sessionResponse = await fetchWithTimeout("/api/auth/session", {
-        signal: controller.signal,
-      })
-      if (!sessionResponse.ok) {
-        throw new Error("Music visualizer account status could not be verified.")
-      }
-      const session = await sessionResponse.json().catch(() => null)
-
-      if (!isMountedRef.current || requestId !== accountRequestIdRef.current) {
-        return
-      }
-
-      if (!canSyncAccountPreferencesFromSession(session)) {
-        accountDefaultBackgroundIdRef.current = null
-        pendingAccountDefaultBackgroundIdRef.current = null
-        failedAccountPayloadRef.current = null
-        setAccountDefaultBackgroundId(null)
-        setAccountStatus("anonymous")
-        setAccountError(null)
-        setAccountSignedIn(false)
-        return
-      }
-
-      accountSyncVerifiedRef.current = true
-      setAccountSignedIn(true)
-      const response = await fetchWithTimeout("/api/account/preferences", {
-        signal: controller.signal,
-      })
-      if (!response.ok) {
-        throw new Error("Music visualizer preferences could not be loaded.")
-      }
-
-      const responsePayload = await response.json().catch(() => null)
-      if (!isMountedRef.current || requestId !== accountRequestIdRef.current) {
-        return
-      }
-
-      const accountPreferences = readMusicVisualizerAccountPreferences(responsePayload)
-        ?? normalizeMusicVisualizerAccountPreferences(null)
-      accountPreferencesHydratedRef.current = true
-      accountDefaultBackgroundIdRef.current = accountPreferences.defaultBackgroundId
-      pendingAccountDefaultBackgroundIdRef.current = null
-      failedAccountPayloadRef.current = null
-      setAccountDefaultBackgroundId(accountPreferences.defaultBackgroundId)
-      setStorageState((current) => {
-        return {
-          ...current,
-          visualizer: {
-            ...current.visualizer,
-            showClock: accountPreferences.showClock,
-          },
-        }
-      })
-      setAccountStatus("synced")
-      setAccountError(null)
-    } catch (caughtError) {
-      if (
-        isAbortError(caughtError)
-        || !isMountedRef.current
-        || requestId !== accountRequestIdRef.current
-      ) {
-        return
-      }
-
-      setAccountStatus("error")
-      setAccountError("Music visualizer preferences could not be loaded. Try again.")
-    }
-  }, [accountSyncEnabled, beginAccountRequest])
+  }, [beginAccountRequest, ownerKey, syncEnabled])
 
   // Browser media ownership is provider-scoped so route changes reuse one
   // carrier and one set of notification handlers.
@@ -1088,25 +1006,61 @@ export function MusicProvider({
       return
     }
 
-    if (!accountSyncEnabled) {
-      // Aborting transport is not enough: invalidate every continuation that
-      // already passed an abort boundary before local-only mode took effect.
-      accountRequestIdRef.current += 1
-      accountAbortControllerRef.current?.abort()
-      accountSyncVerifiedRef.current = false
-      accountPreferencesHydratedRef.current = false
-      accountDefaultBackgroundIdRef.current = null
-      pendingAccountDefaultBackgroundIdRef.current = null
-      failedAccountPayloadRef.current = null
-      setAccountDefaultBackgroundId(null)
+    // Reset ownership before adopting any new account projection. Aborting the
+    // transport plus advancing the generation keeps late PUT continuations stale.
+    accountRequestIdRef.current += 1
+    accountAbortControllerRef.current?.abort()
+    accountAbortControllerRef.current = null
+    accountSyncVerifiedRef.current = false
+    accountPreferencesHydratedRef.current = false
+    accountDefaultBackgroundIdRef.current = null
+    pendingAccountDefaultBackgroundIdRef.current = null
+    failedAccountPayloadRef.current = null
+    setAccountDefaultBackgroundId(null)
+    setAccountError(null)
+    setAccountSignedIn(false)
+
+    if (bootstrapStatus === "anonymous" || !syncEnabled || !ownerKey) {
       setAccountStatus("anonymous")
-      setAccountError(null)
-      setAccountSignedIn(false)
       return
     }
 
-    void syncVisualizerAccountPreferences()
-  }, [accountSyncEnabled, storageHydrated, syncVisualizerAccountPreferences])
+    // A projected owner is already server-authenticated even when its shared
+    // preference fallback failed, so explicit PUTs and fallback retry remain usable.
+    accountSyncVerifiedRef.current = true
+    setAccountSignedIn(true)
+
+    if (bootstrapStatus !== "ready") {
+      setAccountStatus(bootstrapStatus === "failed" ? "error" : "loading")
+      setAccountError(
+        bootstrapStatus === "failed"
+          ? "Music visualizer preferences could not be loaded. Try again."
+          : null,
+      )
+      return
+    }
+
+    const accountPreferences = normalizeMusicVisualizerAccountPreferences(
+      bootstrapAppSettings.musicVisualizer,
+    )
+    accountPreferencesHydratedRef.current = true
+    accountDefaultBackgroundIdRef.current = accountPreferences.defaultBackgroundId
+    setAccountDefaultBackgroundId(accountPreferences.defaultBackgroundId)
+    setStorageState((current) => ({
+      ...current,
+      visualizer: {
+        ...current.visualizer,
+        showClock: accountPreferences.showClock,
+      },
+    }))
+    setAccountStatus("synced")
+  }, [
+    bootstrapAppSettings.musicVisualizer,
+    bootstrapStatus,
+    ownerKey,
+    storageHydrated,
+    syncEnabled,
+  ])
 
   // Keep only the current owner's master output in sync with saved volume.
   // An inactive graph must never be woken or adjusted by preference hydration.
@@ -2859,8 +2813,10 @@ export function MusicProvider({
       return
     }
 
-    await syncVisualizerAccountPreferences()
-  }, [persistVisualizerAccountPreferences, syncVisualizerAccountPreferences])
+    if (bootstrapStatus === "failed") {
+      await retryFallback()
+    }
+  }, [bootstrapStatus, persistVisualizerAccountPreferences, retryFallback])
 
   const getPlaybackDiagnostics = useCallback(() => (
     runtimeRef.current?.getToneProofDroneDiagnostics() ?? null

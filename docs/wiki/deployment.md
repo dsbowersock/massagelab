@@ -48,6 +48,82 @@ SMTP_PASSWORD=
 SMTP_FROM=MassageLab <no-reply@massagelab.app>
 ```
 
+## Family-And-Friends Launch Cost Controls
+
+Use these independent, server-enforced emergency pause controls for a sharing
+window:
+
+```text
+MASSAGELAB_PUBLIC_REGISTRATION_PAUSED=false
+MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED=false
+```
+
+Only the exact lowercase value `true` pauses its path. An absent flag, `false`,
+or any other value leaves that path open, and changing one flag does not change
+the other. A registration pause blocks only new account creation; existing
+email/password and Google login, verification, password reset, and account
+recovery remain available. A Supporter Checkout pause blocks only new
+membership Checkout; existing subscriptions, feature-key entitlements,
+membership status, and billing Portal access remain available. The server is
+the enforcement boundary; disabled client controls and pause copy are only the
+user-facing explanation.
+
+Capture each local route-timing receipt from a fresh Production build with:
+
+```bash
+npm run readiness:timing-receipt -- --base-url=http://127.0.0.1:3010 --samples=3
+```
+
+The `first` sample for each route is only the first measured sample for that
+route after the fresh Production server passes readiness. It is not proof of a
+provider or platform cold start; subsequent samples for that route are `warm`.
+Compare baseline and final receipts only when they use the same machine,
+loopback port, sample count, and environment shape.
+
+The repeatable server-workload receipt records these exact dependency-call
+boundaries:
+
+| Workload | Baseline | Final |
+| --- | --- | --- |
+| Verified auth refresh | Background-credit provisioner calls: `1` | Background-credit provisioner calls: `0` |
+| Signed-in sidebar | Separate membership entitlement loads: `1` | Separate membership entitlement loads: `0` |
+| Membership status read | Persisted summary loads: `1`; Stripe calls: `0` | Persisted summary loads: `1`; Stripe calls: `0` |
+| Valid explicit Checkout | Checkout-session creates: `1`; tested launch/pricing render Checkout-session creates: `0` | Checkout-session creates: `1`; tested launch/pricing render Checkout-session creates: `0` |
+| Valid explicit Portal action | Portal-session creates: `1`; tested launch/pricing render Portal-session creates: `0` | Portal-session creates: `1`; tested launch/pricing render Portal-session creates: `0` |
+
+Ordinary verified auth refresh must not open a credit-provisioning transaction,
+and sidebar navigation must reuse feature keys already carried in the session.
+Calendar context remains deferred behind its authenticated endpoint rather than
+the global layout. The tested launch/pricing ordinary-render slice creates zero
+Checkout sessions and zero Portal sessions. This workload does not establish
+site-wide absence of Stripe or email calls; Admin Billing preview is outside
+this row, and provider-wide/email render verification remains `NOT RUN`.
+
+The deployed exact commit needs a separate read-only Vercel aggregate that
+distinguishes observed platform cold-start latency from warm invocation
+latency. When the platform cannot expose that distinction, record the cold row
+as `NOT RUN`; never infer it from the local `first` sample.
+
+Before a sharing window, review these provider surfaces read-only and retain
+only aggregate, count, or status evidence without identifiers or secret values:
+
+- Neon: confirm the runtime uses the pooled host, then review connection,
+  compute, and transfer graphs.
+- Vercel: confirm the exact deployed commit, then review usage, invocation
+  latency, error rates, and WAF Log mode.
+- SMTP: review send volume plus bounce, complaint, suppression, and delivery
+  health without sending a message.
+- Stripe: review webhook delivery failures without creating a Checkout,
+  payment, event, replay, refund, cancellation, or Portal session.
+- Cloudflare R2: review the public custom-domain cache headers and aggregate
+  Class A/Class B operation counts without changing or enumerating objects.
+- Sentry: review quota use and the approved privacy posture without exposing
+  event or user identifiers.
+
+These checks do not authorize an environment, provider, WAF, cache, quota,
+alert, billing, or privacy-setting change. Authorize every such change
+separately from its read-only review.
+
 ## Identity, Membership Schema, And Writer Rollout
 
 Do not print auth, database, OAuth, SMTP, target, or fingerprint configuration values in release evidence. The combined rollout is expand, pause/cut over, drain, unpause, and only then clean up:

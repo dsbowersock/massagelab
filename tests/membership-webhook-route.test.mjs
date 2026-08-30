@@ -19,10 +19,19 @@ const routeSource = readFileSync(
   new URL("../app/api/billing/webhook/route.ts", import.meta.url),
   "utf8",
 )
+const membershipWebhookServiceSource = readFileSync(
+  new URL("../lib/membership-webhook-service.ts", import.meta.url),
+  "utf8",
+)
 const envExample = readFileSync(new URL("../.env.example", import.meta.url), "utf8")
 const MEMBERSHIP_WRITES_PAUSED_ENV = "MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED"
 
 describe("signed membership webhook route", () => {
+  it("keeps the cached display catalog outside webhook convergence authority", () => {
+    assert.doesNotMatch(routeSource, /membership-pricing(?:\.js)?["']/)
+    assert.doesNotMatch(membershipWebhookServiceSource, /membership-pricing(?:\.js)?["']/)
+  })
+
   it("verifies the exact raw body and signature before parsing or writing", async () => {
     const harness = createWebhookHarness({ signatureValid: false })
     const rawBody = "{not-valid-json"

@@ -107,6 +107,10 @@ function portalPost({
 }
 
 describe("Customer Portal POST route", () => {
+  it("keeps the cached display catalog outside Portal customer and subscription authority", () => {
+    assert.doesNotMatch(portalRouteSource, /membership-pricing(?:\.js)?["']/)
+  })
+
   it("opens the general billing-account Portal without querying a subscription", async () => {
     const { calls, POST } = portalPost()
 

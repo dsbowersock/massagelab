@@ -38,19 +38,33 @@ describe("Music visualizer provider contract", () => {
     ]) assert.match(providerSource, contract)
   })
 
-  it("verifies the session before account sync and guards stale responses", () => {
-    const syncStart = providerSource.indexOf("const syncVisualizerAccountPreferences")
-    const syncSource = providerSource.slice(syncStart, providerSource.indexOf("// Keep the provider mounted", syncStart))
-    const sessionRequest = syncSource.indexOf('"/api/auth/session"')
-    const preferencesRequest = syncSource.indexOf('"/api/account/preferences"')
-    assert.notEqual(syncStart, -1)
-    assert.notEqual(sessionRequest, -1)
-    assert.notEqual(preferencesRequest, -1)
-    assert.ok(sessionRequest < preferencesRequest)
-    assert.match(providerSource, /canSyncAccountPreferencesFromSession/)
+  it("consumes one owner-keyed shell bootstrap and keeps PUT as its only account request", () => {
+    assert.doesNotMatch(providerSource, /\/api\/auth\/session/)
+    assert.equal((providerSource.match(/\/api\/account\/preferences/g) ?? []).length, 1)
+    assert.match(providerSource, /useAccountShellBootstrap/)
     assert.match(providerSource, /normalizeMusicVisualizerAccountPreferences/)
     assert.match(providerSource, /accountRequestIdRef/)
     assert.match(providerSource, /appSettings:\s*{[\s\S]*musicVisualizer/)
+  })
+
+  it("invalidates old-owner writes before adopting the next bootstrap projection", () => {
+    assert.match(
+      providerSource,
+      /useEffect\(\(\) => \{[\s\S]*accountRequestIdRef\.current \+= 1[\s\S]*accountAbortControllerRef\.current\?\.abort\(\)[\s\S]*failedAccountPayloadRef\.current = null[\s\S]*setAccountDefaultBackgroundId\(null\)[\s\S]*ownerKey/,
+    )
+    assert.match(providerSource, /if \(bootstrapStatus !== "ready"\)[\s\S]*return[\s\S]*normalizeMusicVisualizerAccountPreferences/)
+    assert.match(providerSource, /accountDefaultBackgroundIdRef\.current = accountPreferences\.defaultBackgroundId/)
+  })
+
+  it("retries the exact failed write before delegating a failed bootstrap retry", () => {
+    const retryStart = providerSource.indexOf("const retryVisualizerAccountSync")
+    const retrySource = providerSource.slice(retryStart, providerSource.indexOf("const getPlaybackDiagnostics", retryStart))
+    assert.notEqual(retryStart, -1)
+    assert.match(
+      retrySource,
+      /failedAccountPayloadRef\.current[\s\S]*persistVisualizerAccountPreferences\(failedPayload\)[\s\S]*return/,
+    )
+    assert.match(retrySource, /bootstrapStatus === "failed"[\s\S]*retryFallback\(\)/)
   })
 
   it("carries a pending default through a newer show-clock save", () => {
@@ -219,15 +233,11 @@ describe("Persistent player visualizer boundary", () => {
 })
 
 describe("Music visualizer account timeout boundary", () => {
-  it("surfaces timeout failures as retryable account errors", () => {
+  it("surfaces failed writes as retryable account errors", () => {
     assert.match(providerSource, /function isAbortError[\s\S]*error\.name === "AbortError"/)
     assert.match(
       providerSource,
       /failedAccountPayloadRef\.current = payload[\s\S]*setAccountStatus\("error"\)[\s\S]*Try again/,
-    )
-    assert.match(
-      providerSource,
-      /setAccountStatus\("error"\)[\s\S]*preferences could not be loaded\. Try again/,
     )
   })
 })

@@ -49,6 +49,9 @@ async function renderPricingPage() {
         resolveMembershipPricingMode: () => "auth",
       },
       "@/lib/membership-pricing": { getMembershipPricingCatalog: async () => ({}) },
+      "@/lib/public-launch-controls": {
+        getPublicLaunchControls: () => ({ registrationOpen: true, supporterCheckoutOpen: true }),
+      },
       "@/lib/prisma": { prisma: {} },
       "@/components/membership/pricing-cards": { MembershipPricingCards: Div },
       "@/components/forms/pending-submission-form": {

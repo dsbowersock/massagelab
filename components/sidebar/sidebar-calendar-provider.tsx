@@ -22,6 +22,19 @@ type SidebarCalendarProviderValue = {
   refreshCalendarContext: () => void
 }
 
+type LoadSidebarCalendarContext = (input: {
+  ownerKey: string
+  signal: AbortSignal
+}) => Promise<SidebarCalendarContext>
+
+type SidebarCalendarCoordinator = {
+  adopt: (owner: { ownerKey: string | null, enabled: boolean }) => Promise<void>
+  dispose: () => void
+  getValue: () => SidebarCalendarContext
+  refresh: () => Promise<void>
+  subscribe: (listener: (value: SidebarCalendarContext) => void) => () => void
+}
+
 const defaultCalendarContext = emptySidebarCalendarContext as SidebarCalendarContext
 
 const SidebarCalendarContextValue = React.createContext<SidebarCalendarProviderValue>({
@@ -29,48 +42,133 @@ const SidebarCalendarContextValue = React.createContext<SidebarCalendarProviderV
   refreshCalendarContext: () => undefined,
 })
 
+async function loadSidebarCalendarContext({ signal }: { signal: AbortSignal }) {
+  const response = await fetch("/api/calendar/sidebar-context", {
+    method: "GET",
+    cache: "no-store",
+    credentials: "same-origin",
+    headers: { accept: "application/json" },
+    signal,
+  })
+  return response.ok
+    ? await response.json() as SidebarCalendarContext
+    : defaultCalendarContext
+}
+
+/** Owns cancellation and stale-owner rejection for the practice-only sidebar read. */
+export function createSidebarCalendarCoordinator({
+  initialContext = defaultCalendarContext,
+  initialEnabled,
+  initialOwnerKey,
+  loadContext = loadSidebarCalendarContext,
+}: {
+  initialContext?: SidebarCalendarContext
+  initialEnabled: boolean
+  initialOwnerKey: string | null
+  loadContext?: LoadSidebarCalendarContext
+}): SidebarCalendarCoordinator {
+  let calendarContext = initialContext
+  let ownerKey = initialOwnerKey
+  let enabled = initialEnabled
+  let generation = 0
+  let controller: AbortController | null = null
+  const listeners = new Set<(value: SidebarCalendarContext) => void>()
+
+  function publish(value: SidebarCalendarContext) {
+    calendarContext = value
+    for (const listener of listeners) listener(calendarContext)
+  }
+
+  function startLoad({ reset }: { reset: boolean }): Promise<void> {
+    generation += 1
+    controller?.abort()
+    controller = null
+    if (reset) publish(defaultCalendarContext)
+    if (!ownerKey || !enabled) return Promise.resolve()
+
+    const requestOwnerKey = ownerKey
+    const requestGeneration = generation
+    const requestController = new AbortController()
+    controller = requestController
+
+    return loadContext({ ownerKey: requestOwnerKey, signal: requestController.signal })
+      .then((nextContext) => {
+        if (
+          requestController.signal.aborted
+          || requestGeneration !== generation
+          || ownerKey !== requestOwnerKey
+        ) return
+        publish(nextContext)
+      })
+      .catch(() => {
+        if (
+          requestController.signal.aborted
+          || requestGeneration !== generation
+          || ownerKey !== requestOwnerKey
+        ) return
+        publish(defaultCalendarContext)
+      })
+      .finally(() => {
+        if (controller === requestController) controller = null
+      })
+  }
+
+  return {
+    adopt(nextOwner) {
+      ownerKey = nextOwner.ownerKey
+      enabled = nextOwner.enabled
+      return startLoad({ reset: true })
+    },
+    dispose() {
+      generation += 1
+      controller?.abort()
+      controller = null
+      listeners.clear()
+    },
+    getValue() {
+      return calendarContext
+    },
+    refresh() {
+      return startLoad({ reset: false })
+    },
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+  }
+}
+
 export function SidebarCalendarProvider({
   children,
   enabled,
+  ownerKey,
   initialContext = defaultCalendarContext,
 }: {
   children: React.ReactNode
   enabled: boolean
+  ownerKey: string | null
   initialContext?: SidebarCalendarContext
 }) {
-  const [calendarContext, setCalendarContext] = React.useState<SidebarCalendarContext>(initialContext)
-  const [reloadToken, setReloadToken] = React.useState(0)
+  const [coordinator] = React.useState(() => createSidebarCalendarCoordinator({
+    initialContext,
+    initialEnabled: enabled,
+    initialOwnerKey: ownerKey,
+  }))
+  const [calendarContext, setCalendarContext] = React.useState<SidebarCalendarContext>(
+    () => coordinator.getValue(),
+  )
 
-  const refreshCalendarContext = React.useCallback(() => {
-    setReloadToken((token) => token + 1)
-  }, [])
+  React.useEffect(() => coordinator.subscribe(setCalendarContext), [coordinator])
 
   React.useEffect(() => {
-    let cancelled = false
+    void coordinator.adopt({ ownerKey, enabled })
+  }, [coordinator, enabled, ownerKey])
 
-    if (!enabled) {
-      setCalendarContext(defaultCalendarContext)
-      return
-    }
+  React.useEffect(() => () => coordinator.dispose(), [coordinator])
 
-    fetch("/api/calendar/sidebar-context")
-      .then((response) => response.ok ? response.json() : defaultCalendarContext)
-      .then((nextCalendarContext) => {
-        if (!cancelled) {
-          setCalendarContext(nextCalendarContext as SidebarCalendarContext)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCalendarContext(defaultCalendarContext)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [enabled, reloadToken])
-
+  const refreshCalendarContext = React.useCallback(() => {
+    void coordinator.refresh()
+  }, [coordinator])
   const value = React.useMemo<SidebarCalendarProviderValue>(() => ({
     calendarContext,
     refreshCalendarContext,

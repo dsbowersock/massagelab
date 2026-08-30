@@ -441,6 +441,24 @@ test("guest cart persists locally and requires an account only at checkout", asy
   await expect(trigger).toHaveCount(0)
 })
 
+test("ordinary signed-in shell defers commerce until a real background consumer mounts", async ({ context, page }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL)
+  const fixture = await installCommerceFixture({ context, page, baseURL })
+
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true }))
+    .toBeAttached()
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("focus"))
+    window.dispatchEvent(new Event("online"))
+  })
+  await page.waitForTimeout(250)
+  expect(fixture.getSnapshotReads()).toBe(0)
+
+  await openClockBackground(page, "/clock?panel=background")
+  await expect.poll(fixture.getSnapshotReads).toBeGreaterThan(0)
+})
+
 test("signed-in cart return marker opens once and is consumed", async ({ context, page }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL)
   await installCommerceFixture({
@@ -889,9 +907,9 @@ test("Music visualizer keeps the shared account cart through minimize and restor
   await expect(restoredPanel.getByRole("region", { name: "Account cart" })).toContainText(AURORA_NAME)
 })
 
-test("global account cart is discoverable off Calendar and opens the shared cart", async ({ context, page }, testInfo) => {
+test("global account cart appears after explicit cart intent and stays hidden on Calendar", async ({ context, page }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL)
-  await installCommerceFixture({
+  const fixture = await installCommerceFixture({
     context,
     page,
     baseURL,
@@ -907,13 +925,16 @@ test("global account cart is discoverable off Calendar and opens the shared cart
   })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   const trigger = page.locator("[data-commerce-cart-trigger]:visible")
-  await expect(trigger).toBeVisible()
-  await expect(trigger).toHaveAccessibleName("Open account cart with 1 item")
-  await trigger.click()
+  await expect(trigger).toHaveCount(0)
+  expect(fixture.getSnapshotReads()).toBe(0)
+
+  await page.goto("/music?commerceCart=open", { waitUntil: "domcontentloaded" })
   const cartDialog = page.getByRole("dialog", { name: "Account cart" })
   await expect(cartDialog).toContainText(AURORA_NAME)
+  await expect(page).toHaveURL(/\/music$/)
   await page.keyboard.press("Escape")
   await expect(cartDialog).toHaveCount(0)
+  await expect(trigger).toHaveAccessibleName("Open account cart with 1 item")
 
   await page.evaluate(() => {
     window.history.pushState({}, "", "/calendar")

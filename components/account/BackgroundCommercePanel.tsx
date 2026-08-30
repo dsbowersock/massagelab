@@ -192,7 +192,7 @@ export function BackgroundCommercePanel({
   data: BackgroundCommerceAccountData
   subscriberIncludesPremium: boolean
 }) {
-  const { state, openCart } = useBackgroundCommerce()
+  const { state, ensureSnapshot, openCart } = useBackgroundCommerce()
   const live = state.snapshot
   const creditBalance = live?.creditBalance ?? data.creditBalance
   const ownerships = live?.ownerships ?? data.ownerships
@@ -201,6 +201,10 @@ export function BackgroundCommercePanel({
   const activeOwnerships = ownerships.filter((ownership) => ownership.status === "active")
   const inactiveOwnerships = ownerships.filter((ownership) => ownership.status !== "active")
   const hasCart = cart.items.length > 0 || Boolean(cart.reservedOrder)
+  const openAccountCart = () => {
+    void ensureSnapshot()
+    openCart()
+  }
 
   return (
     <div id="background-commerce" className="space-y-5">
@@ -255,7 +259,7 @@ export function BackgroundCommercePanel({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button type="button" onClick={openCart}>Open account cart</Button>
+            <Button type="button" onClick={openAccountCart}>Open account cart</Button>
           </CardContent>
         </Card>
       ) : null}
