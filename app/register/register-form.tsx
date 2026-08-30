@@ -1,14 +1,14 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
-import { signIn } from "next-auth/react"
 import { Mail, ShieldCheck } from "lucide-react"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-registration-service"
+import { startGoogleAuthMethodIntent, useEntryAction } from "@/lib/auth-entry-actions"
+import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-entry-messages"
 import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
 import { legalDocumentAcceptanceId, requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
 
@@ -18,8 +18,6 @@ type RegisterFormProps = {
   googleEnabled: boolean
   initialCallbackUrl: string
 }
-
-type EntryAction = "idle" | "email" | "google"
 
 export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterFormProps) {
   const registrationDocuments = requiredLegalDocumentsForEvent("registration")
@@ -32,20 +30,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
   const [status, setStatus] = useState("")
   const [statusIsError, setStatusIsError] = useState(false)
   const [devLink, setDevLink] = useState("")
-  const [entryAction, setEntryAction] = useState<EntryAction>("idle")
-  const entryActionLock = useRef(false)
-
-  function beginEntryAction(action: Exclude<EntryAction, "idle">) {
-    if (entryActionLock.current) return false
-    entryActionLock.current = true
-    setEntryAction(action)
-    return true
-  }
-
-  function finishEntryAction() {
-    entryActionLock.current = false
-    setEntryAction("idle")
-  }
+  const { entryAction, beginEntryAction, finishEntryAction } = useEntryAction()
 
   function toggleLegalDocument(documentId: string, checked: boolean) {
     setAcceptedLegalDocuments((current) => (
@@ -95,20 +80,15 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
     if (!beginEntryAction("google")) return
     setStatus("")
     setStatusIsError(false)
+    let navigating = false
     try {
-      const response = await fetch("/api/auth/google/intent", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ purpose: "SIGN_IN_OR_LINK", callbackUrl: googleRedirectTo }),
-      })
-      const result = await response.json().catch(() => ({})) as { ok?: boolean; callbackUrl?: string }
-      if (!response.ok || !result.ok || !result.callbackUrl) throw new Error("Google intent unavailable")
-      await signIn("google", { redirectTo: result.callbackUrl })
+      navigating = await startGoogleAuthMethodIntent(googleRedirectTo) === "navigating"
+      setStatus("Taking you to Google…")
     } catch {
       setStatus("Google registration could not be started. Try again or use email and password.")
       setStatusIsError(true)
     } finally {
-      finishEntryAction()
+      if (!navigating) finishEntryAction()
     }
   }
 

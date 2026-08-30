@@ -482,7 +482,7 @@ The fully specified `--force-with-lease="refs/heads/main:$approvedBase"` is the 
 
 - [ ] **Step 5: Re-prove and read back the automatically deployed merge SHA**
 
-Wait for hosted CI on the resulting `main` SHA and rerun Task 2 Steps 1–7—the read-only commands, not its receipt edit/commit—in a clean worktree checked out at that SHA. Read Vercel back until it is READY or failed; require the full deployed Git SHA to equal `origin/main`, the Production migration gate to pass, canonical `massagelab.app`/`www` alias behavior to be healthy, and public launch-route HTTP health to pass. Do not run a second manual deployment, change provider settings, or create a payment/Portal session.
+Wait for hosted CI on the resulting `main` SHA and rerun Task 2 Steps 1–7—the read-only commands, not its receipt edit/commit—in a clean worktree checked out at that SHA. For this post-deploy rerun only, Task 2 Step 1 may report detached HEAD when `git rev-parse HEAD` exactly equals the deployed `origin/main` SHA; otherwise create a temporary local branch at that exact SHA before proceeding, and never accept another branch tip. Read Vercel back until it is READY or failed; require the full deployed Git SHA to equal `origin/main`, the Production migration gate to pass, canonical `massagelab.app`/`www` alias behavior to be healthy, and public launch-route HTTP health to pass. Do not run a second manual deployment, change provider settings, or create a payment/Portal session.
 
 - [ ] **Step 6: Exercise each pause only through its own exact reversible gate**
 

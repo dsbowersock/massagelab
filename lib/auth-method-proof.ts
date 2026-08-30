@@ -33,6 +33,10 @@ type ProofDependencies = {
 
 type ProofPrismaClient = Pick<PrismaClient, "user" | "backupCode" | "authRateLimitBucket" | "$transaction" | "$queryRaw">
 
+// A committed public hash keeps absent-account proof on the same Argon2id cost
+// path as a real password without granting any account access.
+const DUMMY_PASSWORD_HASH = "$argon2id$v=19$m=19456,t=2,p=1$bUFBRG4hL2WSNUbHiLUYsw$6jTrIgK0H7DXwGxU4KepF7eqc/UO/psuEFRjzbcr4Ps"
+
 type VerifyPasswordMethodProofInput = {
   prismaClient?: ProofPrismaClient
   userId?: string
@@ -105,9 +109,11 @@ export async function verifyPasswordMethodProof(
     return { status: "RATE_LIMITED" }
   }
 
-  const passwordIsValid = user?.passwordCredential
-    ? await deps.verifyPassword(user.passwordCredential.passwordHash, input.password)
-    : false
+  const passwordMatches = await deps.verifyPassword(
+    user?.passwordCredential?.passwordHash ?? DUMMY_PASSWORD_HASH,
+    input.password,
+  )
+  const passwordIsValid = Boolean(user?.passwordCredential && passwordMatches)
   if (!user || !passwordIsValid) {
     await deps.recordCredentialFailure({ ...limiterInput, purpose: "LOGIN" })
     return { status: "INVALID" }

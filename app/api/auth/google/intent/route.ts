@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
 import { getAuthSecret } from "@/lib/auth-env"
 import { consumeGoogleIntentStartRateLimit } from "@/lib/auth-rate-limit"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 import {
   AUTH_METHOD_INTENT_COOKIE,
   serializeAuthMethodIntentBinding,
@@ -38,7 +39,7 @@ export function createGoogleIntentHandler({
     const now = clock()
     const decision = await consumeLimit({
       prismaClient,
-      networkIdentifier: requestIp(request),
+      networkIdentifier: authRequestNetworkIdentifier(request),
       secret,
       now,
     })
@@ -83,12 +84,6 @@ function googleIntentPurpose(value: unknown): GoogleIntentPurpose | null {
   return value === "SIGN_IN_OR_LINK" || value === "LINK_GOOGLE" || value === "ADD_PASSWORD" || value === "REMOVE_PASSWORD"
     ? value
     : null
-}
-
-function requestIp(request: Request) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? request.headers.get("x-real-ip")
-    ?? "unknown"
 }
 
 export const POST = createGoogleIntentHandler({

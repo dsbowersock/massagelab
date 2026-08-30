@@ -2,9 +2,9 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
 import {
-  PUBLIC_ACCOUNT_ENTRY_MESSAGE,
   registerPasswordAccount,
 } from "../lib/auth-registration-service.ts"
+import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "../lib/auth-entry-messages.ts"
 import {
   isApprovedIdentityUniqueConstraint,
   isGoogleIdentityUniqueConstraint,

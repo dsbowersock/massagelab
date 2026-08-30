@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client"
 
 import { queueAccountSecurityEmail } from "./account-security-email-intents.ts"
+import { normalizeEmail } from "./auth-security.js"
 import { runCommerceTransaction } from "./commerce/transactions.ts"
 
 /**
@@ -112,10 +113,12 @@ export async function confirmPasswordReset(
     })
     await tx.session.deleteMany({ where: { userId: token.userId } })
     if (!updatedUser.email) throw new Error("Password recovery requires an account email.")
+    // The reset-token owner is stable across transaction retries. Reusing it
+    // lets the queue upsert return the same notice instead of adding another.
     const emailIntent = await queueAccountSecurityEmail(tx, {
       userId: token.userId,
       kind: "PASSWORD_RECOVERED",
-      recipientEmail: updatedUser.email,
+      recipientEmail: normalizeEmail(updatedUser.email),
       idempotencyKey: `password-recovered:${token.id}`,
     })
 

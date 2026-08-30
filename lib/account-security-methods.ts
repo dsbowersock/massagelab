@@ -301,6 +301,12 @@ function isFreshGoogleReauth(intent: any, purpose: "ADD_PASSWORD" | "REMOVE_PASS
     && intent.expiresAt > now)
 }
 
+/**
+ * Atomically consumes one fresh Google reauthentication marker inside `tx`.
+ * A successful call clears only `providerProvenAt`, leaves the status
+ * `CONSUMED`, and returns true exactly once. `isFreshGoogleReauth` requires the
+ * marker to carry a real Date before this compare-and-set can prevent replay.
+ */
 async function consumeGoogleReauth(tx: any, intent: any, now: Date): Promise<boolean> {
   const consumed = await tx.authMethodIntent.updateMany({
     where: {

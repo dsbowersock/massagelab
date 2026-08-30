@@ -131,7 +131,7 @@ describe("Google callback safety seam", () => {
 
 - [ ] **Step 2: Write the failing schema and migration contract**
 
-Create `tests/auth-schema-migration.test.mjs`. Read the schema, migration, preflight script, cleanup script, and `package.json`; assert:
+Create `tests/auth-schema-migration.test.mjs`. Read the schema, expansion migration, normalized-email index migration, preflight script, cleanup script, and `package.json`; assert:
 
 ```js
 assert.match(schema, /enum AuthAttemptScope[\s\S]*ACCOUNT[\s\S]*NETWORK/)
@@ -152,9 +152,21 @@ assert.doesNotMatch(schema.match(/model AuthMethodIntent[\s\S]*?\n\}/)?.[0] ?? "
 assert.match(migration, /CREATE TABLE "AuthRateLimitBucket"/)
 assert.doesNotMatch(migration, /(?:"AuthAttempt"|\bAuthAttempt\b)/)
 assert.doesNotMatch(migration, /\bAuthAttempt_purpose_key_key\b/)
-assert.match(migration, /CREATE UNIQUE INDEX "User_normalized_email_key"[\s\S]*lower\(btrim\("email"\)\)/)
+assert.match(migration, /CREATE TABLE "AuthMethodIntent"/)
+assert.match(migration, /CREATE TABLE "AccountSecurityEmailIntent"/)
+for (const enumName of ["AuthAttemptScope", "AuthMethodIntentPurpose", "AuthMethodIntentStatus", "AccountSecurityEmailKind", "AccountSecurityEmailIntentStatus"]) {
+  assert.match(migration, new RegExp(`CREATE TYPE "${enumName}" AS ENUM`))
+}
+assert.match(migration, /CREATE UNIQUE INDEX "AuthRateLimitBucket_purpose_scope_keyHash_key"/)
+assert.match(migration, /CREATE UNIQUE INDEX "AuthMethodIntent_browserBindingHash_key"/)
+assert.match(migration, /CREATE UNIQUE INDEX "AccountSecurityEmailIntent_idempotencyKey_key"/)
+assert.match(migration, /CONSTRAINT "AuthMethodIntent_targetUserId_fkey"[\s\S]*ON DELETE CASCADE ON UPDATE CASCADE/)
+assert.match(migration, /CONSTRAINT "AccountSecurityEmailIntent_userId_fkey"[\s\S]*ON DELETE CASCADE ON UPDATE CASCADE/)
+assert.equal(
+  normalizedIndexMigration.replaceAll("\r\n", "\n").trim(),
+  'CREATE UNIQUE INDEX CONCURRENTLY "User_normalized_email_key"\n  ON "User" (lower(btrim("email"))) WHERE "email" IS NOT NULL;',
+)
 assert.match(preflight, /normalized_collision_count/)
-assert.doesNotMatch(preflight, /SELECT[\s\S]*email[\s\S]*console\.log/i)
 assert.match(cleanup, /AUTH_LEGACY_ATTEMPT_CLEANUP/)
 assert.match(cleanup, /LIMIT \$\{maxRows\}/)
 assert.doesNotMatch(cleanup, /console\.(?:log|error)\([^\n]*(?:key|email|ip)/i)

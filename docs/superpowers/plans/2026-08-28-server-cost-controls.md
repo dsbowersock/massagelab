@@ -69,8 +69,8 @@
 
 **Interfaces:**
 - Produces: `READINESS_TIMING_ROUTES: readonly string[]`
-- Produces: `parseReadinessTimingArgs(args: string[]): { baseUrl: string, samples: number }`
-- Produces: `measureReadinessRoutes({ baseUrl, samples, fetchImpl, clock }): Promise<Array<RouteTimingResult>>`
+- Produces: `parseReadinessTimingArgs(args: string[]): { baseUrl: string, hostname: string, port: number, samples: number }`
+- Produces: `measureReadinessRoutes({ baseUrl, samples, requestTimeoutMs, fetchImpl, clock }): Promise<Array<RouteTimingResult>>`
 - Produces: `formatReadinessTimingSummary(results): string`
 - Produces: `runFamilyFriendsTimingReceipt(...)`, which builds the current head, refuses an occupied port, starts that build, waits for readiness, measures it, and always tears the owned process down.
 - Output fields: `route`, `sampleKind`, `sample`, `status`, and integer `durationMs`; no URL query, headers, cookies, or response body.
@@ -97,6 +97,8 @@ describe("family-and-friends route timings", () => {
     ])
     assert.deepEqual(parseReadinessTimingArgs(["--base-url=http://127.0.0.1:3010", "--samples=3"]), {
       baseUrl: "http://127.0.0.1:3010",
+      hostname: "127.0.0.1",
+      port: 3010,
       samples: 3,
     })
     assert.throws(() => parseReadinessTimingArgs(["--samples=0"]), /between 1 and 10/)
@@ -120,6 +122,20 @@ describe("family-and-friends route timings", () => {
     assert.deepEqual(results.slice(0, 2).map(({ sampleKind }) => sampleKind), ["first", "warm"])
     assert.equal(calls.every(({ init }) => init.method === "GET" && init.redirect === "follow"), true)
     assert.doesNotMatch(formatReadinessTimingSummary(results), /cookie|authorization|response body/i)
+  })
+
+  it("aborts a route sample while its response body is still pending", async () => {
+    await assert.rejects(measureReadinessRoutes({
+      baseUrl: "http://127.0.0.1:3010",
+      samples: 1,
+      requestTimeoutMs: 5,
+      fetchImpl: async (_url, { signal }) => ({
+        status: 200,
+        arrayBuffer: () => new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true })
+        }),
+      }),
+    }), /timeout|abort/i)
   })
 })
 ```
@@ -164,6 +180,7 @@ import { resolve } from "node:path"
 export const READINESS_TIMING_ROUTES = Object.freeze([
   "/", "/login", "/register", "/pricing", "/clock", "/music", "/account",
 ])
+export const READINESS_REQUEST_TIMEOUT_MS = 15_000
 
 export function parseReadinessTimingArgs(args) {
   const values = Object.fromEntries(args.map((argument) => {
@@ -172,19 +189,20 @@ export function parseReadinessTimingArgs(args) {
   }))
   const baseUrl = values["--base-url"] || "http://127.0.0.1:3010"
   const parsedUrl = new URL(baseUrl)
-  if (!["127.0.0.1", "localhost"].includes(parsedUrl.hostname)) {
+  if (parsedUrl.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(parsedUrl.hostname)) {
     throw new Error("Route timing is restricted to a loopback base URL.")
   }
   const samples = Number(values["--samples"] || 3)
   if (!Number.isInteger(samples) || samples < 1 || samples > 10) {
     throw new Error("--samples must be between 1 and 10.")
   }
-  return { baseUrl: parsedUrl.origin, samples }
+  return { baseUrl: parsedUrl.origin, hostname: parsedUrl.hostname, port: Number(parsedUrl.port || 80), samples }
 }
 
 export async function measureReadinessRoutes({
   baseUrl,
   samples,
+  requestTimeoutMs = READINESS_REQUEST_TIMEOUT_MS,
   fetchImpl = fetch,
   clock = () => performance.now(),
 }) {
@@ -192,19 +210,26 @@ export async function measureReadinessRoutes({
   for (const route of READINESS_TIMING_ROUTES) {
     for (let sample = 1; sample <= samples; sample += 1) {
       const startedAt = clock()
-      const response = await fetchImpl(new URL(route, baseUrl), {
-        method: "GET",
-        redirect: "follow",
-        headers: { accept: "text/html" },
-      })
-      await response.arrayBuffer()
-      results.push({
-        route,
-        sampleKind: sample === 1 ? "first" : "warm",
-        sample,
-        status: response.status,
-        durationMs: Math.max(0, Math.round(clock() - startedAt)),
-      })
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(new Error("Route timing request timeout.")), requestTimeoutMs)
+      try {
+        const response = await fetchImpl(new URL(route, baseUrl), {
+          method: "GET",
+          redirect: "follow",
+          headers: { accept: "text/html" },
+          signal: controller.signal,
+        })
+        await response.arrayBuffer()
+        results.push({
+          route,
+          sampleKind: sample === 1 ? "first" : "warm",
+          sample,
+          status: response.status,
+          durationMs: Math.max(0, Math.round(clock() - startedAt)),
+        })
+      } finally {
+        clearTimeout(timeout)
+      }
     }
   }
   return results
@@ -233,7 +258,7 @@ if (import.meta.url === pathToFileURL(resolve(process.argv[1] ?? "")).href) {
 }
 ```
 
-Create `scripts/family-friends-timing-receipt.mjs`. It accepts the same loopback base URL/sample bounds, first verifies the selected port is unused, runs `npm run build` to completion, starts the known Next CLI entry for that fresh production build on `127.0.0.1:3010`, polls `/` for at most 60 seconds, invokes `measureReadinessRoutes`, and prints only its sanitized summary. Buffer build/server output and emit only fixed failure text. In `finally`, terminate and await only the child it created, escalating from SIGTERM to SIGKILL after five seconds. Export the orchestration with injectable dependencies so the unit test never builds or starts Next.
+Create `scripts/family-friends-timing-receipt.mjs`. It accepts the same loopback base URL/sample bounds, first verifies the parsed port is unused, runs `npm run build` to completion, starts the known Next CLI entry for that fresh production build on the exact parsed `hostname` and `port`, polls that same `baseUrl` for at most 60 seconds, invokes `measureReadinessRoutes`, and prints only its sanitized summary. Buffer build/server output and emit only fixed failure text. In `finally`, terminate and await only the child it created, escalating from SIGTERM to SIGKILL after five seconds. Export the orchestration with injectable dependencies so the unit test never builds or starts Next. The receipt test must use a non-default port and assert that unused-port proof, server startup, and readiness polling all receive that exact parsed port.
 
 - [ ] **Step 5: Add the named package command**
 

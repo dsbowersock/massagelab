@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma"
 import { googleProfileEmail, isVerifiedGoogleProfile } from "@/lib/auth-account-linking"
 import { getAuthSecret, getGoogleAuthConfig, getSiteUrl } from "@/lib/auth-env"
 import { verifyPasswordMethodProof } from "@/lib/auth-method-proof"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 import {
   AUTH_METHOD_INTENT_COOKIE,
   parseAuthMethodIntentBinding,
@@ -42,10 +43,6 @@ function loginError(code: LoginErrorCode) {
   return new LoginCredentialsError(code)
 }
 
-function requestIp(request: Request) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? "unknown"
-}
-
 const providers: NextAuthConfig["providers"] = [
   CredentialsProvider({
     name: "Email and password",
@@ -63,7 +60,7 @@ const providers: NextAuthConfig["providers"] = [
         email,
         password,
         twoFactorCode,
-        networkIdentifier: requestIp(request),
+        networkIdentifier: authRequestNetworkIdentifier(request),
         secret: getAuthSecret(),
       })
       if (proof.status === "INVALID") throw loginError("INVALID_CREDENTIALS")

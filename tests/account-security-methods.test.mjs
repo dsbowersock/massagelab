@@ -57,17 +57,17 @@ describe("transaction-safe account method mutations", () => {
   })
 
   it("adds a password only after fresh matching Google reauthentication", async () => {
-    for (const mutate of [
-      () => {},
-      (db, intent) => { intent.targetUserId = "user-2" },
-      (_db, intent) => { intent.expiresAt = new Date(NOW.getTime() - 1) },
-      (_db, intent) => { intent.providerProvenAt = null },
+    for (const { expectedSuccess, mutate } of [
+      { expectedSuccess: true, mutate: () => {} },
+      { expectedSuccess: false, mutate: (db, intent) => { intent.targetUserId = "user-2" } },
+      { expectedSuccess: false, mutate: (_db, intent) => { intent.expiresAt = new Date(NOW.getTime() - 1) } },
+      { expectedSuccess: false, mutate: (_db, intent) => { intent.providerProvenAt = null } },
     ]) {
       const db = createMethodDatabase({ accounts: [googleAccount()] })
       const intent = db.addGoogleReauthIntent("ADD_PASSWORD")
       mutate(db, intent)
       const result = await setPasswordMethod(passwordAddInput(db, intent.id))
-      if (mutate.toString() === "() => {}") {
+      if (expectedSuccess) {
         assert.equal(result.status, "UPDATED")
         assert.equal(db.passwordFor("user-1").passwordHash, "new-hash")
         assert.equal(db.securityEmailsByKind("PASSWORD_ENABLED").length, 1)
