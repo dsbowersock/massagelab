@@ -863,6 +863,10 @@ function transactionClient(state, root, seed) {
   }
 }
 
+/**
+ * Emulates both the current direct `expiresAt.lt` predicate and the legacy `OR`
+ * shape. Consumed rows are stale only when that legacy query includes them.
+ */
 function staleIntents(intents, where, take) {
   const expiresBefore = where.expiresAt?.lt ?? where.OR?.find((condition) => condition.expiresAt)?.expiresAt.lt
   const includesConsumed = Boolean(where.OR?.some((condition) => Object.hasOwn(condition.consumedAt ?? {}, "not")))
