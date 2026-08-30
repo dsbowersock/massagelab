@@ -223,7 +223,7 @@ describe("BackgroundCommerceProvider owner behavior", () => {
     }
   })
 
-  it("keeps failed hydration out of focus retries until an explicit mutation starts", { timeout: 45_000 }, async () => {
+  it("retries only the current owner's failed demanded hydration on focus or reconnect", { timeout: 45_000 }, async () => {
     const { chromium } = require("playwright")
     const browser = await chromium.launch({ headless: true })
     try {
@@ -239,10 +239,17 @@ describe("BackgroundCommerceProvider owner behavior", () => {
       }))
       assert.equal(failedHydration.current.state.status, "error", JSON.stringify(failedHydration))
 
-      await page.evaluate(() => window.__commerceProviderHarness.dispatchFocus())
-      await page.waitForTimeout(50)
-      await page.evaluate(() => window.__commerceProviderHarness.dispatchOnline())
-      await page.waitForTimeout(50)
+      await page.evaluate(() => window.__commerceProviderHarness.setOwner("owner-b"))
+      await page.waitForFunction(() => {
+        const value = window.__commerceProviderHarness.read()
+        return value.owner === "owner-b" && value.state.status === "idle"
+      })
+      await page.evaluate(() => {
+        window.__commerceProviderHarness.stateFetchMode = "success"
+        window.__commerceProviderHarness.dispatchFocus()
+        window.__commerceProviderHarness.dispatchOnline()
+      })
+      await page.waitForTimeout(100)
       let current = await page.evaluate(() => window.__commerceProviderHarness.read())
       assert.equal(
         current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
@@ -250,18 +257,41 @@ describe("BackgroundCommerceProvider owner behavior", () => {
       )
 
       await page.evaluate(async () => {
+        window.__commerceProviderHarness.stateFetchMode = "fail"
+        await window.__commerceProviderHarness.ensureSnapshot()
+        window.__commerceProviderHarness.stateFetchMode = "success"
+        window.__commerceProviderHarness.dispatchFocus()
+        window.__commerceProviderHarness.dispatchOnline()
+      })
+      await page.waitForTimeout(100)
+      current = await page.evaluate(() => window.__commerceProviderHarness.read())
+      assert.equal(current.owner, "owner-b")
+      assert.equal(current.state.status, "ready", JSON.stringify(current))
+      assert.equal(
+        current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
+        3,
+      )
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it("keeps mutation-started owners eligible for a single focus or reconnect refresh", { timeout: 45_000 }, async () => {
+    const { chromium } = require("playwright")
+    const browser = await chromium.launch({ headless: true })
+    try {
+      const page = await openProviderHarness(browser)
+      await page.evaluate(async () => {
         window.__commerceProviderHarness.mutationMode = "fail"
         await window.__commerceProviderHarness.failAddToCart()
         window.__commerceProviderHarness.dispatchFocus()
+        window.__commerceProviderHarness.dispatchOnline()
       })
-      await page.waitForFunction(() => (
-        window.__commerceProviderHarness.read().calls
-          .filter((call) => call === "GET /api/background-commerce/state").length === 2
-      ))
-      current = await page.evaluate(() => window.__commerceProviderHarness.read())
+      await page.waitForFunction(() => window.__commerceProviderHarness.read().state.status === "ready")
+      const current = await page.evaluate(() => window.__commerceProviderHarness.read())
       assert.equal(
         current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
-        2,
+        1,
       )
     } finally {
       await browser.close()
@@ -279,10 +309,11 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /controller\.abort\(\)/)
   })
 
-  it("refreshes only successfully hydrated or mutation-started owners on focus", async () => {
+  it("refreshes only demanded, successfully hydrated, or mutation-started owners on focus", async () => {
     const value = await source(providerPath)
     assert.match(value, /if \(!ownerKey\) \{[\s\S]*readGuestBackgroundCartIds/)
     assert.match(value, /createGuestBackgroundCommerceSnapshot/)
+    assert.match(value, /demandedOwnerRef\.current !== ownerKey/)
     assert.match(value, /hydratedOwnerRef\.current !== ownerKey/)
     assert.match(value, /mutationStartedOwnerRef\.current !== ownerKey/)
     assert.match(value, /addEventListener\("focus"/)

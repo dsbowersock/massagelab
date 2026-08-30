@@ -205,6 +205,7 @@ function OwnerScopedBackgroundCommerceProvider({
   const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
   const mutationActiveRef = useRef(false)
   const commerceRevisionRef = useRef(0)
+  const demandedOwnerRef = useRef<string | null>(null)
   const hydratedOwnerRef = useRef<string | null>(null)
   const mutationStartedOwnerRef = useRef<string | null>(null)
   const activeOwnerKeyRef = useRef(ownerKey)
@@ -267,13 +268,17 @@ function OwnerScopedBackgroundCommerceProvider({
     }
   }, [ownerKey])
 
-  /** Coalesces current-owner demand without retaining a user snapshot beyond this provider. */
+  /**
+   * Coalesces current-owner demand and records it so focus or reconnect can
+   * recover a failed first load. Keyed owner mounts keep demand account-local.
+   */
   const ensureSnapshot = useCallback((): Promise<void> => {
     if (!ownerKey) {
       setGuestCartIds(readGuestBackgroundCartIds(window.localStorage))
       return Promise.resolve()
     }
     if (activeOwnerKeyRef.current !== ownerKey) return Promise.resolve()
+    demandedOwnerRef.current = ownerKey
     if (hydratedOwnerRef.current === ownerKey) return Promise.resolve()
     if (snapshotPromiseRef.current) return snapshotPromiseRef.current
 
@@ -573,7 +578,8 @@ function OwnerScopedBackgroundCommerceProvider({
     const handleRefresh = () => {
       if (
         (
-          hydratedOwnerRef.current !== ownerKey
+          demandedOwnerRef.current !== ownerKey
+          && hydratedOwnerRef.current !== ownerKey
           && mutationStartedOwnerRef.current !== ownerKey
         )
         || readControllerRef.current
