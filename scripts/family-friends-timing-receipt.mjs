@@ -401,6 +401,8 @@ export async function runFamilyFriendsTimingReceipt({
       try {
         await stopOwnedServer(ownedChild)
       } catch {
+        // Defer teardown failure so an in-flight timing error remains primary;
+        // report this only when timing otherwise completes successfully.
         stopError = new Error("Owned timing server did not stop cleanly.")
       }
     }
