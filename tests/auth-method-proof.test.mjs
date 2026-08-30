@@ -2,11 +2,13 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { describe, it } from "node:test"
+import { fileURLToPath } from "node:url"
 import ts from "typescript"
 import { runCommerceTransaction } from "../lib/commerce/transactions.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const normalizeEmail = (value) => String(value ?? "").trim().toLowerCase()
 const limiterSource = await readFile(new URL("../lib/auth-rate-limit.ts", import.meta.url), "utf8")
 const limiter = loadCompiledModule(limiterSource, "auth-rate-limit.proof-test.ts", {
@@ -216,13 +218,13 @@ describe("shared password method proof with the real limiter", () => {
 })
 
 function compileGeneralProofContract() {
-  const configPath = path.resolve("tsconfig.json")
+  const configPath = path.join(projectRoot, "tsconfig.json")
   const parsed = ts.parseJsonConfigFileContent(
     ts.readConfigFile(configPath, ts.sys.readFile).config,
     ts.sys,
     path.dirname(configPath),
   )
-  const virtualPath = path.resolve("tests/__auth-method-proof-contract.ts")
+  const virtualPath = path.join(projectRoot, "tests/__auth-method-proof-contract.ts")
   const virtualSource = `
     import {
       preparePasswordMethodProofForTwoFactorManagement,
@@ -269,7 +271,7 @@ function compileGeneralProofContract() {
     return source === undefined ? undefined : ts.createSourceFile(fileName, source, languageVersion, true)
   }
   const program = ts.createProgram({
-    rootNames: [path.resolve("lib/auth-method-proof.ts"), virtualPath],
+    rootNames: [path.join(projectRoot, "lib/auth-method-proof.ts"), virtualPath],
     options: { ...parsed.options, noEmit: true },
     host,
   })

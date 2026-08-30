@@ -592,6 +592,7 @@ export default function IntakePage() {
   }
 
   const useSelectedDocumentInSoap = async (mode: "append" | "replace") => {
+    // Local seeding owns the durable vault write; shared navigation pending owns the transition after `push`.
     if (isSeedingSoap || isNavigationPending) return
     if (!selectedDocument || !selectedDocumentTemplate) {
       setMessage("Select a saved intake document before starting SOAP.")

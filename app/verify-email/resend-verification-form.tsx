@@ -72,13 +72,17 @@ export function ResendVerificationForm({ callbackUrl }: { callbackUrl: string })
         pendingLabel="Sending verification email…"
         icon={<Mail className="h-4 w-4" />}
       />
-      {status ? (
-        <AppInset className={`p-3 text-sm ${statusIsError ? "text-amber-100" : "text-muted-foreground"}`}>
-          <p role={statusIsError ? "alert" : "status"} aria-live={statusIsError ? "assertive" : "polite"}>
-            {status}
-          </p>
-        </AppInset>
-      ) : null}
+      <div
+        role={statusIsError ? "alert" : "status"}
+        aria-live={statusIsError ? "assertive" : "polite"}
+        aria-atomic="true"
+      >
+        {status ? (
+          <AppInset className={`p-3 text-sm ${statusIsError ? "text-amber-100" : "text-muted-foreground"}`}>
+            <p>{status}</p>
+          </AppInset>
+        ) : null}
+      </div>
     </form>
   )
 }

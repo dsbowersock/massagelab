@@ -9,6 +9,7 @@ const source = await readFile(new URL("../lib/auth-request.ts", import.meta.url)
 const consumerPaths = [
   "../auth.ts",
   "../app/api/auth/google/intent/route.ts",
+  "../app/api/account/email-verification/request/route.ts",
   "../app/api/account/password-reset/request/route.ts",
   "../app/api/account/register/route.ts",
   "../app/api/account/security/google/unlink/route.ts",
@@ -56,7 +57,7 @@ describe("shared authentication request boundaries", () => {
       assert.match(consumerSource, /authRequestNetworkIdentifier\(request\)/, consumerPaths[index])
       assert.doesNotMatch(consumerSource, /function requestIp/, consumerPaths[index])
     }
-    for (const index of [2, 3]) {
+    for (const index of [3, 4]) {
       assert.match(consumerSources[index], /isPublicAccountEmail\(email\)/, consumerPaths[index])
       assert.doesNotMatch(consumerSources[index], /function validPublicEmail/, consumerPaths[index])
     }

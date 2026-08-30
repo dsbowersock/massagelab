@@ -36,6 +36,7 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
   const [pendingAction, setPendingAction] = useState<PendingSecurityAction>(null)
   const actionLock = useRef<PendingSecurityAction>(null)
 
+  // One action owns the shared lock at a time; only that same owner may release it.
   function beginAction(action: Exclude<PendingSecurityAction, null>) {
     if (actionLock.current !== null) return false
     actionLock.current = action

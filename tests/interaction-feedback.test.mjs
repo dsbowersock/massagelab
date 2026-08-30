@@ -130,6 +130,12 @@ test("shared async action button exposes one stable accessible pending owner", (
   const loader = findElement(pending, ({ type }) => type === "loader")
   assert.equal(loader.props.size, 18)
   assert.equal(loader.props["aria-hidden"], "true")
+  const idleStatus = findElement(idle, ({ props }) => props.role === "status")
+  const pendingStatus = findElement(pending, ({ props }) => props.role === "status")
+  assert.ok(idleStatus)
+  assert.ok(pendingStatus)
+  assert.equal(elementText(idleStatus), "")
+  assert.equal(elementText(pendingStatus), "Saving…")
 })
 
 test("pending submission form keeps function identity and owns native first-submit claiming", () => {
@@ -147,13 +153,22 @@ test("pending submission form keeps function identity and owns native first-subm
 
   let formPending = false
   let flushes = 0
+  let nativePendingState = false
+  let pendingRef
+  let pageShowHandler
+  let removedPageShowHandler
+  let effectCleanup
   const compiled = loadCompiledModule(pendingForm, "components/forms/pending-submission-form.test.tsx", {
     react: {
       Component: class Component {},
       createContext: () => ({ Provider: passThroughElement("provider") }),
-      useContext: () => false,
-      useRef: (value) => ({ current: value }),
-      useState: (value) => [value, () => {}],
+      useContext: () => null,
+      useEffect: (effect) => { effectCleanup = effect() },
+      useRef: (value) => {
+        pendingRef = { current: value }
+        return pendingRef
+      },
+      useState: (value) => [nativePendingState ?? value, (next) => { nativePendingState = next }],
     },
     "react-dom": {
       flushSync: (callback) => { flushes += 1; callback() },
@@ -167,6 +182,15 @@ test("pending submission form keeps function identity and owns native first-subm
     "@/lib/utils": { cn: (...values) => values.filter(Boolean).join(" ") },
   })
   const action = async () => {}
+  const previousWindow = globalThis.window
+  globalThis.window = {
+    addEventListener: (name, handler) => {
+      if (name === "pageshow") pageShowHandler = handler
+    },
+    removeEventListener: (name, handler) => {
+      if (name === "pageshow") removedPageShowHandler = handler
+    },
+  }
   const formTree = compiled.PendingSubmissionForm({ action, method: "post", pendingLabel: "Saving…", children: createElement("input", { name: "kept" }) })
   const form = findElement(formTree, ({ type }) => type === "form")
   assert.equal(form.props.action, action)
@@ -183,6 +207,9 @@ test("pending submission form keeps function identity and owns native first-subm
   assert.equal(nativeForm.props.action, "/native-target")
   assert.equal(nativeForm.props.method, "post")
   assert.equal(findElement(nativeTree, ({ type }) => type === "input").props.value, "kept")
+  const nativeIdleStatus = findElement(nativeTree, ({ props }) => props.role === "status")
+  assert.ok(nativeIdleStatus)
+  assert.equal(elementText(nativeIdleStatus), "")
   let prevented = 0
   const validEvent = {
     defaultPrevented: false,
@@ -193,6 +220,15 @@ test("pending submission form keeps function identity and owns native first-subm
   nativeForm.props.onSubmit(validEvent)
   assert.equal(flushes, 1)
   assert.equal(prevented, 1)
+  assert.equal(nativePendingState, true)
+  assert.equal(typeof pageShowHandler, "function")
+  pageShowHandler({ persisted: false })
+  assert.equal(nativePendingState, true)
+  pageShowHandler({ persisted: true })
+  assert.equal(nativePendingState, false)
+  assert.equal(pendingRef.current, false)
+  nativeForm.props.onSubmit(validEvent)
+  assert.equal(flushes, 2)
 
   const invalidTree = renderFunctionComponents(compiled.PendingSubmissionForm({ action: "/native-target", pendingLabel: "Opening…" }))
   const invalidForm = findElement(invalidTree, ({ type }) => type === "form")
@@ -201,7 +237,7 @@ test("pending submission form keeps function identity and owns native first-subm
     currentTarget: { checkValidity: () => false },
     preventDefault: () => { prevented += 1 },
   })
-  assert.equal(flushes, 1)
+  assert.equal(flushes, 2)
 
   formPending = true
   const buttonTree = renderFunctionComponents(compiled.PendingSubmitButton({
@@ -232,6 +268,12 @@ test("pending submission form keeps function identity and owns native first-subm
     )),
     "Save",
   )
+  const legacyIdleStatus = findElement(legacyButtonTree, ({ props }) => props.role === "status")
+  assert.ok(legacyIdleStatus)
+  assert.equal(elementText(legacyIdleStatus), "")
+  effectCleanup()
+  assert.equal(removedPageShowHandler, pageShowHandler)
+  globalThis.window = previousWindow
 })
 
 test("billing browser evidence covers native invalid-form idleness and the production donation label", () => {
@@ -241,7 +283,8 @@ test("billing browser evidence covers native invalid-form idleness and the produ
   assert.match(browserSpec, /test\("native constraint validation stays idle until the billing form is valid"/)
   assert.match(browserSpec, /test\("donation fixture keeps its production label while pending copy is announced"/)
   assert.match(browserSpec, /ariaLabel: "\$5 Small project support"/)
-  assert.match(browserSpec, /form\.getByRole\("status"\)\)\.toHaveCount\(0\)/)
+  assert.match(browserSpec, /form\.getByRole\("status"\)\)\.toHaveCount\(1\)/)
+  assert.match(browserSpec, /PageTransitionEvent\("pageshow", \{ persisted: true \}\)/)
   assert.match(nativeSnapshot, /requestSubmit\(\)/)
 })
 
@@ -254,6 +297,8 @@ test("function actions recover after real React DOM resolution and rejection", {
   let server = null
   let browser = null
   try {
+  // This real-browser harness proves function Server Action recovery after both
+  // React DOM settlement paths. A real browser is required, so Chromium must be installed.
   fixtureRoot = mkdtempSync(path.join(tmpdir(), "massagelab-form-settlement-"))
   const outputRoot = path.join(fixtureRoot, "dist")
   const componentPath = path.join(fixtureRoot, "pending-submission-form.js")
@@ -324,7 +369,8 @@ test("function actions recover after real React DOM resolution and rejection", {
       },
     }, (error, stats) => {
       if (error) return rejectPromise(error)
-      if (stats?.hasErrors()) return rejectPromise(new Error(stats.toString({ errors: true, warnings: false })))
+      if (!stats) return rejectPromise(new Error("The function-action fixture webpack build produced no stats."))
+      if (stats.hasErrors()) return rejectPromise(new Error(stats.toString({ errors: true, warnings: false })))
       resolve()
     })
   })
