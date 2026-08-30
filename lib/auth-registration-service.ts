@@ -54,9 +54,6 @@ export type RegisterPasswordAccountInput = {
   scheduleAccountWork(work: () => Promise<void>): void
 }
 
-export const PUBLIC_ACCOUNT_ENTRY_MESSAGE =
-  "Check that email address for the appropriate sign-in, verification, or recovery next step."
-
 /**
  * Performs bounded password registration without exposing account state.
  * Quota is consumed before every expensive or persistent operation, and all

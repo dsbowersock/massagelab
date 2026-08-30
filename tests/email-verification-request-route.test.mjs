@@ -30,7 +30,7 @@ const route = loadCompiledModule(routeSource, "email-verification-request-route.
   "@/lib/auth-mail": { sendVerificationEmail: async () => ({ delivered: true }) },
   "@/lib/auth-rate-limit": limiter,
   "@/lib/auth-registration": { sendRegistrationVerification: (sender, ...args) => sender(...args) },
-  "@/lib/auth-registration-service": { PUBLIC_ACCOUNT_ENTRY_MESSAGE: PUBLIC_MESSAGE },
+  "@/lib/auth-entry-messages": { PUBLIC_ACCOUNT_ENTRY_MESSAGE: PUBLIC_MESSAGE },
   "@/lib/auth-security": {
     generateRandomToken: () => "raw-token",
     hashToken: () => "hashed-token",

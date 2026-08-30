@@ -141,6 +141,20 @@ function createAccountSecurityEmailRetryPrismaClient(connectionString) {
   return new PrismaClient({ adapter: new PrismaNeon({ connectionString }) })
 }
 
+/** Returns bounded operator context without exposing recipients, URLs, or secret-bearing tokens. */
+export function formatAccountSecurityEmailRetryError(error) {
+  const message = error instanceof Error ? error.message : String(error ?? "Unknown error.")
+  return message
+    .split(/\s+/)
+    .map((token) => (
+      token.includes("@") || token.includes("://") || /\b(?:password|passwd|pwd|token|secret)=/i.test(token)
+        ? "[redacted]"
+        : token
+    ))
+    .join(" ")
+    .slice(0, 500)
+}
+
 async function main() {
   loadDotenv({ path: ".env.local", override: false, quiet: true })
   loadDotenv({ path: ".env", override: false, quiet: true })
@@ -154,8 +168,8 @@ async function main() {
 
 const invokedPath = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : ""
 if (import.meta.url === invokedPath) {
-  main().catch(() => {
-    process.stderr.write("Account-security notice retry failed.\n")
+  main().catch((error) => {
+    process.stderr.write(`Account-security notice retry failed. ${formatAccountSecurityEmailRetryError(error)}\n`)
     process.exitCode = 1
   })
 }

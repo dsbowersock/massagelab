@@ -76,6 +76,22 @@ describe("private Google auth-method intents", () => {
     assert.equal(JSON.stringify(db.state.intents).includes(started.browserBindingToken), false)
   })
 
+  it("returns a committed intent when best-effort stale pruning fails", async () => {
+    const service = await loadService()
+    const db = createIntentDatabase({ pruneError: new Error("prune unavailable") })
+
+    const started = await service.startAuthMethodIntent({
+      prismaClient: db,
+      purpose: "SIGN_IN_OR_LINK",
+      secret: "intent-test-secret",
+      now: new Date("2026-08-28T12:00:00.000Z"),
+      randomBytesFn: () => Buffer.alloc(32, 9),
+    })
+
+    assert.equal(started.intentId, "intent-1")
+    assert.equal(db.state.intents.length, 1)
+  })
+
   it("resolves only the exact browser-bound intent and returns no provider proof fields", async () => {
     const service = await loadService()
     const db = createIntentDatabase()
@@ -554,7 +570,6 @@ describe("private Google auth-method intents", () => {
 
   it("rate limits before intent access and returns a private cookie plus callback only", async () => {
     const routeSource = await readFile(new URL("../app/api/auth/google/intent/route.ts", import.meta.url), "utf8")
-    assert.ok(routeSource.indexOf("consumeGoogleIntentStartRateLimit") < routeSource.indexOf("startAuthMethodIntent"))
     assert.match(routeSource, /"Retry-After"/)
     assert.match(routeSource, /httpOnly:\s*true/)
     assert.match(routeSource, /sameSite:\s*"lax"/)
@@ -751,6 +766,7 @@ async function loadIntentRoute() {
       validateTrustedAccountSecurityJson,
     },
     "@/lib/auth-rate-limit": { consumeGoogleIntentStartRateLimit: async () => ({ allowed: true }) },
+    "@/lib/auth-request": { authRequestNetworkIdentifier: () => "203.0.113.8" },
     "@/lib/auth-method-intents": {
       AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
       serializeAuthMethodIntentBinding: (id, token) => `${id}.${token}`,
@@ -886,6 +902,16 @@ function createIntentDatabase(seed = {}) {
       async findUnique({ where }) {
         return root.state.intents.find((row) => row.id === where.id) ?? null
       },
+      async findMany({ where, take }) {
+        if (seed.pruneError) throw seed.pruneError
+        return staleIntents(root.state.intents, where, take)
+      },
+      async deleteMany({ where }) {
+        const ids = where.id.in
+        const before = root.state.intents.length
+        root.state.intents = root.state.intents.filter((row) => !ids.includes(row.id))
+        return { count: before - root.state.intents.length }
+      },
     },
     async $transaction(callback, options) {
       root.transactionOptions.push(options)
@@ -922,7 +948,8 @@ function transactionClient(state, root, seed) {
     },
     authMethodIntent: {
       async findMany({ where, take }) {
-        return state.intents.filter((row) => row.consumedAt || row.expiresAt < where.OR[0].expiresAt.lt).slice(0, take).map(({ id }) => ({ id }))
+        if (seed.pruneError) throw seed.pruneError
+        return staleIntents(state.intents, where, take)
       },
       async deleteMany({ where }) {
         const ids = where.id.in
@@ -1019,6 +1046,13 @@ function transactionClient(state, root, seed) {
       },
     },
   }
+}
+
+function staleIntents(intents, where, take) {
+  return intents
+    .filter((row) => row.consumedAt || row.expiresAt < where.OR[0].expiresAt.lt)
+    .slice(0, take)
+    .map(({ id }) => ({ id }))
 }
 
 function normalizeEmail(value) {

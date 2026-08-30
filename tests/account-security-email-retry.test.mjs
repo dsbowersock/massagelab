@@ -111,4 +111,16 @@ describe("account-security email operational retry", () => {
     assert.doesNotMatch(source, /createPrismaClient\s*=\s*createAccountSecurityEmailRetryPrismaClient/)
     assert.doesNotMatch(source, /deliverIntent\s*=\s*deliverAccountSecurityEmailIntent/)
   })
+
+  it("preserves safe failure context while redacting recipients, URLs, and secrets", async () => {
+    const { formatAccountSecurityEmailRetryError } = await loadRetryModule()
+
+    const formatted = formatAccountSecurityEmailRetryError(new Error(
+      "Database timeout for person@example.com at postgresql://operator:secret@example.neon.tech/db password=hunter2",
+    ))
+
+    assert.match(formatted, /Database timeout/)
+    assert.doesNotMatch(formatted, /person@example\.com|postgresql|operator|secret|neon|hunter2|password=/i)
+    assert.ok(formatted.length <= 500)
+  })
 })

@@ -3,6 +3,7 @@ import { after, NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
 import { deliverAccountSecurityEmailIntent } from "@/lib/account-security-email-intents"
 import { removeGoogleMethod } from "@/lib/account-security-methods"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { prisma } from "@/lib/prisma"
 
@@ -40,7 +41,7 @@ export function createGoogleUnlinkHandler({
       userId,
       password: body.password,
       twoFactorCode: body.twoFactorCode,
-      networkIdentifier: requestIp(request),
+      networkIdentifier: authRequestNetworkIdentifier(request),
       confirmed: true,
       now: clock(),
     })
@@ -84,12 +85,6 @@ function rejectedResponse(code: string) {
       ? "The authenticator or backup code was not accepted."
       : "Your password proof was not accepted. Try again."
   return safeResponse(code, message, 403)
-}
-
-function requestIp(request: Request) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? request.headers.get("x-real-ip")
-    ?? "unknown"
 }
 
 function safeResponse(code: string, message: string, status: number) {
