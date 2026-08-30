@@ -57,22 +57,8 @@ export async function startAuthMethodIntent({
   const browserBindingHash = bindingHash(browserBindingToken, resolvedSecret)
   const expiresAt = new Date(now.getTime() + INTENT_LIFETIME_MS)
 
-  const intent = await runCommerceTransaction(prismaClient as PrismaClient, async (tx) => {
-    const stale = await tx.authMethodIntent.findMany({
-      where: {
-        OR: [
-          { expiresAt: { lt: now } },
-          { consumedAt: { not: null } },
-        ],
-      },
-      orderBy: { updatedAt: "asc" },
-      take: MAX_PRUNE_ROWS,
-      select: { id: true },
-    })
-    if (stale.length > 0) {
-      await tx.authMethodIntent.deleteMany({ where: { id: { in: stale.map(({ id }) => id) } } })
-    }
-    return tx.authMethodIntent.create({
+  const intent = await runCommerceTransaction(prismaClient as PrismaClient, async (tx) => (
+    tx.authMethodIntent.create({
       data: {
         purpose,
         targetUserId: targetUserId ?? null,
@@ -82,9 +68,29 @@ export async function startAuthMethodIntent({
       },
       select: { id: true, expiresAt: true },
     })
-  })
+  ))
+
+  await pruneStaleAuthMethodIntents(prismaClient, now).catch(() => undefined)
 
   return { intentId: intent.id, expiresAt: intent.expiresAt, browserBindingToken }
+}
+
+/** Removes bounded stale rows after creation; maintenance failure never rejects a committed intent. */
+async function pruneStaleAuthMethodIntents(prismaClient: AuthIntentClient, now: Date): Promise<void> {
+  const stale = await prismaClient.authMethodIntent.findMany({
+    where: {
+      OR: [
+        { expiresAt: { lt: now } },
+        { consumedAt: { not: null } },
+      ],
+    },
+    orderBy: { updatedAt: "asc" },
+    take: MAX_PRUNE_ROWS,
+    select: { id: true },
+  })
+  if (stale.length > 0) {
+    await prismaClient.authMethodIntent.deleteMany({ where: { id: { in: stale.map(({ id }) => id) } } })
+  }
 }
 
 /** Serializes the private cookie without exposing any database or identity proof. */

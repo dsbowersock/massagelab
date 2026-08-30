@@ -267,6 +267,7 @@ function loadRoute(routeName, {
         return resolvedIntent
       },
     },
+    "@/lib/auth-request": { authRequestNetworkIdentifier: () => "network" },
     "@/lib/auth-security": { hashPassword: async () => { onHash(); return "argon2-hash" } },
     "@/lib/prisma": { prisma },
   }

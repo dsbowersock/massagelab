@@ -15,9 +15,11 @@ function loadRoute({
   eligible = true,
   result = { status: "UPDATED", emailIntentId: "intent-recovered" },
   hashPassword = async () => "password-hash",
+  deliver = async () => ({ status: "DELIVERED", attempted: true, attemptCount: 1 }),
 } = {}) {
   const calls = []
   const capturedTimes = {}
+  const afterCallbacks = []
   const prisma = new Proxy({}, {
     get(_target, property) {
       throw new Error(`The confirm route accessed Prisma directly through ${String(property)}.`)
@@ -28,7 +30,7 @@ function loadRoute({
     "app/api/account/password-reset/confirm/route.ts",
     {
       "next/server": {
-        after: (callback) => callback(),
+        after: (callback) => afterCallbacks.push(callback),
         NextResponse: {
           json: (body, init = {}) => ({ body, status: init.status ?? 200 }),
         },
@@ -64,14 +66,14 @@ function loadRoute({
         deliverAccountSecurityEmailIntent: async (input) => {
           calls.push(["deliverAccountSecurityEmailIntent", { intentId: input.intentId }])
           assert.equal(input.prismaClient, prisma)
-          return { status: "DELIVERED", attempted: true, attemptCount: 1 }
+          return deliver(input)
         },
       },
       "@/lib/prisma": { prisma },
     },
   )
 
-  return { POST: route.POST, calls, capturedTimes }
+  return { POST: route.POST, calls, capturedTimes, afterCallbacks }
 }
 
 function resetRequest(body) {
@@ -93,7 +95,7 @@ describe("password reset confirmation route", () => {
     })
     assert.deepEqual(invalid.calls, [])
 
-    const { POST, calls, capturedTimes } = loadRoute()
+    const { POST, calls, capturedTimes, afterCallbacks } = loadRoute()
     const response = await POST(resetRequest({
       token: "raw-reset-token",
       password: "a-long-new-password",
@@ -108,11 +110,39 @@ describe("password reset confirmation route", () => {
       ["isPasswordResetTokenEligible", { tokenHash: "token-hash" }],
       ["hashPassword", "a-long-new-password"],
       ["confirmPasswordReset", { tokenHash: "token-hash", passwordHash: "password-hash" }],
+    ])
+    assert.equal(afterCallbacks.length, 1)
+    await afterCallbacks[0]()
+    assert.deepEqual(calls, [
+      ["hashToken", "raw-reset-token"],
+      ["isPasswordResetTokenEligible", { tokenHash: "token-hash" }],
+      ["hashPassword", "a-long-new-password"],
+      ["confirmPasswordReset", { tokenHash: "token-hash", passwordHash: "password-hash" }],
       ["deliverAccountSecurityEmailIntent", { intentId: "intent-recovered" }],
     ])
     assert.equal(capturedTimes.eligibility instanceof Date, true)
     assert.equal(Object.hasOwn(capturedTimes.confirmationInput, "now"), false)
     assert.equal(Object.hasOwn(capturedTimes.confirmationInput, "clock"), false)
+  })
+
+  it("returns success before deferred delivery and settles a rejected delivery safely", async () => {
+    const { POST, calls, afterCallbacks } = loadRoute({
+      deliver: async () => { throw new Error("delivery unavailable") },
+    })
+
+    const response = await POST(resetRequest({
+      token: "raw-reset-token",
+      password: "a-long-new-password",
+    }))
+
+    assert.deepEqual(response, {
+      body: { message: "Password updated. You can sign in now." },
+      status: 200,
+    })
+    assert.equal(calls.some(([name]) => name === "deliverAccountSecurityEmailIntent"), false)
+    assert.equal(afterCallbacks.length, 1)
+    await assert.doesNotReject(() => afterCallbacks[0]())
+    assert.equal(calls.some(([name]) => name === "deliverAccountSecurityEmailIntent"), true)
   })
 
   for (const [article, condition] of [["a", "missing"], ["an", "expired"], ["a", "consumed"]]) {

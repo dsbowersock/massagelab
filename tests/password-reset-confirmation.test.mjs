@@ -249,7 +249,10 @@ describe("confirmPasswordReset", () => {
   })
 
   it("retries one serialization conflict without duplicating committed effects", async () => {
-    const database = createResetDatabase({ serializationConflicts: 1 })
+    const database = createResetDatabase({
+      serializationConflicts: 1,
+      userEmail: " Person@Example.COM ",
+    })
 
     assert.deepEqual(await confirmPasswordReset({
       prismaClient: database,
@@ -264,6 +267,13 @@ describe("confirmPasswordReset", () => {
     assert.equal(database.state.passwordResetTokens
       .filter((token) => token.userId === database.state.user.id)
       .every((token) => token.consumedAt), true)
+    assert.deepEqual(database.state.emailIntents.map(({ recipientEmail, idempotencyKey }) => ({
+      recipientEmail,
+      idempotencyKey,
+    })), [{
+      recipientEmail: "person@example.com",
+      idempotencyKey: "password-recovered:reset-active-a",
+    }])
   })
 
   it("captures a fresh authoritative time for every transaction retry", async () => {
@@ -319,9 +329,10 @@ function createResetDatabase({
   claimGate = null,
   failSessionDelete = false,
   serializationConflicts = 0,
+  userEmail = "person@example.com",
 } = {}) {
   let state = {
-    user: { id: "user-1", email: "person@example.com", authSessionVersion: 4 },
+    user: { id: "user-1", email: userEmail, authSessionVersion: 4 },
     passwordCredential: { id: "credential-1", userId: "user-1", passwordHash: "old-password-hash" },
     passwordResetTokens: [
       {

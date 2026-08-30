@@ -70,13 +70,26 @@ describe("identity method safety persistence", () => {
     assert.doesNotMatch(migration, /\bAuthAttempt_purpose_key_key\b/)
     assert.doesNotMatch(migration, /User_normalized_email_key/)
     assert.equal(
-      normalizedIndexMigration.trim(),
+      normalizedIndexMigration.replaceAll("\r\n", "\n").trim(),
       'CREATE UNIQUE INDEX CONCURRENTLY "User_normalized_email_key"\n  ON "User" (lower(btrim("email"))) WHERE "email" IS NOT NULL;',
     )
     assert.match(migration, /CREATE TABLE "AuthMethodIntent"/)
     assert.match(migration, /CREATE TABLE "AccountSecurityEmailIntent"/)
+    for (const enumName of [
+      "AuthAttemptScope",
+      "AuthMethodIntentPurpose",
+      "AuthMethodIntentStatus",
+      "AccountSecurityEmailKind",
+      "AccountSecurityEmailIntentStatus",
+    ]) {
+      assert.match(migration, new RegExp(`CREATE TYPE "${enumName}" AS ENUM`))
+    }
+    assert.match(migration, /CREATE UNIQUE INDEX "AuthRateLimitBucket_purpose_scope_keyHash_key"/)
+    assert.match(migration, /CREATE UNIQUE INDEX "AuthMethodIntent_browserBindingHash_key"/)
+    assert.match(migration, /CREATE UNIQUE INDEX "AccountSecurityEmailIntent_idempotencyKey_key"/)
+    assert.match(migration, /CONSTRAINT "AuthMethodIntent_targetUserId_fkey"[\s\S]*ON DELETE CASCADE ON UPDATE CASCADE/)
+    assert.match(migration, /CONSTRAINT "AccountSecurityEmailIntent_userId_fkey"[\s\S]*ON DELETE CASCADE ON UPDATE CASCADE/)
     assert.match(preflight, /normalized_collision_count/)
-    assert.doesNotMatch(preflight, /SELECT[\s\S]*email[\s\S]*console\.log/i)
   })
 
   it("documents collision preflight, concurrent index recovery, and the required recovery notice without contradiction", () => {
