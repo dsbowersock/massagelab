@@ -29,6 +29,10 @@ const [
   stripeBillingSource,
   backgroundCommerceProviderSource,
   layoutWrapperSource,
+  projectStateSource,
+  projectLogSource,
+  deploymentSource,
+  releaseChecklistSource,
 ] = await Promise.all([
   readFile(new URL("../lib/auth-users.ts", import.meta.url), "utf8"),
   readFile(new URL("../components/sidebar/sidebar.tsx", import.meta.url), "utf8"),
@@ -39,6 +43,10 @@ const [
   readFile(new URL("../lib/stripe-billing.js", import.meta.url), "utf8"),
   readFile(new URL("../components/backgrounds/BackgroundCommerceProvider.tsx", import.meta.url), "utf8"),
   readFile(new URL("../components/layout-wrapper.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../docs/project-state.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/project-log.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/wiki/deployment.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/wiki/release-checklist.md", import.meta.url), "utf8"),
 ])
 
 /** Returns one named function body bounded by the next named owner. */
@@ -295,6 +303,55 @@ function portalPost(calls) {
 }
 
 describe("family-and-friends server workload baseline", () => {
+  it("keeps canonical launch operations aligned with the measured cost boundaries", () => {
+    const deploymentCostControls = namedFunctionSlice(
+      deploymentSource,
+      "## Family-And-Friends Launch Cost Controls",
+      "## Identity, Membership Schema, And Writer Rollout",
+    )
+    const releaseCostControls = namedFunctionSlice(
+      releaseChecklistSource,
+      "## Family-And-Friends Cost And Pause Gate",
+      "## Navigation And Action Feedback Gate",
+    )
+
+    assert.match(projectStateSource, /ordinary non-practice shell/i)
+    assert.match(projectStateSource, /four logical ORM operations/i)
+    assert.match(projectStateSource, /zero client bootstrap endpoints/i)
+    assert.match(projectStateSource, /zero ordinary commerce snapshots/i)
+    assert.match(projectStateSource, /public display catalog only/i)
+    assert.match(projectStateSource, /local timing `first` is not platform cold/i)
+    assert.match(projectStateSource, /live Stripe[^\n]*`NOT RUN`/i)
+
+    assert.match(projectLogSource, /ordinary non-practice shell/i)
+    assert.match(projectLogSource, /five-minute complete[^\n]*fifteen-second incomplete/i)
+    assert.match(projectLogSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
+    assert.match(projectLogSource, /127 passed, 37 skipped, and zero failed/i)
+
+    assert.match(deploymentSource, /public display catalog only/i)
+    assert.match(deploymentCostControls, /owner is process-local and\s+single-flight/i)
+    assert.match(deploymentSource, /five-minute complete[^\n]*fifteen-second incomplete/i)
+    assert.match(deploymentSource, /2\.5-second timeout[^\n]*one SDK network retry/i)
+    assert.match(deploymentSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
+    assert.match(deploymentCostControls, /MASSAGELAB_PUBLIC_REGISTRATION_PAUSED/)
+    assert.match(deploymentCostControls, /MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED/)
+    assert.match(deploymentCostControls, /exact lowercase value `true` pauses/i)
+    assert.match(deploymentCostControls, /An absent flag[\s\S]{0,100}leaves that path open/i)
+    assert.match(deploymentCostControls, /changing one flag does not change[\s\S]{0,40}the other/i)
+
+    assert.match(releaseChecklistSource, /four logical ORM operations/i)
+    assert.match(releaseCostControls, /public display catalog only is process-local and single-flight/i)
+    assert.match(releaseChecklistSource, /zero client bootstrap\s+endpoints/i)
+    assert.match(releaseChecklistSource, /zero ordinary commerce snapshots/i)
+    assert.match(releaseChecklistSource, /127 passed, 37 skipped, and zero failed/i)
+    assert.match(releaseChecklistSource, /live Stripe[^\n]*`NOT RUN`/i)
+    assert.match(releaseCostControls, /MASSAGELAB_PUBLIC_REGISTRATION_PAUSED/)
+    assert.match(releaseCostControls, /MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED/)
+    assert.match(releaseCostControls, /switches independently/i)
+    assert.match(releaseCostControls, /Only lowercase `true` pauses a path/i)
+    assert.match(releaseCostControls, /absence defaults open/i)
+  })
+
   it("keeps the shared display catalog out of membership, entitlement, and customer authority", () => {
     assert.match(pricingPageSource, /import\s*\{\s*getMembershipPricingCatalog\s*\}\s*from\s*["']@\/lib\/membership-pricing["']/)
     assert.match(accountSurfaceDataSource, /import\s*\{\s*getMembershipPricingCatalog\s*\}\s*from\s*["']\.\/membership-pricing\.js["']/)
