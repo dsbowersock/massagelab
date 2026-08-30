@@ -10,7 +10,7 @@ describe("requestEmailVerification", () => {
     for (const scenario of ["unknown", "verified", "unverified"]) {
       const db = createVerificationDatabase({ scenario })
 
-      const result = await requestEmailVerification(verificationInput(db)).catch(() => "NOT_IMPLEMENTED")
+      const result = await requestEmailVerification(verificationInput(db))
       assert.deepEqual(result, { status: "ACCEPTED" }, scenario)
       assert.deepEqual(db.events, ["limit:REGISTER:ACCOUNT", "limit:REGISTER:NETWORK", "work.schedule"], scenario)
       assert.equal(db.scheduled.length, 1, scenario)
@@ -27,7 +27,7 @@ describe("requestEmailVerification", () => {
   it("returns exact limiter metadata before scheduling, lookup, token, or email work", async () => {
     const db = createVerificationDatabase({ rateLimited: true })
 
-    const result = await requestEmailVerification(verificationInput(db)).catch(() => "NOT_IMPLEMENTED")
+    const result = await requestEmailVerification(verificationInput(db))
     assert.deepEqual(result, {
       status: "RATE_LIMITED",
       retryAfterSeconds: 83,
@@ -41,7 +41,7 @@ describe("requestEmailVerification", () => {
   it("uses a parameterized normalized-email lookup and stores only a hashed token", async () => {
     const db = createVerificationDatabase({ scenario: "unverified", storedEmail: " Person@Example.com " })
 
-    const result = await requestEmailVerification(verificationInput(db)).catch(() => "NOT_IMPLEMENTED")
+    const result = await requestEmailVerification(verificationInput(db))
     assert.deepEqual(result, { status: "ACCEPTED" })
     await db.runScheduled()
 
@@ -61,7 +61,7 @@ describe("requestEmailVerification", () => {
     const originalError = console.error
     console.error = (...fields) => logs.push(fields.join(" "))
     try {
-      const result = await requestEmailVerification(verificationInput(db)).catch(() => "NOT_IMPLEMENTED")
+      const result = await requestEmailVerification(verificationInput(db))
       assert.deepEqual(result, { status: "ACCEPTED" })
       await db.runScheduled()
     } finally {

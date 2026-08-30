@@ -279,7 +279,17 @@ describe("verified-account background credit provisioning", () => {
     const authStateLoader = authUsers.slice(authUsers.indexOf("export async function getUserAuthState"))
     assert.doesNotMatch(authStateLoader, /ensureVerifiedUserBackgroundCredits/)
     assert.doesNotMatch(authUsers.match(/export async function ensureGoogleUserState[\s\S]*?\n\}/)?.[0] ?? "", /ensureVerifiedUserBackgroundCredits/)
-    assert.match(authMethodIntents, /created[\s\S]*ensureVerifiedUserBackgroundCredits\(prismaClient, userId\)/)
+    const prepareStart = authMethodIntents.indexOf("export async function prepareGoogleAuthentication")
+    const prepareEnd = authMethodIntents.indexOf("async function prepareSecurityReauthentication", prepareStart)
+    assert.ok(prepareStart >= 0 && prepareEnd > prepareStart, "Google authentication intent bounds must resolve")
+    const prepareGoogleAuthentication = authMethodIntents.slice(prepareStart, prepareEnd)
+    const createdStart = prepareGoogleAuthentication.indexOf(
+      'if (decision.kind === "CONTINUE" && decision.created === true)',
+    )
+    const createdEnd = prepareGoogleAuthentication.indexOf("  return decision", createdStart)
+    assert.ok(createdStart >= 0 && createdEnd > createdStart, "created-identity transition bounds must resolve")
+    const createdIdentityTransition = prepareGoogleAuthentication.slice(createdStart, createdEnd)
+    assert.match(createdIdentityTransition, /ensureVerifiedUserBackgroundCredits\(prismaClient, userId\)/)
     const verifyTransaction = verifyPage.match(/await runCommerceTransaction\(prisma, async \(txValue\) => \{([\s\S]*?)\n      \}\)/)?.[1]
     assert.ok(verifyTransaction)
     assert.doesNotMatch(verifyTransaction, /ensureVerifiedUserBackgroundCredits/)

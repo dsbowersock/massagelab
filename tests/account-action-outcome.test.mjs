@@ -3,15 +3,23 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 import { claimVerifiedCredential } from "../lib/credential-claims.js"
+import { safeErrorCode } from "../lib/safe-error-code.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+
+function loadAccountOutcome(source) {
+  return loadCompiledModule(source, "lib/account-action-outcome.test.ts", {
+    "@/lib/safe-error-code": { safeErrorCode },
+  })
+}
 
 describe("account action outcome mapping", () => {
   it("returns only the allowlisted success path after operational success", async () => {
     const source = await readFile(new URL("../lib/account-action-outcome.ts", import.meta.url), "utf8")
-    const { settleAccountAction } = loadCompiledModule(source, "lib/account-action-outcome.test.ts")
+    const { settleAccountAction } = loadAccountOutcome(source)
     let ran = false
     const result = await settleAccountAction({
+      operation: "profile-save",
       run: async () => { ran = true },
       successPath: "/account?tab=profile&profile=saved",
       failurePath: "/account?tab=profile&profile=save-failed",
@@ -22,29 +30,55 @@ describe("account action outcome mapping", () => {
 
   it("maps a thrown operational failure without leaking its message", async () => {
     const source = await readFile(new URL("../lib/account-action-outcome.ts", import.meta.url), "utf8")
-    const { settleAccountAction } = loadCompiledModule(source, "lib/account-action-outcome.test.ts")
+    const { settleAccountAction } = loadAccountOutcome(source)
     const secretMessage = "provider ORM credential value must stay private"
-    const result = await settleAccountAction({
-      run: async () => { throw new Error(secretMessage) },
-      successPath: "/account?tab=credentials&credential=submitted",
-      failurePath: "/account?tab=credentials&credential=submit-failed",
-    })
+    const error = Object.assign(new Error(secretMessage), { code: "P2002" })
+    const logged = []
+    const originalConsoleError = console.error
+    console.error = (...args) => logged.push(args)
+    let result
+    try {
+      result = await settleAccountAction({
+        operation: "credential-submission",
+        run: async () => { throw error },
+        successPath: "/account?tab=credentials&credential=submitted",
+        failurePath: "/account?tab=credentials&credential=submit-failed",
+      })
+    } finally {
+      console.error = originalConsoleError
+    }
     assert.equal(result, "/account?tab=credentials&credential=submit-failed")
     assert.equal(result.includes(secretMessage), false)
+    assert.deepEqual(logged, [[
+      "Account action settlement failed",
+      { operation: "credential-submission", code: "P2002" },
+    ]])
+    assert.equal(JSON.stringify(logged).includes(secretMessage), false)
   })
 
   it("keeps final redirects outside operational settlement in account actions", async () => {
     const actions = await readFile(new URL("../app/account/actions.ts", import.meta.url), "utf8")
-    assert.match(actions, /settleAccountAction\(\{[\s\S]*successPath: "\/account\?tab=profile&profile=saved"[\s\S]*failurePath: "\/account\?tab=profile&profile=save-failed"/)
-    assert.match(actions, /settleAccountAction\(\{[\s\S]*successPath: "\/account\?tab=credentials&credential=submitted"[\s\S]*failurePath: "\/account\?tab=credentials&credential=submit-failed"/)
-    const profileAction = actions.slice(
-      actions.indexOf("export async function saveProfileAction"),
-      actions.indexOf("function credentialRole"),
-    )
-    const credentialAction = actions.slice(
-      actions.indexOf("export async function requestCredentialVerificationAction"),
-      actions.indexOf("/** Cache refresh is best-effort"),
-    )
+    assert.match(actions, /const PROFILE_SAVE_SUCCESS_PATH = "\/account\?tab=profile&profile=saved"/)
+    assert.match(actions, /const PROFILE_SAVE_FAILURE_PATH = "\/account\?tab=profile&profile=save-failed"/)
+    assert.match(actions, /const CREDENTIAL_SUBMISSION_SUCCESS_PATH = "\/account\?tab=credentials&credential=submitted"/)
+    assert.match(actions, /const CREDENTIAL_SUBMISSION_FAILURE_PATH = "\/account\?tab=credentials&credential=submit-failed"/)
+
+    const profileStart = actions.indexOf("export async function saveProfileAction")
+    const profileEnd = actions.indexOf("function credentialRole")
+    assert.ok(profileStart >= 0 && profileEnd > profileStart, "profile action bounds must resolve")
+    const profileAction = actions.slice(profileStart, profileEnd)
+    const credentialStart = actions.indexOf("export async function requestCredentialVerificationAction")
+    const credentialEnd = actions.indexOf("function refreshAccountSurface")
+    assert.ok(credentialStart >= 0 && credentialEnd > credentialStart, "credential action bounds must resolve")
+    const credentialAction = actions.slice(credentialStart, credentialEnd)
+    assert.match(profileAction, /operation: "profile-save"/)
+    assert.match(profileAction, /successPath: PROFILE_SAVE_SUCCESS_PATH/)
+    assert.match(profileAction, /failurePath: PROFILE_SAVE_FAILURE_PATH/)
+    assert.match(profileAction, /destination === PROFILE_SAVE_SUCCESS_PATH/)
+    assert.match(credentialAction, /operation: "credential-submission"/)
+    assert.match(credentialAction, /successPath: CREDENTIAL_SUBMISSION_SUCCESS_PATH/)
+    assert.match(credentialAction, /failurePath: CREDENTIAL_SUBMISSION_FAILURE_PATH/)
+    assert.match(credentialAction, /destination === CREDENTIAL_SUBMISSION_SUCCESS_PATH/)
     for (const action of [profileAction, credentialAction]) {
       const settlementIndex = action.indexOf("const destination = await settleAccountAction")
       const refreshIndex = action.indexOf("refreshAccountSurface")
@@ -54,10 +88,11 @@ describe("account action outcome mapping", () => {
     assert.equal((actions.match(/redirect\(destination\)/g) ?? []).length, 2)
   })
 
-  it("keeps a durable profile save successful when cache refresh fails and maps true persistence failure", async () => {
+  it("keeps a durable profile save successful when cache refresh fails and maps true persistence failure", async (context) => {
+    context.mock.method(console, "error", () => {})
     const actionsSource = await readFile(new URL("../app/account/actions.ts", import.meta.url), "utf8")
     const outcomeSource = await readFile(new URL("../lib/account-action-outcome.ts", import.meta.url), "utf8")
-    const { settleAccountAction } = loadCompiledModule(outcomeSource, "lib/account-action-outcome.test.ts")
+    const { settleAccountAction } = loadAccountOutcome(outcomeSource)
 
     async function runScenario({ failPersistence = false, failRefreshAt = null } = {}) {
       const calls = []
@@ -154,13 +189,14 @@ describe("account action outcome mapping", () => {
     assert.match(operation, /transaction\.userRole\.(?:findUnique|create|update)/)
     assert.match(operation, /transaction\.studentAccess\.upsert/)
     assert.doesNotMatch(operation, /await prisma\.(?:credentialVerification|userRole|studentAccess)\./)
-    assert.match(actions, /if \(destination === "\/account\?tab=credentials&credential=submitted"\) \{[\s\S]*refreshAccountSurface/)
+    assert.match(actions, /if \(destination === CREDENTIAL_SUBMISSION_SUCCESS_PATH\) \{[\s\S]*refreshAccountSurface/)
   })
 
-  it("rolls back a late credential write failure and retries without duplicates", async () => {
+  it("rolls back a late credential write failure and retries without duplicates", async (context) => {
+    context.mock.method(console, "error", () => {})
     const actionsSource = await readFile(new URL("../app/account/actions.ts", import.meta.url), "utf8")
     const outcomeSource = await readFile(new URL("../lib/account-action-outcome.ts", import.meta.url), "utf8")
-    const { settleAccountAction } = loadCompiledModule(outcomeSource, "lib/account-action-outcome.test.ts")
+    const { settleAccountAction } = loadAccountOutcome(outcomeSource)
     const state = { legal: [], credentials: [], roles: [], students: [], claims: [] }
     let failLate = true
     let claimRacePending = false

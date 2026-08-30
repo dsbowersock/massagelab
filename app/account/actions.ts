@@ -26,6 +26,11 @@ import {
 import { prisma } from "@/lib/prisma"
 import type { AccountRole, CredentialKind } from "@/lib/domain-types"
 
+const PROFILE_SAVE_SUCCESS_PATH = "/account?tab=profile&profile=saved"
+const PROFILE_SAVE_FAILURE_PATH = "/account?tab=profile&profile=save-failed"
+const CREDENTIAL_SUBMISSION_SUCCESS_PATH = "/account?tab=credentials&credential=submitted"
+const CREDENTIAL_SUBMISSION_FAILURE_PATH = "/account?tab=credentials&credential=submit-failed"
+
 function formString(formData: FormData, key: string) {
   const value = formData.get(key)
   return typeof value === "string" ? value.trim() : ""
@@ -49,6 +54,7 @@ export async function saveProfileAction(formData: FormData) {
   }
 
   const destination = await settleAccountAction({
+    operation: "profile-save",
     run: async () => {
       await prisma.userProfile.upsert({
         where: { userId: session.user.id },
@@ -71,11 +77,11 @@ export async function saveProfileAction(formData: FormData) {
         },
       })
     },
-    successPath: "/account?tab=profile&profile=saved",
-    failurePath: "/account?tab=profile&profile=save-failed",
+    successPath: PROFILE_SAVE_SUCCESS_PATH,
+    failurePath: PROFILE_SAVE_FAILURE_PATH,
   })
 
-  if (destination === "/account?tab=profile&profile=saved") {
+  if (destination === PROFILE_SAVE_SUCCESS_PATH) {
     refreshAccountSurface(session.user.id)
   }
 
@@ -150,16 +156,17 @@ export async function requestCredentialVerificationAction(formData: FormData) {
   }
 
   const destination = await settleAccountAction({
+    operation: "credential-submission",
     run: () => submitCredentialVerificationOperation({
       formData,
       requiredDocuments,
       userId: session.user.id,
     }),
-    successPath: "/account?tab=credentials&credential=submitted",
-    failurePath: "/account?tab=credentials&credential=submit-failed",
+    successPath: CREDENTIAL_SUBMISSION_SUCCESS_PATH,
+    failurePath: CREDENTIAL_SUBMISSION_FAILURE_PATH,
   })
 
-  if (destination === "/account?tab=credentials&credential=submitted") {
+  if (destination === CREDENTIAL_SUBMISSION_SUCCESS_PATH) {
     refreshAccountSurface(session.user.id)
   }
 

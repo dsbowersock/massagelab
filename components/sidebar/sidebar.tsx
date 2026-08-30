@@ -145,6 +145,7 @@ function sidebarFeatureKeys(sessionUser: {
   featureKeys?: string[] | null
   capabilities?: Record<string, boolean> | null
 }) {
+  // Any current-session array, including empty, is authoritative; capabilities support only legacy sessions without it.
   return Array.isArray(sessionUser.featureKeys)
     ? sessionUser.featureKeys
     : featureKeysFromCapabilities(sessionUser.capabilities)

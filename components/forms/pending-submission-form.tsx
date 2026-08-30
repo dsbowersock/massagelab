@@ -8,7 +8,7 @@ import { Loader } from "@/components/ui/loader"
 import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
 import { cn } from "@/lib/utils"
 
-const NativeSubmissionPendingContext = React.createContext(false)
+const NativeSubmissionPendingContext = React.createContext<boolean | null>(null)
 
 type PendingSubmissionErrorBoundaryState = {
   failed: boolean
@@ -73,9 +73,19 @@ export function PendingSubmissionForm({
   const [nativePending, setNativePending] = React.useState(false)
   const pendingRef = React.useRef(false)
 
+  React.useEffect(() => {
+    const resetRestoredSubmission = (event: PageTransitionEvent) => {
+      if (!event.persisted) return
+      pendingRef.current = false
+      setNativePending(false)
+    }
+    window.addEventListener("pageshow", resetRestoredSubmission)
+    return () => window.removeEventListener("pageshow", resetRestoredSubmission)
+  }, [])
+
   if (typeof action === "function") {
     return (
-      <NativeSubmissionPendingContext.Provider value={false}>
+      <NativeSubmissionPendingContext.Provider value={null}>
         <PendingSubmissionErrorBoundary>
           <form {...formProps} action={action} method={method}>
             {children}
@@ -106,11 +116,9 @@ export function PendingSubmissionForm({
         aria-busy={nativePending}
       >
         {children}
-        {nativePending ? (
-          <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-            {pendingLabel}
-          </span>
-        ) : null}
+        <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+          {nativePending ? pendingLabel : ""}
+        </span>
       </form>
     </NativeSubmissionPendingContext.Provider>
   )
@@ -158,7 +166,9 @@ export function PendingSubmitButton({
   ...buttonProps
 }: PendingSubmitButtonImplementationProps) {
   const { pending: frameworkPending } = useFormStatus()
-  const nativePending = React.useContext(NativeSubmissionPendingContext)
+  const nativeSubmissionPending = React.useContext(NativeSubmissionPendingContext)
+  const nativeFormOwnsStatus = nativeSubmissionPending !== null
+  const nativePending = nativeSubmissionPending === true
   const pending = frameworkPending || nativePending
   const content = (
     <span className="grid place-items-center">
@@ -200,9 +210,9 @@ export function PendingSubmitButton({
           {content}
         </Button>
       )}
-      {frameworkPending && !nativePending ? (
+      {!nativeFormOwnsStatus ? (
         <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-          {pendingLabel}
+          {frameworkPending ? pendingLabel : ""}
         </span>
       ) : null}
     </>

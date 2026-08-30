@@ -173,7 +173,8 @@ async function buildBillingFixtureBundle() {
       },
     }, (error: Error | null, stats: { hasErrors(): boolean; toString(options: object): string } | undefined) => {
       if (error) return reject(error)
-      if (stats?.hasErrors()) return reject(new Error(stats.toString({ errors: true, warnings: false })))
+      if (!stats) return reject(new Error("The billing fixture webpack build produced no stats."))
+      if (stats.hasErrors()) return reject(new Error(stats.toString({ errors: true, warnings: false })))
       resolve()
     })
   })
@@ -900,7 +901,8 @@ test("native constraint validation stays idle until the billing form is valid", 
   await expect(form).toHaveAttribute("aria-busy", "false")
   await expect(control).toBeEnabled()
   await expect(control).toHaveAttribute("aria-busy", "false")
-  await expect(form.getByRole("status")).toHaveCount(0)
+  await expect(form.getByRole("status")).toHaveCount(1)
+  await expect(form.getByRole("status")).toHaveText("")
   await expect(form.getByText("Opening secure subscription checkout…", { exact: true })).toBeHidden()
 
   await form.getByRole("checkbox").check()
@@ -920,6 +922,12 @@ test("native constraint validation stays idle until the billing form is valid", 
     pendingCopyVisible: true,
     statusCount: 1,
   })
+  await page.evaluate(() => {
+    window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }))
+  })
+  await expect(form).toHaveAttribute("aria-busy", "false")
+  await expect(control).toBeEnabled()
+  await expect(form.getByRole("status")).toHaveText("")
   await expect.poll(() => requests).toBe(1)
   await expect(page).toHaveURL(/__interaction-feedback-billing-fixture$/)
 })
@@ -942,7 +950,7 @@ test("registration immediately announces one delayed request and blocks repeat a
     pendingLabel: "Creating account…",
     response: { status: 202, body: { message: "Check your email to continue." } },
   })
-  await expect(page.getByRole("status")).toContainText("Check your email to continue.")
+  await expect(page.getByRole("status").filter({ hasText: "Check your email to continue." })).toHaveCount(1)
   expect(tracked.requests()).toBe(1)
 })
 

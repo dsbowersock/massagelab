@@ -12,6 +12,9 @@ const afterCallbacks = []
 const NOW = new Date("2026-08-29T12:00:00.000Z")
 const PUBLIC_MESSAGE = "If that email still needs verification, check its inbox for the next step."
 
+const authRequestSource = await readFile(new URL("../lib/auth-request.ts", import.meta.url), "utf8")
+const { authRequestNetworkIdentifier } = loadCompiledModule(authRequestSource, "auth-request.verification-route-test.ts")
+
 const limiterSource = await readFile(new URL("../lib/auth-rate-limit.ts", import.meta.url), "utf8")
 const limiter = loadCompiledModule(limiterSource, "auth-rate-limit.verification-route-test.ts", {
   "@/lib/prisma": { prisma: {} },
@@ -29,6 +32,7 @@ const route = loadCompiledModule(routeSource, "email-verification-request-route.
   "@/lib/auth-env": { getAuthSecret: () => "secret" },
   "@/lib/auth-mail": { sendVerificationEmail: async () => ({ delivered: true }) },
   "@/lib/auth-rate-limit": limiter,
+  "@/lib/auth-request": { authRequestNetworkIdentifier },
   "@/lib/auth-registration": { sendRegistrationVerification: (sender, ...args) => sender(...args) },
   "@/lib/auth-entry-messages": { PUBLIC_ACCOUNT_ENTRY_MESSAGE: PUBLIC_MESSAGE },
   "@/lib/auth-security": {
@@ -49,7 +53,7 @@ describe("email verification request route", () => {
     afterCallbacks.length = 0
     let captured
     let taskStarted = false
-    const handler = safeCreateHandler({
+    const handler = route.createEmailVerificationRequestHandler({
       prismaClient: createRouteDatabase(),
       secret: "secret",
       clock: () => NOW,
@@ -60,8 +64,6 @@ describe("email verification request route", () => {
         return { status: "ACCEPTED" }
       },
     })
-    assert.equal(typeof handler, "function")
-
     const response = await handler(request(" Person@Example.com ", "https://attacker.test/after"))
 
     assert.equal(response.status, 202)
@@ -74,17 +76,35 @@ describe("email verification request route", () => {
     assert.equal(taskStarted, true)
   })
 
+  it("uses the canonical trusted-edge network identity instead of a route-local forwarded header", async () => {
+    let captured
+    const handler = route.createEmailVerificationRequestHandler({
+      prismaClient: createRouteDatabase(),
+      secret: "secret",
+      verificationWork: async (input) => {
+        captured = input
+        return { status: "ACCEPTED" }
+      },
+    })
+
+    await handler(requestPayload({ email: "person@example.com", callbackUrl: "/clock" }, {
+      "x-vercel-forwarded-for": "198.51.100.7",
+      "x-forwarded-for": "203.0.113.29, 10.0.0.4",
+      "x-real-ip": "192.0.2.5",
+    }))
+
+    assert.equal(captured.networkIdentifier, "198.51.100.7")
+  })
+
   it("shares registration's exact hashed ACCOUNT and NETWORK quota and maps exact 429 metadata", async () => {
     afterCallbacks.length = 0
     const database = createRouteDatabase()
-    const handler = safeCreateHandler({
+    const handler = route.createEmailVerificationRequestHandler({
       prismaClient: database,
       secret: "secret",
       clock: () => NOW,
       shouldPrune: () => false,
     })
-    assert.equal(typeof handler, "function")
-
     for (let index = 0; index < 5; index += 1) {
       const response = await handler(request("person@example.com", "/clock"))
       assert.equal(response.status, 202)
@@ -108,8 +128,7 @@ describe("email verification request route", () => {
 
   it("keeps invalid public input generic without scheduling account work", async () => {
     afterCallbacks.length = 0
-    const handler = safeCreateHandler({ prismaClient: createRouteDatabase(), secret: "secret" })
-    assert.equal(typeof handler, "function")
+    const handler = route.createEmailVerificationRequestHandler({ prismaClient: createRouteDatabase(), secret: "secret" })
 
     const response = await handler(request("not-an-email", "/clock"))
 
@@ -121,7 +140,7 @@ describe("email verification request route", () => {
   it("treats every non-object JSON body as generic invalid input without account work", async () => {
     afterCallbacks.length = 0
     let workCalls = 0
-    const handler = safeCreateHandler({
+    const handler = route.createEmailVerificationRequestHandler({
       prismaClient: createRouteDatabase(),
       secret: "secret",
       verificationWork: async () => {
@@ -129,8 +148,6 @@ describe("email verification request route", () => {
         return { status: "ACCEPTED" }
       },
     })
-    assert.equal(typeof handler, "function")
-
     for (const payload of [null, [], ["person@example.com"], 42, "person@example.com"]) {
       const response = await handler(requestPayload(payload))
 
@@ -151,8 +168,10 @@ describe("verification resend form contract", () => {
     assert.match(source, /JSON\.stringify\(\{ email, callbackUrl \}\)/)
     assert.match(source, /<AsyncActionButton/)
     assert.match(source, /pendingLabel="Sending verification email…"/)
-    assert.match(source, /role=\{statusIsError \? "alert" : "status"\}/)
+    assert.match(source, /<div\s+role=\{statusIsError \? "alert" : "status"\}/)
     assert.match(source, /aria-live=\{statusIsError \? "assertive" : "polite"\}/)
+    assert.match(source, /aria-atomic="true"/)
+    assert.match(source, /\{status \? \(\s*<AppInset/)
     assert.doesNotMatch(source, /response\.json|result\.message/)
     assert.match(source, /response\.status === 202/)
     assert.match(source, /response\.status === 429/)
@@ -176,22 +195,14 @@ describe("verification resend form contract", () => {
   })
 })
 
-function safeCreateHandler(dependencies) {
-  try {
-    return route.createEmailVerificationRequestHandler(dependencies)
-  } catch {
-    return null
-  }
-}
-
 function request(email, callbackUrl) {
   return requestPayload({ email, callbackUrl })
 }
 
-function requestPayload(payload) {
+function requestPayload(payload, forwardedHeaders = { "x-forwarded-for": "203.0.113.29" }) {
   return new Request("https://massagelab.app/api/account/email-verification/request", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.29" },
+    headers: { "content-type": "application/json", ...forwardedHeaders },
     body: JSON.stringify(payload),
   })
 }

@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server"
 import { getAuthSecret } from "@/lib/auth-env"
 import { sendVerificationEmail } from "@/lib/auth-mail"
 import { consumeEmailWorkRateLimit } from "@/lib/auth-rate-limit"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 import { sendRegistrationVerification } from "@/lib/auth-registration"
 import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-entry-messages"
 import { generateRandomToken, hashToken, normalizeEmail, tokenExpiresIn } from "@/lib/auth-security"
@@ -41,7 +42,8 @@ export function createEmailVerificationRequestHandler({
       prismaClient,
       email,
       callbackUrl: safePostLegalAcceptanceCallback(body.callbackUrl),
-      networkIdentifier: requestIp(request),
+      // Keep trusted-edge precedence in the shared request boundary; routes must not parse proxy headers independently.
+      networkIdentifier: authRequestNetworkIdentifier(request),
       secret,
       now: clock(),
       shouldPrune,
@@ -67,12 +69,6 @@ export function createEmailVerificationRequestHandler({
 /** Rejects JSON primitives and arrays before reading public request fields. */
 function isRequestBody(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-function requestIp(request: Request): string {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? request.headers.get("x-real-ip")
-    ?? "unknown"
 }
 
 function validPublicEmail(email: string): boolean {

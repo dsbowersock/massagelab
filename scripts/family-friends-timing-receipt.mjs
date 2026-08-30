@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process"
+import { existsSync } from "node:fs"
 import { createServer } from "node:net"
-import { dirname, resolve } from "node:path"
+import { posix, resolve, win32 } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { pathToFileURL } from "node:url"
 
@@ -153,20 +154,60 @@ async function runBufferedChild(command, args) {
   }
 }
 
-/** Builds the current checkout through the repository's canonical build script. */
-export function resolveBuildCommand({
+/** Resolves the npm entrypoint without relying on shell lookup or one OS layout. */
+export function resolveNpmCli({
+  npmExecPath = process.env.npm_execpath,
   nodeExecutable = process.execPath,
-  npmCli = process.env.npm_execpath || resolve(
-    dirname(process.execPath),
+  platform = process.platform,
+  workingDirectory = process.cwd(),
+  pathExists = existsSync,
+} = {}) {
+  if (npmExecPath) return npmExecPath
+
+  const pathApi = platform === "win32" ? win32 : posix
+  const repositoryCli = pathApi.resolve(
+    workingDirectory,
     "node_modules",
     "npm",
     "bin",
     "npm-cli.js",
-  ),
+  )
+  const platformCli = platform === "win32"
+    ? pathApi.resolve(pathApi.dirname(nodeExecutable), "node_modules", "npm", "bin", "npm-cli.js")
+    : pathApi.resolve(
+        pathApi.dirname(pathApi.dirname(nodeExecutable)),
+        "lib",
+        "node_modules",
+        "npm",
+        "bin",
+        "npm-cli.js",
+      )
+
+  for (const candidate of [repositoryCli, platformCli]) {
+    if (pathExists(candidate)) return candidate
+  }
+  throw new Error("npm CLI could not be located.")
+}
+
+/** Builds the current checkout through the repository's canonical build script. */
+export function resolveBuildCommand({
+  nodeExecutable = process.execPath,
+  npmCli,
+  npmExecPath,
+  platform,
+  workingDirectory,
+  pathExists,
 } = {}) {
+  const resolvedNpmCli = npmCli ?? resolveNpmCli({
+    npmExecPath,
+    nodeExecutable,
+    platform,
+    workingDirectory,
+    pathExists,
+  })
   return {
     command: nodeExecutable,
-    args: [npmCli, "run", "build"],
+    args: [resolvedNpmCli, "run", "build"],
   }
 }
 
@@ -276,6 +317,10 @@ export async function stopBuiltServer(child, {
   }
 }
 
+/**
+ * Races work against a registered owned child's settlement so server death
+ * fails fast. Injected or otherwise unregistered children run unsupervised.
+ */
 async function runWhileOwnedChildLives(operation, child) {
   const lifecycle = ownedChildLifecycles.get(child)
   if (!lifecycle) return operation
@@ -324,6 +369,7 @@ export async function runFamilyFriendsTimingReceipt({
 
   let ownedChild = null
   let results
+  let stopError = null
   try {
     try {
       ownedChild = await startServer({ hostname, port })
@@ -355,10 +401,11 @@ export async function runFamilyFriendsTimingReceipt({
       try {
         await stopOwnedServer(ownedChild)
       } catch {
-        throw new Error("Owned timing server did not stop cleanly.")
+        stopError = new Error("Owned timing server did not stop cleanly.")
       }
     }
   }
+  if (stopError) throw stopError
 
   writeSummary(formatReadinessTimingSummary(results))
   return results

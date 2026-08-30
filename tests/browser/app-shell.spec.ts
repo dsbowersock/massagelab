@@ -1,25 +1,12 @@
 import { expect, test, type Locator, type Page, type Route } from "@playwright/test"
 import { withPlayerViewportCollisionPadding } from "../../components/ui/use-player-viewport-insets"
 import { centerCarouselItem, waitForStableSlideGeometry } from "./carousel-test-helpers"
+import { isDevelopmentReviewUnavailable } from "./development-review-test-helpers"
 
 const desktopProject = "desktop-chromium"
 const mobileProject = "mobile-chromium"
 const FAVORITES_MIN_TO_CENTER_CARD_RATIO = 1.3
 const FAVORITES_BALANCED_FILL_RATIO = 0.8
-
-/** Detects App Router's streamed production 404 without hiding the development fixture. */
-async function isDevelopmentReviewUnavailable(page: Page, responseStatus: number | undefined) {
-  if (responseStatus === 404) return true
-
-  const reviewHeading = page.getByRole("heading", { name: "Control system review", level: 1 })
-  const notFoundHeading = page.getByRole("heading", {
-    name: "This page could not be found.",
-    exact: true,
-    level: 2,
-  })
-  await expect(reviewHeading.or(notFoundHeading)).toBeVisible()
-  return notFoundHeading.isVisible()
-}
 
 async function expectFavoritesMosaicTracksCenteredCard(mosaic: Locator, centeredCard: Locator) {
   await expect.poll(async () => {
