@@ -61,6 +61,7 @@ type AccountNoticeInput = {
   checkout?: string
   legal?: string
   portal?: string
+  returnKind?: "checkout" | "portal" | null
 }
 
 type NormalizedAccountReturnState = {
@@ -126,7 +127,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   if (!session?.user?.id) {
     return (
       <AccountShell>
-        <AccountNotice {...returnState.notice} />
+        <AccountNotice {...returnState.notice} returnKind={returnState.kind} />
         <AccountSettingsShell
           defaultValue={defaultTab}
           groups={accountPageGroups}
@@ -1068,8 +1069,9 @@ function AccountNotice({
   checkout,
   legal,
   portal,
+  returnKind,
 }: AccountNoticeInput) {
-  const notice = accountNotice({ billing, checkout, legal, portal })
+  const notice = accountNotice({ billing, checkout, legal, portal, returnKind })
 
   if (!notice) {
     return null
@@ -1080,12 +1082,22 @@ function AccountNotice({
   )
 }
 
+/** Maps redirect state to fixed public copy without exposing private billing details. */
 function accountNotice({
   billing,
   checkout,
   legal,
   portal,
+  returnKind,
 }: AccountNoticeInput) {
+  if (returnKind) {
+    return {
+      title: "Sign in to check your membership update",
+      description: "Membership and billing status is private to your account. Sign in below to review the latest status.",
+      tone: "default" as const,
+    }
+  }
+
   if (checkout === "cancelled") {
     return {
       title: "Checkout cancelled",

@@ -23,6 +23,7 @@ test.describe("public membership return boundary", () => {
       waitUntil: "domcontentloaded",
     })
     await expect(page.getByRole("heading", { name: "Membership & billing" }).first()).toBeVisible()
+    await expect(page.getByText("Sign in to check your membership update", { exact: true })).toBeVisible()
     await expect(page.getByText("Sign in to manage membership and billing", { exact: true })).toBeVisible()
     await expect(page.locator("[data-membership-return-status]")).toHaveCount(0)
 
