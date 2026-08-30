@@ -1,7 +1,47 @@
-import { expect, test, type Locator, type Page, type Response } from "@playwright/test"
+import { expect, test as base, type Locator, type Page, type Response } from "@playwright/test"
 import { readFile } from "node:fs/promises"
 import { centerCarouselItem } from "./carousel-test-helpers"
 import { installSignedInSessionCookie } from "./signed-in-session-cookie"
+
+type PublicNetworkGuardState = {
+  allowedExternalUrls: Set<string>
+  unfulfilledAllowedExternalRequests: string[]
+  unexpectedExternalRequests: string[]
+}
+
+const publicNetworkGuardByPage = new WeakMap<Page, PublicNetworkGuardState>()
+const test = base.extend<{ publicNetworkGuard: PublicNetworkGuardState }>({
+  publicNetworkGuard: [async ({ page }, use) => {
+    const state: PublicNetworkGuardState = {
+      allowedExternalUrls: new Set(),
+      unfulfilledAllowedExternalRequests: [],
+      unexpectedExternalRequests: [],
+    }
+    publicNetworkGuardByPage.set(page, state)
+    await page.route((url) => isExternalHttpUrl(url.toString()), async (route) => {
+      const request = route.request()
+      const requestDescription = `${request.method()} ${request.url()}`
+      if (state.allowedExternalUrls.has(request.url())) {
+        state.unfulfilledAllowedExternalRequests.push(requestDescription)
+      } else {
+        state.unexpectedExternalRequests.push(requestDescription)
+      }
+      await route.abort("blockedbyclient")
+    })
+    await use(state)
+    expect(state.unexpectedExternalRequests, "unexpected external requests after public journey").toEqual([])
+    expect(
+      state.unfulfilledAllowedExternalRequests,
+      "allowed external requests without an exact fixture",
+    ).toEqual([])
+  }, { auto: true }],
+})
+
+function getPublicNetworkGuard(page: Page) {
+  const state = publicNetworkGuardByPage.get(page)
+  if (!state) throw new Error("Public network guard is unavailable for this page")
+  return state
+}
 
 const publicRoutes = [
   { path: "/", expectedText: /MassageLab/i },
@@ -228,13 +268,22 @@ function isExternalHttpUrl(urlString: string) {
   return ["http:", "https:"].includes(url.protocol) && !isLocalHttpUrl(urlString)
 }
 
+function registerAllowedExternalUrls(page: Page, allowedExternalUrls: ReadonlySet<string>) {
+  const networkGuard = getPublicNetworkGuard(page)
+  for (const url of allowedExternalUrls) {
+    if (!isExternalHttpUrl(url)) throw new Error(`Public external allowlist contains a non-external URL: ${url}`)
+    networkGuard.allowedExternalUrls.add(url)
+  }
+}
+
 async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<string>) {
   const consoleErrors: string[] = []
   const failedExternalRequests: string[] = []
-  const unexpectedExternalRequests: string[] = []
   const pageErrors: string[] = []
   const failedLocalResponses: string[] = []
   const forbiddenRequests: string[] = []
+  const networkGuard = getPublicNetworkGuard(page)
+  registerAllowedExternalUrls(page, allowedExternalUrls)
 
   page.on("console", (message) => {
     if (message.type() === "error") {
@@ -258,18 +307,6 @@ async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<st
     failedExternalRequests.push(`${request.failure()?.errorText ?? "unknown failure"} ${request.url()}`)
   })
 
-  // Playwright checks newer routes first, so journey-owned exact fixtures installed
-  // after this guard can fulfill only their named URLs. Every other external HTTP
-  // request reaches this handler, is compared with the journey contract, and stops.
-  await page.route((url) => isExternalHttpUrl(url.toString()), async (route) => {
-    const request = route.request()
-    const url = request.url()
-    if (!allowedExternalUrls.has(url)) {
-      unexpectedExternalRequests.push(`${request.method()} ${url}`)
-    }
-    await route.abort("blockedbyclient")
-  })
-
   page.on("response", (response) => {
     if (response.status() >= 400 && isLocalHttpUrl(response.url())) {
       failedLocalResponses.push(formatResponse(response))
@@ -282,40 +319,56 @@ async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<st
     failedLocalResponses,
     forbiddenRequests,
     pageErrors,
-    unexpectedExternalRequests,
+    unexpectedExternalRequests: networkGuard.unexpectedExternalRequests,
   }
 }
 
-test("public route health rejects an unexpected successful external resource", async ({ page }) => {
+test("every public journey blocks and records an unexpected successful external resource", async ({ context, page }) => {
   const unexpectedExternalUrl = "https://unexpected.browser-qa.invalid/public-route-probe.js"
-  await page.route(unexpectedExternalUrl, async (route) => {
+  let successfulFixtureRequests = 0
+  await context.route(unexpectedExternalUrl, async (route) => {
+    successfulFixtureRequests += 1
     await route.fulfill({
       status: 200,
       contentType: "application/javascript",
+      headers: { "access-control-allow-origin": "*" },
       body: "window.__unexpectedPublicRouteProbe = true",
     })
   })
-  const health = await capturePageHealth(page, new Set())
+  const networkGuard = getPublicNetworkGuard(page)
 
   await page.goto("/about", { waitUntil: "domcontentloaded" })
-  await page.evaluate(async (url) => {
-    await fetch(url).catch(() => undefined)
+  const requestResult = await page.evaluate(async (url) => {
+    try {
+      const response = await fetch(url)
+      return { kind: "fulfilled", status: response.status }
+    } catch {
+      return { kind: "rejected" }
+    }
   }, unexpectedExternalUrl)
 
-  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([
+  expect.soft(requestResult, "unexpected request result").toEqual({ kind: "rejected" })
+  expect.soft(successfulFixtureRequests, "unexpected 2xx fixture requests").toBe(0)
+  expect.soft(networkGuard.unexpectedExternalRequests, "unexpected external requests").toEqual([
     `GET ${unexpectedExternalUrl}`,
   ])
+  networkGuard.unexpectedExternalRequests.length = 0
 })
 
-function requireAllowedExternalFixture(allowedExternalUrls: ReadonlySet<string>, url: string) {
-  if (!allowedExternalUrls.has(url)) {
+function requireAllowedExternalFixture(
+  page: Page,
+  allowedExternalUrls: ReadonlySet<string>,
+  url: string,
+) {
+  if (!allowedExternalUrls.has(url) || !getPublicNetworkGuard(page).allowedExternalUrls.has(url)) {
     throw new Error(`External fixture URL is missing from this journey's allowlist: ${url}`)
   }
 }
 
 /** Serves the one externally hosted display font from a deterministic local dependency fixture. */
 async function installExternalFontFixture(page: Page, allowedExternalUrls: ReadonlySet<string>) {
-  requireAllowedExternalFixture(allowedExternalUrls, externalFontUrl)
+  registerAllowedExternalUrls(page, allowedExternalUrls)
+  requireAllowedExternalFixture(page, allowedExternalUrls, externalFontUrl)
   await page.route(externalFontUrl, async (route) => {
     await route.fulfill({
       status: 200,
@@ -331,9 +384,10 @@ async function installChimerPreviewFixtures(
   names: string[],
   allowedExternalUrls: ReadonlySet<string>,
 ) {
+  registerAllowedExternalUrls(page, allowedExternalUrls)
   for (const name of names) {
     const url = chimerPreviewUrl(name)
-    requireAllowedExternalFixture(allowedExternalUrls, url)
+    requireAllowedExternalFixture(page, allowedExternalUrls, url)
     await page.route(url, async (route) => {
       await route.fulfill({ status: 204, contentType: "video/webm", body: "" })
     })
@@ -350,6 +404,7 @@ async function installAtmosphereFixtures(
   allowedExternalUrls: ReadonlySet<string>,
   playbackPieceIds: Array<"observable-streams" | "last-transit" | "peace" | "trees"> = [],
 ) {
+  registerAllowedExternalUrls(page, allowedExternalUrls)
   const fixtureHits = new Map<string, number>()
   const recordHit = (url: string) => fixtureHits.set(url, (fixtureHits.get(url) ?? 0) + 1)
   const playbackIndexes: Record<string, Record<string, Record<string, string> | string[]>> = {
@@ -371,7 +426,7 @@ async function installAtmosphereFixtures(
   const sampleIndexUrls = new Set(atmosphereSampleIndexFixtureUrls)
 
   for (const url of sampleIndexUrls) {
-    requireAllowedExternalFixture(allowedExternalUrls, url)
+    requireAllowedExternalFixture(page, allowedExternalUrls, url)
     const pieceId = playbackPieceIds.find((candidate) => atmosphereSampleIndexUrl(candidate) === url)
     await page.route(url, async (route) => {
       recordHit(url)
@@ -398,7 +453,7 @@ async function installAtmosphereFixtures(
   })
   for (const url of playbackPayloadUrls) {
     if (url.startsWith("/")) continue
-    requireAllowedExternalFixture(allowedExternalUrls, url)
+    requireAllowedExternalFixture(page, allowedExternalUrls, url)
     await page.route(url, async (route) => {
       recordHit(url)
       await route.fulfill({
@@ -1047,6 +1102,10 @@ test("Atmosphere visualizer action retains selected station across client routes
 
 test("non-Music compact landscape keeps the global rail without narrowing ordinary content", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Compact-landscape global rail is covered in mobile Chromium.")
+  const atmosphereFixtureUrls = new Set(atmosphereSampleIndexFixtureUrls)
+  const fontFixtureUrls = new Set([externalFontUrl])
+  await installAtmosphereFixtures(page, atmosphereFixtureUrls)
+  await installExternalFontFixture(page, fontFixtureUrls)
   await page.setViewportSize({ width: 844, height: 390 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
@@ -1121,6 +1180,17 @@ test("Atmosphere restores the active station category after the Music route remo
 })
 
 test("immersive context changes keep only the displays owned by Chimer, Clock, and hidden Music", async ({ page }) => {
+  const previewNames = [
+    "massage-lab-moving-gradient-vertical",
+    "massage-lab-stars-vertical",
+    "massage-lab-hole-vertical",
+  ]
+  const allowedExternalUrls = new Set([
+    externalFontUrl,
+    ...previewNames.map(chimerPreviewUrl),
+  ])
+  await installExternalFontFixture(page, allowedExternalUrls)
+  await installChimerPreviewFixtures(page, previewNames, allowedExternalUrls)
   let releaseSession!: () => void
   const sessionGate = new Promise<void>((resolve) => {
     releaseSession = resolve
@@ -1226,6 +1296,14 @@ test("Music visualizer uses the anonymous shell bootstrap without client account
 })
 
 test("Music visualizer background selection and account default actions preserve playback and device state", async ({ context, page }, testInfo) => {
+  const previewNames = [
+    "massage-lab-moving-gradient-vertical",
+    "massage-lab-stars-vertical",
+    "massage-lab-hole-vertical",
+    "massage-lab-retro-grid-vertical",
+  ]
+  const previewFixtureUrls = new Set(previewNames.map(chimerPreviewUrl))
+  await installChimerPreviewFixtures(page, previewNames, previewFixtureUrls)
   const preferenceWrites: Array<Record<string, unknown>> = []
   const accountRequests: string[] = []
   const accountVisualizer = {
@@ -1454,6 +1532,8 @@ test("Breathing guide route runs separately from Music stations", async ({ page 
 
 test("first station Play activation stays hidden before carousel readiness", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Mobile Chromium owns the first-action contract.")
+  const atmosphereFixtureUrls = new Set(atmosphereSampleIndexFixtureUrls)
+  await installAtmosphereFixtures(page, atmosphereFixtureUrls)
   let carouselBundleHeld = false
   let releaseCarouselBundle: () => void = () => undefined
   const carouselBundleGate = new Promise<void>((resolve) => {
@@ -1490,6 +1570,8 @@ test("first station Play activation stays hidden before carousel readiness", asy
 
 test("center station details support swipe and short tap while actions stay protected", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Touch carousel behavior is covered in mobile Chromium.")
+  const atmosphereFixtureUrls = new Set(atmosphereSampleIndexFixtureUrls)
+  await installAtmosphereFixtures(page, atmosphereFixtureUrls)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("region", { name: "Station carousel" })).toHaveAttribute("data-carousel-ready", "true")
@@ -1579,6 +1661,8 @@ for (const reducedMotion of [false, true] as const) {
       !["mobile-chromium", "desktop-chromium"].includes(testInfo.project.name),
       "Station loop coverage is owned by Chromium projects.",
     )
+    const atmosphereFixtureUrls = new Set(atmosphereSampleIndexFixtureUrls)
+    await installAtmosphereFixtures(page, atmosphereFixtureUrls)
     await page.emulateMedia({ reducedMotion: reducedMotion ? "reduce" : "no-preference" })
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto("/music", { waitUntil: "domcontentloaded" })
@@ -1670,6 +1754,18 @@ for (const reducedMotion of [false, true] as const) {
 for (const reducedMotion of [false, true] as const) {
   test(`Background default navigation and Background drag keep ${reducedMotion ? "reduced-motion finite" : "normal looped"} behavior`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-chromium", "Native Background drag coverage is owned by mobile Chromium.")
+    const previewNames = [
+      "massage-lab-moving-gradient-vertical",
+      "massage-lab-stars-vertical",
+      "massage-lab-hole-vertical",
+      "massage-lab-retro-grid-vertical",
+    ]
+    const allowedExternalUrls = new Set([
+      externalFontUrl,
+      ...previewNames.map(chimerPreviewUrl),
+    ])
+    await installExternalFontFixture(page, allowedExternalUrls)
+    await installChimerPreviewFixtures(page, previewNames, allowedExternalUrls)
     await page.emulateMedia({ reducedMotion: reducedMotion ? "reduce" : "no-preference" })
     if (reducedMotion) {
       await page.addInitScript(() => {
@@ -2403,6 +2499,8 @@ test("anatomime player joins by code and submits typed guesses", async ({ page }
 })
 
 test("anatomime player sees steal guidance when another team is active", async ({ page }) => {
+  const fontFixtureUrls = new Set([externalFontUrl])
+  await installExternalFontFixture(page, fontFixtureUrls)
   await page.addInitScript(() => {
     window.localStorage.setItem("massagelab-anatomime-player:TEST01", JSON.stringify({
       playerId: "player-2",
@@ -2512,6 +2610,8 @@ test("anatomime stale player pass offers rejoin recovery", async ({ page }) => {
 })
 
 test("anatomime multiple-choice options unlock only on player devices", async ({ page }) => {
+  const fontFixtureUrls = new Set([externalFontUrl])
+  await installExternalFontFixture(page, fontFixtureUrls)
   await page.addInitScript(() => {
     window.localStorage.setItem("massagelab-anatomime-player:TEST01", JSON.stringify({
       playerId: "player-1",
