@@ -1,10 +1,12 @@
-import { expect, test as base, type Locator, type Page, type Response } from "@playwright/test"
+import { expect, test as base, type Locator, type Page, type Request, type Response, type Route } from "@playwright/test"
 import { readFile } from "node:fs/promises"
 import { centerCarouselItem } from "./carousel-test-helpers"
 import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
 type PublicNetworkGuardState = {
   allowedExternalUrls: Set<string>
+  ownedPreviewCancellations: string[]
+  ownedPreviewFixtureRequests: WeakSet<Request>
   unfulfilledAllowedExternalRequests: string[]
   unexpectedExternalRequests: string[]
 }
@@ -14,6 +16,8 @@ const test = base.extend<{ publicNetworkGuard: PublicNetworkGuardState }>({
   publicNetworkGuard: [async ({ page }, use) => {
     const state: PublicNetworkGuardState = {
       allowedExternalUrls: new Set(),
+      ownedPreviewCancellations: [],
+      ownedPreviewFixtureRequests: new WeakSet(),
       unfulfilledAllowedExternalRequests: [],
       unexpectedExternalRequests: [],
     }
@@ -304,7 +308,12 @@ async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<st
 
   page.on("requestfailed", (request) => {
     if (isLocalHttpUrl(request.url())) return
-    failedExternalRequests.push(`${request.failure()?.errorText ?? "unknown failure"} ${request.url()}`)
+    const failureText = request.failure()?.errorText ?? "unknown failure"
+    if (failureText === "net::ERR_ABORTED" && networkGuard.ownedPreviewFixtureRequests.has(request)) {
+      networkGuard.ownedPreviewCancellations.push(`${request.method()} ${request.url()}`)
+      return
+    }
+    failedExternalRequests.push(`${failureText} ${request.url()}`)
   })
 
   page.on("response", (response) => {
@@ -318,6 +327,7 @@ async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<st
     failedExternalRequests,
     failedLocalResponses,
     forbiddenRequests,
+    ownedPreviewCancellations: networkGuard.ownedPreviewCancellations,
     pageErrors,
     unexpectedExternalRequests: networkGuard.unexpectedExternalRequests,
   }
@@ -355,6 +365,72 @@ test("every public journey blocks and records an unexpected successful external 
   networkGuard.unexpectedExternalRequests.length = 0
 })
 
+test("an exact allowlisted preview canceled by its media lifecycle is not an external failure", async ({ page }) => {
+  const canceledPreviewUrl = chimerPreviewUrl("intentional-cancel")
+  const nonOwnedAbortUrl = chimerPreviewUrl("non-owned-abort")
+  const health = await capturePageHealth(page, new Set([canceledPreviewUrl, nonOwnedAbortUrl]))
+  let announceFixtureStarted!: () => void
+  let releaseFixture!: () => void
+  const fixtureStarted = new Promise<void>((resolve) => {
+    announceFixtureStarted = resolve
+  })
+  const fixtureGate = new Promise<void>((resolve) => {
+    releaseFixture = resolve
+  })
+  let fixtureFinished = false
+  await installChimerPreviewRoute(page, canceledPreviewUrl, async (route) => {
+    announceFixtureStarted()
+    await fixtureGate
+    await route.fulfill({ status: 204, contentType: "video/webm", body: "" })
+    fixtureFinished = true
+  })
+  await page.route(nonOwnedAbortUrl, async (route) => {
+    await route.abort("aborted")
+  })
+
+  await page.goto("/about", { waitUntil: "domcontentloaded" })
+  const canceledRequestPromise = page.waitForEvent("requestfailed", {
+    predicate: (request) => request.url() === canceledPreviewUrl,
+  })
+  await page.evaluate((url) => {
+    const preview = document.createElement("video")
+    preview.dataset.browserQaCanceledPreview = "true"
+    preview.preload = "auto"
+    preview.src = url
+    document.body.append(preview)
+    preview.load()
+  }, canceledPreviewUrl)
+
+  await fixtureStarted
+  const teardownNavigation = page.goto("about:blank", { waitUntil: "domcontentloaded" })
+  const canceledRequest = await canceledRequestPromise
+  releaseFixture()
+  await teardownNavigation
+  await expect.poll(() => fixtureFinished, "exact preview fixture completion").toBe(true)
+  expect(canceledRequest.failure()?.errorText, "browser media cancellation").toBe("net::ERR_ABORTED")
+
+  const nonOwnedRequestPromise = page.waitForEvent("requestfailed", {
+    predicate: (request) => request.url() === nonOwnedAbortUrl,
+  })
+  const nonOwnedRequestResult = await page.evaluate(async (url) => {
+    try {
+      await fetch(url)
+      return "fulfilled"
+    } catch {
+      return "rejected"
+    }
+  }, nonOwnedAbortUrl)
+  const nonOwnedRequest = await nonOwnedRequestPromise
+  expect(nonOwnedRequestResult, "non-owned request result").toBe("rejected")
+  expect(nonOwnedRequest.failure()?.errorText, "non-owned network abort").toBe("net::ERR_ABORTED")
+  expect(health.failedExternalRequests, "failed external requests").toEqual([
+    `net::ERR_ABORTED ${nonOwnedAbortUrl}`,
+  ])
+  expect(health.ownedPreviewCancellations, "owned preview cancellation receipt").toEqual([
+    `GET ${canceledPreviewUrl}`,
+  ])
+})
+
 function requireAllowedExternalFixture(
   page: Page,
   allowedExternalUrls: ReadonlySet<string>,
@@ -378,6 +454,18 @@ async function installExternalFontFixture(page: Page, allowedExternalUrls: Reado
   })
 }
 
+/** Marks the exact Request owned by a preview fixture before browser media teardown can cancel it. */
+async function installChimerPreviewRoute(
+  page: Page,
+  url: string,
+  handleRoute: (route: Route) => Promise<void>,
+) {
+  await page.route(url, async (route) => {
+    getPublicNetworkGuard(page).ownedPreviewFixtureRequests.add(route.request())
+    await handleRoute(route)
+  })
+}
+
 /** Fulfills only the named Chimer preview requests; other external media remains visible to health checks. */
 async function installChimerPreviewFixtures(
   page: Page,
@@ -388,7 +476,7 @@ async function installChimerPreviewFixtures(
   for (const name of names) {
     const url = chimerPreviewUrl(name)
     requireAllowedExternalFixture(page, allowedExternalUrls, url)
-    await page.route(url, async (route) => {
+    await installChimerPreviewRoute(page, url, async (route) => {
       await route.fulfill({ status: 204, contentType: "video/webm", body: "" })
     })
   }
