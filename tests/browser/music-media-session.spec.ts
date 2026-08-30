@@ -1945,9 +1945,7 @@ test("runtime readiness withholds Play until module loading completes without a 
     await play.click()
     const player = page.getByTestId("music-player-toolbar")
     await expect(player).toHaveAttribute("data-playback-state", "playing")
-    await page.locator("#station-mlab-proof-drone")
-      .getByRole("button", { name: /^Stop MassageLab Proof Drone$/i })
-      .click({ force: true })
+    await invokeMediaAction(page, "stop")
     await expect(player).toHaveAttribute("data-playback-state", "stopped")
     await expect.poll(async () => (await readProbe(page)).audioContext.activeGeneratorSources).toBe(0)
   } finally {
