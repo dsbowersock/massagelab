@@ -491,6 +491,7 @@ async function installAtmosphereFixtures(
   page: Page,
   allowedExternalUrls: ReadonlySet<string>,
   playbackPieceIds: Array<"observable-streams" | "last-transit" | "peace" | "trees"> = [],
+  sampleIndexFixtureUrls: readonly string[] = atmosphereSampleIndexFixtureUrls,
 ) {
   registerAllowedExternalUrls(page, allowedExternalUrls)
   const fixtureHits = new Map<string, number>()
@@ -511,7 +512,8 @@ async function installAtmosphereFixtures(
       "trees__vsco2-piano-mf": buildChromaticNoteFixture(deterministicAtmospherePayloadUrls.treesPiano),
     },
   }
-  const sampleIndexUrls = new Set(atmosphereSampleIndexFixtureUrls)
+  // Prewarm-only journeys deliberately fixture the smaller initial catalog.
+  const sampleIndexUrls = new Set(sampleIndexFixtureUrls)
 
   for (const url of sampleIndexUrls) {
     requireAllowedExternalFixture(page, allowedExternalUrls, url)
@@ -626,12 +628,17 @@ async function openQuickActionsAboveTrigger(page: Page, quickCreate: Locator) {
 
 for (const route of publicRoutes) {
   test(`anonymous public route ${route.path} renders without browser regressions`, async ({ page }) => {
-    const allowedExternalUrls = new Set<string>(
-      route.path === "/chimer" || route.path === "/clock" ? [externalFontUrl] : [],
-    )
+    const ownsAtmospherePrewarm = route.path === "/browse" || route.path === "/music"
+    const allowedExternalUrls = new Set<string>([
+      ...(route.path === "/chimer" || route.path === "/clock" ? [externalFontUrl] : []),
+      ...(ownsAtmospherePrewarm ? initialAtmosphereSampleIndexUrls : []),
+    ])
     const health = await capturePageHealth(page, allowedExternalUrls)
     if (route.path === "/chimer" || route.path === "/clock") {
       await installExternalFontFixture(page, allowedExternalUrls)
+    }
+    if (ownsAtmospherePrewarm) {
+      await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
     }
 
     await page.goto(route.path, { waitUntil: "domcontentloaded" })
@@ -1392,8 +1399,12 @@ test("Music visualizer background selection and account default actions preserve
     "massage-lab-hole-vertical",
     "massage-lab-retro-grid-vertical",
   ]
-  const previewFixtureUrls = new Set(previewNames.map(chimerPreviewUrl))
-  await installChimerPreviewFixtures(page, previewNames, previewFixtureUrls)
+  const allowedExternalUrls = new Set([
+    ...previewNames.map(chimerPreviewUrl),
+    ...initialAtmosphereSampleIndexUrls,
+  ])
+  await installChimerPreviewFixtures(page, previewNames, allowedExternalUrls)
+  await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
   const preferenceWrites: Array<Record<string, unknown>> = []
   const accountRequests: string[] = []
   const accountVisualizer = {
@@ -1473,6 +1484,10 @@ test("Music visualizer background selection and account default actions preserve
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
   await playerToolbar.getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
+  await expect.poll(() => page.evaluate(() => (
+    JSON.parse(localStorage.getItem("massagelab-atmosphere-v2") ?? "{}")
+      .recentStations
+  ))).toEqual(["mlab-proof-drone"])
 
   const deviceStateBeforeSelection = await page.evaluate(() => {
     const stored = JSON.parse(localStorage.getItem("massagelab-atmosphere-v2") ?? "{}")

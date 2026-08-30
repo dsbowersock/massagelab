@@ -121,6 +121,36 @@ test("mobile Background carousel fixtures include the default preview", async ()
   )
 })
 
+test("public media journeys fixture opportunistic atmosphere prewarms", async () => {
+  const publicRoutesSpec = await readProjectFile("tests/browser/public-routes.spec.ts")
+  const genericStart = publicRoutesSpec.indexOf("for (const route of publicRoutes)")
+  const genericEnd = publicRoutesSpec.indexOf(
+    '\ntest("core public tool surfaces',
+    genericStart,
+  )
+  const visualizerStart = publicRoutesSpec.indexOf(
+    'test("Music visualizer background selection and account default actions',
+  )
+  const visualizerEnd = publicRoutesSpec.indexOf(
+    '\ntest("Music account preference owner switch',
+    visualizerStart,
+  )
+
+  for (const boundary of [genericStart, genericEnd, visualizerStart, visualizerEnd]) {
+    assert.notEqual(boundary, -1)
+  }
+  for (const journeySource of [
+    publicRoutesSpec.slice(genericStart, genericEnd),
+    publicRoutesSpec.slice(visualizerStart, visualizerEnd),
+  ]) {
+    assert.match(journeySource, /initialAtmosphereSampleIndexUrls/)
+    assert.match(
+      journeySource,
+      /installAtmosphereFixtures\(page, allowedExternalUrls, \[\], initialAtmosphereSampleIndexUrls\)/,
+    )
+  }
+})
+
 test("browser QA lanes cover each ordinary project and spec exactly once", async () => {
   const expectedProjects = ["desktop-chromium", "mobile-chromium"]
   const expectedSpecs = [
