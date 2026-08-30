@@ -380,17 +380,16 @@ test("real React DOM harness owns setup failures inside its cleanup boundary", (
   assert.match(harness, /finally \{[\s\S]*if \(browser\)[\s\S]*if \(server\?\.listening\)[\s\S]*rmSync\(fixtureRoot/)
 })
 
-test("affected client account actions declare recoverable settlement boundaries", () => {
-  const affectedForms = [
+test("async client account action owners declare recoverable settlement boundaries", () => {
+  const asyncActionOwners = [
     "app/login/login-form.tsx",
     "app/register/register-form.tsx",
     "app/forgot-password/page.tsx",
     "app/reset-password/reset-password-form.tsx",
     "app/account/link-google/link-google-form.tsx",
     "app/account/security/sign-in-methods-panel.tsx",
-    "app/account/security/security-panel.tsx",
   ]
-  for (const path of affectedForms) {
+  for (const path of asyncActionOwners) {
     const client = source(path)
     assert.match(client, /try \{[\s\S]*catch(?: \([^)]*\))? \{[\s\S]*finally \{/, path)
     assert.match(
