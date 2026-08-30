@@ -7,9 +7,18 @@ import { projectAccountShellAppSettings } from "../lib/account-shell-bootstrap.j
 import { createMembershipCheckoutPostHandler } from "../lib/membership-checkout.js"
 import { getMembershipConvergenceStatus } from "../lib/membership-convergence.ts"
 import { hasSubscriptionBlockingNewCheckout } from "../lib/membership.js"
+import { createMembershipPricingCatalogLoader } from "../lib/membership-pricing.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const SIX_PRICE_ENVIRONMENT = Object.freeze({
+  STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_month",
+  STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_year",
+  STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_2_month",
+  STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_year",
+  STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_month",
+  STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_year",
+})
 const [
   authUsersSource,
   sidebarSource,
@@ -161,6 +170,19 @@ function sidebarNavigationWorkload(calls) {
     "@/lib/membership": { FEATURE_KEYS: { therapistDocumentationTools: "therapist_documentation_tools" } },
     "@/lib/navigation": { resolveNavigation: (context) => context },
     "@/lib/prisma": { prisma: database },
+    "@/lib/rsc-session": {
+      getCurrentRscSession: async () => {
+        calls.authSnapshots += 1
+        return {
+          user: {
+            id: "workload-user",
+            name: "Workload Test",
+            email: "workload@example.test",
+            featureKeys: ["calendar_basic"],
+          },
+        }
+      },
+    },
   })
   return { getAppSidebarData: compiled.getAppSidebarData }
 }
@@ -278,6 +300,40 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(accountSurfaceDataSource, /import\s*\{\s*getMembershipPricingCatalog\s*\}\s*from\s*["']\.\/membership-pricing\.js["']/)
     assert.doesNotMatch(membershipSource, /membership-pricing(?:\.js)?["']/)
     assert.doesNotMatch(stripeBillingSource, /membership-pricing(?:\.js)?["']/)
+  })
+
+  it("shares six public display Price reads across concurrent cold and warm callers", async () => {
+    const priceReads = []
+    const loader = createMembershipPricingCatalogLoader({
+      env: SIX_PRICE_ENVIRONMENT,
+      stripeClient: {
+        prices: {
+          async retrieve(priceId, params, options) {
+            priceReads.push({ priceId, params, options })
+            return {
+              id: priceId,
+              unit_amount: 100,
+              currency: "usd",
+              recurring: { interval: priceId.endsWith("_year") ? "year" : "month" },
+            }
+          },
+        },
+      },
+    })
+
+    await Promise.all(Array.from({ length: 20 }, () => loader.get()))
+    const concurrentColdLogicalPriceReads = priceReads.length
+    const beforeWarmRead = priceReads.length
+    await loader.get()
+    const warmLogicalPriceReads = priceReads.length - beforeWarmRead
+
+    assert.equal(concurrentColdLogicalPriceReads, 6)
+    assert.equal(warmLogicalPriceReads, 0)
+    assert.equal(priceReads.every(({ params }) => JSON.stringify(params) === "{}"), true)
+    assert.equal(priceReads.every(({ options }) => (
+      options.timeout === 2_500 && options.maxNetworkRetries === 1
+    )), true)
+    console.log(`public pricing catalog: concurrent cold logical Price reads = ${concurrentColdLogicalPriceReads}; warm logical Price reads = ${warmLogicalPriceReads}`)
   })
 
   it("locks the ordinary verified-auth and signed-in sidebar call counts", async () => {
