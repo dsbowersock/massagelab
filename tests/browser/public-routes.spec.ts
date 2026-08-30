@@ -659,7 +659,11 @@ test("core public tool surfaces keep shell spacing and visible primary content",
   const health = await capturePageHealth(page, new Set())
 
   await page.setViewportSize({ width: 390, height: 844 })
-  for (const path of ["/", "/tools", "/education", "/notes", "/music", "/wellness"]) {
+  for (const path of ["/", "/tools", "/education", "/notes", "/wellness", "/music"]) {
+    if (path === "/music") {
+      const allowedExternalUrls = new Set(initialAtmosphereSampleIndexUrls)
+      await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
+    }
     await page.goto(path, { waitUntil: "domcontentloaded" })
     await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toBeVisible()
     await expect(page.locator(".ml-app-content")).toBeVisible()
@@ -676,7 +680,9 @@ test("core public tool surfaces keep shell spacing and visible primary content",
 
 test("active app-tool metal ring keeps valid SVG geometry when its renderer collapses", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "The MetalFx collapse regression is covered once in Chromium.")
-  const health = await capturePageHealth(page, new Set())
+  const allowedExternalUrls = new Set(initialAtmosphereSampleIndexUrls)
+  const health = await capturePageHealth(page, allowedExternalUrls)
+  await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
 
   await page.setViewportSize({ width: 1024, height: 720 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
@@ -728,7 +734,9 @@ test("active app-tool metal ring keeps valid SVG geometry when its renderer coll
 })
 
 test("main bar exposes brand music clock quick create theme calendar and more controls", async ({ page }) => {
-  const health = await capturePageHealth(page, new Set())
+  const allowedExternalUrls = new Set(initialAtmosphereSampleIndexUrls)
+  const health = await capturePageHealth(page, allowedExternalUrls)
+  await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => {
@@ -818,7 +826,9 @@ test("main bar edge control stays aligned with the compact sidebar rail", async 
 test("top app bar quick actions open inside the viewport below the plus button", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "Top app bar placement is covered by the desktop shell.")
 
-  const health = await capturePageHealth(page, new Set())
+  const allowedExternalUrls = new Set(initialAtmosphereSampleIndexUrls)
+  const health = await capturePageHealth(page, allowedExternalUrls)
+  await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
 
   await page.setViewportSize({ width: 1024, height: 720 })
   await page.addInitScript(() => {

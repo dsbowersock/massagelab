@@ -128,6 +128,29 @@ test("public media journeys fixture opportunistic atmosphere prewarms", async ()
     '\ntest("core public tool surfaces',
     genericStart,
   )
+  const coreToolsStart = genericEnd
+  const coreToolsEnd = publicRoutesSpec.indexOf(
+    '\ntest("active app-tool metal ring',
+    coreToolsStart,
+  )
+  const activeToolRingStart = coreToolsEnd
+  const activeToolRingEnd = publicRoutesSpec.indexOf(
+    '\ntest("main bar exposes brand music clock quick create theme calendar and more controls',
+    activeToolRingStart,
+  )
+  const mainBarStart = activeToolRingEnd
+  const mainBarEnd = publicRoutesSpec.indexOf(
+    '\ntest("main bar edge control stays aligned with the compact sidebar rail',
+    mainBarStart,
+  )
+  const topAppBarStart = publicRoutesSpec.indexOf(
+    'test("top app bar quick actions open inside the viewport below the plus button',
+    mainBarEnd,
+  )
+  const topAppBarEnd = publicRoutesSpec.indexOf(
+    '\ntest("mobile quick-create button opens a vertical speed dial',
+    topAppBarStart,
+  )
   const visualizerStart = publicRoutesSpec.indexOf(
     'test("Music visualizer background selection and account default actions',
   )
@@ -136,19 +159,71 @@ test("public media journeys fixture opportunistic atmosphere prewarms", async ()
     visualizerStart,
   )
 
-  for (const boundary of [genericStart, genericEnd, visualizerStart, visualizerEnd]) {
+  for (const boundary of [
+    genericStart,
+    genericEnd,
+    coreToolsStart,
+    coreToolsEnd,
+    activeToolRingStart,
+    activeToolRingEnd,
+    mainBarStart,
+    mainBarEnd,
+    topAppBarStart,
+    topAppBarEnd,
+    visualizerStart,
+    visualizerEnd,
+  ]) {
     assert.notEqual(boundary, -1)
   }
-  for (const journeySource of [
-    publicRoutesSpec.slice(genericStart, genericEnd),
-    publicRoutesSpec.slice(visualizerStart, visualizerEnd),
-  ]) {
-    assert.match(journeySource, /initialAtmosphereSampleIndexUrls/)
-    assert.match(
-      journeySource,
-      /installAtmosphereFixtures\(page, allowedExternalUrls, \[\], initialAtmosphereSampleIndexUrls\)/,
+  const exactPrewarmFixtureCall =
+    "installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)"
+  const journeys = [
+    ["generic public routes", publicRoutesSpec.slice(genericStart, genericEnd)],
+    ["core public tools", publicRoutesSpec.slice(coreToolsStart, coreToolsEnd)],
+    ["active tool ring", publicRoutesSpec.slice(activeToolRingStart, activeToolRingEnd)],
+    ["main bar", publicRoutesSpec.slice(mainBarStart, mainBarEnd)],
+    ["top app bar", publicRoutesSpec.slice(topAppBarStart, topAppBarEnd)],
+    ["music visualizer", publicRoutesSpec.slice(visualizerStart, visualizerEnd)],
+  ]
+
+  for (const [journeyName, journeySource] of journeys) {
+    const fixtureIndex = journeySource.indexOf(exactPrewarmFixtureCall)
+    const firstNavigationIndex = journeySource.indexOf("await page.goto")
+    assert.notEqual(fixtureIndex, -1, `${journeyName} installs the exact initial Atmosphere fixture`)
+    assert.notEqual(firstNavigationIndex, -1, `${journeyName} contains a page navigation`)
+    assert.ok(
+      fixtureIndex < firstNavigationIndex,
+      `${journeyName} installs its exact initial Atmosphere fixture before navigation`,
     )
   }
+
+  const coreToolsSource = publicRoutesSpec.slice(coreToolsStart, coreToolsEnd)
+  assert.match(coreToolsSource, /const health = await capturePageHealth\(page, new Set\(\)\)/)
+  assert.equal(
+    coreToolsSource.split(exactPrewarmFixtureCall).length - 1,
+    1,
+    "the multi-route core journey owns exactly one initial Atmosphere fixture",
+  )
+  const coreRouteLoop = coreToolsSource.match(/for \(const path of \[([^\]]+)]\) \{/)
+  assert.ok(coreRouteLoop, "the multi-route core journey keeps an explicit route list")
+  const coreRoutePaths = [...coreRouteLoop[1].matchAll(/"([^"]+)"/g)].map((match) => match[1])
+  assert.equal(coreRoutePaths.at(-1), "/music", "the multi-route core journey visits Music last")
+  const coreMusicGuardIndex = coreToolsSource.indexOf('if (path === "/music") {')
+  const coreFixtureIndex = coreToolsSource.indexOf(exactPrewarmFixtureCall)
+  const coreMusicGuardEndIndex = coreToolsSource.indexOf("\n    }", coreMusicGuardIndex)
+  const coreLoopNavigationIndex = coreToolsSource.indexOf("await page.goto(path", coreMusicGuardEndIndex)
+  assert.notEqual(coreMusicGuardIndex, -1, "the multi-route core journey has a Music-only fixture guard")
+  assert.notEqual(coreMusicGuardEndIndex, -1, "the Music-only fixture guard has an explicit boundary")
+  assert.notEqual(coreLoopNavigationIndex, -1, "the Music-only fixture guard precedes the loop navigation")
+  assert.ok(
+    coreMusicGuardIndex < coreFixtureIndex && coreFixtureIndex < coreMusicGuardEndIndex,
+    "the multi-route core journey grants the exact prewarm fixture only inside the Music guard",
+  )
+  assert.equal(
+    coreToolsSource.slice(coreMusicGuardEndIndex + "\n    }".length, coreLoopNavigationIndex).trim(),
+    "",
+    "the Music-only fixture guard stays immediately before the loop navigation",
+  )
 })
 
 test("browser QA lanes cover each ordinary project and spec exactly once", async () => {
