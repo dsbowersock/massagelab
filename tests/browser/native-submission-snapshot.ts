@@ -48,6 +48,8 @@ export async function installNativeSubmitSnapshotRecorder({
         statusCount: statuses.length,
         statusText: statuses[0]?.textContent ?? undefined,
       })
+      // Reentrant requestSubmit() is ignored during active submit dispatch; defer
+      // the duplicate so React's pending guard receives and blocks the next event.
       setTimeout(() => submittedForm.requestSubmit(), 0)
     }
     document.addEventListener("submit", observePending)

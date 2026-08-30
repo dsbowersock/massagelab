@@ -183,6 +183,7 @@ test("pending submission form keeps function identity and owns native first-subm
   })
   const action = async () => {}
   const previousWindow = globalThis.window
+  try {
   globalThis.window = {
     addEventListener: (name, handler) => {
       if (name === "pageshow") pageShowHandler = handler
@@ -273,7 +274,25 @@ test("pending submission form keeps function identity and owns native first-subm
   assert.equal(elementText(legacyIdleStatus), "")
   effectCleanup()
   assert.equal(removedPageShowHandler, pageShowHandler)
-  globalThis.window = previousWindow
+  } finally {
+    globalThis.window = previousWindow
+  }
+})
+
+test("pending submission unit harness owns its global window cleanup boundary", () => {
+  const interactionTest = source("tests/interaction-feedback.test.mjs")
+  const harness = interactionTest.slice(
+    interactionTest.indexOf('test("pending submission form keeps function identity'),
+    interactionTest.indexOf('test("pending submission unit harness owns its global window cleanup boundary'),
+  )
+  assert.match(
+    harness,
+    /const previousWindow = globalThis\.window\s+try \{\s+globalThis\.window = \{/,
+  )
+  assert.match(
+    harness,
+    /assert\.equal\(removedPageShowHandler, pageShowHandler\)\s*\} finally \{\s*globalThis\.window = previousWindow\s*\}/,
+  )
 })
 
 test("billing browser evidence covers native invalid-form idleness and the production donation label", () => {
