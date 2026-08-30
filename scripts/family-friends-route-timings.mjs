@@ -32,8 +32,9 @@ export function parseReadinessTimingArgs(args) {
 }
 
 /**
- * Completes one anonymous HTML request within a fixed deadline. The same abort
- * signal covers both connection establishment and response-body consumption.
+ * Completes one successful anonymous HTML request within a fixed deadline. The
+ * same abort signal covers connection and body consumption; unsuccessful HTTP
+ * responses reject before they can become readiness timing samples.
  */
 export async function fetchAnonymousHtml({
   url,
@@ -62,6 +63,7 @@ export async function fetchAnonymousHtml({
     })
     const status = response.status
     await response.arrayBuffer()
+    if (status < 200 || status >= 300) throw new Error("Anonymous route response was unsuccessful.")
     return { status }
   })()
 

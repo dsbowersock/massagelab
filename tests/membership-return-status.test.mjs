@@ -6,6 +6,7 @@ import { fetchJsonWithTimeout } from "../lib/client-fetch.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const formattedAccountDates = []
 const membershipReturnSource = await readFile(
   new URL("../app/account/membership-return-status.tsx", import.meta.url),
   "utf8",
@@ -15,6 +16,7 @@ const {
   parseMembershipConvergenceStatus,
   pollMembershipReturnStatus,
   readPersistedMembershipStatus,
+  statusMessage,
 } = loadCompiledModule(
   membershipReturnSource,
   "app/account/membership-return-status.tsx",
@@ -37,6 +39,12 @@ const {
       BILLING_PORTAL_DESTINATIONS: { MANAGE: "manage" },
     },
     "@/lib/client-fetch": { fetchJsonWithTimeout },
+    "@/lib/account-page": {
+      formatAccountDate: (date) => {
+        formattedAccountDates.push(date)
+        return "local-account-date"
+      },
+    },
   },
 )
 
@@ -294,6 +302,28 @@ describe("bounded membership return polling", () => {
 })
 
 describe("membership return component safety", () => {
+  it("formats cancellation period ends through the shared local account-date owner", () => {
+    assert.equal(typeof statusMessage, "function")
+    const currentPeriodEnd = "2026-09-29T00:30:00.000Z"
+    const status = {
+      ...persistedStatus(),
+      cancelAtPeriodEnd: true,
+      currentPeriodEnd,
+    }
+    formattedAccountDates.length = 0
+
+    assert.equal(
+      statusMessage(status, false, "portal"),
+      "Your membership access is active through local-account-date.",
+    )
+    assert.deepEqual(
+      formattedAccountDates.map((date) => date.toISOString()),
+      [currentPeriodEnd],
+    )
+    assert.match(membershipReturnSource, /import \{ formatAccountDate \} from "@\/lib\/account-page"/)
+    assert.doesNotMatch(membershipReturnSource, /currentPeriodEnd\.slice/)
+  })
+
   it("uses one polite live region, canonical hidden loader semantics, retry-only timeout, and no Checkout recreation", async () => {
     const source = membershipReturnSource
 
