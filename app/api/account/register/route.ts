@@ -2,10 +2,9 @@ import { after, NextResponse } from "next/server"
 import { getAuthSecret } from "@/lib/auth-env"
 import { sendAccountChangeEmail, sendPasswordSetupEmail, sendVerificationEmail } from "@/lib/auth-mail"
 import { consumeEmailWorkRateLimit } from "@/lib/auth-rate-limit"
-import {
-  PUBLIC_ACCOUNT_ENTRY_MESSAGE,
-  registerPasswordAccount,
-} from "@/lib/auth-registration-service"
+import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-entry-messages"
+import { authRequestNetworkIdentifier, isPublicAccountEmail } from "@/lib/auth-request"
+import { registerPasswordAccount } from "@/lib/auth-registration-service"
 import { sendRegistrationVerification } from "@/lib/auth-registration"
 import { generateRandomToken, hashPassword, hashToken, normalizeEmail, tokenExpiresIn, verifyPassword } from "@/lib/auth-security"
 import { ensureUserRole } from "@/lib/auth-users"
@@ -46,7 +45,7 @@ export async function POST(request: Request) {
 
   // Invalid input is rejected before the service consumes quota or performs
   // expensive work; every valid request enters the same bounded service path.
-  if (!validPublicEmail(email) || password.length < 12) {
+  if (!isPublicAccountEmail(email) || password.length < 12) {
     return NextResponse.json({ message: "Use a valid email and a password with at least 12 characters." }, { status: 400 })
   }
   if (missingLegalDocuments.length > 0) {
@@ -61,7 +60,7 @@ export async function POST(request: Request) {
     password,
     name,
     callbackUrl,
-    networkIdentifier: requestIp(request),
+    networkIdentifier: authRequestNetworkIdentifier(request),
     secret: getAuthSecret(),
     requiredDocuments,
     legalMetadata: legalRequestMetadata(request),
@@ -92,14 +91,4 @@ export async function POST(request: Request) {
     )
   }
   return NextResponse.json({ message: PUBLIC_ACCOUNT_ENTRY_MESSAGE }, { status: 202 })
-}
-
-function requestIp(request: Request): string {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? request.headers.get("x-real-ip")
-    ?? "unknown"
-}
-
-function validPublicEmail(email: string): boolean {
-  return email.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }

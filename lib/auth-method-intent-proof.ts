@@ -57,7 +57,12 @@ export function isFreshConsumedGoogleReauth(
     && expiresAt > now
 }
 
-/** Consumes the exact proof once; the caller's transaction owns rollback. */
+/**
+ * Atomically consumes `intent` inside the caller-owned `tx` at authoritative
+ * `now`. Exactly one matching row returns true, clears only `providerProvenAt`,
+ * and leaves status `CONSUMED`; subsequent calls return false so the Google
+ * proof cannot be replayed.
+ */
 export async function consumeFreshGoogleReauth(
   tx: GoogleProofTransactionClient,
   intent: FreshGoogleReauthIntent,

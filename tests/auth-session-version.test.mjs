@@ -71,6 +71,7 @@ describe("JWT session-version integration contract", () => {
         runCommerceTransaction: (prismaClient, callback) => prismaClient.$transaction(callback),
       },
       "./account-security-email-intents.ts": { queueAccountSecurityEmail },
+      "./auth-security.js": { normalizeEmail: (value) => String(value ?? "").trim().toLowerCase() },
     })
 
     assert.deepEqual(await confirmPasswordReset({
@@ -141,6 +142,7 @@ describe("JWT session-version integration contract", () => {
         getSiteUrl: () => "http://localhost:3000",
       },
       "@/lib/auth-method-proof": { verifyPasswordMethodProof: async () => ({ status: "INVALID" }) },
+      "@/lib/auth-request": { authRequestNetworkIdentifier: () => "network" },
       "@/lib/auth-method-intents": {
         AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
         parseAuthMethodIntentBinding: () => null,
@@ -202,6 +204,7 @@ describe("JWT session-version integration contract", () => {
       "@/lib/auth-account-linking": { googleProfileEmail: () => "", isVerifiedGoogleProfile: () => true },
       "@/lib/auth-env": { getAuthSecret: () => "test-secret", getGoogleAuthConfig: () => null, getSiteUrl: () => "http://localhost:3000" },
       "@/lib/auth-method-proof": { verifyPasswordMethodProof: async () => ({ status: "INVALID" }) },
+      "@/lib/auth-request": { authRequestNetworkIdentifier: () => "network" },
       "@/lib/auth-method-intents": {
         AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
         parseAuthMethodIntentBinding: () => null,
@@ -273,6 +276,7 @@ describe("JWT session-version integration contract", () => {
           authSessionVersion: 0,
         }),
       },
+      "@/lib/auth-request": { authRequestNetworkIdentifier: () => "network" },
       "@/lib/auth-method-intents": {
         AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
         parseAuthMethodIntentBinding: () => null,

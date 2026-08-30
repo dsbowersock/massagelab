@@ -16,6 +16,7 @@ const calendarActionServiceCatalog = readFileSync(new URL("../app/calendar/actio
 const calendarActionPublicBooking = readFileSync(new URL("../app/calendar/actions/public-booking.ts", import.meta.url), "utf8")
 const loginForm = readFileSync(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
 const legalAcceptanceGate = readFileSync(new URL("../lib/legal-acceptance-gate.js", import.meta.url), "utf8")
+const authEntryActions = readFileSync(new URL("../lib/auth-entry-actions.ts", import.meta.url), "utf8")
 const registerPage = readFileSync(new URL("../app/register/page.tsx", import.meta.url), "utf8")
 const authRoute = readFileSync(new URL("../app/api/auth/[...nextauth]/route.ts", import.meta.url), "utf8")
 const publicBookingLinkCard = readFileSync(new URL("../app/calendar/booking/public-booking-link-card.tsx", import.meta.url), "utf8")
@@ -105,12 +106,13 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(loginForm, /router\.push\(callbackUrl\)/)
     assert.match(loginForm, /buildRegistrationLegalProviderRedirectPath/)
     assert.match(loginForm, /const googleCallbackUrl = hasCallbackUrl \? callbackUrl : "\/onboarding"/)
+    assert.match(loginForm, /startGoogleAuthMethodIntent\(googleRedirectTo\)/)
     assert.match(
-      loginForm,
-      /fetch\("\/api\/auth\/google\/intent", \{[\s\S]*method: "POST"[\s\S]*body: JSON\.stringify\(\{ purpose: "SIGN_IN_OR_LINK", callbackUrl: googleRedirectTo \}\)/,
+      authEntryActions,
+      /fetchImpl\("\/api\/auth\/google\/intent", \{[\s\S]*method: "POST"[\s\S]*body: JSON\.stringify\(\{ purpose: "SIGN_IN_OR_LINK", callbackUrl: googleRedirectTo \}\)/,
     )
-    assert.match(loginForm, /!response\.ok \|\| !result\.ok \|\| !result\.callbackUrl/)
-    assert.match(loginForm, /signIn\("google", \{ redirectTo: result\.callbackUrl \}\)/)
+    assert.match(authEntryActions, /!response\.ok \|\| !result\.ok \|\| !result\.callbackUrl/)
+    assert.match(authEntryActions, /signInImpl\("google", \{ redirectTo: result\.callbackUrl \}\)/)
     assert.match(authRoute, /GOOGLE_SIGN_IN_PATH = "\/api\/auth\/signin\/google"/)
     assert.match(authRoute, /buildRegistrationLegalProviderRedirectPath\(url\.searchParams\.get\("callbackUrl"\) \?\? "\/onboarding"\)/)
     assert.match(authRoute, /buildRegistrationLegalProviderRedirectPath\(body\.get\("callbackUrl"\) \?\? "\/onboarding"\)/)

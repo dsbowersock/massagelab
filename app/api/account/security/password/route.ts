@@ -3,6 +3,7 @@ import { after, NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
 import { deliverAccountSecurityEmailIntent } from "@/lib/account-security-email-intents"
 import { setPasswordMethod } from "@/lib/account-security-methods"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { getAuthSecret } from "@/lib/auth-env"
 import { AUTH_METHOD_INTENT_COOKIE, resolveBoundAuthMethodIntent } from "@/lib/auth-method-intents"
@@ -76,7 +77,7 @@ export function createPasswordMethodHandler({
       currentPassword: body.currentPassword,
       newPassword: body.newPassword,
       twoFactorCode: body.twoFactorCode,
-      networkIdentifier: requestIp(request),
+      networkIdentifier: authRequestNetworkIdentifier(request),
       confirmed: true,
       now,
       hashPasswordFn: hash,
@@ -121,12 +122,6 @@ function rejectedResponse(code: string) {
       ? "The authenticator or backup code was not accepted."
       : "Your current password proof was not accepted."
   return safeResponse(code, message, 403)
-}
-
-function requestIp(request: Request) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? request.headers.get("x-real-ip")
-    ?? "unknown"
 }
 
 function readCookie(request: Request, name: string) {

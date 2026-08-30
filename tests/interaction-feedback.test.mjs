@@ -416,11 +416,19 @@ test("security mutations share one synchronous owner across sign-in methods and 
 })
 
 test("Auth.js redirect flows retain their synchronous owner after document navigation starts", () => {
-  for (const relativePath of [
-    "app/login/login-form.tsx",
-    "app/register/register-form.tsx",
-    "app/account/security/sign-in-methods-panel.tsx",
-  ]) {
+  const entryActions = source("lib/auth-entry-actions.ts")
+  assert.match(entryActions, /const initialHref = currentHref\(\)/)
+  assert.match(entryActions, /await signInImpl\("google"/)
+  assert.match(entryActions, /if \(currentHref\(\) === initialHref\) throw/)
+
+  for (const relativePath of ["app/login/login-form.tsx", "app/register/register-form.tsx"]) {
+    const client = source(relativePath)
+    assert.match(client, /let navigating = false/, relativePath)
+    assert.match(client, /startGoogleAuthMethodIntent\(googleRedirectTo\)/, relativePath)
+    assert.match(client, /if \(!navigating\) finishEntryAction\(\)/, relativePath)
+  }
+
+  for (const relativePath of ["app/account/security/sign-in-methods-panel.tsx"]) {
     const client = source(relativePath)
     assert.match(client, /let documentNavigationStarted = false/, relativePath)
     assert.match(client, /const initialHref = window\.location\.href/, relativePath)
