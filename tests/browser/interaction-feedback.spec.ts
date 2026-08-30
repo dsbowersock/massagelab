@@ -25,7 +25,11 @@ const require = createRequire(import.meta.url)
 let billingFixtureRoot: string | null = null
 let billingFixtureBundle: string | null = null
 
-/** Bundles the production pending-form owner into a disposable local browser fixture. */
+/**
+ * Builds the isolated native billing-form fixture once and returns its cached bundle.
+ * Production pending-form code runs against lightweight UI module stubs so native-form
+ * ownership is exercised without pulling in unrelated application dependencies.
+ */
 async function buildBillingFixtureBundle() {
   if (billingFixtureBundle) return billingFixtureBundle
 
