@@ -72,6 +72,8 @@ function providerHarnessBundle() {
           calls: [],
           owner: null,
           stateFetchMode: "success",
+          stateFetchAborts: 0,
+          pendingStateFetches: 0,
           mutationMode: "success",
           checkoutSettled: false,
           errors: [],
@@ -81,9 +83,32 @@ function providerHarnessBundle() {
         let latestCommerce = null;
         let updateOwner = null;
         let checkoutResolve = null;
+        const pendingStateRequests = new Set();
         const jsonResponse = (value, status = 200) => new Response(JSON.stringify(value), {
           status,
           headers: { "content-type": "application/json" },
+        });
+        // Pending reads expose whether the real provider shares one request across demand paths.
+        const pendingStateResponse = (signal) => new Promise((resolve, reject) => {
+          const syncPendingCount = () => { harness.pendingStateFetches = pendingStateRequests.size; };
+          const request = {
+            resolve: () => {
+              if (!pendingStateRequests.delete(request)) return;
+              signal?.removeEventListener("abort", request.abort);
+              syncPendingCount();
+              resolve(jsonResponse({ creditBalance: 2, ownedBackgroundIds: [], cart: { items: [] } }));
+            },
+            abort: () => {
+              if (!pendingStateRequests.delete(request)) return;
+              harness.stateFetchAborts += 1;
+              syncPendingCount();
+              reject(new DOMException("Aborted", "AbortError"));
+            },
+          };
+          pendingStateRequests.add(request);
+          syncPendingCount();
+          if (signal?.aborted) request.abort();
+          else signal?.addEventListener("abort", request.abort, { once: true });
         });
 
         window.fetch = (input, init = {}) => {
@@ -91,6 +116,7 @@ function providerHarnessBundle() {
           const method = init.method || "GET";
           harness.calls.push(method + " " + pathname);
           if (pathname === "/api/background-commerce/state") {
+            if (harness.stateFetchMode === "pending") return pendingStateResponse(init.signal);
             return Promise.resolve(harness.stateFetchMode === "fail"
               ? jsonResponse({ error: "UNKNOWN" }, 503)
               : jsonResponse({ creditBalance: 2, ownedBackgroundIds: [], cart: { items: [] } }));
@@ -130,6 +156,9 @@ function providerHarnessBundle() {
           }).finally(() => { harness.checkoutSettled = true; });
         };
         harness.resolveCheckout = () => checkoutResolve(jsonResponse({ url: "https://checkout.stripe.com/c/pay/cs_test_stale" }));
+        harness.resolveStateFetches = () => {
+          for (const request of [...pendingStateRequests]) request.resolve();
+        };
         harness.dispatchFocus = () => window.dispatchEvent(new Event("focus"));
         harness.dispatchOnline = () => window.dispatchEvent(new Event("online"));
         harness.read = () => ({ owner: harness.owner, state: latestCommerce.state, calls: [...harness.calls] });
@@ -271,6 +300,68 @@ describe("BackgroundCommerceProvider owner behavior", () => {
         current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
         3,
       )
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it("shares a demanded focus retry with concurrent consumer hydration", { timeout: 45_000 }, async () => {
+    const { chromium } = require("playwright")
+    const browser = await chromium.launch({ headless: true })
+    try {
+      const page = await openProviderHarness(browser)
+      await page.evaluate(async () => {
+        window.__commerceProviderHarness.stateFetchMode = "fail"
+        await window.__commerceProviderHarness.ensureSnapshot()
+      })
+      await page.waitForFunction(() => window.__commerceProviderHarness.read().state.status === "error")
+
+      await page.evaluate(() => {
+        window.__commerceProviderHarness.stateFetchMode = "pending"
+        window.__commerceProviderHarness.dispatchFocus()
+      })
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.pendingStateFetches === 1
+        && window.__commerceProviderHarness.read().calls
+          .filter((call) => call === "GET /api/background-commerce/state").length === 2
+      ))
+      await page.evaluate(() => {
+        window.__commerceProviderHarness.concurrentEnsureSettled = false
+        window.__commerceProviderHarness.concurrentEnsure = window.__commerceProviderHarness
+          .ensureSnapshot()
+          .finally(() => { window.__commerceProviderHarness.concurrentEnsureSettled = true })
+      })
+      await page.waitForFunction(() => (
+        Boolean(window.__commerceProviderHarness.concurrentEnsure)
+        && window.__commerceProviderHarness.concurrentEnsureSettled === false
+        && window.__commerceProviderHarness.pendingStateFetches === 1
+      ))
+
+      const overlap = await page.evaluate(() => ({
+        current: window.__commerceProviderHarness.read(),
+        stateFetchAborts: window.__commerceProviderHarness.stateFetchAborts,
+        pendingStateFetches: window.__commerceProviderHarness.pendingStateFetches,
+      }))
+      assert.equal(
+        overlap.current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
+        2,
+        JSON.stringify(overlap),
+      )
+      assert.equal(overlap.stateFetchAborts, 0, JSON.stringify(overlap))
+      assert.equal(overlap.pendingStateFetches, 1, JSON.stringify(overlap))
+
+      await page.evaluate(async () => {
+        window.__commerceProviderHarness.resolveStateFetches()
+        await window.__commerceProviderHarness.concurrentEnsure
+      })
+      await page.waitForFunction(() => window.__commerceProviderHarness.read().state.status === "ready")
+      const settled = await page.evaluate(() => ({
+        current: window.__commerceProviderHarness.read(),
+        concurrentEnsureSettled: window.__commerceProviderHarness.concurrentEnsureSettled,
+        errors: window.__commerceProviderHarness.errors,
+      }))
+      assert.equal(settled.concurrentEnsureSettled, true, JSON.stringify(settled))
+      assert.deepEqual(settled.errors, [])
     } finally {
       await browser.close()
     }

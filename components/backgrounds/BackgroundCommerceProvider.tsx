@@ -585,6 +585,15 @@ function OwnerScopedBackgroundCommerceProvider({
         || readControllerRef.current
         || mutationActiveRef.current
       ) return
+      // Failed-demand retries share the consumer flight; established owners still refresh fresh.
+      if (
+        demandedOwnerRef.current === ownerKey
+        && hydratedOwnerRef.current !== ownerKey
+        && mutationStartedOwnerRef.current !== ownerKey
+      ) {
+        void ensureSnapshot()
+        return
+      }
       void refresh()
     }
     window.addEventListener("focus", handleRefresh)
@@ -593,7 +602,7 @@ function OwnerScopedBackgroundCommerceProvider({
       window.removeEventListener("focus", handleRefresh)
       window.removeEventListener("online", handleRefresh)
     }
-  }, [ownerKey, refresh, signedIn])
+  }, [ensureSnapshot, ownerKey, refresh, signedIn])
 
   useLayoutEffect(() => () => {
     ownerGenerationRef.current += 1
