@@ -114,6 +114,9 @@ describe("identity method safety persistence", () => {
   })
 
   it("blocks legacy limiter cleanup until every identity writer is drained by deployment SHA", () => {
+    // Bound the first slice to Step 5 before Step 6 and the second to the complete
+    // identity-writer drain interval before the bounded-pause paragraph. These
+    // anchors prevent unrelated prose from satisfying the deployment-SHA drain gate.
     const pausedBridgeDrain = releasePlan.match(
       /\*\*Step 5: Prove the paused bridge and drain every pre-bridge writer\*\*[\s\S]*?(?=- \[ \] \*\*Step 6:)/,
     )?.[0] ?? ""
@@ -122,10 +125,15 @@ describe("identity method safety persistence", () => {
     )?.[0] ?? ""
 
     assert.match(identityWriterDrain, /deployment\/SHA-scoped/)
-    assert.match(identityWriterDrain, /\/api\/account\/register/)
-    assert.match(identityWriterDrain, /\/api\/auth\/callback\/credentials/)
-    assert.match(identityWriterDrain, /\/api\/account\/password-reset\/request/)
-    assert.match(identityWriterDrain, /zero pre-bridge receives[^.]*zero pre-bridge executions/i)
+    assert.match(identityWriterDrain, /immutable deployment ID mapped to its full Git SHA/)
+    assert.match(identityWriterDrain, /normalized method\/path/)
+    assert.match(identityWriterDrain, /POST \/api\/account\/register/)
+    assert.match(identityWriterDrain, /POST \/api\/auth\/callback\/credentials/)
+    assert.match(identityWriterDrain, /POST \/api\/account\/password-reset\/request/)
+    assert.match(
+      identityWriterDrain,
+      /zero pre-bridge receives or starts after alias cutover and zero pre-bridge executions still running at the drain boundary/i,
+    )
     assert.match(identityWriterDrain, /AuthAttempt[^.]*cleanup[^.]*forbidden/i)
     assert.match(identityWriterDrain, /read-only/i)
   })
