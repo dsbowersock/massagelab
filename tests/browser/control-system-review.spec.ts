@@ -1,9 +1,26 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
+
+/** Detects App Router's streamed production 404 without hiding the development fixture. */
+async function isDevelopmentReviewUnavailable(page: Page, responseStatus: number | undefined) {
+  if (responseStatus === 404) return true
+
+  const reviewHeading = page.getByRole("heading", { name: "Control system review", level: 1 })
+  const notFoundHeading = page.getByRole("heading", {
+    name: "This page could not be found.",
+    exact: true,
+    level: 2,
+  })
+  await expect(reviewHeading.or(notFoundHeading)).toBeVisible()
+  return notFoundHeading.isVisible()
+}
 
 test.describe("control-system review lab", () => {
   test.beforeEach(async ({ page }) => {
     const response = await page.goto("/dev/buttons")
-    test.skip(response?.status() === 404, "The control-system review lab is development-only.")
+    test.skip(
+      await isDevelopmentReviewUnavailable(page, response?.status()),
+      "The control-system review lab is development-only.",
+    )
     await expect(page.getByRole("heading", { name: "Control system review", level: 1 })).toBeVisible()
     await page.waitForLoadState("networkidle")
     await expect(page.locator('[data-review-lab-ready="true"]')).toBeAttached()

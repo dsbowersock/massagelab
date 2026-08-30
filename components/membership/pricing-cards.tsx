@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { BadgeDollarSign, CheckCircle2, Palette, ShieldCheck } from "lucide-react"
+import { PendingSubmissionForm, PendingSubmitButton } from "@/components/forms/pending-submission-form"
 import { appCalloutClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -235,31 +236,46 @@ function PlanActions({
         </p>
         {/* Focused updates require an eligible subscription; billing management remains customer-wide. */}
         <div className="grid gap-3 sm:grid-cols-2">
-          <form action="/api/billing/portal" method="post">
+          <PendingSubmissionForm
+            action="/api/billing/portal"
+            method="post"
+            pendingLabel="Opening billing portal…"
+          >
             <input
               type="hidden"
               name="destination"
               value={BILLING_PORTAL_DESTINATIONS.SUBSCRIPTION_UPDATE}
             />
-            <MetalAttentionButton
+            <PendingSubmitButton
               type="submit"
               variant="attention"
               className="w-full"
+              pendingLabel="Opening billing portal…"
+              presentation="metal-attention"
               metalFullWidth
             >
               Change support amount or billing period
-            </MetalAttentionButton>
-          </form>
-          <form action="/api/billing/portal" method="post">
+            </PendingSubmitButton>
+          </PendingSubmissionForm>
+          <PendingSubmissionForm
+            action="/api/billing/portal"
+            method="post"
+            pendingLabel="Opening billing portal…"
+          >
             <input
               type="hidden"
               name="destination"
               value={BILLING_PORTAL_DESTINATIONS.MANAGE}
             />
-            <Button type="submit" variant="outline" className="w-full">
+            <PendingSubmitButton
+              type="submit"
+              variant="outline"
+              className="w-full"
+              pendingLabel="Opening billing portal…"
+            >
               Manage billing account
-            </Button>
-          </form>
+            </PendingSubmitButton>
+          </PendingSubmissionForm>
         </div>
       </div>
     ) : (
@@ -390,9 +406,10 @@ function SupporterAmountChoice({
   const billingTermsId = legalDocumentAcceptanceId(billingTerms)
 
   return (
-    <form
+    <PendingSubmissionForm
       action="/api/billing/checkout"
       method="post"
+      pendingLabel="Opening secure subscription checkout…"
       data-membership-checkout-amount-choice={choiceId}
       className="space-y-3"
     >
@@ -410,10 +427,12 @@ function SupporterAmountChoice({
           .
         </span>
       </label>
-      <MetalAttentionButton
+      <PendingSubmitButton
         type="submit"
         variant="attention"
         className="w-full"
+        pendingLabel="Opening secure subscription checkout…"
+        presentation="metal-attention"
         metalFullWidth
         // A configured ID remains non-actionable until Stripe verifies its amount.
         disabled={!price.isLookupAvailable}
@@ -422,7 +441,7 @@ function SupporterAmountChoice({
           Support with {price.displayPrice}
           <YearlySavings price={price} />
         </span>
-      </MetalAttentionButton>
-    </form>
+      </PendingSubmitButton>
+    </PendingSubmissionForm>
   )
 }

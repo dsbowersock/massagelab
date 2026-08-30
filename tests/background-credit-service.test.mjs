@@ -268,15 +268,18 @@ describe("verified-account background credit provisioning", () => {
     assert.equal(database.state.events.length, 0)
   })
 
-  it("routes all verification transitions and verified-state loading through the shared service", async () => {
-    const [authUsers, verifyPage, passwordRoute] = await Promise.all([
+  it("provisions only at verification transitions and not during verified-state loading", async () => {
+    const [authUsers, authMethodIntents, verifyPage, passwordRoute] = await Promise.all([
       readFile(new URL("../lib/auth-users.ts", import.meta.url), "utf8"),
+      readFile(new URL("../lib/auth-method-intents.ts", import.meta.url), "utf8"),
       readFile(new URL("../app/verify-email/page.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/api/account/security/password/route.ts", import.meta.url), "utf8"),
     ])
 
-    assert.match(authUsers, /ensureVerifiedUserBackgroundCredits\(tx, userId\)/)
-    assert.match(authUsers, /if \(user\?\.emailVerified\)[\s\S]*ensureVerifiedUserBackgroundCredits\(prisma, userId\)/)
+    const authStateLoader = authUsers.slice(authUsers.indexOf("export async function getUserAuthState"))
+    assert.doesNotMatch(authStateLoader, /ensureVerifiedUserBackgroundCredits/)
+    assert.doesNotMatch(authUsers.match(/export async function ensureGoogleUserState[\s\S]*?\n\}/)?.[0] ?? "", /ensureVerifiedUserBackgroundCredits/)
+    assert.match(authMethodIntents, /created[\s\S]*ensureVerifiedUserBackgroundCredits\(prismaClient, userId\)/)
     const verifyTransaction = verifyPage.match(/await runCommerceTransaction\(prisma, async \(txValue\) => \{([\s\S]*?)\n      \}\)/)?.[1]
     assert.ok(verifyTransaction)
     assert.doesNotMatch(verifyTransaction, /ensureVerifiedUserBackgroundCredits/)

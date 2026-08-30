@@ -21,7 +21,8 @@ test.describe("public membership return boundary", () => {
     await page.goto("/account?tab=membership&checkout=success&session_id=ignored", {
       waitUntil: "domcontentloaded",
     })
-    await expect(page.getByRole("heading", { name: /sign in to manage membership/i })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Membership & billing" }).first()).toBeVisible()
+    await expect(page.getByText("Sign in to manage membership and billing", { exact: true })).toBeVisible()
     await expect(page.locator("[data-membership-return-status]")).toHaveCount(0)
 
     const statusResponse = await page.evaluate(async () => {

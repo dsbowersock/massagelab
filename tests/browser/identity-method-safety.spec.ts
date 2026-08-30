@@ -1,11 +1,35 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
 import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
 
 const PRIVATE_QA_SKIP_REASON = "Identity method database-backed browser QA requires the missing explicit disposable-database opt-in/authorization."
 const hasPrivateQaAuthorization = isBrowserQaDatabaseTargetAuthorized(process.env)
 
+/** Blocks every browser-side Google OAuth provider request while public QA mocks the local intent route. */
+async function blockLiveGoogleProviderRequests(page: Page) {
+  const blockedRequests: string[] = []
+
+  await page.route("https://**/*", async (route) => {
+    const url = new URL(route.request().url())
+    const isGoogleOAuthProvider = url.hostname === "accounts.google.com"
+      || url.hostname === "oauth2.googleapis.com"
+      || url.hostname === "openidconnect.googleapis.com"
+      || (url.hostname === "www.googleapis.com" && url.pathname.startsWith("/oauth2/"))
+
+    if (!isGoogleOAuthProvider) {
+      await route.fallback()
+      return
+    }
+
+    blockedRequests.push(url.toString())
+    await route.abort("blockedbyclient")
+  })
+
+  return blockedRequests
+}
+
 test.describe("public account-entry recovery", () => {
   test("login prevents duplicate Credentials submission and recovers from a thrown request", async ({ page }) => {
+    const providerRequests = await blockLiveGoogleProviderRequests(page)
     let requests = 0
     let googleRequests = 0
     await page.route("**/api/auth/google/intent", async (route) => {
@@ -44,9 +68,11 @@ test.describe("public account-entry recovery", () => {
     await expect(page).toHaveURL(/\/login\?retrySuccess=1$/)
     expect(requests).toBe(2)
     expect(googleRequests).toBe(0)
+    expect(providerRequests).toEqual([])
   })
 
   test("registration announces pending work, prevents duplicates, and recovers after intercepted failure", async ({ page }) => {
+    const providerRequests = await blockLiveGoogleProviderRequests(page)
     let requests = 0
     let googleRequests = 0
     await page.route("**/api/auth/google/intent", async (route) => {
@@ -86,9 +112,11 @@ test.describe("public account-entry recovery", () => {
     await expect(page.getByRole("status")).toContainText(/check your email/i)
     expect(requests).toBe(2)
     expect(googleRequests).toBe(0)
+    expect(providerRequests).toEqual([])
   })
 
   test("Google registration blocks email entry and recovers both actions after a thrown request", async ({ page }) => {
+    const providerRequests = await blockLiveGoogleProviderRequests(page)
     let googleRequests = 0
     let registrationRequests = 0
     await page.route("**/api/auth/google/intent", async (route) => {
@@ -105,7 +133,7 @@ test.describe("public account-entry recovery", () => {
     await page.getByLabel("Password").fill("not-a-real-password")
     for (const checkbox of await page.getByRole("checkbox").all()) await checkbox.check()
     await page.getByRole("button", { name: "Continue with Google" }).click()
-    const googlePending = page.getByRole("button", { name: "Starting Google registration…" })
+    const googlePending = page.getByRole("button", { name: "Connecting to Google…" })
     await expect(googlePending).toBeDisabled()
     const emailSubmit = page.getByRole("button", { name: "Create account with email" })
     await expect(emailSubmit).toBeDisabled()
@@ -115,6 +143,57 @@ test.describe("public account-entry recovery", () => {
     await expect(page.getByRole("button", { name: "Continue with Google" })).toBeEnabled()
     await expect(emailSubmit).toBeEnabled()
     expect(googleRequests).toBe(1)
+    expect(providerRequests).toEqual([])
+  })
+
+  test("verification resend keeps email out of the URL and announces intercepted local work", async ({ page }) => {
+    const providerRequests = await blockLiveGoogleProviderRequests(page)
+    const submittedEmail = "browser-verification@example.test"
+    let requests = 0
+    let requestBody: { email?: string; callbackUrl?: string } = {}
+    await page.route("**/api/account/email-verification/request", async (route) => {
+      requests += 1
+      requestBody = route.request().postDataJSON()
+      await new Promise((resolve) => setTimeout(resolve, 750))
+      await route.fulfill({
+        status: requests === 1 ? 202 : requests === 2 ? 429 : 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          code: "INTERNAL_PROVIDER_DETAIL",
+          message: "Account browser-verification@example.test uses private-provider-id-991.",
+        }),
+      })
+    })
+
+    await page.goto("/verify-email", { waitUntil: "domcontentloaded" })
+    await page.getByLabel("Email").fill(submittedEmail)
+    const submit = page.getByRole("button", { name: "Send another verification email" })
+    await submit.click()
+    const pending = page.getByRole("button", { name: "Sending verification email…" })
+    await expect(pending).toBeDisabled()
+    await pending.click({ force: true })
+    await expect(page.getByRole("status")).toContainText(/if that email still needs verification/i)
+    await expect(page.locator("body")).not.toContainText("browser-verification@example.test uses private-provider-id-991")
+    await expect(page.locator("body")).not.toContainText("INTERNAL_PROVIDER_DETAIL")
+
+    await page.getByRole("button", { name: "Send another verification email" }).click()
+    await expect(page.locator('p[role="alert"]')).toContainText(/too many requests/i)
+    await expect(page.locator("body")).not.toContainText("private-provider-id-991")
+    await page.getByRole("button", { name: "Send another verification email" }).click()
+    await expect(page.locator('p[role="alert"]')).toContainText(/could not request another verification email/i)
+    await expect(page.locator("body")).not.toContainText("private-provider-id-991")
+
+    expect(requests).toBe(3)
+    expect(requestBody).toEqual({ email: submittedEmail, callbackUrl: "/onboarding" })
+    expect(page.url()).not.toContain(submittedEmail)
+    expect(new URL(page.url()).searchParams.has("email")).toBe(false)
+    expect(providerRequests).toEqual([])
+
+    await page.goto("/login?callbackUrl=%2Fclock%3Fsource%3Dmusic%26panel%3Dbackground", { waitUntil: "domcontentloaded" })
+    await expect(page.getByRole("link", { name: "Resend verification email" })).toHaveAttribute(
+      "href",
+      "/verify-email?callbackUrl=%2Fclock%3Fsource%3Dmusic%26panel%3Dbackground",
+    )
   })
 })
 

@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
 import {
   Archive,
   ClipboardList,
@@ -34,6 +33,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { usePendingNavigation } from "@/components/shell/use-pending-navigation"
 import {
   BODY_MAP_PARTS,
   BODY_MAP_SIDES,
@@ -183,6 +183,7 @@ type DashboardPanelProps = {
   onExportSelectedDocumentDoc: () => void
   onPrintSelectedDocumentPdf: () => void
   onUseSelectedDocumentInSoap: (mode: SoapSeedMode) => void
+  isUsingSelectedDocumentInSoap: boolean
   onClearLocalWorkspace: () => void
   hasExistingSoapDraft: boolean
 }
@@ -227,7 +228,7 @@ type FormBuilderPanelProps = {
 }
 
 export default function IntakePage() {
-  const router = useRouter()
+  const { isPending: isNavigationPending, push } = usePendingNavigation()
   const vault = useProfessionalRecordVault()
   const [workspace, setWorkspace] = useState<IntakeWorkspace>(() => createDefaultIntakeWorkspace() as IntakeWorkspace)
   const [activeTab, setActiveTab] = useState("dashboard")
@@ -237,6 +238,7 @@ export default function IntakePage() {
   const [selectedDocumentId, setSelectedDocumentId] = useState("")
   const [activeResponse, setActiveResponse] = useState<IntakeFormResponse>(() => blankResponse(starterIntakeTemplates[0].id, starterIntakeTemplates as IntakeTemplate[]))
   const [message, setMessage] = useState<string | null>(null)
+  const [isSeedingSoap, setIsSeedingSoap] = useState(false)
   const [manualClient, setManualClient] = useState({ displayName: "", email: "", phone: "" })
   const loadedRevisionRef = useRef(-1)
 
@@ -590,11 +592,13 @@ export default function IntakePage() {
   }
 
   const useSelectedDocumentInSoap = async (mode: "append" | "replace") => {
+    if (isSeedingSoap || isNavigationPending) return
     if (!selectedDocument || !selectedDocumentTemplate) {
       setMessage("Select a saved intake document before starting SOAP.")
       return
     }
 
+    setIsSeedingSoap(true)
     try {
       const draft = createSoapDraftFromIntakeDocument({
         document: selectedDocument,
@@ -609,9 +613,11 @@ export default function IntakePage() {
         return
       }
       setMessage("SOAP draft seeded from the selected local intake response.")
-      router.push("/notes/soap")
+      push("/notes/soap")
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not seed SOAP from this intake response.")
+    } finally {
+      setIsSeedingSoap(false)
     }
   }
 
@@ -677,6 +683,7 @@ export default function IntakePage() {
             onExportSelectedDocumentDoc={exportSelectedDocumentDoc}
             onPrintSelectedDocumentPdf={printSelectedDocumentPdf}
             onUseSelectedDocumentInSoap={useSelectedDocumentInSoap}
+            isUsingSelectedDocumentInSoap={isSeedingSoap || isNavigationPending}
             onClearLocalWorkspace={clearLocalWorkspace}
             hasExistingSoapDraft={hasExistingSoapDraft}
           />
@@ -741,6 +748,7 @@ function DashboardPanel({
   onExportSelectedDocumentDoc,
   onPrintSelectedDocumentPdf,
   onUseSelectedDocumentInSoap,
+  isUsingSelectedDocumentInSoap,
   onClearLocalWorkspace,
   hasExistingSoapDraft,
 }: DashboardPanelProps) {
@@ -887,9 +895,9 @@ function DashboardPanel({
         <div className="flex flex-wrap gap-2">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button type="button" variant="outline" disabled={!selectedDocument}>
+              <Button type="button" variant="outline" disabled={!selectedDocument || isUsingSelectedDocumentInSoap} aria-busy={isUsingSelectedDocumentInSoap}>
                 <FileText className="mr-2 h-4 w-4" />
-                Use in SOAP
+                {isUsingSelectedDocumentInSoap ? "Opening SOAP editor…" : "Use in SOAP"}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -903,15 +911,20 @@ function DashboardPanel({
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 {hasExistingSoapDraft ? (
                   <>
-                    <AlertDialogAction onClick={() => onUseSelectedDocumentInSoap("append")}>Append to SOAP</AlertDialogAction>
-                    <AlertDialogAction onClick={() => onUseSelectedDocumentInSoap("replace")}>Replace SOAP</AlertDialogAction>
+                    <AlertDialogAction disabled={isUsingSelectedDocumentInSoap} aria-busy={isUsingSelectedDocumentInSoap} onClick={() => onUseSelectedDocumentInSoap("append")}>{isUsingSelectedDocumentInSoap ? "Saving SOAP…" : "Append to SOAP"}</AlertDialogAction>
+                    <AlertDialogAction disabled={isUsingSelectedDocumentInSoap} aria-busy={isUsingSelectedDocumentInSoap} onClick={() => onUseSelectedDocumentInSoap("replace")}>{isUsingSelectedDocumentInSoap ? "Saving SOAP…" : "Replace SOAP"}</AlertDialogAction>
                   </>
                 ) : (
-                  <AlertDialogAction onClick={() => onUseSelectedDocumentInSoap("replace")}>Start SOAP note</AlertDialogAction>
+                  <AlertDialogAction disabled={isUsingSelectedDocumentInSoap} aria-busy={isUsingSelectedDocumentInSoap} onClick={() => onUseSelectedDocumentInSoap("replace")}>{isUsingSelectedDocumentInSoap ? "Saving SOAP…" : "Start SOAP note"}</AlertDialogAction>
                 )}
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          {isUsingSelectedDocumentInSoap ? (
+            <p role="status" className="self-center text-xs text-muted-foreground">
+              Saving intake and opening SOAP editor…
+            </p>
+          ) : null}
           <PlaintextOutputWarningAction
             label="Export DOC"
             description="This creates an unencrypted editable clinical document outside the vault. Use encrypted vault bundles for normal transfer."

@@ -11,6 +11,7 @@ declare module "next-auth" {
       roles: Role[]
       roleAssignments: Array<{ role: Role; status: VerificationStatus }>
       capabilities: AccountCapabilities
+      featureKeys: string[]
       emailVerified: boolean
       twoFactorEnabled: boolean
     }
@@ -30,6 +31,7 @@ declare module "next-auth/jwt" {
     roles?: Role[]
     roleAssignments?: Array<{ role: Role; status: VerificationStatus }>
     capabilities?: AccountCapabilities
+    featureKeys?: string[]
     emailVerified?: boolean
     twoFactorEnabled?: boolean
     lastPasswordAuthenticatedAt?: number

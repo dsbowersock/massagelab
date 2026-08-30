@@ -3,8 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
@@ -12,6 +12,7 @@ export function ResetPasswordForm() {
   const searchParams = useSearchParams()
   const [password, setPassword] = useState("")
   const [status, setStatus] = useState("")
+  const [statusIsError, setStatusIsError] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const token = searchParams.get("token") ?? ""
 
@@ -19,16 +20,23 @@ export function ResetPasswordForm() {
     event.preventDefault()
     setIsSubmitting(true)
     setStatus("")
+    setStatusIsError(false)
 
-    const response = await fetch("/api/account/password-reset/confirm", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, password }),
-    })
-    const result = await response.json()
-
-    setIsSubmitting(false)
-    setStatus(result.message ?? (response.ok ? "Password updated." : "Password reset failed."))
+    try {
+      const response = await fetch("/api/account/password-reset/confirm", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      })
+      const result = await response.json().catch(() => ({})) as { message?: string }
+      setStatus(result.message ?? (response.ok ? "Password updated." : "Password reset failed."))
+      setStatusIsError(!response.ok)
+    } catch {
+      setStatus("Something went wrong. Please try again.")
+      setStatusIsError(true)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -38,12 +46,21 @@ export function ResetPasswordForm() {
             <Label htmlFor="password">New password</Label>
             <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={12} required />
           </div>
-          <Button type="submit" className="w-full" disabled={isSubmitting || !token}>
-            Update password
-          </Button>
+          <AsyncActionButton
+            type="submit"
+            className="w-full"
+            disabled={!token}
+            pending={isSubmitting}
+            idleLabel="Update password"
+            pendingLabel="Updating password…"
+          />
         </form>
         {!token && <p className="text-sm text-muted-foreground">This reset link is missing a token.</p>}
-        {status && <AppInset className="p-3 text-sm text-muted-foreground">{status}</AppInset>}
+        {status && (
+          <AppInset className={`p-3 text-sm ${statusIsError ? "text-amber-100" : "text-muted-foreground"}`}>
+            <p role={statusIsError ? "alert" : "status"}>{status}</p>
+          </AppInset>
+        )}
         <Link href="/login" className="text-sm text-brand-orange underline-offset-4 hover:underline">
           Back to login
         </Link>

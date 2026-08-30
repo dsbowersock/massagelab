@@ -39,6 +39,16 @@ const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 function TestComponent() {}
 
+/** Preserves the shared pending form's native element contract in page fixtures. */
+function TestPendingSubmissionForm(props) {
+  return createElement("form", props)
+}
+
+/** Preserves submit-button props and children without introducing pending state. */
+function TestPendingSubmitButton(props) {
+  return createElement("button", props)
+}
+
 /**
  * Renders the real public Pricing page with controlled session, Customer,
  * subscription, and lookup-failure inputs. The component double records the
@@ -119,6 +129,10 @@ async function renderPublicPricing({
       },
       "@/components/membership/pricing-cards": {
         MembershipPricingCards,
+      },
+      "@/components/forms/pending-submission-form": {
+        PendingSubmissionForm: TestPendingSubmissionForm,
+        PendingSubmitButton: TestPendingSubmitButton,
       },
       "@/components/ui/app-surface": {
         AppNotice: TestComponent,

@@ -121,6 +121,28 @@ describe("privacy-safe auth rate limits", () => {
     assert.equal(blockedDb.rows.some((row) => row.purpose === "LOGIN" && row.scope === "NETWORK" && row.count === 30), true)
   })
 
+  it("clears only the requested credential account bucket and preserves login plus network pressure", async () => {
+    const database = createRateLimitDatabase()
+    await limiter.recordCredentialFailure(credentialInput(database, "LOGIN", "person@example.com", "198.51.100.42"))
+    await limiter.recordCredentialFailure(credentialInput(database, "TWO_FACTOR", "person@example.com", "198.51.100.42"))
+
+    await limiter.clearCredentialAccountFailure({
+      prismaClient: database,
+      purpose: "TWO_FACTOR",
+      email: "person@example.com",
+      secret: SECRET,
+    })
+
+    assert.deepEqual(
+      database.rows.map(({ purpose, scope, count }) => ({ purpose, scope, count })).sort((left, right) => `${left.purpose}:${left.scope}`.localeCompare(`${right.purpose}:${right.scope}`)),
+      [
+        { purpose: "LOGIN", scope: "ACCOUNT", count: 1 },
+        { purpose: "LOGIN", scope: "NETWORK", count: 1 },
+        { purpose: "TWO_FACTOR", scope: "NETWORK", count: 1 },
+      ],
+    )
+  })
+
   it("keeps sampled pruning best-effort after an authoritative consumed transaction", async () => {
     const database = createRateLimitDatabase({ pruneFailure: new Error("cleanup unavailable") })
     const result = await limiter.consumeEmailWorkRateLimit({ ...emailInput(database, "REGISTER", "person@example.com", "203.0.113.80"), shouldPrune: () => true })

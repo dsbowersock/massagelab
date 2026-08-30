@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
+import path from "node:path"
 import { describe, it } from "node:test"
+import ts from "typescript"
 import { runCommerceTransaction } from "../lib/commerce/transactions.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
@@ -13,11 +15,24 @@ const limiter = loadCompiledModule(limiterSource, "auth-rate-limit.proof-test.ts
   "@/lib/auth-security": { normalizeEmail },
   "@/lib/commerce/transactions": { runCommerceTransaction },
 })
+const twoFactorProofSource = await readFile(new URL("../lib/auth-two-factor-proof.ts", import.meta.url), "utf8")
+const twoFactorProof = loadCompiledModule(twoFactorProofSource, "auth-two-factor-proof.method-test.ts", {
+  "@/lib/prisma": { prisma: {} },
+  "@/lib/auth-env": { getAuthSecret: () => "secret" },
+  "@/lib/auth-rate-limit": limiter,
+  "@/lib/auth-security": {
+    decryptSecret: () => "",
+    normalizeEmail,
+    verifyBackupCode: async () => false,
+    verifyTotpCode: () => false,
+  },
+})
 const proofSource = await readFile(new URL("../lib/auth-method-proof.ts", import.meta.url), "utf8")
 const proof = loadCompiledModule(proofSource, "auth-method-proof.test.ts", {
   "@/lib/prisma": { prisma: {} },
   "@/lib/auth-env": { getAuthSecret: () => "secret" },
   "@/lib/auth-rate-limit": limiter,
+  "@/lib/auth-two-factor-proof": twoFactorProof,
   "@/lib/auth-security": {
     decryptSecret: () => "",
     normalizeEmail,
@@ -103,7 +118,139 @@ describe("shared password method proof with the real limiter", () => {
     assert.equal(scenario.database.backupUpdateCalls.every((call) => call.where.usedAt === null), true)
     assert.equal(scenario.database.rows.some((row) => row.purpose === "TWO_FACTOR" && row.scope === "NETWORK" && row.count === 1), true)
   })
+
+  it("keeps accidental deferred input on the general API immediate and exposes deferred proof only through management", async () => {
+    const accidentalGeneral = proofInput({
+      twoFactorEnabled: true,
+      twoFactorCode: "backup",
+      backupValid: true,
+      backupCodeConsumption: "DEFERRED",
+    })
+
+    const accidentalResult = await proof.verifyPasswordMethodProof(accidentalGeneral.input)
+    assert.deepEqual(accidentalResult, {
+      status: "VERIFIED",
+      userId: "user-1",
+      backupCodeConsumed: true,
+      authSessionVersion: 7,
+    })
+    assert.equal(accidentalGeneral.database.backupUpdateCalls.length, 1)
+
+    const management = proofInput({ twoFactorEnabled: true, twoFactorCode: "backup", backupValid: true })
+    const managementResult = await proof.preparePasswordMethodProofForTwoFactorManagement(management.input)
+    assert.equal(managementResult.status, "VERIFIED")
+    assert.equal(managementResult.preparedTwoFactorProof.kind, "BACKUP_CODE")
+    assert.equal(managementResult.preparedTwoFactorProof.backupCodeId, "backup-1")
+    assert.equal(management.database.backupUpdateCalls.length, 0)
+    assert.equal(Object.hasOwn(managementResult.preparedTwoFactorProof, "twoFactorCode"), false)
+    assert.equal(Object.hasOwn(managementResult.preparedTwoFactorProof, "encryptedSecret"), false)
+    assert.equal(Object.hasOwn(managementResult.preparedTwoFactorProof, "codeHash"), false)
+  })
+
+  it("refuses management success when no enabled current factor was prepared", async () => {
+    const scenario = proofInput({ twoFactorEnabled: false, twoFactorCode: "123456", totpValid: true })
+
+    const result = await proof.preparePasswordMethodProofForTwoFactorManagement(scenario.input)
+
+    assert.notEqual(result.status, "VERIFIED")
+    assert.equal(Object.hasOwn(result, "preparedTwoFactorProof"), false)
+  })
+
+  it("keeps deferred capability out of the general exported type and result contract", () => {
+    const diagnostics = compileGeneralProofContract()
+    const virtualDiagnostics = diagnostics.filter((diagnostic) => diagnostic.file?.fileName.endsWith("__auth-method-proof-contract.ts"))
+
+    assert.deepEqual(
+      virtualDiagnostics.map((diagnostic) => ({
+        code: diagnostic.code,
+        message: ts.flattenDiagnosticMessageText(diagnostic.messageText, " "),
+      })),
+      [
+        {
+          code: 2353,
+          message: "Object literal may only specify known properties, and 'backupCodeConsumption' does not exist in type 'VerifyPasswordMethodProofInput'.",
+        },
+        {
+          code: 2339,
+          message: "Property 'preparedTwoFactorProof' does not exist on type '{ status: \"VERIFIED\"; userId: string; backupCodeConsumed: boolean; authSessionVersion: number; }'.",
+        },
+      ],
+    )
+
+    const inputContract = proofSource.slice(
+      proofSource.indexOf("export type VerifyPasswordMethodProofInput"),
+      proofSource.indexOf("export type PreparePasswordMethodProofForTwoFactorManagementInput"),
+    )
+    const generalResultContract = proofSource.slice(
+      proofSource.indexOf("export type PasswordMethodProofResult"),
+      proofSource.indexOf("export type PreparedPasswordMethodProofResult"),
+    )
+    assert.doesNotMatch(inputContract, /backupCodeConsumption/)
+    assert.doesNotMatch(generalResultContract, /preparedTwoFactorProof/)
+    assert.match(proofSource, /preparePasswordMethodProofForTwoFactorManagement/)
+  })
 })
+
+function compileGeneralProofContract() {
+  const configPath = path.resolve("tsconfig.json")
+  const parsed = ts.parseJsonConfigFileContent(
+    ts.readConfigFile(configPath, ts.sys.readFile).config,
+    ts.sys,
+    path.dirname(configPath),
+  )
+  const virtualPath = path.resolve("tests/__auth-method-proof-contract.ts")
+  const virtualSource = `
+    import {
+      preparePasswordMethodProofForTwoFactorManagement,
+      verifyPasswordMethodProof,
+    } from "../lib/auth-method-proof"
+
+    void verifyPasswordMethodProof({
+      userId: "user-1",
+      password: "password",
+      twoFactorCode: "123456",
+      networkIdentifier: "network",
+      backupCodeConsumption: "DEFERRED",
+    })
+
+    async function proveContracts() {
+      const general = await verifyPasswordMethodProof({
+        userId: "user-1",
+        password: "password",
+        twoFactorCode: "123456",
+        networkIdentifier: "network",
+      })
+      if (general.status === "VERIFIED") general.preparedTwoFactorProof.kind
+
+      const management = await preparePasswordMethodProofForTwoFactorManagement({
+        userId: "user-1",
+        password: "password",
+        twoFactorCode: "123456",
+        networkIdentifier: "network",
+      })
+      if (management.status === "VERIFIED") {
+        const kind: "TOTP" | "BACKUP_CODE" = management.preparedTwoFactorProof.kind
+        void kind
+      }
+    }
+    void proveContracts()
+  `
+  const host = ts.createCompilerHost(parsed.options)
+  const originalFileExists = host.fileExists.bind(host)
+  const originalReadFile = host.readFile.bind(host)
+  host.fileExists = (fileName) => path.resolve(fileName) === virtualPath || originalFileExists(fileName)
+  host.readFile = (fileName) => path.resolve(fileName) === virtualPath ? virtualSource : originalReadFile(fileName)
+  host.getSourceFile = (fileName, languageVersion) => {
+    const source = host.readFile(fileName)
+    return source === undefined ? undefined : ts.createSourceFile(fileName, source, languageVersion, true)
+  }
+  const program = ts.createProgram({
+    rootNames: [path.resolve("lib/auth-method-proof.ts"), virtualPath],
+    options: { ...parsed.options, noEmit: true },
+    host,
+  })
+  return ts.getPreEmitDiagnostics(program)
+}
 
 function proofInput({
   passwordValid = true,
@@ -112,6 +259,7 @@ function proofInput({
   twoFactorCode = "",
   totpValid = false,
   backupValid = false,
+  backupCodeConsumption,
   userId,
   storedEmail = "person@example.com",
 } = {}) {
@@ -122,8 +270,14 @@ function proofInput({
     emailVerified,
     authSessionVersion: 7,
     passwordCredential: { passwordHash: "hash" },
-    twoFactorSecret: twoFactorEnabled ? { enabledAt: NOW, encryptedSecret: "encrypted" } : null,
-    backupCodes: backupValid ? [{ id: "backup-1", codeHash: "backup-hash" }] : [],
+    twoFactorSecret: twoFactorEnabled ? {
+      id: "two-factor-1",
+      userId: "user-1",
+      enabledAt: NOW,
+      updatedAt: NOW,
+      encryptedSecret: "encrypted",
+    } : null,
+    backupCodes: backupValid ? [{ id: "backup-1", userId: "user-1", codeHash: "backup-hash" }] : [],
   }
   const database = createProofDatabase(user)
   return {
@@ -137,6 +291,7 @@ function proofInput({
       networkIdentifier: "192.0.2.1",
       secret: "secret",
       now: NOW,
+      ...(backupCodeConsumption ? { backupCodeConsumption } : {}),
       dependencies: {
         async verifyPassword() { calls.push("password"); return passwordValid },
         decryptSecret() { return "totp-secret" },

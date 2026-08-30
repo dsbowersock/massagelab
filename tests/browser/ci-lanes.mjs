@@ -11,6 +11,7 @@ export const ORDINARY_BROWSER_QA_SPEC_FILES = [
   "control-system-review.spec.ts",
   "identity-method-safety.spec.ts",
   "immersive-panel-shell.spec.ts",
+  "interaction-feedback.spec.ts",
   "local-first.spec.ts",
   "membership-return-status.spec.ts",
   "music-media-session.spec.ts",
@@ -26,6 +27,7 @@ export const BROWSER_QA_LANES = {
       "local-first.spec.ts",
       "identity-method-safety.spec.ts",
       "membership-return-status.spec.ts",
+      "interaction-feedback.spec.ts",
     ],
     "mobile-chromium": [
       "app-shell.spec.ts",
@@ -42,6 +44,7 @@ export const BROWSER_QA_LANES = {
       "local-first.spec.ts",
       "identity-method-safety.spec.ts",
       "membership-return-status.spec.ts",
+      "interaction-feedback.spec.ts",
     ],
   },
   "3": {

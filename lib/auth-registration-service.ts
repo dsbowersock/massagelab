@@ -18,7 +18,9 @@ type LegalMetadata = {
   userAgent?: string | null
 }
 
-type ExistingUser = Prisma.UserGetPayload<{ include: { passwordCredential: true } }>
+type ExistingUser = Prisma.UserGetPayload<{
+  include: { passwordCredential: true; accounts: { select: { provider: true } } }
+}>
 type RegistrationClient = Pick<PrismaClient, "$queryRaw" | "$transaction" | "authRateLimitBucket" | "user">
 
 export type RegisterPasswordAccountInput = {
@@ -47,7 +49,7 @@ export type RegisterPasswordAccountInput = {
     metadata?: LegalMetadata
   }): Promise<unknown>
   sendVerification(email: string, token: string, callbackUrl: string): Promise<unknown>
-  sendPasswordReset(email: string, token: string): Promise<unknown>
+  sendPasswordSetup(email: string, token: string, googleLinked: boolean): Promise<unknown>
   sendExistingAccountNotice(email: string): Promise<unknown>
   scheduleAccountWork(work: () => Promise<void>): void
 }
@@ -180,6 +182,7 @@ async function handleExistingAccount(
 
   if (user.emailVerified && !user.passwordCredential) {
     const token = input.generateToken()
+    const googleLinked = user.accounts.some((account) => account.provider === "google")
     await input.prismaClient.$transaction(async (tx) => {
       await tx.passwordResetToken.create({
         data: {
@@ -195,7 +198,7 @@ async function handleExistingAccount(
         },
       })
     }, { isolationLevel: "Serializable" })
-    await ignoreDeliveryFailure(() => input.sendPasswordReset(recipient, token))
+    await ignoreDeliveryFailure(() => input.sendPasswordSetup(recipient, token, googleLinked))
   }
 }
 
@@ -204,7 +207,10 @@ async function findAccount(prismaClient: RegistrationClient, email: string) {
   if (!userId) return null
   return prismaClient.user.findUnique({
     where: { id: userId },
-    include: { passwordCredential: true },
+    include: {
+      passwordCredential: true,
+      accounts: { select: { provider: true } },
+    },
   })
 }
 

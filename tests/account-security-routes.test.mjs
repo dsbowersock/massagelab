@@ -1,5 +1,7 @@
 import assert from "node:assert/strict"
+import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
+import { fileURLToPath } from "node:url"
 import { describe, it } from "node:test"
 
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
@@ -19,6 +21,7 @@ const linkFormSource = await readFile(new URL("../app/account/link-google/link-g
 const linkPageSource = await readFile(new URL("../app/account/link-google/page.tsx", import.meta.url), "utf8")
 const methodsPanelSource = await readFile(new URL("../app/account/security/sign-in-methods-panel.tsx", import.meta.url), "utf8")
 const securityPanelSource = await readFile(new URL("../app/account/security/security-panel.tsx", import.meta.url), "utf8")
+const linkRecoveryUrl = new URL("../lib/google-link-confirmation-recovery.ts", import.meta.url)
 
 const UPDATED = {
   status: "UPDATED",
@@ -171,6 +174,70 @@ describe("account security route adapters", () => {
 })
 
 describe("recoverable account-method UI contracts", () => {
+  it("allowlists actionable matching-account recovery without rendering arbitrary response text", async () => {
+    assert.equal(
+      existsSync(fileURLToPath(linkRecoveryUrl)),
+      true,
+      "missing controlled Google-link recovery owner",
+    )
+    const recoverySource = await readFile(linkRecoveryUrl, "utf8")
+    const {
+      resolveCredentialLinkRecovery,
+      resolveGoogleLinkConfirmationRecovery,
+    } = loadCompiledModule(recoverySource, "lib/google-link-confirmation-recovery.test.ts")
+
+    assert.deepEqual(resolveCredentialLinkRecovery("TWO_FACTOR_REQUIRED"), {
+      message: "Enter your authenticator or backup code, then try again.",
+      needsTwoFactor: true,
+    })
+    assert.deepEqual(resolveCredentialLinkRecovery("TWO_FACTOR_INVALID"), {
+      message: "The authenticator or backup code was not accepted. Check the code and try again.",
+      needsTwoFactor: true,
+    })
+    assert.deepEqual(resolveCredentialLinkRecovery("INVALID_CREDENTIALS"), {
+      message: "The account email or password was not accepted. Try again or reset your password.",
+      needsTwoFactor: false,
+    })
+    assert.deepEqual(resolveCredentialLinkRecovery("CredentialsSignin"), {
+      message: "The account email or password was not accepted. Try again or reset your password.",
+      needsTwoFactor: false,
+    })
+    assert.deepEqual(resolveCredentialLinkRecovery("EMAIL_UNVERIFIED"), {
+      message: "Verify this account's email, then try again.",
+      needsTwoFactor: false,
+    })
+    assert.deepEqual(resolveCredentialLinkRecovery("RATE_LIMITED"), {
+      message: "Too many attempts. Wait a little, then try again.",
+      needsTwoFactor: false,
+    })
+
+    assert.deepEqual(resolveGoogleLinkConfirmationRecovery(403, "PROOF_EXPIRED"), {
+      message: "This confirmation expired or belongs to another session. Start again with Google sign-in.",
+    })
+    assert.deepEqual(resolveGoogleLinkConfirmationRecovery(401, "AUTHENTICATION_REQUIRED"), {
+      message: "Your password confirmation ended. Start again with Google sign-in, then confirm the password account.",
+    })
+    assert.deepEqual(resolveGoogleLinkConfirmationRecovery(409, "ALREADY_LINKED"), {
+      message: "Google sign-in is already linked. Return to Account Security to review your sign-in methods.",
+    })
+    for (const code of ["CONFLICT", "LAST_METHOD"]) {
+      assert.deepEqual(resolveGoogleLinkConfirmationRecovery(409, code), {
+        message: "Your sign-in methods changed. Refresh Account Security, then start Google sign-in again if it is not linked.",
+      })
+    }
+    assert.deepEqual(resolveGoogleLinkConfirmationRecovery(400, "INVALID_REQUEST"), {
+      message: "Confirm that Google and password should open the same account, then try again.",
+    })
+
+    const generic = { message: "Something went wrong. Please try again." }
+    assert.deepEqual(resolveCredentialLinkRecovery("private-provider-detail"), generic)
+    assert.deepEqual(resolveGoogleLinkConfirmationRecovery(500, "PROOF_EXPIRED"), generic)
+    assert.deepEqual(resolveGoogleLinkConfirmationRecovery(403, "private-provider-detail"), generic)
+    assert.match(linkFormSource, /resolveCredentialLinkRecovery/)
+    assert.match(linkFormSource, /resolveGoogleLinkConfirmationRecovery/)
+    assert.doesNotMatch(linkFormSource, /result\.message/)
+  })
+
   it("signs in with Credentials before link confirmation and sends confirmation only", () => {
     const signInIndex = linkFormSource.indexOf('signIn("credentials"')
     const confirmIndex = linkFormSource.indexOf('fetch("/api/account/security/google/link/confirm"')

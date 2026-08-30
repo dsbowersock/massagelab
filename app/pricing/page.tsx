@@ -10,6 +10,7 @@ import {
 import { getMembershipPricingCatalog } from "@/lib/membership-pricing"
 import { prisma } from "@/lib/prisma"
 import { MembershipPricingCards } from "@/components/membership/pricing-cards"
+import { PendingSubmissionForm, PendingSubmitButton } from "@/components/forms/pending-submission-form"
 import { AppNotice, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
@@ -105,9 +106,14 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {DONATION_OPTIONS.map((option, index) => (
-              <form key={option.amountCents} action="/api/billing/donation" method="post">
+              <PendingSubmissionForm
+                key={option.amountCents}
+                action="/api/billing/donation"
+                method="post"
+                pendingLabel="Opening secure checkout…"
+              >
                 <input type="hidden" name="amountCents" value={option.amountCents} />
-                <Button
+                <PendingSubmitButton
                   type="submit"
                   variant="glow"
                   tone="pricing"
@@ -118,10 +124,11 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
                     "--ml-neon-flicker-delay": `${index * 0.65}s`,
                   } as CSSProperties}
                   aria-label={`${option.label} ${option.description}`}
+                  pendingLabel="Opening secure checkout…"
                 >
                   <span className="text-lg font-semibold">{option.label}</span>
-                </Button>
-              </form>
+                </PendingSubmitButton>
+              </PendingSubmissionForm>
             ))}
           </div>
         </AppSurface>

@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   CalendarCog,
   CalendarDays,
@@ -33,6 +33,7 @@ import {
 import { QuickActionSpeedDial } from "@/components/shell/quick-action-speed-dial"
 import { AppToolLink } from "@/components/shell/app-tool-link"
 import { AppBarBrandLink } from "@/components/shell/app-bar-brand-link"
+import { usePendingNavigation } from "@/components/shell/use-pending-navigation"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { resolveMainBarLayout } from "@/lib/app-shell"
@@ -197,7 +198,7 @@ function CalendarDrawerButton({
   side: "left" | "right"
 }) {
   const pathname = usePathname() ?? "/"
-  const router = useRouter()
+  const { isPending, push } = usePendingNavigation()
   const [open, setOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const { calendarContext } = useSidebarCalendarContext()
@@ -217,18 +218,19 @@ function CalendarDrawerButton({
   }, [pathname])
 
   const selectCalendarDate = useCallback((date: Date | undefined) => {
+    if (isPending) return
     setSelectedDate(date)
 
     if (!date) return
 
     const params = new URLSearchParams(pathname === "/calendar" ? window.location.search : "")
     params.set("date", formatCalendarDateParam(date))
-    router.push(`/calendar?${params.toString()}`)
+    push(`/calendar?${params.toString()}`)
     setOpen(false)
-  }, [pathname, router])
+  }, [isPending, pathname, push])
 
   return (
-    <Sheet open={open} onOpenChange={updateOpen}>
+    <Sheet open={open || isPending} onOpenChange={updateOpen}>
       <Tooltip>
         <TooltipTrigger asChild>
           <SheetTrigger asChild>
@@ -239,7 +241,7 @@ function CalendarDrawerButton({
               data-active={isNavigationRouteActive(pathname, "/calendar")}
               className="ml-calendar-drawer-trigger ml-shell-main-bar-control relative shrink-0"
               aria-label="Open calendar"
-              aria-expanded={open}
+              aria-expanded={open || isPending}
               aria-haspopup="dialog"
             >
               <CalendarDays data-icon="inline-start" />
@@ -298,8 +300,15 @@ function CalendarDrawerButton({
                 mode="single"
                 selected={selectedDate}
                 onSelect={selectCalendarDate}
+                disabled={isPending}
+                aria-busy={isPending}
                 className="mx-auto w-full rounded-md border border-border/70 bg-background/70 p-2 text-sm [--cell-size:1.65rem]"
               />
+              {isPending ? (
+                <p role="status" className="text-center text-xs text-muted-foreground">
+                  Loading selected calendar date…
+                </p>
+              ) : null}
 
               <div className="grid gap-1">
                 {calendarActions.map((action) => {

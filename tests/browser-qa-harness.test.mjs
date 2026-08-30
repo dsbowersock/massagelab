@@ -102,6 +102,7 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
     "control-system-review.spec.ts",
     "identity-method-safety.spec.ts",
     "immersive-panel-shell.spec.ts",
+    "interaction-feedback.spec.ts",
     "local-first.spec.ts",
     "membership-return-status.spec.ts",
     "music-media-session.spec.ts",
@@ -125,8 +126,8 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
   const expectedPairs = new Set(
     expectedProjects.flatMap((projectName) => expectedSpecs.map((spec) => `${projectName}:${spec}`)),
   )
-  assert.equal(expectedSpecs.length, 13)
-  assert.equal(expectedPairs.size, 26)
+  assert.equal(expectedSpecs.length, 14)
+  assert.equal(expectedPairs.size, 28)
 
   const actualPairs = []
   for (const lane of Object.values(BROWSER_QA_LANES)) {
@@ -176,6 +177,7 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
           "**/local-first.spec.ts",
           "**/identity-method-safety.spec.ts",
           "**/membership-return-status.spec.ts",
+          "**/interaction-feedback.spec.ts",
         ],
       },
       {
@@ -201,6 +203,7 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
           "**/local-first.spec.ts",
           "**/identity-method-safety.spec.ts",
           "**/membership-return-status.spec.ts",
+          "**/interaction-feedback.spec.ts",
         ],
       },
     ],
@@ -304,6 +307,23 @@ test("Admin user operations QA disables stale-server reuse for unfiltered and ex
     isAdminUserOperationsInvocation(["test", "tests/browser/public-routes.spec.ts"]),
     false,
   )
+})
+
+test("Playwright-owned Browser QA enables Google controls with inert spawned-server credentials only", async () => {
+  const config = await readProjectFile("playwright.config.ts")
+
+  assert.match(
+    config,
+    /Object\.assign\(playwrightWebServerEnvironment,[\s\S]*AUTH_GOOGLE_ID:\s*"browser-qa-inert-google-client-id\.invalid"/,
+  )
+  assert.match(
+    config,
+    /Object\.assign\(playwrightWebServerEnvironment,[\s\S]*AUTH_GOOGLE_SECRET:\s*"browser-qa-inert-google-client-secret\.invalid"/,
+  )
+  assert.doesNotMatch(config, /process\.env\.AUTH_GOOGLE_(?:ID|SECRET)\s*=/)
+  for (const name of ["SMTP_HOST", "SMTP_FROM", "SMTP_USER", "SMTP_PASSWORD", "SMTP_PORT"]) {
+    assert.match(config, new RegExp(`${name}: ""`))
+  }
 })
 
 test("Playwright file filters skip separate option values", () => {

@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test"
+import { expect, test, type Locator, type Page, type Route } from "@playwright/test"
 import { withPlayerViewportCollisionPadding } from "../../components/ui/use-player-viewport-insets"
 import { centerCarouselItem, waitForStableSlideGeometry } from "./carousel-test-helpers"
 
@@ -6,6 +6,20 @@ const desktopProject = "desktop-chromium"
 const mobileProject = "mobile-chromium"
 const FAVORITES_MIN_TO_CENTER_CARD_RATIO = 1.3
 const FAVORITES_BALANCED_FILL_RATIO = 0.8
+
+/** Detects App Router's streamed production 404 without hiding the development fixture. */
+async function isDevelopmentReviewUnavailable(page: Page, responseStatus: number | undefined) {
+  if (responseStatus === 404) return true
+
+  const reviewHeading = page.getByRole("heading", { name: "Control system review", level: 1 })
+  const notFoundHeading = page.getByRole("heading", {
+    name: "This page could not be found.",
+    exact: true,
+    level: 2,
+  })
+  await expect(reviewHeading.or(notFoundHeading)).toBeVisible()
+  return notFoundHeading.isVisible()
+}
 
 async function expectFavoritesMosaicTracksCenteredCard(mosaic: Locator, centeredCard: Locator) {
   await expect.poll(async () => {
@@ -52,6 +66,17 @@ async function expectFavoritesMosaicUsesBalancedFill(mosaic: Locator) {
 async function gotoShell(page: Page, path: string) {
   await page.goto(path, { waitUntil: "domcontentloaded" })
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
+}
+
+/** Aborts a held fixture request unless the app's own cancellation already won the race. */
+async function abortHeldFixtureRequest(route: Route) {
+  try {
+    await route.abort("aborted")
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("Route is already handled!")) {
+      throw error
+    }
+  }
 }
 
 /** Persists a deterministic newest-first Atmosphere Favorites fixture before app hydration. */
@@ -1317,6 +1342,7 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
 
   await page.setViewportSize({ width: 390, height: 844 })
   const toolbar = await startProofDrone(page)
+  await expect(toolbar).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
   const interruptionNotice = page.getByTestId("music-interruption-notice")
   if (await interruptionNotice.isVisible().catch(() => false)) {
     await interruptionNotice.getByRole("button", { name: "Close" }).click()
@@ -2697,7 +2723,10 @@ test("player rail keeps overlays clear in the popover fixture", async ({ page },
   // observable without adding test-only production components.
   await page.setViewportSize({ width: 844, height: 390 })
   const response = await page.goto("/dev/buttons", { waitUntil: "domcontentloaded" })
-  test.skip(response?.status() === 404, "The real Popover fixture is intentionally development-only.")
+  test.skip(
+    await isDevelopmentReviewUnavailable(page, response?.status()),
+    "The real Popover fixture is intentionally development-only.",
+  )
   await expect(page.getByRole("heading", { name: "Control system review" })).toBeVisible()
   await page.locator("body").evaluate((body) => {
     body.style.setProperty("--ml-player-right-safe", "320px")
@@ -4530,6 +4559,7 @@ test("Atmosphere expanded player actions expose session and saved interruption p
   await installInterruptionNoticeMediaFakes(page)
   await page.setViewportSize({ width: 390, height: 844 })
   const player = await startInterruptionNoticeSession(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
   const controls = player.getByTestId("music-player-toolbar-controls")
   const notice = page.getByRole("region", { name: "Interruption preference" })
 
@@ -4587,11 +4617,42 @@ test("Atmosphere expanded player actions expose session and saved interruption p
   await close.focus()
   await page.keyboard.press("Enter")
   await expect(notice).toBeHidden()
-  await player.getByRole("button", { name: "Previous station" }).click()
-  await expect(notice).toBeHidden()
-  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
-  await player.getByRole("button", { name: "Next station" }).click()
-  await expect(notice).toBeHidden()
+
+  let releaseZedSampleIndex: () => void = () => undefined
+  let matchedZedSampleIndexUrl: string | null = null
+  const zedSampleIndexGate = new Promise<void>((resolve) => {
+    releaseZedSampleIndex = resolve
+  })
+  const zedSampleIndexPattern = "**/atmosphere/generative-fm/zed/sample-index*.json"
+  const zedSampleIndexHandler = async (route: Route) => {
+    matchedZedSampleIndexUrl = route.request().url()
+    await zedSampleIndexGate
+    await abortHeldFixtureRequest(route)
+  }
+  await page.route(zedSampleIndexPattern, zedSampleIndexHandler)
+  try {
+    await player.getByRole("button", { name: "Previous station" }).click()
+    await expect.poll(() => matchedZedSampleIndexUrl).toMatch(
+      /\/atmosphere\/generative-fm\/zed\/sample-index(?:\.[^/?]+)?\.json(?:\?.*)?$/,
+    )
+    await expect(player.getByTestId("music-player-toolbar-identity").locator("p").first())
+      .toHaveText("Zed")
+    await expect(player).toHaveAttribute("data-playback-state", "loading")
+    await expect(notice).toBeHidden()
+
+    releaseZedSampleIndex()
+    await expect(player).toHaveAttribute("data-playback-state", "failed")
+    const nextStation = player.getByRole("button", { name: "Next station" })
+    await expect(nextStation).toBeEnabled()
+    await nextStation.click()
+    await expect(player.getByTestId("music-player-toolbar-identity").locator("p").first())
+      .toHaveText("MassageLab Proof Drone")
+    await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+    await expect(notice).toBeHidden()
+  } finally {
+    releaseZedSampleIndex()
+    await page.unroute(zedSampleIndexPattern, zedSampleIndexHandler)
+  }
 })
 
 test("vinyl player controls expose grouped semantic actions and a minimal collapsed set", async ({ page }) => {
@@ -5285,6 +5346,7 @@ test("mobile top player consumes its safe inset exactly once while expanded and 
 
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toBeVisible()
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
   await placeRenderedToolbarAtTop(player, safeTop)
   await expect(player).toHaveAttribute("data-placement", "top")
 
@@ -5314,59 +5376,70 @@ test("mobile top player consumes its safe inset exactly once while expanded and 
 test("mobile loading toolbar fits expanded and collapsed increased-text content", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Mobile loading geometry is covered in mobile Chromium.")
   const safeBottom = 24
-  let releaseSampleIndex!: () => void
+  let releaseSampleIndex: () => void = () => undefined
+  let matchedSampleIndexUrl: string | null = null
   const sampleIndexGate = new Promise<void>((resolve) => {
     releaseSampleIndex = resolve
   })
-  await page.route("**/observable-streams-vsco-adaptation/sample-index.json", async (route) => {
+  const sampleIndexPattern = "**/observable-streams-vsco-adaptation/sample-index*.json"
+  const sampleIndexHandler = async (route: Route) => {
+    matchedSampleIndexUrl = route.request().url()
     await sampleIndexGate
-    await route.abort("aborted")
-  })
-  await page.setViewportSize({ width: 390, height: 844 })
-  await gotoShell(page, "/music")
-  await page.locator("body").evaluate(
-    (body, value) => body.style.setProperty("--ml-safe-bottom", `${value}px`),
-    safeBottom,
-  )
-  await page.addStyleTag({ content: `
-    [data-testid="music-player-toolbar-identity"] > p {
-      font-size: 24px !important;
-      line-height: 30px !important;
-    }
-  ` })
+    await abortHeldFixtureRequest(route)
+  }
+  await page.route(sampleIndexPattern, sampleIndexHandler)
+  try {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await gotoShell(page, "/music")
+    await page.locator("body").evaluate(
+      (body, value) => body.style.setProperty("--ml-safe-bottom", `${value}px`),
+      safeBottom,
+    )
+    await page.addStyleTag({ content: `
+      [data-testid="music-player-toolbar-identity"] > p {
+        font-size: 24px !important;
+        line-height: 30px !important;
+      }
+    ` })
 
-  await centerCarouselItem(page, "observable-streams-probe", "Next station")
-  await page.getByRole("button", { name: /^Play Observable Streams$/i }).click()
-  const player = page.getByTestId("music-player-toolbar")
-  await expect(player).toHaveAttribute("data-playback-state", "loading")
-  await expectCompactLoadingIdentity(player)
+    await centerCarouselItem(page, "observable-streams-probe", "Next station")
+    await page.getByRole("button", { name: /^Play Observable Streams$/i }).click()
+    await expect.poll(() => matchedSampleIndexUrl).toMatch(
+      /\/observable-streams-vsco-adaptation\/sample-index(?:\.[^/?]+)?\.json(?:\?.*)?$/,
+    )
+    const player = page.getByTestId("music-player-toolbar")
+    await expect(player).toHaveAttribute("data-playback-state", "loading")
+    await expectCompactLoadingIdentity(player)
 
-  let spacing = await resolvedShellSpacing(page)
-  expect(spacing.audioToolbar).toBeCloseTo(160, 0)
-  await expectSafeAreaToolbarGeometry(
-    player,
-    160,
-    160,
-    spacing.bottomStack,
-    ["Previous station", "Play", "Cancel loading", "Next station", "Background", "Player settings", "Minimize"],
-  )
+    let spacing = await resolvedShellSpacing(page)
+    expect(spacing.audioToolbar).toBeCloseTo(160, 0)
+    await expectSafeAreaToolbarGeometry(
+      player,
+      160,
+      160,
+      spacing.bottomStack,
+      ["Previous station", "Play", "Cancel loading", "Next station", "Background", "Player settings", "Minimize"],
+    )
 
-  await player.getByRole("button", { name: "Minimize", exact: true }).click()
-  await expect(player).toHaveAttribute("data-collapsed", "true")
-  await expect(player).toHaveAttribute("data-playback-state", "loading")
-  await expectCompactLoadingIdentity(player)
-  spacing = await resolvedShellSpacing(page)
-  expect(spacing.audioToolbar).toBeCloseTo(72, 0)
-  await expectSafeAreaToolbarGeometry(
-    player,
-    72,
-    72,
-    spacing.bottomStack,
-    ["Play", "Cancel loading", "Expand"],
-  )
+    await player.getByRole("button", { name: "Minimize", exact: true }).click()
+    await expect(player).toHaveAttribute("data-collapsed", "true")
+    await expect(player).toHaveAttribute("data-playback-state", "loading")
+    await expectCompactLoadingIdentity(player)
+    spacing = await resolvedShellSpacing(page)
+    expect(spacing.audioToolbar).toBeCloseTo(72, 0)
+    await expectSafeAreaToolbarGeometry(
+      player,
+      72,
+      72,
+      spacing.bottomStack,
+      ["Play", "Cancel loading", "Expand"],
+    )
 
-  await player.getByRole("button", { name: "Cancel loading", exact: true }).click()
-  releaseSampleIndex()
+    await player.getByRole("button", { name: "Cancel loading", exact: true }).click()
+  } finally {
+    releaseSampleIndex()
+    await page.unroute(sampleIndexPattern, sampleIndexHandler)
+  }
 })
 
 test("running alerting and preview capture clear computed shell offsets while bars are hidden", async ({ page }) => {

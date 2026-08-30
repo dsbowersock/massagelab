@@ -12,12 +12,29 @@ import {
   verifyPassword,
   verifyTotpCode,
 } from "@/lib/auth-security"
+import {
+  proveLoadedTwoFactorCode,
+  type PreparedTwoFactorProof,
+} from "@/lib/auth-two-factor-proof"
 import { prisma } from "@/lib/prisma"
 import { resolveNormalizedUserId } from "@/lib/normalized-user-email"
 
+type PasswordMethodProofFailure = {
+  status: "EMAIL_UNVERIFIED" | "INVALID" | "TWO_FACTOR_REQUIRED" | "TWO_FACTOR_INVALID" | "RATE_LIMITED"
+}
+
 export type PasswordMethodProofResult =
   | { status: "VERIFIED"; userId: string; backupCodeConsumed: boolean; authSessionVersion: number }
-  | { status: "EMAIL_UNVERIFIED" | "INVALID" | "TWO_FACTOR_REQUIRED" | "TWO_FACTOR_INVALID" | "RATE_LIMITED" }
+  | PasswordMethodProofFailure
+
+export type PreparedPasswordMethodProofResult =
+  | {
+      status: "VERIFIED"
+      userId: string
+      authSessionVersion: number
+      preparedTwoFactorProof: PreparedTwoFactorProof
+    }
+  | PasswordMethodProofFailure
 
 type ProofDependencies = {
   checkCredentialRateLimit: typeof checkCredentialRateLimit
@@ -33,7 +50,7 @@ type ProofDependencies = {
 
 type ProofPrismaClient = Pick<PrismaClient, "user" | "backupCode" | "authRateLimitBucket" | "$transaction" | "$queryRaw">
 
-type VerifyPasswordMethodProofInput = {
+export type VerifyPasswordMethodProofInput = {
   prismaClient?: ProofPrismaClient
   userId?: string
   email?: string
@@ -44,6 +61,23 @@ type VerifyPasswordMethodProofInput = {
   now?: Date
   dependencies?: Partial<ProofDependencies>
 }
+
+export type PreparePasswordMethodProofForTwoFactorManagementInput =
+  Omit<VerifyPasswordMethodProofInput, "twoFactorCode"> & { twoFactorCode: string }
+
+type InternalPasswordMethodProofInput = VerifyPasswordMethodProofInput & {
+  backupCodeConsumption: "IMMEDIATE" | "DEFERRED"
+}
+
+type InternalPasswordMethodProofResult =
+  | PasswordMethodProofResult
+  | {
+      status: "VERIFIED"
+      userId: string
+      backupCodeConsumed: false
+      authSessionVersion: number
+      preparedTwoFactorProof: PreparedTwoFactorProof
+    }
 
 const defaultDependencies: ProofDependencies = {
   checkCredentialRateLimit,
@@ -58,12 +92,49 @@ const defaultDependencies: ProofDependencies = {
 }
 
 /**
- * Owns password and optional 2FA proof for both login and account-method changes.
- * The service deliberately clears only account-scoped failure pressure on success.
+ * Verifies password and optional 2FA for login/account-method callers. Backup
+ * codes are always consumed immediately; deferred capability is not exposed.
  */
 export async function verifyPasswordMethodProof(
   input: VerifyPasswordMethodProofInput,
 ): Promise<PasswordMethodProofResult> {
+  const result = await verifyPasswordMethodProofInternal({
+    ...input,
+    backupCodeConsumption: "IMMEDIATE",
+  })
+  if (result.status !== "VERIFIED") return result
+  return {
+    status: "VERIFIED",
+    userId: result.userId,
+    backupCodeConsumed: result.backupCodeConsumed,
+    authSessionVersion: result.authSessionVersion,
+  }
+}
+
+/**
+ * Verifies password plus an enabled current factor without consuming its backup
+ * code, returning a required prepared proof for the management transaction.
+ */
+export async function preparePasswordMethodProofForTwoFactorManagement(
+  input: PreparePasswordMethodProofForTwoFactorManagementInput,
+): Promise<PreparedPasswordMethodProofResult> {
+  const result = await verifyPasswordMethodProofInternal({
+    ...input,
+    backupCodeConsumption: "DEFERRED",
+  })
+  if (result.status !== "VERIFIED") return result
+  if (!("preparedTwoFactorProof" in result)) return { status: "TWO_FACTOR_REQUIRED" }
+  return {
+    status: "VERIFIED",
+    userId: result.userId,
+    authSessionVersion: result.authSessionVersion,
+    preparedTwoFactorProof: result.preparedTwoFactorProof,
+  }
+}
+
+async function verifyPasswordMethodProofInternal(
+  input: InternalPasswordMethodProofInput,
+): Promise<InternalPasswordMethodProofResult> {
   const deps = { ...defaultDependencies, ...input.dependencies }
   const prismaClient = input.prismaClient ?? prisma
   const now = input.now ?? new Date()
@@ -113,34 +184,42 @@ export async function verifyPasswordMethodProof(
     return { status: "INVALID" }
   }
   if (!user.emailVerified) return { status: "EMAIL_UNVERIFIED" }
+  if (input.backupCodeConsumption === "DEFERRED" && !user.twoFactorSecret?.enabledAt) {
+    return { status: "TWO_FACTOR_REQUIRED" }
+  }
 
   let backupCodeConsumed = false
+  let preparedTwoFactorProof: PreparedTwoFactorProof | undefined
   if (user.twoFactorSecret?.enabledAt) {
-    const code = input.twoFactorCode ?? ""
-    if (!code) return { status: "TWO_FACTOR_REQUIRED" }
-
-    let validTotp = false
-    try {
-      validTotp = deps.verifyTotpCode(deps.decryptSecret(user.twoFactorSecret.encryptedSecret), code)
-    } catch {
-      validTotp = false
+    const factorResult = await proveLoadedTwoFactorCode({
+      user,
+      twoFactorCode: input.twoFactorCode ?? "",
+      dependencies: {
+        decryptSecret: deps.decryptSecret,
+        verifyTotpCode: deps.verifyTotpCode,
+        verifyBackupCode: deps.verifyBackupCode,
+      },
+    })
+    if (factorResult.status !== "VERIFIED") {
+      if (factorResult.status === "TWO_FACTOR_INVALID") {
+        await deps.recordCredentialFailure({ ...limiterInput, purpose: "TWO_FACTOR" })
+      }
+      if (factorResult.status === "TWO_FACTOR_REQUIRED") return { status: "TWO_FACTOR_REQUIRED" }
+      if (factorResult.status === "RATE_LIMITED") return { status: "RATE_LIMITED" }
+      return { status: "TWO_FACTOR_INVALID" }
     }
 
-    if (!validTotp) {
-      let validBackupCodeId: string | null = null
-      for (const backupCode of user.backupCodes) {
-        if (await deps.verifyBackupCode(backupCode.codeHash, code)) {
-          validBackupCodeId = backupCode.id
-          break
-        }
-      }
-      if (validBackupCodeId) {
-        const consumed = await prismaClient.backupCode.updateMany({
-          where: { id: validBackupCodeId, usedAt: null },
-          data: { usedAt: now },
-        })
-        backupCodeConsumed = consumed.count === 1
-      }
+    preparedTwoFactorProof = factorResult.proof
+    if (preparedTwoFactorProof.kind === "BACKUP_CODE" && input.backupCodeConsumption !== "DEFERRED") {
+      const consumed = await prismaClient.backupCode.updateMany({
+        where: {
+          id: preparedTwoFactorProof.backupCodeId ?? "",
+          userId: user.id,
+          usedAt: null,
+        },
+        data: { usedAt: now },
+      })
+      backupCodeConsumed = consumed.count === 1
       if (!backupCodeConsumed) {
         await deps.recordCredentialFailure({ ...limiterInput, purpose: "TWO_FACTOR" })
         return { status: "TWO_FACTOR_INVALID" }
@@ -149,12 +228,15 @@ export async function verifyPasswordMethodProof(
   }
 
   await deps.clearCredentialAccountFailures({ prismaClient, email: accountEmail, secret })
-  return {
+  const verified = {
     status: "VERIFIED",
     userId: user.id,
     backupCodeConsumed,
     authSessionVersion: user.authSessionVersion,
-  }
+  } as const
+  return input.backupCodeConsumption === "DEFERRED" && preparedTwoFactorProof
+    ? { ...verified, preparedTwoFactorProof }
+    : verified
 }
 
 async function credentialProofAllowed(

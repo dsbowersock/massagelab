@@ -6,8 +6,10 @@ import {
   normalizeCredentialClaimNumber,
 } from "../lib/credential-claims.js"
 
-function fakePrisma(initialClaims = []) {
+function fakePrisma(initialClaims = [], { createRaceClaim = null, createManyError = null } = {}) {
   const claims = new Map()
+  let transactionAborted = false
+  let racePending = Boolean(createRaceClaim)
 
   for (const claim of initialClaims) {
     claims.set(claimKey(claim), { ...claim })
@@ -17,10 +19,24 @@ function fakePrisma(initialClaims = []) {
     claims,
     verifiedCredentialClaim: {
       async findUnique({ where }) {
+        if (transactionAborted) throw new Error("current transaction is aborted")
         return claims.get(claimKey(where.kind_jurisdictionCode_normalizedCredentialNumber)) ?? null
       },
       async create({ data }) {
         const key = claimKey(data)
+
+        if (racePending) {
+          racePending = false
+          claims.set(key, { ...createRaceClaim })
+          transactionAborted = true
+          const error = new Error("Unique constraint failed after a concurrent winner committed")
+          error.code = "P2002"
+          error.meta = {
+            modelName: "VerifiedCredentialClaim",
+            target: ["kind", "jurisdictionCode", "normalizedCredentialNumber"],
+          }
+          throw error
+        }
 
         if (claims.has(key)) {
           const error = new Error("Unique constraint failed")
@@ -34,6 +50,22 @@ function fakePrisma(initialClaims = []) {
         }
         claims.set(key, claim)
         return claim
+      },
+      async createMany({ data, skipDuplicates }) {
+        assert.equal(skipDuplicates, true)
+        if (createManyError) throw createManyError
+        const claim = data[0]
+        const key = claimKey(claim)
+
+        if (racePending) {
+          racePending = false
+          claims.set(key, { ...createRaceClaim })
+          return { count: 0 }
+        }
+        if (claims.has(key)) return { count: 0 }
+
+        claims.set(key, { id: `claim-${claims.size + 1}`, ...claim })
+        return { count: 1 }
       },
       async update({ where, data }) {
         const key = claimKey(where.kind_jurisdictionCode_normalizedCredentialNumber)
@@ -116,5 +148,51 @@ describe("Verified credential claims", () => {
     assert.equal(duplicateClaim.claimed, false)
     assert.equal(duplicateClaim.reasonCode, "DUPLICATE_CREDENTIAL_REVIEW")
     assert.equal(duplicateClaim.existingClaim?.id, "claim-1")
+  })
+
+  it("reads a concurrent cross-user winner without aborting the surrounding transaction", async () => {
+    const concurrentWinner = {
+      id: "claim-race-winner",
+      userId: "user-1",
+      kind: "MASSAGE_LICENSE",
+      jurisdictionCode: "OH",
+      normalizedCredentialNumber: "33019598",
+    }
+    const prismaClient = fakePrisma([], { createRaceClaim: concurrentWinner })
+
+    const result = await claimVerifiedCredential({
+      prismaClient,
+      userId: "user-2",
+      kind: "MASSAGE_LICENSE",
+      jurisdictionCode: "OH",
+      credentialNumber: "33.019598",
+      credentialVerificationId: "verification-2",
+      source: "OHIO_ELICENSE_VISUALFORCE",
+    })
+
+    assert.equal(result.claimed, false)
+    assert.equal(result.reasonCode, "DUPLICATE_CREDENTIAL_REVIEW")
+    assert.equal(result.existingClaim?.id, "claim-race-winner")
+  })
+
+  it("does not convert unrelated create failures into duplicate-claim review", async () => {
+    const unrelated = Object.assign(new Error("unrelated unique failure"), {
+      code: "P2002",
+      meta: { modelName: "OtherModel", target: ["otherField"] },
+    })
+    const prismaClient = fakePrisma([], { createManyError: unrelated })
+
+    await assert.rejects(
+      claimVerifiedCredential({
+        prismaClient,
+        userId: "user-2",
+        kind: "MASSAGE_LICENSE",
+        jurisdictionCode: "OH",
+        credentialNumber: "33.019598",
+        credentialVerificationId: "verification-2",
+        source: "OHIO_ELICENSE_VISUALFORCE",
+      }),
+      (error) => error === unrelated,
+    )
   })
 })
