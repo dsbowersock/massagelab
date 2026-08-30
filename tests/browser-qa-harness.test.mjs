@@ -77,6 +77,21 @@ test("workflow job extraction includes the complete body and stops at the next j
   assert.doesNotMatch(firstJob, /Second job/)
 })
 
+test("Code quality provisions Chromium with Linux dependencies before Node tests", async () => {
+  const workflow = await readProjectFile(".github/workflows/ci.yml")
+  const codeQualityJob = getWorkflowJob(workflow, "code_quality")
+
+  assert.match(
+    codeQualityJob,
+    /- name: Install Chromium for Node tests\r?\n        run: npx playwright install --with-deps chromium/,
+  )
+  assertWorkflowStepBefore(
+    codeQualityJob,
+    "npx playwright install --with-deps chromium",
+    "npm run test",
+  )
+})
+
 test("browser QA lanes cover each ordinary project and spec exactly once", async () => {
   const expectedProjects = ["desktop-chromium", "mobile-chromium"]
   const expectedSpecs = [
