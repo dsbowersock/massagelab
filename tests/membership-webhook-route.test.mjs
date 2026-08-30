@@ -12,6 +12,7 @@ import {
   STRIPE_BACKGROUND_REFUND_WEBHOOK_EVENTS,
   STRIPE_MEMBERSHIP_WEBHOOK_EVENTS,
 } from "../lib/stripe-webhook-contract.js"
+import { safeErrorCode } from "../lib/safe-error-code.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -201,17 +202,30 @@ describe("signed membership webhook route", () => {
   })
 
   it("keeps unexpected membership failures non-2xx and private", async () => {
+    const loggedErrors = []
+    const originalConsoleError = console.error
     const harness = createWebhookHarness({
       membershipError: new Error("Stripe subscription sub_sensitive failed for cus_sensitive"),
     })
 
-    const response = await harness.POST(webhookRequest(JSON.stringify(
-      subscriptionEvent("customer.subscription.updated"),
-    )))
+    let response
+    try {
+      console.error = (...args) => loggedErrors.push(args)
+      response = await harness.POST(webhookRequest(JSON.stringify(
+        subscriptionEvent("customer.subscription.updated"),
+      )))
+    } finally {
+      console.error = originalConsoleError
+    }
     const body = await response.json()
 
     assert.equal(response.status, 500)
     assert.deepEqual(body, { received: false })
+    assert.deepEqual(loggedErrors, [[
+      "Membership webhook processing failed",
+      { code: "unexpected_error" },
+    ]])
+    assert.doesNotMatch(JSON.stringify(loggedErrors), /Stripe|sub_sensitive|cus_sensitive/i)
     assert.doesNotMatch(JSON.stringify(body), /Stripe|sub_sensitive|cus_sensitive/i)
     assert.equal(harness.calls.some(([name]) => name === "cache"), false)
   })
@@ -425,6 +439,7 @@ function createWebhookHarness({
       processStripeMembershipEvent,
     },
     "@/lib/prisma": { prisma: prismaClient },
+    "@/lib/safe-error-code": { safeErrorCode },
     "@/lib/stripe-billing": stripeBilling,
     "@/lib/stripe-webhook-contract": {
       STRIPE_BACKGROUND_CHECKOUT_WEBHOOK_EVENTS,

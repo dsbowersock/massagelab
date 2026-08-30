@@ -10,7 +10,11 @@ import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { buildVerificationRequestPath } from "@/lib/auth-registration"
-import { buildRegistrationLegalProviderRedirectPath, safePostLegalAcceptanceCallback } from "@/lib/legal-acceptance-gate"
+import {
+  buildRegistrationLegalProviderRedirectPath,
+  isRegistrationLegalAcceptancePath,
+  safePostLegalAcceptanceCallback,
+} from "@/lib/legal-acceptance-gate"
 
 type LoginFormProps = {
   googleEnabled: boolean
@@ -30,7 +34,10 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const hasCallbackUrl = searchParams.has("callbackUrl")
-  const callbackUrl = safePostLegalAcceptanceCallback(searchParams.get("callbackUrl"), "/account")
+  const requestedCallbackUrl = searchParams.get("callbackUrl")
+  const callbackUrl = isRegistrationLegalAcceptancePath(requestedCallbackUrl)
+    ? buildRegistrationLegalProviderRedirectPath(requestedCallbackUrl)
+    : safePostLegalAcceptanceCallback(requestedCallbackUrl, "/account")
   // Google OAuth defaults to onboarding only when no callback was requested.
   const googleCallbackUrl = hasCallbackUrl ? callbackUrl : "/onboarding"
   const googleRedirectTo = buildRegistrationLegalProviderRedirectPath(googleCallbackUrl)
