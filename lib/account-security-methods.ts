@@ -174,7 +174,10 @@ export async function setPasswordMethod(input: {
   })
 }
 
-/** Removes Google only after password/2FA proof outside the mutation transaction. */
+/**
+ * Removes every Google account only after password/2FA proof outside the
+ * transaction. A delete-count mismatch rejects before session state changes.
+ */
 export async function removeGoogleMethod(input: DirectProofInput): Promise<AuthMethodMutationResult> {
   const now = captureNow(input.now)
   if (!now || input.confirmed !== true || !validIdentifier(input.userId)) return rejected("INVALID_PROOF")

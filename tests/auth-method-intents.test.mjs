@@ -78,6 +78,47 @@ describe("private Google auth-method intents", () => {
     assert.equal(db.state.intents.length, 1)
   })
 
+  it("prunes expired intents without deleting fresh consumed security reauthentication", async () => {
+    const service = await loadService()
+    const now = new Date("2026-08-28T12:00:00.000Z")
+    const db = createIntentDatabase({
+      intents: [
+        {
+          id: "expired-intent",
+          purpose: "SIGN_IN_OR_LINK",
+          provider: "google",
+          status: "PENDING",
+          consumedAt: null,
+          expiresAt: new Date("2026-08-28T11:59:59.000Z"),
+          updatedAt: new Date("2026-08-28T11:50:00.000Z"),
+        },
+        {
+          id: "fresh-consumed-reauth",
+          purpose: "ADD_PASSWORD",
+          targetUserId: "user-1",
+          provider: "google",
+          providerAccountId: "sub-a",
+          providerProvenAt: new Date("2026-08-28T11:59:30.000Z"),
+          status: "CONSUMED",
+          consumedAt: new Date("2026-08-28T11:59:30.000Z"),
+          expiresAt: new Date("2026-08-28T12:09:30.000Z"),
+          updatedAt: new Date("2026-08-28T11:59:30.000Z"),
+        },
+      ],
+    })
+
+    await service.startAuthMethodIntent({
+      prismaClient: db,
+      purpose: "SIGN_IN_OR_LINK",
+      secret: "intent-test-secret",
+      now,
+      randomBytesFn: () => Buffer.alloc(32, 11),
+    })
+
+    assert.equal(db.intent("expired-intent"), undefined)
+    assert.equal(db.intent("fresh-consumed-reauth")?.providerProvenAt.toISOString(), "2026-08-28T11:59:30.000Z")
+  })
+
   it("resolves only the exact browser-bound intent and returns no provider proof fields", async () => {
     const service = await loadService()
     const db = createIntentDatabase()
@@ -766,8 +807,10 @@ function transactionClient(state, root, seed) {
 }
 
 function staleIntents(intents, where, take) {
+  const expiresBefore = where.expiresAt?.lt ?? where.OR?.find((condition) => condition.expiresAt)?.expiresAt.lt
+  const includesConsumed = Boolean(where.OR?.some((condition) => Object.hasOwn(condition.consumedAt ?? {}, "not")))
   return intents
-    .filter((row) => row.consumedAt || row.expiresAt < where.OR[0].expiresAt.lt)
+    .filter((row) => row.expiresAt < expiresBefore || (includesConsumed && row.consumedAt))
     .slice(0, take)
     .map(({ id }) => ({ id }))
 }
