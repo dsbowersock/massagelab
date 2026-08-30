@@ -55,6 +55,26 @@ describe("family-and-friends route timings", () => {
     assert.equal(results.every(({ durationMs }) => Number.isInteger(durationMs)), true)
   })
 
+  it("rejects unsuccessful route responses after consuming their bodies", async () => {
+    for (const status of [500, 503]) {
+      let bodyReads = 0
+
+      await assert.rejects(measureReadinessRoutes({
+        baseUrl: "http://127.0.0.1:3010",
+        samples: 1,
+        fetchImpl: async () => ({
+          status,
+          arrayBuffer: async () => {
+            bodyReads += 1
+            return new ArrayBuffer(0)
+          },
+        }),
+      }), /Anonymous route timing request failed/)
+
+      assert.equal(bodyReads, 1, `HTTP ${status} response body`)
+    }
+  })
+
   it("aborts and safely rejects a stalled route connection at its per-request deadline", async () => {
     let requestSignal
 
