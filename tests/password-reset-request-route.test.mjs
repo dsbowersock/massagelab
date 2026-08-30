@@ -23,8 +23,12 @@ const route = loadCompiledModule(routeSource, "password-reset-request-route.test
   "@/lib/auth-security": { generateRandomToken: () => "token", hashToken: () => "hash", normalizeEmail: (value) => String(value ?? "").trim().toLowerCase(), tokenExpiresIn: () => new Date() },
   "@/lib/auth-mail": { sendPasswordResetEmail: async () => ({ delivered: true }) },
   "@/lib/auth-rate-limit": limiter,
-  "@/lib/auth-registration-service": {
+  "@/lib/auth-entry-messages": {
     PUBLIC_ACCOUNT_ENTRY_MESSAGE: "Check that email address for the appropriate sign-in, verification, or recovery next step.",
+  },
+  "@/lib/auth-request": {
+    authRequestNetworkIdentifier: (request) => request.headers.get("x-forwarded-for") ?? "unknown",
+    isPublicAccountEmail: () => true,
   },
   "@/lib/password-reset-request": { requestPasswordReset },
   "@/lib/auth-env": { getAuthSecret: () => "secret" },

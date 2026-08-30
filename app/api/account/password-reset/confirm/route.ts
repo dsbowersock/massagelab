@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   after(() => deliverAccountSecurityEmailIntent({
     prismaClient: prisma,
     intentId: result.emailIntentId,
-  }))
+  }).then(() => undefined).catch(() => undefined))
 
   return NextResponse.json({ message: "Password updated. You can sign in now." })
 }

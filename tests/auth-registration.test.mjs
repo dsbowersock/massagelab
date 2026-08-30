@@ -61,7 +61,7 @@ describe("registration email delivery policy", () => {
   it("validates before delegating quota-first work and maps exact rate-limit metadata", async () => {
     const registerRoute = await readFile(new URL("../app/api/account/register/route.ts", import.meta.url), "utf8")
 
-    assert.ok(registerRoute.indexOf("validPublicEmail(email)") < registerRoute.indexOf("registerPasswordAccount({"))
+    assert.ok(registerRoute.indexOf("isPublicAccountEmail(email)") < registerRoute.indexOf("registerPasswordAccount({"))
     assert.ok(registerRoute.indexOf("missingLegalDocuments.length") < registerRoute.indexOf("registerPasswordAccount({"))
     assert.match(registerRoute, /consumeRateLimit: consumeEmailWorkRateLimit/)
     assert.match(registerRoute, /result\.retryAfterSeconds/)
@@ -111,24 +111,21 @@ describe("registration email delivery policy", () => {
     assert.match(registerPage, /callbackUrl\?: string \| string\[\]/)
     assert.match(registerPage, /firstQueryValue\(\(await searchParams\)\.callbackUrl\)/)
     assert.match(registerForm, /Continue with Google/)
-    assert.match(registerForm, /fetch\("\/api\/auth\/google\/intent"/)
-    assert.match(registerForm, /purpose: "SIGN_IN_OR_LINK"/)
-    assert.match(registerForm, /signIn\("google", \{ redirectTo: result\.callbackUrl \}\)/)
+    assert.match(registerForm, /startGoogleAuthMethodIntent\(googleRedirectTo\)/)
     assert.match(registerForm, /Create account with email/)
     assert.match(registerForm, /callbackUrl: initialCallbackUrl/)
     assert.match(registerForm, /buildRegistrationLegalProviderRedirectPath/)
     assert.match(registerForm, /REGISTRATION_REQUEST_FAILED_MESSAGE/)
-    assert.match(registerForm, /if \(!beginSubmission\("email"\)\) return/)
-    assert.match(registerForm, /finally \{\s*finishSubmission\(\)/)
+    assert.match(registerForm, /if \(!beginEntryAction\("email"\)\) return/)
+    assert.match(registerForm, /finally \{\s*finishEntryAction\(\)/)
+    assert.match(registerForm, /if \(!navigating\) finishEntryAction\(\)/)
     assert.match(registerForm, /role=\{statusIsError \? "alert" : "status"\}/)
     assert.match(registerForm, /aria-live=\{statusIsError \? "assertive" : "polite"\}/)
     for (const [name, source] of [["login", loginForm], ["register", registerForm]]) {
-      assert.match(source, /type ActiveSubmission\s*=\s*"email"\s*\|\s*"google"\s*\|\s*null/, name)
-      assert.match(source, /const \[activeSubmission, setActiveSubmission\] = useState<ActiveSubmission>\(null\)/, name)
-      assert.match(source, /const submissionLock = useRef\(false\)/, name)
-      assert.match(source, /if \(submissionLock\.current\) return/, name)
+      assert.match(source, /useEntryAction\(\)/, name)
+      assert.match(source, /startGoogleAuthMethodIntent\(googleRedirectTo\)/, name)
       assert.doesNotMatch(source, /emailSubmissionLock|googleSubmissionLock|registrationSubmissionLock/, name)
-      assert.match(source, /disabled=\{activeSubmission !== null\}/, name)
+      assert.match(source, /disabled=\{entryAction !== "idle"\}/, name)
     }
     assert.match(loginForm, /pendingLabel="Signing in…"/)
     assert.match(loginForm, /pendingLabel="Connecting to Google…"/)
@@ -273,8 +270,14 @@ async function loadRegistrationRoute({ afterCallbacks, registerWork }) {
       sendVerificationEmail: async () => ({ delivered: true }),
     },
     "@/lib/auth-rate-limit": { consumeEmailWorkRateLimit: async () => ({ allowed: true }) },
-    "@/lib/auth-registration-service": {
+    "@/lib/auth-entry-messages": {
       PUBLIC_ACCOUNT_ENTRY_MESSAGE: "Check that email address for the appropriate sign-in, verification, or recovery next step.",
+    },
+    "@/lib/auth-request": {
+      authRequestNetworkIdentifier: () => "network",
+      isPublicAccountEmail: () => true,
+    },
+    "@/lib/auth-registration-service": {
       registerPasswordAccount: registerWork,
     },
     "@/lib/auth-registration": { sendRegistrationVerification: (sender, ...args) => sender(...args) },

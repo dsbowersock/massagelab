@@ -2,8 +2,9 @@ import { after, NextResponse } from "next/server"
 import { getAuthSecret } from "@/lib/auth-env"
 import { sendPasswordResetEmail } from "@/lib/auth-mail"
 import { consumeEmailWorkRateLimit } from "@/lib/auth-rate-limit"
+import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-entry-messages"
+import { authRequestNetworkIdentifier, isPublicAccountEmail } from "@/lib/auth-request"
 import { generateRandomToken, hashToken, normalizeEmail, tokenExpiresIn } from "@/lib/auth-security"
-import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-registration-service"
 import { requestPasswordReset } from "@/lib/password-reset-request"
 import { prisma } from "@/lib/prisma"
 
@@ -28,14 +29,14 @@ export function createPasswordResetRequestHandler({
   return async function passwordResetRequestHandler(request: Request) {
     const body = await request.json().catch(() => ({}))
     const email = normalizeEmail(body.email)
-    if (!validPublicEmail(email)) {
+    if (!isPublicAccountEmail(email)) {
       return NextResponse.json({ message: PUBLIC_ACCOUNT_ENTRY_MESSAGE }, { status: 202 })
     }
 
     const result = await resetWork({
       prismaClient,
       email,
-      networkIdentifier: requestIp(request),
+      networkIdentifier: authRequestNetworkIdentifier(request),
       secret,
       now: clock(),
       shouldPrune,
@@ -54,16 +55,6 @@ export function createPasswordResetRequestHandler({
     }
     return NextResponse.json({ message: PUBLIC_ACCOUNT_ENTRY_MESSAGE }, { status: 202 })
   }
-}
-
-function requestIp(request: Request): string {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? request.headers.get("x-real-ip")
-    ?? "unknown"
-}
-
-function validPublicEmail(email: string): boolean {
-  return email.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
 export const POST = createPasswordResetRequestHandler({

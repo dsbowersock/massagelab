@@ -58,6 +58,30 @@ describe("shared password method proof with the real limiter", () => {
     assert.equal(scenario.calls.includes("password"), false)
   })
 
+  it("rechecks account pressure after a userId lookup before password proof", async () => {
+    const scenario = proofInput({ userId: "user-1" })
+    for (let index = 0; index < 8; index += 1) {
+      await limiter.recordCredentialFailure(rateInput(scenario.database, "LOGIN"))
+    }
+
+    assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), { status: "RATE_LIMITED" })
+    assert.equal(scenario.calls.includes("password"), false)
+  })
+
+  for (const accountShape of ["missing user", "missing password credential"]) {
+    it(`performs one equal-cost password verification for a ${accountShape}`, async () => {
+      const scenario = proofInput({
+        userExists: accountShape !== "missing user",
+        hasPasswordCredential: accountShape !== "missing password credential",
+      })
+
+      assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), { status: "INVALID" })
+      assert.deepEqual(scenario.calls, ["password"])
+      assert.equal(scenario.passwordHashes.length, 1)
+      assert.match(scenario.passwordHashes[0], /^\$argon2id\$v=19\$m=19456,t=2,p=1\$/)
+    })
+  }
+
   it("resolves a padded mixed-case stored account by normalized email, then loads it by ID", async () => {
     const scenario = proofInput({ passwordValid: false, storedEmail: " Person@Example.com " })
     assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), { status: "INVALID" })
@@ -262,14 +286,17 @@ function proofInput({
   backupCodeConsumption,
   userId,
   storedEmail = "person@example.com",
+  userExists = true,
+  hasPasswordCredential = true,
 } = {}) {
   const calls = []
-  const user = {
+  const passwordHashes = []
+  const user = userExists ? {
     id: "user-1",
     email: storedEmail,
     emailVerified,
     authSessionVersion: 7,
-    passwordCredential: { passwordHash: "hash" },
+    passwordCredential: hasPasswordCredential ? { passwordHash: "hash" } : null,
     twoFactorSecret: twoFactorEnabled ? {
       id: "two-factor-1",
       userId: "user-1",
@@ -278,10 +305,11 @@ function proofInput({
       encryptedSecret: "encrypted",
     } : null,
     backupCodes: backupValid ? [{ id: "backup-1", userId: "user-1", codeHash: "backup-hash" }] : [],
-  }
+  } : null
   const database = createProofDatabase(user)
   return {
     calls,
+    passwordHashes,
     database,
     input: {
       prismaClient: database,
@@ -293,7 +321,11 @@ function proofInput({
       now: NOW,
       ...(backupCodeConsumption ? { backupCodeConsumption } : {}),
       dependencies: {
-        async verifyPassword() { calls.push("password"); return passwordValid },
+        async verifyPassword(passwordHash) {
+          calls.push("password")
+          passwordHashes.push(passwordHash)
+          return passwordValid
+        },
         decryptSecret() { return "totp-secret" },
         verifyTotpCode() { return totpValid },
         async verifyBackupCode() { return backupValid },
@@ -334,12 +366,12 @@ function createProofDatabase(user) {
     user: {
       async findUnique({ where }) {
         database.userLookups.push(structuredClone(where))
-        return where.id === user.id ? structuredClone(user) : null
+        return where.id === user?.id ? structuredClone(user) : null
       },
     },
     resolveNormalizedUserId(email) {
       database.normalizedLookups.push(email)
-      return normalizeEmail(user.email) === email ? user.id : null
+      return user && normalizeEmail(user.email) === email ? user.id : null
     },
     backupCode: {
       async updateMany(args) {

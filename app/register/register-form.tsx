@@ -1,14 +1,14 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
-import { signIn } from "next-auth/react"
 import { Mail, ShieldCheck } from "lucide-react"
 import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-registration-service"
+import { startGoogleAuthMethodIntent, useEntryAction } from "@/lib/auth-entry-actions"
+import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-entry-messages"
 import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
 import { legalDocumentAcceptanceId, requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
 
@@ -18,8 +18,6 @@ type RegisterFormProps = {
   googleEnabled: boolean
   initialCallbackUrl: string
 }
-
-type ActiveSubmission = "email" | "google" | null
 
 export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterFormProps) {
   const registrationDocuments = requiredLegalDocumentsForEvent("registration")
@@ -32,20 +30,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
   const [status, setStatus] = useState("")
   const [statusIsError, setStatusIsError] = useState(false)
   const [devLink, setDevLink] = useState("")
-  const [activeSubmission, setActiveSubmission] = useState<ActiveSubmission>(null)
-  const submissionLock = useRef(false)
-
-  function beginSubmission(action: Exclude<ActiveSubmission, null>) {
-    if (submissionLock.current) return false
-    submissionLock.current = true
-    setActiveSubmission(action)
-    return true
-  }
-
-  function finishSubmission() {
-    submissionLock.current = false
-    setActiveSubmission(null)
-  }
+  const { entryAction, beginEntryAction, finishEntryAction } = useEntryAction()
 
   function toggleLegalDocument(documentId: string, checked: boolean) {
     setAcceptedLegalDocuments((current) => (
@@ -57,7 +42,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!beginSubmission("email")) return
+    if (!beginEntryAction("email")) return
 
     setStatus("")
     setStatusIsError(false)
@@ -83,36 +68,27 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       setStatusIsError(!response.ok)
       setDevLink(result.devLink ?? "")
     } catch {
-      setStatus("Something went wrong. Please try again.")
+      setStatus(REGISTRATION_REQUEST_FAILED_MESSAGE)
       setStatusIsError(true)
       setDevLink("")
     } finally {
-      finishSubmission()
+      finishEntryAction()
     }
   }
 
   async function handleGoogleRegistration() {
-    if (!beginSubmission("google")) return
-    let documentNavigationStarted = false
+    if (!beginEntryAction("google")) return
     setStatus("")
     setStatusIsError(false)
+    let navigating = false
     try {
-      const response = await fetch("/api/auth/google/intent", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ purpose: "SIGN_IN_OR_LINK", callbackUrl: googleRedirectTo }),
-      })
-      const result = await response.json().catch(() => ({})) as { ok?: boolean; callbackUrl?: string }
-      if (!response.ok || !result.ok || !result.callbackUrl) throw new Error("Google intent unavailable")
-      const initialHref = window.location.href
-      await signIn("google", { redirectTo: result.callbackUrl })
-      documentNavigationStarted = window.location.href !== initialHref
-      if (!documentNavigationStarted) throw new Error("Google navigation did not start")
+      navigating = await startGoogleAuthMethodIntent(googleRedirectTo) === "navigating"
+      setStatus("Taking you to Google…")
     } catch {
       setStatus("Something went wrong. Please try again.")
       setStatusIsError(true)
     } finally {
-      if (!documentNavigationStarted) finishSubmission()
+      if (!navigating) finishEntryAction()
     }
   }
 
@@ -131,8 +107,8 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
           type="button"
           variant="outline"
           className="w-full"
-          disabled={activeSubmission !== null}
-          pending={activeSubmission === "google"}
+          disabled={entryAction !== "idle"}
+          pending={entryAction === "google"}
           idleLabel="Continue with Google"
           pendingLabel="Connecting to Google…"
           icon={<ShieldCheck className="h-4 w-4" />}
@@ -187,8 +163,8 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
         <AsyncActionButton
           type="submit"
           className="w-full"
-          disabled={activeSubmission !== null}
-          pending={activeSubmission === "email"}
+          disabled={entryAction !== "idle"}
+          pending={entryAction === "email"}
           idleLabel="Create account with email"
           pendingLabel="Creating account…"
           icon={<Mail className="h-4 w-4" />}
