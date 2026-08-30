@@ -90,6 +90,7 @@ function captureAuthCallbacks(getUserAuthState) {
       getSiteUrl: () => "http://localhost:3000",
     },
     "@/lib/auth-method-proof": { verifyPasswordMethodProof: async () => ({ status: "INVALID" }) },
+    "@/lib/auth-request": { authRequestNetworkIdentifier: () => "test-network" },
     "@/lib/auth-method-intents": {
       AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
       parseAuthMethodIntentBinding: () => null,
