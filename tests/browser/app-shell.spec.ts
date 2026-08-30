@@ -116,7 +116,7 @@ async function abortHeldFixtureRequest(route: Route) {
 
 /** Holds one real App Router response so a route-owned readiness barrier can be proven. */
 async function holdRscNavigationResponse(page: Page, pathname: string) {
-  const pattern = `**${pathname}*`
+  const matchesPathname = (url: URL) => url.pathname === pathname
   let releaseHold: () => void = () => undefined
   let markRequestStarted: () => void = () => undefined
   let markRequestFinished: () => void = () => undefined
@@ -153,13 +153,13 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
     }
     await route.continue()
   }
-  await page.route(pattern, handler)
+  await page.route(matchesPathname, handler)
   return {
     waitForRequest: () => started,
     async releaseAndCleanup() {
       releaseHold()
       if (requestStarted && !requestFinished) await finished
-      await page.unroute(pattern, handler)
+      await page.unroute(matchesPathname, handler)
     },
   }
 }
@@ -1417,7 +1417,17 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
   await expect.poll(async () => (await resolvedMusicRailSpacing(page)).rightSafe).toBe(0)
   await page.getByRole("link", { name: "Open clock" }).click()
   await expect(page).toHaveURL(/\/clock$/)
-  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  await expect(page.getByRole("region", { name: "Chimer clock" })).toBeVisible()
+  await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
+  await page.getByRole("button", { name: "Reveal clock controls" }).click()
+  const noPlayerDisplayControls = page.locator(
+    '[data-immersive-shell] [role="group"][aria-label="Immersive display controls"]',
+  )
+  await expect(noPlayerDisplayControls).toHaveCount(1)
+  await expect(noPlayerDisplayControls).toBeVisible()
+  const noPlayerClockControl = noPlayerDisplayControls.locator('button[aria-label="Clock"]')
+  await expect(noPlayerClockControl).toHaveCount(1)
+  await noPlayerClockControl.click()
   const noPlayerClockPanel = page.locator('[data-immersive-panel="clock"]')
   await expect(noPlayerClockPanel).toHaveAttribute("data-immersive-layout", "side")
   await expect.poll(async () => (await measureStageReservations()).right).toBeGreaterThan(0)
@@ -1427,6 +1437,8 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
   await page.getByRole("button", { name: "Close clock", exact: true }).click()
   await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
 
+  const homeHold = await holdRscNavigationResponse(page, "/")
+  let homeHoldActive = true
   await page.setViewportSize({ width: 390, height: 844 })
   const toolbar = await startProofDrone(page)
   await expect(toolbar).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
@@ -1658,8 +1670,17 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
 
   const navigateFrom = async (route: string) => {
     if (route === "music") {
-      await page.locator('a[aria-label="MassageLab home"]:visible').first().click()
+      await page.locator('a[aria-label="MassageLab home"]:visible').first().click({ noWaitAfter: true })
+      const homeLandmark = page.getByTestId("home-brand-wordmark")
+      if (homeHoldActive) {
+        await homeHold.waitForRequest()
+        await expect(homeLandmark).toHaveCount(0)
+        await homeHold.releaseAndCleanup()
+        homeHoldActive = false
+      }
       await expect(page).toHaveURL(/\/$/)
+      await expect(homeLandmark).toBeVisible()
+      await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
       return
     }
     if (route === "home") {
