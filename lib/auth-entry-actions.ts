@@ -33,8 +33,8 @@ type GoogleAuthDependencies = {
 
 /**
  * Creates the private Google method intent, starts NextAuth navigation, and
- * returns only after the browser destination changes. Callers retain their
- * lock on the navigating outcome and release it only when this function rejects.
+ * returns only after the document destination changes. A resolved sign-in that
+ * leaves the document in place rejects so callers can release their entry lock.
  */
 export async function startGoogleAuthMethodIntent(
   googleRedirectTo: string,

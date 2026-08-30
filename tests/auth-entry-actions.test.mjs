@@ -54,17 +54,37 @@ describe("shared account-entry client behavior", () => {
     ])
   })
 
-  it("rejects when Google sign-in resolves without changing the browser destination", async () => {
-    const { startGoogleAuthMethodIntent } = loadActions()
+  it("rejects a resolved sign-in without navigation so shared entry state is released", async () => {
+    assert.match(actionsSource, /export async function startGoogleAuthMethodIntent/)
+    const calls = []
+    const updates = []
+    const lock = { current: false }
+    const { startGoogleAuthMethodIntent, useEntryAction } = loadActions({
+      useRef: () => lock,
+      useState: () => ["idle", (value) => updates.push(value)],
+    })
+    const entry = useEntryAction()
+    let navigating = false
 
-    await assert.rejects(
-      startGoogleAuthMethodIntent("/onboarding", {
-        fetchImpl: async () => Response.json({ ok: true, callbackUrl: "/legal/accept" }),
-        signInImpl: async () => undefined,
-        currentHref: () => "/register",
-      }),
-      /Google navigation did not start/,
-    )
+    assert.equal(entry.beginEntryAction("google"), true)
+    try {
+      await assert.rejects(
+        async () => {
+          navigating = await startGoogleAuthMethodIntent("/onboarding", {
+            fetchImpl: async () => Response.json({ ok: true, callbackUrl: "/legal/accept?callbackUrl=%2Fonboarding" }),
+            signInImpl: async (...args) => calls.push(args),
+            currentHref: () => "/register",
+          }) === "navigating"
+        },
+        /Google navigation did not start/,
+      )
+    } finally {
+      if (!navigating) entry.finishEntryAction()
+    }
+
+    assert.equal(entry.beginEntryAction("email"), true)
+    assert.deepEqual(updates, ["google", "idle", "email"])
+    assert.deepEqual(calls, [["google", { redirectTo: "/legal/accept?callbackUrl=%2Fonboarding" }]])
   })
 
   it("rejects failed intent starts before Google sign-in", async () => {
@@ -86,6 +106,9 @@ describe("shared account-entry client behavior", () => {
     for (const source of [loginSource, registerSource]) {
       assert.match(source, /useEntryAction/)
       assert.match(source, /startGoogleAuthMethodIntent/)
+      assert.match(source, /let navigating = false/)
+      assert.match(source, /navigating = await startGoogleAuthMethodIntent/)
+      assert.match(source, /if \(!navigating\) finishEntryAction\(\)/)
       assert.doesNotMatch(source, /entryActionLock|useRef/)
     }
     assert.match(registerSource, /@\/lib\/auth-entry-messages/)
