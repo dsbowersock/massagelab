@@ -155,12 +155,12 @@ export async function readPersistedMembershipStatus(signal: AbortSignal, timeout
 }
 
 /**
- * Builds provider-free return guidance from the persisted status and return kind.
+ * Builds implementation-detail-free return guidance from persisted status and return kind.
  *
  * @param status The latest safe database projection, or null before convergence.
  * @param exhausted Whether the bounded watcher spent every attempt without a safe result.
  * @param kind The Checkout or Portal return flow selecting the in-progress copy.
- * @returns User-facing copy that never includes provider identifiers or diagnostics.
+ * @returns User-facing copy that never includes external-service identifiers or diagnostics.
  */
 function statusMessage(status: MembershipConvergenceStatus | null, exhausted: boolean, kind: MembershipReturnKind) {
   if (!status) {
