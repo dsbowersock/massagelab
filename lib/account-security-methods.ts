@@ -186,17 +186,17 @@ export async function removeGoogleMethod(input: DirectProofInput): Promise<AuthM
   return safelyMutate(client, async (tx) => {
     const user = await loadMethodUser(tx, input.userId)
     if (!user?.email || user.authSessionVersion !== proof.authSessionVersion) return rejected("CONFLICT")
-    const googleAccount = user.accounts.find((account: { provider: string }) => account.provider === "google")
-    if (!googleAccount) return rejected("CONFLICT")
+    const googleAccountCount = user.accounts.filter((account: { provider: string }) => account.provider === "google").length
+    if (googleAccountCount === 0) return rejected("CONFLICT")
     if (!user.passwordCredential) return rejected("LAST_METHOD")
-    const removed = await tx.account.deleteMany({ where: { id: googleAccount.id, userId: user.id, provider: "google" } })
-    if (removed.count !== 1) return rejected("CONFLICT")
+    const removed = await tx.account.deleteMany({ where: { userId: user.id, provider: "google" } })
+    if (removed.count !== googleAccountCount) return rejected("CONFLICT")
     await incrementSessionVersion(tx, user.id)
     const emailIntent = await queueAccountSecurityEmail(tx, {
       userId: user.id,
       kind: "GOOGLE_UNLINKED",
       recipientEmail: normalizeEmail(user.email),
-      idempotencyKey: `google-unlinked:${user.id}:${googleAccount.id}`,
+      idempotencyKey: `google-unlinked:${user.id}:${proof.authSessionVersion}`,
     })
     return updated(emailIntent.id, false, true)
   })

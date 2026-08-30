@@ -230,6 +230,23 @@ describe("transaction-safe account method mutations", () => {
     assert.equal(unlinkDb.securityEmailsByKind("GOOGLE_UNLINKED").length, 1)
   })
 
+  it("removes every Google account row before reporting Google sign-in disabled", async () => {
+    const db = createMethodDatabase({
+      accounts: [
+        googleAccount(),
+        { id: "google-2", userId: "user-1", provider: "google", providerAccountId: "google-subject-2", type: "oauth" },
+      ],
+      passwordCredentials: [{ id: "password-1", userId: "user-1", passwordHash: "old-hash" }],
+    })
+
+    const result = await removeGoogleMethod(passwordRemovalProofInput(db))
+
+    assert.equal(result.status, "UPDATED")
+    assert.equal(result.googleLinked, false)
+    assert.equal(db.googleAccountsFor("user-1").length, 0)
+    assert.equal(db.securityEmailsByKind("GOOGLE_UNLINKED").length, 1)
+  })
+
   it("rejects removing the last method and allows only one concurrent password removal", async () => {
     const lastGoogle = createMethodDatabase({ accounts: [googleAccount()] })
     assert.deepEqual(await removeGoogleMethod(passwordRemovalProofInput(lastGoogle)), { status: "REJECTED", code: "LAST_METHOD" })
