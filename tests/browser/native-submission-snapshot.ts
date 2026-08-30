@@ -48,7 +48,7 @@ export async function installNativeSubmitSnapshotRecorder({
         statusCount: statuses.length,
         statusText: statuses[0]?.textContent ?? undefined,
       })
-      submittedForm.requestSubmit()
+      setTimeout(() => submittedForm.requestSubmit(), 0)
     }
     document.addEventListener("submit", observePending)
   }, pendingLabel)

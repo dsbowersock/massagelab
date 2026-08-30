@@ -8,6 +8,7 @@ import {
 import * as timingReceipt from "../scripts/family-friends-timing-receipt.mjs"
 
 const {
+  resolveNpmCli,
   resolveBuildCommand,
   runFamilyFriendsTimingReceipt,
   stopBuiltServer,
@@ -58,6 +59,30 @@ function receiptDependencies(events, {
 }
 
 describe("family-and-friends self-contained timing receipt", () => {
+  it("prefers an existing repository-local npm CLI", () => {
+    const repositoryCli = "/workspace/node_modules/npm/bin/npm-cli.js"
+
+    assert.equal(resolveNpmCli({
+      npmExecPath: "",
+      nodeExecutable: "/opt/node/bin/node",
+      platform: "linux",
+      workingDirectory: "/workspace",
+      pathExists: (candidate) => candidate === repositoryCli,
+    }), repositoryCli)
+  })
+
+  it("falls back to the npm CLI under a non-Windows Node prefix", () => {
+    const prefixCli = "/opt/node/lib/node_modules/npm/bin/npm-cli.js"
+
+    assert.equal(resolveNpmCli({
+      npmExecPath: "",
+      nodeExecutable: "/opt/node/bin/node",
+      platform: "linux",
+      workingDirectory: "/workspace",
+      pathExists: (candidate) => candidate === prefixCli,
+    }), prefixCli)
+  })
+
   it("runs npm's CLI through Node so the fresh build stays shell-free on Windows", () => {
     assert.deepEqual(resolveBuildCommand({
       nodeExecutable: "C:\\runtime\\node.exe",
@@ -116,6 +141,50 @@ describe("family-and-friends self-contained timing receipt", () => {
     ])
     assert.equal(events.at(-1)[1], dependencies.ownedChild)
     assert.doesNotMatch(String(events), /private diagnostic detail/)
+  })
+
+  it("preserves the readiness failure when owned-server teardown also fails", async () => {
+    const events = []
+    const dependencies = receiptDependencies(events, {
+      readinessError: new Error("private readiness detail"),
+    })
+    dependencies.stopOwnedServer = async (child) => {
+      events.push(["stop", child])
+      throw new Error("private teardown detail")
+    }
+
+    await assert.rejects(
+      runFamilyFriendsTimingReceipt({
+        args: ["--base-url=http://127.0.0.1:3034", "--samples=1"],
+        ...dependencies,
+      }),
+      /Timing server did not become ready/,
+    )
+
+    assert.equal(events.at(-1)[0], "stop")
+    assert.doesNotMatch(String(events), /private readiness detail|private teardown detail/)
+  })
+
+  it("surfaces an owned-server teardown failure after successful timing", async () => {
+    const events = []
+    const dependencies = receiptDependencies(events)
+    dependencies.stopOwnedServer = async (child) => {
+      events.push(["stop", child])
+      throw new Error("private teardown detail")
+    }
+
+    await assert.rejects(
+      runFamilyFriendsTimingReceipt({
+        args: ["--base-url=http://127.0.0.1:3034", "--samples=1"],
+        ...dependencies,
+      }),
+      /Owned timing server did not stop cleanly/,
+    )
+
+    assert.deepEqual(events.map(([event]) => event), [
+      "port check", "build", "start", "ready", "measure", "stop",
+    ])
+    assert.doesNotMatch(String(events), /private teardown detail/)
   })
 
   it("refuses an occupied port before building or measuring", async () => {
@@ -181,6 +250,77 @@ describe("family-and-friends self-contained timing receipt", () => {
 
     assert.deepEqual(await settled, { kind: "error" })
     assert.equal(child.listenerCount("error") > 0, true)
+  })
+
+  it("fails stalled readiness promptly when its real supervised child exits", { timeout: 1_000 }, async () => {
+    const events = []
+    const child = fakeChild()
+    const dependencies = receiptDependencies(events)
+    dependencies.startServer = async (options) => {
+      events.push(["start", options])
+      const started = timingReceipt.superviseOwnedChild(child)
+      queueMicrotask(() => child.emit("spawn"))
+      return started
+    }
+    dependencies.waitForReadiness = async (options) => {
+      events.push(["ready", options])
+      queueMicrotask(() => {
+        child.exitCode = 1
+        child.emit("exit", 1, null)
+      })
+      return new Promise(() => {})
+    }
+    dependencies.stopOwnedServer = async (ownedChild) => {
+      events.push(["stop", ownedChild])
+    }
+
+    await assert.rejects(runFamilyFriendsTimingReceipt({
+      args: ["--base-url=http://127.0.0.1:3034", "--samples=1"],
+      ...dependencies,
+    }), /Timing server did not become ready/)
+
+    assert.deepEqual(events.map(([event]) => event), [
+      "port check", "build", "start", "ready", "stop",
+    ])
+    assert.equal(events.at(-1)[1], child)
+  })
+
+  it("fails stalled measurement promptly when its real supervised child exits", { timeout: 1_000 }, async () => {
+    const events = []
+    const child = fakeChild()
+    const dependencies = receiptDependencies(events)
+    let signalMeasurementStarted
+    const measurementStarted = new Promise((resolve) => {
+      signalMeasurementStarted = resolve
+    })
+    dependencies.startServer = async (options) => {
+      events.push(["start", options])
+      const started = timingReceipt.superviseOwnedChild(child)
+      queueMicrotask(() => child.emit("spawn"))
+      return started
+    }
+    dependencies.measureRoutes = async (options) => {
+      events.push(["measure", options])
+      signalMeasurementStarted()
+      return new Promise(() => {})
+    }
+    dependencies.stopOwnedServer = async (ownedChild) => {
+      events.push(["stop", ownedChild])
+    }
+
+    const rejected = assert.rejects(runFamilyFriendsTimingReceipt({
+      args: ["--base-url=http://127.0.0.1:3034", "--samples=1"],
+      ...dependencies,
+    }), /Anonymous route timing failed/)
+    await measurementStarted
+    child.exitCode = 1
+    child.emit("exit", 1, null)
+    await rejected
+
+    assert.deepEqual(events.map(([event]) => event), [
+      "port check", "build", "start", "ready", "measure", "stop",
+    ])
+    assert.equal(events.at(-1)[1], child)
   })
 
   it("escalates an unresponsive owned child from SIGTERM to SIGKILL and awaits exit", async () => {

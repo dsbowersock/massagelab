@@ -217,6 +217,7 @@ function CalendarDrawerButton({
     }
   }, [pathname])
 
+  // A pending date navigation rejects new selection while `open || isPending` keeps the Sheet mounted until routing settles.
   const selectCalendarDate = useCallback((date: Date | undefined) => {
     if (isPending) return
     setSelectedDate(date)

@@ -22,6 +22,15 @@ const settingsProviderSource = readFileSync(
 )
 const rootLayoutSource = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8")
 
+/** Returns the exact link-props declaration and fails clearly if its owners move. */
+function sliceLinkProps(toolLink) {
+  const start = toolLink.indexOf("  const linkProps = {")
+  const end = toolLink.indexOf("  const contentProps =")
+  assert.ok(start >= 0, "app-tool-link.tsx must declare linkProps")
+  assert.ok(end > start, "app-tool-link.tsx must declare contentProps after linkProps")
+  return toolLink.slice(start, end)
+}
+
 describe("App settings helpers", () => {
   it("hydrates from the shared shell bootstrap and retains PUT as its only account request", () => {
     assert.match(settingsProviderSource, /useAccountShellBootstrap/)
@@ -62,7 +71,7 @@ describe("App settings helpers", () => {
     const toolLink = readFileSync(new URL("../components/shell/app-tool-link.tsx", import.meta.url), "utf8")
     const topBar = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
     const mobileBar = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")
-    const linkProps = toolLink.slice(toolLink.indexOf("  const linkProps = {"), toolLink.indexOf("  const contentProps ="))
+    const linkProps = sliceLinkProps(toolLink)
 
     assert.match(toolLink, /isNavigationRouteActive/)
     assert.match(linkProps, /"aria-current": active \? "page" as const : undefined/)
@@ -73,7 +82,7 @@ describe("App settings helpers", () => {
 
   it("forwards tooltip trigger props and refs through the shared tool link", () => {
     const toolLink = readFileSync(new URL("../components/shell/app-tool-link.tsx", import.meta.url), "utf8")
-    const linkProps = toolLink.slice(toolLink.indexOf("  const linkProps = {"), toolLink.indexOf("  const contentProps ="))
+    const linkProps = sliceLinkProps(toolLink)
 
     assert.match(toolLink, /forwardRef<HTMLAnchorElement/)
     assert.match(linkProps, /\.\.\.triggerProps/)

@@ -179,6 +179,7 @@ async function handleExistingAccount(
 
   if (user.emailVerified && !user.passwordCredential) {
     const token = input.generateToken()
+    // Linked provider records select account-preserving setup copy for verified passwordless accounts.
     const googleLinked = user.accounts.some((account) => account.provider === "google")
     await input.prismaClient.$transaction(async (tx) => {
       await tx.passwordResetToken.create({

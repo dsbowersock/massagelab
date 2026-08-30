@@ -49,11 +49,9 @@ export function AsyncActionButton({
           </span>
         </span>
       </Button>
-      {pending ? (
-        <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-          {pendingLabel}
-        </span>
-      ) : null}
+      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {pending ? pendingLabel : ""}
+      </span>
     </>
   )
 }

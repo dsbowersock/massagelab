@@ -22,37 +22,13 @@ function fakePrisma(initialClaims = [], { createRaceClaim = null, createManyErro
         if (transactionAborted) throw new Error("current transaction is aborted")
         return claims.get(claimKey(where.kind_jurisdictionCode_normalizedCredentialNumber)) ?? null
       },
-      async create({ data }) {
-        const key = claimKey(data)
-
-        if (racePending) {
-          racePending = false
-          claims.set(key, { ...createRaceClaim })
-          transactionAborted = true
-          const error = new Error("Unique constraint failed after a concurrent winner committed")
-          error.code = "P2002"
-          error.meta = {
-            modelName: "VerifiedCredentialClaim",
-            target: ["kind", "jurisdictionCode", "normalizedCredentialNumber"],
-          }
-          throw error
-        }
-
-        if (claims.has(key)) {
-          const error = new Error("Unique constraint failed")
-          error.code = "P2002"
-          throw error
-        }
-
-        const claim = {
-          id: `claim-${claims.size + 1}`,
-          ...data,
-        }
-        claims.set(key, claim)
-        return claim
+      async create() {
+        transactionAborted = true
+        assert.fail("claimVerifiedCredential must insert through createMany")
       },
       async createMany({ data, skipDuplicates }) {
         assert.equal(skipDuplicates, true)
+        assert.equal(transactionAborted, false, "the insert must not abort the surrounding transaction")
         if (createManyError) throw createManyError
         const claim = data[0]
         const key = claimKey(claim)
