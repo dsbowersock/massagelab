@@ -67,7 +67,10 @@ describe("shared password method proof with the real limiter", () => {
       await limiter.recordCredentialFailure(rateInput(scenario.database, "LOGIN"))
     }
 
-    assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), { status: "RATE_LIMITED" })
+    assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), {
+      status: "RATE_LIMITED",
+      retryAfterSeconds: 900,
+    })
     assert.equal(scenario.calls.includes("password"), false)
   })
 
