@@ -529,8 +529,8 @@ git commit -m "perf: defer specialized shell hydration"
 
 **Interfaces:**
 - `BackgroundCommerceProvider` accepts `ownerKey: string | null`, not a signed-in boolean alone.
-- Produces: `ensureSnapshot(): Promise<void>`; concurrent current-owner callers share one GET.
-- `refresh()` remains an explicit fresh read after a known mutation, focus/online event for an already-hydrated owner, or Checkout-return poll.
+- Produces: `ensureSnapshot(): Promise<void>`; concurrent current-owner callers and a demanded-but-unhydrated focus/online retry share one GET.
+- `refresh()` remains an explicit fresh read after a known mutation, focus/online event for an already-established owner, or Checkout-return poll.
 - Provider mount with no pending guest cart and no actual consumer performs zero `/api/background-commerce/state` requests.
 - Existing server endpoints, ownership authority, credit redemption, cart writes, Checkout, reservations, and serialized mutations remain unchanged.
 
@@ -545,7 +545,8 @@ background carousel mount -> snapshot becomes available
 background Checkout return -> immediate snapshot then existing bounded polling
 pending guest cart after sign-in -> merge still runs and snapshot is refreshed
 open Account commerce panel cart -> snapshot loads before/while dialog opens
-focus/online before first hydration -> 0 refreshes
+focus/online before any consumer demand -> 0 refreshes
+focus/online after demanded first hydration fails -> 1 retry shared with concurrent ensureSnapshot
 focus/online after hydration -> 1 current-owner refresh per event
 owner A response after owner B transition -> ignored; A reads/mutations aborted
 ```
@@ -566,7 +567,7 @@ In `BackgroundCommerceProvider`:
 
 1. replace the mount-time `void refresh()` with an `ensureSnapshot()` single-flight;
 2. preserve automatic guest-cart merge only when local storage contains pending ids;
-3. register focus/online refresh behavior only after the current owner has hydrated or started a commerce mutation;
+3. register focus/online recovery only after the current owner has demanded a snapshot, hydrated, or started a commerce mutation; failed demanded hydration re-enters `ensureSnapshot()` while established owners use fresh `refresh()`;
 4. make `openCart()` start `ensureSnapshot()` before opening the dialog;
 5. on owner change, increment a generation, abort every read/mutation controller, reset reducer state/revision/cart-open state, then adopt the new signed-in state; and
 6. keep post-mutation reads fresh and uncached.

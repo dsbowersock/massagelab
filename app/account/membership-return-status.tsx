@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { PendingSubmissionForm, PendingSubmitButton } from "@/components/forms/pending-submission-form"
 import { Button } from "@/components/ui/button"
 import { Loader } from "@/components/ui/loader"
+import { formatAccountDate } from "@/lib/account-page"
 import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { fetchJsonWithTimeout } from "@/lib/client-fetch"
 import type { MembershipConvergenceStatus } from "@/lib/membership-convergence"
@@ -161,9 +162,9 @@ export async function readPersistedMembershipStatus(signal: AbortSignal, timeout
  * @param status The latest safe database projection, or null before convergence.
  * @param exhausted Whether the bounded watcher spent every attempt without a safe result.
  * @param kind The Checkout or Portal return flow selecting the in-progress copy.
- * @returns User-facing copy that never includes external-service identifiers or diagnostics.
+ * @returns User-facing copy that uses the shared local account date and never includes external-service identifiers or diagnostics.
  */
-function statusMessage(status: MembershipConvergenceStatus | null, exhausted: boolean, kind: MembershipReturnKind) {
+export function statusMessage(status: MembershipConvergenceStatus | null, exhausted: boolean, kind: MembershipReturnKind) {
   if (!status) {
     return exhausted
       ? "Your membership update is still processing. You can safely check the status again."
@@ -173,7 +174,7 @@ function statusMessage(status: MembershipConvergenceStatus | null, exhausted: bo
   }
   if (status.state === "active") {
     return status.cancelAtPeriodEnd && status.currentPeriodEnd
-      ? `Your membership access is active through ${status.currentPeriodEnd.slice(0, 10)}.`
+      ? `Your membership access is active through ${formatAccountDate(new Date(status.currentPeriodEnd))}.`
       : "Your membership access is active."
   }
   if (status.state === "billing-attention") {

@@ -13,7 +13,17 @@ const {
 const directUrl = "postgresql://operator:secret@ep-example.us-east-2.aws.neon.tech:5432/massagelab?sslmode=require"
 const pooledUrl = "postgresql://operator:secret@ep-example-pooler.us-east-2.aws.neon.tech/massagelab?sslmode=require"
 
-const [schema, migration, normalizedIndexMigration, preflight, cleanup, packageJsonSource, deployment, releaseChecklist] = await Promise.all([
+const [
+  schema,
+  migration,
+  normalizedIndexMigration,
+  preflight,
+  cleanup,
+  packageJsonSource,
+  deployment,
+  releaseChecklist,
+  releasePlan,
+] = await Promise.all([
   readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8"),
   readFile(
     new URL("../prisma/migrations/20260828120000_identity_method_safety/migration.sql", import.meta.url),
@@ -28,6 +38,7 @@ const [schema, migration, normalizedIndexMigration, preflight, cleanup, packageJ
   readFile(new URL("../package.json", import.meta.url), "utf8"),
   readFile(new URL("../docs/wiki/deployment.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/wiki/release-checklist.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/superpowers/plans/2026-08-28-release-soft-launch.md", import.meta.url), "utf8"),
 ])
 const packageJson = JSON.parse(packageJsonSource)
 
@@ -100,6 +111,23 @@ describe("identity method safety persistence", () => {
     assert.match(releaseChecklist, /PASSWORD_RECOVERED/)
     assert.match(releaseChecklist, /account-security[^.]*deliver(?:y|ed)|deliver(?:y|ed)[^.]*account-security/i)
     assert.doesNotMatch(releaseChecklist, /must not create[^\n]*account-change email intent/i)
+  })
+
+  it("blocks legacy limiter cleanup until every identity writer is drained by deployment SHA", () => {
+    const pausedBridgeDrain = releasePlan.match(
+      /\*\*Step 5: Prove the paused bridge and drain every pre-bridge writer\*\*[\s\S]*?(?=- \[ \] \*\*Step 6:)/,
+    )?.[0] ?? ""
+    const identityWriterDrain = pausedBridgeDrain.match(
+      /Use that same complete drain interval[\s\S]*?(?=\r?\n\r?\nDuring this bounded pause)/,
+    )?.[0] ?? ""
+
+    assert.match(identityWriterDrain, /deployment\/SHA-scoped/)
+    assert.match(identityWriterDrain, /\/api\/account\/register/)
+    assert.match(identityWriterDrain, /\/api\/auth\/callback\/credentials/)
+    assert.match(identityWriterDrain, /\/api\/account\/password-reset\/request/)
+    assert.match(identityWriterDrain, /zero pre-bridge receives[^.]*zero pre-bridge executions/i)
+    assert.match(identityWriterDrain, /AuthAttempt[^.]*cleanup[^.]*forbidden/i)
+    assert.match(identityWriterDrain, /read-only/i)
   })
 
   it("registers privacy-safe preflight and dormant cleanup commands", () => {

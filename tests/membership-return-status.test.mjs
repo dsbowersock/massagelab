@@ -12,6 +12,7 @@ import {
 } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const formattedAccountDates = []
 const membershipReturnSource = await readFile(
   new URL("../app/account/membership-return-status.tsx", import.meta.url),
   "utf8",
@@ -21,6 +22,7 @@ const {
   parseMembershipConvergenceStatus,
   pollMembershipReturnStatus,
   readPersistedMembershipStatus,
+  statusMessage,
 } = loadCompiledModule(
   membershipReturnSource,
   "app/account/membership-return-status.tsx",
@@ -47,6 +49,12 @@ const {
       BILLING_PORTAL_DESTINATIONS: { MANAGE: "manage" },
     },
     "@/lib/client-fetch": { fetchJsonWithTimeout },
+    "@/lib/account-page": {
+      formatAccountDate: (date) => {
+        formattedAccountDates.push(date)
+        return "local-account-date"
+      },
+    },
   },
 )
 
@@ -304,6 +312,28 @@ describe("bounded membership return polling", () => {
 })
 
 describe("membership return component safety", () => {
+  it("formats cancellation period ends through the shared local account-date owner", () => {
+    assert.equal(typeof statusMessage, "function")
+    const currentPeriodEnd = "2026-09-29T00:30:00.000Z"
+    const status = {
+      ...persistedStatus(),
+      cancelAtPeriodEnd: true,
+      currentPeriodEnd,
+    }
+    formattedAccountDates.length = 0
+
+    assert.equal(
+      statusMessage(status, false, "portal"),
+      "Your membership access is active through local-account-date.",
+    )
+    assert.deepEqual(
+      formattedAccountDates.map((date) => date.toISOString()),
+      [currentPeriodEnd],
+    )
+    assert.match(membershipReturnSource, /import \{ formatAccountDate \} from "@\/lib\/account-page"/)
+    assert.doesNotMatch(membershipReturnSource, /currentPeriodEnd\.slice/)
+  })
+
   it("gives the billing-attention portal form one synchronous pending owner", () => {
     const states = [persistedStatus({ state: "billing-attention" }), false, false, 0]
     let stateIndex = 0
@@ -333,6 +363,7 @@ describe("membership return component safety", () => {
         },
         "@/components/ui/button": { Button: passThroughElement("button") },
         "@/components/ui/loader": { Loader: passThroughElement("loader") },
+        "@/lib/account-page": { formatAccountDate: () => "local-account-date" },
         "@/lib/billing-portal-destinations": {
           BILLING_PORTAL_DESTINATIONS: { MANAGE: "manage" },
         },

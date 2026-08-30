@@ -269,7 +269,8 @@ describe("Account page tab model", () => {
     assert.match(accountPageSource, /MembershipReturnStatus/)
     assert.equal((accountPageSource.match(/<MembershipReturnStatus/g) ?? []).length, 1)
     assert.match(accountPageSource, /<MembershipReturnStatus kind=\{returnState\.kind\} \/>/)
-    assert.equal((accountPageSource.match(/<AccountNotice \{\.\.\.returnState\.notice\} \/>/g) ?? []).length, 2)
+    assert.equal((accountPageSource.match(/<AccountNotice/g) ?? []).length, 2)
+    assert.equal((accountPageSource.match(/<AccountNotice \{\.\.\.returnState\.notice\} \/>/g) ?? []).length, 1)
     assert.doesNotMatch(accountPageSource, /session_id|CHECKOUT_SESSION_ID/)
   })
 
@@ -337,6 +338,25 @@ describe("Account page tab model", () => {
     assert.match(accountPageSource, /pendingLabel="Saving profile…"/)
     assert.match(accountPageSource, /<PendingSubmissionForm action=\{requestCredentialVerificationAction\}/)
     assert.match(accountPageSource, /pendingLabel="Submitting verification…"/)
+  })
+
+  it("keeps signed-out membership returns visible without provider details", () => {
+    const { accountNotice } = loadAccountReturnContract()
+
+    for (const returnKind of ["checkout", "portal"]) {
+      const notice = accountNotice({ returnKind })
+      assert.deepEqual(notice, {
+        title: "Sign in to check your membership update",
+        description: "Membership and billing status is private to your account. Sign in below to review the latest status.",
+        tone: "default",
+      })
+      assert.doesNotMatch(JSON.stringify(notice), /checkout|portal|stripe|session[_ -]?id/i)
+    }
+
+    assert.match(
+      accountPageSource,
+      /<AccountNotice \{\.\.\.returnState\.notice\} returnKind=\{returnState\.kind\} \/>/,
+    )
   })
 
   it("builds stable account tab hrefs for route-backed navigation", () => {
