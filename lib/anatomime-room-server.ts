@@ -941,12 +941,14 @@ export async function joinAnatomimeRoom(
   const validationNow = new Date()
 
   const existingSignedInPlayer = userId ? room.players.find((player) => player.userId === userId) : null
-  const existingGuestPlayer = suppliedPlayerId
-    ? room.players.find((player) => (
-      player.userId === null
-      && player.id === suppliedPlayerId
-      && playerTokenMatches(player, suppliedToken)
-    ))
+  const selectedPlayer = suppliedPlayerId
+    ? room.players.find((player) => player.id === suppliedPlayerId)
+    : null
+  if (!existingSignedInPlayer && selectedPlayer && selectedPlayer.userId !== null) {
+    throw roomError(403, "join-required", "Join this room before taking that action.")
+  }
+  const existingGuestPlayer = selectedPlayer?.userId === null && playerTokenMatches(selectedPlayer, suppliedToken)
+    ? selectedPlayer
     : null
   const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
   const joinStatus = canJoinRoom(
@@ -976,12 +978,14 @@ export async function joinAnatomimeRoom(
     const currentRoom = await reloadRoom(tx, room.id)
     const transactionNow = new Date()
     const existingSignedInPlayer = userId ? currentRoom.players.find((player) => player.userId === userId) : null
-    const existingGuestPlayer = suppliedPlayerId
-      ? currentRoom.players.find((player) => (
-        player.userId === null
-        && player.id === suppliedPlayerId
-        && playerTokenMatches(player, suppliedToken)
-      ))
+    const selectedPlayer = suppliedPlayerId
+      ? currentRoom.players.find((player) => player.id === suppliedPlayerId)
+      : null
+    if (!existingSignedInPlayer && selectedPlayer && selectedPlayer.userId !== null) {
+      throw roomError(403, "join-required", "Join this room before taking that action.")
+    }
+    const existingGuestPlayer = selectedPlayer?.userId === null && playerTokenMatches(selectedPlayer, suppliedToken)
+      ? selectedPlayer
       : null
     const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
     const joinStatus = canJoinRoom(

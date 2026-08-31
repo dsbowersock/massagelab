@@ -118,9 +118,74 @@ describe("Anatomime create and join traffic boundaries", () => {
           throw new Error("quota should not be reached")
         },
       }),
-      (error) => error instanceof AnatomimeSessionError && error.code === "review",
+      (error) => (
+        error instanceof AnatomimeSessionError
+        && error.status === 403
+        && error.code === "join-required"
+      ),
     )
     assert.deepEqual(events, ["room-lookup"])
+  })
+
+  it("rejects an account-bound player selector before quota in an open lobby", async () => {
+    const events = []
+    const service = loadRoomServer({
+      events,
+      room: roomFixture({
+        players: [playerFixture({ userId: "account-1", guestTokenHash: "hash:stale-token" })],
+      }),
+    })
+
+    await assert.rejects(
+      () => service.joinAnatomimeRoom("room-1", {
+        displayName: "Attacker",
+        playerId: "player-1",
+        playerToken: "stale-token",
+      }, null, {
+        beforePersist: async () => {
+          events.push("guard")
+          throw new Error("quota should not be reached")
+        },
+      }),
+      (error) => (
+        error instanceof AnatomimeSessionError
+        && error.status === 403
+        && error.code === "join-required"
+      ),
+    )
+    assert.deepEqual(events, ["room-lookup"])
+  })
+
+  it("rejects a guest selector that becomes account-bound after open-lobby quota", async () => {
+    const events = []
+    const initialRoom = roomFixture({
+      players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+    })
+    const transactionRoom = roomFixture({
+      players: [playerFixture({ userId: "account-1", guestTokenHash: "hash:guest-token" })],
+    })
+    const service = loadRoomServer({
+      events,
+      room: initialRoom,
+      transactionRoom,
+      playerWriteError: new Error("player write should not be reached"),
+    })
+
+    await assert.rejects(
+      () => service.joinAnatomimeRoom("room-1", {
+        displayName: "Guest",
+        playerId: "player-1",
+        playerToken: "guest-token",
+      }, null, {
+        beforePersist: async () => events.push("guard"),
+      }),
+      (error) => (
+        error instanceof AnatomimeSessionError
+        && error.status === 403
+        && error.code === "join-required"
+      ),
+    )
+    assert.deepEqual(events, ["room-lookup", "guard", "transaction", "transaction-read"])
   })
 
   it("revalidates guest-only token ownership after quota before review re-entry", async () => {
@@ -150,7 +215,11 @@ describe("Anatomime create and join traffic boundaries", () => {
       }, null, {
         beforePersist: async () => events.push("guard"),
       }),
-      (error) => error instanceof AnatomimeSessionError && error.code === "review",
+      (error) => (
+        error instanceof AnatomimeSessionError
+        && error.status === 403
+        && error.code === "join-required"
+      ),
     )
     assert.deepEqual(events, ["room-lookup", "guard", "transaction", "transaction-read"])
   })
