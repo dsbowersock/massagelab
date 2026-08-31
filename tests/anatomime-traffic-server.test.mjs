@@ -107,6 +107,26 @@ describe("Anatomime traffic server primitives", () => {
     }), { kind: "ROOM_NOT_FOUND" })
   })
 
+  it("rejects a stale guest token for an account-bound player without that account proof", async () => {
+    const accountPlayer = {
+      id: "account-player",
+      roomId: "room-1",
+      userId: "victim",
+      guestTokenHash: hashToken("old-token"),
+    }
+
+    assert.deepEqual(await preflightAnatomimeViewer("room1", {
+      playerId: "account-player",
+      playerToken: "old-token",
+    }, {
+      prismaClient: roomPreflightClient([], { id: "room-1", code: "ROOM1", players: [accountPlayer] }),
+    }), {
+      kind: "INVALID",
+      roomId: "room-1",
+      roomIdentifier: "ROOM1",
+    })
+  })
+
   it("maps PR A allowance, denial, unavailability, and consumer failures without leaking limiter state", async () => {
     const request = { operation: "ANATOMIME_UNJOINED_LOOKUP", networkIdentifier: "network", roomIdentifier: "ROOM1" }
     await assert.doesNotReject(() => requireAnatomimeOperationalAllowance(request, async () => ({ allowed: true })))

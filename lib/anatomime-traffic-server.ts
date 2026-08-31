@@ -87,7 +87,12 @@ export async function preflightAnatomimeViewer(
     const guestPlayer = playerId
       ? room.players.find((player) => player.roomId === room.id && player.id === playerId)
       : null
-    if (guestPlayer && playerToken && guestPlayer.guestTokenHash === hashToken(playerToken)) {
+    if (
+      guestPlayer
+      && guestPlayer.userId === null
+      && playerToken
+      && guestPlayer.guestTokenHash === hashToken(playerToken)
+    ) {
       return {
         kind: "JOINED",
         roomId: room.id,
