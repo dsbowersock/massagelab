@@ -14,6 +14,7 @@ const roomServerSource = await readFile(new URL("../lib/anatomime-room-server.ts
 const createRouteSource = await readFile(new URL("../app/api/anatomime/sessions/route.ts", import.meta.url), "utf8")
 const joinRouteSource = await readFile(new URL("../app/api/anatomime/sessions/[code]/join/route.ts", import.meta.url), "utf8")
 const realtimeTokenRouteSource = await readFile(new URL("../app/api/anatomime/sessions/[code]/realtime-token/route.ts", import.meta.url), "utf8")
+const pollRouteSource = await readFile(new URL("../app/api/anatomime/sessions/[code]/route.ts", import.meta.url), "utf8")
 const sharedSessionClientSource = await readFile(new URL("../app/anatomime/shared-session-client.tsx", import.meta.url), "utf8")
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
 
@@ -621,6 +622,177 @@ describe("Anatomime realtime token traffic boundary", () => {
   })
 })
 
+describe("Anatomime room poll traffic boundary", () => {
+  it("fails a non-canonicalizable room selector closed before auth or preflight", async () => {
+    const scenario = loadPollRoute({ ingressDecision: { allowed: false, retryAfterSeconds: 10 } })
+    const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/---"),
+      { params: Promise.resolve({ code: " --- " }) },
+    )
+
+    assert.equal(response.status, 429)
+    assert.equal(response.headers.get("Retry-After"), "10")
+    assert.deepEqual(scenario.ingressCalls, [{
+      networkIdentifier: "198.51.100.27",
+      roomIdentifier: "",
+    }])
+    assert.deepEqual(scenario.events, ["shed:ingress"])
+    assert.deepEqual(scenario.preflightCalls, [])
+    assert.deepEqual(scenario.hydrateCalls, [])
+  })
+
+  it("stops a local ingress denial before auth, preflight, durable quota, or hydration", async () => {
+    const scenario = loadPollRoute({ ingressDecision: { allowed: false, retryAfterSeconds: 6 } })
+    const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/a-b12"),
+      { params: Promise.resolve({ code: " a-b12 " }) },
+    )
+
+    assert.equal(response.status, 429)
+    assert.equal(response.headers.get("Retry-After"), "6")
+    assert.deepEqual(scenario.events, ["shed:ingress"])
+    assert.deepEqual(scenario.ingressCalls, [{
+      networkIdentifier: "198.51.100.27",
+      roomIdentifier: "AB12",
+    }])
+    assert.deepEqual(scenario.preflightCalls, [])
+    assert.deepEqual(scenario.durableCalls, [])
+    assert.deepEqual(scenario.hydrateCalls, [])
+  })
+
+  it("stops joined-player shedding before full hydration and never uses durable quota", async () => {
+    const scenario = loadPollRoute({ joinedDecision: { allowed: false, retryAfterSeconds: 4 } })
+    const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/ab12", {
+        "x-anatomime-player-id": "database-player",
+        "x-anatomime-player-token": "opaque-token",
+      }),
+      { params: Promise.resolve({ code: "ab12" }) },
+    )
+
+    assert.equal(response.status, 429)
+    assert.equal(response.headers.get("Retry-After"), "4")
+    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight", "shed:joined"])
+    assert.deepEqual(scenario.joinedCalls, [{ playerId: "database-player" }])
+    assert.deepEqual(scenario.durableCalls, [])
+    assert.deepEqual(scenario.hydrateCalls, [])
+  })
+
+  it("hydrates an accepted joined poll exactly once without durable quota", async () => {
+    const scenario = loadPollRoute({ session: { user: { id: "account-1" } } })
+    const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/a-b12", {
+        "x-anatomime-player-id": "stale-selector",
+        "x-anatomime-player-token": "stale-token",
+      }),
+      { params: Promise.resolve({ code: " a-b12 " }) },
+    )
+
+    assert.equal(response.status, 200)
+    assert.deepEqual(await response.json(), { session: { code: "AB12", playerCount: 1 } })
+    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight", "shed:joined", "hydrate", "summarize"])
+    assert.deepEqual(scenario.preflightCalls, [{
+      code: "AB12",
+      viewer: { userId: "account-1", playerId: "stale-selector", playerToken: "stale-token" },
+    }])
+    assert.deepEqual(scenario.hydrateCalls, [{
+      code: "AB12",
+      viewer: { userId: "account-1", playerId: "stale-selector", playerToken: "stale-token" },
+    }])
+    assert.deepEqual(scenario.durableCalls, [])
+  })
+
+  it("returns a missing room without full hydration or durable quota", async () => {
+    const scenario = loadPollRoute({ preflightResult: { kind: "ROOM_NOT_FOUND" } })
+    const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/missing"),
+      { params: Promise.resolve({ code: "missing" }) },
+    )
+
+    assert.equal(response.status, 404)
+    assert.deepEqual(await response.json(), { error: "Game not found." })
+    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight"])
+    assert.deepEqual(scenario.durableCalls, [])
+    assert.deepEqual(scenario.hydrateCalls, [])
+  })
+
+  for (const kind of ["UNJOINED", "INVALID"]) {
+    it(`stops ${kind.toLowerCase()} poll quota denial before full hydration`, async () => {
+      const scenario = loadPollRoute({
+        preflightResult: { kind, roomId: "room-db", roomIdentifier: "AB12" },
+        durableError: new AnatomimeTrafficLimitError(429, 7),
+      })
+      const response = await scenario.GET(
+        pollRequest("/api/anatomime/sessions/a-b12", kind === "INVALID" ? {
+          "x-anatomime-player-id": "arbitrary-player",
+          "x-anatomime-player-token": "wrong-token",
+        } : {}),
+        { params: Promise.resolve({ code: "a-b12" }) },
+      )
+
+      assert.equal(response.status, 429)
+      assert.equal(response.headers.get("Retry-After"), "7")
+      assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight", "durable"])
+      assert.deepEqual(scenario.durableCalls, [{
+        operation: "ANATOMIME_UNJOINED_LOOKUP",
+        networkIdentifier: "198.51.100.27",
+        roomIdentifier: "AB12",
+      }])
+      assert.deepEqual(scenario.hydrateCalls, [])
+    })
+  }
+
+  it("returns generic invalid-proof rejection after allowance without full hydration", async () => {
+    const scenario = loadPollRoute({
+      preflightResult: { kind: "INVALID", roomId: "room-db", roomIdentifier: "AB12" },
+    })
+    const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/ab12", {
+        "x-anatomime-player-id": "arbitrary-player",
+        "x-anatomime-player-token": "wrong-token",
+      }),
+      { params: Promise.resolve({ code: "ab12" }) },
+    )
+
+    assert.equal(response.status, 403)
+    assert.deepEqual(await response.json(), { error: "Join this room before taking that action." })
+    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight", "durable"])
+    assert.deepEqual(scenario.hydrateCalls, [])
+  })
+
+  it("allows an uncredentialed public poll after durable allowance with one hydration", async () => {
+    const scenario = loadPollRoute({
+      preflightResult: { kind: "UNJOINED", roomId: "room-db", roomIdentifier: "AB12" },
+    })
+    const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/a-b12"),
+      { params: Promise.resolve({ code: " a-b12 " }) },
+    )
+
+    assert.equal(response.status, 200)
+    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight", "durable", "hydrate", "summarize"])
+    assert.equal(scenario.hydrateCalls.length, 1)
+    assert.deepEqual(scenario.hydrateCalls[0], {
+      code: "AB12",
+      viewer: { userId: undefined, playerId: undefined, playerToken: undefined },
+    })
+  })
+
+  it("fails closed before auth when the process-local shedder secret is invalid", async () => {
+    const scenario = loadPollRoute({ shedderError: new Error("missing secret") })
+    const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/ab12"),
+      { params: Promise.resolve({ code: "ab12" }) },
+    )
+
+    assert.equal(response.status, 503)
+    assert.deepEqual(scenario.events, [])
+    assert.deepEqual(scenario.shedderOptions, [{ secret: "test-auth-secret" }])
+    assert.deepEqual(scenario.preflightCalls, [])
+    assert.deepEqual(scenario.hydrateCalls, [])
+  })
+})
+
 function loadRoomServer({
   events,
   deck = cardFixtures(),
@@ -696,6 +868,9 @@ function loadRoomServer({
       ANATOMIME_TERM_SECONDS: 60,
       ANATOMIME_TERMS_PER_TURN: 4,
       canJoinRoom,
+    },
+    "./anatomime-traffic-server.ts": {
+      coalesceAnatomimePlayerPresence: async () => null,
     },
     "./prisma.ts": { prisma },
   })
@@ -842,6 +1017,100 @@ function loadSharedSessionClient() {
   })
 }
 
+function loadPollRoute({
+  session = null,
+  preflightResult = {
+    kind: "JOINED",
+    roomId: "room-db",
+    roomIdentifier: "AB12",
+    playerId: "database-player",
+  },
+  ingressDecision = { allowed: true },
+  joinedDecision = { allowed: true },
+  durableError,
+  shedderError,
+} = {}) {
+  const events = []
+  const ingressCalls = []
+  const joinedCalls = []
+  const preflightCalls = []
+  const durableCalls = []
+  const hydrateCalls = []
+  const shedderOptions = []
+  const previousSecret = process.env.AUTH_SECRET
+  process.env.AUTH_SECRET = "test-auth-secret"
+  try {
+    const route = loadCompiledModule(pollRouteSource, "poll-anatomime-traffic-route.test.ts", {
+      "next/server": { NextResponse: responseAdapter() },
+      "@/auth": {
+        getCurrentSession: async () => {
+          events.push("auth")
+          return session
+        },
+      },
+      "@/lib/anatomime-api": apiBoundary,
+      "@/lib/auth-request": { authRequestNetworkIdentifier },
+      "@/lib/anatomime-room-server": {
+        loadAnatomimeRoom: async (code, viewer) => {
+          events.push("hydrate")
+          hydrateCalls.push({ code, viewer })
+          return { id: "room-db", code: "AB12", players: [{ id: "database-player" }] }
+        },
+        summarizeAnatomimeRoom: (room) => {
+          events.push("summarize")
+          return { code: room.code, playerCount: room.players.length }
+        },
+      },
+      "@/lib/anatomime-traffic-server": {
+        AnatomimeTrafficLimitError,
+        createAnatomimePollShedder: (options) => {
+          events.push("shedder:create")
+          shedderOptions.push(options)
+          if (shedderError) throw shedderError
+          return {
+            consumeIngress: (input) => {
+              events.push("shed:ingress")
+              ingressCalls.push(input)
+              return ingressDecision
+            },
+            consumeJoined: (input) => {
+              events.push("shed:joined")
+              joinedCalls.push(input)
+              return joinedDecision
+            },
+          }
+        },
+        normalizeAnatomimeRoomIdentifier,
+        preflightAnatomimeViewer: async (code, viewer) => {
+          events.push("preflight")
+          preflightCalls.push({ code, viewer })
+          return preflightResult
+        },
+        requireAnatomimeOperationalAllowance: async (input) => {
+          events.push("durable")
+          durableCalls.push(input)
+          if (durableError) throw durableError
+        },
+      },
+    })
+
+    events.length = 0
+    return {
+      GET: route.GET,
+      durableCalls,
+      events,
+      hydrateCalls,
+      ingressCalls,
+      joinedCalls,
+      preflightCalls,
+      shedderOptions,
+    }
+  } finally {
+    if (previousSecret === undefined) delete process.env.AUTH_SECRET
+    else process.env.AUTH_SECRET = previousSecret
+  }
+}
+
 function roomFixture(overrides = {}) {
   return {
     id: "room-1",
@@ -895,6 +1164,15 @@ function routeRequest(path, body, headers = {}) {
       ...headers,
     },
     body: JSON.stringify(body),
+  })
+}
+
+function pollRequest(path, headers = {}) {
+  return new Request(`https://massagelab.test${path}`, {
+    headers: {
+      "x-vercel-forwarded-for": "198.51.100.27, 10.0.0.2",
+      ...headers,
+    },
   })
 }
 

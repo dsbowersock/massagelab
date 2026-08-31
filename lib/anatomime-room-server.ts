@@ -42,6 +42,7 @@ import {
   type AnatomimeTermState,
 } from "./anatomime-room-rules.ts"
 import type { AnatomyStudyCard } from "./anatomy-study.ts"
+import { coalesceAnatomimePlayerPresence } from "./anatomime-traffic-server.ts"
 import { prisma } from "./prisma.ts"
 
 export const roomInclude = {
@@ -495,8 +496,7 @@ async function loadLockedTurnReviewRoom(
   return { room: currentRoom, run: currentRun }
 }
 
-async function expireRoomIfIdle(room: AnatomimeRoomWithRelations) {
-  const now = new Date()
+async function expireRoomIfIdle(room: AnatomimeRoomWithRelations, now = new Date()) {
   if (room.status === "EXPIRED" || room.expiresAt.getTime() > now.getTime()) return room
 
   return prisma.$transaction(async (tx) => {
@@ -527,24 +527,24 @@ async function expireRoomIfIdle(room: AnatomimeRoomWithRelations) {
   })
 }
 
-async function markViewerSeen(room: AnatomimeRoomWithRelations, viewer: ViewerContext = {}) {
+async function markViewerSeen(room: AnatomimeRoomWithRelations, viewer: ViewerContext = {}, now = new Date()) {
   const player = viewerPlayer(room, viewer)
   if (!player) return room
 
-  await prisma.anatomimeRoomPlayer.update({
-    where: {
-      roomId_id: {
-        roomId: room.id,
-        id: player.id,
-      },
-    },
-    data: { lastSeenAt: new Date() },
+  const presenceAt = await coalesceAnatomimePlayerPresence({
+    roomId: room.id,
+    playerId: player.id,
+    lastSeenAt: player.lastSeenAt,
+    now,
   })
+  if (!presenceAt) return room
 
-  return await prisma.anatomimeRoom.findUnique({
-    where: { id: room.id },
-    include: roomInclude,
-  }) ?? room
+  return {
+    ...room,
+    players: room.players.map((candidate) => (
+      candidate.id === player.id ? { ...candidate, lastSeenAt: presenceAt } : candidate
+    )),
+  }
 }
 
 async function createRunScores(tx: Prisma.TransactionClient, room: AnatomimeRoomWithRelations, runId: string) {
@@ -904,15 +904,20 @@ export async function createAnatomimeRoom(
  * Loads a room by public code, applies idle expiration, and refreshes the
  * viewer's last-seen timestamp when their player credentials match.
  */
-export async function loadAnatomimeRoom(code: string, viewer: ViewerContext = {}) {
+export async function loadAnatomimeRoom(
+  code: string,
+  viewer: ViewerContext = {},
+  options: { now?: Date } = {},
+) {
+  const now = options.now ?? new Date()
   const room = await prisma.anatomimeRoom.findUnique({
     where: { code: publicCode(code) },
     include: roomInclude,
   })
   if (!room) return null
 
-  const currentRoom = await expireRoomIfIdle(room)
-  return markViewerSeen(currentRoom, viewer)
+  const currentRoom = await expireRoomIfIdle(room, now)
+  return markViewerSeen(currentRoom, viewer, now)
 }
 
 /**

@@ -14,6 +14,7 @@ import {
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
+const roomServerSource = await readFile(new URL("../lib/anatomime-room-server.ts", import.meta.url), "utf8")
 const { anatomimeErrorResponse } = loadCompiledModule(apiSource, "lib/anatomime-api.ts", {
   "next/server": {
     NextResponse: {
@@ -330,6 +331,30 @@ describe("Anatomime traffic server primitives", () => {
     })
     assert.equal(noWinner, null)
   })
+
+  it("coalesces loaded-room presence in memory without a second hydration", async () => {
+    const lastSeenAt = new Date("2026-08-31T12:00:00.000Z")
+    const now = new Date("2026-08-31T12:00:15.000Z")
+    const scenario = loadPresenceRoomServer({ lastSeenAt, presenceResult: now })
+
+    const room = await scenario.loadAnatomimeRoom("room1", {
+      playerId: "player-1",
+      playerToken: "guest-token",
+    }, { now })
+
+    assert.equal(scenario.hydrateCalls.length, 1)
+    assert.deepEqual(scenario.legacyPresenceCalls, [])
+    assert.deepEqual(scenario.coalesceCalls, [{
+      roomId: "room-1",
+      playerId: "player-1",
+      lastSeenAt,
+      now,
+    }])
+    assert.deepEqual(room.players.map((player) => ({ id: player.id, lastSeenAt: player.lastSeenAt })), [{
+      id: "player-1",
+      lastSeenAt: now,
+    }])
+  })
 })
 
 function roomPreflightClient(calls, result) {
@@ -340,5 +365,79 @@ function roomPreflightClient(calls, result) {
         return result
       },
     },
+  }
+}
+
+function loadPresenceRoomServer({ lastSeenAt, presenceResult }) {
+  const hydrateCalls = []
+  const legacyPresenceCalls = []
+  const coalesceCalls = []
+  const room = {
+    id: "room-1",
+    code: "ROOM1",
+    status: "LOBBY",
+    expiresAt: new Date("2100-01-01T00:00:00.000Z"),
+    players: [{
+      id: "player-1",
+      roomId: "room-1",
+      userId: null,
+      guestTokenHash: hashToken("guest-token"),
+      lastSeenAt,
+    }],
+  }
+  const prisma = {
+    anatomimeRoom: {
+      findUnique: async (args) => {
+        hydrateCalls.push(args)
+        return room
+      },
+    },
+    anatomimeRoomPlayer: {
+      update: async (args) => {
+        legacyPresenceCalls.push(args)
+        return room.players[0]
+      },
+    },
+  }
+  const service = loadCompiledModule(roomServerSource, "lib/anatomime-room-server.presence-test.ts", {
+    "./auth-security.js": {
+      generateRandomToken: () => "ABC123",
+      hashToken,
+    },
+    "./anatomime-session-server.ts": {
+      AnatomimeSessionError: class AnatomimeSessionError extends Error {},
+    },
+    "./anatomime-progress-server.ts": { updateAnatomimeNameRecallProgress: async () => {} },
+    "./anatomime-realtime.ts": { publishAnatomimeRealtimeEvent: async () => {} },
+    "./anatomime-shared.ts": {
+      createAnatomimeSessionDeck: () => [],
+      getAnatomimeCandidateCards: () => [],
+      normalizeAnatomimeSessionConfig: () => ({
+        seed: "seed",
+        selectedCardIds: [],
+        teamNames: ["Team 1"],
+        roundLimit: 1,
+      }),
+    },
+    "./anatomime-room-rules.ts": {},
+    "./anatomime-traffic-server.ts": {
+      coalesceAnatomimePlayerPresence: async (input) => {
+        coalesceCalls.push({
+          roomId: input.roomId,
+          playerId: input.playerId,
+          lastSeenAt: input.lastSeenAt,
+          now: input.now,
+        })
+        return presenceResult
+      },
+    },
+    "./prisma.ts": { prisma },
+  })
+
+  return {
+    ...service,
+    coalesceCalls,
+    hydrateCalls,
+    legacyPresenceCalls,
   }
 }
