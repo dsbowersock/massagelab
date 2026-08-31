@@ -373,6 +373,9 @@ function makeClient(root, transaction = null) {
         attemptCount: 0,
         lastAttemptAt: null,
         deliveredAt: null,
+        deliveryClaimTokenHash: null,
+        deliveryClaimExpiresAt: null,
+        deliveryClaimOperationKeyHash: null,
       }
       state().intents.push(intent)
       return project(intent, select)

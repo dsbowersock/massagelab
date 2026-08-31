@@ -103,6 +103,19 @@ describe("account activity surfaces", () => {
     const failedResult = await failed.action("user-1", idleState, retryForm())
     assert.deepEqual(failedResult, { status: "error", message: "The email could not be delivered. You can retry again." })
     assert.deepEqual(failed.calls[2], ["revalidatePath", "/admin/users/user-1"])
+
+    for (const serviceResult of [
+      { status: "BUSY", attemptCount: 2, attempted: false, replayed: false },
+      { status: "AMBIGUOUS", attemptCount: 2, attempted: true, replayed: false },
+    ]) {
+      const unconfirmed = retryActionHarness({ serviceResult })
+      const result = await unconfirmed.action("user-1", idleState, retryForm())
+      assert.deepEqual(result, {
+        status: "error",
+        message: "Email delivery could not be confirmed. Check Activity before retrying.",
+      })
+      assert.doesNotMatch(result.message, /could not be delivered/i)
+    }
   })
 
   it("converts service exceptions into a generic retry error without leaking details", async () => {

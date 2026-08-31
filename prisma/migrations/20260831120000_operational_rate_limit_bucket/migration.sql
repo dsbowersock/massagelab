@@ -18,3 +18,29 @@ CREATE INDEX "OperationalRateLimitBucket_updatedAt_idx"
   ON "OperationalRateLimitBucket"("updatedAt");
 CREATE INDEX "OperationalRateLimitBucket_blockedUntil_idx"
   ON "OperationalRateLimitBucket"("blockedUntil");
+
+ALTER TABLE "AdminEmailIntent"
+  ADD COLUMN "deliveryClaimTokenHash" TEXT,
+  ADD COLUMN "deliveryClaimExpiresAt" TIMESTAMP(3),
+  ADD COLUMN "deliveryClaimOperationKeyHash" TEXT;
+
+CREATE UNIQUE INDEX "AdminEmailIntent_deliveryClaimOperationKeyHash_key"
+  ON "AdminEmailIntent"("deliveryClaimOperationKeyHash");
+
+CREATE TABLE "AdminEmailRetryOperationKey" (
+  "id" TEXT NOT NULL,
+  "emailIntentId" TEXT NOT NULL,
+  "operationKeyHash" TEXT NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "AdminEmailRetryOperationKey_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "AdminEmailRetryOperationKey_operationKeyHash_key"
+  ON "AdminEmailRetryOperationKey"("operationKeyHash");
+CREATE INDEX "AdminEmailRetryOperationKey_emailIntentId_createdAt_idx"
+  ON "AdminEmailRetryOperationKey"("emailIntentId", "createdAt");
+
+ALTER TABLE "AdminEmailRetryOperationKey"
+  ADD CONSTRAINT "AdminEmailRetryOperationKey_emailIntentId_fkey"
+  FOREIGN KEY ("emailIntentId") REFERENCES "AdminEmailIntent"("id")
+  ON DELETE RESTRICT ON UPDATE CASCADE;

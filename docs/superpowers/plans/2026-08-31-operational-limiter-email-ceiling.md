@@ -4,7 +4,7 @@
 
 **Goal:** Add one deployment-wide, privacy-safe operational quota service and use it to cap outbound auth/security email attempts without changing the existing auth limiter.
 
-**Architecture:** Store fixed-window counters in a new additive Prisma model keyed by versioned private policy, scope, and an HMAC-reduced subject. Resolve every rule from a closed discriminated request union, consume all applicable rules in one bounded Serializable transaction, and perform cleanup only after the authoritative decision. The SMTP boundary supplies a private mandatory classification and consumes its quota immediately before transporter construction.
+**Architecture:** Store fixed-window counters in a new additive Prisma model keyed by versioned private policy, scope, and an HMAC-reduced subject. Resolve every rule from a closed discriminated request union, consume all applicable rules in one bounded Serializable transaction, and perform cleanup only after the authoritative decision. The SMTP boundary supplies a private mandatory classification and consumes its quota immediately before transporter construction. Existing Admin email intents use nullable claim-token, lease, and unique retry-operation-key hash fields in the same pending migration so a short claim transaction can commit before quota and SMTP, followed by exact-token finalization in another short transaction.
 
 **Tech Stack:** Prisma 7, PostgreSQL/Neon, Next.js server modules, Nodemailer, Node.js 24 tests.
 
@@ -25,16 +25,18 @@
 
 | File | Responsibility |
 | --- | --- |
-| `prisma/schema.prisma` | New scope enum and additive operational bucket model. |
-| `prisma/migrations/20260831120000_operational_rate_limit_bucket/migration.sql` | Enum, table, unique key, and cleanup indexes only. |
+| `prisma/schema.prisma` | New scope enum, additive operational bucket model, and three nullable Admin email claim fields. |
+| `prisma/migrations/20260831120000_operational_rate_limit_bucket/migration.sql` | Limiter objects plus three nullable Admin email claim columns and the retry-key claim index. |
 | `lib/operational-rate-limit-policy.ts` | Closed request union, subject validation/normalization, and exact fixed rules. |
 | `lib/operational-rate-limit.ts` | HMAC key creation, atomic consumption, bounded retry mapping, and cleanup. |
 | `lib/auth-mail.ts` | Private mandatory mail classification and limiter placement. |
+| `lib/admin/email-intents.ts` | Short durable claim, out-of-transaction SMTP, and exact-token finalization. |
 | `app/api/account/register/route.ts` | Dedicated existing-account registration notice wrapper. |
 | `tests/operational-rate-limit-schema.test.mjs` | Additive migration/schema contract. |
 | `tests/operational-rate-limit-policy.test.mjs` | Exact policy and subject-expansion contract. |
 | `tests/operational-rate-limit.test.mjs` | Privacy, atomicity, concurrency, expiry, failure, and cleanup. |
 | `tests/auth-mail-ceiling.test.mjs` | SMTP classification, zero-work denial, and attempt charging. |
+| `tests/admin-operation-service.test.mjs` | Admin claim concurrency, lease recovery, and ambiguity contracts. |
 | `tests/auth-registration.test.mjs` | Existing-account registration wrapper regression. |
 
 ## Public interfaces
@@ -265,7 +267,12 @@ Commit: `feat: enforce atomic operational quotas`
 **Files:**
 - Create: `tests/auth-mail-ceiling.test.mjs`
 - Modify: `tests/auth-registration.test.mjs`
+- Modify: `tests/operational-rate-limit-schema.test.mjs`
+- Modify: `tests/admin-operation-service.test.mjs`
+- Modify: `prisma/schema.prisma`
+- Modify: `prisma/migrations/20260831120000_operational_rate_limit_bucket/migration.sql`
 - Modify: `lib/auth-mail.ts`
+- Modify: `lib/admin/email-intents.ts`
 - Modify: `app/api/account/register/route.ts`
 
 **Private boundary:**
@@ -289,6 +296,12 @@ export async function sendExistingAccountRegistrationNotice(
 
 Inject limiter and Nodemailer doubles. Prove unconfigured SMTP consumes no quota; denied/unavailable quota constructs no transporter; allowed delivery constructs once and sends once; provider failure is not refunded; unknown classification fails closed; verification/reset/setup/existing-account notice use `PUBLIC_AUTH`; account-change notices use `SECURITY`.
 
+Add Admin-intent RED coverage proving SMTP never runs inside an interactive
+transaction; concurrent initial and retry attempts make one provider call; a
+live claim is busy without an attempt; an expired claim is recoverable; a stale
+finalizer is ambiguous; and retry replay consumes neither another claim nor
+another provider attempt.
+
 - [ ] **Step 2: Run RED**
 
 ```powershell
@@ -301,10 +314,28 @@ Expected: wrappers lack mandatory classification and registration reuses the sec
 
 Order `sendMail` as: validate class; return undelivered if SMTP is unconfigured; consume the matching operational request; return undelivered on denial/unavailability; construct transporter; attempt exactly one send. Do not refund after timeout or provider error. Move the existing-account registration subject/copy into the dedicated wrapper and replace the registration route's `sendAccountChangeEmail` use.
 
+Extend the same pending additive migration with nullable
+`AdminEmailIntent.deliveryClaimTokenHash`,
+`AdminEmailIntent.deliveryClaimExpiresAt`, and unique
+`AdminEmailIntent.deliveryClaimOperationKeyHash`, plus the append-only
+`AdminEmailRetryOperationKey` owner; do not add another migration or a transient
+enum value. The owner stores only a domain-separated operation-key hash, binds
+it to one `AdminEmailIntent`, and is never deleted. Claim an eligible intent in
+a short transaction using a separate domain-separated hash of 32 random bytes
+and a five-minute lease, call the ordinary classified sender only after commit,
+and finalize only the exact claim in a second short transaction. Keep
+`PENDING`/`FAILED` while claimed. Live claims return busy without transport. An
+expired retry claim may be recovered either by the same reserved retry key or a
+fresh key that creates another permanent owner for the same intent. Neither key
+may ever claim a different intent. Stale post-provider finalizers return
+ambiguous without overwriting replacement claims. Retry finalization clears
+only active claim state and persists its audit and outcome atomically; every
+historical hashed key owner remains append-only.
+
 - [ ] **Step 4: Run GREEN and regressions**
 
 ```powershell
-node --test tests/auth-mail-ceiling.test.mjs tests/auth-registration.test.mjs tests/auth-registration-service.test.mjs tests/email-verification-request.test.mjs tests/email-verification-request-route.test.mjs tests/auth-password-reset-request.test.mjs tests/password-reset-request-route.test.mjs tests/account-security-email-intents.test.mjs tests/account-security-email-retry.test.mjs tests/admin-operation-service.test.mjs tests/admin-security-service.test.mjs tests/dependency-security.test.mjs
+node --test tests/auth-mail-ceiling.test.mjs tests/auth-registration.test.mjs tests/auth-registration-service.test.mjs tests/email-verification-request.test.mjs tests/email-verification-request-route.test.mjs tests/auth-password-reset-request.test.mjs tests/password-reset-request-route.test.mjs tests/account-security-email-intents.test.mjs tests/account-security-email-retry.test.mjs tests/admin-operation-service.test.mjs tests/admin-security-service.test.mjs tests/dependency-security.test.mjs tests/operational-rate-limit-schema.test.mjs
 ```
 
 - [ ] **Step 5: Review and commit**

@@ -93,8 +93,15 @@ describe("registration email delivery policy", () => {
     assert.doesNotMatch(registerRoute, /prisma\.(?:user|emailVerificationToken|passwordResetToken)\./)
     assert.doesNotMatch(registerRoute, /account already exists/i)
     assert.match(registerRoute, /sendPasswordSetup: sendPasswordSetupEmail/)
+    assert.match(registerRoute, /sendExistingAccountNotice: sendExistingAccountRegistrationNotice/)
+    assert.match(registerRoute, /import \{ sendExistingAccountRegistrationNotice, sendPasswordSetupEmail, sendVerificationEmail \} from "@\/lib\/auth-mail"/)
+    assert.doesNotMatch(registerRoute, /sendAccountChangeEmail/)
+    assert.doesNotMatch(registerRoute, /EXISTING_ACCOUNT_NOTICE_(?:SUBJECT|MESSAGE)/)
     assert.doesNotMatch(registerRoute, /sendPasswordReset: sendPasswordResetEmail/)
     assert.match(authMail, /export async function sendPasswordSetupEmail/)
+    assert.match(authMail, /export async function sendExistingAccountRegistrationNotice/)
+    assert.match(authMail, /MassageLab account sign-in request/)
+    assert.match(authMail, /Sign in with your existing password/)
     assert.match(authMail, /same MassageLab account/i)
     assert.match(authMail, /does not create a duplicate account/i)
     assert.match(authMail, /does not disconnect Google sign-in/i)
@@ -627,7 +634,7 @@ async function loadRegistrationRoute({ afterCallbacks, registerWork, registratio
     },
     "@/lib/auth-env": { getAuthSecret: () => "secret" },
     "@/lib/auth-mail": {
-      sendAccountChangeEmail: async () => ({ delivered: true }),
+      sendExistingAccountRegistrationNotice: async () => ({ delivered: true }),
       sendPasswordSetupEmail: async () => ({ delivered: true }),
       sendPasswordResetEmail: async () => ({ delivered: true }),
       sendVerificationEmail: async () => ({ delivered: true }),

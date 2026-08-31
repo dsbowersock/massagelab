@@ -50,9 +50,16 @@ export async function retryFailedEmailIntentAction(
   }
 
   revalidatePath(`/admin/users/${encodeURIComponent(userId)}`)
-  return result.status === "DELIVERED"
-    ? { status: "success", message: "Email notification retried." }
-    : { status: "error", message: "The email could not be delivered. You can retry again." }
+  if (result.status === "DELIVERED") {
+    return { status: "success", message: "Email notification retried." }
+  }
+  if (result.status === "FAILED") {
+    return { status: "error", message: "The email could not be delivered. You can retry again." }
+  }
+  return {
+    status: "error",
+    message: "Email delivery could not be confirmed. Check Activity before retrying.",
+  }
 }
 
 function isUuid(value: string) {

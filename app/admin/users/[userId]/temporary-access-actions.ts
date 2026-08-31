@@ -191,7 +191,7 @@ function parseExpectedActiveGrantIds(formData: FormData): string[] | null {
 async function deliverNotification(
   intentId: string,
   operation: string,
-): Promise<{ status: "DELIVERED" | "FAILED"; attempted: boolean } | null> {
+): Promise<{ status: "DELIVERED" | "FAILED" | "BUSY" | "AMBIGUOUS"; attempted: boolean } | null> {
   try {
     const result = await deliverAdminEmailIntent({ prismaClient: prisma, intentId })
     return { status: result.status, attempted: result.attempted }
@@ -203,7 +203,7 @@ async function deliverNotification(
 
 function notificationOutcome(
   prefix: string,
-  delivery: { status: "DELIVERED" | "FAILED"; attempted: boolean } | null,
+  delivery: { status: "DELIVERED" | "FAILED" | "BUSY" | "AMBIGUOUS"; attempted: boolean } | null,
   replayed: boolean,
   selfTarget: boolean,
 ): TemporaryAccessActionState {

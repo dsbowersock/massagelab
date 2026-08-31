@@ -69,7 +69,7 @@ export async function grantBackgroundCreditsAction(
     }
   }
 
-  let deliveryOutcome: { status: "DELIVERED" | "FAILED"; attempted: boolean } | null = null
+  let deliveryOutcome: { status: "DELIVERED" | "FAILED" | "BUSY" | "AMBIGUOUS"; attempted: boolean } | null = null
   try {
     const delivery = await deliverAdminEmailIntent({
       prismaClient: prisma,
@@ -146,7 +146,7 @@ function revalidateCreditGrantSurfaces(userId: string) {
 
 function creditGrantOutcome(
   result: Awaited<ReturnType<typeof grantAdminBackgroundCredits>>,
-  delivery: { status: "DELIVERED" | "FAILED"; attempted: boolean } | null,
+  delivery: { status: "DELIVERED" | "FAILED" | "BUSY" | "AMBIGUOUS"; attempted: boolean } | null,
   selfTarget: boolean,
 ): CreditGrantActionState {
   if (result.replayed) {

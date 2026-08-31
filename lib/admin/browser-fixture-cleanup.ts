@@ -6,6 +6,7 @@ type FixtureCleanupPrismaClient = Pick<
   PrismaClient,
   | "adminAction"
   | "adminEmailIntent"
+  | "adminEmailRetryOperationKey"
   | "backgroundCreditEntry"
   | "backgroundCreditWallet"
   | "backupCode"
@@ -36,9 +37,9 @@ export async function removeBrowserAdminFixtureRecords(input: {
   const identity = createBrowserAdminFixtureIdentity(input.projectName)
   const userIds = [identity.operator.id, identity.target.id]
 
-  // Restrictive FK order: email intents and activity precede their Admin action,
-  // temporary revocations precede grants, while credit ledger entries precede
-  // the wallet that they reference.
+  // Restrictive FK order: disposable retry-key owners precede email intents,
+  // email intents and activity precede their Admin action, temporary
+  // revocations precede grants, and credit ledger entries precede their wallet.
   await input.prismaClient.temporaryFeatureGrantRevocation.deleteMany({
     where: {
       OR: [
@@ -49,6 +50,9 @@ export async function removeBrowserAdminFixtureRecords(input: {
   })
   await input.prismaClient.temporaryFeatureGrant.deleteMany({
     where: { OR: [{ userId: { in: userIds } }, { grantedById: { in: userIds } }] },
+  })
+  await input.prismaClient.adminEmailRetryOperationKey.deleteMany({
+    where: { emailIntent: { is: { userId: { in: userIds } } } },
   })
   await input.prismaClient.adminEmailIntent.deleteMany({ where: { userId: { in: userIds } } })
   await input.prismaClient.userAccountActivity.deleteMany({ where: { userId: { in: userIds } } })

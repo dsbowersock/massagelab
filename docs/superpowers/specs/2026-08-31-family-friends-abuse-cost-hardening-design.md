@@ -229,6 +229,33 @@ An accepted attempt consumes quota before Sentry capture. A provider capture or 
 
 All outbound SMTP attempts pass through the existing narrow `sendMail` boundary and consume the total email ceiling immediately before `transporter.sendMail`. Its internal input requires an allowlisted `PUBLIC_AUTH` or `SECURITY` class and has no default. An unknown runtime value fails closed with `{ delivered: false }`.
 
+Admin email intents cannot hold their existing interactive transaction open while
+the mail boundary consumes the deployment-wide quota: that would nest a second
+database transaction before SMTP and can exhaust a constrained connection pool.
+The same pending additive migration therefore adds nullable
+`deliveryClaimTokenHash`, `deliveryClaimExpiresAt`, and unique
+`deliveryClaimOperationKeyHash` fields to `AdminEmailIntent`, and adds an
+append-only `AdminEmailRetryOperationKey` owner in that same migration. Each
+owner stores only the domain-separated retry operation-key hash, binds it to one
+intent, and is never deleted, including after finalization. Admin delivery uses
+a short transaction to claim one eligible `PENDING` or `FAILED` intent, commits,
+calls the ordinary classified mail boundary, and then uses a second short
+transaction to finalize the exact claim. The stored status remains `PENDING` or
+`FAILED` while claimed so existing Activity meaning and retry eligibility do not
+acquire a fourth transient status. Claims use a separate domain-separated
+SHA-256 hash of 32 random bytes and a five-minute lease; raw claim tokens are
+never stored or logged, and retry operation keys never enter active claim state
+or the append-only owner. Exact finalization stores the raw retry key only in
+the existing `AdminAction.idempotencyKey` audit owner. A live claim makes no
+provider attempt. After expiry, the same retry key may recover its claim, or a fresh key
+from a regenerated Activity form may create another permanent owner for the
+same intent and replace the active claim. Every reserved key remains forbidden
+from claiming a different intent. The independent random claim token prevents
+stale-finalizer ABA, so a stale finalizer after provider contact is reported as
+ambiguous without overwriting a replacement claim. Exact finalization clears
+only the active claim fields and atomically writes the retry audit; all hashed
+key-owner history remains.
+
 Verification, verification resend, password reset, password setup, and a dedicated existing-account registration-notice wrapper always pass `PUBLIC_AUTH` and also consume the 70/day ceiling. Account-method changes, password-change/recovery notices, two-factor notices, and durable admin security notifications always pass `SECURITY` and consume only the 90/day total ceiling. `sendAccountChangeEmail` remains security-only; registration no longer reuses it.
 
 Existing registration, reset, Google-intent, login, and two-factor account/network limits remain unchanged. The global backstop supplements them; it does not weaken or replace them.

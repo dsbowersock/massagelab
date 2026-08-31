@@ -1416,6 +1416,9 @@ function createMutationFixture(overrides = {}) {
           attemptCount: 0,
           lastAttemptAt: null,
           deliveredAt: null,
+          deliveryClaimTokenHash: null,
+          deliveryClaimExpiresAt: null,
+          deliveryClaimOperationKeyHash: null,
           ...structuredClone(data),
         }
         if (overrides.failBundleWrite) {

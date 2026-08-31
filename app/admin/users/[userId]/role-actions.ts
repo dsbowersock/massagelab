@@ -84,7 +84,7 @@ export async function changeAnatomyRoleAction(
     }
   }
 
-  let notificationOutcome: { status: "DELIVERED" | "FAILED"; attempted: boolean } | null = null
+  let notificationOutcome: { status: "DELIVERED" | "FAILED" | "BUSY" | "AMBIGUOUS"; attempted: boolean } | null = null
   try {
     const delivery = await deliverAdminEmailIntent({
       prismaClient: prisma,

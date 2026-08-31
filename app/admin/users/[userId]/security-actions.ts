@@ -40,7 +40,7 @@ type ParsedCommon = {
 }
 
 type NotificationOutcome = {
-  status: "DELIVERED" | "FAILED"
+  status: "DELIVERED" | "FAILED" | "BUSY" | "AMBIGUOUS"
   attempted: boolean
 } | null
 
