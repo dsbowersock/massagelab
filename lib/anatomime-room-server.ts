@@ -518,7 +518,9 @@ async function expireRoomIfIdle(
       },
       data: { status: "EXPIRED" },
     })
-    if (expired.count === 0) return readAndPatchRoomExpiryConflict(tx, room)
+    // A lost conditional write makes the hydrated relation graph stale. Retry
+    // instead of combining it with a partial concurrent lifecycle snapshot.
+    if (expired.count === 0) throw new AnatomimeTrafficLimitError(503)
 
     if (room.currentRun && room.currentRun.status === "PLAYING") {
       const completed = await tx.anatomimeGameRun.updateMany({
@@ -530,7 +532,7 @@ async function expireRoomIfIdle(
           completedAt: now,
         },
       })
-      if (completed.count === 0) return readAndPatchRoomExpiryConflict(tx, room)
+      if (completed.count === 0) throw new AnatomimeTrafficLimitError(503)
 
       return {
         ...room,
@@ -547,48 +549,6 @@ async function expireRoomIfIdle(
 
     return { ...room, status: "EXPIRED" }
   })
-}
-
-/** Uses only lifecycle fields to reconcile a concurrent expiry writer. */
-async function readAndPatchRoomExpiryConflict(
-  tx: Prisma.TransactionClient,
-  room: AnatomimeRoomWithRelations,
-): Promise<AnatomimeRoomWithRelations> {
-  const snapshot = await tx.anatomimeRoom.findUnique({
-    where: { id: room.id },
-    select: {
-      status: true,
-      expiresAt: true,
-      currentRunId: true,
-      currentRun: {
-        select: {
-          id: true,
-          status: true,
-          phase: true,
-          termEndsAt: true,
-          completedAt: true,
-        },
-      },
-    },
-  })
-  if (!snapshot) throw roomError(404, "room-not-found", "Game not found.")
-
-  const hydratedRelationId = room.currentRun?.id ?? null
-  const snapshotRelationId = snapshot.currentRun?.id ?? null
-  const coherentRunIdentity = room.currentRunId === hydratedRelationId
-    && snapshot.currentRunId === snapshotRelationId
-    && snapshot.currentRunId === room.currentRunId
-  if (!coherentRunIdentity) throw new AnatomimeTrafficLimitError(503)
-
-  return {
-    ...room,
-    status: snapshot.status,
-    expiresAt: snapshot.expiresAt,
-    currentRunId: snapshot.currentRunId,
-    currentRun: room.currentRun && snapshot.currentRun
-      ? { ...room.currentRun, ...snapshot.currentRun }
-      : null,
-  }
 }
 
 async function markViewerSeen(room: AnatomimeRoomWithRelations, viewer: ViewerContext = {}, now = new Date()) {

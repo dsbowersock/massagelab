@@ -744,6 +744,29 @@ describe("Anatomime room poll traffic boundary", () => {
     assert.deepEqual(roomScenario.coalesceCalls, [])
   })
 
+  it("returns a generic retryable response when the same run advances during expiry", async () => {
+    const roomScenario = loadPresenceRoomServerForRoute({
+      userId: null,
+      presenceResult: new Date("2026-08-31T12:00:16.000Z"),
+      sameRunAdvance: true,
+    })
+    const scenario = loadPollRoute({ roomServer: roomScenario })
+    const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/ab12", {
+        "x-anatomime-player-id": "database-player",
+        "x-anatomime-player-token": "opaque-token",
+      }),
+      { params: Promise.resolve({ code: "ab12" }) },
+    )
+
+    assert.equal(response.status, 503)
+    assert.deepEqual(await response.json(), {
+      error: "Anatomime is temporarily unavailable. Please try again.",
+    })
+    assert.equal(roomScenario.hydrateCalls.length, 1)
+    assert.deepEqual(roomScenario.coalesceCalls, [])
+  })
+
   it("returns a missing room without full hydration or durable quota", async () => {
     const scenario = loadPollRoute({ preflightResult: { kind: "ROOM_NOT_FOUND" } })
     const response = await scenario.GET(
@@ -1155,16 +1178,34 @@ function loadPollRoute({
   }
 }
 
-function loadPresenceRoomServerForRoute({ userId, presenceResult, conflictingRunIdentity = false }) {
+function loadPresenceRoomServerForRoute({
+  userId,
+  presenceResult,
+  conflictingRunIdentity = false,
+  sameRunAdvance = false,
+}) {
   const coalesceCalls = []
+  const hydrateCalls = []
   const lastSeenAt = new Date("2026-08-31T12:00:00.000Z")
-  const currentRun = conflictingRunIdentity
-    ? { id: "old-run", status: "PLAYING", phase: "ACTIVE_TERM" }
+  const currentRun = sameRunAdvance
+    ? {
+        id: "run-1",
+        status: "PLAYING",
+        phase: "TURN_REVIEW",
+        activeCardIndex: 2,
+        deckCardIds: ["card-1", "card-2", "card-3", "card-4"],
+        metadata: { activeCardId: "card-3" },
+        guesses: [{ cardId: "card-3" }],
+        scores: [{ teamId: "team-1", score: 3 }],
+      }
+    : conflictingRunIdentity
+      ? { id: "old-run", status: "PLAYING", phase: "ACTIVE_TERM" }
     : null
+  const hasExpiryConflict = conflictingRunIdentity || sameRunAdvance
   const room = minimalRoomFixture({
     code: "AB12",
-    status: conflictingRunIdentity ? "PLAYING" : "LOBBY",
-    expiresAt: conflictingRunIdentity
+    status: hasExpiryConflict ? "PLAYING" : "LOBBY",
+    expiresAt: hasExpiryConflict
       ? new Date("2000-01-01T00:00:00.000Z")
       : new Date("2100-01-01T00:00:00.000Z"),
     hostPlayerId: "database-player",
@@ -1181,6 +1222,22 @@ function loadPresenceRoomServerForRoute({ userId, presenceResult, conflictingRun
       lastSeenAt,
     }],
   })
+  const concurrentRun = sameRunAdvance
+    ? {
+        ...currentRun,
+        phase: "ACTIVE_TERM",
+        activeCardIndex: 3,
+        metadata: { activeCardId: "card-4" },
+        guesses: [],
+        scores: [{ teamId: "team-1", score: 4 }],
+      }
+    : {
+        id: "new-run",
+        status: "GAME_COMPLETE",
+        phase: "GAME_COMPLETE",
+        termEndsAt: null,
+        completedAt: new Date("2026-08-31T12:00:00.000Z"),
+      }
   const service = loadCompiledModule(roomServerSource, "lib/anatomime-room-server.binding-race-route-test.ts", {
     "./auth-security.js": {
       generateRandomToken: () => "ABC123",
@@ -1199,22 +1256,27 @@ function loadPresenceRoomServerForRoute({ userId, presenceResult, conflictingRun
       },
     },
     "./prisma.ts": {
-      prisma: conflictingRunIdentity
+      prisma: hasExpiryConflict
         ? {
-            anatomimeRoom: { findUnique: async () => room },
+            anatomimeRoom: {
+              findUnique: async (args) => {
+                hydrateCalls.push(args)
+                return room
+              },
+            },
             $transaction: async (callback) => callback({
               anatomimeRoom: {
                 updateMany: async () => ({ count: 0 }),
                 findUnique: async () => ({
                   status: "EXPIRED",
                   expiresAt: room.expiresAt,
-                  currentRunId: "new-run",
+                  currentRunId: concurrentRun.id,
                   currentRun: {
-                    id: "new-run",
-                    status: "GAME_COMPLETE",
-                    phase: "GAME_COMPLETE",
-                    termEndsAt: null,
-                    completedAt: new Date("2026-08-31T12:00:00.000Z"),
+                    id: concurrentRun.id,
+                    status: concurrentRun.status,
+                    phase: concurrentRun.phase,
+                    termEndsAt: concurrentRun.termEndsAt ?? null,
+                    completedAt: concurrentRun.completedAt ?? null,
                   },
                 }),
               },
@@ -1228,8 +1290,18 @@ function loadPresenceRoomServerForRoute({ userId, presenceResult, conflictingRun
 
   return {
     coalesceCalls,
+    hydrateCalls,
     loadAnatomimeRoom: service.loadAnatomimeRoom,
-    summarizeAnatomimeRoom: service.summarizeAnatomimeRoom,
+    summarizeAnatomimeRoom: sameRunAdvance
+      ? (loadedRoom) => ({
+          status: loadedRoom.status,
+          phase: loadedRoom.currentRun.phase,
+          activeCardId: loadedRoom.currentRun.deckCardIds[loadedRoom.currentRun.activeCardIndex],
+          metadataActiveCardId: loadedRoom.currentRun.metadata.activeCardId,
+          guessedCardIds: loadedRoom.currentRun.guesses.map((guess) => guess.cardId),
+          scores: loadedRoom.currentRun.scores,
+        })
+      : service.summarizeAnatomimeRoom,
   }
 }
 
