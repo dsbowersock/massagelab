@@ -243,6 +243,27 @@ describe("Anatomime traffic server primitives", () => {
     assert.equal(full.size, 4_096)
   })
 
+  it("advertises enough capacity delay for every entry a rejected request needs", () => {
+    const shedder = createAnatomimePollShedder({ secret: "shedder-secret", maxEntries: 2 })
+    const first = new Date("2026-08-31T12:00:00.000Z")
+    const second = new Date("2026-08-31T12:00:05.000Z")
+    const rejectedAt = new Date("2026-08-31T12:00:06.000Z")
+    assert.deepEqual(shedder.consumeJoined({ playerId: "player-a", now: first }), { allowed: true })
+    assert.deepEqual(shedder.consumeJoined({ playerId: "player-b", now: second }), { allowed: true })
+
+    const decision = shedder.consumeIngress({
+      networkIdentifier: "unseen-network",
+      roomIdentifier: "NEWROOM",
+      now: rejectedAt,
+    })
+    assert.deepEqual(decision, { allowed: false, retryAfterSeconds: 9 })
+    assert.deepEqual(shedder.consumeIngress({
+      networkIdentifier: "unseen-network",
+      roomIdentifier: "NEWROOM",
+      now: new Date(rejectedAt.getTime() + decision.retryAfterSeconds * 1_000),
+    }), { allowed: true })
+  })
+
   it("coalesces presence with no write inside 15 seconds and one conditional update at the boundary", async () => {
     const calls = []
     const prismaClient = {

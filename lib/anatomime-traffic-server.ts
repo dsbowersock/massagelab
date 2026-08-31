@@ -171,7 +171,8 @@ export function createAnatomimePollShedder(options: {
 
     const newEntryCount = rules.reduce((count, rule) => count + (buckets.has(rule.key) ? 0 : 1), 0)
     if (buckets.size + newEntryCount > maxEntries) {
-      return { allowed: false, retryAfterSeconds: capacityRetryAfter(buckets, now.getTime()) }
+      const requiredFree = buckets.size + newEntryCount - maxEntries
+      return { allowed: false, retryAfterSeconds: capacityRetryAfter(buckets, now.getTime(), requiredFree) }
     }
 
     for (const rule of rules) {
@@ -256,13 +257,14 @@ function retryAfterWindow(windowStartMs: number, nowMs: number): number {
   return Math.max(1, Math.ceil((windowStartMs + POLL_WINDOW_MS - nowMs) / 1_000))
 }
 
-function capacityRetryAfter(buckets: Map<string, PollBucket>, nowMs: number): number {
-  let earliestExpiry = Number.POSITIVE_INFINITY
-  for (const bucket of buckets.values()) {
-    earliestExpiry = Math.min(earliestExpiry, bucket.windowStartMs + POLL_WINDOW_MS)
-  }
-  return Number.isFinite(earliestExpiry)
-    ? Math.max(1, Math.ceil((earliestExpiry - nowMs) / 1_000))
+/** Returns the delay until enough active buckets expire for the rejected request. */
+function capacityRetryAfter(buckets: Map<string, PollBucket>, nowMs: number, requiredFree: number): number {
+  const expiries = [...buckets.values()]
+    .map((bucket) => bucket.windowStartMs + POLL_WINDOW_MS)
+    .sort((left, right) => left - right)
+  const usableExpiry = expiries[requiredFree - 1]
+  return Number.isFinite(usableExpiry)
+    ? Math.max(1, Math.ceil((usableExpiry - nowMs) / 1_000))
     : 10
 }
 
