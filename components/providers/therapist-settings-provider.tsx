@@ -29,6 +29,11 @@ type TherapistCloudState = {
   canSync: boolean
 }
 
+type OwnedTherapistSettings = {
+  ownerKey: string | null
+  settings: TherapistSettings
+}
+
 type TherapistSettingsContextType = {
   settings: TherapistSettings
   updateSettings: (newSettings: Partial<TherapistSettings>) => void
@@ -48,7 +53,7 @@ type TherapistSettingsCloudCoordinator = {
   subscribe: (listener: (state: TherapistCloudState) => void) => () => void
 }
 
-const THERAPIST_SETTINGS_STORAGE_KEY = "massage-lab-therapist-settings"
+const THERAPIST_SETTINGS_STORAGE_KEY_PREFIX = "massage-lab-therapist-settings"
 
 const defaultSettings: TherapistSettings = {
   name: "",
@@ -59,6 +64,13 @@ const defaultSettings: TherapistSettings = {
 }
 
 const TherapistSettingsContext = createContext<TherapistSettingsContextType | undefined>(undefined)
+
+/** Keeps browser persistence isolated to one authenticated or anonymous owner. */
+export function therapistSettingsStorageKey(ownerKey: string | null): string {
+  return ownerKey === null
+    ? `${THERAPIST_SETTINGS_STORAGE_KEY_PREFIX}:anonymous`
+    : `${THERAPIST_SETTINGS_STORAGE_KEY_PREFIX}:account:${encodeURIComponent(ownerKey)}`
+}
 
 function objectRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -78,6 +90,21 @@ function normalizeTherapistSettings(value: unknown): TherapistSettings {
       : "",
     npiNumber: typeof settings.npiNumber === "string" ? settings.npiNumber : "",
   }
+}
+
+/** Validates the complete browser snapshot and projects only its five allowed fields. */
+export function projectStoredTherapistSettings(value: unknown): TherapistSettings | null {
+  const settings = objectRecord(value)
+  if (
+    typeof settings.name !== "string"
+    || typeof settings.location !== "string"
+    || typeof settings.licenseNumber !== "string"
+    || typeof settings.licenseOrganization !== "string"
+    || typeof settings.npiNumber !== "string"
+  ) {
+    return null
+  }
+  return normalizeTherapistSettings(settings)
 }
 
 function projectTherapistProfile(value: unknown): TherapistSettings {
@@ -119,7 +146,7 @@ export function createTherapistSettingsCloudCoordinator({
   initialSyncEnabled,
   loadProfile = loadTherapistProfile,
 }: {
-  applyProfile: (settings: TherapistSettings) => void
+  applyProfile: (ownerKey: string, settings: TherapistSettings) => void
   initialOwnerKey: string | null
   initialSyncEnabled: boolean
   loadProfile?: LoadTherapistProfile
@@ -166,7 +193,7 @@ export function createTherapistSettingsCloudCoordinator({
           || ownerKey !== requestOwnerKey
         ) return
 
-        applyProfile(projectTherapistProfile(profile))
+        applyProfile(requestOwnerKey, projectTherapistProfile(profile))
         publish({ ownerKey: requestOwnerKey, status: "ready", canSync: true })
       } catch {
         if (
@@ -225,14 +252,26 @@ export function createTherapistSettingsCloudCoordinator({
 
 export function TherapistSettingsProvider({ children }: { children: ReactNode }) {
   const { ownerKey, syncEnabled } = useAccountShellBootstrap()
-  const [settings, setSettings] = useState<TherapistSettings>(defaultSettings)
+  const [ownedSettings, setOwnedSettings] = useState<OwnedTherapistSettings>(() => ({
+    ownerKey,
+    settings: defaultSettings,
+  }))
+  // A new account sees empty settings on its first render. Its own device or
+  // cloud values can replace them only after owner-scoped hydration.
+  const settings = ownedSettings.ownerKey === ownerKey
+    ? ownedSettings.settings
+    : defaultSettings
   // Compose back-to-back edits from the latest value without putting storage
   // or network side effects inside React's replayable state updater.
-  const settingsRef = useRef(settings)
-  const applyCloudProfile = useCallback((nextSettings: TherapistSettings) => {
-    settingsRef.current = nextSettings
-    localStorage.setItem(THERAPIST_SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings))
-    setSettings(nextSettings)
+  const settingsRef = useRef<OwnedTherapistSettings>({ ownerKey, settings })
+  const applyCloudProfile = useCallback((profileOwnerKey: string, nextSettings: TherapistSettings) => {
+    const nextOwnedSettings = { ownerKey: profileOwnerKey, settings: nextSettings }
+    settingsRef.current = nextOwnedSettings
+    localStorage.setItem(
+      therapistSettingsStorageKey(profileOwnerKey),
+      JSON.stringify(nextSettings),
+    )
+    setOwnedSettings(nextOwnedSettings)
   }, [])
   // Construction stores the callback; only a later demanded network result can invoke it.
   // eslint-disable-next-line react-hooks/refs -- no ref access occurs during this render.
@@ -246,37 +285,54 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
 
   useEffect(() => {
     let nextSettings = defaultSettings
-    const savedSettings = localStorage.getItem(THERAPIST_SETTINGS_STORAGE_KEY)
+    const storageKey = therapistSettingsStorageKey(ownerKey)
+    const savedSettings = localStorage.getItem(storageKey)
+    let shouldNormalizeStoredSettings = false
     if (savedSettings) {
       try {
-        nextSettings = normalizeTherapistSettings(JSON.parse(savedSettings))
+        const storedSettings = projectStoredTherapistSettings(JSON.parse(savedSettings))
+        if (storedSettings) {
+          nextSettings = storedSettings
+          shouldNormalizeStoredSettings = true
+        } else {
+          localStorage.removeItem(storageKey)
+        }
       } catch {
-        localStorage.removeItem(THERAPIST_SETTINGS_STORAGE_KEY)
+        localStorage.removeItem(storageKey)
       }
     }
-    localStorage.setItem(THERAPIST_SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings))
-    settingsRef.current = nextSettings
-    setSettings(nextSettings)
-  }, [])
-
-  useEffect(() => {
-    settingsRef.current = settings
-  }, [settings])
+    const nextOwnedSettings = { ownerKey, settings: nextSettings }
+    if (shouldNormalizeStoredSettings) {
+      localStorage.setItem(storageKey, JSON.stringify(nextSettings))
+    }
+    settingsRef.current = nextOwnedSettings
+    setOwnedSettings(nextOwnedSettings)
+  }, [ownerKey])
 
   useEffect(() => coordinator.subscribe(setCloudState), [coordinator])
 
-  useEffect(() => {
+  /** Adopts a changed account/sync generation once before any demanded read. */
+  const adoptCurrentOwner = useCallback(() => {
     const adopted = adoptedOwnerRef.current
-    if (adopted.ownerKey === ownerKey && adopted.syncEnabled === syncEnabled) return
+    if (adopted.ownerKey === ownerKey && adopted.syncEnabled === syncEnabled) {
+      return Promise.resolve()
+    }
     adoptedOwnerRef.current = { ownerKey, syncEnabled }
-    void coordinator.adopt({ ownerKey, syncEnabled })
+    return coordinator.adopt({ ownerKey, syncEnabled })
   }, [coordinator, ownerKey, syncEnabled])
+
+  useEffect(() => {
+    void adoptCurrentOwner()
+  }, [adoptCurrentOwner])
 
   useEffect(() => () => coordinator.dispose(), [coordinator])
 
   const ensureCloudHydrated = useCallback(
-    () => coordinator.ensureCloudHydrated(),
-    [coordinator],
+    async () => {
+      await adoptCurrentOwner()
+      await coordinator.ensureCloudHydrated()
+    },
+    [adoptCurrentOwner, coordinator],
   )
   const canSync = Boolean(
     ownerKey
@@ -285,10 +341,14 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
     && cloudState.canSync,
   )
   const updateSettings = useCallback((newSettings: Partial<TherapistSettings>) => {
-    const updated = normalizeTherapistSettings({ ...settingsRef.current, ...newSettings })
-    settingsRef.current = updated
-    localStorage.setItem(THERAPIST_SETTINGS_STORAGE_KEY, JSON.stringify(updated))
-    setSettings(updated)
+    const currentSettings = settingsRef.current.ownerKey === ownerKey
+      ? settingsRef.current.settings
+      : defaultSettings
+    const updated = normalizeTherapistSettings({ ...currentSettings, ...newSettings })
+    const nextOwnedSettings = { ownerKey, settings: updated }
+    settingsRef.current = nextOwnedSettings
+    localStorage.setItem(therapistSettingsStorageKey(ownerKey), JSON.stringify(updated))
+    setOwnedSettings(nextOwnedSettings)
 
     if (canSync) {
       void fetchWithTimeout("/api/account/profile", {
@@ -297,7 +357,7 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
         body: JSON.stringify({ therapistSettings: updated }),
       }).catch(() => undefined)
     }
-  }, [canSync])
+  }, [canSync, ownerKey])
   const value = useMemo<TherapistSettingsContextType>(() => ({
     settings,
     updateSettings,

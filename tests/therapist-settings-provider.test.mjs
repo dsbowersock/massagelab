@@ -51,7 +51,7 @@ function loadCoordinator({ loadProfile, applyProfile = () => undefined }) {
     "therapist settings must expose one testable owner-keyed cloud coordinator",
   )
   return provider.createTherapistSettingsCloudCoordinator({
-    applyProfile,
+    applyProfile: (_ownerKey, settings) => applyProfile(settings),
     initialOwnerKey: "owner-a",
     initialSyncEnabled: true,
     loadProfile,
@@ -124,6 +124,191 @@ function loadProviderUpdaterHarness({ profile = {} } = {}) {
     globalThis.localStorage = previousLocalStorage
     throw error
   }
+}
+
+function loadProviderOwnerTransitionHarness({
+  storedValues = new Map([
+    ["massage-lab-therapist-settings", JSON.stringify({ name: "Owner A" })],
+    ["massage-lab-therapist-settings:account:owner-a", JSON.stringify({
+      name: "Owner A",
+      location: "Columbus",
+      licenseNumber: "A-1",
+      licenseOrganization: "Ohio Board",
+      npiNumber: "111",
+      soapDraft: "must not persist",
+    })],
+  ]),
+} = {}) {
+  let ownerKey = "owner-a"
+  let syncEnabled = true
+  const stateSlots = []
+  const refSlots = []
+  const callbackSlots = []
+  const memoSlots = []
+  const effectSlots = []
+  const pendingEffects = []
+  const storageReads = []
+  const storageWrites = []
+  const storageRemovals = []
+  let profileRequests = 0
+  const ownerBProfile = deferred()
+  let stateCursor = 0
+  let refCursor = 0
+  let callbackCursor = 0
+  let memoCursor = 0
+  let effectCursor = 0
+
+  const sameDependencies = (left, right) => (
+    Array.isArray(left)
+    && Array.isArray(right)
+    && left.length === right.length
+    && left.every((value, index) => Object.is(value, right[index]))
+  )
+  const memoizedHook = (slots, cursor, valueFactory, dependencies) => {
+    const slot = slots[cursor]
+    if (!slot || !sameDependencies(slot.dependencies, dependencies)) {
+      slots[cursor] = { dependencies, value: valueFactory() }
+    }
+    return slots[cursor].value
+  }
+
+  const previousLocalStorage = globalThis.localStorage
+  globalThis.localStorage = {
+    getItem: (key) => {
+      storageReads.push(key)
+      return storedValues.get(key) ?? null
+    },
+    removeItem: (key) => {
+      storageRemovals.push(key)
+      storedValues.delete(key)
+    },
+    setItem: (key, value) => {
+      storageWrites.push([key, value])
+      storedValues.set(key, value)
+    },
+  }
+
+  const provider = loadCompiledModule(
+    providerSource,
+    "components/providers/therapist-settings-provider-owner-transition.test.tsx",
+    {
+      react: {
+        createContext: () => ({ Provider: "TherapistSettingsContextProvider" }),
+        useCallback: (callback, dependencies) => {
+          const cursor = callbackCursor
+          callbackCursor += 1
+          return memoizedHook(callbackSlots, cursor, () => callback, dependencies)
+        },
+        useContext: () => null,
+        useEffect: (effect, dependencies) => {
+          const cursor = effectCursor
+          effectCursor += 1
+          const slot = effectSlots[cursor]
+          if (!slot || !sameDependencies(slot.dependencies, dependencies)) {
+            effectSlots[cursor] = { ...slot, dependencies }
+            pendingEffects.push({ cursor, effect })
+          }
+        },
+        useMemo: (factory, dependencies) => {
+          const cursor = memoCursor
+          memoCursor += 1
+          return memoizedHook(memoSlots, cursor, factory, dependencies)
+        },
+        useRef: (value) => {
+          const cursor = refCursor
+          refCursor += 1
+          if (!refSlots[cursor]) refSlots[cursor] = { current: value }
+          return refSlots[cursor]
+        },
+        useState: (initial) => {
+          const cursor = stateCursor
+          stateCursor += 1
+          if (!stateSlots[cursor]) {
+            stateSlots[cursor] = {
+              value: typeof initial === "function" ? initial() : initial,
+            }
+          }
+          return [stateSlots[cursor].value, (update) => {
+            stateSlots[cursor].value = typeof update === "function"
+              ? update(stateSlots[cursor].value)
+              : update
+          }]
+        },
+      },
+      "@/components/providers/account-shell-bootstrap-provider": {
+        useAccountShellBootstrap: () => ({ ownerKey, syncEnabled }),
+      },
+      "@/lib/client-fetch": {
+        fetchJsonWithTimeout: async () => {
+          profileRequests += 1
+          return {
+            response: { ok: true },
+            json: await ownerBProfile.promise,
+          }
+        },
+        fetchWithTimeout: async () => ({ ok: true }),
+      },
+    },
+  )
+
+  return {
+    flushEffects() {
+      for (const { cursor, effect } of pendingEffects.splice(0)) {
+        effectSlots[cursor].cleanup?.()
+        effectSlots[cursor].cleanup = effect()
+      }
+    },
+    render() {
+      stateCursor = 0
+      refCursor = 0
+      callbackCursor = 0
+      memoCursor = 0
+      effectCursor = 0
+      pendingEffects.length = 0
+      return provider.TherapistSettingsProvider({ children: null }).props.value
+    },
+    resolveOwnerBProfile(profile) {
+      ownerBProfile.resolve(profile)
+    },
+    restore() {
+      for (const slot of effectSlots) slot?.cleanup?.()
+      globalThis.localStorage = previousLocalStorage
+    },
+    setOwner(nextOwnerKey) {
+      ownerKey = nextOwnerKey
+    },
+    setSyncEnabled(nextSyncEnabled) {
+      syncEnabled = nextSyncEnabled
+    },
+    get profileRequests() {
+      return profileRequests
+    },
+    storageReads,
+    storageRemovals,
+    storageWrites,
+  }
+}
+
+function loadStoredTherapistSettingsProjector() {
+  const provider = loadCompiledModule(
+    providerSource,
+    "components/providers/therapist-settings-provider-storage-contract.test.tsx",
+    {
+      "@/components/providers/account-shell-bootstrap-provider": {
+        useAccountShellBootstrap: () => ({ ownerKey: null, syncEnabled: false }),
+      },
+      "@/lib/client-fetch": {
+        fetchJsonWithTimeout: async () => ({ response: { ok: false }, json: undefined }),
+        fetchWithTimeout: async () => ({ ok: true }),
+      },
+    },
+  )
+  assert.equal(
+    typeof provider.projectStoredTherapistSettings,
+    "function",
+    "provider must export the single stored therapist snapshot projector",
+  )
+  return provider.projectStoredTherapistSettings
 }
 
 describe("therapist settings cloud hydration", () => {
@@ -350,6 +535,159 @@ describe("therapist settings cloud hydration", () => {
           npiNumber: "1234",
         },
       })
+    } finally {
+      harness.restore()
+    }
+  })
+
+  it("never renders owner A fields while owner B storage and cloud settings hydrate", async () => {
+    const harness = loadProviderOwnerTransitionHarness()
+    try {
+      harness.render()
+      harness.flushEffects()
+      const ownerAView = harness.render()
+      assert.equal(ownerAView.settings.name, "Owner A")
+      assert.equal(ownerAView.settings.location, "Columbus")
+
+      harness.setOwner("owner-b")
+      const ownerBTransitionView = harness.render()
+      assert.deepEqual(ownerBTransitionView.settings, {
+        name: "",
+        location: "",
+        licenseNumber: "",
+        licenseOrganization: "",
+        npiNumber: "",
+      })
+      assert.doesNotMatch(JSON.stringify(ownerBTransitionView.settings), /Owner A|Columbus/)
+
+      harness.flushEffects()
+      const ownerBLocalView = harness.render()
+      const hydration = ownerBLocalView.ensureCloudHydrated()
+      assert.doesNotMatch(JSON.stringify(harness.render().settings), /Owner A|Columbus/)
+
+      harness.resolveOwnerBProfile({
+        therapistName: "Owner B",
+        therapistLocation: "Cleveland",
+      })
+      await hydration
+      const ownerBCloudView = harness.render()
+      assert.equal(ownerBCloudView.settings.name, "Owner B")
+      assert.equal(ownerBCloudView.settings.location, "Cleveland")
+
+      harness.setOwner(null)
+      assert.doesNotMatch(JSON.stringify(harness.render().settings), /Owner A|Owner B|Columbus|Cleveland/)
+      harness.flushEffects()
+      assert.deepEqual(harness.render().settings, {
+        name: "",
+        location: "",
+        licenseNumber: "",
+        licenseOrganization: "",
+        npiNumber: "",
+      })
+      assert.deepEqual(harness.storageReads, [
+        "massage-lab-therapist-settings:account:owner-a",
+        "massage-lab-therapist-settings:account:owner-b",
+        "massage-lab-therapist-settings:anonymous",
+      ])
+      assert.deepEqual(harness.storageWrites.map(([key]) => key), [
+        "massage-lab-therapist-settings:account:owner-a",
+        "massage-lab-therapist-settings:account:owner-b",
+      ])
+
+      harness.setOwner("anonymous")
+      harness.render()
+      harness.flushEffects()
+      assert.equal(
+        harness.storageReads.at(-1),
+        "massage-lab-therapist-settings:account:anonymous",
+      )
+    } finally {
+      harness.restore()
+    }
+  })
+
+  it("replays mounted consumer demand after the same owner becomes sync-enabled", async () => {
+    const harness = loadProviderOwnerTransitionHarness()
+    try {
+      harness.setSyncEnabled(false)
+      harness.render()
+      harness.flushEffects()
+      const disabledView = harness.render()
+      await disabledView.ensureCloudHydrated()
+      assert.equal(harness.profileRequests, 0, "disabled ownership must remain network-free")
+
+      harness.setSyncEnabled(true)
+      const enabledView = harness.render()
+      assert.notEqual(
+        enabledView.ensureCloudHydrated,
+        disabledView.ensureCloudHydrated,
+        "the mounted consumer effect must receive a new demand callback",
+      )
+
+      const hydration = enabledView.ensureCloudHydrated()
+      harness.flushEffects()
+      await Promise.resolve()
+      assert.equal(harness.profileRequests, 1)
+
+      harness.resolveOwnerBProfile({ therapistName: "Owner A cloud profile" })
+      await hydration
+      assert.equal(harness.render().settings.name, "Owner A cloud profile")
+      assert.equal(harness.profileRequests, 1, "provider adoption must not reset demand deduplication")
+    } finally {
+      harness.restore()
+    }
+  })
+
+  it("rejects malformed scoped snapshots and projects valid storage to five fields", () => {
+    const projectStoredTherapistSettings = loadStoredTherapistSettingsProjector()
+    for (const invalidSnapshot of [
+      "scalar",
+      42,
+      [],
+      { unexpected: true },
+      {
+        name: "Partial owner",
+        location: "",
+        licenseNumber: "",
+        licenseOrganization: "",
+      },
+    ]) {
+      assert.equal(projectStoredTherapistSettings(invalidSnapshot), null)
+    }
+    assert.deepEqual(projectStoredTherapistSettings({
+      name: "Owner A",
+      location: "Columbus",
+      licenseNumber: "A-1",
+      licenseOrganization: "Ohio Board",
+      npiNumber: "111",
+      soapDraft: "must not persist",
+    }), {
+      name: "Owner A",
+      location: "Columbus",
+      licenseNumber: "A-1",
+      licenseOrganization: "Ohio Board",
+      npiNumber: "111",
+    })
+  })
+
+  it("removes invalid scoped storage without rewriting an empty snapshot", () => {
+    const storageKey = "massage-lab-therapist-settings:account:owner-a"
+    const harness = loadProviderOwnerTransitionHarness({
+      storedValues: new Map([[storageKey, JSON.stringify({ unexpected: true })]]),
+    })
+    try {
+      harness.render()
+      harness.flushEffects()
+
+      assert.deepEqual(harness.render().settings, {
+        name: "",
+        location: "",
+        licenseNumber: "",
+        licenseOrganization: "",
+        npiNumber: "",
+      })
+      assert.deepEqual(harness.storageRemovals, [storageKey])
+      assert.deepEqual(harness.storageWrites, [])
     } finally {
       harness.restore()
     }
