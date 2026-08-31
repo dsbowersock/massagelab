@@ -146,7 +146,7 @@ function loadProviderOwnerTransitionHarness({
   const callbackSlots = []
   const memoSlots = []
   const effectSlots = []
-  const pendingEffects = []
+  const pendingEffects = new Map()
   const storageReads = []
   const storageWrites = []
   const storageRemovals = []
@@ -205,8 +205,9 @@ function loadProviderOwnerTransitionHarness({
           effectCursor += 1
           const slot = effectSlots[cursor]
           if (!slot || !sameDependencies(slot.dependencies, dependencies)) {
-            effectSlots[cursor] = { ...slot, dependencies }
-            pendingEffects.push({ cursor, effect })
+            pendingEffects.set(cursor, { dependencies, effect })
+          } else {
+            pendingEffects.delete(cursor)
           }
         },
         useMemo: (factory, dependencies) => {
@@ -253,9 +254,14 @@ function loadProviderOwnerTransitionHarness({
 
   return {
     flushEffects() {
-      for (const { cursor, effect } of pendingEffects.splice(0)) {
-        effectSlots[cursor].cleanup?.()
-        effectSlots[cursor].cleanup = effect()
+      const effectsToFlush = [...pendingEffects]
+      pendingEffects.clear()
+      for (const [cursor, { dependencies, effect }] of effectsToFlush) {
+        effectSlots[cursor]?.cleanup?.()
+        effectSlots[cursor] = {
+          cleanup: effect(),
+          dependencies,
+        }
       }
     },
     render() {
@@ -264,7 +270,6 @@ function loadProviderOwnerTransitionHarness({
       callbackCursor = 0
       memoCursor = 0
       effectCursor = 0
-      pendingEffects.length = 0
       return provider.TherapistSettingsProvider({ children: null }).props.value
     },
     resolveOwnerBProfile(profile) {
@@ -601,6 +606,23 @@ describe("therapist settings cloud hydration", () => {
         harness.storageReads.at(-1),
         "massage-lab-therapist-settings:account:anonymous",
       )
+    } finally {
+      harness.restore()
+    }
+  })
+
+  it("keeps an effect queued through an intervening render until flush", () => {
+    const harness = loadProviderOwnerTransitionHarness()
+    try {
+      harness.render()
+      harness.render()
+      assert.deepEqual(harness.storageReads, [])
+
+      harness.flushEffects()
+
+      assert.deepEqual(harness.storageReads, [
+        "massage-lab-therapist-settings:account:owner-a",
+      ])
     } finally {
       harness.restore()
     }

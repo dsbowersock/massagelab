@@ -2,7 +2,10 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
-import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import {
+  createCompiledModuleLoader,
+  findElement,
+} from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const preferenceSyncSource = await readFile(
@@ -36,7 +39,20 @@ const localPreferenceKeys = {
   calendarPreferences: "massagelab-calendar-preferences",
 }
 
+function deferred() {
+  let reject
+  let resolve
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    reject = rejectPromise
+    resolve = resolvePromise
+  })
+  return { promise, reject, resolve }
+}
+
 function loadPreferenceSync(ownerKey, {
+  fetchImpl = async () => ({ ok: true }),
+  getItem,
+  hasCloudPreferences = false,
   values = new Map([
     ["massage-lab-therapist-settings", JSON.stringify({ name: "Ambiguous legacy owner" })],
     ["massage-lab-therapist-settings:account:owner-a", JSON.stringify({
@@ -109,25 +125,45 @@ function loadPreferenceSync(ownerKey, {
 
   const previousWindow = globalThis.window
   const previousFetch = globalThis.fetch
-  globalThis.window = {
+  const testWindow = {
     localStorage: {
       getItem: (key) => {
         storageReads.push(key)
+        if (getItem) return getItem(key)
         return values.get(key) ?? null
       },
     },
   }
-  globalThis.fetch = async (url, init) => {
+  const testFetch = async (url, init) => {
     requests.push({ url, init })
-    return { ok: true }
+    return fetchImpl(url, init)
   }
+  globalThis.window = testWindow
+  globalThis.fetch = testFetch
 
   try {
-    provider.PreferenceSync({ hasCloudPreferences: false })
+    const element = provider.PreferenceSync({ hasCloudPreferences })
     for (const effect of effects) effect()
+    const syncButton = findElement(element, ({ type }) => type === "Button")
+    assert.ok(syncButton, "preference sync must render its manual sync button")
     return {
       requests,
       storageReads,
+      async syncLocalPreferences() {
+        const currentWindow = globalThis.window
+        const currentFetch = globalThis.fetch
+        globalThis.window = testWindow
+        globalThis.fetch = testFetch
+        try {
+          return await syncButton.props.onClick()
+        } finally {
+          globalThis.window = currentWindow
+          globalThis.fetch = currentFetch
+        }
+      },
+      get isSyncing() {
+        return stateSlots[1].value
+      },
       get status() {
         return stateSlots[0].value
       },
@@ -225,5 +261,51 @@ describe("Account preference sync therapist ownership", () => {
       assert.deepEqual(sync.requests.map(({ url }) => url), ["/api/account/preferences"])
       assert.equal(sync.status, "Local preferences synced to your account.")
     }
+  })
+
+  it("settles failed preference and profile requests without leaving sync pending", async () => {
+    const preferenceRequest = deferred()
+    const profileRequest = deferred()
+    const unhandledRejections = []
+    const onUnhandledRejection = (error) => unhandledRejections.push(error)
+    process.on("unhandledRejection", onUnhandledRejection)
+
+    try {
+      const sync = loadPreferenceSync("owner-b", {
+        fetchImpl: (url) => (
+          url === "/api/account/preferences"
+            ? preferenceRequest.promise
+            : profileRequest.promise
+        ),
+        hasCloudPreferences: true,
+      })
+
+      const result = sync.syncLocalPreferences()
+      assert.equal(sync.isSyncing, true)
+      preferenceRequest.reject(new Error("preferences unavailable"))
+
+      await assert.doesNotReject(result)
+      profileRequest.reject(new Error("profile unavailable"))
+      await new Promise((resolve) => setImmediate(resolve))
+      assert.equal(sync.isSyncing, false)
+      assert.equal(sync.status, "Preference sync failed. Sign in again and retry.")
+      assert.deepEqual(unhandledRejections, [])
+    } finally {
+      process.off("unhandledRejection", onUnhandledRejection)
+    }
+  })
+
+  it("clears pending and reports failure when browser storage cannot be read", async () => {
+    const sync = loadPreferenceSync(null, {
+      getItem: () => {
+        throw new Error("browser storage unavailable")
+      },
+      hasCloudPreferences: true,
+    })
+
+    await assert.doesNotReject(sync.syncLocalPreferences())
+    assert.equal(sync.isSyncing, false)
+    assert.equal(sync.status, "Preference sync failed. Sign in again and retry.")
+    assert.deepEqual(sync.requests, [])
   })
 })

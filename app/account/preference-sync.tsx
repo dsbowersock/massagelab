@@ -58,50 +58,55 @@ export function PreferenceSync({ hasCloudPreferences }: PreferenceSyncProps) {
     setIsSyncing(true)
     setStatus("")
 
-    const payload = buildUserPreferencePayload({
-      appSettings: readJsonPreference(LOCAL_PREFERENCE_KEYS.appSettings),
-      chimerSettings: readJsonPreference(LOCAL_PREFERENCE_KEYS.chimerSettings),
-      anatomimeSettings: readJsonPreference(LOCAL_PREFERENCE_KEYS.anatomimeSettings),
-      notePreferences: readJsonPreference(LOCAL_PREFERENCE_KEYS.notePreferences),
-      calendarPreferences: readJsonPreference(LOCAL_PREFERENCE_KEYS.calendarPreferences),
-    }, {
-      backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
-    })
+    try {
+      const payload = buildUserPreferencePayload({
+        appSettings: readJsonPreference(LOCAL_PREFERENCE_KEYS.appSettings),
+        chimerSettings: readJsonPreference(LOCAL_PREFERENCE_KEYS.chimerSettings),
+        anatomimeSettings: readJsonPreference(LOCAL_PREFERENCE_KEYS.anatomimeSettings),
+        notePreferences: readJsonPreference(LOCAL_PREFERENCE_KEYS.notePreferences),
+        calendarPreferences: readJsonPreference(LOCAL_PREFERENCE_KEYS.calendarPreferences),
+      }, {
+        backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
+      })
 
-    const therapistSettings = ownerKey
-      ? readOptionalTherapistSettings(therapistSettingsStorageKey(ownerKey))
-      : null
-    const preferencesRequest = fetch("/api/account/preferences", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        appSettings: payload.app_settings,
-        chimerSettings: payload.chimer_settings,
-        anatomimeSettings: payload.anatomime_settings,
-        notePreferences: payload.note_preferences,
-        calendarPreferences: payload.calendar_preferences,
-      }),
-    })
-    const profileRequest = therapistSettings !== null
-      ? fetch("/api/account/profile", {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            therapistSettings,
-          }),
-        })
-      : Promise.resolve(null)
-    const [preferencesResponse, profileResponse] = await Promise.all([
-      preferencesRequest,
-      profileRequest,
-    ])
+      const therapistSettings = ownerKey
+        ? readOptionalTherapistSettings(therapistSettingsStorageKey(ownerKey))
+        : null
+      const preferencesRequest = fetch("/api/account/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          appSettings: payload.app_settings,
+          chimerSettings: payload.chimer_settings,
+          anatomimeSettings: payload.anatomime_settings,
+          notePreferences: payload.note_preferences,
+          calendarPreferences: payload.calendar_preferences,
+        }),
+      })
+      const profileRequest = therapistSettings !== null
+        ? fetch("/api/account/profile", {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              therapistSettings,
+            }),
+          })
+        : Promise.resolve(null)
+      const [preferencesResponse, profileResponse] = await Promise.all([
+        preferencesRequest,
+        profileRequest,
+      ])
 
-    setIsSyncing(false)
-    setStatus(
-      preferencesResponse.ok && (profileResponse === null || profileResponse.ok)
-        ? "Local preferences synced to your account."
-        : "Preference sync failed. Sign in again and retry.",
-    )
+      setStatus(
+        preferencesResponse.ok && (profileResponse === null || profileResponse.ok)
+          ? "Local preferences synced to your account."
+          : "Preference sync failed. Sign in again and retry.",
+      )
+    } catch {
+      setStatus("Preference sync failed. Sign in again and retry.")
+    } finally {
+      setIsSyncing(false)
+    }
   }, [ownerKey])
 
   useEffect(() => {
