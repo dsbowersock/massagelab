@@ -43,37 +43,35 @@ const googleManagementScenarios = [
 const source = await readFile(
   new URL("../lib/account-two-factor-management.ts", import.meta.url),
   "utf8",
-).catch(() => "")
+)
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
-const service = source
-  ? loadCompiledModule(source, "account-two-factor-management.test.ts", {
-      "@/lib/auth-env": { getAuthSecret: () => AUTH_SECRET },
-      "@/lib/auth-method-intent-proof": {
-        isFreshConsumedGoogleReauth: defaultIsFreshGoogleProof,
-        consumeFreshGoogleReauth: defaultConsumeGoogleProof,
-      },
-      "@/lib/auth-method-proof": {
-        verifyPasswordMethodProof: async () => ({ status: "INVALID" }),
-        preparePasswordMethodProofForTwoFactorManagement: async () => ({ status: "INVALID" }),
-      },
-      "@/lib/auth-rate-limit": {
-        checkCredentialRateLimit: async () => ({ allowed: true }),
-        clearCredentialAccountFailure: async () => {},
-        recordCredentialFailure: async () => ({ allowed: true }),
-      },
-      "@/lib/auth-security": { normalizeEmail: (value) => String(value ?? "").trim().toLowerCase() },
-      "@/lib/auth-two-factor-proof": {
-        prepareCurrentTwoFactorProof: async () => ({ status: "TWO_FACTOR_INVALID" }),
-        consumePreparedTwoFactorProof: async () => false,
-      },
-      "@/lib/commerce/transactions": {
-        runCommerceTransaction: (client, callback) => client.$transaction(callback, { isolationLevel: "Serializable" }),
-      },
-      "@/lib/prisma": { prisma: {} },
-      "@/lib/two-factor-enrollment-binding": enrollmentBinding,
-      "qrcode": { toDataURL: async () => QR_CODE },
-    })
-  : {}
+const service = loadCompiledModule(source, "account-two-factor-management.test.ts", {
+  "@/lib/auth-env": { getAuthSecret: () => AUTH_SECRET },
+  "@/lib/auth-method-intent-proof": {
+    isFreshConsumedGoogleReauth: defaultIsFreshGoogleProof,
+    consumeFreshGoogleReauth: defaultConsumeGoogleProof,
+  },
+  "@/lib/auth-method-proof": {
+    verifyPasswordMethodProof: async () => ({ status: "INVALID" }),
+    preparePasswordMethodProofForTwoFactorManagement: async () => ({ status: "INVALID" }),
+  },
+  "@/lib/auth-rate-limit": {
+    checkCredentialRateLimit: async () => ({ allowed: true }),
+    clearCredentialAccountFailure: async () => {},
+    recordCredentialFailure: async () => ({ allowed: true }),
+  },
+  "@/lib/auth-security": { normalizeEmail: (value) => String(value ?? "").trim().toLowerCase() },
+  "@/lib/auth-two-factor-proof": {
+    prepareCurrentTwoFactorProof: async () => ({ status: "TWO_FACTOR_INVALID" }),
+    consumePreparedTwoFactorProof: async () => false,
+  },
+  "@/lib/commerce/transactions": {
+    runCommerceTransaction: (client, callback) => client.$transaction(callback, { isolationLevel: "Serializable" }),
+  },
+  "@/lib/prisma": { prisma: {} },
+  "@/lib/two-factor-enrollment-binding": enrollmentBinding,
+  "qrcode": { toDataURL: async () => QR_CODE },
+})
 
 describe("proved and browser-bound two-factor enrollment", () => {
   it("exports every planned two-factor state-machine entry point", () => {

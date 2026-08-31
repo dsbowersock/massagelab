@@ -117,7 +117,6 @@ export function TwoFactorManagementPanel({
     if (!beginAction("google-proof")) return
     setFeedback(null)
     let redirecting = false
-    const initialHref = typeof window === "undefined" ? "" : window.location.href
     try {
       const response = await fetch("/api/auth/google/intent", {
         method: "POST",
@@ -130,8 +129,7 @@ export function TwoFactorManagementPanel({
         return
       }
       await signIn("google", { redirectTo: result.callbackUrl })
-      redirecting = typeof window !== "undefined" && window.location.href !== initialHref
-      if (!redirecting) failGeneric()
+      redirecting = true
     } catch {
       redirecting = false
       failGeneric()
@@ -293,10 +291,10 @@ export function TwoFactorManagementPanel({
       || !beginAction("backup-codes-sign-out")
     ) return
     setFeedback(null)
-    setBackupCodes([])
-    setBackupCodesAcknowledged(false)
     try {
       await signOut({ redirectTo: REAUTH_CALLBACK })
+      setBackupCodes([])
+      setBackupCodesAcknowledged(false)
     } catch {
       failGeneric()
     } finally {

@@ -26,6 +26,10 @@ function deferred() {
 }
 
 function loadCoordinator(loadContext, options = {}) {
+  const {
+    fetchJsonWithTimeout = async () => ({ response: { ok: false }, json: undefined }),
+    ...coordinatorOptions
+  } = options
   const provider = loadCompiledModule(
     providerSource,
     "components/sidebar/sidebar-calendar-provider.test.tsx",
@@ -38,6 +42,7 @@ function loadCoordinator(loadContext, options = {}) {
         useMemo: (factory) => factory(),
         useState: (initial) => [typeof initial === "function" ? initial() : initial, () => undefined],
       },
+      "@/lib/client-fetch": { fetchJsonWithTimeout },
       "@/lib/sidebar-calendar-context": { emptySidebarCalendarContext },
     },
   )
@@ -50,7 +55,7 @@ function loadCoordinator(loadContext, options = {}) {
     initialEnabled: false,
     initialOwnerKey: null,
     loadContext,
-    ...options,
+    ...coordinatorOptions,
   })
 }
 
@@ -88,6 +93,57 @@ describe("sidebar calendar context route gating", () => {
     assert.equal(calls[0].ownerKey, "owner-a")
     assert.equal(calls[0].signal.aborted, false)
     assert.deepEqual(coordinator.getValue(), expected)
+  })
+
+  it("bounds the default sidebar endpoint read through the shared JSON helper", async () => {
+    const calls = []
+    const expected = {
+      ...emptySidebarCalendarContext,
+      practice: { id: "practice-a", name: "Practice A" },
+    }
+    const coordinator = loadCoordinator(undefined, {
+      initialEnabled: true,
+      initialOwnerKey: "owner-a",
+      fetchJsonWithTimeout: async (...args) => {
+        calls.push(args)
+        return { response: { ok: true }, json: expected }
+      },
+    })
+
+    await coordinator.refresh()
+
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0][0], "/api/calendar/sidebar-context")
+    assert.equal(calls[0][1].method, "GET")
+    assert.equal(calls[0][1].signal instanceof AbortSignal, true)
+    assert.equal(calls[0][2], 10_000)
+    assert.deepEqual(coordinator.getValue(), expected)
+  })
+
+  it("keeps the last context visible while an explicit refresh replaces it", async () => {
+    const refreshRequest = deferred()
+    const initialContext = {
+      ...emptySidebarCalendarContext,
+      practice: { id: "practice-a", name: "Initial Practice" },
+    }
+    const refreshedContext = {
+      ...emptySidebarCalendarContext,
+      practice: { id: "practice-a", name: "Refreshed Practice" },
+    }
+    let requests = 0
+    const coordinator = loadCoordinator(async () => {
+      requests += 1
+      return requests === 1 ? initialContext : refreshRequest.promise
+    })
+
+    await coordinator.adopt({ ownerKey: "owner-a", enabled: true })
+    const refresh = coordinator.refresh()
+
+    assert.deepEqual(coordinator.getValue(), initialContext)
+    refreshRequest.resolve(refreshedContext)
+    await refresh
+    assert.equal(requests, 2)
+    assert.deepEqual(coordinator.getValue(), refreshedContext)
   })
 
   it("aborts owner A and exposes empty context until owner B resolves", async () => {
@@ -149,8 +205,8 @@ describe("sidebar calendar context route gating", () => {
     assert.match(layoutSource, /enabled=\{accountBootstrap\.hasPracticeMembership\}/)
     assert.doesNotMatch(layoutSource, /<SidebarCalendarProvider\s+enabled=\{Boolean\(user\)\}/)
     assert.match(providerSource, /new AbortController\(\)/)
-    assert.match(providerSource, /fetch\("\/api\/calendar\/sidebar-context"[\s\S]*\bsignal,/)
-    assert.match(providerSource, /fetch\("\/api\/calendar\/sidebar-context"/)
+    assert.match(providerSource, /fetchJsonWithTimeout[\s\S]*"\/api\/calendar\/sidebar-context"/)
+    assert.match(providerSource, /fetchJsonWithTimeout[\s\S]*10_000/)
   })
 
   it("keeps the endpoint authenticated and its PHI-minimized response owner unchanged", () => {

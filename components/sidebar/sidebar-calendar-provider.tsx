@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { fetchJsonWithTimeout } from "@/lib/client-fetch"
 import { emptySidebarCalendarContext } from "@/lib/sidebar-calendar-context"
 
 export type SidebarCalendarContext = {
@@ -43,15 +44,19 @@ const SidebarCalendarContextValue = React.createContext<SidebarCalendarProviderV
 })
 
 async function loadSidebarCalendarContext({ signal }: { signal: AbortSignal }) {
-  const response = await fetch("/api/calendar/sidebar-context", {
-    method: "GET",
-    cache: "no-store",
-    credentials: "same-origin",
-    headers: { accept: "application/json" },
-    signal,
-  })
-  return response.ok
-    ? await response.json() as SidebarCalendarContext
+  const { response, json } = await fetchJsonWithTimeout<SidebarCalendarContext>(
+    "/api/calendar/sidebar-context",
+    {
+      method: "GET",
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: { accept: "application/json" },
+      signal,
+    },
+    10_000,
+  )
+  return response.ok && json
+    ? json
     : defaultCalendarContext
 }
 

@@ -64,14 +64,14 @@ function providerHarnessBundle() {
         export function writeGuestBackgroundCartIds(_storage, ids) { return ids; }
       `)
       writeFileSync(entryPath, `
-        import React, { useState } from "react";
+        import React, { StrictMode, useEffect, useState } from "react";
         import { createRoot } from "react-dom/client";
         import { BackgroundCommerceProvider, useBackgroundCommerce } from ${JSON.stringify(providerModulePath)};
 
         const harness = window.__commerceProviderHarness = {
           calls: [],
           owner: null,
-          stateFetchMode: "success",
+          stateFetchMode: window.__commerceProviderInitialStateFetchMode || "success",
           stateFetchAborts: 0,
           pendingStateFetches: 0,
           mutationMode: "success",
@@ -136,6 +136,9 @@ function providerHarnessBundle() {
           latestCommerce = useBackgroundCommerce();
           harness.owner = owner;
           harness.state = latestCommerce.state;
+          useEffect(() => {
+            if (window.__commerceProviderAutomaticDemand) void latestCommerce.ensureSnapshot();
+          }, [latestCommerce.ensureSnapshot]);
           return React.createElement("div", { id: "probe", "data-owner": owner, "data-status": latestCommerce.state.status });
         }
         function App() {
@@ -163,7 +166,9 @@ function providerHarnessBundle() {
         harness.dispatchOnline = () => window.dispatchEvent(new Event("online"));
         harness.read = () => ({ owner: harness.owner, state: latestCommerce.state, calls: [...harness.calls] });
 
-        createRoot(document.getElementById("root")).render(React.createElement(App));
+        createRoot(document.getElementById("root")).render(
+          React.createElement(StrictMode, null, React.createElement(App)),
+        );
       `)
 
       const webpackModule = require("next/dist/compiled/webpack/webpack")
@@ -197,7 +202,10 @@ function providerHarnessBundle() {
   return providerHarnessBundlePromise
 }
 
-async function openProviderHarness(browser) {
+async function openProviderHarness(browser, {
+  automaticDemand = false,
+  stateFetchMode = "success",
+} = {}) {
   const page = await browser.newPage()
   await page.route("https://massagelab.test/fixture", (route) => route.fulfill({
     status: 200,
@@ -205,12 +213,67 @@ async function openProviderHarness(browser) {
     body: '<div id="root"></div>',
   }))
   await page.goto("https://massagelab.test/fixture")
+  await page.evaluate(({ automaticDemand, stateFetchMode }) => {
+    window.__commerceProviderAutomaticDemand = automaticDemand
+    window.__commerceProviderInitialStateFetchMode = stateFetchMode
+  }, { automaticDemand, stateFetchMode })
   await page.addScriptTag({ content: await providerHarnessBundle() })
   await page.waitForFunction(() => window.__commerceProviderHarness?.owner === "owner-a")
   return page
 }
 
 describe("BackgroundCommerceProvider owner behavior", () => {
+  it("replaces an aborted automatic mount read when Strict Mode replays the consumer", { timeout: 45_000 }, async () => {
+    const { chromium } = require("playwright")
+    const browser = await chromium.launch({ headless: true })
+    try {
+      const page = await openProviderHarness(browser, {
+        automaticDemand: true,
+        stateFetchMode: "pending",
+      })
+      await page.waitForFunction(() => window.__commerceProviderHarness.stateFetchAborts === 1)
+      await page.waitForTimeout(50)
+
+      const replay = await page.evaluate(() => ({
+        ...window.__commerceProviderHarness.read(),
+        pendingStateFetches: window.__commerceProviderHarness.pendingStateFetches,
+        stateFetchAborts: window.__commerceProviderHarness.stateFetchAborts,
+      }))
+      assert.equal(
+        replay.calls.filter((call) => call === "GET /api/background-commerce/state").length,
+        2,
+        JSON.stringify(replay),
+      )
+      assert.equal(replay.pendingStateFetches, 1, JSON.stringify(replay))
+
+      await page.evaluate(() => window.__commerceProviderHarness.resolveStateFetches())
+      await page.waitForFunction(() => window.__commerceProviderHarness.read().state.status === "ready")
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it("restores the current owner after Strict Mode replays layout effects", { timeout: 45_000 }, async () => {
+    const { chromium } = require("playwright")
+    const browser = await chromium.launch({ headless: true })
+    try {
+      const page = await openProviderHarness(browser)
+
+      await page.evaluate(() => window.__commerceProviderHarness.ensureSnapshot())
+      await page.waitForTimeout(100)
+
+      const current = await page.evaluate(() => window.__commerceProviderHarness.read())
+      assert.equal(
+        current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
+        1,
+        JSON.stringify(current),
+      )
+      assert.equal(current.state.status, "ready", JSON.stringify(current))
+    } finally {
+      await browser.close()
+    }
+  })
+
   it("does not redirect or commit state when an old owner's delayed checkout succeeds", { timeout: 45_000 }, async () => {
     const { chromium } = require("playwright")
     const browser = await chromium.launch({ headless: true })

@@ -9,10 +9,15 @@ import { prisma } from "@/lib/prisma"
 
 type SidebarDatabase = Pick<typeof prisma, "practiceMembership">
 
+/** PHI-free server projection shared by the root account-shell providers. */
 export type AccountShellBootstrap = {
+  /** Stable account owner used to reject stale client work; null for guests. */
   ownerKey: string | null
+  /** Whether this owner may synchronize account-backed preferences. */
   syncEnabled: boolean
+  /** Server-known preference hydration state for the current owner. */
   preferenceStatus: "anonymous" | "ready" | "failed"
+  /** Sanitized JSON data that is safe to hydrate across the server-client boundary. */
   appSettings: ReturnType<typeof projectAccountShellAppSettings>
   hasPracticeMembership: boolean
 }
@@ -32,22 +37,25 @@ export async function getAppSidebarData() {
       featureKeys?: string[] | null
     }
     | undefined
+  const authenticatedUser = canSyncAccountPreferences(sessionUser)
+    ? sessionUser
+    : undefined
   const [preferenceContext, navigationContext] = await Promise.all([
-    loadSidebarAccountPreference(sessionUser?.id),
-    getSidebarNavigationContext(sessionUser),
+    loadSidebarAccountPreference(authenticatedUser?.id),
+    getSidebarNavigationContext(authenticatedUser),
   ])
-  const user: SidebarUser = sessionUser
+  const user: SidebarUser = authenticatedUser
     ? {
-      name: sessionUser.name ?? "MassageLab user",
-      email: sessionUser.email ?? "",
-      image: sessionUser.image ?? "",
+      name: authenticatedUser.name ?? "MassageLab user",
+      email: authenticatedUser.email ?? "",
+      image: authenticatedUser.image ?? "",
       quickActionOnboarding: preferenceContext.quickActionOnboarding,
     }
     : null
-  const canSyncAccountSettings = canSyncAccountPreferences(sessionUser)
+  const canSyncAccountSettings = Boolean(authenticatedUser)
   const navigation = resolveNavigation(navigationContext) as SidebarNavigation
   const accountBootstrap: AccountShellBootstrap = {
-    ownerKey: canSyncAccountSettings ? sessionUser?.id ?? null : null,
+    ownerKey: authenticatedUser?.id ?? null,
     syncEnabled: canSyncAccountSettings,
     preferenceStatus: preferenceContext.preferenceStatus,
     appSettings: preferenceContext.appSettings,
@@ -117,7 +125,11 @@ export async function getSidebarNavigationContext(sessionUser?: {
   capabilities?: Record<string, boolean> | null
   featureKeys?: string[] | null
 }, database: SidebarDatabase = prisma) {
-  if (!sessionUser?.id) {
+  if (
+    !sessionUser
+    || typeof sessionUser.id !== "string"
+    || sessionUser.id.trim().length === 0
+  ) {
     return { authState: "anonymous" as const }
   }
 

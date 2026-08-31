@@ -178,8 +178,8 @@ export function BackgroundCommerceProvider({
   children: ReactNode
   ownerKey: string | null
 }) {
-  // A keyed owner boundary resets reducer/cart state synchronously. The old
-  // instance cleanup aborts its generation before the new owner can hydrate.
+  // A keyed owner boundary gives every account its own reducer, cart, and
+  // request generation; cleanup invalidates work retained by the old instance.
   return (
     <OwnerScopedBackgroundCommerceProvider key={ownerKey ?? "guest"} ownerKey={ownerKey}>
       {children}
@@ -240,6 +240,8 @@ function OwnerScopedBackgroundCommerceProvider({
 
     const requestOwnerKey = ownerKey
     const requestGeneration = ownerGenerationRef.current
+    // Every completion guard below treats aborts, generation changes, and
+    // owner changes as stale so an old read cannot dispatch into a new owner.
     readControllerRef.current?.abort()
     const controller = new AbortController()
     readControllerRef.current = controller
@@ -329,6 +331,8 @@ function OwnerScopedBackgroundCommerceProvider({
   ) => {
     const requestGeneration = ownerGenerationRef.current
     const requestOwnerKey = ownerKey
+    // Queued and completed work must still belong to this owner generation;
+    // stale work may neither write nor dispatch against a replacement owner.
     return enqueueSerializedOperation(async () => {
       if (
         !requestOwnerKey
@@ -485,6 +489,8 @@ function OwnerScopedBackgroundCommerceProvider({
     }
     const requestGeneration = ownerGenerationRef.current
     const requestOwnerKey = ownerKey
+    // Checkout completion guards keep stale work from writing, dispatching, or
+    // redirecting after the keyed owner boundary has moved to another account.
     await enqueueSerializedOperation(async () => {
       if (
         !requestOwnerKey
@@ -604,12 +610,19 @@ function OwnerScopedBackgroundCommerceProvider({
     }
   }, [ensureSnapshot, ownerKey, refresh, signedIn])
 
-  useLayoutEffect(() => () => {
-    ownerGenerationRef.current += 1
-    activeOwnerKeyRef.current = null
-    readControllerRef.current?.abort()
-    for (const controller of mutationControllersRef.current) controller.abort()
-  }, [])
+  useLayoutEffect(() => {
+    // React Strict Mode replays layout-effect cleanup without discarding refs.
+    // Re-adopt the keyed owner during setup so the rehearsal cannot disable it.
+    activeOwnerKeyRef.current = ownerKey
+    const mutationControllers = mutationControllersRef.current
+    return () => {
+      ownerGenerationRef.current += 1
+      activeOwnerKeyRef.current = null
+      readControllerRef.current?.abort()
+      snapshotPromiseRef.current = null
+      for (const controller of mutationControllers) controller.abort()
+    }
+  }, [ownerKey])
 
   const openCart = useCallback(() => {
     void ensureSnapshot()
