@@ -702,6 +702,26 @@ describe("Anatomime room poll traffic boundary", () => {
     assert.deepEqual(scenario.durableCalls, [])
   })
 
+  it("does not disclose joined or host projection when a proven guest becomes account-bound before hydration", async () => {
+    const roomScenario = loadPresenceRoomServerForRoute({
+      userId: "newly-bound-account",
+      presenceResult: new Date("2026-08-31T12:00:15.000Z"),
+    })
+    const scenario = loadPollRoute({ roomServer: roomScenario })
+    const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/ab12", {
+        "x-anatomime-player-id": "database-player",
+        "x-anatomime-player-token": "opaque-token",
+      }),
+      { params: Promise.resolve({ code: "ab12" }) },
+    )
+
+    assert.equal(response.status, 200)
+    const payload = await response.json()
+    assert.deepEqual(payload.session.viewer, { isHost: false, playerId: null, teamId: null })
+    assert.deepEqual(roomScenario.coalesceCalls, [])
+  })
+
   it("returns a missing room without full hydration or durable quota", async () => {
     const scenario = loadPollRoute({ preflightResult: { kind: "ROOM_NOT_FOUND" } })
     const response = await scenario.GET(
@@ -1029,6 +1049,7 @@ function loadPollRoute({
   joinedDecision = { allowed: true },
   durableError,
   shedderError,
+  roomServer,
 } = {}) {
   const events = []
   const ingressCalls = []
@@ -1050,7 +1071,7 @@ function loadPollRoute({
       },
       "@/lib/anatomime-api": apiBoundary,
       "@/lib/auth-request": { authRequestNetworkIdentifier },
-      "@/lib/anatomime-room-server": {
+      "@/lib/anatomime-room-server": roomServer ?? {
         loadAnatomimeRoom: async (code, viewer) => {
           events.push("hydrate")
           hydrateCalls.push({ code, viewer })
@@ -1108,6 +1129,106 @@ function loadPollRoute({
   } finally {
     if (previousSecret === undefined) delete process.env.AUTH_SECRET
     else process.env.AUTH_SECRET = previousSecret
+  }
+}
+
+function loadPresenceRoomServerForRoute({ userId, presenceResult }) {
+  const coalesceCalls = []
+  const lastSeenAt = new Date("2026-08-31T12:00:00.000Z")
+  const room = minimalRoomFixture({
+    code: "AB12",
+    hostPlayerId: "database-player",
+    hostPlayer: { userId },
+    players: [{
+      id: "database-player",
+      roomId: "room-db",
+      teamId: null,
+      userId,
+      displayName: "Bound player",
+      guestTokenHash: "hash:opaque-token",
+      lastSeenAt,
+    }],
+  })
+  const service = loadCompiledModule(roomServerSource, "lib/anatomime-room-server.binding-race-route-test.ts", {
+    "./auth-security.js": {
+      generateRandomToken: () => "ABC123",
+      hashToken: (value) => `hash:${value}`,
+    },
+    "./anatomime-session-server.ts": { AnatomimeSessionError },
+    "./anatomime-progress-server.ts": { updateAnatomimeNameRecallProgress: async () => {} },
+    "./anatomime-realtime.ts": { publishAnatomimeRealtimeEvent: async () => {} },
+    "./anatomime-shared.ts": roomServerSharedDependencies(),
+    "./anatomime-room-rules.ts": roomServerRuleDependencies(),
+    "./anatomime-traffic-server.ts": {
+      coalesceAnatomimePlayerPresence: async (input) => {
+        coalesceCalls.push(input)
+        return presenceResult
+      },
+    },
+    "./prisma.ts": {
+      prisma: {
+        anatomimeRoom: { findUnique: async () => room },
+      },
+    },
+  })
+
+  return {
+    coalesceCalls,
+    loadAnatomimeRoom: service.loadAnatomimeRoom,
+    summarizeAnatomimeRoom: service.summarizeAnatomimeRoom,
+  }
+}
+
+function minimalRoomFixture(overrides = {}) {
+  return {
+    id: "room-db",
+    code: "AB12",
+    status: "LOBBY",
+    metadata: {},
+    expiresAt: new Date("2100-01-01T00:00:00.000Z"),
+    reviewExpiresAt: null,
+    hostPlayerId: "host-player",
+    hostPlayer: null,
+    hostLastActivityAt: new Date(),
+    currentRun: null,
+    teams: [],
+    players: [],
+    elections: [],
+    ...overrides,
+  }
+}
+
+function roomServerSharedDependencies() {
+  return {
+    anatomimeTermFromCard: () => null,
+    buildAnatomimeMultipleChoiceOptions: () => [],
+    checkAnatomimeAnswer: () => ({ correct: false }),
+    createAnatomimeSessionDeck: () => [],
+    getAnatomimeCandidateCards: () => [],
+    labelAnatomimeCategory: () => "",
+    labelAnatomimeRegion: () => "",
+    normalizeAnatomimeSessionConfig: () => ({
+      answerMode: "typed",
+      clueLevel: "standard",
+      hardcoreMode: false,
+      roundLimit: 1,
+      roundSeconds: 60,
+      seed: "seed",
+      selectedCardIds: [],
+      teamNames: ["Team 1"],
+    }),
+  }
+}
+
+function roomServerRuleDependencies() {
+  return {
+    ANATOMIME_ELECTION_SECONDS: 60,
+    ANATOMIME_HOST_IDLE_SECONDS: 60,
+    ANATOMIME_REVIEW_WINDOW_MINUTES: 60,
+    ANATOMIME_ROOM_IDLE_MINUTES: 60,
+    ANATOMIME_TERM_SECONDS: 60,
+    ANATOMIME_TERMS_PER_TURN: 4,
+    shouldExposeAnatomimeChoiceOptions: () => false,
   }
 }
 

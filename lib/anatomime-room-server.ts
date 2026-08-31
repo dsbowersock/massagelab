@@ -287,7 +287,11 @@ function viewerPlayer(room: AnatomimeRoomWithRelations, viewer: ViewerContext = 
   }
 
   if (viewer.playerId) {
-    const byToken = room.players.find((player) => player.id === viewer.playerId && playerTokenMatches(player, viewer.playerToken))
+    const byToken = room.players.find((player) => (
+      player.id === viewer.playerId
+      && player.userId === null
+      && playerTokenMatches(player, viewer.playerToken)
+    ))
     if (byToken) return byToken
   }
 
@@ -496,7 +500,10 @@ async function loadLockedTurnReviewRoom(
   return { room: currentRoom, run: currentRun }
 }
 
-async function expireRoomIfIdle(room: AnatomimeRoomWithRelations, now = new Date()) {
+async function expireRoomIfIdle(
+  room: AnatomimeRoomWithRelations,
+  now = new Date(),
+): Promise<AnatomimeRoomWithRelations> {
   if (room.status === "EXPIRED" || room.expiresAt.getTime() > now.getTime()) return room
 
   return prisma.$transaction(async (tx) => {
@@ -508,12 +515,11 @@ async function expireRoomIfIdle(room: AnatomimeRoomWithRelations, now = new Date
       },
       data: { status: "EXPIRED" },
     })
-    if (expired.count === 0) return reloadRoom(tx, room.id)
+    if (expired.count === 0) return readAndPatchRoomExpiryConflict(tx, room)
 
-    const currentRoom = await reloadRoom(tx, room.id)
-    if (currentRoom.currentRun && currentRoom.currentRun.status === "PLAYING") {
-      await tx.anatomimeGameRun.updateMany({
-        where: { roomId: currentRoom.id, id: currentRoom.currentRun.id, status: "PLAYING" },
+    if (room.currentRun && room.currentRun.status === "PLAYING") {
+      const completed = await tx.anatomimeGameRun.updateMany({
+        where: { roomId: room.id, id: room.currentRun.id, status: "PLAYING" },
         data: {
           status: "GAME_COMPLETE",
           phase: "GAME_COMPLETE",
@@ -521,10 +527,56 @@ async function expireRoomIfIdle(room: AnatomimeRoomWithRelations, now = new Date
           completedAt: now,
         },
       })
+      if (completed.count === 0) return readAndPatchRoomExpiryConflict(tx, room)
+
+      return {
+        ...room,
+        status: "EXPIRED",
+        currentRun: {
+          ...room.currentRun,
+          status: "GAME_COMPLETE",
+          phase: "GAME_COMPLETE",
+          termEndsAt: null,
+          completedAt: now,
+        },
+      }
     }
 
-    return reloadRoom(tx, currentRoom.id)
+    return { ...room, status: "EXPIRED" }
   })
+}
+
+/** Uses only lifecycle fields to reconcile a concurrent expiry writer. */
+async function readAndPatchRoomExpiryConflict(
+  tx: Prisma.TransactionClient,
+  room: AnatomimeRoomWithRelations,
+): Promise<AnatomimeRoomWithRelations> {
+  const snapshot = await tx.anatomimeRoom.findUnique({
+    where: { id: room.id },
+    select: {
+      status: true,
+      expiresAt: true,
+      currentRun: {
+        select: {
+          id: true,
+          status: true,
+          phase: true,
+          termEndsAt: true,
+          completedAt: true,
+        },
+      },
+    },
+  })
+  if (!snapshot) throw roomError(404, "room-not-found", "Game not found.")
+
+  return {
+    ...room,
+    status: snapshot.status,
+    expiresAt: snapshot.expiresAt,
+    currentRun: room.currentRun && snapshot.currentRun?.id === room.currentRun.id
+      ? { ...room.currentRun, ...snapshot.currentRun }
+      : null,
+  }
 }
 
 async function markViewerSeen(room: AnatomimeRoomWithRelations, viewer: ViewerContext = {}, now = new Date()) {
@@ -909,14 +961,16 @@ export async function loadAnatomimeRoom(
   viewer: ViewerContext = {},
   options: { now?: Date } = {},
 ) {
-  const now = options.now ?? new Date()
   const room = await prisma.anatomimeRoom.findUnique({
     where: { code: publicCode(code) },
     include: roomInclude,
   })
   if (!room) return null
 
+  // Explicit test clocks remain exact; normal runtime time is captured after hydration.
+  const now = options.now ?? new Date()
   const currentRoom = await expireRoomIfIdle(room, now)
+  if (currentRoom.status === "EXPIRED") return currentRoom
   return markViewerSeen(currentRoom, viewer, now)
 }
 

@@ -355,6 +355,113 @@ describe("Anatomime traffic server primitives", () => {
       lastSeenAt: now,
     }])
   })
+
+  it("rejects retained guest proof after the hydrated player becomes account-bound", async () => {
+    const now = new Date("2026-08-31T12:00:15.000Z")
+    const scenario = loadPresenceRoomServer({
+      lastSeenAt: new Date("2026-08-31T12:00:00.000Z"),
+      presenceResult: now,
+      userId: "newly-bound-account",
+    })
+    const viewer = { playerId: "player-1", playerToken: "guest-token" }
+
+    const room = await scenario.loadAnatomimeRoom("room1", viewer, { now })
+    const projection = scenario.summarizeAnatomimeRoom(room, viewer)
+
+    assert.deepEqual(scenario.coalesceCalls, [])
+    assert.deepEqual(projection.viewer, { isHost: false, playerId: null, teamId: null })
+  })
+
+  it("captures runtime time after delayed hydration and expires without refreshing presence", async () => {
+    const room = minimalPresenceRoom({
+      status: "PLAYING",
+      currentRun: playingRunFixture(),
+    })
+    const scenario = loadPresenceRoomServer({
+      room,
+      presenceResult: new Date("2100-01-01T00:00:00.000Z"),
+      onHydrate: async (hydratedRoom) => {
+        hydratedRoom.expiresAt = new Date(Date.now() + 25)
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      },
+    })
+
+    const loaded = await scenario.loadAnatomimeRoom("room1", {
+      playerId: "player-1",
+      playerToken: "guest-token",
+    })
+
+    assert.equal(loaded.status, "EXPIRED")
+    assert.equal(loaded.currentRun.status, "GAME_COMPLETE")
+    assert.equal(loaded.currentRun.phase, "GAME_COMPLETE")
+    assert.equal(loaded.currentRun.termEndsAt, null)
+    assert.deepEqual(scenario.coalesceCalls, [])
+  })
+
+  it("expires the one hydrated graph without a second full relational read", async () => {
+    const now = new Date("2026-08-31T12:00:16.000Z")
+    const room = minimalPresenceRoom({
+      status: "PLAYING",
+      expiresAt: new Date("2026-08-31T12:00:15.000Z"),
+      currentRun: playingRunFixture(),
+    })
+    const scenario = loadPresenceRoomServer({ room })
+
+    const loaded = await scenario.loadAnatomimeRoom("room1", {}, { now })
+
+    assert.equal(scenario.hydrateCalls.length, 1)
+    assert.deepEqual(scenario.narrowReadCalls, [])
+    assert.equal(scenario.expireRoomCalls.length, 1)
+    assert.equal(scenario.expireRunCalls.length, 1)
+    assert.equal(loaded.status, "EXPIRED")
+    assert.equal(loaded.currentRun.status, "GAME_COMPLETE")
+    assert.equal(loaded.currentRun.phase, "GAME_COMPLETE")
+    assert.equal(loaded.currentRun.termEndsAt, null)
+    assert.deepEqual(loaded.currentRun.completedAt, now)
+  })
+
+  it("uses one narrow conflict read instead of rehydrating when another expiry wins", async () => {
+    const now = new Date("2026-08-31T12:00:16.000Z")
+    const room = minimalPresenceRoom({
+      status: "PLAYING",
+      expiresAt: new Date("2026-08-31T12:00:15.000Z"),
+      currentRun: playingRunFixture(),
+    })
+    const conflictRoom = {
+      status: "EXPIRED",
+      expiresAt: room.expiresAt,
+      currentRun: {
+        ...playingRunFixture(),
+        status: "GAME_COMPLETE",
+        phase: "GAME_COMPLETE",
+        termEndsAt: null,
+        completedAt: new Date("2026-08-31T12:00:15.500Z"),
+      },
+    }
+    const scenario = loadPresenceRoomServer({ room, expireRoomCount: 0, conflictRoom })
+
+    const loaded = await scenario.loadAnatomimeRoom("room1", {}, { now })
+
+    assert.equal(scenario.hydrateCalls.length, 1)
+    assert.equal(scenario.narrowReadCalls.length, 1)
+    assert.equal(scenario.narrowReadCalls[0].include, undefined)
+    assert.deepEqual(scenario.narrowReadCalls[0].select, {
+      status: true,
+      expiresAt: true,
+      currentRun: {
+        select: {
+          id: true,
+          status: true,
+          phase: true,
+          termEndsAt: true,
+          completedAt: true,
+        },
+      },
+    })
+    assert.equal(loaded.status, "EXPIRED")
+    assert.equal(loaded.currentRun.status, "GAME_COMPLETE")
+    assert.deepEqual(loaded.currentRun.completedAt, conflictRoom.currentRun.completedAt)
+  })
 })
 
 function roomPreflightClient(calls, result) {
@@ -368,29 +475,41 @@ function roomPreflightClient(calls, result) {
   }
 }
 
-function loadPresenceRoomServer({ lastSeenAt, presenceResult }) {
+function loadPresenceRoomServer({
+  lastSeenAt = new Date("2026-08-31T12:00:00.000Z"),
+  presenceResult = null,
+  userId = null,
+  room = minimalPresenceRoom({ lastSeenAt, userId }),
+  onHydrate,
+  expireRoomCount = 1,
+  expireRunCount = 1,
+  conflictRoom = null,
+} = {}) {
   const hydrateCalls = []
   const legacyPresenceCalls = []
   const coalesceCalls = []
-  const room = {
-    id: "room-1",
-    code: "ROOM1",
-    status: "LOBBY",
-    expiresAt: new Date("2100-01-01T00:00:00.000Z"),
-    players: [{
-      id: "player-1",
-      roomId: "room-1",
-      userId: null,
-      guestTokenHash: hashToken("guest-token"),
-      lastSeenAt,
-    }],
+  const narrowReadCalls = []
+  const expireRoomCalls = []
+  const expireRunCalls = []
+  const fullRoomRead = async (args) => {
+    hydrateCalls.push(args)
+    await onHydrate?.(room)
+    return room
+  }
+  const transactionRoom = {
+    updateMany: async (args) => {
+      expireRoomCalls.push(args)
+      return { count: expireRoomCount }
+    },
+    findUnique: async (args) => {
+      if (args.include) return fullRoomRead(args)
+      narrowReadCalls.push(args)
+      return conflictRoom
+    },
   }
   const prisma = {
     anatomimeRoom: {
-      findUnique: async (args) => {
-        hydrateCalls.push(args)
-        return room
-      },
+      findUnique: fullRoomRead,
     },
     anatomimeRoomPlayer: {
       update: async (args) => {
@@ -398,6 +517,15 @@ function loadPresenceRoomServer({ lastSeenAt, presenceResult }) {
         return room.players[0]
       },
     },
+    $transaction: async (callback) => callback({
+      anatomimeRoom: transactionRoom,
+      anatomimeGameRun: {
+        updateMany: async (args) => {
+          expireRunCalls.push(args)
+          return { count: expireRunCount }
+        },
+      },
+    }),
   }
   const service = loadCompiledModule(roomServerSource, "lib/anatomime-room-server.presence-test.ts", {
     "./auth-security.js": {
@@ -437,7 +565,48 @@ function loadPresenceRoomServer({ lastSeenAt, presenceResult }) {
   return {
     ...service,
     coalesceCalls,
+    expireRoomCalls,
+    expireRunCalls,
     hydrateCalls,
     legacyPresenceCalls,
+    narrowReadCalls,
+  }
+}
+
+function minimalPresenceRoom({ lastSeenAt = new Date("2026-08-31T12:00:00.000Z"), userId = null, ...overrides } = {}) {
+  const player = {
+    id: "player-1",
+    roomId: "room-1",
+    teamId: null,
+    userId,
+    displayName: "Player",
+    guestTokenHash: hashToken("guest-token"),
+    lastSeenAt,
+  }
+  return {
+    id: "room-1",
+    code: "ROOM1",
+    status: "LOBBY",
+    metadata: {},
+    expiresAt: new Date("2100-01-01T00:00:00.000Z"),
+    reviewExpiresAt: null,
+    hostPlayerId: "player-1",
+    hostPlayer: player,
+    hostLastActivityAt: new Date("2026-08-31T12:00:00.000Z"),
+    currentRun: null,
+    teams: [],
+    players: [player],
+    elections: [],
+    ...overrides,
+  }
+}
+
+function playingRunFixture() {
+  return {
+    id: "run-1",
+    status: "PLAYING",
+    phase: "ACTIVE_TERM",
+    termEndsAt: new Date("2026-08-31T12:01:00.000Z"),
+    completedAt: null,
   }
 }
