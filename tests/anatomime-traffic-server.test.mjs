@@ -398,7 +398,7 @@ describe("Anatomime traffic server primitives", () => {
     assert.deepEqual(scenario.coalesceCalls, [])
   })
 
-  it("expires the one hydrated graph without a second full relational read", async () => {
+  it("locks a playing run before its room while expiring one hydrated graph", async () => {
     const now = new Date("2026-08-31T12:00:16.000Z")
     const room = minimalPresenceRoom({
       status: "PLAYING",
@@ -413,6 +413,8 @@ describe("Anatomime traffic server primitives", () => {
     assert.deepEqual(scenario.narrowReadCalls, [])
     assert.equal(scenario.expireRoomCalls.length, 1)
     assert.equal(scenario.expireRunCalls.length, 1)
+    assert.deepEqual(scenario.transactionEvents, ["run:update", "room:update"])
+    assert.deepEqual(scenario.committedTransactionEvents, ["run:update", "room:update"])
     assert.equal(loaded.status, "EXPIRED")
     assert.equal(loaded.currentRun.status, "GAME_COMPLETE")
     assert.equal(loaded.currentRun.phase, "GAME_COMPLETE")
@@ -453,8 +455,10 @@ describe("Anatomime traffic server primitives", () => {
       (error) => error instanceof AnatomimeTrafficLimitError && error.status === 503,
     )
     assert.equal(scenario.hydrateCalls.length, 1)
-    assert.equal(scenario.expireRoomCalls.length, 1)
+    assert.deepEqual(scenario.expireRoomCalls, [])
     assert.equal(scenario.expireRunCalls.length, 1)
+    assert.deepEqual(scenario.transactionEvents, ["run:update"])
+    assert.deepEqual(scenario.committedTransactionEvents, [])
     assert.deepEqual(scenario.narrowReadCalls, [])
     assert.deepEqual(scenario.coalesceCalls, [])
   })
@@ -491,6 +495,10 @@ describe("Anatomime traffic server primitives", () => {
     )
 
     assert.equal(scenario.hydrateCalls.length, 1)
+    assert.equal(scenario.expireRunCalls.length, 1)
+    assert.equal(scenario.expireRoomCalls.length, 1)
+    assert.deepEqual(scenario.transactionEvents, ["run:update", "room:update"])
+    assert.deepEqual(scenario.committedTransactionEvents, [])
     assert.deepEqual(scenario.narrowReadCalls, [])
     assert.deepEqual(scenario.coalesceCalls, [])
   })
@@ -575,8 +583,29 @@ describe("Anatomime traffic server primitives", () => {
     )
 
     assert.equal(scenario.hydrateCalls.length, 1)
+    assert.deepEqual(scenario.transactionEvents, ["room:update"])
+    assert.deepEqual(scenario.committedTransactionEvents, [])
     assert.deepEqual(scenario.narrowReadCalls, [])
     assert.deepEqual(scenario.coalesceCalls, [])
+  })
+
+  it("keeps uncontended no-run expiry room-only", async () => {
+    const now = new Date("2026-08-31T12:00:16.000Z")
+    const room = minimalPresenceRoom({
+      status: "LOBBY",
+      expiresAt: new Date("2026-08-31T12:00:15.000Z"),
+      currentRunId: null,
+      currentRun: null,
+    })
+    const scenario = loadPresenceRoomServer({ room })
+
+    const loaded = await scenario.loadAnatomimeRoom("room1", {}, { now })
+
+    assert.equal(loaded.status, "EXPIRED")
+    assert.equal(loaded.currentRun, null)
+    assert.deepEqual(scenario.transactionEvents, ["room:update"])
+    assert.deepEqual(scenario.committedTransactionEvents, ["room:update"])
+    assert.deepEqual(scenario.expireRunCalls, [])
   })
 
   it("returns an initially expired room without attempting expiry writes", async () => {
@@ -600,6 +629,8 @@ describe("Anatomime traffic server primitives", () => {
     assert.equal(scenario.hydrateCalls.length, 1)
     assert.deepEqual(scenario.expireRoomCalls, [])
     assert.deepEqual(scenario.expireRunCalls, [])
+    assert.deepEqual(scenario.transactionEvents, [])
+    assert.deepEqual(scenario.committedTransactionEvents, [])
     assert.deepEqual(scenario.narrowReadCalls, [])
   })
 })
@@ -631,21 +662,12 @@ function loadPresenceRoomServer({
   const narrowReadCalls = []
   const expireRoomCalls = []
   const expireRunCalls = []
+  const transactionEvents = []
+  const committedTransactionEvents = []
   const fullRoomRead = async (args) => {
     hydrateCalls.push(args)
     await onHydrate?.(room)
     return room
-  }
-  const transactionRoom = {
-    updateMany: async (args) => {
-      expireRoomCalls.push(args)
-      return { count: expireRoomCount }
-    },
-    findUnique: async (args) => {
-      if (args.include) return fullRoomRead(args)
-      narrowReadCalls.push(args)
-      return conflictRoom
-    },
   }
   const prisma = {
     anatomimeRoom: {
@@ -657,15 +679,34 @@ function loadPresenceRoomServer({
         return room.players[0]
       },
     },
-    $transaction: async (callback) => callback({
-      anatomimeRoom: transactionRoom,
-      anatomimeGameRun: {
-        updateMany: async (args) => {
-          expireRunCalls.push(args)
-          return { count: expireRunCount }
+    $transaction: async (callback) => {
+      const stagedEvents = []
+      const result = await callback({
+        anatomimeRoom: {
+          updateMany: async (args) => {
+            expireRoomCalls.push(args)
+            transactionEvents.push("room:update")
+            stagedEvents.push("room:update")
+            return { count: expireRoomCount }
+          },
+          findUnique: async (args) => {
+            if (args.include) return fullRoomRead(args)
+            narrowReadCalls.push(args)
+            return conflictRoom
+          },
         },
-      },
-    }),
+        anatomimeGameRun: {
+          updateMany: async (args) => {
+            expireRunCalls.push(args)
+            transactionEvents.push("run:update")
+            stagedEvents.push("run:update")
+            return { count: expireRunCount }
+          },
+        },
+      })
+      committedTransactionEvents.push(...stagedEvents)
+      return result
+    },
   }
   const service = loadCompiledModule(roomServerSource, "lib/anatomime-room-server.presence-test.ts", {
     "./auth-security.js": {
@@ -706,11 +747,13 @@ function loadPresenceRoomServer({
   return {
     ...service,
     coalesceCalls,
+    committedTransactionEvents,
     expireRoomCalls,
     expireRunCalls,
     hydrateCalls,
     legacyPresenceCalls,
     narrowReadCalls,
+    transactionEvents,
   }
 }
 

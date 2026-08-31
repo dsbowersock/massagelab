@@ -1280,6 +1280,9 @@ function loadPresenceRoomServerForRoute({
                   },
                 }),
               },
+              anatomimeGameRun: {
+                updateMany: async () => ({ count: 1 }),
+              },
             }),
           }
         : {

@@ -510,18 +510,6 @@ async function expireRoomIfIdle(
   if (room.status === "EXPIRED" || room.expiresAt.getTime() > now.getTime()) return room
 
   return prisma.$transaction(async (tx) => {
-    const expired = await tx.anatomimeRoom.updateMany({
-      where: {
-        id: room.id,
-        status: { not: "EXPIRED" },
-        expiresAt: { lte: now },
-      },
-      data: { status: "EXPIRED" },
-    })
-    // A lost conditional write makes the hydrated relation graph stale. Retry
-    // instead of combining it with a partial concurrent lifecycle snapshot.
-    if (expired.count === 0) throw new AnatomimeTrafficLimitError(503)
-
     if (room.currentRun && room.currentRun.status === "PLAYING") {
       const completed = await tx.anatomimeGameRun.updateMany({
         where: { roomId: room.id, id: room.currentRun.id, status: "PLAYING" },
@@ -533,6 +521,18 @@ async function expireRoomIfIdle(
         },
       })
       if (completed.count === 0) throw new AnatomimeTrafficLimitError(503)
+
+      const expired = await tx.anatomimeRoom.updateMany({
+        where: {
+          id: room.id,
+          status: { not: "EXPIRED" },
+          expiresAt: { lte: now },
+        },
+        data: { status: "EXPIRED" },
+      })
+      // Keep the GameRun -> Room lock order used by normal transitions. A
+      // lost conditional write aborts this transaction so callers can retry.
+      if (expired.count === 0) throw new AnatomimeTrafficLimitError(503)
 
       return {
         ...room,
@@ -546,6 +546,16 @@ async function expireRoomIfIdle(
         },
       }
     }
+
+    const expired = await tx.anatomimeRoom.updateMany({
+      where: {
+        id: room.id,
+        status: { not: "EXPIRED" },
+        expiresAt: { lte: now },
+      },
+      data: { status: "EXPIRED" },
+    })
+    if (expired.count === 0) throw new AnatomimeTrafficLimitError(503)
 
     return { ...room, status: "EXPIRED" }
   })
