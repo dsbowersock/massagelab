@@ -2,7 +2,7 @@
 
 Date: 2026-08-31
 
-Status: Proposed for written-design review
+Status: Approved for implementation on 2026-08-31
 
 Implementation baseline: `codex/family-friends-feedback` at `6af8a7f4b2bbb9bf30af48b25b1f78bd3c2ee379`
 
@@ -193,11 +193,11 @@ The rate-limit subject combines the account and practice for authenticated calle
 
 ### Booking and waitlist idempotency
 
-The browser creates a cryptographically random UUID for each booking or waitlist submission and includes it as `requestId`. The server accepts only canonical UUIDv4. Because the UUID is random and carries no identity, a versioned operation prefix plus the UUID becomes the explicit database owner: `public-booking-v1:<uuid>` or `public-waitlist-v1:<uuid>`.
+The browser creates a cryptographically random UUID for each booking or waitlist submission and includes it as `requestId`. The server accepts only canonical UUIDv4. Because the UUID is random and carries no identity, a versioned operation prefix plus the UUID becomes the request owner: `public-booking-v1:<uuid>:` or `public-waitlist-v1:<uuid>:`. The concrete existing-row ID appends a SHA-256 digest of the length-delimited, non-identifying immutable booking selection. The digest excludes email, account ID, practice-client ID, names, notes, and all other identifying or free-text data. Authoritative row ownership is compared separately. This makes same-request/same-selection replay distinct from same-request/changed-selection conflict without depending on a rotating secret.
 
-Existing `BookingGroup.id` and `BookingWaitlistEntry.id` fields therefore own idempotency without a second receipt table, another migration, or a rotation-sensitive HMAC. The stored domain row remains authoritative for the account/practice-client owner and immutable payload; a different caller who somehow reuses an operation ID receives generic conflict guidance and no existing result data.
+Existing `BookingGroup.id` and `BookingWaitlistEntry.id` fields therefore own idempotency without a second receipt table, another migration, or a rotation-sensitive HMAC. The stored domain row remains authoritative for the account/practice-client owner and immutable payload; a different caller who somehow reuses an operation ID receives generic conflict guidance and no existing result data. The server compares rows by the versioned UUID prefix and never exposes the stored digest.
 
-After bounded form validation, the action first performs one primary-key replay lookup. The same request ID, owner, practice, and immutable payload returns the existing successful result without consuming a new quota or creating more calendar events, appointments, notifications, route revalidations, or Google Calendar pushes. The same operation ID with a different owner or immutable payload fails with generic conflict guidance. A miss consumes quota before expensive booking work. Concurrent misses may both consume quota, but the database unique race is recovered by reloading and comparing the committed owner; they converge on one result. A failed transaction creates no owner and may be retried with the same request ID.
+After bounded form validation, the action first performs one request-prefix replay lookup. The same request ID, owner, practice, and immutable payload returns the existing successful result without consuming a new quota or creating more calendar events, appointments, notifications, route revalidations, or Google Calendar pushes. The same operation ID with a different owner or immutable payload fails with generic conflict guidance. A miss consumes quota before expensive booking work. The write transaction then acquires a transaction-scoped PostgreSQL advisory lock derived from the request prefix and repeats the prefix lookup before creating domain rows. This serializes simultaneous submissions that reuse one UUID even when their payload digests differ; same-payload requests converge on one result, while changed-payload requests conflict. A failed transaction creates no owner and may be retried with the same request ID.
 
 The immutable comparison includes selected services, add-ons, pressure, requested start or preferred window, provider preference, and the canonical booking client owner. It excludes mutable server-generated timestamps and delivery outcomes. A replay intentionally does not repeat the current best-effort Google Calendar push after a post-commit crash; existing calendar sync/reconciliation remains the repair owner. Tests lock down that suppression so a retry cannot duplicate provider work.
 
