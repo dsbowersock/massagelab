@@ -70,6 +70,8 @@ export const roomInclude = {
 
 export type AnatomimeRoomWithRelations = Prisma.AnatomimeRoomGetPayload<{ include: typeof roomInclude }>
 
+export type AnatomimePersistGuard = () => Promise<void>
+
 type AnatomimeRunWithRelations = NonNullable<AnatomimeRoomWithRelations["currentRun"]>
 type TermOutcomeRow = {
   cardId: string
@@ -840,7 +842,11 @@ function recapRows(room: AnatomimeRoomWithRelations) {
  * Returns the hydrated room plus the one-time host token; requires a playable
  * four-term deck before any database rows are created.
  */
-export async function createAnatomimeRoom(input: unknown, hostUserId?: string | null) {
+export async function createAnatomimeRoom(
+  input: unknown,
+  hostUserId?: string | null,
+  options: { beforePersist?: AnatomimePersistGuard } = {},
+) {
   const config = normalizeAnatomimeSessionConfig(input)
   const minimumDeck = createAnatomimeSessionDeck(config)
   if (minimumDeck.length < ANATOMIME_TERMS_PER_TURN) {
@@ -855,6 +861,8 @@ export async function createAnatomimeRoom(input: unknown, hostUserId?: string | 
     roundSeconds: ANATOMIME_TERM_SECONDS,
     stealSeconds: 0,
   }
+  await options.beforePersist?.()
+
   const code = await generateUniqueRoomCode()
   const hostToken = generateRandomToken(18)
   const now = new Date()
@@ -912,7 +920,12 @@ export async function loadAnatomimeRoom(code: string, viewer: ViewerContext = {}
  * Team assignment is mutable only before play starts, and review rooms only
  * admit players who were already present.
  */
-export async function joinAnatomimeRoom(code: string, input: unknown, userId?: string | null) {
+export async function joinAnatomimeRoom(
+  code: string,
+  input: unknown,
+  userId?: string | null,
+  options: { beforePersist?: AnatomimePersistGuard } = {},
+) {
   const room = await loadAnatomimeRoom(code)
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
 
@@ -921,9 +934,35 @@ export async function joinAnatomimeRoom(code: string, input: unknown, userId?: s
   const requestedTeamId = typeof body.teamId === "string" ? body.teamId : ""
   const suppliedPlayerId = typeof body.playerId === "string" ? body.playerId : ""
   const suppliedToken = typeof body.playerToken === "string" ? body.playerToken : ""
+  const now = new Date()
+
+  const existingSignedInPlayer = userId ? room.players.find((player) => player.userId === userId) : null
+  const existingGuestPlayer = suppliedPlayerId
+    ? room.players.find((player) => player.id === suppliedPlayerId && playerTokenMatches(player, suppliedToken))
+    : null
+  const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
+  const joinStatus = canJoinRoom(
+    {
+      status: room.status,
+      endedAt: room.endedAt,
+      reviewExpiresAt: room.reviewExpiresAt,
+      expiresAt: room.expiresAt,
+      existingPlayerIds: room.players.map((player) => player.id),
+    },
+    { now, playerId: existingPlayer?.id ?? null },
+  )
+  if (!joinStatus.allowed) throw roomError(409, joinStatus.reason, "This room is no longer accepting new joins.")
+
+  const requestedTeam = room.teams.find((team) => team.id === requestedTeamId)
+  const fallbackTeam = room.teams[0] ?? null
+  if (!existingPlayer && !(requestedTeam?.id ?? fallbackTeam?.id)) {
+    throw roomError(409, "no-teams", "This room has no available teams.")
+  }
+
+  await options.beforePersist?.()
+
   const token = generateRandomToken(18)
   const tokenHash = hashToken(token)
-  const now = new Date()
 
   const updatedRoom = await prisma.$transaction(async (tx) => {
     const currentRoom = await reloadRoom(tx, room.id)

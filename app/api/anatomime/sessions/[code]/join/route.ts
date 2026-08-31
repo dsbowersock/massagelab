@@ -5,12 +5,23 @@ import {
   summarizeAnatomimeRoom,
 } from "@/lib/anatomime-room-server"
 import { apiErrorMapper, objectBody } from "@/lib/anatomime-api"
+import {
+  normalizeAnatomimeRoomIdentifier,
+  requireAnatomimeOperationalAllowance,
+} from "@/lib/anatomime-traffic-server"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 
 export const POST = apiErrorMapper(async (request: Request, { params }: { params: Promise<{ code: string }> }) => {
   const authSession = await getCurrentSession()
   const { code } = await params
   const body = objectBody(await request.json().catch(() => ({})))
-  const joined = await joinAnatomimeRoom(code, body, authSession?.user?.id)
+  const joined = await joinAnatomimeRoom(code, body, authSession?.user?.id, {
+    beforePersist: () => requireAnatomimeOperationalAllowance({
+      operation: "ANATOMIME_ROOM_JOIN",
+      networkIdentifier: authRequestNetworkIdentifier(request),
+      roomIdentifier: normalizeAnatomimeRoomIdentifier(code),
+    }),
+  })
 
   const viewer = {
     userId: authSession?.user?.id,
