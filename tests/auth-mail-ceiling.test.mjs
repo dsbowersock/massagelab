@@ -23,7 +23,7 @@ function loadAuthMail({
         `export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = ${deliveryBudgetMs}`,
       )
   const instrumentedSource = `${boundedSource}\nexport const __testSendMail = sendMail\n`
-  const module = loadCompiledModule(instrumentedSource, "auth-mail-ceiling.review-test.ts", {
+  const authMailModule = loadCompiledModule(instrumentedSource, "auth-mail-ceiling.review-test.ts", {
     "nodemailer-v9": {
       createTransport(options) {
         transportOptions.push(options)
@@ -53,7 +53,7 @@ function loadAuthMail({
   })
 
   return {
-    module,
+    module: authMailModule,
     limiterCalls,
     transportOptions,
     messages,
