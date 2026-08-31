@@ -6,8 +6,12 @@ import { BILLING_PORTAL_DESTINATIONS } from "../lib/billing-portal-destinations.
 import { projectAccountShellAppSettings } from "../lib/account-shell-bootstrap.js"
 import { createMembershipCheckoutPostHandler } from "../lib/membership-checkout.js"
 import { getMembershipConvergenceStatus } from "../lib/membership-convergence.ts"
-import { hasSubscriptionBlockingNewCheckout } from "../lib/membership.js"
-import { createMembershipPricingCatalogLoader } from "../lib/membership-pricing.js"
+import {
+  BILLING_INTERVALS,
+  SUPPORTER_AMOUNT_CHOICES,
+  getConfiguredMembershipOptions,
+  hasSubscriptionBlockingNewCheckout,
+} from "../lib/membership.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -26,9 +30,12 @@ const [
   portalRouteSource,
   accountSurfaceDataSource,
   membershipSource,
+  membershipPricingSource,
   stripeBillingSource,
   backgroundCommerceProviderSource,
   layoutWrapperSource,
+  nextConfigSource,
+  rscSessionSource,
   projectStateSource,
   projectLogSource,
   deploymentSource,
@@ -40,9 +47,12 @@ const [
   readFile(new URL("../app/api/billing/portal/route.ts", import.meta.url), "utf8"),
   readFile(new URL("../lib/account-surface-data.js", import.meta.url), "utf8"),
   readFile(new URL("../lib/membership.js", import.meta.url), "utf8"),
+  readFile(new URL("../lib/membership-pricing.js", import.meta.url), "utf8"),
   readFile(new URL("../lib/stripe-billing.js", import.meta.url), "utf8"),
   readFile(new URL("../components/backgrounds/BackgroundCommerceProvider.tsx", import.meta.url), "utf8"),
   readFile(new URL("../components/layout-wrapper.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../next.config.mjs", import.meta.url), "utf8"),
+  readFile(new URL("../lib/rsc-session.ts", import.meta.url), "utf8"),
   readFile(new URL("../docs/project-state.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/project-log.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/wiki/deployment.md", import.meta.url), "utf8"),
@@ -60,6 +70,36 @@ function namedFunctionSlice(source, startMarker, endMarker) {
 
 function callCount(source, callPattern) {
   return source.match(callPattern)?.length ?? 0
+}
+
+/** Loads a fresh copy of the production module so this test exercises its singleton owner. */
+function sharedMembershipPricingWorkload(priceReads) {
+  return loadCompiledModule(
+    membershipPricingSource,
+    "lib/membership-pricing.shared-workload.test.js",
+    {
+      "./membership.js": {
+        BILLING_INTERVALS,
+        SUPPORTER_AMOUNT_CHOICES,
+        getConfiguredMembershipOptions: () => getConfiguredMembershipOptions(SIX_PRICE_ENVIRONMENT),
+      },
+      "./stripe-billing.js": {
+        getStripeSecretKey: () => "test-provider-key",
+        async retrieveStripePrice(priceId, { apiKey, requestOptions }) {
+          priceReads.push({ priceId, apiKey, options: requestOptions })
+          return {
+            id: priceId,
+            unit_amount: 100,
+            currency: "usd",
+            recurring: { interval: priceId.endsWith("_year") ? "year" : "month" },
+          }
+        },
+      },
+      "./stripe-price-contract.js": {
+        SUPPORTER_MEMBERSHIP_PRODUCT_NAME: "Supporter",
+      },
+    },
+  )
 }
 
 function authSnapshotWorkload(calls) {
@@ -161,7 +201,7 @@ function sidebarNavigationWorkload(calls) {
   const compiled = loadCompiledModule(sidebarSource, "components/sidebar/sidebar.workload.test.tsx", {
     "@/auth": {
       getCurrentSession: async () => {
-        calls.authSnapshots += 1
+        calls.legacyAuthSnapshots += 1
         return {
           user: {
             id: "workload-user",
@@ -180,7 +220,7 @@ function sidebarNavigationWorkload(calls) {
     "@/lib/prisma": { prisma: database },
     "@/lib/rsc-session": {
       getCurrentRscSession: async () => {
-        calls.authSnapshots += 1
+        calls.rscAuthSnapshots += 1
         return {
           user: {
             id: "workload-user",
@@ -359,34 +399,25 @@ describe("family-and-friends server workload baseline", () => {
     assert.doesNotMatch(stripeBillingSource, /membership-pricing(?:\.js)?["']/)
   })
 
+  it("limits the Browser-QA auth-entry proof to the explicit RSC session wrapper", () => {
+    assert.doesNotMatch(nextConfigSource, /@\/auth/)
+    assert.match(rscSessionSource, /from\s*["']@\/lib\/rsc-session-proof["']/)
+    assert.match(rscSessionSource, /NEXT_PUBLIC_RSC_SESSION_PROOF\s*===\s*["']1["']/)
+  })
+
   it("shares six public display Price reads across concurrent cold and warm callers", async () => {
     const priceReads = []
-    const loader = createMembershipPricingCatalogLoader({
-      env: SIX_PRICE_ENVIRONMENT,
-      stripeClient: {
-        prices: {
-          async retrieve(priceId, params, options) {
-            priceReads.push({ priceId, params, options })
-            return {
-              id: priceId,
-              unit_amount: 100,
-              currency: "usd",
-              recurring: { interval: priceId.endsWith("_year") ? "year" : "month" },
-            }
-          },
-        },
-      },
-    })
+    const { getMembershipPricingCatalog } = sharedMembershipPricingWorkload(priceReads)
 
-    await Promise.all(Array.from({ length: 20 }, () => loader.get()))
+    await Promise.all(Array.from({ length: 20 }, () => getMembershipPricingCatalog()))
     const concurrentColdLogicalPriceReads = priceReads.length
     const beforeWarmRead = priceReads.length
-    await loader.get()
+    await getMembershipPricingCatalog()
     const warmLogicalPriceReads = priceReads.length - beforeWarmRead
 
     assert.equal(concurrentColdLogicalPriceReads, 6)
     assert.equal(warmLogicalPriceReads, 0)
-    assert.equal(priceReads.every(({ params }) => JSON.stringify(params) === "{}"), true)
+    assert.equal(priceReads.every(({ apiKey }) => apiKey === "test-provider-key"), true)
     assert.equal(priceReads.every(({ options }) => (
       options.timeout === 2_500 && options.maxNetworkRetries === 1
     )), true)
@@ -411,7 +442,8 @@ describe("family-and-friends server workload baseline", () => {
       authWorkload.loadTemporaryGrants,
     )
     const sidebarCalls = {
-      authSnapshots: 0,
+      legacyAuthSnapshots: 0,
+      rscAuthSnapshots: 0,
       preferenceReads: 0,
       practiceRoleReads: 0,
       entitlementReads: 0,
@@ -439,7 +471,8 @@ describe("family-and-friends server workload baseline", () => {
       entitlementBuilds: 1,
     })
     assert.deepEqual(sidebarCalls, {
-      authSnapshots: 1,
+      legacyAuthSnapshots: 0,
+      rscAuthSnapshots: 1,
       preferenceReads: 1,
       practiceRoleReads: 1,
       entitlementReads: 0,
@@ -475,7 +508,7 @@ describe("family-and-friends server workload baseline", () => {
       hasPracticeMembership: false,
     })
     console.log(`verified auth refresh: background-credit provisioner calls = ${backgroundCreditProvisionerCalls}`)
-    console.log(`ordinary signed-in shell: auth snapshots = ${sidebarCalls.authSnapshots}; auth user graph reads = ${authCalls.userGraphReads}; temporary-grant reads = ${authCalls.temporaryGrantReads}; entitlement builds = ${authCalls.entitlementBuilds}`)
+    console.log(`ordinary signed-in shell: RSC auth snapshots = ${sidebarCalls.rscAuthSnapshots}; legacy direct-auth snapshots = ${sidebarCalls.legacyAuthSnapshots}; auth user graph reads = ${authCalls.userGraphReads}; temporary-grant reads = ${authCalls.temporaryGrantReads}; entitlement builds = ${authCalls.entitlementBuilds}`)
     console.log(`ordinary signed-in shell: preference reads = ${sidebarCalls.preferenceReads}; practice-role reads = ${sidebarCalls.practiceRoleReads}; separate membership entitlement loads = ${sidebarCalls.entitlementReads}; logical ORM operations = ${logicalOrmOperations}`)
     console.log(`ordinary signed-in shell: client bootstrap endpoint requests = ${sidebarCalls.clientBootstrapEndpointRequests}; commerce snapshot loads = ${sidebarCalls.commerceSnapshotLoads}`)
   })

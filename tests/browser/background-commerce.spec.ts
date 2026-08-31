@@ -637,6 +637,8 @@ test("zero-credit cart persists across refresh and checkout failure keeps one su
     initialSnapshot: emptySnapshot({ creditBalance: 0 }),
   })
   await page.addInitScript(() => {
+    // Insert a hidden same-name clock region at DOMContentLoaded so
+    // openClockBackground proves it selects the visible clock fixture.
     document.addEventListener("DOMContentLoaded", () => {
       const duplicateStage = document.createElement("section")
       duplicateStage.setAttribute("aria-label", "Chimer clock")

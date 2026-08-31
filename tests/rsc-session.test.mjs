@@ -53,8 +53,7 @@ describe("RSC session snapshot proof boundary", () => {
     assert.match(buildScript, /NEXT_PUBLIC_RSC_SESSION_PROOF:\s*"1"/)
     assert.match(nextConfig, /rscSessionProofEnabled/)
     assert.match(nextConfig, /NEXT_PUBLIC_RSC_SESSION_PROOF === "1"/)
-    assert.match(nextConfig, /"@\/auth"/)
-    assert.match(nextConfig, /lib\/rsc-session-proof\.ts/)
+    assert.doesNotMatch(nextConfig, /@\/auth/)
     assert.match(nextConfig, /beforeFiles: rscSessionProofEnabled/)
     assert.match(nextConfig, /destination: "\/_not-found"/)
   })
@@ -87,7 +86,9 @@ describe("RSC session snapshot proof boundary", () => {
     assert.match(wrapper, /import "server-only"/)
     assert.match(wrapper, /import \{ cache \} from "react"/)
     assert.match(wrapper, /import \{ getCurrentSession \} from "@\/auth"/)
-    assert.match(wrapper, /export const getCurrentRscSession = cache\(getCurrentSession\)/)
+    assert.match(wrapper, /from "@\/lib\/rsc-session-proof"/)
+    assert.match(wrapper, /NEXT_PUBLIC_RSC_SESSION_PROOF === "1"/)
+    assert.match(wrapper, /export const getCurrentRscSession = cache\(loadCurrentRscSession\)/)
     assert.doesNotMatch(wrapper, /setTimeout|setInterval|new Map|ttl|expires|persist/i)
 
     for (const relativePath of rscSessionConsumers) {

@@ -335,9 +335,15 @@ function loadStoredTherapistSettingsProjector() {
 
 describe("therapist settings cloud hydration", () => {
   it("retires the anonymous pre-change browser guard", () => {
+    // The old signed-out-shell guard is replaced by the isolated provider harness,
+    // so the retired title must stay absent while the replacement stays present.
     assert.doesNotMatch(
       appShellBrowserSource,
       /anonymous bootstrap leaves therapist and calendar specialization dormant/,
+    )
+    assert.match(
+      appShellBrowserSource,
+      /exerciseSpecializedProviderHarness\(page\)/,
     )
   })
 

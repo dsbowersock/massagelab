@@ -10,6 +10,9 @@ const atmoShaperBrowserQaEnabled = process.env.NEXT_PUBLIC_ATMOSHAPER_BROWSER_QA
 const atmoShaperBrowserQaModule = atmoShaperBrowserQaEnabled
   ? "./lib/atmoshaper/browser-qa.ts"
   : "./lib/atmoshaper/browser-qa-disabled.ts"
+// Browser-QA child builds set this public build-time flag to expose the
+// content-free proof route and select the instrumented RSC session loader;
+// ordinary production builds leave both disabled.
 const rscSessionProofEnabled = process.env.NEXT_PUBLIC_RSC_SESSION_PROOF === "1"
 
 /** @type {import('next').NextConfig} */
@@ -68,16 +71,12 @@ const nextConfig = {
     root,
     resolveAlias: {
       "@/lib/atmoshaper/browser-qa": atmoShaperBrowserQaModule,
-      ...(rscSessionProofEnabled ? { "@/auth": "./lib/rsc-session-proof.ts" } : {}),
       "regenerator-runtime/runtime.js": "./lib/atmosphere/regenerator-runtime-shim.js",
       tone: "tone/build/esm/index.js",
     },
   },
   webpack(config) {
     config.resolve.alias["@/lib/atmoshaper/browser-qa"] = resolve(root, atmoShaperBrowserQaModule)
-    if (rscSessionProofEnabled) {
-      config.resolve.alias["@/auth"] = resolve(root, "./lib/rsc-session-proof.ts")
-    }
     return config
   },
 }

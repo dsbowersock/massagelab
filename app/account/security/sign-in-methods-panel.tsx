@@ -57,6 +57,7 @@ export function SignInMethodsPanel({
   }
 
   function applyMethodResponse(result: MethodResponse) {
+    // Preserve the current method availability when a mutation omits both explicit availability fields.
     if (
       typeof result.googleLinked !== "boolean"
       && typeof result.hasPasswordCredential !== "boolean"

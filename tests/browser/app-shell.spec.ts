@@ -72,7 +72,7 @@ test("RSC session snapshot count is exactly one", async ({ page }) => {
   expect(count).toBe(1)
 })
 
-test("signed-in inert bootstrap defers therapist and practice specialization until demand", async ({ page }) => {
+test("inert bootstrap fixture defers therapist and practice specialization until demand", async ({ page }) => {
   test.setTimeout(45_000)
   const result = await exerciseSpecializedProviderHarness(page)
 
@@ -1657,7 +1657,7 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
 
   const navigateFrom = async (route: string) => {
     if (route === "music") {
-      await page.locator('a[aria-label="MassageLab home"]:visible').first().click({ noWaitAfter: true })
+      await page.locator('a[aria-label="MassageLab home"]:visible').first().click()
       const homeLandmark = page.getByTestId("home-brand-wordmark")
       if (homeHoldActive) {
         await homeHold.waitForRequest()
@@ -1671,7 +1671,7 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
       return
     }
     if (route === "home") {
-      await page.getByRole("link", { name: "Open wellness", exact: true }).first().click({ noWaitAfter: true })
+      await page.getByRole("link", { name: "Open wellness", exact: true }).first().click()
       const wellnessLandmark = page.locator("#quick-log")
         .getByRole("heading", { name: "Quick log", exact: true, level: 2 })
       if (wellnessHoldActive) {

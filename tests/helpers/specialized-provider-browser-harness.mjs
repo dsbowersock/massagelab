@@ -18,6 +18,26 @@ const calendarProviderPath = path.join(
 )
 let bundlePromise
 
+const supportedSpecializedProviderImports = new Set([
+  "@/components/providers/account-shell-bootstrap-provider",
+  "@/lib/client-fetch",
+  "@/lib/sidebar-calendar-context",
+  "react",
+  "react/jsx-runtime",
+])
+
+/** Fails with harness context before webpack sees a provider import the fixture cannot safely supply. */
+export function assertSpecializedProviderImportSurface(source, providerLabel) {
+  const importedFiles = ts.preProcessFile(source, true, true).importedFiles
+  for (const importedFile of importedFiles) {
+    if (!supportedSpecializedProviderImports.has(importedFile.fileName)) {
+      throw new Error(
+        `Unsupported specialized provider import in ${providerLabel}: ${importedFile.fileName}`,
+      )
+    }
+  }
+}
+
 /**
  * Bundles the real specialized shell providers with only owner-bootstrap and fetch adapters
  * replaced by inert browser doubles. No application route, account, or provider is contacted.
@@ -39,16 +59,18 @@ function specializedProviderBundle() {
         target: ts.ScriptTarget.ES2020,
       }
 
-      writeFileSync(
-        therapistModulePath,
-        ts.transpileModule(await readFile(therapistProviderPath, "utf8"), { compilerOptions })
-          .outputText,
-      )
-      writeFileSync(
-        calendarModulePath,
-        ts.transpileModule(await readFile(calendarProviderPath, "utf8"), { compilerOptions })
-          .outputText,
-      )
+      const therapistModuleSource = ts.transpileModule(
+        await readFile(therapistProviderPath, "utf8"),
+        { compilerOptions },
+      ).outputText
+      const calendarModuleSource = ts.transpileModule(
+        await readFile(calendarProviderPath, "utf8"),
+        { compilerOptions },
+      ).outputText
+      assertSpecializedProviderImportSurface(therapistModuleSource, "therapist settings provider")
+      assertSpecializedProviderImportSurface(calendarModuleSource, "sidebar calendar provider")
+      writeFileSync(therapistModulePath, therapistModuleSource)
+      writeFileSync(calendarModulePath, calendarModuleSource)
       writeFileSync(supportModulePath, `
         export const emptySidebarCalendarContext = Object.freeze({
           practice: null,
@@ -69,7 +91,7 @@ function specializedProviderBundle() {
         }
       `)
       writeFileSync(entryPath, `
-        import React, { useState } from "react";
+        import React, { useEffect, useState } from "react";
         import { createRoot } from "react-dom/client";
         import {
           TherapistSettingsProvider,
@@ -84,6 +106,7 @@ function specializedProviderBundle() {
           profileGets: 0,
           calendarGets: 0,
           consumerCount: 0,
+          passiveConsumerCount: null,
           practiceEnabled: false,
           practiceId: null,
           errors: [],
@@ -158,6 +181,11 @@ function specializedProviderBundle() {
           setPracticeEnabled = updatePracticeEnabled;
           harness.consumerCount = consumerCount;
           harness.practiceEnabled = practiceEnabled;
+          // A parent passive effect runs after the provider subtree's passive effects,
+          // giving the test an observable barrier for each consumer-count commit.
+          useEffect(() => {
+            harness.passiveConsumerCount = consumerCount;
+          }, [consumerCount]);
           return React.createElement(
             TherapistSettingsProvider,
             null,
@@ -183,6 +211,7 @@ function specializedProviderBundle() {
           profileGets: harness.profileGets,
           calendarGets: harness.calendarGets,
           consumerCount: harness.consumerCount,
+          passiveConsumerCount: harness.passiveConsumerCount,
           practiceEnabled: harness.practiceEnabled,
           practiceId: harness.practiceId,
           consumerNames: Array.from(document.querySelectorAll("[data-consumer]"))
@@ -236,9 +265,8 @@ export async function exerciseSpecializedProviderHarness(page) {
   await page.goto("https://massagelab-specialized.test/fixture")
   await page.addScriptTag({ content: await specializedProviderBundle() })
   await page.waitForFunction(() => (
-    window.__specializedProviderHarness?.read().consumerCount === 0
+    window.__specializedProviderHarness?.read().passiveConsumerCount === 0
   ))
-  await page.waitForTimeout(50)
 
   const read = () => page.evaluate(() => window.__specializedProviderHarness.read())
   const mounted = await read()
@@ -246,15 +274,15 @@ export async function exerciseSpecializedProviderHarness(page) {
   await page.evaluate(() => window.__specializedProviderHarness.setConsumerCount(1))
   await page.waitForFunction(() => {
     const state = window.__specializedProviderHarness.read()
-    return state.consumerCount === 1 && state.profileGets === 1
+    return state.passiveConsumerCount === 1 && state.profileGets === 1
   })
   const firstConsumer = await read()
 
   await page.evaluate(() => window.__specializedProviderHarness.setConsumerCount(2))
-  await page.waitForFunction(() => (
-    window.__specializedProviderHarness.read().consumerCount === 2
-  ))
-  await page.waitForTimeout(50)
+  await page.waitForFunction(() => {
+    const state = window.__specializedProviderHarness.read()
+    return state.passiveConsumerCount === 2 && state.consumerNames.length === 2
+  })
   const concurrentConsumer = await read()
 
   await page.evaluate(() => window.__specializedProviderHarness.resolveProfile())

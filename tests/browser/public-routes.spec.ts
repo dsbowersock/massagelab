@@ -12,6 +12,12 @@ type PublicNetworkGuardState = {
 }
 
 const publicNetworkGuardByPage = new WeakMap<Page, PublicNetworkGuardState>()
+
+/**
+ * Blocks external HTTP(S) by default and records unexpected requests or allowed
+ * URLs that no exact fixture fulfilled. Per-test page routes are registered
+ * later and must therefore take precedence over this catch-all guard.
+ */
 const test = base.extend<{ publicNetworkGuard: PublicNetworkGuardState }>({
   publicNetworkGuard: [async ({ page }, use) => {
     const state: PublicNetworkGuardState = {
@@ -441,7 +447,7 @@ function requireAllowedExternalFixture(
   }
 }
 
-/** Serves the one externally hosted display font from a deterministic local dependency fixture. */
+/** Serves the one externally hosted display font from a deterministic repository-owned fixture. */
 async function installExternalFontFixture(page: Page, allowedExternalUrls: ReadonlySet<string>) {
   registerAllowedExternalUrls(page, allowedExternalUrls)
   requireAllowedExternalFixture(page, allowedExternalUrls, externalFontUrl)
@@ -449,7 +455,7 @@ async function installExternalFontFixture(page: Page, allowedExternalUrls: Reado
     await route.fulfill({
       status: 200,
       contentType: "font/woff2",
-      body: await readFile(new URL("../../node_modules/next/dist/next-devtools/server/font/geist-latin.woff2", import.meta.url)),
+      body: await readFile(new URL("../fixtures/browser-external-font.woff2", import.meta.url)),
     })
   })
 }
@@ -514,6 +520,12 @@ async function installAtmosphereFixtures(
   }
   // Prewarm-only journeys deliberately fixture the smaller initial catalog.
   const sampleIndexUrls = new Set(sampleIndexFixtureUrls)
+
+  for (const pieceId of playbackPieceIds) {
+    if (!sampleIndexUrls.has(atmosphereSampleIndexUrl(pieceId))) {
+      throw new Error(`Atmosphere playback piece has no sample-index fixture: ${pieceId}`)
+    }
+  }
 
   for (const url of sampleIndexUrls) {
     requireAllowedExternalFixture(page, allowedExternalUrls, url)

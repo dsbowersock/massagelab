@@ -30,6 +30,45 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
 
+const initialAtmosphereFixturePattern =
+  /installAtmosphereFixtures\(\s*page,\s*allowedExternalUrls,\s*\[\],\s*initialAtmosphereSampleIndexUrls,?\s*\)/g
+
+/** Finds the closing brace for a known block opener without depending on source indentation. */
+function findMatchingBraceIndex(source, openingBraceIndex) {
+  if (source[openingBraceIndex] !== "{") return -1
+
+  let depth = 0
+  for (let index = openingBraceIndex; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1
+    if (source[index] === "}") depth -= 1
+    if (depth === 0) return index
+  }
+  return -1
+}
+
+test("Atmosphere fixture matching survives wrapped calls and reindented nested guards", () => {
+  const source = [
+    'if (path === "/music") {',
+    "\tif (shouldPrewarm) {",
+    "\t\tinstallAtmosphereFixtures(",
+    "\t\t\tpage,",
+    "\t\t\tallowedExternalUrls,",
+    "\t\t\t[],",
+    "\t\t\tinitialAtmosphereSampleIndexUrls,",
+    "\t\t)",
+    "\t}",
+    "}",
+    "await page.goto(path)",
+  ].join("\n")
+  const guardIndex = source.indexOf('if (path === "/music")')
+  const openingBraceIndex = source.indexOf("{", guardIndex)
+  const closingBraceIndex = findMatchingBraceIndex(source, openingBraceIndex)
+
+  assert.equal((source.match(initialAtmosphereFixturePattern) ?? []).length, 1)
+  assert.ok(source.search(initialAtmosphereFixturePattern) < closingBraceIndex)
+  assert.ok(closingBraceIndex < source.indexOf("await page.goto(path)"))
+})
+
 test("install-prompt QA dispatches only while the provider listener is proven active", async () => {
   const appShellSpec = await readProjectFile("tests/browser/app-shell.spec.ts")
 
@@ -98,7 +137,8 @@ test("browser QA enables the isolated RSC session proof at build and runtime", a
   for (const jobId of ["browser_build", "browser_qa"]) {
     assert.match(
       getWorkflowJob(workflow, jobId),
-      /^      NEXT_PUBLIC_RSC_SESSION_PROOF: "1"$/m,
+      /^      NEXT_PUBLIC_RSC_SESSION_PROOF: "1"\r?$/m,
+      `Expected ${jobId} to enable NEXT_PUBLIC_RSC_SESSION_PROOF`,
     )
   }
 })
@@ -113,8 +153,8 @@ test("mobile Background carousel fixtures include the default preview", async ()
     fixtureStart,
   )
 
-  assert.notEqual(fixtureStart, -1)
-  assert.notEqual(fixtureEnd, -1)
+  assert.notEqual(fixtureStart, -1, "Expected to locate the mobile Background fixture start")
+  assert.notEqual(fixtureEnd, -1, "Expected to locate the mobile Background fixture end")
   assert.match(
     publicRoutesSpec.slice(fixtureStart, fixtureEnd),
     /"massage-lab-gradient-vertical"/,
@@ -159,7 +199,7 @@ test("public media journeys fixture opportunistic atmosphere prewarms", async ()
     visualizerStart,
   )
 
-  for (const boundary of [
+  for (const [boundaryName, boundary] of Object.entries({
     genericStart,
     genericEnd,
     coreToolsStart,
@@ -172,11 +212,9 @@ test("public media journeys fixture opportunistic atmosphere prewarms", async ()
     topAppBarEnd,
     visualizerStart,
     visualizerEnd,
-  ]) {
-    assert.notEqual(boundary, -1)
+  })) {
+    assert.notEqual(boundary, -1, `Expected to locate ${boundaryName} in public-routes.spec.ts`)
   }
-  const exactPrewarmFixtureCall =
-    "installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)"
   const journeys = [
     ["generic public routes", publicRoutesSpec.slice(genericStart, genericEnd)],
     ["core public tools", publicRoutesSpec.slice(coreToolsStart, coreToolsEnd)],
@@ -187,7 +225,7 @@ test("public media journeys fixture opportunistic atmosphere prewarms", async ()
   ]
 
   for (const [journeyName, journeySource] of journeys) {
-    const fixtureIndex = journeySource.indexOf(exactPrewarmFixtureCall)
+    const fixtureIndex = journeySource.search(initialAtmosphereFixturePattern)
     const firstNavigationIndex = journeySource.indexOf("await page.goto")
     assert.notEqual(fixtureIndex, -1, `${journeyName} installs the exact initial Atmosphere fixture`)
     assert.notEqual(firstNavigationIndex, -1, `${journeyName} contains a page navigation`)
@@ -200,7 +238,7 @@ test("public media journeys fixture opportunistic atmosphere prewarms", async ()
   const coreToolsSource = publicRoutesSpec.slice(coreToolsStart, coreToolsEnd)
   assert.match(coreToolsSource, /const health = await capturePageHealth\(page, new Set\(\)\)/)
   assert.equal(
-    coreToolsSource.split(exactPrewarmFixtureCall).length - 1,
+    (coreToolsSource.match(initialAtmosphereFixturePattern) ?? []).length,
     1,
     "the multi-route core journey owns exactly one initial Atmosphere fixture",
   )
@@ -209,10 +247,12 @@ test("public media journeys fixture opportunistic atmosphere prewarms", async ()
   const coreRoutePaths = [...coreRouteLoop[1].matchAll(/"([^"]+)"/g)].map((match) => match[1])
   assert.equal(coreRoutePaths.at(-1), "/music", "the multi-route core journey visits Music last")
   const coreMusicGuardIndex = coreToolsSource.indexOf('if (path === "/music") {')
-  const coreFixtureIndex = coreToolsSource.indexOf(exactPrewarmFixtureCall)
-  const coreMusicGuardEndIndex = coreToolsSource.indexOf("\n    }", coreMusicGuardIndex)
+  const coreMusicGuardOpeningBraceIndex = coreToolsSource.indexOf("{", coreMusicGuardIndex)
+  const coreFixtureIndex = coreToolsSource.search(initialAtmosphereFixturePattern)
+  const coreMusicGuardEndIndex = findMatchingBraceIndex(coreToolsSource, coreMusicGuardOpeningBraceIndex)
   const coreLoopNavigationIndex = coreToolsSource.indexOf("await page.goto(path", coreMusicGuardEndIndex)
   assert.notEqual(coreMusicGuardIndex, -1, "the multi-route core journey has a Music-only fixture guard")
+  assert.notEqual(coreMusicGuardOpeningBraceIndex, -1, "the Music-only fixture guard has an opening brace")
   assert.notEqual(coreMusicGuardEndIndex, -1, "the Music-only fixture guard has an explicit boundary")
   assert.notEqual(coreLoopNavigationIndex, -1, "the Music-only fixture guard precedes the loop navigation")
   assert.ok(
@@ -220,7 +260,7 @@ test("public media journeys fixture opportunistic atmosphere prewarms", async ()
     "the multi-route core journey grants the exact prewarm fixture only inside the Music guard",
   )
   assert.equal(
-    coreToolsSource.slice(coreMusicGuardEndIndex + "\n    }".length, coreLoopNavigationIndex).trim(),
+    coreToolsSource.slice(coreMusicGuardEndIndex + 1, coreLoopNavigationIndex).trim(),
     "",
     "the Music-only fixture guard stays immediately before the loop navigation",
   )

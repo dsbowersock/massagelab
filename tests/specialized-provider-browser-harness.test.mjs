@@ -1,11 +1,28 @@
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
 import { describe, it } from "node:test"
-import { exerciseSpecializedProviderHarness } from "./helpers/specialized-provider-browser-harness.mjs"
+import {
+  assertSpecializedProviderImportSurface,
+  exerciseSpecializedProviderHarness,
+} from "./helpers/specialized-provider-browser-harness.mjs"
 
 const require = createRequire(import.meta.url)
 
 describe("specialized account-shell provider browser harness", () => {
+  it("rejects unsupported provider imports before webpack resolution", () => {
+    assert.doesNotThrow(() => assertSpecializedProviderImportSurface(
+      'import React from "react"; import { fetchJsonWithTimeout } from "@/lib/client-fetch";',
+      "supported provider",
+    ))
+    assert.throws(
+      () => assertSpecializedProviderImportSurface(
+        'import value from "@/lib/unsupported-provider-dependency";',
+        "unsupported provider",
+      ),
+      /Unsupported specialized provider import in unsupported provider: @\/lib\/unsupported-provider-dependency/,
+    )
+  })
+
   it("defers profile and calendar reads until their real consumers require them", {
     timeout: 45_000,
   }, async () => {
