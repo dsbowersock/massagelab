@@ -127,6 +127,7 @@ function loadProviderUpdaterHarness({ profile = {} } = {}) {
 }
 
 function loadProviderOwnerTransitionHarness({
+  moduleSource = providerSource,
   storedValues = new Map([
     ["massage-lab-therapist-settings", JSON.stringify({ name: "Owner A" })],
     ["massage-lab-therapist-settings:account:owner-a", JSON.stringify({
@@ -188,8 +189,8 @@ function loadProviderOwnerTransitionHarness({
     },
   }
 
-  const provider = loadCompiledModule(
-    providerSource,
+  const loadOwnerTransitionProvider = () => loadCompiledModule(
+    moduleSource,
     "components/providers/therapist-settings-provider-owner-transition.test.tsx",
     {
       react: {
@@ -253,6 +254,14 @@ function loadProviderOwnerTransitionHarness({
       },
     },
   )
+
+  let provider
+  try {
+    provider = loadOwnerTransitionProvider()
+  } catch (error) {
+    globalThis.localStorage = previousLocalStorage
+    throw error
+  }
 
   return {
     flushEffects() {
@@ -546,6 +555,24 @@ describe("therapist settings cloud hydration", () => {
       })
     } finally {
       harness.restore()
+    }
+  })
+
+  it("restores the previous local storage when owner-transition setup throws", () => {
+    const previousLocalStorage = globalThis.localStorage
+    const sentinelLocalStorage = { sentinel: true }
+    globalThis.localStorage = sentinelLocalStorage
+
+    try {
+      assert.throws(
+        () => loadProviderOwnerTransitionHarness({
+          moduleSource: 'throw new Error("forced provider setup failure")',
+        }),
+        /forced provider setup failure/,
+      )
+      assert.equal(globalThis.localStorage, sentinelLocalStorage)
+    } finally {
+      globalThis.localStorage = previousLocalStorage
     }
   })
 
