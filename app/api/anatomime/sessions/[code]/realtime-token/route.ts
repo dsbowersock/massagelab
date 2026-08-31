@@ -1,21 +1,41 @@
 import { NextResponse } from "next/server"
+import { getCurrentSession } from "@/auth"
 import { createAnatomimeRealtimeTokenRequest } from "@/lib/anatomime-realtime"
-import { loadAnatomimeRoom } from "@/lib/anatomime-room-server"
-import { apiErrorMapper, objectBody } from "@/lib/anatomime-api"
+import { anatomimeViewerFromRequest, apiErrorMapper } from "@/lib/anatomime-api"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
+import {
+  normalizeAnatomimeRoomIdentifier,
+  preflightAnatomimeViewer,
+  requireAnatomimeOperationalAllowance,
+} from "@/lib/anatomime-traffic-server"
 
 export const POST = apiErrorMapper(async (request: Request, { params }: { params: Promise<{ code: string }> }) => {
   const { code } = await params
-  const body = objectBody(await request.json().catch(() => ({})))
-  const clientId = typeof body.clientId === "string" && body.clientId.trim()
-    ? body.clientId.trim().slice(0, 120)
-    : "anatomime-player"
-  const gameSession = await loadAnatomimeRoom(code)
+  const roomIdentifier = normalizeAnatomimeRoomIdentifier(code)
+  await requireAnatomimeOperationalAllowance({
+    operation: "ANATOMIME_REALTIME_TOKEN_START",
+    networkIdentifier: authRequestNetworkIdentifier(request),
+    roomIdentifier,
+  })
 
-  if (!gameSession) {
+  const authSession = await getCurrentSession()
+  const viewer = anatomimeViewerFromRequest(request, authSession?.user?.id)
+  const preflight = await preflightAnatomimeViewer(roomIdentifier, viewer)
+
+  if (preflight.kind === "ROOM_NOT_FOUND") {
     return NextResponse.json({ error: "Game not found." }, { status: 404 })
   }
+  if (preflight.kind !== "JOINED") {
+    return NextResponse.json({ error: "Join this room before using realtime." }, { status: 403 })
+  }
 
-  const tokenRequest = await createAnatomimeRealtimeTokenRequest(code, clientId)
+  await requireAnatomimeOperationalAllowance({
+    operation: "ANATOMIME_REALTIME_TOKEN_ISSUE",
+    playerId: preflight.playerId,
+    roomId: preflight.roomId,
+  })
+
+  const tokenRequest = await createAnatomimeRealtimeTokenRequest(roomIdentifier, preflight.playerId)
 
   if (!tokenRequest) {
     return NextResponse.json({ error: "Realtime is not configured for this environment." }, { status: 503 })

@@ -13,6 +13,8 @@ const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const roomServerSource = await readFile(new URL("../lib/anatomime-room-server.ts", import.meta.url), "utf8")
 const createRouteSource = await readFile(new URL("../app/api/anatomime/sessions/route.ts", import.meta.url), "utf8")
 const joinRouteSource = await readFile(new URL("../app/api/anatomime/sessions/[code]/join/route.ts", import.meta.url), "utf8")
+const realtimeTokenRouteSource = await readFile(new URL("../app/api/anatomime/sessions/[code]/realtime-token/route.ts", import.meta.url), "utf8")
+const sharedSessionClientSource = await readFile(new URL("../app/anatomime/shared-session-client.tsx", import.meta.url), "utf8")
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
 
 class AnatomimeSessionError extends Error {
@@ -417,6 +419,160 @@ describe("Anatomime create and join traffic boundaries", () => {
   }
 })
 
+describe("Anatomime realtime token traffic boundary", () => {
+  for (const [status, retryAfterSeconds] of [[429, 9], [503, undefined]]) {
+    it(`stops realtime token ${status} start denial before auth, preflight, and provider work`, async () => {
+      const scenario = loadRealtimeTokenRoute({
+        startError: new AnatomimeTrafficLimitError(status, retryAfterSeconds),
+      })
+      const response = await scenario.POST(
+        routeRequest("/api/anatomime/sessions/a-b12/realtime-token", { clientId: "attacker-chosen" }, {
+          "x-anatomime-player-id": "exposed-player",
+          "x-anatomime-player-token": "opaque-token",
+        }),
+        { params: Promise.resolve({ code: " a-b12 " }) },
+      )
+
+      assert.equal(response.status, status)
+      assert.deepEqual(scenario.limitCalls, [{
+        operation: "ANATOMIME_REALTIME_TOKEN_START",
+        networkIdentifier: "198.51.100.27",
+        roomIdentifier: "AB12",
+      }])
+      assert.deepEqual(scenario.events, ["limit:start"])
+      if (status === 429) assert.equal(response.headers.get("Retry-After"), "9")
+    })
+  }
+
+  for (const [kind, status] of [["ROOM_NOT_FOUND", 404], ["UNJOINED", 403], ["INVALID", 403]]) {
+    it(`returns generic ${status} for realtime ${kind.toLowerCase()} proof without issue/provider work`, async () => {
+      const scenario = loadRealtimeTokenRoute({
+        preflightResult: kind === "ROOM_NOT_FOUND"
+          ? { kind }
+          : { kind, roomId: "room-db", roomIdentifier: "AB12" },
+      })
+      const response = await scenario.POST(
+        routeRequest("/api/anatomime/sessions/a-b12/realtime-token", { clientId: "attacker-chosen" }, {
+          "x-anatomime-player-id": "arbitrary-exposed-player",
+          "x-anatomime-player-token": "stale-or-wrong-token",
+        }),
+        { params: Promise.resolve({ code: " a-b12 " }) },
+      )
+
+      assert.equal(response.status, status)
+      assert.deepEqual(await response.json(), status === 404
+        ? { error: "Game not found." }
+        : { error: "Join this room before using realtime." })
+      assert.deepEqual(scenario.limitCalls, [{
+        operation: "ANATOMIME_REALTIME_TOKEN_START",
+        networkIdentifier: "198.51.100.27",
+        roomIdentifier: "AB12",
+      }])
+      assert.deepEqual(scenario.providerCalls, [])
+      assert.deepEqual(scenario.preflightCalls, [{
+        code: "AB12",
+        viewer: {
+          userId: undefined,
+          playerId: "arbitrary-exposed-player",
+          playerToken: "stale-or-wrong-token",
+        },
+      }])
+    })
+  }
+
+  for (const scenarioInput of [
+    {
+      label: "an authenticated mapping",
+      session: { user: { id: "account-1" } },
+      headers: {
+        "x-anatomime-player-id": "arbitrary-exposed-player",
+        "x-anatomime-player-token": "stale-token",
+      },
+      joinedPlayerId: "database-account-player",
+    },
+    {
+      label: "a matching null-user guest proof",
+      session: null,
+      headers: {
+        "x-anatomime-player-id": "database-guest-player",
+        "x-anatomime-player-token": "opaque-guest-token",
+      },
+      joinedPlayerId: "database-guest-player",
+    },
+  ]) {
+    it(`issues realtime identity only from ${scenarioInput.label}`, async () => {
+      const scenario = loadRealtimeTokenRoute({
+        session: scenarioInput.session,
+        preflightResult: {
+          kind: "JOINED",
+          roomId: "room-db",
+          roomIdentifier: "AB12",
+          playerId: scenarioInput.joinedPlayerId,
+        },
+      })
+      const response = await scenario.POST(
+        routeRequest("/api/anatomime/sessions/a-b12/realtime-token", { clientId: "attacker-chosen" }, scenarioInput.headers),
+        { params: Promise.resolve({ code: " a-b12 " }) },
+      )
+
+      assert.equal(response.status, 200)
+      assert.deepEqual(await response.json(), {
+        clientId: scenarioInput.joinedPlayerId,
+        capability: "stubbed",
+      })
+      assert.deepEqual(scenario.limitCalls, [
+        {
+          operation: "ANATOMIME_REALTIME_TOKEN_START",
+          networkIdentifier: "198.51.100.27",
+          roomIdentifier: "AB12",
+        },
+        {
+          operation: "ANATOMIME_REALTIME_TOKEN_ISSUE",
+          playerId: scenarioInput.joinedPlayerId,
+          roomId: "room-db",
+        },
+      ])
+      assert.deepEqual(scenario.providerCalls, [{
+        code: "AB12",
+        clientId: scenarioInput.joinedPlayerId,
+      }])
+      assert.notEqual(scenario.providerCalls[0].clientId, "attacker-chosen")
+    })
+  }
+
+  for (const [status, retryAfterSeconds] of [[429, 11], [503, undefined]]) {
+    it(`stops realtime token ${status} issue denial before provider work`, async () => {
+      const scenario = loadRealtimeTokenRoute({
+        preflightResult: {
+          kind: "JOINED",
+          roomId: "room-db",
+          roomIdentifier: "AB12",
+          playerId: "database-player",
+        },
+        issueError: new AnatomimeTrafficLimitError(status, retryAfterSeconds),
+      })
+      const response = await scenario.POST(
+        routeRequest("/api/anatomime/sessions/ab12/realtime-token", {}, {
+          "x-anatomime-player-id": "database-player",
+          "x-anatomime-player-token": "opaque-token",
+        }),
+        { params: Promise.resolve({ code: "ab12" }) },
+      )
+
+      assert.equal(response.status, status)
+      assert.deepEqual(scenario.events, ["limit:start", "auth", "preflight", "limit:issue"])
+      assert.deepEqual(scenario.providerCalls, [])
+      if (status === 429) assert.equal(response.headers.get("Retry-After"), "11")
+    })
+  }
+
+  it("sends guest proof in headers and never supplies a body clientId", () => {
+    assert.match(sharedSessionClientSource, /"x-anatomime-player-id"\s*:\s*realtimePlayer\.playerId/)
+    assert.match(sharedSessionClientSource, /"x-anatomime-player-token"\s*:\s*realtimePlayer\.playerToken/)
+    assert.doesNotMatch(sharedSessionClientSource, /body\s*:\s*JSON\.stringify\(\{\s*clientId/)
+  })
+})
+
 function loadRoomServer({
   events,
   deck = cardFixtures(),
@@ -542,6 +698,73 @@ function loadRoute(kind, { session = null, limitError } = {}) {
   return { POST: route.POST, limitCalls, protectedCalls }
 }
 
+function loadRealtimeTokenRoute({
+  session = null,
+  preflightResult = {
+    kind: "JOINED",
+    roomId: "room-db",
+    roomIdentifier: "AB12",
+    playerId: "database-player",
+  },
+  startError,
+  issueError,
+} = {}) {
+  const events = []
+  const limitCalls = []
+  const preflightCalls = []
+  const providerCalls = []
+  const route = loadCompiledModule(realtimeTokenRouteSource, "realtime-token-anatomime-traffic-route.test.ts", {
+    "next/server": { NextResponse: responseAdapter() },
+    "@/auth": {
+      getCurrentSession: async () => {
+        events.push("auth")
+        return session
+      },
+    },
+    "@/lib/anatomime-api": apiBoundary,
+    "@/lib/auth-request": { authRequestNetworkIdentifier },
+    "@/lib/anatomime-room-server": {
+      loadAnatomimeRoom: async () => {
+        events.push("legacy-room-load")
+        return { id: "legacy-room" }
+      },
+    },
+    "@/lib/anatomime-traffic-server": {
+      normalizeAnatomimeRoomIdentifier,
+      preflightAnatomimeViewer: async (code, viewer) => {
+        events.push("preflight")
+        preflightCalls.push({ code, viewer })
+        return preflightResult
+      },
+      requireAnatomimeOperationalAllowance: async (input) => {
+        limitCalls.push(input)
+        if (input.operation === "ANATOMIME_REALTIME_TOKEN_START") {
+          events.push("limit:start")
+          if (startError) throw startError
+        } else {
+          events.push("limit:issue")
+          if (issueError) throw issueError
+        }
+      },
+    },
+    "@/lib/anatomime-realtime": {
+      createAnatomimeRealtimeTokenRequest: async (code, clientId) => {
+        events.push("provider")
+        providerCalls.push({ code, clientId })
+        return { clientId, capability: "stubbed" }
+      },
+    },
+  })
+
+  return {
+    POST: route.POST,
+    events,
+    limitCalls,
+    preflightCalls,
+    providerCalls,
+  }
+}
+
 function roomFixture(overrides = {}) {
   return {
     id: "room-1",
@@ -586,12 +809,13 @@ function responseAdapter() {
   return { json: (body, init = {}) => new Response(JSON.stringify(body), init) }
 }
 
-function routeRequest(path, body) {
+function routeRequest(path, body, headers = {}) {
   return new Request(`https://massagelab.test${path}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "x-vercel-forwarded-for": "198.51.100.27, 10.0.0.2",
+      ...headers,
     },
     body: JSON.stringify(body),
   })

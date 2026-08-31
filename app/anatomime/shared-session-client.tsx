@@ -239,8 +239,10 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       try {
         const tokenResponse = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/realtime-token`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ clientId: realtimePlayer.playerId }),
+          headers: {
+            "x-anatomime-player-id": realtimePlayer.playerId,
+            "x-anatomime-player-token": realtimePlayer.playerToken,
+          },
         })
         if (!tokenResponse.ok) throw new Error("Realtime unavailable")
         const tokenRequest = await tokenResponse.json()
