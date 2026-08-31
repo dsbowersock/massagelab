@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { AnatomimeSessionError, type ViewerContext } from "./anatomime-session-server.ts"
+import { AnatomimeTrafficLimitError } from "./anatomime-traffic-server.ts"
 
 export function objectBody(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -24,6 +25,18 @@ export function anatomimeViewerFromRequest(request: Request, userId?: string | n
 }
 
 export function anatomimeErrorResponse(error: unknown, logContext: string) {
+  if (error instanceof AnatomimeTrafficLimitError) {
+    return NextResponse.json(
+      { error: error.message },
+      {
+        status: error.status,
+        ...(error.status === 429
+          ? { headers: { "Retry-After": String(Math.max(1, Math.ceil(error.retryAfterSeconds ?? 1))) } }
+          : {}),
+      },
+    )
+  }
+
   if (error instanceof AnatomimeSessionError) {
     return NextResponse.json({ error: error.message }, { status: error.status })
   }

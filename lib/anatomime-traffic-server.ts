@@ -1,0 +1,289 @@
+import { createHmac } from "node:crypto"
+import type { PrismaClient } from "@prisma/client"
+import { hashToken } from "./auth-security.js"
+import { type ViewerContext } from "./anatomime-session-server.ts"
+import {
+  consumeOperationalRateLimit,
+  type OperationalRateLimitRequest,
+} from "./operational-rate-limit.ts"
+import { prisma } from "./prisma.ts"
+
+export type AnatomimeViewerPreflight =
+  | { kind: "ROOM_NOT_FOUND" }
+  | { kind: "JOINED"; roomId: string; roomIdentifier: string; playerId: string }
+  | { kind: "UNJOINED"; roomId: string; roomIdentifier: string }
+  | { kind: "INVALID"; roomId: string; roomIdentifier: string }
+
+export type AnatomimeTrafficPrismaClient = Pick<PrismaClient, "anatomimeRoom" | "anatomimeRoomPlayer">
+
+export type AnatomimePollShedDecision =
+  | { allowed: true }
+  | { allowed: false; retryAfterSeconds: number }
+
+type PollBucket = { count: number; windowStartMs: number }
+type PollRule = { key: string; limit: number }
+
+const POLL_WINDOW_MS = 10_000
+const NETWORK_ROOM_LIMIT = 150
+const ROOM_LIMIT = 300
+const PLAYER_LIMIT = 20
+const DEFAULT_MAX_ENTRIES = 4_096
+const PRESENCE_WINDOW_MS = 15_000
+const POLL_HMAC_DOMAIN = "massagelab:anatomime-poll-shedder:v1"
+
+export function normalizeAnatomimeRoomIdentifier(value: string): string {
+  return typeof value === "string"
+    ? value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+    : ""
+}
+
+/**
+ * Resolves only the room owner and at most the authenticated/guest player
+ * candidates. Full room relations stay outside this credential preflight.
+ */
+export async function preflightAnatomimeViewer(
+  code: string,
+  viewer: ViewerContext,
+  options: { prismaClient?: AnatomimeTrafficPrismaClient } = {},
+): Promise<AnatomimeViewerPreflight> {
+  const prismaClient = options.prismaClient ?? prisma
+  const roomIdentifier = normalizeAnatomimeRoomIdentifier(code)
+  const userId = nonEmptyIdentifier(viewer?.userId)
+  const playerId = nonEmptyIdentifier(viewer?.playerId)
+  const candidateFilters = [
+    ...(userId ? [{ userId }] : []),
+    ...(playerId ? [{ id: playerId }] : []),
+  ]
+
+  const room = await prismaClient.anatomimeRoom.findUnique({
+    where: { code: roomIdentifier },
+    select: {
+      id: true,
+      code: true,
+      players: {
+        where: candidateFilters.length > 0 ? { OR: candidateFilters } : { id: { in: [] } },
+        take: 2,
+        select: { id: true, roomId: true, userId: true, guestTokenHash: true },
+      },
+    },
+  })
+  if (!room) return { kind: "ROOM_NOT_FOUND" }
+
+  const normalizedRoomIdentifier = normalizeAnatomimeRoomIdentifier(room.code)
+  const authenticatedPlayer = userId
+    ? room.players.find((player) => player.roomId === room.id && player.userId === userId)
+    : null
+  if (authenticatedPlayer) {
+    return {
+      kind: "JOINED",
+      roomId: room.id,
+      roomIdentifier: normalizedRoomIdentifier,
+      playerId: authenticatedPlayer.id,
+    }
+  }
+
+  const playerToken = nonEmptyIdentifier(viewer?.playerToken)
+  if (playerId || playerToken) {
+    const guestPlayer = playerId
+      ? room.players.find((player) => player.roomId === room.id && player.id === playerId)
+      : null
+    if (guestPlayer && playerToken && guestPlayer.guestTokenHash === hashToken(playerToken)) {
+      return {
+        kind: "JOINED",
+        roomId: room.id,
+        roomIdentifier: normalizedRoomIdentifier,
+        playerId: guestPlayer.id,
+      }
+    }
+    return { kind: "INVALID", roomId: room.id, roomIdentifier: normalizedRoomIdentifier }
+  }
+
+  return { kind: "UNJOINED", roomId: room.id, roomIdentifier: normalizedRoomIdentifier }
+}
+
+export class AnatomimeTrafficLimitError extends Error {
+  status: 429 | 503
+  retryAfterSeconds?: number
+
+  constructor(status: 429 | 503, retryAfterSeconds?: number) {
+    super(status === 429
+      ? "Anatomime is busy. Please try again shortly."
+      : "Anatomime is temporarily unavailable. Please try again.")
+    this.name = "AnatomimeTrafficLimitError"
+    this.status = status
+    if (status === 429) this.retryAfterSeconds = integerRetryAfter(retryAfterSeconds)
+  }
+}
+
+/** Converts PR A's closed decision union into the route-owned generic error. */
+export async function requireAnatomimeOperationalAllowance(
+  input: OperationalRateLimitRequest,
+  consume: typeof consumeOperationalRateLimit = consumeOperationalRateLimit,
+): Promise<void> {
+  let decision: Awaited<ReturnType<typeof consumeOperationalRateLimit>>
+  try {
+    decision = await consume(input)
+  } catch {
+    throw new AnatomimeTrafficLimitError(503)
+  }
+
+  if (decision.allowed) return
+  if (decision.reason === "RATE_LIMITED") {
+    throw new AnatomimeTrafficLimitError(429, decision.retryAfterSeconds)
+  }
+  throw new AnatomimeTrafficLimitError(503)
+}
+
+/**
+ * Creates one bounded fixed-window shedder. Applicable rules are checked before
+ * any count changes, and only HMAC-reduced tuple keys enter the retained map.
+ */
+export function createAnatomimePollShedder(options: {
+  secret: string
+  maxEntries?: number
+}) {
+  const secret = typeof options?.secret === "string" ? options.secret : ""
+  if (!secret.trim()) throw new Error("An Anatomime poll-shedder secret is required.")
+  const maxEntries = options.maxEntries ?? DEFAULT_MAX_ENTRIES
+  if (!Number.isSafeInteger(maxEntries) || maxEntries < 1 || maxEntries > DEFAULT_MAX_ENTRIES) {
+    throw new Error("Anatomime poll-shedder capacity must be between 1 and 4096.")
+  }
+  const buckets = new Map<string, PollBucket>()
+
+  function consumeRules(rules: readonly PollRule[], nowValue?: Date): AnatomimePollShedDecision {
+    const now = validDate(nowValue ?? new Date())
+    if (!now) return { allowed: false, retryAfterSeconds: 10 }
+    pruneExpiredBuckets(buckets, now.getTime())
+
+    const activeBlocks = rules
+      .map((rule) => ({ rule, bucket: buckets.get(rule.key) }))
+      .filter((entry): entry is { rule: PollRule; bucket: PollBucket } => (
+        entry.bucket !== undefined && entry.bucket.count >= entry.rule.limit
+      ))
+    if (activeBlocks.length > 0) {
+      return {
+        allowed: false,
+        retryAfterSeconds: Math.max(...activeBlocks.map(({ bucket }) => (
+          retryAfterWindow(bucket.windowStartMs, now.getTime())
+        ))),
+      }
+    }
+
+    const newEntryCount = rules.reduce((count, rule) => count + (buckets.has(rule.key) ? 0 : 1), 0)
+    if (buckets.size + newEntryCount > maxEntries) {
+      return { allowed: false, retryAfterSeconds: capacityRetryAfter(buckets, now.getTime()) }
+    }
+
+    for (const rule of rules) {
+      const current = buckets.get(rule.key)
+      buckets.set(rule.key, current
+        ? { ...current, count: current.count + 1 }
+        : { count: 1, windowStartMs: now.getTime() })
+    }
+    return { allowed: true }
+  }
+
+  return {
+    consumeIngress(input: { networkIdentifier: string; roomIdentifier: string; now?: Date }) {
+      const networkIdentifier = localIdentifier(input?.networkIdentifier)
+      const roomIdentifier = normalizeAnatomimeRoomIdentifier(input?.roomIdentifier)
+      if (!networkIdentifier || !roomIdentifier) return { allowed: false as const, retryAfterSeconds: 10 }
+      return consumeRules([
+        { key: pollBucketKey(secret, "network-room", [networkIdentifier, roomIdentifier]), limit: NETWORK_ROOM_LIMIT },
+        { key: pollBucketKey(secret, "room", [roomIdentifier]), limit: ROOM_LIMIT },
+      ], input.now)
+    },
+    consumeJoined(input: { playerId: string; now?: Date }) {
+      const playerId = localIdentifier(input?.playerId)
+      if (!playerId) return { allowed: false as const, retryAfterSeconds: 10 }
+      return consumeRules([
+        { key: pollBucketKey(secret, "player", [playerId]), limit: PLAYER_LIMIT },
+      ], input.now)
+    },
+    get size() {
+      return buckets.size
+    },
+  }
+}
+
+/** Writes presence only when both the snapshot and database row are stale. */
+export async function coalesceAnatomimePlayerPresence(input: {
+  prismaClient?: Pick<PrismaClient, "anatomimeRoomPlayer">
+  roomId: string
+  playerId: string
+  lastSeenAt: Date
+  now?: Date
+}): Promise<Date | null> {
+  const roomId = nonEmptyIdentifier(input.roomId)
+  const playerId = nonEmptyIdentifier(input.playerId)
+  const lastSeenAt = validDate(input.lastSeenAt)
+  const now = validDate(input.now ?? new Date())
+  if (!roomId || !playerId || !lastSeenAt || !now) {
+    throw new Error("Valid Anatomime presence identifiers and timestamps are required.")
+  }
+  if (now.getTime() - lastSeenAt.getTime() < PRESENCE_WINDOW_MS) return null
+
+  const cutoff = new Date(now.getTime() - PRESENCE_WINDOW_MS)
+  const result = await (input.prismaClient ?? prisma).anatomimeRoomPlayer.updateMany({
+    where: { id: playerId, roomId, lastSeenAt: { lte: cutoff } },
+    data: { lastSeenAt: now },
+  })
+  return result.count === 1 ? now : null
+}
+
+function pollBucketKey(secret: string, rule: string, components: readonly string[]): string {
+  const hmac = createHmac("sha256", secret)
+  appendLengthPrefixed(hmac, POLL_HMAC_DOMAIN)
+  appendLengthPrefixed(hmac, rule)
+  for (const component of components) appendLengthPrefixed(hmac, component)
+  return hmac.digest("hex")
+}
+
+function appendLengthPrefixed(hmac: ReturnType<typeof createHmac>, value: string) {
+  const bytes = Buffer.from(value, "utf8")
+  const length = Buffer.allocUnsafe(4)
+  length.writeUInt32BE(bytes.length)
+  hmac.update(length).update(bytes)
+}
+
+function pruneExpiredBuckets(buckets: Map<string, PollBucket>, nowMs: number) {
+  for (const [key, bucket] of buckets) {
+    if (bucket.windowStartMs + POLL_WINDOW_MS <= nowMs) buckets.delete(key)
+  }
+}
+
+function retryAfterWindow(windowStartMs: number, nowMs: number): number {
+  return Math.max(1, Math.ceil((windowStartMs + POLL_WINDOW_MS - nowMs) / 1_000))
+}
+
+function capacityRetryAfter(buckets: Map<string, PollBucket>, nowMs: number): number {
+  let earliestExpiry = Number.POSITIVE_INFINITY
+  for (const bucket of buckets.values()) {
+    earliestExpiry = Math.min(earliestExpiry, bucket.windowStartMs + POLL_WINDOW_MS)
+  }
+  return Number.isFinite(earliestExpiry)
+    ? Math.max(1, Math.ceil((earliestExpiry - nowMs) / 1_000))
+    : 10
+}
+
+function integerRetryAfter(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(1, Math.ceil(value))
+    : 1
+}
+
+function validDate(value: unknown): Date | null {
+  return value instanceof Date && Number.isFinite(value.getTime())
+    ? new Date(value.getTime())
+    : null
+}
+
+function nonEmptyIdentifier(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null
+}
+
+function localIdentifier(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const normalized = value.trim()
+  return normalized && normalized.length <= 256 ? normalized : null
+}
