@@ -127,34 +127,55 @@ describe("Anatomime create and join traffic boundaries", () => {
     assert.deepEqual(events, ["room-lookup"])
   })
 
-  it("rejects an account-bound player selector before quota in an open lobby", async () => {
-    const events = []
-    const service = loadRoomServer({
-      events,
-      room: roomFixture({
-        players: [playerFixture({ userId: "account-1", guestTokenHash: "hash:stale-token" })],
-      }),
-    })
+  for (const scenario of [
+    {
+      label: "an unknown player selector",
+      players: [],
+      input: { playerId: "missing-player", playerToken: "unknown-token" },
+    },
+    {
+      label: "a known guest selector with the wrong token",
+      players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+      input: { playerId: "player-1", playerToken: "wrong-token" },
+    },
+    {
+      label: "an account-bound selector with a retained token",
+      players: [playerFixture({ userId: "account-1", guestTokenHash: "hash:stale-token" })],
+      input: { playerId: "player-1", playerToken: "stale-token" },
+    },
+    {
+      label: "a player token without a selector",
+      players: [],
+      input: { playerToken: "orphan-token" },
+    },
+    {
+      label: "a guest selector without its token",
+      players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+      input: { playerId: "player-1" },
+    },
+  ]) {
+    it(`returns the same pre-quota rejection for ${scenario.label} in an open lobby`, async () => {
+      const events = []
+      const service = loadRoomServer({
+        events,
+        room: roomFixture({ players: scenario.players }),
+      })
 
-    await assert.rejects(
-      () => service.joinAnatomimeRoom("room-1", {
-        displayName: "Attacker",
-        playerId: "player-1",
-        playerToken: "stale-token",
-      }, null, {
-        beforePersist: async () => {
-          events.push("guard")
-          throw new Error("quota should not be reached")
-        },
-      }),
-      (error) => (
-        error instanceof AnatomimeSessionError
-        && error.status === 403
-        && error.code === "join-required"
-      ),
-    )
-    assert.deepEqual(events, ["room-lookup"])
-  })
+      await assert.rejects(
+        () => service.joinAnatomimeRoom("room-1", {
+          displayName: "Attacker",
+          ...scenario.input,
+        }, null, {
+          beforePersist: async () => {
+            events.push("guard")
+            throw new Error("quota should not be reached")
+          },
+        }),
+        isGenericJoinCredentialError,
+      )
+      assert.deepEqual(events, ["room-lookup"])
+    })
+  }
 
   it("rejects a guest selector that becomes account-bound after open-lobby quota", async () => {
     const events = []
@@ -187,6 +208,90 @@ describe("Anatomime create and join traffic boundaries", () => {
     )
     assert.deepEqual(events, ["room-lookup", "guard", "transaction", "transaction-read"])
   })
+
+  it("rejects a guest token that stops matching after open-lobby quota", async () => {
+    const events = []
+    const initialRoom = roomFixture({
+      players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+    })
+    const transactionRoom = roomFixture({
+      players: [playerFixture({ guestTokenHash: "hash:rotated-token" })],
+    })
+    const service = loadRoomServer({
+      events,
+      room: initialRoom,
+      transactionRoom,
+      playerWriteError: new Error("player write should not be reached"),
+    })
+
+    await assert.rejects(
+      () => service.joinAnatomimeRoom("room-1", {
+        displayName: "Guest",
+        playerId: "player-1",
+        playerToken: "guest-token",
+      }, null, {
+        beforePersist: async () => events.push("guard"),
+      }),
+      isGenericJoinCredentialError,
+    )
+    assert.deepEqual(events, ["room-lookup", "guard", "transaction", "transaction-read"])
+  })
+
+  for (const scenario of [
+    {
+      label: "a valid null-user guest credential pair",
+      userId: null,
+      players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+      input: { playerId: "player-1", playerToken: "guest-token" },
+      writeEvent: "player-update",
+    },
+    {
+      label: "an ordinary new join without credential fields",
+      userId: null,
+      players: [],
+      input: {},
+      writeEvent: "player-create",
+    },
+    {
+      label: "an authenticated mapping despite stale selector fields",
+      userId: "account-current",
+      players: [
+        playerFixture({ id: "player-current", userId: "account-current" }),
+        playerFixture({ id: "player-other", userId: "account-other", guestTokenHash: "hash:stale-token" }),
+      ],
+      input: { playerId: "player-other", playerToken: "stale-token" },
+      writeEvent: "player-update",
+    },
+  ]) {
+    it(`preserves ${scenario.label}`, async () => {
+      const events = []
+      const writeReached = new Error("expected protected write reached")
+      const room = roomFixture({ players: scenario.players })
+      const service = loadRoomServer({
+        events,
+        room,
+        transactionRoom: room,
+        playerWriteError: writeReached,
+      })
+
+      await assert.rejects(
+        () => service.joinAnatomimeRoom("room-1", {
+          displayName: "Guest",
+          ...scenario.input,
+        }, scenario.userId, {
+          beforePersist: async () => events.push("guard"),
+        }),
+        (error) => error === writeReached,
+      )
+      assert.deepEqual(events, [
+        "room-lookup",
+        "guard",
+        "transaction",
+        "transaction-read",
+        scenario.writeEvent,
+      ])
+    })
+  }
 
   it("revalidates guest-only token ownership after quota before review re-entry", async () => {
     const events = []
@@ -347,16 +452,16 @@ function loadRoomServer({
           },
         },
         anatomimeRoomPlayer: {
-          create: playerWrite,
-          update: playerWrite,
-          upsert: playerWrite,
+          create: () => playerWrite("player-create"),
+          update: () => playerWrite("player-update"),
+          upsert: () => playerWrite("player-upsert"),
         },
       })
     },
   }
 
-  async function playerWrite() {
-    events.push("player-write")
+  async function playerWrite(event) {
+    events.push(event)
     if (playerWriteError) throw playerWriteError
     return transactionRoom.players[0]
   }
@@ -462,6 +567,15 @@ function playerFixture(overrides = {}) {
     guestTokenHash: "hash:guest-token",
     ...overrides,
   }
+}
+
+function isGenericJoinCredentialError(error) {
+  return (
+    error instanceof AnatomimeSessionError
+    && error.status === 403
+    && error.code === "join-required"
+    && error.message === "Join this room before taking that action."
+  )
 }
 
 function cardFixtures() {

@@ -938,18 +938,19 @@ export async function joinAnatomimeRoom(
   const requestedTeamId = typeof body.teamId === "string" ? body.teamId : ""
   const suppliedPlayerId = typeof body.playerId === "string" ? body.playerId : ""
   const suppliedToken = typeof body.playerToken === "string" ? body.playerToken : ""
+  const hasSuppliedPlayerCredentials = Object.hasOwn(body, "playerId") || Object.hasOwn(body, "playerToken")
   const validationNow = new Date()
 
   const existingSignedInPlayer = userId ? room.players.find((player) => player.userId === userId) : null
   const selectedPlayer = suppliedPlayerId
     ? room.players.find((player) => player.id === suppliedPlayerId)
     : null
-  if (!existingSignedInPlayer && selectedPlayer && selectedPlayer.userId !== null) {
-    throw roomError(403, "join-required", "Join this room before taking that action.")
-  }
   const existingGuestPlayer = selectedPlayer?.userId === null && playerTokenMatches(selectedPlayer, suppliedToken)
     ? selectedPlayer
     : null
+  if (!existingSignedInPlayer && hasSuppliedPlayerCredentials && !existingGuestPlayer) {
+    throw roomError(403, "join-required", "Join this room before taking that action.")
+  }
   const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
   const joinStatus = canJoinRoom(
     {
@@ -981,12 +982,12 @@ export async function joinAnatomimeRoom(
     const selectedPlayer = suppliedPlayerId
       ? currentRoom.players.find((player) => player.id === suppliedPlayerId)
       : null
-    if (!existingSignedInPlayer && selectedPlayer && selectedPlayer.userId !== null) {
-      throw roomError(403, "join-required", "Join this room before taking that action.")
-    }
     const existingGuestPlayer = selectedPlayer?.userId === null && playerTokenMatches(selectedPlayer, suppliedToken)
       ? selectedPlayer
       : null
+    if (!existingSignedInPlayer && hasSuppliedPlayerCredentials && !existingGuestPlayer) {
+      throw roomError(403, "join-required", "Join this room before taking that action.")
+    }
     const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
     const joinStatus = canJoinRoom(
       {
