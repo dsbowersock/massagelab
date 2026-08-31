@@ -317,7 +317,9 @@ async function openClockBackground(page: Page, href = "/clock") {
   // The router opens a URL-requested panel; clicking its toggle again would
   // close or otherwise change the state the caller is trying to exercise.
   if (!panelRequested) {
-    const clockOwner = page.getByRole("region", { name: "Chimer clock" }).filter({ visible: true })
+    const clockOwner = page
+      .getByRole("region", { name: "Chimer clock", includeHidden: true })
+      .filter({ visible: true })
     await expect(clockOwner).toHaveCount(1)
     await expect(clockOwner).toBeVisible()
     const controls = page.getByRole("group", { name: "Immersive display controls" }).filter({ visible: true })
@@ -648,6 +650,7 @@ test("zero-credit cart persists across refresh and checkout failure keeps one su
     }, { once: true })
   })
   await openClockBackground(page)
+  await expect(page.getByRole("region", { name: "Chimer clock", includeHidden: true })).toHaveCount(2)
   const panel = page.getByRole("dialog", { name: "Background" })
   await centerPremium(page, DOTTED_GLOW_ID)
   await panel.getByRole("button", { name: `Unlock ${DOTTED_GLOW_NAME} background` }).click()

@@ -489,9 +489,12 @@ async function installChimerPreviewFixtures(
 }
 
 /**
- * Provides exact sample-index and payload fixtures for public Atmosphere journeys.
- * Empty indexes isolate opportunistic prewarm, while playback stations receive
- * the package instrument names and valid repository-owned audio bytes they need.
+ * Installs deterministic Atmosphere network fixtures for public browser journeys.
+ * @param page Page whose external Atmosphere requests the fixtures intercept.
+ * @param allowedExternalUrls Explicit external-request allowlist shared with health checks.
+ * @param playbackPieceIds Pieces that need playable sample payloads; each piece must have an allowlisted sample-index fixture.
+ * @param sampleIndexFixtureUrls Sample-index URLs to fulfill, or the full catalog by default.
+ * @returns A `hitCount(url)` API reporting how often each fixture ran.
  */
 async function installAtmosphereFixtures(
   page: Page,
