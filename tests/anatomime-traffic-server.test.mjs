@@ -430,6 +430,7 @@ describe("Anatomime traffic server primitives", () => {
     const conflictRoom = {
       status: "EXPIRED",
       expiresAt: room.expiresAt,
+      currentRunId: "run-1",
       currentRun: {
         ...playingRunFixture(),
         status: "GAME_COMPLETE",
@@ -448,6 +449,7 @@ describe("Anatomime traffic server primitives", () => {
     assert.deepEqual(scenario.narrowReadCalls[0].select, {
       status: true,
       expiresAt: true,
+      currentRunId: true,
       currentRun: {
         select: {
           id: true,
@@ -461,6 +463,90 @@ describe("Anatomime traffic server primitives", () => {
     assert.equal(loaded.status, "EXPIRED")
     assert.equal(loaded.currentRun.status, "GAME_COMPLETE")
     assert.deepEqual(loaded.currentRun.completedAt, conflictRoom.currentRun.completedAt)
+  })
+
+  for (const scenarioInput of [
+    {
+      label: "a hydrated room without a run gains a new run",
+      room: minimalPresenceRoom({
+        status: "PLAYING",
+        expiresAt: new Date("2026-08-31T12:00:15.000Z"),
+        currentRunId: null,
+        currentRun: null,
+      }),
+      conflictRunId: "new-run",
+    },
+    {
+      label: "the hydrated current run changes identity",
+      room: minimalPresenceRoom({
+        status: "PLAYING",
+        expiresAt: new Date("2026-08-31T12:00:15.000Z"),
+        currentRunId: "old-run",
+        currentRun: { ...playingRunFixture(), id: "old-run" },
+      }),
+      conflictRunId: "new-run",
+    },
+  ]) {
+    it(`fails retryably when ${scenarioInput.label}`, async () => {
+      const conflictRoom = {
+        status: "EXPIRED",
+        expiresAt: scenarioInput.room.expiresAt,
+        currentRunId: scenarioInput.conflictRunId,
+        currentRun: {
+          ...playingRunFixture(),
+          id: scenarioInput.conflictRunId,
+          status: "GAME_COMPLETE",
+          phase: "GAME_COMPLETE",
+          termEndsAt: null,
+          completedAt: new Date("2026-08-31T12:00:15.500Z"),
+        },
+      }
+      const scenario = loadPresenceRoomServer({
+        room: scenarioInput.room,
+        expireRoomCount: 0,
+        conflictRoom,
+      })
+
+      await assert.rejects(
+        () => scenario.loadAnatomimeRoom("room1", {}, { now: new Date("2026-08-31T12:00:16.000Z") }),
+        (error) => error instanceof AnatomimeTrafficLimitError
+          && error.status === 503
+          && error.message === "Anatomime is temporarily unavailable. Please try again.",
+      )
+      assert.equal(scenario.hydrateCalls.length, 1)
+      assert.equal(scenario.narrowReadCalls.length, 1)
+      assert.deepEqual(scenario.coalesceCalls, [])
+    })
+  }
+
+  it("keeps a stable no-run expiry conflict coherent", async () => {
+    const room = minimalPresenceRoom({
+      status: "LOBBY",
+      expiresAt: new Date("2026-08-31T12:00:15.000Z"),
+      currentRunId: null,
+      currentRun: null,
+    })
+    const scenario = loadPresenceRoomServer({
+      room,
+      expireRoomCount: 0,
+      conflictRoom: {
+        status: "EXPIRED",
+        expiresAt: room.expiresAt,
+        currentRunId: null,
+        currentRun: null,
+      },
+    })
+
+    const loaded = await scenario.loadAnatomimeRoom("room1", {}, {
+      now: new Date("2026-08-31T12:00:16.000Z"),
+    })
+
+    assert.equal(loaded.status, "EXPIRED")
+    assert.equal(loaded.currentRunId, null)
+    assert.equal(loaded.currentRun, null)
+    assert.equal(scenario.hydrateCalls.length, 1)
+    assert.equal(scenario.narrowReadCalls.length, 1)
+    assert.deepEqual(scenario.coalesceCalls, [])
   })
 })
 
@@ -549,6 +635,7 @@ function loadPresenceRoomServer({
     },
     "./anatomime-room-rules.ts": {},
     "./anatomime-traffic-server.ts": {
+      AnatomimeTrafficLimitError,
       coalesceAnatomimePlayerPresence: async (input) => {
         coalesceCalls.push({
           roomId: input.roomId,
@@ -593,6 +680,7 @@ function minimalPresenceRoom({ lastSeenAt = new Date("2026-08-31T12:00:00.000Z")
     hostPlayerId: "player-1",
     hostPlayer: player,
     hostLastActivityAt: new Date("2026-08-31T12:00:00.000Z"),
+    currentRunId: overrides.currentRun?.id ?? null,
     currentRun: null,
     teams: [],
     players: [player],

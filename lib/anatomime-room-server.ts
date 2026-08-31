@@ -42,7 +42,10 @@ import {
   type AnatomimeTermState,
 } from "./anatomime-room-rules.ts"
 import type { AnatomyStudyCard } from "./anatomy-study.ts"
-import { coalesceAnatomimePlayerPresence } from "./anatomime-traffic-server.ts"
+import {
+  AnatomimeTrafficLimitError,
+  coalesceAnatomimePlayerPresence,
+} from "./anatomime-traffic-server.ts"
 import { prisma } from "./prisma.ts"
 
 export const roomInclude = {
@@ -556,6 +559,7 @@ async function readAndPatchRoomExpiryConflict(
     select: {
       status: true,
       expiresAt: true,
+      currentRunId: true,
       currentRun: {
         select: {
           id: true,
@@ -569,11 +573,19 @@ async function readAndPatchRoomExpiryConflict(
   })
   if (!snapshot) throw roomError(404, "room-not-found", "Game not found.")
 
+  const hydratedRelationId = room.currentRun?.id ?? null
+  const snapshotRelationId = snapshot.currentRun?.id ?? null
+  const coherentRunIdentity = room.currentRunId === hydratedRelationId
+    && snapshot.currentRunId === snapshotRelationId
+    && snapshot.currentRunId === room.currentRunId
+  if (!coherentRunIdentity) throw new AnatomimeTrafficLimitError(503)
+
   return {
     ...room,
     status: snapshot.status,
     expiresAt: snapshot.expiresAt,
-    currentRun: room.currentRun && snapshot.currentRun?.id === room.currentRun.id
+    currentRunId: snapshot.currentRunId,
+    currentRun: room.currentRun && snapshot.currentRun
       ? { ...room.currentRun, ...snapshot.currentRun }
       : null,
   }

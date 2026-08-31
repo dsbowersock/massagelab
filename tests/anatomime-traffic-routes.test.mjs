@@ -722,6 +722,28 @@ describe("Anatomime room poll traffic boundary", () => {
     assert.deepEqual(roomScenario.coalesceCalls, [])
   })
 
+  it("returns a generic retryable response when expiry observes a different current run", async () => {
+    const roomScenario = loadPresenceRoomServerForRoute({
+      userId: null,
+      presenceResult: null,
+      conflictingRunIdentity: true,
+    })
+    const scenario = loadPollRoute({ roomServer: roomScenario })
+    const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/ab12", {
+        "x-anatomime-player-id": "database-player",
+        "x-anatomime-player-token": "opaque-token",
+      }),
+      { params: Promise.resolve({ code: "ab12" }) },
+    )
+
+    assert.equal(response.status, 503)
+    assert.deepEqual(await response.json(), {
+      error: "Anatomime is temporarily unavailable. Please try again.",
+    })
+    assert.deepEqual(roomScenario.coalesceCalls, [])
+  })
+
   it("returns a missing room without full hydration or durable quota", async () => {
     const scenario = loadPollRoute({ preflightResult: { kind: "ROOM_NOT_FOUND" } })
     const response = await scenario.GET(
@@ -890,6 +912,7 @@ function loadRoomServer({
       canJoinRoom,
     },
     "./anatomime-traffic-server.ts": {
+      AnatomimeTrafficLimitError,
       coalesceAnatomimePlayerPresence: async () => null,
     },
     "./prisma.ts": { prisma },
@@ -1132,13 +1155,22 @@ function loadPollRoute({
   }
 }
 
-function loadPresenceRoomServerForRoute({ userId, presenceResult }) {
+function loadPresenceRoomServerForRoute({ userId, presenceResult, conflictingRunIdentity = false }) {
   const coalesceCalls = []
   const lastSeenAt = new Date("2026-08-31T12:00:00.000Z")
+  const currentRun = conflictingRunIdentity
+    ? { id: "old-run", status: "PLAYING", phase: "ACTIVE_TERM" }
+    : null
   const room = minimalRoomFixture({
     code: "AB12",
+    status: conflictingRunIdentity ? "PLAYING" : "LOBBY",
+    expiresAt: conflictingRunIdentity
+      ? new Date("2000-01-01T00:00:00.000Z")
+      : new Date("2100-01-01T00:00:00.000Z"),
     hostPlayerId: "database-player",
     hostPlayer: { userId },
+    currentRunId: currentRun?.id ?? null,
+    currentRun,
     players: [{
       id: "database-player",
       roomId: "room-db",
@@ -1160,15 +1192,37 @@ function loadPresenceRoomServerForRoute({ userId, presenceResult }) {
     "./anatomime-shared.ts": roomServerSharedDependencies(),
     "./anatomime-room-rules.ts": roomServerRuleDependencies(),
     "./anatomime-traffic-server.ts": {
+      AnatomimeTrafficLimitError,
       coalesceAnatomimePlayerPresence: async (input) => {
         coalesceCalls.push(input)
         return presenceResult
       },
     },
     "./prisma.ts": {
-      prisma: {
-        anatomimeRoom: { findUnique: async () => room },
-      },
+      prisma: conflictingRunIdentity
+        ? {
+            anatomimeRoom: { findUnique: async () => room },
+            $transaction: async (callback) => callback({
+              anatomimeRoom: {
+                updateMany: async () => ({ count: 0 }),
+                findUnique: async () => ({
+                  status: "EXPIRED",
+                  expiresAt: room.expiresAt,
+                  currentRunId: "new-run",
+                  currentRun: {
+                    id: "new-run",
+                    status: "GAME_COMPLETE",
+                    phase: "GAME_COMPLETE",
+                    termEndsAt: null,
+                    completedAt: new Date("2026-08-31T12:00:00.000Z"),
+                  },
+                }),
+              },
+            }),
+          }
+        : {
+            anatomimeRoom: { findUnique: async () => room },
+          },
     },
   })
 
@@ -1190,6 +1244,7 @@ function minimalRoomFixture(overrides = {}) {
     hostPlayerId: "host-player",
     hostPlayer: null,
     hostLastActivityAt: new Date(),
+    currentRunId: null,
     currentRun: null,
     teams: [],
     players: [],
