@@ -49,6 +49,10 @@ function deferred() {
   return { promise, reject, resolve }
 }
 
+/**
+ * Runs PreferenceSync for one active owner with injectable storage and network
+ * inputs, then exposes its captured requests and manual-sync callback.
+ */
 function loadPreferenceSync(ownerKey, {
   fetchImpl = async () => ({ ok: true }),
   getItem,
@@ -123,6 +127,8 @@ function loadPreferenceSync(ownerKey, {
     },
   )
 
+  // The compiled client component reads browser APIs directly, so the harness
+  // substitutes them only while rendering and running its initial effects.
   const previousWindow = globalThis.window
   const previousFetch = globalThis.fetch
   const testWindow = {
@@ -150,6 +156,8 @@ function loadPreferenceSync(ownerKey, {
       requests,
       storageReads,
       async syncLocalPreferences() {
+        // Manual sync runs after initial setup has restored the process globals;
+        // re-enter the isolated APIs for this call and always unwind afterward.
         const currentWindow = globalThis.window
         const currentFetch = globalThis.fetch
         globalThis.window = testWindow
@@ -169,6 +177,8 @@ function loadPreferenceSync(ownerKey, {
       },
     }
   } finally {
+    // Restoration is mandatory because node:test shares these process globals
+    // with the remaining tests even when component setup throws.
     globalThis.window = previousWindow
     globalThis.fetch = previousFetch
   }

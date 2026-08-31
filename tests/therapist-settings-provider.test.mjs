@@ -205,6 +205,8 @@ function loadProviderOwnerTransitionHarness({
           effectCursor += 1
           const slot = effectSlots[cursor]
           if (!slot || !sameDependencies(slot.dependencies, dependencies)) {
+            // One pending entry per hook cursor lets a newer render replace an
+            // unflushed effect instead of preserving a stale render's closure.
             pendingEffects.set(cursor, { dependencies, effect })
           } else {
             pendingEffects.delete(cursor)
@@ -258,6 +260,8 @@ function loadProviderOwnerTransitionHarness({
       pendingEffects.clear()
       for (const [cursor, { dependencies, effect }] of effectsToFlush) {
         effectSlots[cursor]?.cleanup?.()
+        // Dependencies become committed only when the effect flushes; renders
+        // before this point continue comparing with the last flushed snapshot.
         effectSlots[cursor] = {
           cleanup: effect(),
           dependencies,

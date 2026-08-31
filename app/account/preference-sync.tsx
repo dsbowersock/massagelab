@@ -69,6 +69,8 @@ export function PreferenceSync({ hasCloudPreferences }: PreferenceSyncProps) {
         backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
       })
 
+      // Therapist profile migration is bound to the active account owner. Never
+      // upload the ambiguous legacy key or another owner's scoped snapshot.
       const therapistSettings = ownerKey
         ? readOptionalTherapistSettings(therapistSettingsStorageKey(ownerKey))
         : null
