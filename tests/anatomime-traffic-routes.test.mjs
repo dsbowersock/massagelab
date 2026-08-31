@@ -420,6 +420,54 @@ describe("Anatomime create and join traffic boundaries", () => {
 })
 
 describe("Anatomime realtime token traffic boundary", () => {
+  it("canonicalizes formatted room codes for client identity and every realtime sink", async () => {
+    const client = loadSharedSessionClient()
+    assert.equal(typeof client.normalizeAnatomimeClientRoomCode, "function")
+    assert.equal(client.normalizeAnatomimeClientRoomCode("a-b12"), "AB12")
+    assert.equal(client.normalizeAnatomimeClientRoomCode(" A-B12 "), "AB12")
+
+    assert.match(
+      sharedSessionClientSource,
+      /return `massagelab-anatomime-player:\$\{normalizeAnatomimeClientRoomCode\(code\)\}`/,
+    )
+    assert.match(
+      sharedSessionClientSource,
+      /const normalizedInitialCode = normalizeAnatomimeClientRoomCode\(initialCode\)/,
+    )
+    assert.match(
+      sharedSessionClientSource,
+      /const nextLookupCode = lookupCode \|\| normalizeAnatomimeClientRoomCode\(code\)/,
+    )
+    assert.equal(
+      sharedSessionClientSource.match(/setLookupCode\(normalizeAnatomimeClientRoomCode\(code\)\)/g)?.length,
+      2,
+    )
+    assert.equal(sharedSessionClientSource.match(/setLookupCode\(nextLookupCode\)/g)?.length, 1)
+    assert.equal(sharedSessionClientSource.match(/setLookupCode\(/g)?.length, 3)
+    assert.match(
+      sharedSessionClientSource,
+      /fetch\(`\/api\/anatomime\/sessions\/\$\{encodeURIComponent\(lookupCode\)\}\$\{playerQuery\}`/,
+    )
+    assert.match(
+      sharedSessionClientSource,
+      /fetch\(`\/api\/anatomime\/sessions\/\$\{encodeURIComponent\(lookupCode\)\}\/realtime-token`/,
+    )
+    assert.match(sharedSessionClientSource, /channels\.get\(`anatomime:\$\{lookupCode\}`\)/)
+
+    const scenario = loadRealtimeTokenRoute()
+    const response = await scenario.POST(
+      routeRequest("/api/anatomime/sessions/a-b12/realtime-token", {}, {
+        "x-anatomime-player-id": "database-player",
+        "x-anatomime-player-token": "opaque-token",
+      }),
+      { params: Promise.resolve({ code: " A-B12 " }) },
+    )
+
+    assert.equal(response.status, 200)
+    assert.equal(scenario.providerCalls[0].code, "AB12")
+    assert.equal(`anatomime:${client.normalizeAnatomimeClientRoomCode(" A-B12 ")}`, "anatomime:AB12")
+  })
+
   for (const [status, retryAfterSeconds] of [[429, 9], [503, undefined]]) {
     it(`stops realtime token ${status} start denial before auth, preflight, and provider work`, async () => {
       const scenario = loadRealtimeTokenRoute({
@@ -763,6 +811,35 @@ function loadRealtimeTokenRoute({
     preflightCalls,
     providerCalls,
   }
+}
+
+function loadSharedSessionClient() {
+  const emptyComponent = () => null
+  return loadCompiledModule(sharedSessionClientSource, "shared-session-anatomime-code.test.tsx", {
+    react: {
+      useCallback: (callback) => callback,
+      useEffect: () => {},
+      useMemo: (callback) => callback(),
+      useState: (initialValue) => [initialValue, () => {}],
+    },
+    "react/jsx-runtime": {
+      Fragment: Symbol("Fragment"),
+      jsx: () => null,
+      jsxs: () => null,
+    },
+    "lucide-react": {
+      LogIn: emptyComponent,
+      RotateCcw: emptyComponent,
+      Send: emptyComponent,
+      Users: emptyComponent,
+    },
+    "@/components/ui/input": { Input: emptyComponent },
+    "@/components/ui/label": { Label: emptyComponent },
+    "@/components/ui/page-heading": { PageHeading: emptyComponent },
+    "@/components/moving-background": { MovingBackground: emptyComponent },
+    "./anatomime-action-button": { AnatomimeActionButton: emptyComponent },
+    "./styles.css": {},
+  })
 }
 
 function roomFixture(overrides = {}) {

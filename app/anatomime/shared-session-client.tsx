@@ -57,8 +57,13 @@ const feedbackCopy: Record<string, string> = {
   "practice-correct": "Correct for practice.",
 }
 
+/** Keeps every browser-side room identity aligned with the server's canonical room code. */
+export function normalizeAnatomimeClientRoomCode(value: string) {
+  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+}
+
 function storageKey(code: string) {
-  return `massagelab-anatomime-player:${code.toUpperCase()}`
+  return `massagelab-anatomime-player:${normalizeAnatomimeClientRoomCode(code)}`
 }
 
 function readStoredPlayer(code: string): StoredPlayer | null {
@@ -160,7 +165,7 @@ function ablyScript() {
 }
 
 export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode?: string }) {
-  const normalizedInitialCode = initialCode.trim().toUpperCase()
+  const normalizedInitialCode = normalizeAnatomimeClientRoomCode(initialCode)
   const [code, setCode] = useState(normalizedInitialCode)
   const [lookupCode, setLookupCode] = useState(normalizedInitialCode)
   const [displayName, setDisplayName] = useState("")
@@ -342,9 +347,9 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     session.activeItem.choices.length === 4,
   )
   const joinGame = async () => {
-    const nextLookupCode = lookupCode || code.trim().toUpperCase()
+    const nextLookupCode = lookupCode || normalizeAnatomimeClientRoomCode(code)
     if (!nextLookupCode) {
-      setLookupCode(code.trim().toUpperCase())
+      setLookupCode(normalizeAnatomimeClientRoomCode(code))
       return
     }
     if (!displayName.trim()) {
@@ -554,7 +559,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
               <Label htmlFor="anatomime-code">Code</Label>
               <Input id="anatomime-code" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} className="anatomime-input" />
             </div>
-            <AnatomimeActionButton type="button" intent="primary" onClick={() => setLookupCode(code.trim().toUpperCase())}>
+            <AnatomimeActionButton type="button" intent="primary" onClick={() => setLookupCode(normalizeAnatomimeClientRoomCode(code))}>
               <LogIn className="h-4 w-4" />
               Find Game
             </AnatomimeActionButton>
