@@ -270,7 +270,10 @@ describe("background acquisition and shared account cart", () => {
     assert.match(provider, /ownerGenerationRef/)
     assert.match(provider, /activeOwnerKeyRef\.current !== ownerKey/)
     assert.match(provider, /key=\{ownerKey \?\? "guest"\}/)
-    assert.match(provider, /useLayoutEffect\(\(\) => \(\) => \{[\s\S]*ownerGenerationRef\.current \+= 1[\s\S]*controller\.abort\(\)/)
+    assert.match(
+      provider,
+      /useLayoutEffect\(\(\) => \{[\s\S]*activeOwnerKeyRef\.current = ownerKey[\s\S]*return \(\) => \{[\s\S]*ownerGenerationRef\.current \+= 1[\s\S]*controller\.abort\(\)/,
+    )
     assert.doesNotMatch(provider, /Account state must load even when there is no guest intent/)
     assert.match(provider, /pendingIds\.length > 0/)
     assert.match(provider, /hydratedOwnerRef\.current !== ownerKey/)

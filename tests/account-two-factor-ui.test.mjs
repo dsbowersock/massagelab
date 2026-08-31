@@ -33,6 +33,7 @@ async function createPanelHarness({
   googleLinked = false,
   googlePrimaryProofReady = false,
   fetchImpl = async () => jsonResponse(500, {}),
+  signInImpl = async () => undefined,
   signOutImpl = async () => undefined,
 } = {}) {
   assert.equal(existsSync(fileURLToPath(panelUrl)), true, "missing two-factor UI owner")
@@ -76,7 +77,10 @@ async function createPanelHarness({
       react: hooks.react,
       "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
       "next-auth/react": {
-        async signIn(...args) { signInCalls.push(args) },
+        async signIn(...args) {
+          signInCalls.push(args)
+          await signInImpl(...args)
+        },
         async signOut(...args) {
           signOutCalls.push(args)
           renderDuringSignOut = elementText(render())
@@ -310,9 +314,11 @@ describe("recoverable two-factor management UI", () => {
     assert.equal(harness.fetchCalls[0].options.headers["content-type"], "application/json")
     assert.deepEqual(JSON.parse(harness.fetchCalls[0].options.body), { purpose: "LINK_GOOGLE" })
     assert.deepEqual(harness.signInCalls, [["google", { redirectTo: "/account?tab=security" }]])
-    const recoveredTree = harness.render()
-    assert.equal(button(recoveredTree, "Confirm with Google").props.disabled, false)
-    assert.match(elementText(recoveredTree), /Something went wrong\. Please try again\./)
+    const redirectingTree = harness.render()
+    const pendingButton = button(redirectingTree, "Redirecting to Google…")
+    assert.ok(pendingButton)
+    assert.equal(pendingButton.props.disabled, true)
+    assert.doesNotMatch(elementText(redirectingTree), /Something went wrong\. Please try again\./)
     harness.restore()
   })
 
@@ -364,7 +370,34 @@ describe("recoverable two-factor management UI", () => {
     assert.deepEqual(harness.signOutCalls, [[{
       redirectTo: "/login?security=two-factor-changed",
     }]])
-    assert.doesNotMatch(harness.renderDuringSignOut, /backup-memory-one|backup-memory-two/)
+    assert.match(harness.renderDuringSignOut, /backup-memory-one|backup-memory-two/)
+    assert.doesNotMatch(elementText(harness.render()), /backup-memory-one|backup-memory-two/)
+    harness.restore()
+  })
+
+  it("keeps rotated backup codes recoverable when sign-out fails", async () => {
+    const harness = await createPanelHarness({
+      twoFactorEnabled: true,
+      fetchImpl: async () => jsonResponse(200, {
+        code: "BACKUP_CODES_REGENERATED",
+        backupCodes: ["retry-backup-one", "retry-backup-two"],
+      }),
+      signOutImpl: async () => { throw new Error("sign-out unavailable") },
+    })
+    let tree = harness.render()
+    change(field(tree, "regeneratePassword"), "password-proof")
+    change(field(tree, "regenerateTwoFactorCode"), "123456")
+    change(field(tree, "regenerateConfirmed"), true, "checked")
+    await submit(actionForm(harness.render(), "backup-codes"))
+    tree = harness.render()
+    change(field(tree, "backupCodesAcknowledged"), true, "checked")
+    await button(harness.render(), "I saved these codes; sign in again").props.onClick()
+
+    tree = harness.render()
+    assert.match(elementText(tree), /retry-backup-one|retry-backup-two/)
+    assert.ok(button(tree, "I saved these codes; sign in again"))
+    assert.match(elementText(tree), /Something went wrong\. Please try again\./)
+    assert.equal(harness.signOutCalls.length, 1)
     harness.restore()
   })
 

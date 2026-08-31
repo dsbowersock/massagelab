@@ -7,15 +7,19 @@ import {
 } from "@/lib/account-security-request"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { disableTwoFactor } from "@/lib/account-two-factor-management"
+import {
+  clearGoogleBindingCookie,
+  parseManageRequest,
+  readCookie,
+  requestFailure,
+  serviceFailure,
+} from "@/lib/account-two-factor-route-boundary"
 import { getAuthSecret, getSiteUrl } from "@/lib/auth-env"
 import { AUTH_METHOD_INTENT_COOKIE, resolveBoundAuthMethodIntent } from "@/lib/auth-method-intents"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 import { prisma } from "@/lib/prisma"
 
 type DisableSession = { user?: { id?: string | null } | null } | null
-type ManageBody =
-  | { proofMethod: "PASSWORD"; password: string; twoFactorCode: string; confirmed: true }
-  | { proofMethod: "GOOGLE"; twoFactorCode: string; confirmed: true }
-
 /**
  * Requires an exact same-origin request plus independent primary and current
  * factor proof before delegating the atomic disable-and-revoke transaction.
@@ -85,7 +89,7 @@ export function createTwoFactorDisableHandler({
         userId,
         primaryProof,
         twoFactorCode: parsed.body.twoFactorCode,
-        networkIdentifier: requestIp(request),
+        networkIdentifier: authRequestNetworkIdentifier(request),
         confirmed: true,
         now,
       })
@@ -99,107 +103,6 @@ export function createTwoFactorDisableHandler({
     if (parsed.body.proofMethod === "GOOGLE") clearGoogleBindingCookie(response, secureCookies)
     return response
   }
-}
-
-async function parseManageRequest(
-  request: Request,
-  expectedSiteUrl: string,
-  parseRequest: typeof parseTrustedAccountSecurityJson,
-): Promise<{ ok: true; body: ManageBody } | { ok: false; code: "UNTRUSTED_REQUEST" | "INVALID_REQUEST" }> {
-  const parsed = await parseRequest({
-    request,
-    expectedSiteUrl,
-    allowedKeySets: [
-      ["proofMethod", "twoFactorCode", "confirmed"],
-      ["proofMethod", "password", "twoFactorCode", "confirmed"],
-    ],
-  })
-  if (!parsed.ok) return parsed
-  if (
-    parsed.body.proofMethod === "GOOGLE"
-    && !Object.hasOwn(parsed.body, "password")
-    && typeof parsed.body.twoFactorCode === "string"
-    && parsed.body.confirmed === true
-  ) {
-    return {
-      ok: true,
-      body: { proofMethod: "GOOGLE", twoFactorCode: parsed.body.twoFactorCode, confirmed: true },
-    }
-  }
-  if (
-    parsed.body.proofMethod !== "PASSWORD"
-    || typeof parsed.body.password !== "string"
-    || typeof parsed.body.twoFactorCode !== "string"
-    || parsed.body.confirmed !== true
-  ) {
-    return { ok: false, code: "INVALID_REQUEST" }
-  }
-  return {
-    ok: true,
-    body: {
-      proofMethod: "PASSWORD",
-      password: parsed.body.password,
-      twoFactorCode: parsed.body.twoFactorCode,
-      confirmed: true,
-    },
-  }
-}
-
-function requestFailure(code: "UNTRUSTED_REQUEST" | "INVALID_REQUEST") {
-  return jsonCode(code, code === "UNTRUSTED_REQUEST" ? 403 : 400)
-}
-
-function serviceFailure(code: string, retryAfterSeconds?: number) {
-  if (code === "RATE_LIMITED") {
-    return jsonCode("RATE_LIMITED", 429, { "Retry-After": retryAfterHeader(retryAfterSeconds) })
-  }
-  const status = failureStatus(code)
-  return status === null ? jsonCode("CONFLICT", 409) : jsonCode(code, status)
-}
-
-function retryAfterHeader(value?: number) {
-  return String(Number.isSafeInteger(value) && (value ?? 0) > 0 ? value : 1)
-}
-
-function failureStatus(code: string): number | null {
-  if (code === "AUTHENTICATION_REQUIRED") return 401
-  if (code === "INVALID_REQUEST" || code === "TWO_FACTOR_REQUIRED") return 400
-  if (
-    code === "PRIMARY_PROOF_INVALID"
-    || code === "GOOGLE_PROOF_EXPIRED"
-    || code === "TWO_FACTOR_INVALID"
-    || code === "ENROLLMENT_EXPIRED"
-  ) return 403
-  if (code === "PASSWORD_REQUIRED" || code === "ALREADY_ENABLED" || code === "NOT_ENABLED" || code === "CONFLICT") return 409
-  return null
-}
-
-function jsonCode(code: string, status: number, extraHeaders: Record<string, string> = {}) {
-  return NextResponse.json({ code }, {
-    status,
-    headers: { ...noStoreJsonHeaders(), ...extraHeaders },
-  })
-}
-
-function requestIp(request: Request) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? request.headers.get("x-real-ip")
-    ?? "unknown"
-}
-
-function readCookie(request: Request, name: string) {
-  const prefix = `${name}=`
-  return request.headers.get("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix))?.slice(prefix.length) ?? ""
-}
-
-function clearGoogleBindingCookie(response: ReturnType<typeof NextResponse.json>, secure: boolean) {
-  response.cookies.set(AUTH_METHOD_INTENT_COOKIE, "", {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 0,
-    secure,
-    path: "/",
-  })
 }
 
 export const POST = createTwoFactorDisableHandler({

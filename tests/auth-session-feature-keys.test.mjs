@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
+import { canSyncAccountPreferences } from "../lib/account-preferences.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -110,11 +111,11 @@ function captureAuthCallbacks(getUserAuthState) {
   return capturedConfig.callbacks
 }
 
-function loadSidebar(database) {
+function loadSidebar(database, session = null) {
   return loadCompiledModule(sidebarSource, "components/sidebar/sidebar.feature-keys.test.tsx", {
-    "@/auth": { getCurrentSession: async () => null },
+    "@/auth": { getCurrentSession: async () => session },
     "@/components/sidebar/app-sidebar-client": { AppSidebarClient: () => null },
-    "@/lib/account-preferences": { canSyncAccountPreferences: () => false },
+    "@/lib/account-preferences": { canSyncAccountPreferences },
     "@/lib/account-shell-bootstrap": { projectAccountShellAppSettings: () => ({}) },
     "@/lib/rsc-session": { getCurrentRscSession: async () => null },
     "@/lib/membership": {
@@ -208,6 +209,53 @@ describe("auth session feature-key reuse", () => {
     assert.deepEqual(current.featureKeys, [])
     assert.deepEqual(older.featureKeys, ["therapist_documentation_tools"])
     assert.equal(calls.practiceRoleReads, 2)
+  })
+
+  it("treats a whitespace-only session owner as anonymous without reading practice membership", async () => {
+    const calls = { practiceRoleReads: 0 }
+    const database = {
+      practiceMembership: {
+        async findMany() {
+          calls.practiceRoleReads += 1
+          return [{ practiceId: "practice-1", role: "OWNER" }]
+        },
+      },
+    }
+    const { getSidebarNavigationContext } = loadSidebar(database)
+
+    const context = await getSidebarNavigationContext({ id: "   " }, database)
+
+    assert.deepEqual(context, { authState: "anonymous" })
+    assert.equal(calls.practiceRoleReads, 0)
+  })
+
+  it("keeps a whitespace-only session owner out of the complete account shell", async () => {
+    const calls = { practiceRoleReads: 0, preferenceReads: 0 }
+    const database = {
+      practiceMembership: {
+        async findMany() {
+          calls.practiceRoleReads += 1
+          return [{ practiceId: "practice-1", role: "OWNER" }]
+        },
+      },
+      userPreference: {
+        async findUnique() {
+          calls.preferenceReads += 1
+          return { appSettings: {} }
+        },
+      },
+    }
+    const { getAppSidebarData } = loadSidebar(database, {
+      user: { id: "   ", name: "Invalid owner", email: "invalid@example.com" },
+    })
+
+    const shell = await getAppSidebarData()
+
+    assert.equal(shell.user, null)
+    assert.equal(shell.canSyncAccountSettings, false)
+    assert.equal(shell.navigation.authState, "anonymous")
+    assert.equal(shell.accountBootstrap.ownerKey, null)
+    assert.deepEqual(calls, { practiceRoleReads: 0, preferenceReads: 0 })
   })
 
   it("keeps the source contract explicit across auth, token types, and sidebar", async () => {

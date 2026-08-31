@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { createHmac } from "node:crypto"
 import { describe, it } from "node:test"
 
-const bindingModule = await import("../lib/two-factor-enrollment-binding.ts").catch(() => ({}))
+const bindingModule = await import("../lib/two-factor-enrollment-binding.ts")
 
 const AUTH_SECRET = "test-auth-secret-with-enough-entropy"
 const NOW = new Date("2026-08-29T12:00:00.000Z")

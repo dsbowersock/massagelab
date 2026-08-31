@@ -388,6 +388,7 @@ test.describe("private identity-method journeys", () => {
     await expect(page.getByText(/Google confirmation is ready/i)).toBeVisible()
     await page.getByLabel("Confirm two-factor setup").check()
     await page.getByRole("button", { name: "Start two-factor setup" }).click()
+    await expect(page.getByText("BROWSER-MANUAL-CODE")).toBeVisible()
     expect(requests).toEqual([{
       path: "setup",
       body: { proofMethod: "GOOGLE", confirmed: true },

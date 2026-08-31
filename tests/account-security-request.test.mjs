@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
-const requestModule = await import("../lib/account-security-request.ts").catch(() => ({}))
+const requestModule = await import("../lib/account-security-request.ts")
 
 const SITE_URL = "https://massagelab.app/account"
 const ENDPOINT_URL = "https://massagelab.app/api/account/security/totp/setup"

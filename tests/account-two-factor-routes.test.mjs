@@ -6,6 +6,7 @@ import {
   noStoreJsonHeaders,
   parseTrustedAccountSecurityJson,
 } from "../lib/account-security-request.ts"
+import { authRequestNetworkIdentifier } from "../lib/auth-request.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -78,6 +79,19 @@ const routeSources = Object.fromEntries(await Promise.all(
     await readFile(new URL(route.source, import.meta.url), "utf8"),
   ]),
 ))
+const routeBoundarySource = await readFile(
+  new URL("../lib/account-two-factor-route-boundary.ts", import.meta.url),
+  "utf8",
+)
+const routeBoundary = loadCompiledModule(
+  routeBoundarySource,
+  "lib/account-two-factor-route-boundary.test.ts",
+  {
+    "next/server": { NextResponse: responseAdapter() },
+    "@/lib/account-security-request": { noStoreJsonHeaders },
+    "@/lib/auth-method-intents": { AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding" },
+  },
+)
 
 describe("two-factor management route boundaries", () => {
   it("exports one dependency-injected thin-handler factory per route", () => {
@@ -184,11 +198,12 @@ describe("two-factor management route boundaries", () => {
       const scenario = loadRoute(name)
       await scenario.POST(routeRequest(name, ROUTES[name].body, {
         forwardedFor: "203.0.113.71, 10.0.0.2",
+        vercelForwardedFor: "198.51.100.71, 10.0.0.3",
       }))
       const input = scenario.serviceCalls[0]
       assert.equal(input.userId, "user-1", name)
       assert.equal(Object.hasOwn(input, "email"), false, name)
-      assert.equal(input.networkIdentifier, "203.0.113.71", name)
+      assert.equal(input.networkIdentifier, "198.51.100.71", name)
       assert.equal(input.confirmed, true, name)
     }
   })
@@ -341,6 +356,16 @@ describe("two-factor management route boundaries", () => {
       assert.doesNotMatch(source, /\.(?:create|update|updateMany|upsert|delete|deleteMany)\s*\(/, name)
     }
   })
+
+  it("uses one shared route boundary for management parsing, public failures, and cookies", () => {
+    for (const [name, source] of Object.entries(routeSources)) {
+      assert.match(source, /@\/lib\/account-two-factor-route-boundary/, name)
+      assert.doesNotMatch(source, /function (?:requestFailure|serviceFailure|failureStatus|jsonCode|requestIp|readCookie)\b/, name)
+    }
+    for (const name of ["setup", "disable", "regenerate"]) {
+      assert.doesNotMatch(routeSources[name], /function (?:parseManageRequest|clearGoogleBindingCookie)\b/, name)
+    }
+  })
 })
 
 function loadRoute(name, {
@@ -371,6 +396,7 @@ function loadRoute(name, {
     "@/lib/account-security-request": { noStoreJsonHeaders, parseTrustedAccountSecurityJson },
     "@/lib/account-surface-data": { clearAccountSurfaceDataCache: () => {} },
     "@/lib/auth-env": { getAuthSecret: () => "route-secret", getSiteUrl: () => SITE_URL },
+    "@/lib/auth-request": { authRequestNetworkIdentifier },
     "@/lib/auth-method-intents": {
       AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
       resolveBoundAuthMethodIntent: async () => resolvedIntent,
@@ -389,6 +415,7 @@ function loadRoute(name, {
       disableTwoFactor: service,
       regenerateBackupCodes: service,
     },
+    "@/lib/account-two-factor-route-boundary": routeBoundary,
     "@/lib/two-factor-enrollment-binding": {
       TWO_FACTOR_ENROLLMENT_COOKIE: "ml-two-factor-enrollment",
     },
@@ -458,9 +485,11 @@ function routeRequest(name, body, {
   fetchSite = "same-origin",
   contentType = "application/json",
   forwardedFor = "203.0.113.41",
+  vercelForwardedFor = null,
   cookies = "ml-auth-method-binding=google-binding; ml-two-factor-enrollment=enrollment-binding",
 } = {}) {
   const headers = new Headers({ cookie: cookies, "x-forwarded-for": forwardedFor })
+  if (vercelForwardedFor !== null) headers.set("x-vercel-forwarded-for", vercelForwardedFor)
   if (origin !== null) headers.set("origin", origin)
   if (fetchSite !== null) headers.set("sec-fetch-site", fetchSite)
   if (contentType !== null) headers.set("content-type", contentType)

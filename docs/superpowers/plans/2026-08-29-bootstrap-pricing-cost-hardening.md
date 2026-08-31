@@ -998,7 +998,7 @@ Add separate rows for:
 ```text
 public pricing catalog concurrent cold logical Price reads = 6
 public pricing catalog warm logical Price reads = 0
-membership return persisted summary reads = 1; Stripe calls = 0
+membership status persisted summary reads = 1; Stripe calls = 0
 explicit Checkout creates = 1; ordinary render Checkout creates = 0
 explicit Portal creates = 1; ordinary render Portal creates = 0
 ```
@@ -1093,6 +1093,7 @@ Stage the timing script/tests only if they actually changed.
 - Modify: `docs/project-log.md`
 - Modify: `docs/wiki/deployment.md`
 - Modify: `docs/wiki/release-checklist.md`
+- Modify: `tests/family-friends-server-workload.test.mjs`
 
 **Interfaces:**
 - Project state reports only exact-head completed behavior and fresh receipts.
@@ -1174,7 +1175,7 @@ One fresh reviewer compares the implementation range against this plan and the f
 - [ ] **Step 7: Commit canonical documentation**
 
 ```bash
-git add docs/project-state.md docs/project-log.md docs/wiki/deployment.md docs/wiki/release-checklist.md
+git add docs/project-state.md docs/project-log.md docs/wiki/deployment.md docs/wiki/release-checklist.md tests/family-friends-server-workload.test.mjs
 git commit -m "docs: record bootstrap and pricing cost bounds"
 ```
 

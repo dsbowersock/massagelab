@@ -11,6 +11,7 @@ import {
   registrationVerificationResponse,
   sendRegistrationVerification,
 } from "../lib/auth-registration.js"
+import { REGISTRATION_PAUSED_MESSAGE } from "../lib/public-launch-controls.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
@@ -38,7 +39,7 @@ describe("registration email delivery policy", () => {
 
     assert.equal(response.status, 503)
     assert.deepEqual(await response.json(), {
-      message: "New account registration is temporarily paused. Existing users can still sign in or recover an account.",
+      message: REGISTRATION_PAUSED_MESSAGE,
     })
     assert.equal(jsonCalls, 0)
     assert.equal(registrationCalls, 0)
@@ -324,8 +325,7 @@ async function loadRegistrationRoute({ afterCallbacks, registerWork, registratio
         registrationOpen,
         supporterCheckoutOpen: true,
       }),
-      REGISTRATION_PAUSED_MESSAGE:
-        "New account registration is temporarily paused. Existing users can still sign in or recover an account.",
+      REGISTRATION_PAUSED_MESSAGE,
     },
     "@/lib/auth-entry-messages": {
       PUBLIC_ACCOUNT_ENTRY_MESSAGE: "Check that email address for the appropriate sign-in, verification, or recovery next step.",

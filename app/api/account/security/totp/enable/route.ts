@@ -7,7 +7,13 @@ import {
 } from "@/lib/account-security-request"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { enableTwoFactor } from "@/lib/account-two-factor-management"
+import {
+  readCookie,
+  requestFailure,
+  serviceFailure,
+} from "@/lib/account-two-factor-route-boundary"
 import { getAuthSecret, getSiteUrl } from "@/lib/auth-env"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 import { prisma } from "@/lib/prisma"
 import { TWO_FACTOR_ENROLLMENT_COOKIE } from "@/lib/two-factor-enrollment-binding"
 
@@ -71,7 +77,7 @@ export function createTwoFactorEnableHandler({
         enrollmentBinding: readCookie(request, TWO_FACTOR_ENROLLMENT_COOKIE),
         code: body.code,
         confirmed: true,
-        networkIdentifier: requestIp(request),
+        networkIdentifier: authRequestNetworkIdentifier(request),
         authSecret: secret,
         now: clock(),
       })
@@ -82,9 +88,8 @@ export function createTwoFactorEnableHandler({
     }
 
     if (result.status !== "ENABLED") {
-      const code = allowedFailureCode(result.code) ? result.code : "CONFLICT"
-      const response = serviceFailure(code, result.retryAfterSeconds)
-      if (!RETRYABLE_BINDING_CODES.has(code)) clearEnrollmentCookie(response, secureCookies)
+      const response = serviceFailure(result.code, result.retryAfterSeconds)
+      if (!RETRYABLE_BINDING_CODES.has(result.code)) clearEnrollmentCookie(response, secureCookies)
       return response
     }
 
@@ -96,67 +101,6 @@ export function createTwoFactorEnableHandler({
     clearEnrollmentCookie(response, secureCookies)
     return response
   }
-}
-
-function requestFailure(code: "UNTRUSTED_REQUEST" | "INVALID_REQUEST") {
-  return jsonCode(code, code === "UNTRUSTED_REQUEST" ? 403 : 400)
-}
-
-function serviceFailure(code: string, retryAfterSeconds?: number) {
-  if (code === "RATE_LIMITED") {
-    return jsonCode("RATE_LIMITED", 429, { "Retry-After": retryAfterHeader(retryAfterSeconds) })
-  }
-  const status = failureStatus(code)
-  return status === null ? jsonCode("CONFLICT", 409) : jsonCode(code, status)
-}
-
-function retryAfterHeader(value?: number) {
-  return String(Number.isSafeInteger(value) && (value ?? 0) > 0 ? value : 1)
-}
-
-function failureStatus(code: string): number | null {
-  if (code === "AUTHENTICATION_REQUIRED") return 401
-  if (code === "INVALID_REQUEST" || code === "TWO_FACTOR_REQUIRED") return 400
-  if (
-    code === "PRIMARY_PROOF_INVALID"
-    || code === "GOOGLE_PROOF_EXPIRED"
-    || code === "TWO_FACTOR_INVALID"
-    || code === "ENROLLMENT_EXPIRED"
-  ) return 403
-  if (code === "PASSWORD_REQUIRED" || code === "ALREADY_ENABLED" || code === "NOT_ENABLED" || code === "CONFLICT") return 409
-  return null
-}
-
-function allowedFailureCode(code: string) {
-  return code === "INVALID_REQUEST"
-    || code === "RATE_LIMITED"
-    || code === "PASSWORD_REQUIRED"
-    || code === "PRIMARY_PROOF_INVALID"
-    || code === "GOOGLE_PROOF_EXPIRED"
-    || code === "TWO_FACTOR_REQUIRED"
-    || code === "TWO_FACTOR_INVALID"
-    || code === "ALREADY_ENABLED"
-    || code === "NOT_ENABLED"
-    || code === "ENROLLMENT_EXPIRED"
-    || code === "CONFLICT"
-}
-
-function jsonCode(code: string, status: number, extraHeaders: Record<string, string> = {}) {
-  return NextResponse.json({ code }, {
-    status,
-    headers: { ...noStoreJsonHeaders(), ...extraHeaders },
-  })
-}
-
-function requestIp(request: Request) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? request.headers.get("x-real-ip")
-    ?? "unknown"
-}
-
-function readCookie(request: Request, name: string) {
-  const prefix = `${name}=`
-  return request.headers.get("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix))?.slice(prefix.length) ?? ""
 }
 
 function clearEnrollmentCookie(response: ReturnType<typeof NextResponse.json>, secure: boolean) {
