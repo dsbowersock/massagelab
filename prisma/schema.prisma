@@ -51,6 +51,13 @@ enum AuthAttemptScope {
   NETWORK
 }
 
+enum OperationalRateLimitScope {
+  GLOBAL
+  NETWORK
+  ACCOUNT
+  RESOURCE
+}
+
 enum AuthMethodIntentPurpose {
   SIGN_IN_OR_LINK
   LINK_GOOGLE
@@ -2477,6 +2484,21 @@ model AuthRateLimitBucket {
   updatedAt    DateTime           @updatedAt
 
   @@unique([purpose, scope, keyHash])
+  @@index([updatedAt])
+  @@index([blockedUntil])
+}
+
+model OperationalRateLimitBucket {
+  id           String                    @id @default(cuid())
+  policy       String
+  scope        OperationalRateLimitScope
+  keyHash      String
+  count        Int                       @default(0)
+  windowStart  DateTime                  @default(now())
+  blockedUntil DateTime?
+  updatedAt    DateTime                  @updatedAt
+
+  @@unique([policy, scope, keyHash])
   @@index([updatedAt])
   @@index([blockedUntil])
 }
