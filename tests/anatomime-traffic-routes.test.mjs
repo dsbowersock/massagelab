@@ -80,6 +80,104 @@ describe("Anatomime create and join traffic boundaries", () => {
     assert.deepEqual(events, ["room-lookup"])
   })
 
+  it("rejects an already-expired lobby without quota or expiration persistence", async () => {
+    const events = []
+    const service = loadRoomServer({
+      events,
+      room: roomFixture({ expiresAt: new Date("2000-01-01T00:00:00.000Z") }),
+    })
+
+    await assert.rejects(
+      () => service.joinAnatomimeRoom("room-1", { displayName: "Guest" }, null, {
+        beforePersist: async () => events.push("guard"),
+      }),
+      (error) => error instanceof AnatomimeSessionError && error.code === "expired",
+    )
+    assert.deepEqual(events, ["room-lookup"])
+  })
+
+  it("does not treat an account-bound player's stale guest token as review re-entry", async () => {
+    const events = []
+    const service = loadRoomServer({
+      events,
+      room: roomFixture({
+        status: "REVIEW",
+        reviewExpiresAt: new Date("2100-01-01T00:00:00.000Z"),
+        players: [playerFixture({ userId: "account-1", guestTokenHash: "hash:stale-token" })],
+      }),
+    })
+
+    await assert.rejects(
+      () => service.joinAnatomimeRoom("room-1", {
+        displayName: "Attacker",
+        playerId: "player-1",
+        playerToken: "stale-token",
+      }, null, {
+        beforePersist: async () => {
+          events.push("guard")
+          throw new Error("quota should not be reached")
+        },
+      }),
+      (error) => error instanceof AnatomimeSessionError && error.code === "review",
+    )
+    assert.deepEqual(events, ["room-lookup"])
+  })
+
+  it("revalidates guest-only token ownership after quota before review re-entry", async () => {
+    const events = []
+    const initialRoom = roomFixture({
+      status: "REVIEW",
+      reviewExpiresAt: new Date("2100-01-01T00:00:00.000Z"),
+      players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+    })
+    const transactionRoom = roomFixture({
+      status: "REVIEW",
+      reviewExpiresAt: new Date("2100-01-01T00:00:00.000Z"),
+      players: [playerFixture({ userId: "account-1", guestTokenHash: "hash:guest-token" })],
+    })
+    const service = loadRoomServer({
+      events,
+      room: initialRoom,
+      transactionRoom,
+      playerWriteError: new Error("player write should not be reached"),
+    })
+
+    await assert.rejects(
+      () => service.joinAnatomimeRoom("room-1", {
+        displayName: "Guest",
+        playerId: "player-1",
+        playerToken: "guest-token",
+      }, null, {
+        beforePersist: async () => events.push("guard"),
+      }),
+      (error) => error instanceof AnatomimeSessionError && error.code === "review",
+    )
+    assert.deepEqual(events, ["room-lookup", "guard", "transaction", "transaction-read"])
+  })
+
+  it("uses a fresh transaction clock when expiry changes during quota work", async () => {
+    const events = []
+    const room = roomFixture({ expiresAt: new Date(Date.now() + 60_000) })
+    const service = loadRoomServer({
+      events,
+      room,
+      transactionRoom: room,
+      playerWriteError: new Error("player write should not be reached"),
+    })
+
+    await assert.rejects(
+      () => service.joinAnatomimeRoom("room-1", { displayName: "Guest" }, null, {
+        beforePersist: async () => {
+          events.push("guard")
+          await new Promise((resolve) => setTimeout(resolve, 20))
+          room.expiresAt = new Date(Date.now() - 1)
+        },
+      }),
+      (error) => error instanceof AnatomimeSessionError && error.code === "expired",
+    )
+    assert.deepEqual(events, ["room-lookup", "guard", "transaction", "transaction-read"])
+  })
+
   it("runs join quota after bounded room validation and before transaction revalidation", async () => {
     const deniedEvents = []
     const denied = loadRoomServer({ events: deniedEvents, transactionError: new Error("guard was skipped") })
@@ -149,7 +247,9 @@ function loadRoomServer({
   events,
   deck = cardFixtures(),
   room = roomFixture(),
+  transactionRoom = room,
   transactionError,
+  playerWriteError,
 }) {
   const prisma = {
     anatomimeRoom: {
@@ -162,10 +262,36 @@ function loadRoomServer({
       events.push("transaction")
       if (transactionError) throw transactionError
       return callback({
-        anatomimeRoom: { findUnique: async () => room },
+        anatomimeRoom: {
+          findUnique: async () => {
+            events.push("transaction-read")
+            return transactionRoom
+          },
+          updateMany: async () => {
+            events.push("expiration-write")
+            transactionRoom.status = "EXPIRED"
+            return { count: 1 }
+          },
+          update: async () => {
+            events.push("room-write")
+            return transactionRoom
+          },
+        },
+        anatomimeRoomPlayer: {
+          create: playerWrite,
+          update: playerWrite,
+          upsert: playerWrite,
+        },
       })
     },
   }
+
+  async function playerWrite() {
+    events.push("player-write")
+    if (playerWriteError) throw playerWriteError
+    return transactionRoom.players[0]
+  }
+
   return loadCompiledModule(roomServerSource, "lib/anatomime-room-server.route-test.ts", {
     "./auth-security.js": {
       generateRandomToken: () => "ABC123",
@@ -253,6 +379,18 @@ function roomFixture(overrides = {}) {
     hostPlayerId: "host-1",
     players: [],
     teams: [{ id: "team-1" }],
+    ...overrides,
+  }
+}
+
+function playerFixture(overrides = {}) {
+  return {
+    id: "player-1",
+    roomId: "room-1",
+    teamId: "team-1",
+    userId: null,
+    displayName: "Guest",
+    guestTokenHash: "hash:guest-token",
     ...overrides,
   }
 }

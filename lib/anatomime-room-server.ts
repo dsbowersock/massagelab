@@ -926,7 +926,11 @@ export async function joinAnatomimeRoom(
   userId?: string | null,
   options: { beforePersist?: AnatomimePersistGuard } = {},
 ) {
-  const room = await loadAnatomimeRoom(code)
+  // Admission validation must stay read-only until the operational guard allows persistence.
+  const room = await prisma.anatomimeRoom.findUnique({
+    where: { code: publicCode(code) },
+    include: roomInclude,
+  })
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
 
   const body = objectBody(input)
@@ -934,11 +938,15 @@ export async function joinAnatomimeRoom(
   const requestedTeamId = typeof body.teamId === "string" ? body.teamId : ""
   const suppliedPlayerId = typeof body.playerId === "string" ? body.playerId : ""
   const suppliedToken = typeof body.playerToken === "string" ? body.playerToken : ""
-  const now = new Date()
+  const validationNow = new Date()
 
   const existingSignedInPlayer = userId ? room.players.find((player) => player.userId === userId) : null
   const existingGuestPlayer = suppliedPlayerId
-    ? room.players.find((player) => player.id === suppliedPlayerId && playerTokenMatches(player, suppliedToken))
+    ? room.players.find((player) => (
+      player.userId === null
+      && player.id === suppliedPlayerId
+      && playerTokenMatches(player, suppliedToken)
+    ))
     : null
   const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
   const joinStatus = canJoinRoom(
@@ -949,7 +957,7 @@ export async function joinAnatomimeRoom(
       expiresAt: room.expiresAt,
       existingPlayerIds: room.players.map((player) => player.id),
     },
-    { now, playerId: existingPlayer?.id ?? null },
+    { now: validationNow, playerId: existingPlayer?.id ?? null },
   )
   if (!joinStatus.allowed) throw roomError(409, joinStatus.reason, "This room is no longer accepting new joins.")
 
@@ -966,9 +974,14 @@ export async function joinAnatomimeRoom(
 
   const updatedRoom = await prisma.$transaction(async (tx) => {
     const currentRoom = await reloadRoom(tx, room.id)
+    const transactionNow = new Date()
     const existingSignedInPlayer = userId ? currentRoom.players.find((player) => player.userId === userId) : null
     const existingGuestPlayer = suppliedPlayerId
-      ? currentRoom.players.find((player) => player.id === suppliedPlayerId && playerTokenMatches(player, suppliedToken))
+      ? currentRoom.players.find((player) => (
+        player.userId === null
+        && player.id === suppliedPlayerId
+        && playerTokenMatches(player, suppliedToken)
+      ))
       : null
     const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
     const joinStatus = canJoinRoom(
@@ -979,7 +992,7 @@ export async function joinAnatomimeRoom(
         expiresAt: currentRoom.expiresAt,
         existingPlayerIds: currentRoom.players.map((player) => player.id),
       },
-      { now, playerId: existingPlayer?.id ?? null },
+      { now: transactionNow, playerId: existingPlayer?.id ?? null },
     )
     if (!joinStatus.allowed) throw roomError(409, joinStatus.reason, "This room is no longer accepting new joins.")
 
@@ -999,8 +1012,8 @@ export async function joinAnatomimeRoom(
           displayName: existingPlayer.id === currentRoom.hostPlayerId ? existingPlayer.displayName : displayName,
           teamId: existingPlayer.id === currentRoom.hostPlayerId || currentRoom.status === "PLAYING" ? existingPlayer.teamId : nextTeamId,
           guestTokenHash: tokenHash,
-          lastSeenAt: now,
-          lastActionAt: now,
+          lastSeenAt: transactionNow,
+          lastActionAt: transactionNow,
         },
       })
     } else {
@@ -1020,13 +1033,13 @@ export async function joinAnatomimeRoom(
             userId,
             displayName,
             guestTokenHash: tokenHash,
-            lastSeenAt: now,
-            lastActionAt: now,
+            lastSeenAt: transactionNow,
+            lastActionAt: transactionNow,
           },
           update: {
             guestTokenHash: tokenHash,
-            lastSeenAt: now,
-            lastActionAt: now,
+            lastSeenAt: transactionNow,
+            lastActionAt: transactionNow,
           },
         })
       } else {
@@ -1037,14 +1050,14 @@ export async function joinAnatomimeRoom(
             userId: null,
             displayName,
             guestTokenHash: tokenHash,
-            lastSeenAt: now,
-            lastActionAt: now,
+            lastSeenAt: transactionNow,
+            lastActionAt: transactionNow,
           },
         })
       }
     }
 
-    return touchRoom(tx, currentRoom.id, { lastMeaningfulActivityAt: now })
+    return touchRoom(tx, currentRoom.id, { lastMeaningfulActivityAt: transactionNow })
   })
   const player = userId
     ? updatedRoom.players.find((candidate) => candidate.userId === userId)
