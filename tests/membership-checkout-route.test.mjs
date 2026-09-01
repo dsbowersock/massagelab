@@ -27,6 +27,7 @@ describe("Membership Checkout POST route", () => {
     const calls = checkoutCallCounts({
       legalAcceptanceLookup: 0,
       selectionValidation: 0,
+      sessionReads: 0,
     })
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       captureGuardCalls: true,
@@ -45,11 +46,12 @@ describe("Membership Checkout POST route", () => {
       membershipLookup: 0,
       legalAcceptanceLookup: 0,
       selectionValidation: 0,
+      sessionReads: 1,
     })
   })
 
   it("redirects a paused form to the account notice before new Checkout work", async () => {
-    const calls = checkoutCallCounts()
+    const calls = checkoutCallCounts({ sessionReads: 0 })
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       supporterCheckoutOpen: false,
     }))(formRequest({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-1" }))
@@ -62,6 +64,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -1144,6 +1147,7 @@ function checkoutDependencies(calls, {
       redirect: (url, status) => ({ url, status }),
     },
     getCurrentSession: async () => {
+      if (Object.hasOwn(calls, "sessionReads")) calls.sessionReads += 1
       if (sessionError) throw sessionError
       return session
     },

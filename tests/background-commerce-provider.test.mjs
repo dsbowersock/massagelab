@@ -15,8 +15,8 @@ const chimerPath = new URL("../app/chimer/page.tsx", import.meta.url)
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const require = createRequire(import.meta.url)
 
-async function source(path) {
-  return readFile(path, "utf8")
+async function source(fileUrl) {
+  return readFile(fileUrl, "utf8")
 }
 
 let providerHarnessBundlePromise

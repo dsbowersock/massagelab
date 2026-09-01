@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import { fetchJsonWithTimeout } from "../lib/client-fetch.ts"
+import { BILLING_PORTAL_DESTINATIONS } from "../lib/billing-portal-destinations.js"
 import {
   createCompiledModuleLoader,
   createElement,
@@ -46,7 +47,7 @@ const {
     "@/components/ui/button": { Button: () => null },
     "@/components/ui/loader": { Loader: () => null },
     "@/lib/billing-portal-destinations": {
-      BILLING_PORTAL_DESTINATIONS: { MANAGE: "manage" },
+      BILLING_PORTAL_DESTINATIONS,
     },
     "@/lib/client-fetch": { fetchJsonWithTimeout },
     "@/lib/account-page": {
@@ -365,7 +366,7 @@ describe("membership return component safety", () => {
         "@/components/ui/loader": { Loader: passThroughElement("loader") },
         "@/lib/account-page": { formatAccountDate: () => "local-account-date" },
         "@/lib/billing-portal-destinations": {
-          BILLING_PORTAL_DESTINATIONS: { MANAGE: "manage" },
+          BILLING_PORTAL_DESTINATIONS,
         },
         "@/lib/client-fetch": { fetchJsonWithTimeout },
       },

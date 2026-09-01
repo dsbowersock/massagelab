@@ -8,6 +8,7 @@ import {
 } from "./compiled-module.mjs"
 import { BILLING_PORTAL_DESTINATIONS } from "../../lib/billing-portal-destinations.js"
 import { resolveMembershipPriceForInterval } from "../../lib/membership-pricing.js"
+import { SUPPORTER_CHECKOUT_PAUSED_MESSAGE } from "../../lib/public-launch-controls.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const pricingCardsSource = await readFile(
@@ -80,8 +81,7 @@ const pricingCards = loadCompiledModule(
       resolveMembershipPriceForInterval,
     },
     "@/lib/public-launch-controls": {
-      SUPPORTER_CHECKOUT_PAUSED_MESSAGE:
-        "New Supporter checkout is temporarily paused. Existing memberships and the billing portal remain available.",
+      SUPPORTER_CHECKOUT_PAUSED_MESSAGE,
     },
     "@/lib/utils": {
       cn: (...classes) => classes.filter(Boolean).join(" "),

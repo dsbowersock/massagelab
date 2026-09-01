@@ -12,7 +12,7 @@ import {
 
 describe("MembershipPricingCards configured price rendering", () => {
   it("shows the Checkout pause without hiding an existing member's Portal actions", async () => {
-    const [checkoutCards, portalCards] = await Promise.all([
+    const [checkoutCards, portalCards, authCards] = await Promise.all([
       renderMembershipPricingCards({
         mode: "checkout",
         supporterCheckoutOpen: false,
@@ -21,9 +21,13 @@ describe("MembershipPricingCards configured price rendering", () => {
         mode: "portal",
         supporterCheckoutOpen: false,
       }),
+      renderMembershipPricingCards({
+        mode: "auth",
+        supporterCheckoutOpen: false,
+      }),
     ])
 
-    for (const cards of [checkoutCards, portalCards]) {
+    for (const cards of [checkoutCards, portalCards, authCards]) {
       assert.match(
         elementText(cards),
         /New Supporter checkout is temporarily paused\. Existing memberships and the billing portal remain available\./,
@@ -44,6 +48,13 @@ describe("MembershipPricingCards configured price rendering", () => {
       2,
     )
     assert.match(elementText(portalCards), /Current member/)
+    assert.equal(
+      findElements(
+        authCards,
+        (element) => element.props["data-membership-auth-amount-choice"] != null,
+      ).length,
+      0,
+    )
   })
 
   it("advertises only lookup-verified prices in portal and pre-auth modes", async () => {

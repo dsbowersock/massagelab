@@ -17,7 +17,7 @@
 - Do not create a Checkout, Portal session, Customer, subscription, payment, refund, cancellation, webhook event, or provider setting. Do not call live Stripe during implementation or verification.
 - Do not push, deploy, merge, change Production environment values, or change OAuth, mail, Stripe, Neon, R2, Vercel, or Sentry configuration without a separate exact authorization.
 - Clinical notes, intake forms, journals, ROM sessions, transcripts, and other PHI-bearing workflows remain local-first. The shell bootstrap may serialize only the explicit app-layout and Music visualizer fields defined below.
-- The cache boundary is public display catalog data only. Session, user, practice, membership, entitlements, customers, Checkout, Portal, webhook receipts, commerce ownership, and billing-return status remain uncached by this work.
+- The cross-request cache boundary is public display catalog data only. Session, user, practice, membership, entitlements, customers, Checkout, Portal, webhook receipts, commerce ownership, and billing-return status must not use module-TTL, persistent, or user-keyed caches. Measured request-scoped React memoization may deduplicate `getCurrentSession()` only within one RSC request, as specified in Task 6.
 - Existing independent registration and Supporter Checkout pause controls remain server-read on each request. Neither pause value belongs in the pricing catalog cache.
 - Existing `/api/account/preferences` and `/api/account/profile` `PUT` authentication, sanitization, authorization, persistence, and cache invalidation remain server-owned.
 - A provider call count means a logical SDK method invocation. With `maxNetworkRetries: 1`, Stripe may perform one retry behind one logical invocation; documentation must not call six logical reads six network attempts.
@@ -416,7 +416,7 @@ Run the focused public-route Music/settings cases on a freshly built Browser-QA 
 
 ```bash
 npm run build:browser-qa
-npx playwright test tests/browser/public-routes.spec.ts --project=desktop-chromium --workers=1 --grep "visualizer|account preference|anonymous account sync"
+npm run test:browser -- tests/browser/public-routes.spec.ts --project=desktop-chromium --workers=1 --grep "visualizer|account preference|anonymous account sync"
 ```
 
 Reviewer must confirm local device settings remain usable, old-owner results are ignored, and write authentication remains on `/api/account/preferences`.
@@ -495,7 +495,7 @@ Pass both `ownerKey` and `hasPracticeMembership` from the bootstrap into `Sideba
 ```bash
 node --test tests/therapist-settings-provider.test.mjs tests/sidebar-calendar-context.test.mjs tests/account-shell-bootstrap.test.mjs tests/account-preferences-route.test.mjs
 npm run typecheck
-npx playwright test tests/browser/app-shell.spec.ts --project=desktop-chromium --workers=1 --grep "bootstrap|calendar|therapist"
+npm run test:browser -- tests/browser/app-shell.spec.ts --project=desktop-chromium --workers=1 --grep "bootstrap|calendar|therapist"
 ```
 
 The browser fixture may use inert synthetic owner/practice props; it must not require a private database row.
@@ -587,7 +587,7 @@ The default ordinary shell must remain `status: "idle"` with `snapshot: null`; t
 ```bash
 node --test tests/background-commerce-client.test.mjs tests/background-commerce-surfaces.test.mjs tests/background-checkout-surfaces.test.mjs tests/family-friends-server-workload.test.mjs
 npm run typecheck
-npx playwright test tests/browser/background-commerce.spec.ts --project=desktop-chromium --workers=1
+npm run test:browser -- tests/browser/background-commerce.spec.ts --project=desktop-chromium --workers=1
 ```
 
 Private database cases remain skipped unless separately authorized. Public/synthetic cases must prove ordinary zero-read, actual-consumer hydration, and return recovery without a provider call.
@@ -639,7 +639,7 @@ Add an `app-shell.spec.ts` request that sends a random nonsecret proof id, loads
 
 ```bash
 npm run build:browser-qa
-npx playwright test tests/browser/app-shell.spec.ts --project=desktop-chromium --workers=1 --grep "RSC session snapshot count"
+npm run test:browser -- tests/browser/app-shell.spec.ts --project=desktop-chromium --workers=1 --grep "RSC session snapshot count"
 ```
 
 Decision:
@@ -710,7 +710,7 @@ app/api/billing/webhook/route.ts
 ```bash
 node --test tests/rsc-session.test.mjs tests/auth-session-version.test.mjs tests/auth-session-feature-keys.test.mjs
 npm run build:browser-qa
-npx playwright test tests/browser/app-shell.spec.ts --project=desktop-chromium --workers=1 --grep "RSC session snapshot count"
+npm run test:browser -- tests/browser/app-shell.spec.ts --project=desktop-chromium --workers=1 --grep "RSC session snapshot count"
 ```
 
 Expected after an evidence-required wrapper: numeric underlying loader count `1` for the actual RSC request. The deterministic signed-in workload test separately remains one auth user graph read, one temporary-grant read, and one entitlement build.
@@ -1033,7 +1033,7 @@ Record all 21 statuses, first/warm route durations, owned-process teardown resul
 
 ```bash
 npm run build:browser-qa
-npx playwright test tests/browser/app-shell.spec.ts tests/browser/background-commerce.spec.ts tests/browser/public-routes.spec.ts --project=desktop-chromium --workers=1 --retries=0
+npm run test:browser -- tests/browser/app-shell.spec.ts tests/browser/background-commerce.spec.ts tests/browser/public-routes.spec.ts --project=desktop-chromium --workers=1 --retries=0
 ```
 
 Required synthetic/inert evidence:

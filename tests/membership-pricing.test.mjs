@@ -393,11 +393,15 @@ describe("Membership pricing catalog", () => {
   it("does not let a completion from before clear replace the newer cached catalog", async () => {
     let useOldPrices = true
     let releaseOldPrices
+    let resolveOldReadsStarted
     const calls = []
     const oldPrices = configuredStripePrices()
     const newPrices = configuredStripePrices(5_000)
     const oldPriceGate = new Promise((resolve) => {
       releaseOldPrices = resolve
+    })
+    const oldReadsStarted = new Promise((resolve) => {
+      resolveOldReadsStarted = resolve
     })
     const loader = createTestCatalogLoader({
       env: SIX_PRICE_ENVIRONMENT,
@@ -407,6 +411,7 @@ describe("Membership pricing catalog", () => {
             calls.push(priceId)
             const priceSet = useOldPrices ? oldPrices : newPrices
             if (useOldPrices) {
+              if (calls.length === 6) resolveOldReadsStarted()
               await oldPriceGate
             }
             return priceSet.get(priceId)
@@ -416,6 +421,7 @@ describe("Membership pricing catalog", () => {
     })
 
     const staleBuild = loader.get()
+    await oldReadsStarted
     assert.equal(calls.length, 6)
     loader.clear()
     useOldPrices = false

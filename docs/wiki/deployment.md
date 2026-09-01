@@ -89,7 +89,7 @@ an ordinary non-practice shell:
 | Account shell | One preference read, one practice-role read, and zero separate entitlement reads |
 | Total server data work | Four logical ORM operations |
 | Client bootstrap | Zero client bootstrap endpoints |
-| Background commerce | Zero ordinary commerce snapshots |
+| Background commerce | Zero ordinary commerce snapshots when no guest-cart merge or commerce consumer is active |
 | Public pricing | Six concurrent cold logical Price reads shared across callers; zero warm logical Price reads |
 | Explicit billing actions | One Checkout create for an explicit valid Checkout; one Portal create for an explicit valid Portal action; zero of either during the tested launch/pricing ordinary-render slice |
 
@@ -100,8 +100,9 @@ changes abort and reset old work. Therapist local hydration remains immediate,
 but its cloud GET is lazy and deduplicated until an actual consumer appears.
 Zero-practice users skip the calendar endpoint; practice members retain it.
 Background commerce loads only for an actual carousel, Chimer, checkout-return,
-cart, or pending guest-cart-merge consumer. Focus and online refreshes begin
-only after a successful current-owner hydration or explicit mutation intent.
+cart, or pending guest-cart-merge consumer. Focus and online recovery may retry
+a snapshot after the current owner demanded it, including after failed initial
+hydration; established hydration and explicit mutation intent remain eligible.
 
 Pricing caches the public display catalog only. The owner is process-local and
 single-flight: complete results use a five-minute complete TTL; incomplete or fallback results use a fifteen-second incomplete TTL. Each read-only Stripe
@@ -116,7 +117,8 @@ This workload does not establish site-wide absence of Stripe or email calls;
 Admin Billing preview is outside this row, and provider-wide/email render
 verification remains `NOT RUN`. PHI-bearing workflows remain local-first.
 
-The final local timing receipt returned HTTP `200` for 21/21 samples. The local
+The final local timing receipt returned HTTP `200` for 21/21 samples across
+seven fixed routes with three samples per route. The local
 timing `first` label is not platform cold evidence. The deployed exact commit
 needs a separate read-only Vercel aggregate that
 distinguishes observed platform cold-start latency from warm invocation

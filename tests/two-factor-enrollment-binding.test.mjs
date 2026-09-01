@@ -122,7 +122,7 @@ describe("same-browser two-factor enrollment binding", () => {
     ["non-base64url payload", "not+base64url.signature"],
     ["padded encoding", "e30=.signature"],
     ["malformed JSON", signedSerializedPayload("{")],
-    ["oversized encoding", "a".repeat(2049)],
+    ["oversized encoding", `${"a".repeat(2049)}.signature`],
   ]) {
     it(`rejects ${label}`, () => {
       assert.equal(typeof bindingModule.verifyTwoFactorEnrollmentBinding, "function")
