@@ -157,13 +157,17 @@ test("player polling uses credential-bound tokens and 2s/5s/15s successful caden
     ;(window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden = true
     document.dispatchEvent(new Event("visibilitychange"))
   })
-  await page.clock.fastForward(4_999)
+  await page.clock.fastForward(14_999)
   expect(pollCount).toBe(2)
   await page.clock.fastForward(1)
   await expect.poll(() => pollCount).toBe(3)
   await expect(page.getByText("ACTIVE_TERM", { exact: true })).toBeVisible()
 
-  await page.clock.fastForward(14_999)
+  await page.evaluate(() => {
+    ;(window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden = false
+    document.dispatchEvent(new Event("visibilitychange"))
+  })
+  await page.clock.fastForward(1_999)
   expect(pollCount).toBe(3)
   await page.clock.fastForward(1)
   await expect.poll(() => pollCount).toBe(4)
@@ -298,12 +302,26 @@ test("host review polling continues at 5s and stops on a successful ended snapsh
   expect(hostPollCount).toBe(0)
   await page.clock.fastForward(1)
   await expect.poll(() => hostPollCount).toBe(1)
-  hostSnapshot = roomSession({ status: "EXPIRED", phase: "GAME_COMPLETE", joined: false, host: true })
-  await page.clock.fastForward(5_000)
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" })
+    document.dispatchEvent(new Event("visibilitychange"))
+  })
+  await page.clock.fastForward(14_999)
+  expect(hostPollCount).toBe(1)
+  await page.clock.fastForward(1)
   await expect.poll(() => hostPollCount).toBe(2)
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" })
+    document.dispatchEvent(new Event("visibilitychange"))
+  })
+  hostSnapshot = roomSession({ status: "EXPIRED", phase: "GAME_COMPLETE", joined: false, host: true })
+  await page.clock.fastForward(4_999)
+  expect(hostPollCount).toBe(2)
+  await page.clock.fastForward(1)
+  await expect.poll(() => hostPollCount).toBe(3)
   await expect(page.getByText("Shared game ended", { exact: true })).toBeVisible()
   await page.clock.fastForward(60_000)
-  expect(hostPollCount).toBe(2)
+  expect(hostPollCount).toBe(3)
 })
 
 test("create honors Retry-After lockout without replaying automatically", async ({ page }) => {

@@ -11,6 +11,8 @@ import {
   anatomimeRetryAfterSeconds,
   fetchAnatomimeRoomSnapshot,
   nextAnatomimePollSchedule,
+  nextAnatomimeVisibilitySchedule,
+  type AnatomimeRoomFetchResult,
 } from "./anatomime-polling"
 import type { AnatomimeRoomSummary } from "./shared-session-types"
 import "./styles.css"
@@ -211,11 +213,20 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     let timer: number | null = null
     let controller: AbortController | null = null
     let consecutiveFailures = 0
+    let latestScheduledResult: AnatomimeRoomFetchResult | null = null
     const credentials = storedPlayer
       ? { playerId: storedPlayer.playerId, token: storedPlayer.playerToken }
       : undefined
 
-    const poll = async () => {
+    function armPoll(delayMs: number) {
+      if (timer !== null) window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        timer = null
+        void poll()
+      }, delayMs)
+    }
+
+    async function poll() {
       if (cancelled || stopped || inFlight) return
       inFlight = true
       controller = new AbortController()
@@ -253,12 +264,13 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       }
 
       consecutiveFailures = schedule.consecutiveFailures
+      latestScheduledResult = result
       if (result.kind === "RATE_LIMITED") {
         setPollStatus(`Updates are paused. Trying again in ${Math.ceil(schedule.delayMs / 1_000)} seconds.`)
       } else if (result.kind === "FAILED") {
         setPollStatus("Connection interrupted. Updates will retry automatically.")
       }
-      timer = window.setTimeout(() => void poll(), schedule.delayMs)
+      armPoll(schedule.delayMs)
     }
 
     const wakePoll = () => {
@@ -267,13 +279,24 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       timer = null
       void poll()
     }
+    const onVisibilityChange = () => {
+      if (cancelled || stopped || inFlight || timer === null) return
+      const schedule = nextAnatomimeVisibilitySchedule({
+        result: latestScheduledResult,
+        documentHidden: document.visibilityState === "hidden",
+      })
+      if (!schedule || schedule.action !== "SCHEDULE") return
+      armPoll(schedule.delayMs)
+    }
     pollWakeRef.current = wakePoll
+    document.addEventListener("visibilitychange", onVisibilityChange)
     void poll()
 
     return () => {
       cancelled = true
       if (timer !== null) window.clearTimeout(timer)
       controller?.abort()
+      document.removeEventListener("visibilitychange", onVisibilityChange)
       if (pollWakeRef.current === wakePoll) pollWakeRef.current = () => {}
     }
   }, [lookupCode, storedPlayer, storedPlayerReady])

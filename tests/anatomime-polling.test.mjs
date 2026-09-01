@@ -8,7 +8,11 @@ try {
   if (error?.code !== "ERR_MODULE_NOT_FOUND") throw error
 }
 
-const { fetchAnatomimeRoomSnapshot, nextAnatomimePollSchedule } = polling
+const {
+  fetchAnatomimeRoomSnapshot,
+  nextAnatomimePollSchedule,
+  nextAnatomimeVisibilitySchedule,
+} = polling
 
 function requirePollingFunction(value, name) {
   assert.equal(typeof value, "function", `${name} must be implemented`)
@@ -27,12 +31,62 @@ function validSession(overrides = {}) {
     code: "AB12",
     status: "PLAYING",
     phase: "ACTIVE_TERM",
-    config: {},
-    teams: [],
-    players: [],
-    viewer: {},
-    turnReview: [],
-    recap: [],
+    config: {
+      answerMode: "typed",
+      clueLevel: "easy",
+      roundSeconds: 30,
+      termCount: 4,
+      roundLimit: 3,
+      hardcoreMode: false,
+    },
+    phaseEndsAt: "2026-08-31T12:00:00.000Z",
+    reviewExpiresAt: null,
+    teams: [{ id: "team-1", name: "Team 1", sortOrder: 0, score: 1 }],
+    players: [{
+      id: "player-1",
+      teamId: "team-1",
+      displayName: "Avery",
+      signedIn: false,
+      isHost: false,
+      lastSeenAt: "2026-08-31T11:59:00.000Z",
+    }],
+    viewer: { isHost: false, playerId: "player-1", teamId: "team-1" },
+    activeTeam: { id: "team-1", name: "Team 1", sortOrder: 0, score: 1 },
+    activeItem: {
+      index: 0,
+      total: 4,
+      prompt: {
+        id: "card-1",
+        name: "Trapezius",
+        categoryLabel: "Muscle",
+        regionLabels: ["Back"],
+        bodySystemLabels: ["Muscular"],
+        difficulty: "medium",
+        definition: "A broad superficial back muscle.",
+        aliases: ["traps"],
+        media: [{ url: "/trapezius.webp", title: "Trapezius diagram" }],
+      },
+      choices: [{ id: "choice-1", label: "Trapezius" }],
+      multipleChoiceUnlocksAt: null,
+      pendingSteal: false,
+    },
+    turnReview: [{
+      cardId: "card-1",
+      id: "review-1",
+      termKey: "term-1",
+      name: "Trapezius",
+      outcome: "got",
+      scoredTeamId: "team-1",
+    }],
+    recap: [{ teamId: "team-1", got: 1, missed: 0, stolen: 0 }],
+    hostElection: {
+      id: "election-1",
+      closesAt: "2026-08-31T12:01:00.000Z",
+      candidatePlayerIds: ["player-1"],
+      activeVoterPlayerIds: ["player-1"],
+      submittedVoterPlayerIds: [],
+    },
+    hostCanBeChallenged: false,
     ...overrides,
   }
 }
@@ -120,6 +174,45 @@ describe("Anatomime room fetch classification", () => {
     assert.deepEqual(result, { kind: "FAILED" })
   })
 
+  it("rejects a structurally valid snapshot for a different room code", async () => {
+    const fetchRoom = requirePollingFunction(fetchAnatomimeRoomSnapshot, "fetchAnatomimeRoomSnapshot")
+    const result = await fetchRoom({
+      code: "AB12",
+      fetcher: async () => jsonResponse(200, { session: validSession({ code: "ZZ99" }) }),
+    })
+
+    assert.deepEqual(result, { kind: "FAILED" })
+  })
+
+  const malformedSnapshots = [
+    ["timestamp nullability", (session) => { session.phaseEndsAt = 42 }],
+    ["config scalars", (session) => { session.config.roundSeconds = "30" }],
+    ["team scalars", (session) => { session.teams[0].score = "1" }],
+    ["player nullability", (session) => { session.players[0].lastSeenAt = null }],
+    ["viewer nullability", (session) => { session.viewer.playerId = 7 }],
+    ["active-team scalars", (session) => { session.activeTeam.sortOrder = "0" }],
+    ["prompt media", (session) => { session.activeItem.prompt.media[0].title = null }],
+    ["active-item choices", (session) => { session.activeItem.choices[0].label = null }],
+    ["turn-review enums", (session) => { session.turnReview[0].outcome = "unknown" }],
+    ["recap scalars", (session) => { session.recap[0].got = "1" }],
+    ["host-election identifiers", (session) => { session.hostElection.candidatePlayerIds[0] = 9 }],
+    ["optional host flags", (session) => { session.hostCanBeChallenged = "yes" }],
+  ]
+
+  for (const [label, mutate] of malformedSnapshots) {
+    it(`rejects malformed ${label} in a 2xx snapshot`, async () => {
+      const fetchRoom = requirePollingFunction(fetchAnatomimeRoomSnapshot, "fetchAnatomimeRoomSnapshot")
+      const session = structuredClone(validSession())
+      mutate(session)
+      const result = await fetchRoom({
+        code: "AB12",
+        fetcher: async () => jsonResponse(200, { session }),
+      })
+
+      assert.deepEqual(result, { kind: "FAILED" })
+    })
+  }
+
   it("keeps 503, malformed JSON, and network failures retryable", async () => {
     const fetchRoom = requirePollingFunction(fetchAnatomimeRoomSnapshot, "fetchAnatomimeRoomSnapshot")
     const results = await Promise.all([
@@ -136,7 +229,7 @@ describe("Anatomime room fetch classification", () => {
 })
 
 describe("Anatomime poll scheduling", () => {
-  const success = { kind: "SUCCESS", session: { code: "AB12" } }
+  const success = { kind: "SUCCESS", session: validSession() }
 
   it("uses the exact visible active, visible idle, and hidden success cadences", () => {
     const schedule = requirePollingFunction(nextAnatomimePollSchedule, "nextAnatomimePollSchedule")
@@ -235,7 +328,7 @@ describe("Anatomime poll scheduling", () => {
       const schedule = requirePollingFunction(nextAnatomimePollSchedule, "nextAnatomimePollSchedule")
 
       assert.deepEqual(schedule({
-        result: { kind: "SUCCESS", session: { code: "AB12", status, phase: "GAME_COMPLETE" } },
+        result: { kind: "SUCCESS", session: validSession({ status, phase: "GAME_COMPLETE" }) },
         roomStatus: status,
         roomPhase: "GAME_COMPLETE",
         documentHidden: false,
@@ -243,4 +336,36 @@ describe("Anatomime poll scheduling", () => {
       }), { action: "STOP", reason: "ROOM_ENDED" })
     })
   }
+})
+
+describe("Anatomime visibility rescheduling", () => {
+  it("re-arms only successful snapshots for the new visibility cadence", () => {
+    const schedule = requirePollingFunction(nextAnatomimeVisibilitySchedule, "nextAnatomimeVisibilitySchedule")
+    const active = { kind: "SUCCESS", session: validSession() }
+    const lobby = {
+      kind: "SUCCESS",
+      session: validSession({ status: "LOBBY", phase: "LOBBY", activeTeam: null, activeItem: null }),
+    }
+
+    assert.deepEqual(schedule({ result: active, documentHidden: true }), {
+      action: "SCHEDULE",
+      delayMs: 15_000,
+      consecutiveFailures: 0,
+    })
+    assert.deepEqual(schedule({ result: active, documentHidden: false }), {
+      action: "SCHEDULE",
+      delayMs: 2_000,
+      consecutiveFailures: 0,
+    })
+    assert.deepEqual(schedule({ result: lobby, documentHidden: false }), {
+      action: "SCHEDULE",
+      delayMs: 5_000,
+      consecutiveFailures: 0,
+    })
+    assert.equal(schedule({ result: { kind: "FAILED" }, documentHidden: true }), null)
+    assert.equal(schedule({
+      result: { kind: "RATE_LIMITED", retryAfterSeconds: 30 },
+      documentHidden: false,
+    }), null)
+  })
 })

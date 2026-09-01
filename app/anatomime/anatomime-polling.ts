@@ -21,23 +21,138 @@ const MAX_FAILURE_DELAY_MS = 30_000
 const FAILURE_JITTER_FRACTION = 0.1
 const ROOM_STATUSES = new Set(["LOBBY", "PLAYING", "GAME_COMPLETE", "REVIEW", "ENDED", "EXPIRED"])
 const ROOM_PHASES = new Set(["LOBBY", "ACTIVE_TERM", "TURN_REVIEW", "GAME_COMPLETE"])
+const ANSWER_MODES = new Set(["host-judged", "typed", "multiple-choice"])
+const CLUE_LEVELS = new Set(["easy", "medium", "hard", "expert"])
+const TURN_OUTCOMES = new Set(["got", "missed", "stolen"])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-/** Rejects partial or corrupt success bodies before client render code can consume them. */
-function isAnatomimeRoomSummary(value: unknown): value is AnatomimeRoomSummary {
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value)
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string"
+}
+
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === "string"
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string")
+}
+
+function isTeamSummary(value: unknown) {
+  return isRecord(value)
+    && typeof value.id === "string"
+    && typeof value.name === "string"
+    && isFiniteNumber(value.sortOrder)
+    && isFiniteNumber(value.score)
+}
+
+function isPlayerSummary(value: unknown) {
+  return isRecord(value)
+    && typeof value.id === "string"
+    && isNullableString(value.teamId)
+    && typeof value.displayName === "string"
+    && typeof value.signedIn === "boolean"
+    && typeof value.isHost === "boolean"
+    && typeof value.lastSeenAt === "string"
+}
+
+function isRoomConfig(value: unknown) {
+  return isRecord(value)
+    && typeof value.answerMode === "string"
+    && ANSWER_MODES.has(value.answerMode)
+    && typeof value.clueLevel === "string"
+    && CLUE_LEVELS.has(value.clueLevel)
+    && isFiniteNumber(value.roundSeconds)
+    && isFiniteNumber(value.termCount)
+    && (value.roundLimit === undefined || isFiniteNumber(value.roundLimit))
+    && (value.hardcoreMode === undefined || typeof value.hardcoreMode === "boolean")
+}
+
+function isPromptSummary(value: unknown) {
+  if (!isRecord(value) || typeof value.id !== "string") return false
+  if (![value.name, value.categoryLabel, value.difficulty, value.definition].every(isOptionalString)) return false
+  if (![value.regionLabels, value.bodySystemLabels, value.aliases]
+    .every((entry) => entry === undefined || isStringArray(entry))) return false
+  return value.media === undefined || (Array.isArray(value.media) && value.media.every((entry) => (
+    isRecord(entry) && typeof entry.url === "string" && typeof entry.title === "string"
+  )))
+}
+
+function isActiveItem(value: unknown) {
+  return isRecord(value)
+    && isFiniteNumber(value.index)
+    && isFiniteNumber(value.total)
+    && isPromptSummary(value.prompt)
+    && Array.isArray(value.choices)
+    && value.choices.every((choice) => (
+      isRecord(choice) && typeof choice.id === "string" && typeof choice.label === "string"
+    ))
+    && isNullableString(value.multipleChoiceUnlocksAt)
+    && typeof value.pendingSteal === "boolean"
+}
+
+function isTurnReviewItem(value: unknown) {
+  return isRecord(value)
+    && isOptionalString(value.cardId)
+    && isOptionalString(value.id)
+    && isOptionalString(value.termKey)
+    && typeof value.name === "string"
+    && typeof value.outcome === "string"
+    && TURN_OUTCOMES.has(value.outcome)
+    && isNullableString(value.scoredTeamId)
+}
+
+function isRecapItem(value: unknown) {
+  return isRecord(value)
+    && typeof value.teamId === "string"
+    && isFiniteNumber(value.got)
+    && isFiniteNumber(value.missed)
+    && isFiniteNumber(value.stolen)
+}
+
+function isHostElection(value: unknown) {
+  return isRecord(value)
+    && typeof value.id === "string"
+    && typeof value.closesAt === "string"
+    && isStringArray(value.candidatePlayerIds)
+    && isStringArray(value.activeVoterPlayerIds)
+    && isStringArray(value.submittedVoterPlayerIds)
+}
+
+/** Rejects cross-room, partial, or corrupt success bodies before clients consume them. */
+function isAnatomimeRoomSummary(value: unknown, expectedCode: string): value is AnatomimeRoomSummary {
   if (!isRecord(value)) return false
-  return typeof value.code === "string"
-    && ROOM_STATUSES.has(String(value.status))
-    && ROOM_PHASES.has(String(value.phase))
-    && isRecord(value.config)
+  return value.code === expectedCode
+    && typeof value.status === "string"
+    && ROOM_STATUSES.has(value.status)
+    && typeof value.phase === "string"
+    && ROOM_PHASES.has(value.phase)
+    && isRoomConfig(value.config)
+    && isNullableString(value.phaseEndsAt)
+    && isNullableString(value.reviewExpiresAt)
     && Array.isArray(value.teams)
+    && value.teams.every(isTeamSummary)
     && Array.isArray(value.players)
+    && value.players.every(isPlayerSummary)
     && isRecord(value.viewer)
+    && typeof value.viewer.isHost === "boolean"
+    && isNullableString(value.viewer.playerId)
+    && isNullableString(value.viewer.teamId)
+    && (value.activeTeam === null || isTeamSummary(value.activeTeam))
+    && (value.activeItem === null || isActiveItem(value.activeItem))
     && Array.isArray(value.turnReview)
+    && value.turnReview.every(isTurnReviewItem)
     && Array.isArray(value.recap)
+    && value.recap.every(isRecapItem)
+    && (value.hostElection === undefined || value.hostElection === null || isHostElection(value.hostElection))
+    && (value.hostCanBeChallenged === undefined || typeof value.hostCanBeChallenged === "boolean")
 }
 
 export function anatomimeRetryAfterSeconds(response: Response) {
@@ -80,7 +195,7 @@ export async function fetchAnatomimeRoomSnapshot(input: {
     if (!response.ok) return { kind: "FAILED" }
 
     const payload = await response.json().catch(() => null) as { session?: unknown } | null
-    return isAnatomimeRoomSummary(payload?.session)
+    return isAnatomimeRoomSummary(payload?.session, input.code)
       ? { kind: "SUCCESS", session: payload.session }
       : { kind: "FAILED" }
   } catch {
@@ -132,4 +247,19 @@ export function nextAnatomimePollSchedule(input: {
     delayMs: Math.max(boundedFailureDelayMs, retryFloorMs),
     consecutiveFailures,
   }
+}
+
+/** Recomputes cadence on visibility changes without disturbing recovery timers. */
+export function nextAnatomimeVisibilitySchedule(input: {
+  result: AnatomimeRoomFetchResult | null
+  documentHidden: boolean
+}): AnatomimePollSchedule | null {
+  if (input.result?.kind !== "SUCCESS") return null
+  return nextAnatomimePollSchedule({
+    result: input.result,
+    roomStatus: input.result.session.status,
+    roomPhase: input.result.session.phase,
+    documentHidden: input.documentHidden,
+    consecutiveFailures: 0,
+  })
 }

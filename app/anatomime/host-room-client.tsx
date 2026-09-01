@@ -4,7 +4,12 @@ import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CheckCircle2, Copy, LogIn, Play, QrCode, RefreshCw, RotateCcw, SkipForward, Timer, UserCog, X } from "lucide-react"
 import { AnatomimeActionButton } from "./anatomime-action-button"
-import { fetchAnatomimeRoomSnapshot, nextAnatomimePollSchedule } from "./anatomime-polling"
+import {
+  fetchAnatomimeRoomSnapshot,
+  nextAnatomimePollSchedule,
+  nextAnatomimeVisibilitySchedule,
+  type AnatomimeRoomFetchResult,
+} from "./anatomime-polling"
 import type { AnatomimePlayerSummary, AnatomimeRoomSummary } from "./shared-session-types"
 
 type HostCredentials = { playerId: string; token: string }
@@ -133,6 +138,7 @@ export function HostRoomClient({
     let timer: number | null = null
     let controller: AbortController | null = null
     let consecutiveFailures = 0
+    let latestScheduledResult: AnatomimeRoomFetchResult | null = null
 
     const stopPolling = (reason: "ROOM_ENDED" | "REJOIN_REQUIRED") => {
       stopped = true
@@ -142,7 +148,15 @@ export function HostRoomClient({
         : "The host credentials are no longer valid for this shared game.")
     }
 
-    const poll = async () => {
+    function armPoll(delayMs: number) {
+      if (timer !== null) window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        timer = null
+        void poll()
+      }, delayMs)
+    }
+
+    async function poll() {
       if (cancelled || stopped || inFlight) return
       inFlight = true
       controller = new AbortController()
@@ -172,12 +186,13 @@ export function HostRoomClient({
       }
 
       consecutiveFailures = schedule.consecutiveFailures
+      latestScheduledResult = result
       if (result.kind === "RATE_LIMITED") {
         setPollStatus(`Updates are paused. Trying again in ${Math.ceil(schedule.delayMs / 1_000)} seconds.`)
       } else if (result.kind === "FAILED") {
         setPollStatus("Connection interrupted. Updates will retry automatically.")
       }
-      timer = window.setTimeout(() => void poll(), schedule.delayMs)
+      armPoll(schedule.delayMs)
     }
 
     const wakePoll = () => {
@@ -186,17 +201,29 @@ export function HostRoomClient({
       timer = null
       void poll()
     }
+    const onVisibilityChange = () => {
+      if (cancelled || stopped || inFlight || timer === null) return
+      const schedule = nextAnatomimeVisibilitySchedule({
+        result: latestScheduledResult,
+        documentHidden: document.visibilityState === "hidden",
+      })
+      if (!schedule || schedule.action !== "SCHEDULE") return
+      armPoll(schedule.delayMs)
+    }
     pollWakeRef.current = wakePoll
+    document.addEventListener("visibilitychange", onVisibilityChange)
     const currentSession = sessionRef.current
+    const initialResult = { kind: "SUCCESS", session: currentSession } as const
     const firstSchedule = nextAnatomimePollSchedule({
-      result: { kind: "SUCCESS", session: currentSession },
+      result: initialResult,
       roomStatus: currentSession.status,
       roomPhase: currentSession.phase,
       documentHidden: document.visibilityState === "hidden",
       consecutiveFailures: 0,
     })
     if (firstSchedule.action === "SCHEDULE") {
-      timer = window.setTimeout(() => void poll(), firstSchedule.delayMs)
+      latestScheduledResult = initialResult
+      armPoll(firstSchedule.delayMs)
     } else {
       stopPolling(firstSchedule.reason)
     }
@@ -204,6 +231,7 @@ export function HostRoomClient({
       cancelled = true
       if (timer !== null) window.clearTimeout(timer)
       controller?.abort()
+      document.removeEventListener("visibilitychange", onVisibilityChange)
       if (pollWakeRef.current === wakePoll) pollWakeRef.current = () => {}
     }
   }, [
@@ -240,12 +268,12 @@ export function HostRoomClient({
   const playerCount = joinedPlayers.length
 
   useEffect(() => {
-    if (session.status !== "PLAYING" || session.phase !== "ACTIVE_TERM" || !session.activeItem || termSeconds !== 0) return
+    if (pollTerminal || session.status !== "PLAYING" || session.phase !== "ACTIVE_TERM" || !session.activeItem || termSeconds !== 0) return
     const key = `${session.code}:${session.activeItem.index}:${session.phaseEndsAt ?? "none"}`
     if (timeoutKeyRef.current === key) return
     timeoutKeyRef.current = key
     void performAction("timeout", `/api/anatomime/sessions/${session.code}/timeout`)
-  }, [performAction, session, termSeconds])
+  }, [performAction, pollTerminal, session, termSeconds])
 
   const copyText = async (value: string, success: string) => {
     if (!window.navigator.clipboard) {

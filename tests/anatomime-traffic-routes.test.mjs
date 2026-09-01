@@ -16,6 +16,7 @@ const joinRouteSource = await readFile(new URL("../app/api/anatomime/sessions/[c
 const realtimeTokenRouteSource = await readFile(new URL("../app/api/anatomime/sessions/[code]/realtime-token/route.ts", import.meta.url), "utf8")
 const pollRouteSource = await readFile(new URL("../app/api/anatomime/sessions/[code]/route.ts", import.meta.url), "utf8")
 const sharedSessionClientSource = await readFile(new URL("../app/anatomime/shared-session-client.tsx", import.meta.url), "utf8")
+const hostRoomClientSource = await readFile(new URL("../app/anatomime/host-room-client.tsx", import.meta.url), "utf8")
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
 
 class AnatomimeSessionError extends Error {
@@ -418,6 +419,24 @@ describe("Anatomime create and join traffic boundaries", () => {
       if (status === 429) assert.equal(response.headers.get("Retry-After"), "8")
     })
   }
+})
+
+describe("Anatomime client poll ownership", () => {
+  it("keeps terminal host outcomes from posting an automatic timeout", () => {
+    assert.match(
+      hostRoomClientSource,
+      /if \(pollTerminal \|\| session\.status !== "PLAYING" \|\| session\.phase !== "ACTIVE_TERM"/,
+    )
+    assert.match(hostRoomClientSource, /\[performAction, pollTerminal, session, termSeconds\]/)
+  })
+
+  it("registers one visibility re-arm path in both polling owners", () => {
+    for (const source of [sharedSessionClientSource, hostRoomClientSource]) {
+      assert.equal(source.match(/addEventListener\("visibilitychange", onVisibilityChange\)/g)?.length, 1)
+      assert.equal(source.match(/removeEventListener\("visibilitychange", onVisibilityChange\)/g)?.length, 1)
+      assert.match(source, /nextAnatomimeVisibilitySchedule\(\{[\s\S]*?result: latestScheduledResult,[\s\S]*?documentHidden:/)
+    }
+  })
 })
 
 describe("Anatomime realtime token traffic boundary", () => {
