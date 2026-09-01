@@ -196,8 +196,8 @@ export function HostRoomClient({
     }
 
     const wakePoll = () => {
-      if (cancelled || stopped || inFlight) return
-      if (timer !== null) window.clearTimeout(timer)
+      if (cancelled || stopped || inFlight || timer === null || latestScheduledResult?.kind !== "SUCCESS") return
+      window.clearTimeout(timer)
       timer = null
       void poll()
     }

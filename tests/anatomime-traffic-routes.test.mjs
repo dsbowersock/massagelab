@@ -437,6 +437,15 @@ describe("Anatomime client poll ownership", () => {
       assert.match(source, /nextAnatomimeVisibilitySchedule\(\{[\s\S]*?result: latestScheduledResult,[\s\S]*?documentHidden:/)
     }
   })
+
+  it("only wakes an armed success-based poll timer", () => {
+    for (const source of [sharedSessionClientSource, hostRoomClientSource]) {
+      assert.match(
+        source,
+        /const wakePoll = \(\) => \{\s+if \(cancelled \|\| stopped \|\| inFlight \|\| timer === null \|\| latestScheduledResult\?\.kind !== "SUCCESS"\) return/,
+      )
+    }
+  })
 })
 
 describe("Anatomime realtime token traffic boundary", () => {
