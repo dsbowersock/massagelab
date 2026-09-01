@@ -94,6 +94,16 @@ describe("Music visualizer provider contract", () => {
     assert.match(providerSource, /shouldApplyMusicVisualizerAccountWriteCompletion\(\{/)
   })
 
+  it("rejects an ownerless write completion without throwing", () => {
+    assert.equal(musicVisualizer.shouldApplyMusicVisualizerAccountWriteCompletion({
+      currentOwner: null,
+      currentRequestId: 7,
+      isMounted: true,
+      requestId: 7,
+      requestOwnerKey: undefined,
+    }), false)
+  })
+
   it("serializes active saves and collapses queued work to the latest snapshot", async () => {
     assert.equal(
       typeof accountPreferences.createSerializedPreferenceWriter,

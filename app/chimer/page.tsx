@@ -350,6 +350,10 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
     setTransientOwnedBackgroundIds([])
   }, [commerceOwnedBackgroundIds])
 
+  // This effect owns Production session/account-preference hydration on mount
+  // and coalesced resume, applying access only from authoritative results.
+  // developmentSubscriberReview is the auth-free fixed-paid-feature review
+  // surface, so it intentionally skips those account reads and listeners.
   useEffect(() => {
     let isMounted = true
 

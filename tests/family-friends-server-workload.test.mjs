@@ -366,7 +366,10 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(projectLogSource, /ordinary non-practice shell/i)
     assert.match(projectLogSource, /five-minute complete[^\n]*fifteen-second incomplete/i)
     assert.match(projectLogSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
-    assert.match(projectLogSource, /127 passed, 37 skipped, and zero failed/i)
+    assert.match(
+      projectLogSource,
+      /127 Browser-QA passes.{0,160}37 documented authorization-gated skips.{0,80}zero failures/i,
+    )
 
     assert.match(deploymentSource, /public display catalog only/i)
     assert.match(deploymentCostControls, /owner is process-local and\s+single-flight/i)
@@ -383,7 +386,14 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(releaseCostControls, /public display catalog only is process-local and single-flight/i)
     assert.match(releaseChecklistSource, /zero client bootstrap\s+endpoints/i)
     assert.match(releaseChecklistSource, /zero ordinary commerce snapshots/i)
-    assert.match(releaseChecklistSource, /127 passed, 37 skipped, and zero failed/i)
+    assert.match(
+      releaseChecklistSource,
+      /127 Browser-QA passes with 37 documented\s+authorization-gated skips/i,
+    )
+    assert.match(
+      releaseChecklistSource,
+      /zero failures and no skips except the documented\s+authorization-gated private rows; skips are never passes/i,
+    )
     assert.match(releaseChecklistSource, /live Stripe[^\n]*`NOT RUN`/i)
     assert.match(releaseCostControls, /MASSAGELAB_PUBLIC_REGISTRATION_PAUSED/)
     assert.match(releaseCostControls, /MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED/)
