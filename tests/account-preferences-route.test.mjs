@@ -50,12 +50,46 @@ function ownedOnlySettings() {
   }
 }
 
-function loadRoute({ savedSettings = ownedOnlySettings(), failAccess = false, featureAccess = [] } = {}) {
+function deferred() {
+  let resolve
+  const promise = new Promise((settle) => {
+    resolve = settle
+  })
+  return { promise, resolve }
+}
+
+async function boundedLatch(promise, label, timeoutMs = 1_000) {
+  let timeout
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs)
+      }),
+    ])
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function loadRoute({
+  savedSettings = ownedOnlySettings(),
+  failAccess = false,
+  featureAccess = [],
+  pauseFirstUpsert = false,
+} = {}) {
   const calls = {
+    lockAcquisitions: [],
+    lockAttempts: [],
+    locks: [],
+    reads: [],
     snapshots: [],
+    transactionStarts: [],
+    transactions: 0,
+    upsertTransactions: [],
     upserts: [],
   }
-  const preferenceRecord = {
+  let preferenceRecord = {
     version: USER_PREFERENCES_VERSION,
     appSettings: {},
     chimerSettings: savedSettings,
@@ -64,16 +98,66 @@ function loadRoute({ savedSettings = ownedOnlySettings(), failAccess = false, fe
     calendarPreferences: {},
     updatedAt: new Date("2026-07-29T00:00:00.000Z"),
   }
+  const firstUpsertStarted = deferred()
+  const releaseFirstUpsert = deferred()
+  const secondLockAttempted = deferred()
+  const ownerLocks = new Map()
+  let upsertCount = 0
+  const userPreferenceFor = (transactionId) => ({
+    findUnique: async () => {
+      calls.reads.push(transactionId)
+      return preferenceRecord
+    },
+    upsert: async (input) => {
+      calls.upserts.push(input)
+      calls.upsertTransactions.push(transactionId)
+      upsertCount += 1
+      if (pauseFirstUpsert && upsertCount === 1) {
+        firstUpsertStarted.resolve()
+        await releaseFirstUpsert.promise
+      }
+      preferenceRecord = {
+        ...preferenceRecord,
+        ...input.update,
+      }
+      return preferenceRecord
+    },
+  })
+  const userPreference = userPreferenceFor(0)
   const prisma = {
-    userPreference: {
-      findUnique: async () => preferenceRecord,
-      upsert: async (input) => {
-        calls.upserts.push(input)
-        return {
-          ...preferenceRecord,
-          ...input.update,
-        }
-      },
+    userPreference,
+    $transaction: async (callback) => {
+      calls.transactions += 1
+      const transactionId = calls.transactions
+      calls.transactionStarts.push(transactionId)
+      let releaseOwnerLock = () => undefined
+      try {
+        return await callback({
+          userPreference: userPreferenceFor(transactionId),
+          $queryRaw: async (...query) => {
+            calls.locks.push(query)
+            const userId = query[1]
+            calls.lockAttempts.push(transactionId)
+            if (calls.lockAttempts.length === 2) secondLockAttempted.resolve()
+
+            // Transactions begin independently. Only the simulated stable User
+            // row lock queues work for the same owner, matching PostgreSQL's
+            // FOR UPDATE boundary closely enough to catch a read-before-lock.
+            const precedingOwnerLock = ownerLocks.get(userId)
+            const currentOwnerLock = deferred()
+            ownerLocks.set(userId, currentOwnerLock)
+            if (precedingOwnerLock) await precedingOwnerLock.promise
+            calls.lockAcquisitions.push(transactionId)
+            releaseOwnerLock = () => {
+              if (ownerLocks.get(userId) === currentOwnerLock) ownerLocks.delete(userId)
+              currentOwnerLock.resolve()
+            }
+            return []
+          },
+        })
+      } finally {
+        releaseOwnerLock()
+      }
     },
   }
   const route = loadCompiledModule(
@@ -129,7 +213,14 @@ function loadRoute({ savedSettings = ownedOnlySettings(), failAccess = false, fe
     },
   )
 
-  return { ...route, calls }
+  return {
+    ...route,
+    calls,
+    firstUpsertStarted: firstUpsertStarted.promise,
+    releaseFirstUpsert: releaseFirstUpsert.resolve,
+    readPreferenceRecord: () => preferenceRecord,
+    secondLockAttempted: secondLockAttempted.promise,
+  }
 }
 
 function assertOwnedOnlySnapshot(settings) {
@@ -329,6 +420,7 @@ describe("account preference route ownership boundary", () => {
     assert.equal(response.status, 200)
     assert.equal(calls.snapshots.length, 1)
     assert.equal(calls.upserts.length, 1)
+    assert.deepEqual(Object.keys(calls.upserts[0].update), ["version", "chimerSettings"])
     assert.equal(response.body.accessAuthoritative, true)
     assert.deepEqual(response.body.ownedBackgroundIds, [ownedBackgroundId])
     assertOwnedOnlySnapshot(calls.upserts[0].update.chimerSettings)
@@ -350,8 +442,8 @@ describe("account preference route ownership boundary", () => {
     assertUnownedFallback(response.body.chimerSettings)
   })
 
-  it("PUT re-sanitizes retained Chimer settings when another preference section changes", async () => {
-    const { PUT, calls } = loadRoute({ savedSettings: unownedSettings() })
+  it("PUT projects retained Chimer settings safely without rewriting the omitted column", async () => {
+    const { PUT, calls, readPreferenceRecord } = loadRoute({ savedSettings: unownedSettings() })
     const response = await PUT(new Request("https://massagelab.app/api/account/preferences", {
       method: "PUT",
       headers: { "content-type": "application/json" },
@@ -360,7 +452,8 @@ describe("account preference route ownership boundary", () => {
 
     assert.equal(response.status, 200)
     assert.equal(calls.upserts.length, 1)
-    assertUnownedFallback(calls.upserts[0].update.chimerSettings)
+    assert.deepEqual(Object.keys(calls.upserts[0].update), ["version", "appSettings"])
+    assert.equal(readPreferenceRecord().chimerSettings.backgroundId, unownedBackgroundId)
     assertUnownedFallback(response.body.chimerSettings)
   })
 
@@ -374,8 +467,75 @@ describe("account preference route ownership boundary", () => {
 
     assert.equal(response.status, 200)
     assert.equal(calls.upserts.length, 1)
-    assert.deepEqual(calls.upserts[0].update.chimerSettings, {})
+    assert.deepEqual(Object.keys(calls.upserts[0].update), ["version", "appSettings"])
     assert.deepEqual(response.body.chimerSettings, {})
+  })
+
+  it("serializes concurrent app-settings and Chimer patches without losing either write", { timeout: 5_000 }, async () => {
+    const route = loadRoute({ savedSettings: {}, pauseFirstUpsert: true })
+    let appSettingsWrite
+    let chimerWrite
+    try {
+      appSettingsWrite = route.PUT(new Request("https://massagelab.app/api/account/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ appSettings: { showClock: false } }),
+      }))
+      await boundedLatch(route.firstUpsertStarted, "first upsert start")
+
+      chimerWrite = route.PUT(new Request("https://massagelab.app/api/account/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chimerSettings: ownedOnlySettings() }),
+      }))
+      await boundedLatch(route.secondLockAttempted, "second owner-lock attempt")
+
+      assert.deepEqual(route.calls.transactionStarts, [1, 2], "both transactions must begin")
+      assert.deepEqual(route.calls.lockAttempts, [1, 2], "both transactions must reach the owner lock")
+      assert.deepEqual(route.calls.lockAcquisitions, [1], "the second owner lock must still be waiting")
+      assert.deepEqual(
+        route.calls.reads,
+        [1],
+        "a lock moved after findUnique would let the second transaction read stale state here",
+      )
+      assert.deepEqual(route.calls.upsertTransactions, [1])
+      assert.equal(route.calls.upserts.length, 1, "the second writer must wait for the owner lock")
+    } finally {
+      // Always unblock the first request so a failed ordering assertion cannot
+      // strand either simulated transaction or hang the test process.
+      route.releaseFirstUpsert()
+    }
+    const [appSettingsResponse, chimerResponse] = await boundedLatch(
+      Promise.all([appSettingsWrite, chimerWrite]),
+      "serialized preference writes",
+    )
+    const saved = route.readPreferenceRecord()
+
+    assert.equal(appSettingsResponse.status, 200)
+    assert.equal(chimerResponse.status, 200)
+    assert.equal(route.calls.transactions, 2)
+    assert.equal(route.calls.locks.length, 2)
+    assert.deepEqual(route.calls.lockAcquisitions, [1, 2])
+    assert.deepEqual(route.calls.reads, [1, 2])
+    assert.deepEqual(route.calls.upsertTransactions, [1, 2])
+    assert.match(
+      route.calls.locks.map(([query]) => query.join(" ")).join(" "),
+      /FROM "User"[\s\S]*FOR UPDATE/,
+    )
+    assert.deepEqual(route.calls.locks.map(([, userId]) => userId), [
+      "owned-only-user",
+      "owned-only-user",
+    ])
+    assert.equal(saved.appSettings.showClock, false)
+    assertOwnedOnlySnapshot(saved.chimerSettings)
+    assert.deepEqual(Object.keys(route.calls.upserts[0].update), ["version", "appSettings"])
+    assert.deepEqual(Object.keys(route.calls.upserts[1].update), ["version", "chimerSettings"])
+    assert.equal(
+      Object.hasOwn(route.calls.upserts[1].update, "appSettings"),
+      false,
+      "an independent patch must not rewrite an unchanged column",
+    )
+    assert.equal(chimerResponse.body.appSettings.showClock, false)
   })
 
   it("PUT retains owned Music tuning when Chimer uses a different background", async () => {

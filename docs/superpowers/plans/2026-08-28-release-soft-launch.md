@@ -209,7 +209,7 @@ npm run build:browser-qa
 npm run test:browser
 ```
 
-Expected: PASS across every ordinary project/spec pair, including desktop/mobile public, app shell, music, Chimer-related, local-first, background commerce, identity, membership, and interaction coverage. The focused identity/membership database-backed rows also require the documented disposable local QA database opt-in and exact fixture cleanup; never point that fixture at Production.
+Expected: PASS across every ordinary project/spec pair, including desktop/mobile public, app shell, music, Chimer-related, local-first, background commerce, identity, membership, and interaction coverage. The focused identity/membership database-backed rows also require the documented disposable local QA database opt-in, exact fixture cleanup, and all five reviewed migrations applied in this order: `20260828120000_identity_method_safety`, `20260828121000_identity_normalized_email_index`, `20260828130000_membership_subscription_convergence`, `20260901100000_auth_method_intent_two_factor_purposes`, then `20260901101000_auth_method_intent_registration_callback`; never point that fixture at Production.
 
 - [ ] **Step 7: Record workload and pause evidence**
 
@@ -311,7 +311,7 @@ if ($collisionExit -ne 0) { exit $collisionExit }
 Write-Output "migration_status_exit=$migrationStatusExit"
 ```
 
-Record only `normalized_collision_count=0`, `migration_status_exit`, and applied/pending migration names/counts. A nonzero migration status is expected only when the output names exactly these three reviewed pending migrations in order: `20260828120000_identity_method_safety`, `20260828121000_identity_normalized_email_index`, and `20260828130000_membership_subscription_convergence`. An unknown status failure, failed migration, omitted migration, reordered migration, or additional migration is a stop. Never echo the source environment variable.
+Record only `normalized_collision_count=0`, `migration_status_exit`, and applied/pending migration names/counts. A nonzero migration status is expected only when the output names exactly these five reviewed pending migrations in order: `20260828120000_identity_method_safety`, `20260828121000_identity_normalized_email_index`, `20260828130000_membership_subscription_convergence`, `20260901100000_auth_method_intent_two_factor_purposes`, and `20260901101000_auth_method_intent_registration_callback`. An unknown status failure, failed migration, omitted migration, reordered migration, or additional migration is a stop. Never echo the source environment variable.
 
 Do not run `prisma migrate deploy` in this task.
 
@@ -384,17 +384,19 @@ Present the zero-collision result, current production migration status, exact mi
 20260828120000_identity_method_safety
 20260828121000_identity_normalized_email_index
 20260828130000_membership_subscription_convergence
+20260901100000_auth_method_intent_two_factor_purposes
+20260901101000_auth_method_intent_registration_callback
 ```
 
-Include additive/limiter-row-deletion behavior, rollback compatibility, database target, verification command, and the concurrent-index monitoring/recovery boundary. Request authorization only for applying these three reviewed migrations in the displayed order after the zero-collision preflight.
+Include additive/limiter-row-deletion behavior, rollback compatibility, database target, verification command, and the concurrent-index monitoring/recovery boundary. Request authorization only for applying these five reviewed migrations in the displayed order after the zero-collision preflight.
 
 - [ ] **Step 2: Apply and verify only after approval**
 
-Use the documented direct Neon maintenance path to run `npm run prisma:migrate:deploy`, then read migration status again. Expected: all three exact migrations applied in the reviewed order and all committed migrations current. Monitor the `20260828121000_identity_normalized_email_index` `CREATE UNIQUE INDEX CONCURRENTLY` build and use only its separately reviewed stop/recovery path if it fails. Stop on any omitted, reordered, additional, unexpected, or failed migration; do not resolve/baseline/repair automatically.
+Use the documented direct Neon maintenance path to run `npm run prisma:migrate:deploy`, then read migration status again. Expected: all five exact migrations applied in the reviewed order and all committed migrations current. Monitor the `20260828121000_identity_normalized_email_index` `CREATE UNIQUE INDEX CONCURRENTLY` build and use only its separately reviewed stop/recovery path if it fails. Stop on any omitted, reordered, additional, unexpected, or failed migration; do not resolve/baseline/repair automatically.
 
 - [ ] **Step 3: Construct and request authorization for the first paused bridge deployment**
 
-Begin only after all three reviewed migrations are current in the required order. The exact release head must contain the `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` bridge. The first Production deployment must receive exact value `1`; missing, `0`, whitespace variants, and every other value are not the paused state. The environment mutation, repository update, and automatic Production deployment remain separately named external effects even when one authorization intentionally couples them.
+Begin only after all five reviewed migrations are current in the required order. The exact release head must contain the `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` bridge. The first Production deployment must receive exact value `1`; missing, `0`, whitespace variants, and every other value are not the paused state. The environment mutation, repository update, and automatic Production deployment remain separately named external effects even when one authorization intentionally couples them.
 
 Proceed only if Task 4 proved the current Vercel mechanism is automatic Production deployment from `main`. The local release-proof branch must first be clean and contain the separate local, hosted, and production-prerequisite receipt commits from Tasks 2–4. If the remote PR head does not equal that exact clean local head, stop and request authorization specifically for a non-force push/PR update of those named docs-only commits. After any authorized update, wait for required hosted checks on the resulting exact PR head and require the PR to be clean/current; older hosted results remain tied to their recorded code head and are not relabeled. This receipt synchronization authorizes no merge or deployment.
 
@@ -488,7 +490,7 @@ The fully specified `--force-with-lease="refs/heads/main:$approvedBase"` is the 
 
 - [ ] **Step 5: Prove the paused bridge and drain every pre-bridge writer**
 
-Wait for hosted CI on the resulting `main` SHA and rerun Task 2 Steps 1–7—the read-only commands, not its receipt edit/commit—in a clean worktree checked out at that SHA. For this post-deploy rerun only, Task 2 Step 1 may report detached HEAD when `git rev-parse HEAD` exactly equals the deployed `origin/main` SHA; otherwise create a temporary local branch at that exact SHA before proceeding, and never accept another branch tip. Read Vercel back until it is READY or failed; require the full deployed Git SHA to equal `origin/main`, the Production migration gate to pass, `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` to read back as exact `1`, canonical `massagelab.app`/`www` alias behavior to be healthy, and public launch-route HTTP health to pass. Do not run a second manual deployment, change provider settings, or create a payment, Checkout Session, synthetic event, or Portal Session.
+Wait for hosted CI on the resulting `main` SHA and rerun Task 2 Steps 1–7—the read-only commands, not its receipt edit/commit—in a clean worktree checked out at that SHA. For this post-deploy rerun only, Task 2 Step 1 may report detached HEAD when `git rev-parse HEAD` exactly equals the deployed `origin/main` SHA; otherwise create a temporary local branch at that exact SHA before proceeding, and never accept another branch tip. Read Vercel back until it is READY or failed; require the full deployed Git SHA to equal `origin/main`, the Production migration gate to report all five reviewed migrations current in the required order, `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` to read back as exact `1`, canonical `massagelab.app`/`www` alias behavior to be healthy, and public launch-route HTTP health to pass. Do not run a second manual deployment, change provider settings, or create a payment, Checkout Session, synthetic event, or Portal Session.
 
 Read the current configured maximum invocation lifetime from the deployment platform without changing it and record only its non-sensitive duration. Start the drain clock only after the Production alias is proven to serve the paused bridge SHA. Wait at least that full configured maximum lifetime, then use deployment/SHA-scoped read-only request and execution evidence to prove no pre-bridge SHA is still receiving or executing `/api/billing/webhook` requests. Ambiguous logs, an unknown lifetime, a pre-bridge request/execution, or an alias mismatch stops the rollout with the exact-`1` bridge still paused.
 
@@ -500,7 +502,7 @@ During this bounded pause, signed membership-purpose Checkout completion and all
 
 After Step 5 passes, request a second explicit authorization naming the exact same bridge-capable commit and Production target, removal of `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` or change to exact `0`, and an explicit redeployment of that commit with the new environment snapshot. If the flag becomes absent/`0` without an authorized READY deployment, the running paused deployment is still authoritative; do not infer convergence resumed.
 
-Read the new deployment back until READY or failed. Require the Production alias to serve the same exact bridge-capable Git SHA, all migrations current, and the flag absent or exactly `0`. Then use privacy-bounded provider delivery status plus aggregate receipt/access evidence to prove the deliveries held during Step 5 reach `2xx`, their membership receipts become terminal, and persisted access converges. No manual replay, acknowledgement, synthetic event, receipt edit, or access grant is permitted. Any ambiguity returns to the paused bridge with exact `1` through a separately authorized deployment; never roll back to pre-bridge code and never roll back the additive schema.
+Read the new deployment back until READY or failed. Require the Production alias to serve the same exact bridge-capable Git SHA, all five reviewed migrations current in the required order with all committed migrations current, and the flag absent or exactly `0`. Then use privacy-bounded provider delivery status plus aggregate receipt/access evidence to prove the deliveries held during Step 5 reach `2xx`, their membership receipts become terminal, and persisted access converges. No manual replay, acknowledgement, synthetic event, receipt edit, or access grant is permitted. Any ambiguity returns to the paused bridge with exact `1` through a separately authorized deployment; never roll back to pre-bridge code and never roll back the additive schema.
 
 Retain the bridge code through complete held-delivery/backlog proof and the rollout window even after the flag is absent/`0`. Its later removal requires a new reviewed retirement with fresh exact-head gates and evidence that no rollback or backlog path still needs it.
 
