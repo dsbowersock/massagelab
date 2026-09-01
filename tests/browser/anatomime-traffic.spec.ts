@@ -134,6 +134,23 @@ async function fulfillJson(route: Route, status: number, body: unknown, headers?
   })
 }
 
+/**
+ * Freezes time after hydration. The small future buffer prevents pauseAt from
+ * racing wall time; callers keep the response that creates the tested deadline
+ * gated until after this resolves.
+ */
+async function pauseClockAtCurrentTime(page: Page) {
+  const pauseTarget = await page.evaluate(() => Date.now() + 500)
+  await page.clock.pauseAt(pauseTarget)
+}
+
+/** Holds a mocked response until its test has established a frozen timer origin. */
+function responseGate() {
+  let release = () => {}
+  const wait = new Promise<void>((resolve) => { release = resolve })
+  return { release, wait }
+}
+
 test("player polling uses credential-bound tokens and 2s/5s/15s successful cadence", async ({ page }) => {
   await page.clock.install()
   await installPlayerRuntime(page)
@@ -143,6 +160,7 @@ test("player polling uses credential-bound tokens and 2s/5s/15s successful caden
   let tokenHeaders: Record<string, string> | null = null
   let tokenBody: string | null = "unexpected"
   let tokenCount = 0
+  const firstPollResponse = responseGate()
 
   await page.route((url) => url.pathname === TOKEN_PATH, async (route) => {
     tokenCount += 1
@@ -152,11 +170,15 @@ test("player polling uses credential-bound tokens and 2s/5s/15s successful caden
   })
   await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
     pollCount += 1
+    if (pollCount === 1) await firstPollResponse.wait
     await fulfillJson(route, 200, { session: currentSession })
   })
 
   await page.goto(`/anatomime/play/${ROOM_CODE}`, { waitUntil: "domcontentloaded" })
   await expect.poll(() => pollCount).toBe(1)
+  await pauseClockAtCurrentTime(page)
+  expect(pollCount).toBe(1)
+  firstPollResponse.release()
   await expect(page.getByText("ACTIVE_TERM", { exact: true })).toBeVisible()
   await expect.poll(() => tokenHeaders).not.toBeNull()
   expect(tokenHeaders?.["x-anatomime-player-id"]).toBe("player-1")
@@ -199,12 +221,14 @@ test("player polling backs off through 2/4/8/16/30 seconds and resets after succ
   await installPlayerRuntime(page)
   const providerRequests = await installNoProviderBoundary(page)
   let pollCount = 0
+  const firstPollResponse = responseGate()
 
   await page.route((url) => url.pathname === TOKEN_PATH, async (route) => {
     await fulfillJson(route, 200, { keyName: "test", nonce: "nonce", mac: "mac" })
   })
   await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
     pollCount += 1
+    if (pollCount === 1) await firstPollResponse.wait
     if (pollCount <= 5) {
       await fulfillJson(route, 503, { error: "Temporarily unavailable." })
       return
@@ -214,6 +238,9 @@ test("player polling backs off through 2/4/8/16/30 seconds and resets after succ
 
   await page.goto(`/anatomime/play/${ROOM_CODE}`, { waitUntil: "domcontentloaded" })
   await expect.poll(() => pollCount).toBe(1)
+  await pauseClockAtCurrentTime(page)
+  expect(pollCount).toBe(1)
+  firstPollResponse.release()
   await expect(page.getByText(/Connection interrupted/i)).toBeVisible()
 
   for (const delay of [2_001, 4_001, 8_001, 16_001, 30_000]) {
@@ -240,6 +267,7 @@ test("player polling honors Retry-After before recovery", async ({ page }) => {
   await page.clock.install()
   await installPlayerRuntime(page)
   let pollCount = 0
+  const firstPollResponse = responseGate()
 
   await page.route((url) => url.pathname === TOKEN_PATH, async (route) => {
     await fulfillJson(route, 200, { keyName: "test", nonce: "nonce", mac: "mac" })
@@ -247,6 +275,7 @@ test("player polling honors Retry-After before recovery", async ({ page }) => {
   await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
     pollCount += 1
     if (pollCount === 1) {
+      await firstPollResponse.wait
       await fulfillJson(route, 429, { error: "Slow down." }, { "Retry-After": "7" })
       return
     }
@@ -255,6 +284,9 @@ test("player polling honors Retry-After before recovery", async ({ page }) => {
 
   await page.goto(`/anatomime/play/${ROOM_CODE}`, { waitUntil: "domcontentloaded" })
   await expect.poll(() => pollCount).toBe(1)
+  await pauseClockAtCurrentTime(page)
+  expect(pollCount).toBe(1)
+  firstPollResponse.release()
   await expect(page.getByText(/Trying again in 7 seconds/i)).toBeVisible()
   await triggerRealtimeSignal(page)
   expect(pollCount).toBe(1)
@@ -300,15 +332,20 @@ test("successful ended, missing, and rejoin-required responses stop polling with
   await expect(page.getByRole("button", { name: "Clear Saved Player" })).toBeVisible()
   await page.clock.fastForward(60_000)
   expect(pollCount).toBe(3)
+  await pauseClockAtCurrentTime(page)
 })
 
 test("host review polling continues at 5s and stops on a successful ended snapshot", async ({ page }) => {
   await page.clock.install()
   let hostPollCount = 0
+  let createCount = 0
   const reviewSession = roomSession({ status: "REVIEW", phase: "GAME_COMPLETE", joined: false, host: true })
   let hostSnapshot = reviewSession
+  const createResponse = responseGate()
 
   await page.route((url) => url.pathname === "/api/anatomime/sessions", async (route) => {
+    createCount += 1
+    if (createCount === 1) await createResponse.wait
     await fulfillJson(route, 201, {
       session: reviewSession,
       host: { playerId: "host-player", token: "host-token" },
@@ -322,6 +359,10 @@ test("host review polling continues at 5s and stops on a successful ended snapsh
   await page.goto("/anatomime", { waitUntil: "domcontentloaded" })
   await page.getByRole("button", { name: /Choose Anatomy Terms/i }).click()
   await page.getByRole("button", { name: /Create Shared Game/i }).click()
+  await expect.poll(() => createCount).toBe(1)
+  await pauseClockAtCurrentTime(page)
+  expect(hostPollCount).toBe(0)
+  createResponse.release()
   await expect(page.getByText("REVIEW", { exact: true }).first()).toBeVisible()
   await page.clock.fastForward(4_999)
   expect(hostPollCount).toBe(0)
@@ -353,9 +394,13 @@ test("host refresh cannot bypass Retry-After or failed-poll recovery", async ({ 
   await page.clock.install()
   await page.addInitScript(() => { Math.random = () => 0 })
   let hostPollCount = 0
+  let createCount = 0
   const lobbySession = roomSession({ joined: false, host: true })
+  const createResponse = responseGate()
 
   await page.route((url) => url.pathname === "/api/anatomime/sessions", async (route) => {
+    createCount += 1
+    if (createCount === 1) await createResponse.wait
     await fulfillJson(route, 201, {
       session: lobbySession,
       host: { playerId: "host-player", token: "host-token" },
@@ -377,7 +422,12 @@ test("host refresh cannot bypass Retry-After or failed-poll recovery", async ({ 
   await page.goto("/anatomime", { waitUntil: "domcontentloaded" })
   await page.getByRole("button", { name: /Choose Anatomy Terms/i }).click()
   await page.getByRole("button", { name: /Create Shared Game/i }).click()
+  await expect.poll(() => createCount).toBe(1)
+  await pauseClockAtCurrentTime(page)
+  expect(hostPollCount).toBe(0)
+  createResponse.release()
   const refresh = page.getByRole("button", { name: "Refresh" })
+  await expect(refresh).toBeVisible()
 
   await refresh.click()
   await expect.poll(() => hostPollCount).toBe(1)
@@ -401,10 +451,12 @@ test("host refresh cannot bypass Retry-After or failed-poll recovery", async ({ 
 test("create honors Retry-After lockout without replaying automatically", async ({ page }) => {
   await page.clock.install()
   let createCount = 0
+  const firstCreateResponse = responseGate()
 
   await page.route((url) => url.pathname === "/api/anatomime/sessions", async (route) => {
     createCount += 1
     if (createCount === 1) {
+      await firstCreateResponse.wait
       await fulfillJson(route, 429, { error: "Please wait before creating another room." }, { "Retry-After": "3" })
       return
     }
@@ -420,12 +472,17 @@ test("create honors Retry-After lockout without replaying automatically", async 
   await page.goto("/anatomime", { waitUntil: "domcontentloaded" })
   await page.getByRole("button", { name: /Choose Anatomy Terms/i }).click()
   await page.getByRole("button", { name: /Create Shared Game/i }).click()
-  await expect(page.getByRole("button", { name: /Try again in 3s/i })).toBeDisabled()
+  await expect.poll(() => createCount).toBe(1)
+  await pauseClockAtCurrentTime(page)
+  expect(createCount).toBe(1)
+  firstCreateResponse.release()
+  await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
+  await expect(page.getByText(/Shared game creation is paused/i)).toBeVisible()
   expect(createCount).toBe(1)
 
-  await page.clock.fastForward(2_999)
+  await page.clock.runFor(2_999)
   expect(createCount).toBe(1)
-  await page.clock.fastForward(1)
+  await page.clock.runFor(1)
   await expect(page.getByRole("button", { name: /Create Shared Game/i })).toBeEnabled()
   expect(createCount).toBe(1)
   await page.getByRole("button", { name: /Create Shared Game/i }).click()
@@ -437,6 +494,7 @@ test("join honors Retry-After lockout without replaying automatically", async ({
   await installPlayerRuntime(page, { storedPlayer: false })
   let joinCount = 0
   const publicSession = roomSession({ joined: false })
+  const firstJoinResponse = responseGate()
 
   await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
     await fulfillJson(route, 200, { session: publicSession })
@@ -444,6 +502,7 @@ test("join honors Retry-After lockout without replaying automatically", async ({
   await page.route((url) => url.pathname === `${ROOM_PATH}/join`, async (route) => {
     joinCount += 1
     if (joinCount === 1) {
+      await firstJoinResponse.wait
       await fulfillJson(route, 429, { error: "Please wait before joining again." }, { "Retry-After": "3" })
       return
     }
@@ -459,12 +518,17 @@ test("join honors Retry-After lockout without replaying automatically", async ({
   await page.goto(`/anatomime/join?code=${ROOM_CODE}`, { waitUntil: "domcontentloaded" })
   await page.getByLabel("Display name").fill("Avery")
   await page.getByRole("button", { name: /Join Team/i }).click()
-  await expect(page.getByRole("button", { name: /Try again in 3s/i })).toBeDisabled()
+  await expect.poll(() => joinCount).toBe(1)
+  await pauseClockAtCurrentTime(page)
+  expect(joinCount).toBe(1)
+  firstJoinResponse.release()
+  await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
+  await expect(page.getByText(/Joining is paused/i)).toBeVisible()
   expect(joinCount).toBe(1)
 
-  await page.clock.fastForward(2_999)
+  await page.clock.runFor(2_999)
   expect(joinCount).toBe(1)
-  await page.clock.fastForward(1)
+  await page.clock.runFor(1)
   await expect(page.getByRole("button", { name: /Join Team/i })).toBeEnabled()
   expect(joinCount).toBe(1)
   await page.getByRole("button", { name: /Join Team/i }).click()
