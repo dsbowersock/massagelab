@@ -117,13 +117,16 @@ This workload does not establish site-wide absence of Stripe or email calls;
 Admin Billing preview is outside this row, and provider-wide/email render
 verification remains `NOT RUN`. PHI-bearing workflows remain local-first.
 
-The final local timing receipt returned HTTP `200` for 21/21 samples across
-seven fixed routes with three samples per route. The local
-timing `first` label is not platform cold evidence. The deployed exact commit
-needs a separate read-only Vercel aggregate that
-distinguishes observed platform cold-start latency from warm invocation
-latency. When the platform cannot expose that distinction, record the cold row
-as `NOT RUN`; never infer it from the local `first` sample.
+**BLOCKED HISTORICAL CONTEXT:** The HTTP `200` observation for 21/21 samples
+across seven fixed routes with three samples per route was reported from runtime
+base `706c52167466f984f3e405986af11ff3d2343a02` plus an uncommitted dirty Task 9
+working-tree delta whose patch identity was not recorded. It is unreproducible
+and is not completion, release, or exact-candidate evidence. The local timing
+`first` label is not platform cold evidence. The deployed exact commit still
+requires a separate read-only Vercel aggregate that distinguishes observed
+platform cold-start latency from warm invocation latency; this remains an
+operational gate. When the platform cannot expose that distinction, record the
+cold row as `NOT RUN`; never infer it from the local `first` sample.
 
 Before a sharing window, review these provider surfaces read-only and retain
 only aggregate, count, or status evidence without identifiers or secret values:

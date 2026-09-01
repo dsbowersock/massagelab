@@ -353,6 +353,11 @@ describe("family-and-friends server workload baseline", () => {
       "## Family-And-Friends Launch Cost Controls",
       "## Identity, Membership Schema, And Writer Rollout",
     )
+    const deploymentTimingContext = namedFunctionSlice(
+      deploymentSource,
+      "**BLOCKED HISTORICAL CONTEXT:**",
+      "Before a sharing window",
+    )
     const releaseCostControls = namedFunctionSlice(
       releaseChecklistSource,
       "## Family-And-Friends Cost And Pause Gate",
@@ -403,6 +408,18 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(deploymentSource, /five-minute complete[^\n]*fifteen-second incomplete/i)
     assert.match(deploymentSource, /2\.5-second timeout[^\n]*one SDK network retry/i)
     assert.match(deploymentSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
+    assert.match(deploymentTimingContext, /^\*\*BLOCKED HISTORICAL CONTEXT:\*\*/)
+    assert.match(deploymentTimingContext, /HTTP `200` observation for 21\/21 samples\s+across seven fixed routes with three samples per route/)
+    assert.match(
+      deploymentTimingContext,
+      /reported from runtime\s+base `706c52167466f984f3e405986af11ff3d2343a02` plus an uncommitted dirty Task 9\s+working-tree delta whose patch identity was not recorded/,
+    )
+    assert.match(deploymentTimingContext, /unreproducible\s+and is not completion, release, or exact-candidate evidence/)
+    assert.match(deploymentTimingContext, /local timing\s+`first` label is not platform cold evidence/)
+    assert.match(deploymentTimingContext, /deployed exact commit still\s+requires a separate read-only Vercel aggregate/)
+    assert.match(deploymentTimingContext, /this remains an\s+operational gate/)
+    assert.match(deploymentTimingContext, /record the\s+cold row as `NOT RUN`/)
+    assert.doesNotMatch(deploymentSource, /^The final local timing receipt returned/m)
     assert.match(deploymentCostControls, /MASSAGELAB_PUBLIC_REGISTRATION_PAUSED/)
     assert.match(deploymentCostControls, /MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED/)
     assert.match(deploymentCostControls, /exact lowercase value `true` pauses/i)
