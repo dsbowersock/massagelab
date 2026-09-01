@@ -3,8 +3,10 @@ import { existsSync, readFileSync, readdirSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, it } from "node:test"
+import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const rscSessionConsumers = [
   "components/sidebar/sidebar.tsx",
   "app/page.tsx",
@@ -59,6 +61,51 @@ function discoverSourceFiles(relativeRoot) {
 }
 
 describe("RSC session snapshot proof boundary", () => {
+  it("skips request headers when proof mode is disabled but still returns the real session", async () => {
+    let headersCalls = 0
+    let authCalls = 0
+    const expectedSession = { user: { id: "user-1" } }
+    const proof = loadRscProofBoundary({
+      async headers() {
+        headersCalls += 1
+        throw new Error("headers must stay unavailable outside proof mode")
+      },
+      async getCurrentSession() {
+        authCalls += 1
+        return expectedSession
+      },
+    })
+
+    await withRscProofMode(undefined, async () => {
+      assert.equal(await proof.getCurrentSession(), expectedSession)
+    })
+    assert.equal(headersCalls, 0)
+    assert.equal(authCalls, 1)
+  })
+
+  it("reads one valid proof header and records one consumable Browser-QA entry", async () => {
+    const proofId = "123e4567-e89b-42d3-a456-426614174000"
+    let headersCalls = 0
+    let authCalls = 0
+    const proof = loadRscProofBoundary({
+      async headers() {
+        headersCalls += 1
+        return new Headers({ "x-massagelab-rsc-session-proof": proofId })
+      },
+      async getCurrentSession() {
+        authCalls += 1
+        return null
+      },
+    })
+
+    await withRscProofMode("1", async () => {
+      assert.equal(await proof.getCurrentSession(), null)
+      assert.equal(proof.consumeRscSessionProofCount(proofId), 1)
+    })
+    assert.equal(headersCalls, 1)
+    assert.equal(authCalls, 1)
+  })
+
   it("enables the auth-entry counter only in the isolated Browser-QA artifact", () => {
     const buildScript = source("scripts/build-browser-qa.mjs")
     const nextConfig = source("next.config.mjs")
@@ -146,3 +193,23 @@ describe("RSC session snapshot proof boundary", () => {
     assert.doesNotMatch(webhook, /getCurrentSession|@\/lib\/rsc-session/)
   })
 })
+
+function loadRscProofBoundary({ headers, getCurrentSession }) {
+  return loadCompiledModule(source("lib/rsc-session-proof.ts"), "rsc-session-proof.runtime.test.ts", {
+    "server-only": {},
+    "next/headers": { headers },
+    "../auth": { getCurrentSession },
+  })
+}
+
+async function withRscProofMode(value, callback) {
+  const previous = process.env.NEXT_PUBLIC_RSC_SESSION_PROOF
+  if (value === undefined) delete process.env.NEXT_PUBLIC_RSC_SESSION_PROOF
+  else process.env.NEXT_PUBLIC_RSC_SESSION_PROOF = value
+  try {
+    return await callback()
+  } finally {
+    if (previous === undefined) delete process.env.NEXT_PUBLIC_RSC_SESSION_PROOF
+    else process.env.NEXT_PUBLIC_RSC_SESSION_PROOF = previous
+  }
+}

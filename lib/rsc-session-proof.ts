@@ -36,8 +36,10 @@ function recordRscSessionProofEntry(proofId: string | null) {
  * Browser QA instrumentation observes every call through this boundary.
  */
 export async function getCurrentSession() {
-  const requestHeaders = await headers()
-  recordRscSessionProofEntry(requestHeaders.get(RSC_SESSION_PROOF_HEADER))
+  if (isProofEnabled()) {
+    const requestHeaders = await headers()
+    recordRscSessionProofEntry(requestHeaders.get(RSC_SESSION_PROOF_HEADER))
+  }
   return loadCurrentSession()
 }
 
