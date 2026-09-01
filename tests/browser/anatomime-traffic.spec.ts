@@ -482,6 +482,7 @@ test("create honors Retry-After lockout without replaying automatically", async 
 
   await page.clock.runFor(2_999)
   expect(createCount).toBe(1)
+  await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
   await page.clock.runFor(1)
   await expect(page.getByRole("button", { name: /Create Shared Game/i })).toBeEnabled()
   expect(createCount).toBe(1)
@@ -528,6 +529,7 @@ test("join honors Retry-After lockout without replaying automatically", async ({
 
   await page.clock.runFor(2_999)
   expect(joinCount).toBe(1)
+  await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
   await page.clock.runFor(1)
   await expect(page.getByRole("button", { name: /Join Team/i })).toBeEnabled()
   expect(joinCount).toBe(1)
