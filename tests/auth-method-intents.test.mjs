@@ -68,6 +68,15 @@ async function loadAccountSecurityMethods() {
 }
 
 describe("private Google auth-method intents", () => {
+  it("rejects hostile prototype property names as Google intent purposes", async () => {
+    const service = await loadService()
+
+    for (const purpose of ["constructor", "__proto__"]) {
+      assert.equal(service.isSessionBoundGoogleIntentPurpose(purpose), false, purpose)
+      assert.equal(service.isGoogleIntentPurpose(purpose), false, purpose)
+    }
+  })
+
   it("creates browser-bound single-use intent material without persisting its token", async () => {
     const service = await loadService()
     const db = createIntentDatabase()

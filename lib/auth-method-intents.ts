@@ -43,14 +43,14 @@ type GoogleRecoveryPath =
 const INTENT_LIFETIME_MS = 10 * 60 * 1000
 const MAX_PRUNE_ROWS = 100
 const MAX_REGISTRATION_CALLBACK_PATH_LENGTH = 2048
-const SECURITY_PURPOSES = new Set<SessionBoundGoogleIntentPurpose>([
-  "LINK_GOOGLE",
-  "ADD_PASSWORD",
-  "REMOVE_PASSWORD",
-  "ENROLL_TWO_FACTOR",
-  "DISABLE_TWO_FACTOR",
-  "REGENERATE_TWO_FACTOR_BACKUP_CODES",
-])
+const SECURITY_PURPOSES = {
+  LINK_GOOGLE: true,
+  ADD_PASSWORD: true,
+  REMOVE_PASSWORD: true,
+  ENROLL_TWO_FACTOR: true,
+  DISABLE_TWO_FACTOR: true,
+  REGENERATE_TWO_FACTOR_BACKUP_CODES: true,
+} satisfies Readonly<Record<SessionBoundGoogleIntentPurpose, true>>
 
 /** Creates an opaque browser proof; only its domain-separated HMAC is persisted. */
 export async function startAuthMethodIntent({
@@ -405,7 +405,7 @@ function rejected(purpose: GoogleIntentPurpose, session: SessionIdentity, unavai
 }
 
 export function isSessionBoundGoogleIntentPurpose(value: unknown): value is SessionBoundGoogleIntentPurpose {
-  return typeof value === "string" && SECURITY_PURPOSES.has(value as SessionBoundGoogleIntentPurpose)
+  return typeof value === "string" && Object.hasOwn(SECURITY_PURPOSES, value)
 }
 
 export function isGoogleIntentPurpose(value: unknown): value is GoogleIntentPurpose {

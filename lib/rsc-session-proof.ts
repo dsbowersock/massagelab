@@ -20,6 +20,7 @@ function recordRscSessionProofEntry(proofId: string | null) {
   if (!isProofEnabled() || !proofId || !PROOF_ID_PATTERN.test(proofId)) return
 
   if (!proofCounters.has(proofId) && proofCounters.size >= MAX_OUTSTANDING_PROOFS) {
+    // Eviction is FIFO/oldest-created, deliberately not LRU, so hot proof IDs cannot pin themselves.
     const oldestProofId = proofCounters.keys().next().value
     if (typeof oldestProofId === "string") proofCounters.delete(oldestProofId)
   }

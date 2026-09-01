@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client"
+
 const FRESH_GOOGLE_REAUTH_MS = 5 * 60 * 1000
 
 export type SecurityGoogleReauthPurpose =
@@ -19,23 +21,7 @@ export type FreshGoogleReauthIntent = {
   expiresAt: Date
 }
 
-export type GoogleProofTransactionClient = {
-  authMethodIntent: {
-    updateMany(input: {
-      where: {
-        id: string
-        targetUserId: string
-        purpose: SecurityGoogleReauthPurpose
-        status: "CONSUMED"
-        provider: "google"
-        providerAccountId: string
-        providerProvenAt: Date
-        expiresAt: { gt: Date }
-      }
-      data: { providerProvenAt: null }
-    }): Promise<{ count: number }>
-  }
-}
+export type GoogleProofTransactionClient = Pick<Prisma.TransactionClient, "authMethodIntent">
 
 /** Validates the short-lived Google proof used for account-security mutations. */
 export function isFreshConsumedGoogleReauth(
