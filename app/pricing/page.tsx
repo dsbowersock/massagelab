@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react"
+import { randomUUID } from "node:crypto"
 import Link from "next/link"
 import { HeartHandshake, ShieldCheck, Sparkles } from "lucide-react"
 import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
@@ -10,7 +10,7 @@ import {
 import { getMembershipPricingCatalog } from "@/lib/membership-pricing"
 import { prisma } from "@/lib/prisma"
 import { MembershipPricingCards } from "@/components/membership/pricing-cards"
-import { PendingSubmissionForm, PendingSubmitButton } from "@/components/forms/pending-submission-form"
+import { DonationCheckoutForm } from "@/app/pricing/donation-checkout-form"
 import { AppNotice, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
@@ -118,33 +118,11 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
           <p className="text-sm text-muted-foreground">
             One-time support does not purchase goods or services, create a membership, or unlock features. It is not a charitable donation and is not tax-deductible.
           </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {DONATION_OPTIONS.map((option, index) => (
-              <PendingSubmissionForm
-                key={option.amountCents}
-                action="/api/billing/donation"
-                method="post"
-                pendingLabel="Opening secure checkout…"
-              >
-                <input type="hidden" name="amountCents" value={option.amountCents} />
-                <PendingSubmitButton
-                  type="submit"
-                  variant="glow"
-                  tone="pricing"
-                  effect="glowFlicker"
-                  size="lg"
-                  className="h-full w-full"
-                  style={{
-                    "--ml-neon-flicker-delay": `${index * 0.65}s`,
-                  } as CSSProperties}
-                  aria-label={`${option.label} ${option.description}`}
-                  pendingLabel="Opening secure checkout…"
-                >
-                  <span className="text-lg font-semibold">{option.label}</span>
-                </PendingSubmitButton>
-              </PendingSubmissionForm>
-            ))}
-          </div>
+          <DonationCheckoutForm
+            options={DONATION_OPTIONS}
+            initialAttemptId={randomUUID()}
+            returnCode={params?.donation}
+          />
         </AppSurface>
 
         <AppSurface
@@ -174,7 +152,8 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
 /**
  * Maps one-time support Checkout return codes from the compatibility route to
  * pricing-page notices.
- * Supported codes are `thanks`, `cancelled`, `invalid-amount`, and `checkout-error`.
+ * Includes fixed messages for terminal, bounded, unavailable, conflicting,
+ * invalid, and provider-ambiguous one-time support outcomes.
  */
 function pricingOneTimeSupportNotice(code?: string) {
   if (code === "thanks") {
@@ -198,6 +177,30 @@ function pricingOneTimeSupportNotice(code?: string) {
       tone: "destructive" as const,
       title: "One-time support amount unavailable",
       description: "Choose one of the listed one-time support amounts.",
+    }
+  }
+
+  if (code === "rate-limited") {
+    return {
+      tone: "destructive" as const,
+      title: "One-time support checkout temporarily paused",
+      description: "Too many checkout attempts were started recently. Please wait a little while and try again.",
+    }
+  }
+
+  if (code === "unavailable") {
+    return {
+      tone: "destructive" as const,
+      title: "One-time support checkout temporarily unavailable",
+      description: "Checkout protection is temporarily unavailable. Your attempt is saved; please try again later.",
+    }
+  }
+
+  if (code === "conflict") {
+    return {
+      tone: "destructive" as const,
+      title: "One-time support checkout attempt changed",
+      description: "That checkout attempt no longer matches this request. Start a new attempt and choose the amount again.",
     }
   }
 
