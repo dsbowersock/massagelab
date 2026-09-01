@@ -1007,8 +1007,8 @@ function freshGoogleIntent(overrides = {}) {
   }
 }
 
-async function consumeGoogleProofWithFailureHooks(tx, intent, now) {
-  const consumed = await consumeFreshGoogleReauth(tx, intent, now)
+async function consumeGoogleProofWithFailureHooks(tx, intent, purpose, userId, now) {
+  const consumed = await consumeFreshGoogleReauth(tx, intent, purpose, userId, now)
   if (consumed) {
     tx.__database.events.push("consume-google")
     maybeFail(tx.__database, "after-google-consume")

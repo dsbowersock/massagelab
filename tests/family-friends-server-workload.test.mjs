@@ -405,7 +405,10 @@ describe("family-and-friends server workload baseline", () => {
 
     assert.match(deploymentSource, /public display catalog only/i)
     assert.match(deploymentCostControls, /owner is process-local and\s+single-flight/i)
-    assert.match(deploymentSource, /five-minute complete[^\n]*fifteen-second incomplete/i)
+    assert.match(
+      deploymentSource,
+      /stable results use a five-minute TTL[\s\S]{0,180}configured lookup or\s+malformed projection failures use a fifteen-second retry TTL/i,
+    )
     assert.match(deploymentSource, /2\.5-second timeout[^\n]*one SDK network retry/i)
     assert.match(deploymentSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
     assert.match(deploymentTimingContext, /^\*\*BLOCKED HISTORICAL CONTEXT:\*\*/)
@@ -428,6 +431,11 @@ describe("family-and-friends server workload baseline", () => {
 
     assert.match(releaseChecklistSource, /four logical ORM operations/i)
     assert.match(releaseCostControls, /public display catalog only is process-local and single-flight/i)
+    assert.match(
+      releaseCostControls,
+      /stable configured or exactly unconfigured results have a five-minute TTL[\s\S]{0,160}configured lookup\/malformed projection failures have a fifteen-second retry\s+TTL/i,
+    )
+    assert.match(releaseCostControls, /every required slot is configured before release/i)
     assert.match(releaseChecklistSource, /zero client bootstrap\s+endpoints/i)
     assert.match(releaseChecklistSource, /zero ordinary commerce snapshots/i)
     assert.match(

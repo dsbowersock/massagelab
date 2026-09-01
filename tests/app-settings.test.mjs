@@ -372,6 +372,43 @@ describe("App settings helpers", () => {
     assert.match(settingsProviderSource, /reconcileAppSettingsAfterBootstrap/)
   })
 
+  it("ignores undefined pending edits instead of replacing nondefault server settings", () => {
+    const reconciled = appSettingsModule.reconcileAppSettingsAfterBootstrap(
+      {
+        ...defaultAppSettings,
+        appBarPosition: "top",
+        sidebarPosition: "right",
+        themeMode: "light",
+      },
+      {
+        appBarPosition: undefined,
+        sidebarPosition: undefined,
+        themeMode: undefined,
+      },
+    )
+
+    assert.equal(reconciled.appBarPosition, "top")
+    assert.equal(reconciled.sidebarPosition, "right")
+    assert.equal(reconciled.themeMode, "light")
+  })
+
+  it("applies concrete and false pending edits over the server snapshot", () => {
+    const reconciled = appSettingsModule.reconcileAppSettingsAfterBootstrap(
+      {
+        ...defaultAppSettings,
+        appBarPosition: "top",
+        hapticFeedbackEnabled: true,
+      },
+      {
+        appBarPosition: "bottom",
+        hapticFeedbackEnabled: false,
+      },
+    )
+
+    assert.equal(reconciled.appBarPosition, "bottom")
+    assert.equal(reconciled.hapticFeedbackEnabled, false)
+  })
+
   it("lets the shared bootstrap own Settings and Music account enablement", () => {
     assert.match(rootLayoutSource, /<SettingsProvider>/)
     assert.match(rootLayoutSource, /<MusicProvider>/)

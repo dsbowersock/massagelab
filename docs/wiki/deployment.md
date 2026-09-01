@@ -105,12 +105,15 @@ a snapshot after the current owner demanded it, including after failed initial
 hydration; established hydration and explicit mutation intent remain eligible.
 
 Pricing caches the public display catalog only. The owner is process-local and
-single-flight: complete results use a five-minute complete TTL; incomplete or fallback results use a fifteen-second incomplete TTL. Each read-only Stripe
+single-flight: stable results use a five-minute TTL whether every slot is
+configured or some slots are exactly unconfigured; configured lookup or
+malformed projection failures use a fifteen-second retry TTL. Each read-only Stripe
 Price request has a 2.5-second timeout and one SDK network retry. This cache is
 not payment, customer, membership, or access authority. Checkout, Portal, entitlements, customers, and webhooks remain uncached and must continue to use
 their current server-owned validation and persistence paths. An incomplete
-display catalog may show `Price unavailable`; it must never make Checkout trust
-a displayed value. Each server instance owns its own display cache, so there is
+display catalog may show `Price unavailable`; an unconfigured slot remains
+release-not-ready even though its absence is stable, and display state must
+never make Checkout trust a displayed value. Each server instance owns its own display cache, so there is
 no cross-instance manual flush requirement for access or payment correctness.
 
 This workload does not establish site-wide absence of Stripe or email calls;

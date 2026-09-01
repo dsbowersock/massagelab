@@ -49,7 +49,7 @@
 | Calendar sidebar context | Existing authenticated endpoint, enabled by root practice-role presence | Every signed-in user's endpoint call | Zero-practice owner makes zero requests; practice member still loads |
 | Background commerce snapshot | Existing provider, activated by commerce intent | Global signed-in mount refresh | Ordinary shell makes zero snapshot reads; picker/return/cart intent still loads |
 | RSC session snapshot | Request-scoped React `cache()` wrapper, only if measured | Repeated page/layout Auth.js calls | Actual RSC counter is exactly one; no module TTL or persistent value exists |
-| Public pricing catalog | `lib/membership-pricing.js` process-local owner | Account's private 5-minute wrapper | Concurrent cold callers total six logical Price reads; warm callers add zero |
+| Public pricing catalog | `lib/membership-pricing.js` process-local owner | Account's private 5-minute wrapper | When all six slots are configured, concurrent cold callers total six logical Price reads; warm callers add zero |
 | Checkout/payment authority | Existing Checkout route and Stripe billing contract | None | Stale display ID is revalidated/rejected server-side; no catalog cache is consulted |
 
 ## Evidence Baseline and Honest Target
@@ -749,10 +749,10 @@ Before either commit, stage explicit files only and exclude unrelated `app/dev` 
 **Interfaces:**
 - Produces: `createMembershipPricingCatalogLoader({ env, stripeClient, now, successTtlMs, incompleteTtlMs })` for isolated tests.
 - Retains: `getMembershipPricingCatalog()` as the default shared in-process caller.
-- Constants: success TTL `300_000` ms; incomplete/fallback TTL `15_000` ms; Price timeout `2_500` ms; `maxNetworkRetries: 1`.
-- A complete catalog has all six configured Supporter Price ids and all six successful amount/currency/interval projections.
-- A missing or failed Price remains the existing safe `Price unavailable` entry and makes the catalog incomplete.
-- All concurrent cold callers share one catalog build: six logical `prices.retrieve` invocations total, not six per caller.
+- Constants: stable-result TTL `300_000` ms; retryable configured-failure TTL `15_000` ms; Price timeout `2_500` ms; `maxNetworkRetries: 1`.
+- A stable catalog has valid projections for every configured Supporter Price; exactly unconfigured slots remain stable but unavailable.
+- An unconfigured Price remains `Price unavailable` and release-not-ready without short retry churn. A configured lookup or malformed projection remains `Price unavailable` and uses the short retry TTL.
+- When all six slots are configured, all concurrent cold callers share one catalog build: six logical `prices.retrieve` invocations total, not six per caller.
 
 - [ ] **Step 1: Write RED concurrency, TTL, and request-option tests**
 
@@ -788,7 +788,7 @@ await loader.get()
 assert.equal(calls.length, 12)
 ```
 
-Add an incomplete-path case: one Price fails, 20 concurrent callers still total six logical calls, a call at 14,999 ms adds zero, and a call at 15,000 ms rebuilds. Add a failed-rebuild recovery case and confirm rejected/internal provider text never enters the public catalog.
+Add a partial-configuration case: one configured Price is read once, exact unconfigured slots remain unavailable without a rebuild at 15,000 ms, and the catalog rebuilds at 300,000 ms. Add a retryable configured-failure case: one Price fails, 20 concurrent callers still total six logical calls, a call at 14,999 ms adds zero, and a call at 15,000 ms rebuilds. Add a failed-rebuild recovery case and confirm rejected/internal provider text never enters the public catalog.
 
 - [ ] **Step 2: Run RED**
 
@@ -838,7 +838,7 @@ export function createMembershipPricingCatalogLoader({
       inFlight = buildMembershipPricingCatalog({ env, stripeClient })
         .then((catalog) => {
           cachedValue = catalog
-          expiresAt = now() + (isCompleteCatalog(catalog) ? successTtlMs : incompleteTtlMs)
+          expiresAt = now() + (isStableCatalog(catalog) ? successTtlMs : incompleteTtlMs)
           return catalog
         })
         .finally(() => { inFlight = null })
@@ -872,11 +872,11 @@ node --test tests/membership-pricing.test.mjs tests/stripe-billing.test.mjs test
 npm run typecheck
 ```
 
-Expected: concurrent cold `6`, warm `0`, success expiry `+6`, incomplete expiry `+6`; catalog rendering remains unchanged.
+Expected: concurrent cold `6`, warm `0`, stable expiry `+6`, retryable configured-failure expiry `+6`; catalog rendering remains unchanged.
 
 - [ ] **Step 6: Review gate**
 
-Reviewer must inspect generation safety, exact TTL boundary behavior, complete/incomplete classification, Stripe SDK argument position, error redaction, and object mutability. Reject any cache of `supporterCheckoutOpen`, session data, membership summaries, entitlements, customer ids, subscription ids, Checkout sessions, Portal sessions, or webhook data.
+Reviewer must inspect generation safety, exact TTL boundary behavior, stable-unconfigured versus retryable-configured-failure classification, Stripe SDK argument position, error redaction, and object mutability. Reject any cache of `supporterCheckoutOpen`, session data, membership summaries, entitlements, customer ids, subscription ids, Checkout sessions, Portal sessions, or webhook data.
 
 - [ ] **Step 7: Commit the pricing owner**
 
@@ -1112,7 +1112,7 @@ four logical ORM operations
 zero client bootstrap endpoints
 zero ordinary commerce snapshots
 public display catalog only
-five-minute complete / fifteen-second incomplete process-local cache
+five-minute stable / fifteen-second configured-failure process-local cache
 2.5-second timeout / one SDK network retry
 Checkout, Portal, entitlements, customers, and webhooks uncached
 local timing first is not platform cold
@@ -1147,7 +1147,7 @@ Document in `docs/wiki/deployment.md`:
 
 - the process-local, per-instance nature of the price cache;
 - six logical read invocations on an empty complete catalog build, with up to one SDK retry each;
-- five-minute complete and fifteen-second incomplete/fallback TTLs;
+- five-minute stable configured/unconfigured and fifteen-second configured-failure TTLs;
 - failure behavior (`Price unavailable`, Checkout still server-validates); and
 - no manual cache flush requirement for access/payment correctness.
 

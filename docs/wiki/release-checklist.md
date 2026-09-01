@@ -52,12 +52,13 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
   private-account, database, provider, or payment evidence.
 - Prove the public display catalog only is process-local and single-flight:
   concurrent cold callers share six logical Price reads, a warm call makes zero,
-  complete results have a five-minute complete TTL, incomplete/fallback results
-  have a fifteen-second incomplete TTL, and each Price read uses a 2.5-second
+  stable configured or exactly unconfigured results have a five-minute TTL,
+  configured lookup/malformed projection failures have a fifteen-second retry
+  TTL, and each Price read uses a 2.5-second
   timeout with one SDK network retry. Checkout, Portal, entitlements, customers,
   and webhooks remain uncached. Verify explicit Checkout still validates the
-  configured server Price and that display fallback never grants access or
-  supplies payment authority.
+  configured server Price, every required slot is configured before release,
+  and display fallback never grants access or supplies payment authority.
 - Require the fresh combined one-worker Browser-QA gate to record its current
   exact totals with zero failures and no skips except the documented
   authorization-gated private rows; skips are never passes. Require the current

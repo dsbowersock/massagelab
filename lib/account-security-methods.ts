@@ -155,7 +155,7 @@ export async function setPasswordMethod(input: {
       if (!user.accounts.some((account: { provider: string; providerAccountId: string }) => account.provider === "google" && account.providerAccountId === intent.providerAccountId)) {
         return rejected("CONFLICT")
       }
-      if (!await consumeFreshGoogleReauth(tx, intent, now)) return rejected("INTENT_EXPIRED")
+      if (!await consumeFreshGoogleReauth(tx, intent, "ADD_PASSWORD", user.id, now)) return rejected("INTENT_EXPIRED")
       consumedIntentId = intent.id
       await tx.passwordCredential.create({ data: { userId: user.id, passwordHash: newPasswordHash } })
     } else {
@@ -227,7 +227,7 @@ export async function removePasswordMethod(input: {
     if (!user.passwordCredential) return rejected("INTENT_EXPIRED")
     const googleAccount = user.accounts.find((account: { provider: string; providerAccountId: string }) => account.provider === "google" && account.providerAccountId === intent.providerAccountId)
     if (!googleAccount) return rejected(user.accounts.some((account: { provider: string }) => account.provider === "google") ? "CONFLICT" : "LAST_METHOD")
-    if (!await consumeFreshGoogleReauth(tx, intent, now)) return rejected("INTENT_EXPIRED")
+    if (!await consumeFreshGoogleReauth(tx, intent, "REMOVE_PASSWORD", user.id, now)) return rejected("INTENT_EXPIRED")
     const removed = await tx.passwordCredential.deleteMany({ where: { userId: user.id } })
     if (removed.count !== 1) return rejected("CONFLICT")
     await incrementSessionVersion(tx, user.id)

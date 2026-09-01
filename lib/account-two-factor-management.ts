@@ -282,7 +282,13 @@ export async function startTwoFactorEnrollment(
         if (
           !deps.isFreshConsumedGoogleReauth(currentIntent, "ENROLL_TWO_FACTOR", current.id, now)
           || !googleAccountMatchesIntent(current, currentIntent)
-          || !await deps.consumeFreshGoogleReauth(tx, currentIntent, now)
+          || !await deps.consumeFreshGoogleReauth(
+            tx,
+            currentIntent,
+            "ENROLL_TWO_FACTOR",
+            current.id,
+            now,
+          )
         ) {
           throw new EnrollmentConflict()
         }
@@ -637,7 +643,13 @@ async function manageEnabledTwoFactor(
       if (!await deps.consumePreparedTwoFactorProof(tx, factorProof, now)) {
         throw new EnrollmentConflict()
       }
-      if (googleIntent && !await deps.consumeFreshGoogleReauth(tx, googleIntent, now)) {
+      if (googleIntent && !await deps.consumeFreshGoogleReauth(
+        tx,
+        googleIntent,
+        googlePurpose,
+        current.id,
+        now,
+      )) {
         throw new EnrollmentConflict()
       }
 

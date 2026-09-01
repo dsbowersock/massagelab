@@ -262,6 +262,40 @@ describe("Membership pricing catalog", () => {
     assert.equal(calls.length, 12)
   })
 
+  it("caches a partially configured catalog for five minutes when every configured lookup succeeds", async () => {
+    let now = 5_000
+    const calls = []
+    const loader = createTestCatalogLoader({
+      env: {
+        STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_month",
+      },
+      now: () => now,
+      stripeClient: {
+        prices: {
+          async retrieve(priceId) {
+            calls.push(priceId)
+            return stripePrice({ id: priceId, amount: 100, interval: "month" })
+          },
+        },
+      },
+    })
+
+    const initial = await loader.get()
+    assert.deepEqual(calls, ["price_supporter_1_month"])
+    assert.equal(initial.plans[0].amountChoices[0].prices.month.displayPrice, "$1")
+    assert.equal(initial.plans[0].amountChoices[0].prices.year.priceId, null)
+    assert.equal(initial.plans[0].amountChoices[0].prices.year.isConfigured, false)
+    assert.equal(initial.plans[0].amountChoices[0].prices.year.displayPrice, "Price unavailable")
+
+    now += 15_000
+    assert.equal(await loader.get(), initial)
+    assert.equal(calls.length, 1)
+
+    now += 285_000
+    await loader.get()
+    assert.equal(calls.length, 2)
+  })
+
   it("uses the short TTL for an incomplete catalog and redacts provider failures", async () => {
     let now = 10_000
     const calls = []

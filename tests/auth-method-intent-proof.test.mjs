@@ -61,13 +61,59 @@ describe("fresh consumed Google security reauthentication", () => {
     assert.equal(typeof proofModule.consumeFreshGoogleReauth, "function")
     const db = createProofDatabase(freshIntent())
 
-    const first = await db.transaction((tx) => proofModule.consumeFreshGoogleReauth(tx, db.intent, NOW))
-    const second = await db.transaction((tx) => proofModule.consumeFreshGoogleReauth(tx, freshIntent(), NOW))
+    const first = await db.transaction((tx) => proofModule.consumeFreshGoogleReauth(
+      tx,
+      db.intent,
+      "LINK_GOOGLE",
+      "user-1",
+      NOW,
+    ))
+    const second = await db.transaction((tx) => proofModule.consumeFreshGoogleReauth(
+      tx,
+      freshIntent(),
+      "LINK_GOOGLE",
+      "user-1",
+      NOW,
+    ))
 
     assert.equal(first, true)
     assert.equal(second, false)
     assert.equal(db.intent.providerProvenAt, null)
     assert.equal(db.updateCount, 1)
+  })
+
+  it("does not consume a fresh proof for a different caller-expected purpose", async () => {
+    assert.equal(proofModule.consumeFreshGoogleReauth.length, 5)
+    const db = createProofDatabase(freshIntent({ purpose: "LINK_GOOGLE" }))
+
+    const consumed = await db.transaction((tx) => proofModule.consumeFreshGoogleReauth(
+      tx,
+      db.intent,
+      "ADD_PASSWORD",
+      "user-1",
+      NOW,
+    ))
+
+    assert.equal(consumed, false)
+    assert.equal(db.updateCount, 0)
+    assert.equal(db.intent.providerProvenAt.getTime(), NOW.getTime())
+  })
+
+  it("does not consume a fresh proof for a different caller-expected user", async () => {
+    assert.equal(proofModule.consumeFreshGoogleReauth.length, 5)
+    const db = createProofDatabase(freshIntent({ targetUserId: "user-1" }))
+
+    const consumed = await db.transaction((tx) => proofModule.consumeFreshGoogleReauth(
+      tx,
+      db.intent,
+      "LINK_GOOGLE",
+      "user-2",
+      NOW,
+    ))
+
+    assert.equal(consumed, false)
+    assert.equal(db.updateCount, 0)
+    assert.equal(db.intent.providerProvenAt.getTime(), NOW.getTime())
   })
 
   it("restores provider proof when its surrounding transaction rolls back", async () => {
@@ -76,7 +122,13 @@ describe("fresh consumed Google security reauthentication", () => {
 
     await assert.rejects(
       db.transaction(async (tx) => {
-        assert.equal(await proofModule.consumeFreshGoogleReauth(tx, db.intent, NOW), true)
+        assert.equal(await proofModule.consumeFreshGoogleReauth(
+          tx,
+          db.intent,
+          "LINK_GOOGLE",
+          "user-1",
+          NOW,
+        ), true)
         throw new Error("inject rollback after proof consumption")
       }),
       /inject rollback/,
@@ -84,7 +136,13 @@ describe("fresh consumed Google security reauthentication", () => {
     assert.equal(db.intent.providerProvenAt.getTime(), NOW.getTime())
 
     assert.equal(
-      await db.transaction((tx) => proofModule.consumeFreshGoogleReauth(tx, db.intent, NOW)),
+      await db.transaction((tx) => proofModule.consumeFreshGoogleReauth(
+        tx,
+        db.intent,
+        "LINK_GOOGLE",
+        "user-1",
+        NOW,
+      )),
       true,
     )
     assert.equal(db.intent.providerProvenAt, null)

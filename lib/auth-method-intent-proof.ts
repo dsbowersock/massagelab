@@ -61,23 +61,25 @@ export function isFreshConsumedGoogleReauth(
 }
 
 /**
- * Atomically consumes `intent` inside the caller-owned `tx` at authoritative
- * `now`. Exactly one matching row returns true, clears only `providerProvenAt`,
- * and leaves status `CONSUMED`; subsequent calls return false so the Google
- * proof cannot be replayed.
+ * Atomically consumes `intent` only when it matches the caller-expected purpose
+ * and user inside the caller-owned `tx` at authoritative `now`. Exactly one
+ * matching row returns true, clears only `providerProvenAt`, and leaves status
+ * `CONSUMED`; subsequent calls return false so the Google proof cannot replay.
  */
 export async function consumeFreshGoogleReauth(
   tx: GoogleProofTransactionClient,
   intent: FreshGoogleReauthIntent,
+  expectedPurpose: SecurityGoogleReauthPurpose,
+  expectedUserId: string,
   now: Date,
 ): Promise<boolean> {
-  if (!isFreshConsumedGoogleReauth(intent, intent.purpose, intent.targetUserId, now)) return false
+  if (!isFreshConsumedGoogleReauth(intent, expectedPurpose, expectedUserId, now)) return false
 
   const consumed = await tx.authMethodIntent.updateMany({
     where: {
       id: intent.id,
-      targetUserId: intent.targetUserId,
-      purpose: intent.purpose,
+      targetUserId: expectedUserId,
+      purpose: expectedPurpose,
       status: "CONSUMED",
       provider: "google",
       providerAccountId: intent.providerAccountId,
