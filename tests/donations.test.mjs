@@ -351,6 +351,7 @@ describe("one-time support pricing owner", () => {
           }]
         },
       }
+      const SharedButton = passThroughElement("button")
       const { DonationCheckoutForm } = loadCompiledModule(
         donationFormSource,
         "app/pricing/donation-checkout-form.tsx",
@@ -358,6 +359,7 @@ describe("one-time support pricing owner", () => {
           "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
           react,
           "react-dom": { flushSync: (callback) => callback() },
+          "@/components/ui/button": { Button: SharedButton },
           "@/lib/donation-checkout-attempt": loadDonationAttemptModule(),
         },
       )
@@ -365,10 +367,10 @@ describe("one-time support pricing owner", () => {
         stateCursor = 0
         refCursor = 0
         effectCursor = 0
-        return DonationCheckoutForm({
+        return renderFunctionComponents(DonationCheckoutForm({
           options: DONATION_OPTIONS,
           initialAttemptId: CHECKOUT_ATTEMPT_ID,
-        })
+        }))
       }
       const flushEffects = () => {
         for (const [index, effect] of pendingEffects.splice(0)) {
@@ -390,10 +392,38 @@ describe("one-time support pricing owner", () => {
       assert.equal(typeof listeners.get("pageshow"), "function")
 
       const form = findElements(tree, (element) => element.type === "form")[0]
-      const submitButton = findElements(
+      const submitButtons = findElements(
         tree,
-        (element) => element.type === "button" && element.props.type === "submit" && element.props.value === 500,
+        (element) => element.type === "button" && element.props.type === "submit",
+      )
+      assert.deepEqual(
+        submitButtons.map((button) => ({
+          ariaLabel: button.props["aria-label"],
+          effect: button.props.effect,
+          name: button.props.name,
+          tone: button.props.tone,
+          type: button.props.type,
+          value: button.props.value,
+          variant: button.props.variant,
+        })),
+        DONATION_OPTIONS.map((option) => ({
+          ariaLabel: `${option.label} ${option.description}`,
+          effect: "glowFlicker",
+          name: "amountCents",
+          tone: "pricing",
+          type: "submit",
+          value: option.amountCents,
+          variant: "glow",
+        })),
+      )
+      const explicitNewButton = findElements(
+        tree,
+        (element) => element.type === "button" && element.props.type === "button",
       )[0]
+      assert.equal(explicitNewButton.props.variant, "link")
+
+      const submitButton = submitButtons.find((button) => button.props.value === 500)
+      assert.ok(submitButton)
       let prevented = false
       form.props.onSubmitCapture({
         currentTarget: new FakeHtmlFormElement(),

@@ -14,15 +14,18 @@ import { maskCssComments, maskSourceComments, sourceBetween } from "./helpers/so
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 
 test("S6 ordinary action routes delegate to the shared Button family", async () => {
-  const [chimer, pricing, anatomimeAlias] = await Promise.all([
+  const [chimer, pricing, donationCheckout, anatomimeAlias] = await Promise.all([
     read("app/chimer/set-timer.tsx"),
     read("app/pricing/page.tsx"),
+    read("app/pricing/donation-checkout-form.tsx"),
     read("app/anatomime/anatomime-action-button.tsx"),
   ])
 
   assert.match(chimer, /<Button[\s\S]*tone="setup"/)
   assert.match(chimer, /<MetalAttentionRing[\s\S]*metalMode=\{canAdvanceStep \? "always" : "off"\}[\s\S]*<Button/)
-  assert.match(pricing, /variant="glow"[\s\S]*tone="pricing"[\s\S]*effect="glowFlicker"/)
+  assert.match(pricing, /<DonationCheckoutForm/)
+  assert.match(donationCheckout, /<Button[\s\S]*variant="glow"[\s\S]*tone="pricing"[\s\S]*effect="glowFlicker"/)
+  assert.match(donationCheckout, /<Button[\s\S]*type="button"[\s\S]*variant="link"/)
   assert.match(anatomimeAlias, /<Button[\s\S]*tone="anatomime"/)
 })
 

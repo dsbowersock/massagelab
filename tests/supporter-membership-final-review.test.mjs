@@ -38,6 +38,7 @@ const LEGACY_RUNTIME_PRICE_KEYS = Object.freeze([
 ])
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const PRICING_ATTEMPT_ID = "123e4567-e89b-42d3-a456-426614174000"
 
 function TestComponent() {}
 
@@ -49,6 +50,27 @@ function TestPendingSubmissionForm(props) {
 /** Preserves submit-button props and children without introducing pending state. */
 function TestPendingSubmitButton(props) {
   return createElement("button", props)
+}
+
+/** Preserves the production donation owner's single native POST-form boundary. */
+function TestDonationCheckoutForm({ options, initialAttemptId, returnCode }) {
+  return createElement("form", {
+    action: "/api/billing/donation",
+    method: "post",
+    "data-return-code": returnCode,
+    children: [
+      createElement("input", {
+        type: "hidden",
+        name: "checkoutAttemptId",
+        value: initialAttemptId,
+      }),
+      options.map((option) => createElement("button", {
+        type: "submit",
+        name: "amountCents",
+        value: option.amountCents,
+      }, option.amountCents)),
+    ],
+  })
 }
 
 /**
@@ -78,6 +100,9 @@ async function renderPublicPricing({
   const createPricingElement = (type, props, key) => {
     if (type === MembershipPricingCards) {
       renderedPricingModes.push(props.mode)
+    }
+    if (type === TestDonationCheckoutForm) {
+      return TestDonationCheckoutForm(props)
     }
     return createElement(type, props, key)
   }
@@ -143,6 +168,9 @@ async function renderPublicPricing({
       "@/components/membership/pricing-cards": {
         MembershipPricingCards,
       },
+      "@/app/pricing/donation-checkout-form": {
+        DonationCheckoutForm: TestDonationCheckoutForm,
+      },
       "@/components/forms/pending-submission-form": {
         PendingSubmissionForm: TestPendingSubmissionForm,
         PendingSubmitButton: TestPendingSubmitButton,
@@ -165,6 +193,9 @@ async function renderPublicPricing({
       "@/lib/safe-error-code": {
         safeErrorCode,
       },
+      "node:crypto": {
+        randomUUID: () => PRICING_ATTEMPT_ID,
+      },
     },
   )
 
@@ -178,6 +209,16 @@ async function renderPublicPricing({
   )
 
   assert.ok(pricingCards, "PricingPage should render MembershipPricingCards")
+  const donationForm = findElement(
+    tree,
+    (element) => element.type === "form" && element.props.action === "/api/billing/donation",
+  )
+  assert.ok(donationForm, "PricingPage should render the native donation POST owner")
+  assert.equal(donationForm.props.method, "post")
+  assert.equal(
+    findElements(donationForm, (element) => element.props.name === "checkoutAttemptId")[0]?.props.value,
+    PRICING_ATTEMPT_ID,
+  )
   return {
     activeMembershipLevel: pricingCards.props.activeMembershipLevel ?? null,
     mode: pricingCards.props.mode,

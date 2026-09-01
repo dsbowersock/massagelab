@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react"
 import { flushSync } from "react-dom"
+import { Button } from "@/components/ui/button"
 import {
   DONATION_CHECKOUT_ATTEMPT_STORAGE_KEY,
   donationCheckoutAttemptForAmount,
@@ -152,30 +153,39 @@ export function DonationCheckoutForm({
       <input ref={amountInputRef} type="hidden" name="amountCents" defaultValue="" />
       <input ref={attemptInputRef} type="hidden" name="checkoutAttemptId" defaultValue={initialAttemptId} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {options.map((option) => (
-          <button
+        {options.map((option, index) => (
+          <Button
             key={option.amountCents}
             type="submit"
             name="amountCents"
             value={option.amountCents}
+            variant="glow"
+            tone="pricing"
+            effect="glowFlicker"
+            size="lg"
             disabled={pending}
             aria-pressed={selectedAmount === option.amountCents}
             aria-label={`${option.label} ${option.description}`}
-            className="min-h-12 rounded-md border border-primary/40 bg-primary/10 px-4 py-3 text-lg font-semibold text-foreground shadow-sm transition hover:border-primary hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60"
+            className="h-full min-h-12 w-full text-lg font-semibold disabled:cursor-wait"
+            style={{
+              "--ml-neon-flicker-delay": `${index * 0.65}s`,
+            } as CSSProperties}
           >
             {option.label}
-          </button>
+          </Button>
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <button
+        <Button
           type="button"
+          variant="link"
+          size="compact"
           disabled={pending}
           onClick={startNewAttempt}
-          className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60"
+          className="h-auto px-0 text-muted-foreground hover:text-foreground"
         >
           Start a new checkout attempt
-        </button>
+        </Button>
         {pending ? <span role="status">Opening secure checkout…</span> : null}
         {storageError ? (
           <span role="alert" className="text-destructive">
