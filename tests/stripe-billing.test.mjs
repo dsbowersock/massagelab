@@ -26,6 +26,7 @@ const SUPPORTER_2_MONTHLY_PRICE_ID = "price_supporter_2_monthly"
 const SUPPORTER_2_YEARLY_PRICE_ID = "price_supporter_2_yearly"
 const SUPPORTER_5_MONTHLY_PRICE_ID = "price_supporter_5_monthly"
 const SUPPORTER_5_YEARLY_PRICE_ID = "price_supporter_5_yearly"
+const DONATION_IDEMPOTENCY_KEY = "massagelab-donation-v1:123e4567-e89b-42d3-a456-426614174000"
 const AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS = 2_000
 const SUPPORTER_PRICE_ID_BY_ENV_KEY = Object.freeze({
   STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: DEFAULT_SUPPORTER_PRICE_ID,
@@ -3375,6 +3376,7 @@ describe("Stripe billing helpers", () => {
     const session = await createStripeDonationCheckoutSession({
       amountCents: 1500,
       customerEmail: "supporter@example.com",
+      idempotencyKey: DONATION_IDEMPOTENCY_KEY,
       userId: "user_123",
       successUrl: "https://massagelab.app/pricing?donation=thanks",
       cancelUrl: "https://massagelab.app/pricing?donation=cancelled",
@@ -3423,6 +3425,142 @@ describe("Stripe billing helpers", () => {
       }),
       /One-time support is available in USD only\./,
     )
+  })
+
+  it("fails donation idempotency validation before invoking the injected Stripe client", async () => {
+    const invalidKeys = [
+      undefined,
+      "massagelab-donation-v1:not-a-uuid",
+      "massagelab-donation-v1:123E4567-E89B-42D3-A456-426614174000",
+      "massagelab-donation:123e4567-e89b-42d3-a456-426614174000",
+      "massagelab-donation-v1:123e4567-e89b-12d3-a456-426614174000",
+      "massagelab-donation-v1:123e4567-e89b-42d3-7456-426614174000",
+    ]
+
+    for (const idempotencyKey of invalidKeys) {
+      let createCalls = 0
+      await assert.rejects(
+        createStripeDonationCheckoutSession(donationCheckoutOptions({
+          idempotencyKey,
+          stripeClient: {
+            checkout: {
+              sessions: {
+                create: async () => {
+                  createCalls += 1
+                  return { id: "cs_unexpected" }
+                },
+              },
+            },
+          },
+        })),
+        /Donation Checkout idempotency key must use the canonical massagelab-donation-v1 UUID format\./,
+      )
+      assert.equal(createCalls, 0)
+    }
+  })
+
+  it("passes the donation idempotency key only as the sole Checkout create request option", async () => {
+    const createCalls = []
+    const session = await createStripeDonationCheckoutSession(donationCheckoutOptions({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            create: async (...args) => {
+              createCalls.push(args)
+              return { id: "cs_donation_idempotent", url: "https://checkout.stripe.com/c/donation" }
+            },
+          },
+        },
+      },
+    }))
+
+    assert.equal(session.id, "cs_donation_idempotent")
+    assert.equal(createCalls.length, 1)
+    assert.deepEqual(createCalls[0][1], { idempotencyKey: DONATION_IDEMPOTENCY_KEY })
+    assert.equal(createCalls[0].length, 2)
+    assert.doesNotMatch(JSON.stringify(createCalls[0][0]), new RegExp(DONATION_IDEMPOTENCY_KEY))
+  })
+
+  it("returns the provider result for repeated donation idempotency requests with the same payload", async () => {
+    const providerSession = { id: "cs_donation_repeat", url: "https://checkout.stripe.com/c/donation" }
+    const idempotentResults = new Map()
+    const stripeClient = {
+      checkout: {
+        sessions: {
+          create: async (_payload, requestOptions) => {
+            const prior = idempotentResults.get(requestOptions.idempotencyKey)
+            if (prior) {
+              return prior
+            }
+            idempotentResults.set(requestOptions.idempotencyKey, providerSession)
+            return providerSession
+          },
+        },
+      },
+    }
+
+    const first = await createStripeDonationCheckoutSession(donationCheckoutOptions({ stripeClient }))
+    const second = await createStripeDonationCheckoutSession(donationCheckoutOptions({ stripeClient }))
+
+    assert.equal(first, providerSession)
+    assert.equal(second, providerSession)
+  })
+
+  it("normalizes Stripe donation idempotency conflicts without inspecting provider messages", async () => {
+    const providerError = Object.assign(new Error("provider detail must not define this boundary"), {
+      type: "StripeIdempotencyError",
+    })
+
+    await assert.rejects(
+      createStripeDonationCheckoutSession(donationCheckoutOptions({
+        stripeClient: {
+          checkout: {
+            sessions: {
+              create: async () => {
+                throw providerError
+              },
+            },
+          },
+        },
+      })),
+      (error) => {
+        assert.equal(typeof stripeBilling.DonationCheckoutAttemptConflictError, "function")
+        assert.ok(error instanceof stripeBilling.DonationCheckoutAttemptConflictError)
+        assert.equal(error.cause, providerError)
+        return true
+      },
+    )
+  })
+
+  it("preserves non-conflict donation idempotency errors as their original objects", async () => {
+    const errors = [
+      Object.assign(new Error("key in use is not this boundary"), {
+        code: "idempotency_key_in_use",
+        type: "StripeIdempotencyError",
+      }),
+      Object.assign(new Error("connection unavailable"), { type: "StripeConnectionError" }),
+      Object.assign(new Error("Stripe API failure"), { type: "StripeAPIError" }),
+      Object.assign(new Error("rate limited"), { type: "StripeRateLimitError" }),
+      Object.assign(new Error("server failure"), { statusCode: 500 }),
+      new Error("unrelated failure"),
+    ]
+
+    for (const providerError of errors) {
+      await assert.rejects(
+        createStripeDonationCheckoutSession(donationCheckoutOptions({
+          stripeClient: {
+            checkout: {
+              sessions: {
+                create: async () => {
+                  throw providerError
+                },
+              },
+            },
+          },
+        })),
+        (error) => error === providerError,
+      )
+    }
   })
 
   it("fails closed before Stripe when any one-time support tax gate is absent", async () => {
@@ -3641,6 +3779,24 @@ describe("Stripe billing helpers", () => {
     assert.equal(cappedCalls, 10)
   })
 })
+
+/** Builds one valid one-time-support Checkout request with narrow per-test overrides. */
+function donationCheckoutOptions(overrides = {}) {
+  return {
+    amountCents: 1500,
+    idempotencyKey: DONATION_IDEMPOTENCY_KEY,
+    successUrl: "https://massagelab.app/pricing?donation=thanks",
+    cancelUrl: "https://massagelab.app/pricing?donation=cancelled",
+    env: {
+      STRIPE_ONE_TIME_SUPPORT_AUTOMATIC_TAX_ENABLED: "true",
+      STRIPE_ONE_TIME_SUPPORT_TAX_PRODUCT_CODE: "txcd_90000001",
+      STRIPE_ONE_TIME_SUPPORT_TAX_PROVIDER_READY: "true",
+      STRIPE_ONE_TIME_SUPPORT_TAX_REGISTRATIONS_READY: "true",
+      STRIPE_ONE_TIME_SUPPORT_TAX_CLASSIFICATION_CONFIRMED: "true",
+    },
+    ...overrides,
+  }
+}
 
 /** Returns the complete test-only environment for the current Supporter catalog. */
 function supporterTaxEnv() {
