@@ -620,6 +620,7 @@ async function manageEnabledTwoFactor(
   try {
     return await runCommerceTransaction(client, async (tx) => {
       const current = await loadMethodState(tx, input.userId)
+      let currentGoogleIntent: FreshGoogleReauthIntent | null = null
       if (
         !current
         || current.authSessionVersion !== preflight.authSessionVersion
@@ -639,14 +640,15 @@ async function manageEnabledTwoFactor(
         ) {
           throw new EnrollmentConflict()
         }
+        currentGoogleIntent = currentIntent
       }
 
       if (!await deps.consumePreparedTwoFactorProof(tx, factorProof, now)) {
         throw new EnrollmentConflict()
       }
-      if (googleIntent && !await deps.consumeFreshGoogleReauth(
+      if (currentGoogleIntent && !await deps.consumeFreshGoogleReauth(
         tx,
-        googleIntent,
+        currentGoogleIntent,
         googlePurpose,
         current.id,
         now,

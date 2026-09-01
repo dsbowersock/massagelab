@@ -590,6 +590,42 @@ describe("dual-proof destructive two-factor management", () => {
     }
   })
 
+  it("consumes the transaction-reloaded Google proof when the same intent is refreshed after preflight", async () => {
+    for (const [operation, purpose, successStatus] of [
+      [service.disableTwoFactor, "DISABLE_TWO_FACTOR", "DISABLED"],
+      [service.regenerateBackupCodes, "REGENERATE_TWO_FACTOR_BACKUP_CODES", "BACKUP_CODES_REGENERATED"],
+    ]) {
+      const preflightProviderProvenAt = new Date(NOW.getTime() - 2_000)
+      const reloadedProviderProvenAt = new Date(NOW.getTime() - 1_000)
+      const consumedSnapshots = []
+      const database = createDatabase({
+        enabled: true,
+        googleLinked: true,
+        googleIntent: freshGoogleIntent({ purpose, providerProvenAt: preflightProviderProvenAt }),
+      })
+
+      const result = await operation(manageInput(database, {
+        primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
+        dependencies: dependencies({
+          database,
+          async prepareCurrentTwoFactorProof() {
+            database.intent.providerProvenAt = reloadedProviderProvenAt
+            return { status: "VERIFIED", proof: preparedFactor(database) }
+          },
+          async consumeFreshGoogleReauth(tx, intent, expectedPurpose, userId, now) {
+            consumedSnapshots.push(structuredClone(intent))
+            return consumeGoogleProofWithFailureHooks(tx, intent, expectedPurpose, userId, now)
+          },
+        }),
+      }))
+
+      assert.equal(result.status, successStatus, purpose)
+      assert.equal(consumedSnapshots.length, 1, purpose)
+      assert.equal(consumedSnapshots[0].providerProvenAt.getTime(), reloadedProviderProvenAt.getTime(), purpose)
+      assert.equal(database.intent.providerProvenAt, null, purpose)
+    }
+  })
+
   it("accepts each two-factor Google proof only for its exact action", async () => {
     const operations = [
       {

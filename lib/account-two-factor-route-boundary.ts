@@ -92,7 +92,7 @@ function retryAfterHeader(value?: number) {
   return String(Number.isSafeInteger(value) && (value ?? 0) > 0 ? Math.min(value ?? 1, 900) : 1)
 }
 
-function failureStatus(code: string): number | null {
+function failureStatus(code: TwoFactorManagementFailureCode | "AUTHENTICATION_REQUIRED"): number | null {
   if (code === "AUTHENTICATION_REQUIRED") return 401
   if (code === "INVALID_REQUEST" || code === "TWO_FACTOR_REQUIRED") return 400
   if (
