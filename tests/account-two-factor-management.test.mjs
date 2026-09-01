@@ -7,6 +7,7 @@ import {
   consumeFreshGoogleReauth,
   isFreshConsumedGoogleReauth,
 } from "../lib/auth-method-intent-proof.ts"
+import { safeErrorCode } from "../lib/safe-error-code.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const NOW = new Date("2026-08-29T12:00:00.000Z")
@@ -77,6 +78,7 @@ const service = loadCompiledModule(source, "account-two-factor-management.test.t
     runCommerceTransaction: (client, callback) => client.$transaction(callback, { isolationLevel: "Serializable" }),
   },
   "@/lib/prisma": { prisma: {} },
+  "@/lib/safe-error-code": { safeErrorCode },
   "@/lib/two-factor-enrollment-binding": enrollmentBinding,
   "qrcode": { toDataURL: async () => QR_CODE },
 })
@@ -818,6 +820,51 @@ describe("dual-proof destructive two-factor management", () => {
       }
     })
   }
+
+  it("keeps expected management CAS conflicts silent", async () => {
+    const database = createDatabase({ enabled: true })
+    const result = await captureConsoleErrors(async (calls) => {
+      const response = await service.disableTwoFactor(manageInput(database, {
+        dependencies: dependencies({
+          database,
+          async preparePasswordMethodProofForTwoFactorManagement() {
+            const proof = verifiedPasswordManagementProof(database)
+            database.user.authSessionVersion += 1
+            return proof
+          },
+        }),
+      }))
+      assert.deepEqual(calls, [])
+      return response
+    })
+
+    assert.deepEqual(result, { status: "REJECTED", code: "CONFLICT" })
+  })
+
+  it("logs only an allowlisted operation and code for unexpected management transaction failures", async () => {
+    for (const [operation, invoke] of [
+      ["DISABLE", (input) => service.disableTwoFactor(input)],
+      ["REGENERATE", (input) => service.regenerateBackupCodes(input)],
+    ]) {
+      const database = createDatabase({ enabled: true })
+      database.failPoint = "after-factor-consume"
+      database.failError = Object.assign(new Error("private database failure"), {
+        code: "P2024",
+        meta: { privateUserId: "user-1" },
+      })
+
+      const result = await captureConsoleErrors(async (calls) => {
+        const response = await invoke(manageInput(database))
+        assert.deepEqual(calls, [[
+          "Two-factor management transaction failed",
+          { operation, code: "P2024" },
+        ]])
+        return response
+      })
+
+      assert.deepEqual(result, { status: "REJECTED", code: "CONFLICT" })
+    }
+  })
 })
 
 function start(database, overrides = {}) {
@@ -1057,6 +1104,7 @@ function createDatabase({
     intent: googleIntent ? structuredClone(googleIntent) : null,
     events: [],
     failPoint: null,
+    failError: null,
     reads: 0,
     transactions: 0,
     transactionOptions: [],
@@ -1259,7 +1307,18 @@ function matches(row, where = {}) {
 }
 
 function maybeFail(database, point) {
-  if (database.failPoint === point) throw new Error(`injected ${point}`)
+  if (database.failPoint === point) throw database.failError ?? new Error(`injected ${point}`)
+}
+
+async function captureConsoleErrors(callback) {
+  const original = console.error
+  const calls = []
+  console.error = (...args) => calls.push(args)
+  try {
+    return await callback(calls)
+  } finally {
+    console.error = original
+  }
 }
 
 function deferred() {

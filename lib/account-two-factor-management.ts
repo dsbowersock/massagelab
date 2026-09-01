@@ -33,6 +33,7 @@ import {
 } from "@/lib/auth-two-factor-proof"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { prisma } from "@/lib/prisma"
+import { safeErrorCode } from "@/lib/safe-error-code"
 import {
   signTwoFactorEnrollmentBinding,
   verifyTwoFactorEnrollmentBinding,
@@ -678,7 +679,13 @@ async function manageEnabledTwoFactor(
         ? { status: "DISABLED" } as const
         : { status: "BACKUP_CODES_REGENERATED", backupCodes: plaintextCodes } as const
     })
-  } catch {
+  } catch (error) {
+    if (!(error instanceof EnrollmentConflict)) {
+      console.error("Two-factor management transaction failed", {
+        operation: action,
+        code: safeErrorCode(error),
+      })
+    }
     return rejected("CONFLICT")
   }
 }

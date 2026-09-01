@@ -1,4 +1,4 @@
-const DEFAULT_MAX_JSON_BYTES = 4096
+const MAX_ACCOUNT_SECURITY_JSON_BYTES = 4096
 
 type TrustedJsonResult =
   | { ok: true; body: Record<string, unknown> }
@@ -54,11 +54,11 @@ export async function parseBoundedAccountSecurityJson(input: {
     return { ok: false, code: "INVALID_REQUEST" }
   }
 
-  const requestedMaxBytes = input.maxBytes ?? DEFAULT_MAX_JSON_BYTES
+  const requestedMaxBytes = input.maxBytes ?? MAX_ACCOUNT_SECURITY_JSON_BYTES
   if (!Number.isSafeInteger(requestedMaxBytes) || requestedMaxBytes < 1) {
     return { ok: false, code: "INVALID_REQUEST" }
   }
-  const maxBytes = Math.min(requestedMaxBytes, DEFAULT_MAX_JSON_BYTES)
+  const maxBytes = Math.min(requestedMaxBytes, MAX_ACCOUNT_SECURITY_JSON_BYTES)
 
   const serialized = await readBoundedUtf8(input.request, maxBytes)
   if (serialized === null) return { ok: false, code: "INVALID_REQUEST" }
