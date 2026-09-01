@@ -20,15 +20,16 @@ describe("public launch controls", () => {
       registrationOpen: true,
       supporterCheckoutOpen: false,
     })
-    assert.equal(
-      getPublicLaunchControls({ MASSAGELAB_PUBLIC_REGISTRATION_PAUSED: "TRUE" }).registrationOpen,
-      true,
-    )
-    for (const value of ["TRUE", "True", " true "]) {
-      assert.equal(
-        getPublicLaunchControls({ MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED: value }).supporterCheckoutOpen,
-        true,
-      )
+  })
+
+  it("intentionally fails open for non-exact operator values instead of trimming or case-normalizing them", () => {
+    for (const [flagName, resultName] of [
+      ["MASSAGELAB_PUBLIC_REGISTRATION_PAUSED", "registrationOpen"],
+      ["MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED", "supporterCheckoutOpen"],
+    ]) {
+      for (const value of ["TRUE", "True", " true "]) {
+        assert.equal(getPublicLaunchControls({ [flagName]: value })[resultName], true)
+      }
     }
   })
 

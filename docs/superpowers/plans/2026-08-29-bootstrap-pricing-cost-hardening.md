@@ -379,7 +379,7 @@ Expected: FAIL on the three current client GET paths and the missing owner-key r
 
 - [ ] **Step 3: Convert Settings to bootstrap consumption**
 
-Remove `syncEnabled` from `SettingsProvider`. Keep local hydration first and independent of network. When the bootstrap is `ready`, normalize and apply `appSettings.app`, set `canSync` from the current owner, and persist the same local-storage snapshot. When bootstrap is `anonymous` or `failed`, keep safe local settings and disable cloud PUT. Preserve the existing `PUT` body exactly:
+Remove the legacy `syncEnabled` prop from `SettingsProvider`, but retain the shared-context `ownerKey`, `syncEnabled`, and `status`. Cloud sync and writes are eligible if and only if `status` is `ready`, `syncEnabled` is `true`, and `ownerKey` is non-null. Keep local hydration first and independent of network. When eligible, normalize and apply `appSettings.app`, set `canSync` for the current owner, and persist the same local-storage snapshot. When ineligible, keep safe local settings and disable cloud PUT. Preserve the existing `PUT` body exactly:
 
 ```json
 { "appSettings": { "appBarPosition": "...", "sidebarPosition": "...", "sidebarTriggerPosition": "...", "ambientMotionMode": "...", "themeMode": "...", "hapticFeedbackEnabled": true } }

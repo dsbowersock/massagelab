@@ -463,6 +463,15 @@ describe("family-and-friends server workload baseline", () => {
     )
     assert.match(
       costHardeningReportSource,
+      /exact measured source tree[\s\S]{0,160}\*\*UNKNOWN\*\*/,
+    )
+    assert.match(
+      costHardeningReportSource,
+      /whether any individual receipt exercised Task-9-delta-owned code[\s\S]{0,40}\*\*UNKNOWN\*\*/,
+    )
+    assert.match(costHardeningReportSource, /no row may be assigned an exact measured SHA/)
+    assert.match(
+      costHardeningReportSource,
       /Bare SHAs identify runtime bases or implementation owners only; they do not identify reproducible measured working trees/,
     )
     assert.match(costHardeningReportSource, /Rows marked \*\*OPEN GATE\*\* were not run or measured and remain required before release/)

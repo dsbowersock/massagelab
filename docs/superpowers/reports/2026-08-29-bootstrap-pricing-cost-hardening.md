@@ -2,6 +2,8 @@
 
 The measurements below were reported from the recorded runtime base `706c52167466f984f3e405986af11ff3d2343a02` plus an uncommitted dirty Task 9 working-tree delta whose patch identity was not recorded. Every measured row is **BLOCKED HISTORICAL CONTEXT** and is explicitly not completion, release, or exact-head evidence, including rows that additionally name a different implementation owner. Bare SHAs identify runtime bases or implementation owners only; they do not identify reproducible measured working trees. Rows marked **OPEN GATE** were not run or measured and remain required before release where applicable.
 
+Because the uncommitted delta was never captured, the exact measured source tree and whether any individual receipt exercised Task-9-delta-owned code are **UNKNOWN**; no row may be assigned an exact measured SHA.
+
 | Status | Claim | Evidence | Runtime base / implementation owner | Limits |
 | --- | --- | --- | --- | --- |
 | **BLOCKED HISTORICAL CONTEXT** | Dirty Task 9 snapshot record | All runtime, focused, browser, build, and timing receipts below were reported from `codex/family-friends-feedback` at runtime SHA `706c52167466f984f3e405986af11ff3d2343a02` plus an uncommitted Task 9 working-tree workload/report delta. The patch identity of that delta was not recorded. | Runtime base `706c52167466f984f3e405986af11ff3d2343a02` plus the uncommitted Task 9 delta | This dirty measured snapshot cannot be reproduced from SHA `706c52167466f984f3e405986af11ff3d2343a02` alone because the Task 9 patch identity is unavailable. The later evidence commit contains the report but does not retroactively identify the measured delta. |
