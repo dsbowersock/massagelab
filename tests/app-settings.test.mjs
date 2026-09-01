@@ -35,6 +35,166 @@ function sliceLinkProps(toolLink) {
   return toolLink.slice(start, end)
 }
 
+/** Runs the real provider through owner/sync rerenders with React-like effect cleanup. */
+function createSettingsOwnerTransitionHarness() {
+  let ownerKey = "owner-a"
+  let syncEnabled = true
+  let stateCursor = 0
+  let refCursor = 0
+  let callbackCursor = 0
+  let effectCursor = 0
+  const stateSlots = []
+  const refSlots = []
+  const callbackSlots = []
+  const effectSlots = []
+  const pendingEffects = new Map()
+  const windowListeners = new Map()
+  const accountWrites = []
+  const writeResults = new Map([
+    ["owner-a", [false]],
+    ["owner-b", [false, true]],
+  ])
+  const sameDependencies = (left, right) => (
+    Array.isArray(left)
+    && Array.isArray(right)
+    && left.length === right.length
+    && left.every((value, index) => Object.is(value, right[index]))
+  )
+  const memoizedHook = (slots, cursor, valueFactory, dependencies) => {
+    const slot = slots[cursor]
+    if (!slot || !sameDependencies(slot.dependencies, dependencies)) {
+      slots[cursor] = { dependencies, value: valueFactory() }
+    }
+    return slots[cursor].value
+  }
+  const provider = loadCompiledModule(
+    settingsProviderSource,
+    "components/providers/settings-provider-owner-transition.test.tsx",
+    {
+      react: {
+        createContext: () => ({ Provider: "SettingsContextProvider" }),
+        useCallback: (callback, dependencies) => {
+          const cursor = callbackCursor
+          callbackCursor += 1
+          return memoizedHook(callbackSlots, cursor, () => callback, dependencies)
+        },
+        useContext: () => null,
+        useEffect: (effect, dependencies) => {
+          const cursor = effectCursor
+          effectCursor += 1
+          const slot = effectSlots[cursor]
+          if (!slot || !sameDependencies(slot.dependencies, dependencies)) {
+            pendingEffects.set(cursor, { dependencies, effect })
+          } else {
+            pendingEffects.delete(cursor)
+          }
+        },
+        useRef: (value) => {
+          const cursor = refCursor
+          refCursor += 1
+          if (!refSlots[cursor]) refSlots[cursor] = { current: value }
+          return refSlots[cursor]
+        },
+        useState: (initial) => {
+          const cursor = stateCursor
+          stateCursor += 1
+          if (!stateSlots[cursor]) {
+            stateSlots[cursor] = { value: typeof initial === "function" ? initial() : initial }
+          }
+          return [stateSlots[cursor].value, (update) => {
+            stateSlots[cursor].value = typeof update === "function"
+              ? update(stateSlots[cursor].value)
+              : update
+          }]
+        },
+      },
+      "@/components/providers/account-shell-bootstrap-provider": {
+        useAccountShellBootstrap: () => {
+          const requestOwnerKey = ownerKey
+          return {
+            ownerKey,
+            syncEnabled,
+            status: syncEnabled ? "ready" : "anonymous",
+            appSettings: { app: defaultAppSettings },
+            writeAppSettingsPatch: async (patch) => {
+              accountWrites.push({ ownerKey: requestOwnerKey, patch })
+              return writeResults.get(requestOwnerKey)?.shift() ?? true
+            },
+          }
+        },
+      },
+      "@/lib/app-settings": appSettingsModule,
+    },
+  )
+  const previousDocument = globalThis.document
+  const previousLocalStorage = globalThis.localStorage
+  const previousWindow = globalThis.window
+  globalThis.document = {
+    documentElement: {
+      classList: { toggle: () => undefined },
+      dataset: {},
+      style: {},
+    },
+  }
+  globalThis.localStorage = {
+    getItem: () => null,
+    removeItem: () => undefined,
+    setItem: () => undefined,
+  }
+  globalThis.window = {
+    addEventListener(type, listener) {
+      const listeners = windowListeners.get(type) ?? new Set()
+      listeners.add(listener)
+      windowListeners.set(type, listeners)
+    },
+    removeEventListener(type, listener) {
+      windowListeners.get(type)?.delete(listener)
+    },
+    matchMedia: () => ({
+      matches: true,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }),
+  }
+
+  return {
+    accountWrites,
+    dispatchOnline() {
+      for (const listener of [...(windowListeners.get("online") ?? [])]) listener()
+    },
+    flushEffects() {
+      const effects = [...pendingEffects]
+      pendingEffects.clear()
+      for (const [cursor, { dependencies, effect }] of effects) {
+        effectSlots[cursor]?.cleanup?.()
+        effectSlots[cursor] = { dependencies, cleanup: effect() }
+      }
+    },
+    onlineListenerCount() {
+      return windowListeners.get("online")?.size ?? 0
+    },
+    render() {
+      stateCursor = 0
+      refCursor = 0
+      callbackCursor = 0
+      effectCursor = 0
+      return provider.SettingsProvider({ children: null }).props.value
+    },
+    restore() {
+      for (const slot of effectSlots) slot?.cleanup?.()
+      globalThis.document = previousDocument
+      globalThis.localStorage = previousLocalStorage
+      globalThis.window = previousWindow
+    },
+    setOwner(nextOwnerKey) {
+      ownerKey = nextOwnerKey
+    },
+    setSyncEnabled(nextSyncEnabled) {
+      syncEnabled = nextSyncEnabled
+    },
+  }
+}
+
 describe("App settings helpers", () => {
   it("hydrates and writes through the shared owner-scoped app-settings writer", () => {
     assert.match(settingsProviderSource, /useAccountShellBootstrap/)
@@ -45,10 +205,12 @@ describe("App settings helpers", () => {
     assert.match(settingsProviderSource, /writeAppSettingsPatch\(updated\)/)
   })
 
-  it("performs storage and shared-writer effects once under replayable updater semantics", async () => {
+  it("performs replay-safe effects once and retries the latest failed write online", async () => {
     const effects = []
     const storageWrites = []
     const accountWrites = []
+    const windowListeners = new Map()
+    const writeResults = [false, true]
     let stateCall = 0
     const provider = loadCompiledModule(
       settingsProviderSource,
@@ -81,7 +243,7 @@ describe("App settings helpers", () => {
             appSettings: { app: defaultAppSettings },
             writeAppSettingsPatch: async (patch) => {
               accountWrites.push(patch)
-              return true
+              return writeResults.shift() ?? true
             },
           }),
         },
@@ -104,6 +266,10 @@ describe("App settings helpers", () => {
       setItem: (...args) => storageWrites.push(args),
     }
     globalThis.window = {
+      addEventListener: (type, listener) => windowListeners.set(type, listener),
+      removeEventListener: (type, listener) => {
+        if (windowListeners.get(type) === listener) windowListeners.delete(type)
+      },
       matchMedia: () => ({
         matches: true,
         addEventListener: () => undefined,
@@ -121,11 +287,67 @@ describe("App settings helpers", () => {
       assert.equal(storageWrites.length, 1)
       assert.equal(accountWrites.length, 1)
       assert.equal(accountWrites[0].themeMode, "light")
+      windowListeners.get("online")()
+      await Promise.resolve()
+      await Promise.resolve()
+      assert.equal(accountWrites.length, 2)
+      assert.deepEqual(accountWrites[1], accountWrites[0])
       assert.doesNotMatch(settingsProviderSource, /setSettings\s*\(\s*(?:\([^)]*\)|\w+)\s*=>/)
     } finally {
       globalThis.document = previousDocument
       globalThis.localStorage = previousLocalStorage
       globalThis.window = previousWindow
+    }
+  })
+
+  it("retries only the failed payload for the currently sync-enabled owner", async () => {
+    const harness = createSettingsOwnerTransitionHarness()
+    try {
+      harness.render()
+      harness.flushEffects()
+      const ownerAView = harness.render()
+      harness.flushEffects()
+      ownerAView.updateSettings({ themeMode: "light" })
+      await Promise.resolve()
+      await Promise.resolve()
+      assert.deepEqual(harness.accountWrites.map(({ ownerKey }) => ownerKey), ["owner-a"])
+
+      harness.setSyncEnabled(false)
+      harness.render()
+      harness.flushEffects()
+      assert.equal(harness.onlineListenerCount(), 0)
+      harness.dispatchOnline()
+      await Promise.resolve()
+      assert.equal(harness.accountWrites.length, 1)
+
+      harness.setOwner("owner-b")
+      harness.setSyncEnabled(true)
+      const ownerBView = harness.render()
+      harness.flushEffects()
+      assert.equal(harness.onlineListenerCount(), 1)
+      harness.dispatchOnline()
+      await Promise.resolve()
+      assert.equal(
+        harness.accountWrites.length,
+        1,
+        "owner B must not retry owner A's retained failure",
+      )
+
+      ownerBView.updateSettings({ themeMode: "dark" })
+      await Promise.resolve()
+      await Promise.resolve()
+      harness.dispatchOnline()
+      await Promise.resolve()
+      await Promise.resolve()
+
+      assert.deepEqual(harness.accountWrites.map(({ ownerKey }) => ownerKey), [
+        "owner-a",
+        "owner-b",
+        "owner-b",
+      ])
+      assert.deepEqual(harness.accountWrites[2].patch, harness.accountWrites[1].patch)
+    } finally {
+      harness.restore()
     }
   })
 

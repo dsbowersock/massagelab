@@ -130,7 +130,18 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  let parsedBody: unknown
+  try {
+    parsedBody = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
+  if (parsedBody === null || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
+  // Establish one record-shaped boundary before property projection or `in`
+  // checks so syntactically valid JSON scalars cannot reach access or Prisma.
+  const body = parsedBody as Record<string, unknown>
   const payload = buildUserPreferencePayload(body, {
     backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
   })

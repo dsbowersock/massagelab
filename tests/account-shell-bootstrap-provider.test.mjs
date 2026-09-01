@@ -186,6 +186,30 @@ describe("account shell bootstrap provider", () => {
     })
   })
 
+  it("does not let a late old-owner patch evict queued work for the current owner", async () => {
+    const firstWrite = deferred()
+    const sent = []
+    const writer = accountPreferences.createSerializedAppSettingsPatchWriter({
+      async send(request) {
+        sent.push(request)
+        if (sent.length === 1) await firstWrite.promise
+        return true
+      },
+    })
+
+    const activeOwnerA = writer.enqueue({ ownerKey: "owner-a", patch: { themeMode: "light" } })
+    const currentOwnerB = writer.enqueue({ ownerKey: "owner-b", patch: { themeMode: "dark" } })
+    const lateOwnerA = writer.enqueue({ ownerKey: "owner-a", patch: { appBarPosition: "top" } })
+
+    firstWrite.resolve()
+    assert.deepEqual(await Promise.all([activeOwnerA, currentOwnerB, lateOwnerA]), [true, true, true])
+    assert.deepEqual(sent, [
+      { ownerKey: "owner-a", patch: { themeMode: "light" } },
+      { ownerKey: "owner-b", patch: { themeMode: "dark" } },
+      { ownerKey: "owner-a", patch: { appBarPosition: "top" } },
+    ])
+  })
+
   it("makes no fallback request for a ready server bootstrap", async () => {
     let requests = 0
     const coordinator = loadProvider(async () => {

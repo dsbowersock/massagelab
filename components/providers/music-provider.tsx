@@ -41,6 +41,7 @@ import {
   createMusicVisualizerAccountIntentTracker,
   normalizeMusicVisualizerAccountPreferences,
   normalizeMusicVisualizerDevicePreferences,
+  shouldApplyMusicVisualizerAccountWriteCompletion,
 } from "@/lib/music-visualizer"
 import type { AtmoShaperLayer, AtmoShaperRecipe } from "@/lib/atmoshaper/recipe.js"
 import { resumeAtmoShaperAudioContext } from "@/lib/atmoshaper/audio-activation.js"
@@ -839,11 +840,13 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setAccountStatus("saving")
     setAccountError(null)
     const succeeded = await writeAppSettingsPatch({ musicVisualizer: payload })
-    if (
-      !isMountedRef.current
-      || requestId !== accountRequestIdRef.current
-      || ownerKey !== adoptedAccountOwnerRef.current.ownerKey
-    ) {
+    if (!shouldApplyMusicVisualizerAccountWriteCompletion({
+      currentOwner: adoptedAccountOwnerRef.current,
+      currentRequestId: accountRequestIdRef.current,
+      isMounted: isMountedRef.current,
+      requestId,
+      requestOwnerKey: ownerKey,
+    })) {
       return
     }
 

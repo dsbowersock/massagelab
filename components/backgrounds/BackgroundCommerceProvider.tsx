@@ -233,13 +233,17 @@ function OwnerScopedBackgroundCommerceProvider({
       return
     }
     if (activeOwnerKeyRef.current !== ownerKey) return
-    if (mutationActiveRef.current) {
-      await mutationQueueRef.current
-      return
-    }
-
     const requestOwnerKey = ownerKey
     const requestGeneration = ownerGenerationRef.current
+    while (mutationActiveRef.current) {
+      await mutationQueueRef.current
+      if (
+        requestGeneration !== ownerGenerationRef.current
+        || requestOwnerKey !== activeOwnerKeyRef.current
+        || hydratedOwnerRef.current === requestOwnerKey
+      ) return
+    }
+
     // Every completion guard below treats aborts, generation changes, and
     // owner changes as stale so an old read cannot dispatch into a new owner.
     readControllerRef.current?.abort()
@@ -350,6 +354,10 @@ function OwnerScopedBackgroundCommerceProvider({
 
       commerceRevisionRef.current += 1
       mutationStartedOwnerRef.current = requestOwnerKey
+      // A write makes any pre-write snapshot provisional until a later
+      // authoritative read succeeds. Queued demand must therefore survive a
+      // failed mutation follow-up refresh instead of trusting stale hydration.
+      hydratedOwnerRef.current = null
       readControllerRef.current?.abort()
       mutationActiveRef.current = true
       mutationControllersRef.current.add(controller)
@@ -499,6 +507,7 @@ function OwnerScopedBackgroundCommerceProvider({
       ) return
       commerceRevisionRef.current += 1
       mutationStartedOwnerRef.current = requestOwnerKey
+      hydratedOwnerRef.current = null
       readControllerRef.current?.abort()
       mutationActiveRef.current = true
       const id = requestId("checkout")

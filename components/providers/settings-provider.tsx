@@ -85,6 +85,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }>({ ownerKey: null, ready: false })
   const settingsWriteRevisionRef = useRef(0)
   const pendingSettingsWriteRef = useRef<{
+    failed: boolean
     ownerKey: string
     revision: number
     settings: Settings
@@ -95,6 +96,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const revision = settingsWriteRevisionRef.current + 1
     settingsWriteRevisionRef.current = revision
     pendingSettingsWriteRef.current = {
+      failed: false,
       ownerKey: writeOwnerKey,
       revision,
       settings: updated,
@@ -102,10 +104,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     void writeAppSettingsPatch(updated).then((succeeded) => {
       const pendingWrite = pendingSettingsWriteRef.current
       if (
-        !succeeded
-        || pendingWrite?.ownerKey !== writeOwnerKey
+        pendingWrite?.ownerKey !== writeOwnerKey
         || pendingWrite.revision !== revision
       ) {
+        return
+      }
+      if (!succeeded) {
+        pendingWrite.failed = true
         return
       }
       pendingSettingsWriteRef.current = null
@@ -114,6 +119,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       }
     })
   }, [writeAppSettingsPatch])
+
+  useEffect(() => {
+    if (!ownerKey || !syncEnabled || status !== "ready") return
+    const retryOwnerKey = ownerKey
+    const handleOnline = () => {
+      const pendingWrite = pendingSettingsWriteRef.current
+      if (pendingWrite?.ownerKey !== retryOwnerKey || !pendingWrite.failed) return
+      queueSettingsWrite(retryOwnerKey, pendingWrite.settings)
+    }
+    window.addEventListener("online", handleOnline)
+    return () => window.removeEventListener("online", handleOnline)
+  }, [ownerKey, queueSettingsWrite, status, syncEnabled])
 
   useEffect(() => {
     applyThemeClass(settings.themeMode)

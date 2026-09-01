@@ -235,7 +235,7 @@ describe("proved and browser-bound two-factor enrollment", () => {
     })
   }
 
-  it("allows exactly one concurrent setup to own the committed pending fingerprint", async () => {
+  it("allows exactly one concurrent setup to own the committed pending fingerprint", { timeout: 5_000 }, async () => {
     const database = createDatabase()
     const gate = deferred()
     let proofCalls = 0
@@ -253,10 +253,34 @@ describe("proved and browser-bound two-factor enrollment", () => {
       encryptSecret(secret) { return `encrypted-${secret}` },
     })
 
-    const results = await Promise.all([
+    const setupRequests = [
       start(database, { dependencies: deps }),
       start(database, { dependencies: deps }),
-    ])
+    ]
+    let results
+    let primaryFailure
+    try {
+      await boundedLatch(gate.promise, "concurrent setup proof gate")
+      results = await boundedLatch(Promise.all(setupRequests), "concurrent setup completion")
+    } catch (error) {
+      primaryFailure = error
+    } finally {
+      gate.resolve()
+    }
+    let cleanupFailure
+    try {
+      await boundedLatch(Promise.allSettled(setupRequests), "concurrent setup cleanup")
+    } catch (error) {
+      cleanupFailure = error
+    }
+    if (primaryFailure && cleanupFailure) {
+      throw new AggregateError(
+        [primaryFailure, cleanupFailure],
+        "concurrent setup and bounded cleanup both failed",
+      )
+    }
+    if (primaryFailure) throw primaryFailure
+    if (cleanupFailure) throw cleanupFailure
     assert.deepEqual(results.map((result) => result.status).sort(), ["REJECTED", "SETUP_READY"])
     assert.equal(results.find((result) => result.status === "REJECTED").code, "CONFLICT")
     const winner = results.find((result) => result.status === "SETUP_READY")
@@ -1242,4 +1266,18 @@ function deferred() {
   let resolve
   const promise = new Promise((resolver) => { resolve = resolver })
   return { promise, resolve }
+}
+
+async function boundedLatch(promise, label, timeoutMs = 1_000) {
+  let timeout
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs)
+      }),
+    ])
+  } finally {
+    clearTimeout(timeout)
+  }
 }

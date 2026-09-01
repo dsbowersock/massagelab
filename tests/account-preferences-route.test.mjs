@@ -79,6 +79,7 @@ function loadRoute({
   pauseFirstUpsert = false,
 } = {}) {
   const calls = {
+    entitlementReads: 0,
     lockAcquisitions: [],
     lockAttempts: [],
     locks: [],
@@ -191,6 +192,7 @@ function loadRoute({
       "@/lib/membership": {
         FEATURE_KEYS: { premiumBackgrounds: "premium_backgrounds" },
         getUserEntitlementState: async () => {
+          calls.entitlementReads += 1
           if (failAccess) {
             throw new Error("temporary membership lookup failure")
           }
@@ -248,6 +250,38 @@ function assertUnownedFallback(settings) {
 }
 
 describe("account preference route ownership boundary", () => {
+  it("rejects non-record JSON bodies before access or preference storage", async () => {
+    for (const body of [null, [], "settings", 42, true]) {
+      const route = loadRoute()
+      const response = await route.PUT(new Request("https://massagelab.app/api/account/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }))
+
+      assert.equal(response.status, 400)
+      assert.equal(route.calls.entitlementReads, 0)
+      assert.equal(route.calls.snapshots.length, 0)
+      assert.equal(route.calls.transactions, 0)
+      assert.equal(route.calls.upserts.length, 0)
+    }
+  })
+
+  it("rejects malformed JSON before access or preference storage", async () => {
+    const route = loadRoute()
+    const response = await route.PUT(new Request("https://massagelab.app/api/account/preferences", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: "{malformed",
+    }))
+
+    assert.equal(response.status, 400)
+    assert.equal(route.calls.entitlementReads, 0)
+    assert.equal(route.calls.snapshots.length, 0)
+    assert.equal(route.calls.transactions, 0)
+    assert.equal(route.calls.upserts.length, 0)
+  })
+
   it("retains renderer tuning for an owned Music background when Chimer selects another visual", () => {
     const settings = sanitizeAccessibleChimerSettings({
       backgroundId: DEFAULT_CHIMER_SETTINGS.backgroundId,

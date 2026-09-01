@@ -48,6 +48,16 @@ describe("same-browser two-factor enrollment binding", () => {
     assert.equal(Object.hasOwn(verified, "secret"), false)
   })
 
+  it("accepts the test signer positive control through the production verifier", () => {
+    const payload = decodePayload(bindingModule.signTwoFactorEnrollmentBinding(BASE_INPUT))
+    const value = signedPayload(payload)
+
+    assert.deepEqual(
+      bindingModule.verifyTwoFactorEnrollmentBinding({ ...BASE_INPUT, value }),
+      payload,
+    )
+  })
+
   it("rejects payload or signature tampering", () => {
     assert.equal(typeof bindingModule.signTwoFactorEnrollmentBinding, "function")
     assert.equal(typeof bindingModule.verifyTwoFactorEnrollmentBinding, "function")

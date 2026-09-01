@@ -72,6 +72,39 @@ export function therapistSettingsStorageKey(ownerKey: string | null): string {
     : `${THERAPIST_SETTINGS_STORAGE_KEY_PREFIX}:account:${encodeURIComponent(ownerKey)}`
 }
 
+/** Keeps denied or full browser storage from interrupting in-memory/cloud profile flow. */
+function writeTherapistSettingsStorage(storageKey: string, settings: TherapistSettings): boolean {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(settings))
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Keeps unavailable or malformed browser storage from blocking owner adoption. */
+function removeTherapistSettingsStorage(storageKey: string): void {
+  try {
+    localStorage.removeItem(storageKey)
+  } catch {
+    // In-memory and cloud state remain authoritative when storage is denied.
+  }
+}
+
+/** Reads and projects one owner snapshot without allowing storage/JSON failures to escape. */
+function readTherapistSettingsStorage(storageKey: string): TherapistSettings | null {
+  try {
+    const savedSettings = localStorage.getItem(storageKey)
+    if (!savedSettings) return null
+    const storedSettings = projectStoredTherapistSettings(JSON.parse(savedSettings))
+    if (!storedSettings) removeTherapistSettingsStorage(storageKey)
+    return storedSettings
+  } catch {
+    removeTherapistSettingsStorage(storageKey)
+    return null
+  }
+}
+
 function objectRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -424,9 +457,9 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
     }
     const nextOwnedSettings = { ownerKey: profileOwnerKey, settings: reconciledSettings }
     settingsRef.current = nextOwnedSettings
-    localStorage.setItem(
+    writeTherapistSettingsStorage(
       therapistSettingsStorageKey(profileOwnerKey),
-      JSON.stringify(reconciledSettings),
+      reconciledSettings,
     )
     setOwnedSettings(nextOwnedSettings)
     hydrationEditsRef.current = { fields: new Set(), ownerKey: null }
@@ -448,27 +481,16 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
   useEffect(() => {
     let nextSettings = defaultSettings
     const storageKey = therapistSettingsStorageKey(ownerKey)
-    const savedSettings = localStorage.getItem(storageKey)
-    let shouldNormalizeStoredSettings = false
-    if (savedSettings) {
-      try {
-        const storedSettings = projectStoredTherapistSettings(JSON.parse(savedSettings))
-        if (storedSettings) {
-          nextSettings = storedSettings
-          shouldNormalizeStoredSettings = true
-        } else {
-          localStorage.removeItem(storageKey)
-        }
-      } catch {
-        localStorage.removeItem(storageKey)
-      }
+    const storedSettings = readTherapistSettingsStorage(storageKey)
+    if (storedSettings) {
+      nextSettings = storedSettings
     }
     const nextOwnedSettings = { ownerKey, settings: nextSettings }
     if (hydrationEditsRef.current.ownerKey !== ownerKey) {
       hydrationEditsRef.current = { fields: new Set(), ownerKey: null }
     }
-    if (shouldNormalizeStoredSettings) {
-      localStorage.setItem(storageKey, JSON.stringify(nextSettings))
+    if (storedSettings) {
+      writeTherapistSettingsStorage(storageKey, nextSettings)
     }
     settingsRef.current = nextOwnedSettings
     setOwnedSettings(nextOwnedSettings)
@@ -548,7 +570,7 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
     const updated = normalizeTherapistSettings({ ...currentSettings, ...newSettings })
     const nextOwnedSettings = { ownerKey, settings: updated }
     settingsRef.current = nextOwnedSettings
-    localStorage.setItem(therapistSettingsStorageKey(ownerKey), JSON.stringify(updated))
+    writeTherapistSettingsStorage(therapistSettingsStorageKey(ownerKey), updated)
     setOwnedSettings(nextOwnedSettings)
 
     if (hydrationEditsRef.current.ownerKey === ownerKey) {

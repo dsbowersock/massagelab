@@ -315,6 +315,7 @@ describe("recoverable two-factor management UI", () => {
       confirmed: true,
     })
     assert.doesNotMatch(harness.fetchCalls[0].options.body, /reauth|two-factor/)
+    assert.doesNotMatch(elementText(harness.render()), /Google confirmation return detected/)
     harness.restore()
   })
 
@@ -539,6 +540,8 @@ describe("recoverable two-factor management UI", () => {
       twoFactorCode: "rotation-factor",
       confirmed: true,
     })
+    assert.doesNotMatch(elementText(regenerateHarness.render()), /Google confirmation return detected/)
+    assert.ok(button(regenerateHarness.render(), "Confirm with Google for backup codes"))
     assert.equal(field(regenerateHarness.render(), "disableProofGoogle").props.disabled, true)
 
     const disableHarness = await createPanelHarness({
@@ -560,6 +563,7 @@ describe("recoverable two-factor management UI", () => {
     })
     tree = disableHarness.render()
     assert.match(elementText(tree), /Two-factor authentication is disabled.*sign in again/is)
+    assert.doesNotMatch(elementText(tree), /Google confirmation return detected/)
     assert.equal(disableHarness.signOutCalls.length, 0)
     await button(tree, "Sign in again").props.onClick()
     assert.deepEqual(disableHarness.signOutCalls, [[{ redirectTo: "/login?security=two-factor-changed" }]])

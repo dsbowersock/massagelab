@@ -72,9 +72,11 @@ function providerHarnessBundle() {
           calls: [],
           owner: null,
           stateFetchMode: window.__commerceProviderInitialStateFetchMode || "success",
+          stateFetchModes: [],
           stateFetchAborts: 0,
           pendingStateFetches: 0,
           mutationMode: "success",
+          mutationSettled: true,
           checkoutSettled: false,
           errors: [],
         };
@@ -83,6 +85,7 @@ function providerHarnessBundle() {
         let latestCommerce = null;
         let updateOwner = null;
         let checkoutResolve = null;
+        let mutationResolve = null;
         const pendingStateRequests = new Set();
         const jsonResponse = (value, status = 200) => new Response(JSON.stringify(value), {
           status,
@@ -116,8 +119,9 @@ function providerHarnessBundle() {
           const method = init.method || "GET";
           harness.calls.push(method + " " + pathname);
           if (pathname === "/api/background-commerce/state") {
-            if (harness.stateFetchMode === "pending") return pendingStateResponse(init.signal);
-            return Promise.resolve(harness.stateFetchMode === "fail"
+            const stateFetchMode = harness.stateFetchModes.shift() || harness.stateFetchMode;
+            if (stateFetchMode === "pending") return pendingStateResponse(init.signal);
+            return Promise.resolve(stateFetchMode === "fail"
               ? jsonResponse({ error: "UNKNOWN" }, 503)
               : jsonResponse({ creditBalance: 2, ownedBackgroundIds: [], cart: { items: [] } }));
           }
@@ -125,6 +129,9 @@ function providerHarnessBundle() {
             return new Promise((resolve) => { checkoutResolve = resolve; });
           }
           if (pathname === "/api/background-commerce/cart") {
+            if (harness.mutationMode === "pending") {
+              return new Promise((resolve) => { mutationResolve = resolve; });
+            }
             return Promise.resolve(harness.mutationMode === "fail"
               ? jsonResponse({ error: "UNKNOWN" }, 503)
               : jsonResponse({ ok: true }));
@@ -150,6 +157,13 @@ function providerHarnessBundle() {
         harness.setOwner = (owner) => updateOwner(owner);
         harness.ensureSnapshot = () => latestCommerce.ensureSnapshot();
         harness.failAddToCart = () => latestCommerce.addToCart("static-gradient").catch(() => undefined);
+        harness.startAddToCart = () => {
+          harness.mutationSettled = false;
+          harness.addToCartPromise = latestCommerce.addToCart("static-gradient")
+            .catch(() => undefined)
+            .finally(() => { harness.mutationSettled = true; });
+        };
+        harness.resolveMutation = () => mutationResolve(jsonResponse({ ok: true }));
         harness.startCheckout = () => {
           harness.checkoutSettled = false;
           latestCommerce.startCheckout({
@@ -451,6 +465,46 @@ describe("BackgroundCommerceProvider owner behavior", () => {
       await browser.close()
     }
   })
+
+  it("invalidates pre-mutation hydration so queued demand retries a failed follow-up read", { timeout: 45_000 }, async () => {
+    const { chromium } = require("playwright")
+    const browser = await chromium.launch({ headless: true })
+    try {
+      const page = await openProviderHarness(browser)
+      await page.evaluate(() => window.__commerceProviderHarness.ensureSnapshot())
+      await page.waitForFunction(() => window.__commerceProviderHarness.read().state.status === "ready")
+      await page.evaluate(() => {
+        window.__commerceProviderHarness.mutationMode = "pending"
+        window.__commerceProviderHarness.stateFetchModes = ["fail", "success"]
+        window.__commerceProviderHarness.startAddToCart()
+      })
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.read().state.status === "mutating"
+        && window.__commerceProviderHarness.read().calls.includes("POST /api/background-commerce/cart")
+      ))
+      await page.evaluate(() => {
+        window.__commerceProviderHarness.queuedEnsureSettled = false
+        window.__commerceProviderHarness.queuedEnsure = window.__commerceProviderHarness
+          .ensureSnapshot()
+          .finally(() => { window.__commerceProviderHarness.queuedEnsureSettled = true })
+        window.__commerceProviderHarness.resolveMutation()
+      })
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.mutationSettled === true
+        && window.__commerceProviderHarness.queuedEnsureSettled === true
+        && window.__commerceProviderHarness.read().state.status === "ready"
+      ))
+
+      const current = await page.evaluate(() => window.__commerceProviderHarness.read())
+      assert.equal(
+        current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
+        3,
+        JSON.stringify(current),
+      )
+    } finally {
+      await browser.close()
+    }
+  })
 })
 
 describe("BackgroundCommerceProvider contract", () => {
@@ -496,6 +550,14 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /normalizeBackgroundCommerceSnapshot/)
     assert.match(value, /if \(controller\.signal\.aborted\) return[\s\S]*dispatch\(\{ type: "mutation-begin"/)
     assert.match(value, /type: "mutation-refresh-failure"/)
+    assert.match(
+      value,
+      /const enqueueMutation[\s\S]*mutationStartedOwnerRef\.current = requestOwnerKey[\s\S]*hydratedOwnerRef\.current = null/,
+    )
+    assert.match(
+      value,
+      /const startCheckout[\s\S]*mutationStartedOwnerRef\.current = requestOwnerKey[\s\S]*hydratedOwnerRef\.current = null/,
+    )
     assert.doesNotMatch(value, /creditBalance\s*[+\-]=|ownedBackgroundIds\.push/)
   })
 

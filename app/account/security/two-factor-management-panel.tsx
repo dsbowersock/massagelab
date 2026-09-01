@@ -181,6 +181,11 @@ export function TwoFactorManagementPanel({
         fail(response.status, result, "ENROLL_TWO_FACTOR")
         return
       }
+      if (setup.proofMethod === "GOOGLE") {
+        setActiveGoogleReauthReturnHint((current) => (
+          current === "ENROLL_TWO_FACTOR" ? null : current
+        ))
+      }
       setSetup((current) => ({
         ...current,
         password: "",
@@ -257,6 +262,11 @@ export function TwoFactorManagementPanel({
         fail(response.status, result, "DISABLE_TWO_FACTOR")
         return
       }
+      if (disable.proofMethod === "GOOGLE") {
+        setActiveGoogleReauthReturnHint((current) => (
+          current === "DISABLE_TWO_FACTOR" ? null : current
+        ))
+      }
       setEnabled(false)
       setDisable((current) => emptyManagementState(current.proofMethod))
       setBackupCodes([])
@@ -286,6 +296,11 @@ export function TwoFactorManagementPanel({
       if (!response.ok || !isBackupCodeSuccess(result, "BACKUP_CODES_REGENERATED")) {
         fail(response.status, result, "REGENERATE_TWO_FACTOR_BACKUP_CODES")
         return
+      }
+      if (regenerate.proofMethod === "GOOGLE") {
+        setActiveGoogleReauthReturnHint((current) => (
+          current === "REGENERATE_TWO_FACTOR_BACKUP_CODES" ? null : current
+        ))
       }
       setRegenerate((current) => emptyManagementState(current.proofMethod))
       setBackupCodes(result.backupCodes)

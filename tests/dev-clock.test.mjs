@@ -72,9 +72,20 @@ describe("development Clock review route", () => {
       musicProviderSource,
       /bootstrapStatus === "anonymous"[\s\S]*setAccountStatus\("anonymous"\)/,
     )
+    const ownerAdoptionAnchor = musicProviderSource.indexOf("if (!storageHydrated)")
+    const ownerAdoptionStart = musicProviderSource.lastIndexOf(
+      "useEffect(() => {",
+      ownerAdoptionAnchor,
+    )
+    const ownerAdoptionEnd = musicProviderSource.indexOf(
+      "const retryVisualizerAccountSync",
+      ownerAdoptionStart,
+    )
+    assert.ok(ownerAdoptionStart >= 0 && ownerAdoptionEnd > ownerAdoptionStart)
+    const ownerAdoptionSource = musicProviderSource.slice(ownerAdoptionStart, ownerAdoptionEnd)
     assert.match(
-      musicProviderSource,
-      /accountRequestIdRef\.current \+= 1[\s\S]*accountAbortControllerRef\.current\?\.abort\(\)[\s\S]*ownerKey/,
+      ownerAdoptionSource,
+      /const ownerChanged[\s\S]*adoptedAccountOwnerRef\.current = \{ ownerKey, syncEnabled \}[\s\S]*if \(ownerChanged\) \{[\s\S]*accountRequestIdRef\.current \+= 1[\s\S]*accountWritePendingRef\.current = null/,
     )
     assert.match(
       musicProviderSource,

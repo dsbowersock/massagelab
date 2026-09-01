@@ -88,7 +88,7 @@ function loadProfileWriter(send) {
   return provider.createTherapistProfileWriter({ send })
 }
 
-function loadProviderUpdaterHarness({ profile = {} } = {}) {
+function loadProviderUpdaterHarness({ profile = {}, storageWriteThrows = false } = {}) {
   const profileWrites = []
   const storageWrites = []
   let stateCall = 0
@@ -136,7 +136,10 @@ function loadProviderUpdaterHarness({ profile = {} } = {}) {
   globalThis.localStorage = {
     getItem: () => null,
     removeItem: () => undefined,
-    setItem: (...args) => storageWrites.push(args),
+    setItem: (...args) => {
+      if (storageWriteThrows) throw new DOMException("Storage denied", "SecurityError")
+      storageWrites.push(args)
+    },
   }
 
   try {
@@ -158,6 +161,8 @@ function loadProviderUpdaterHarness({ profile = {} } = {}) {
 
 function loadProviderOwnerTransitionHarness({
   moduleSource = providerSource,
+  storageGetThrows = false,
+  storageRemoveThrows = false,
   writeProfile = async () => ({ ok: true }),
   storedValues = new Map([
     ["massage-lab-therapist-settings", JSON.stringify({ name: "Owner A" })],
@@ -211,10 +216,12 @@ function loadProviderOwnerTransitionHarness({
   globalThis.localStorage = {
     getItem: (key) => {
       storageReads.push(key)
+      if (storageGetThrows) throw new DOMException("Storage denied", "SecurityError")
       return storedValues.get(key) ?? null
     },
     removeItem: (key) => {
       storageRemovals.push(key)
+      if (storageRemoveThrows) throw new DOMException("Storage denied", "SecurityError")
       storedValues.delete(key)
     },
     setItem: (key, value) => {
@@ -738,6 +745,19 @@ describe("therapist settings cloud hydration", () => {
     }
   })
 
+  it("continues in-memory and cloud updates when local storage rejects a write", () => {
+    const harness = loadProviderUpdaterHarness({ storageWriteThrows: true })
+    try {
+      assert.doesNotThrow(() => harness.updateSettings({ name: "Taylor" }))
+      assert.equal(harness.storageWrites.length, 0)
+      assert.equal(harness.profileWrites.length, 1)
+      assert.equal(JSON.parse(harness.profileWrites[0][1].body).therapistSettings.name, "Taylor")
+      assert.equal((providerSource.match(/localStorage\.setItem/g) ?? []).length, 1)
+    } finally {
+      harness.restore()
+    }
+  })
+
   it("keeps edits made during cloud hydration over the older profile response", async () => {
     const harness = loadProviderOwnerTransitionHarness()
     try {
@@ -950,6 +970,45 @@ describe("therapist settings cloud hydration", () => {
       assert.deepEqual(harness.storageWrites, [])
     } finally {
       harness.restore()
+    }
+  })
+
+  it("keeps owner adoption non-fatal when storage reads or removals are denied", () => {
+    const throwingRead = loadProviderOwnerTransitionHarness({ storageGetThrows: true })
+    try {
+      throwingRead.render()
+      assert.doesNotThrow(() => throwingRead.flushEffects())
+      assert.deepEqual(throwingRead.render().settings, {
+        name: "",
+        location: "",
+        licenseNumber: "",
+        licenseOrganization: "",
+        npiNumber: "",
+      })
+    } finally {
+      throwingRead.restore()
+    }
+
+    const storageKey = "massage-lab-therapist-settings:account:owner-a"
+    const throwingRemove = loadProviderOwnerTransitionHarness({
+      storageRemoveThrows: true,
+      storedValues: new Map([[storageKey, "{malformed"]]),
+    })
+    try {
+      throwingRemove.render()
+      assert.doesNotThrow(() => throwingRemove.flushEffects())
+      assert.deepEqual(throwingRemove.storageRemovals, [storageKey])
+      assert.deepEqual(throwingRemove.render().settings, {
+        name: "",
+        location: "",
+        licenseNumber: "",
+        licenseOrganization: "",
+        npiNumber: "",
+      })
+      assert.equal((providerSource.match(/localStorage\.getItem/g) ?? []).length, 1)
+      assert.equal((providerSource.match(/localStorage\.removeItem/g) ?? []).length, 1)
+    } finally {
+      throwingRemove.restore()
     }
   })
 

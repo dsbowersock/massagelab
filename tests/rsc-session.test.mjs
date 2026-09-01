@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, it } from "node:test"
@@ -43,6 +43,19 @@ function source(relativePath) {
   const absolutePath = path.join(projectRoot, relativePath)
   assert.ok(existsSync(absolutePath), `Expected ${relativePath} to exist`)
   return readFileSync(absolutePath, "utf8")
+}
+
+function discoverSourceFiles(relativeRoot) {
+  const discovered = []
+  const visit = (relativeDirectory) => {
+    for (const entry of readdirSync(path.join(projectRoot, relativeDirectory), { withFileTypes: true })) {
+      const relativePath = path.join(relativeDirectory, entry.name)
+      if (entry.isDirectory()) visit(relativePath)
+      else if (/\.(?:ts|tsx)$/.test(entry.name)) discovered.push(relativePath.replaceAll("\\", "/"))
+    }
+  }
+  visit(relativeRoot)
+  return discovered
 }
 
 describe("RSC session snapshot proof boundary", () => {
@@ -96,6 +109,23 @@ describe("RSC session snapshot proof boundary", () => {
       assert.match(consumer, /from "@\/lib\/rsc-session"/)
       assert.doesNotMatch(consumer, /from "@\/auth"/)
     }
+
+    const renderSources = [
+      ...discoverSourceFiles("app"),
+      ...discoverSourceFiles("components"),
+    ]
+    const discoveredConsumers = renderSources.filter((relativePath) => (
+      /from "@\/lib\/rsc-session"/.test(source(relativePath))
+    ))
+    assert.deepEqual(discoveredConsumers.sort(), [...rscSessionConsumers].sort())
+
+    const unexpectedDirectAuthConsumers = renderSources.filter((relativePath) => {
+      if (!/from "@\/auth"/.test(source(relativePath))) return false
+      return !relativePath.startsWith("app/api/")
+        && !relativePath.endsWith("/actions.ts")
+        && !relativePath.includes("/actions/")
+    })
+    assert.deepEqual(unexpectedDirectAuthConsumers, [])
   })
 
   it("leaves mutation and route-handler authentication on the direct auth owner", () => {

@@ -58,10 +58,15 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
   and webhooks remain uncached. Verify explicit Checkout still validates the
   configured server Price and that display fallback never grants access or
   supplies payment authority.
-- Require the fresh combined one-worker Browser-QA gate to report 127 passed, 37 skipped, and zero failed for the exact candidate. The 37 private rows are
-  authorization-gated skips, not passes. Also require 178/178 focused Node
-  tests, Prisma validate/generate, typecheck, lint, both fresh builds, and diff
-  checks. The 2026-08-29 complete Windows Node receipt is not green: 3,613
+- Require the fresh combined one-worker Browser-QA gate to record its current
+  exact totals with zero failures and no skips except the documented
+  authorization-gated private rows; skips are never passes. Require the current
+  focused Node matrix to record its exact total with zero failures, plus Prisma
+  validate/generate, typecheck, lint, both fresh builds, and diff checks. The
+  2026-08-29 historical receipt was 127 Browser-QA passes with 37 documented
+  authorization-gated skips and 178/178 focused Node tests; those counts are
+  evidence for that candidate, not fixed totals for a future candidate. The
+  2026-08-29 complete Windows Node receipt is not green: 3,613
   passed, 10 established fixture/line-ending checks failed, and 3 intentionally
   skipped across 3,626 tests. Obtain hosted Linux evidence rather than changing
   those unrelated fixtures in this gate.

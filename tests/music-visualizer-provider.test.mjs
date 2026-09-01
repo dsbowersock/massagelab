@@ -70,6 +70,30 @@ describe("Music visualizer provider contract", () => {
     )
   })
 
+  it("ignores a deferred write completion after same-owner sync is disabled", async () => {
+    let resolveWrite
+    const write = new Promise((resolve) => {
+      resolveWrite = resolve
+    })
+    const currentOwner = { ownerKey: "owner-a", syncEnabled: true }
+    const completion = (async () => {
+      await write
+      return musicVisualizer.shouldApplyMusicVisualizerAccountWriteCompletion({
+        currentOwner,
+        currentRequestId: 7,
+        isMounted: true,
+        requestId: 7,
+        requestOwnerKey: "owner-a",
+      })
+    })()
+
+    currentOwner.syncEnabled = false
+    resolveWrite()
+
+    assert.equal(await completion, false)
+    assert.match(providerSource, /shouldApplyMusicVisualizerAccountWriteCompletion\(\{/)
+  })
+
   it("serializes active saves and collapses queued work to the latest snapshot", async () => {
     assert.equal(
       typeof accountPreferences.createSerializedPreferenceWriter,

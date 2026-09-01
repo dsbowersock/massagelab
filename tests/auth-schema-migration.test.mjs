@@ -138,6 +138,21 @@ describe("identity method safety persistence", () => {
     assert.match(identityWriterDrain, /read-only/i)
   })
 
+  it("requires complete migration integrity on both paused and unpaused deployment readbacks", () => {
+    const pausedReadback = releasePlan.match(
+      /\*\*Step 5: Prove the paused bridge[\s\S]*?(?=Read the current configured maximum invocation lifetime)/,
+    )?.[0] ?? ""
+    const unpausedReadback = releasePlan.match(
+      /\*\*Step 6: Deploy the unpaused bridge[\s\S]*?(?=Retain the bridge code)/,
+    )?.[0] ?? ""
+
+    for (const readback of [pausedReadback, unpausedReadback]) {
+      assert.match(readback, /all five reviewed migrations current in the required order/)
+      assert.match(readback, /every committed migration current/)
+      assert.match(readback, /zero unexpected or failed migrations/)
+    }
+  })
+
   it("registers privacy-safe preflight and dormant cleanup commands", () => {
     assert.match(cleanup, /AUTH_LEGACY_ATTEMPT_CLEANUP/)
     assert.match(cleanup, /LIMIT \$\{maxRows\}/)
