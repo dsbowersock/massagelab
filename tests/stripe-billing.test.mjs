@@ -3462,6 +3462,7 @@ describe("Stripe billing helpers", () => {
   it("fails donation idempotency validation before creating an uninjected Stripe client", async () => {
     await assert.rejects(
       createStripeDonationCheckoutSession(donationCheckoutOptions({
+        apiKey: "",
         idempotencyKey: "not-a-canonical-donation-key",
       })),
       /Donation Checkout idempotency key must use the canonical massagelab-donation-v1 UUID format\./,
