@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
-import { describe, it } from "node:test"
+import { afterEach, describe, it } from "node:test"
 
 import {
   createCompiledModuleLoader,
@@ -18,6 +18,11 @@ const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const panelUrl = new URL("../app/account/security/two-factor-management-panel.tsx", import.meta.url)
 const securityPanelUrl = new URL("../app/account/security/security-panel.tsx", import.meta.url)
 const recoveryUrl = new URL("../lib/two-factor-management-recovery.ts", import.meta.url)
+const harnessRestorations = []
+
+afterEach(() => {
+  for (const restore of harnessRestorations.splice(0).reverse()) restore()
+})
 
 function jsonResponse(status, body) {
   return {
@@ -31,9 +36,11 @@ async function createPanelHarness({
   twoFactorEnabled = false,
   hasPasswordCredential = true,
   googleLinked = false,
-  googlePrimaryProofReady = false,
+  googleReauthReturnHint = null,
   fetchImpl = async () => jsonResponse(500, {}),
-  signInImpl = async () => undefined,
+  signInImpl = async (_provider, options) => {
+    globalThis.window.location.href = String(options?.redirectTo ?? globalThis.window.location.href)
+  },
   signOutImpl = async () => undefined,
 } = {}) {
   assert.equal(existsSync(fileURLToPath(panelUrl)), true, "missing two-factor UI owner")
@@ -54,7 +61,7 @@ async function createPanelHarness({
     twoFactorEnabled,
     hasPasswordCredential,
     googleLinked,
-    googlePrimaryProofReady,
+    googleReauthReturnHint,
     pendingAction: null,
     beginAction(action) {
       if (actionLock !== null) return false
@@ -119,7 +126,19 @@ async function createPanelHarness({
   }
 
   const previousFetch = globalThis.fetch
+  const previousWindow = globalThis.window
   globalThis.fetch = trackedFetch
+  globalThis.window = { location: { href: "https://massagelab.test/account?tab=security" } }
+  let restored = false
+
+  function restore() {
+    if (restored) return
+    restored = true
+    globalThis.fetch = previousFetch
+    if (previousWindow === undefined) delete globalThis.window
+    else globalThis.window = previousWindow
+  }
+  harnessRestorations.push(restore)
 
   function render() {
     hooks.startRender()
@@ -152,7 +171,7 @@ async function createPanelHarness({
     focusEvents,
     get renderDuringSignOut() { return renderDuringSignOut },
     render,
-    restore() { globalThis.fetch = previousFetch },
+    restore,
   }
 }
 
@@ -188,7 +207,7 @@ describe("security method coordination", () => {
         twoFactorEnabled: false,
         hasPasswordCredential: false,
         googleLinked: true,
-        googlePrimaryProofReady: false,
+        googleReauthReturnHint: null,
       }))
       hooks.finishRender()
       return tree
@@ -230,20 +249,20 @@ describe("recoverable two-factor management UI", () => {
     assert.match(elementText(passwordTree), /Set up authenticator-app 2FA/)
     assert.ok(field(passwordTree, "setupPassword"))
     assert.ok(field(passwordTree, "setupConfirmed"))
-    assert.equal(button(passwordTree, "Confirm with Google"), null)
+    assert.equal(button(passwordTree, "Confirm with Google for setup"), null)
     passwordOnly.restore()
 
     const linked = await createPanelHarness({ googleLinked: true })
     const linkedText = elementText(linked.render())
     assert.match(linkedText, /Use your password/)
-    assert.match(linkedText, /Confirm with Google/)
+    assert.match(linkedText, /Confirm with Google for setup/)
     linked.restore()
 
     const googleOnly = await createPanelHarness({ hasPasswordCredential: false, googleLinked: true })
     const googleOnlyTree = googleOnly.render()
     assert.match(elementText(googleOnlyTree), /Add a password first/)
     assert.equal(actionForm(googleOnlyTree, "setup"), null)
-    assert.equal(button(googleOnlyTree, "Confirm with Google"), null)
+    assert.equal(button(googleOnlyTree, "Confirm with Google for setup"), null)
     googleOnly.restore()
 
     const legacyGoogle = await createPanelHarness({
@@ -255,7 +274,8 @@ describe("recoverable two-factor management UI", () => {
     assert.equal(actionForm(legacyTree, "setup"), null)
     assert.ok(actionForm(legacyTree, "disable"))
     assert.ok(actionForm(legacyTree, "backup-codes"))
-    assert.match(elementText(legacyTree), /Confirm with Google/)
+    assert.match(elementText(legacyTree), /Confirm with Google for backup codes/)
+    assert.match(elementText(legacyTree), /Confirm with Google to disable 2FA/)
     legacyGoogle.restore()
 
     const noPrimary = await createPanelHarness({
@@ -274,7 +294,7 @@ describe("recoverable two-factor management UI", () => {
   it("uses the exact display-only Google return without sending URL state as authorization", async () => {
     const harness = await createPanelHarness({
       googleLinked: true,
-      googlePrimaryProofReady: true,
+      googleReauthReturnHint: "ENROLL_TWO_FACTOR",
       fetchImpl: async () => jsonResponse(200, {
         code: "TWO_FACTOR_SETUP_READY",
         qrCode: "data:image/png;base64,qr-memory-only",
@@ -282,7 +302,7 @@ describe("recoverable two-factor management UI", () => {
       }),
     })
     let tree = harness.render()
-    assert.match(elementText(tree), /Google confirmation is ready/)
+    assert.match(elementText(tree), /Google confirmation return detected for authenticator setup/)
     change(field(tree, "setupConfirmed"), true, "checked")
     tree = harness.render()
     await submit(actionForm(tree, "setup"))
@@ -298,7 +318,7 @@ describe("recoverable two-factor management UI", () => {
     harness.restore()
   })
 
-  it("starts one bounded Google proof before the user chooses a two-factor operation", async () => {
+  it("starts a Google proof bound to the chosen two-factor operation", async () => {
     const harness = await createPanelHarness({
       googleLinked: true,
       fetchImpl: async () => jsonResponse(200, {
@@ -307,12 +327,12 @@ describe("recoverable two-factor management UI", () => {
       }),
     })
     const tree = harness.render()
-    await button(tree, "Confirm with Google").props.onClick()
+    await button(tree, "Confirm with Google for setup").props.onClick()
 
     assert.equal(harness.fetchCalls.length, 1)
     assert.equal(harness.fetchCalls[0].url, "/api/auth/google/intent")
     assert.equal(harness.fetchCalls[0].options.headers["content-type"], "application/json")
-    assert.deepEqual(JSON.parse(harness.fetchCalls[0].options.body), { purpose: "LINK_GOOGLE" })
+    assert.deepEqual(JSON.parse(harness.fetchCalls[0].options.body), { purpose: "ENROLL_TWO_FACTOR" })
     assert.deepEqual(harness.signInCalls, [["google", { redirectTo: "/account?tab=security" }]])
     const redirectingTree = harness.render()
     const pendingButton = button(redirectingTree, "Redirecting to Google…")
@@ -320,6 +340,28 @@ describe("recoverable two-factor management UI", () => {
     assert.equal(pendingButton.props.disabled, true)
     assert.doesNotMatch(elementText(redirectingTree), /Something went wrong\. Please try again\./)
     harness.restore()
+  })
+
+  it("releases the exact Google proof lock when signIn returns without navigation", async () => {
+    const harness = await createPanelHarness({
+      googleLinked: true,
+      fetchImpl: async () => jsonResponse(200, {
+        ok: true,
+        callbackUrl: "/account?tab=security",
+      }),
+      signInImpl: async () => undefined,
+    })
+
+    await button(harness.render(), "Confirm with Google for setup").props.onClick()
+    let tree = harness.render()
+    assert.match(elementText(tree), /Something went wrong\. Please try again\./)
+    assert.ok(button(tree, "Confirm with Google for setup"))
+
+    await button(tree, "Confirm with Google for setup").props.onClick()
+    tree = harness.render()
+    assert.equal(harness.fetchCalls.length, 2)
+    assert.equal(harness.signInCalls.length, 2)
+    assert.deepEqual(harness.focusEvents.map(({ target }) => target), ["google-proof", "google-proof"])
   })
 
   it("keeps enrollment secrets and backup codes in memory until acknowledgment, then signs out", async () => {
@@ -480,45 +522,79 @@ describe("recoverable two-factor management UI", () => {
     harness.restore()
   })
 
-  it("keeps destructive proofs isolated and offers explicit re-sign-in transitions", async () => {
-    const responses = [
-      jsonResponse(200, { code: "BACKUP_CODES_REGENERATED", backupCodes: ["rotation-code"] }),
-      jsonResponse(200, { code: "TWO_FACTOR_DISABLED" }),
-    ]
-    const harness = await createPanelHarness({
+  it("keeps destructive Google return hints isolated by action", async () => {
+    const regenerateHarness = await createPanelHarness({
       twoFactorEnabled: true,
       googleLinked: true,
-      googlePrimaryProofReady: true,
-      fetchImpl: async () => responses.shift(),
+      googleReauthReturnHint: "REGENERATE_TWO_FACTOR_BACKUP_CODES",
+      fetchImpl: async () => jsonResponse(200, { code: "BACKUP_CODES_REGENERATED", backupCodes: ["rotation-code"] }),
     })
-    let tree = harness.render()
+    let tree = regenerateHarness.render()
     change(field(tree, "regenerateTwoFactorCode"), "rotation-factor")
     change(field(tree, "regenerateConfirmed"), true, "checked")
-    await submit(actionForm(harness.render(), "backup-codes"))
+    await submit(actionForm(regenerateHarness.render(), "backup-codes"))
 
-    assert.deepEqual(JSON.parse(harness.fetchCalls[0].options.body), {
+    assert.deepEqual(JSON.parse(regenerateHarness.fetchCalls[0].options.body), {
       proofMethod: "GOOGLE",
       twoFactorCode: "rotation-factor",
       confirmed: true,
     })
-    assert.equal(harness.signOutCalls.length, 0)
+    assert.equal(field(regenerateHarness.render(), "disableProofGoogle").props.disabled, true)
 
-    tree = harness.render()
+    const disableHarness = await createPanelHarness({
+      twoFactorEnabled: true,
+      googleLinked: true,
+      googleReauthReturnHint: "DISABLE_TWO_FACTOR",
+      fetchImpl: async () => jsonResponse(200, { code: "TWO_FACTOR_DISABLED" }),
+    })
+    tree = disableHarness.render()
+    assert.equal(field(tree, "regenerateProofGoogle").props.disabled, true)
     change(field(tree, "disableTwoFactorCode"), "disable-factor")
     change(field(tree, "disableConfirmed"), true, "checked")
-    await submit(actionForm(harness.render(), "disable"))
+    await submit(actionForm(disableHarness.render(), "disable"))
 
-    assert.deepEqual(JSON.parse(harness.fetchCalls[1].options.body), {
+    assert.deepEqual(JSON.parse(disableHarness.fetchCalls[0].options.body), {
       proofMethod: "GOOGLE",
       twoFactorCode: "disable-factor",
       confirmed: true,
     })
-    tree = harness.render()
+    tree = disableHarness.render()
     assert.match(elementText(tree), /Two-factor authentication is disabled.*sign in again/is)
-    assert.equal(harness.signOutCalls.length, 0)
+    assert.equal(disableHarness.signOutCalls.length, 0)
     await button(tree, "Sign in again").props.onClick()
-    assert.deepEqual(harness.signOutCalls, [[{ redirectTo: "/login?security=two-factor-changed" }]])
-    harness.restore()
+    assert.deepEqual(disableHarness.signOutCalls, [[{ redirectTo: "/login?security=two-factor-changed" }]])
+  })
+
+  it("offers the same exact Google confirmation again after its private proof expires", async () => {
+    const harness = await createPanelHarness({
+      twoFactorEnabled: true,
+      hasPasswordCredential: false,
+      googleLinked: true,
+      googleReauthReturnHint: "DISABLE_TWO_FACTOR",
+      fetchImpl: async (url) => url === "/api/account/security/totp/disable"
+        ? jsonResponse(403, { code: "GOOGLE_PROOF_EXPIRED" })
+        : jsonResponse(200, { ok: true, callbackUrl: "/account?tab=security" }),
+    })
+    let tree = harness.render()
+    assert.equal(button(tree, "Confirm with Google to disable 2FA"), null)
+    assert.ok(button(tree, "Confirm with Google for backup codes"))
+    assert.equal(field(tree, "regenerateProofGoogle").props.disabled, true)
+
+    change(field(tree, "disableTwoFactorCode"), "expired-proof-factor")
+    change(field(tree, "disableConfirmed"), true, "checked")
+    await submit(actionForm(harness.render(), "disable"))
+    tree = harness.render()
+
+    assert.match(elementText(tree), /Google confirmation expired\. Confirm with Google again\./)
+    assert.ok(button(tree, "Confirm with Google to disable 2FA"))
+    assert.equal(field(tree, "regenerateProofGoogle").props.disabled, true)
+    assert.doesNotMatch(elementText(tree), /Google confirmation return detected/)
+
+    await button(tree, "Confirm with Google to disable 2FA").props.onClick()
+    assert.equal(harness.fetchCalls.length, 2)
+    assert.equal(harness.fetchCalls[1].url, "/api/auth/google/intent")
+    assert.deepEqual(JSON.parse(harness.fetchCalls[1].options.body), { purpose: "DISABLE_TWO_FACTOR" })
+    assert.deepEqual(harness.signInCalls, [["google", { redirectTo: "/account?tab=security" }]])
   })
 
   it("requires password, current factor, and separate confirmation for password-only management", async () => {

@@ -243,7 +243,7 @@ export async function startTwoFactorEnrollment(
     const intent = await client.authMethodIntent.findUnique({
       where: { id: input.primaryProof.intentId },
     })
-    if (!deps.isFreshConsumedGoogleReauth(intent, "LINK_GOOGLE", preflight.id, now)) {
+    if (!deps.isFreshConsumedGoogleReauth(intent, "ENROLL_TWO_FACTOR", preflight.id, now)) {
       return rejected("GOOGLE_PROOF_EXPIRED")
     }
     if (!googleAccountMatchesIntent(preflight, intent)) return rejected("PRIMARY_PROOF_INVALID")
@@ -280,7 +280,7 @@ export async function startTwoFactorEnrollment(
       if (googleIntent) {
         const currentIntent = await tx.authMethodIntent.findUnique({ where: { id: googleIntent.id } })
         if (
-          !deps.isFreshConsumedGoogleReauth(currentIntent, "LINK_GOOGLE", current.id, now)
+          !deps.isFreshConsumedGoogleReauth(currentIntent, "ENROLL_TWO_FACTOR", current.id, now)
           || !googleAccountMatchesIntent(current, currentIntent)
           || !await deps.consumeFreshGoogleReauth(tx, currentIntent, now)
         ) {
@@ -514,6 +514,9 @@ async function manageEnabledTwoFactor(
 
   const client = input.prismaClient ?? prisma
   const deps = { ...defaultDependencies, ...input.dependencies }
+  const googlePurpose = action === "DISABLE"
+    ? "DISABLE_TWO_FACTOR" as const
+    : "REGENERATE_TWO_FACTOR_BACKUP_CODES" as const
   let authSecret: string
   try {
     authSecret = getAuthSecret()
@@ -563,7 +566,7 @@ async function manageEnabledTwoFactor(
   } else {
     if (!hasLinkedGoogle(preflight)) return rejected("PRIMARY_PROOF_INVALID")
     const intent = await client.authMethodIntent.findUnique({ where: { id: input.primaryProof.intentId } })
-    if (!deps.isFreshConsumedGoogleReauth(intent, "LINK_GOOGLE", preflight.id, now)) {
+    if (!deps.isFreshConsumedGoogleReauth(intent, googlePurpose, preflight.id, now)) {
       return rejected("GOOGLE_PROOF_EXPIRED")
     }
     if (!googleAccountMatchesIntent(preflight, intent)) return rejected("PRIMARY_PROOF_INVALID")
@@ -624,7 +627,7 @@ async function manageEnabledTwoFactor(
       if (googleIntent) {
         const currentIntent = await tx.authMethodIntent.findUnique({ where: { id: googleIntent.id } })
         if (
-          !deps.isFreshConsumedGoogleReauth(currentIntent, "LINK_GOOGLE", current.id, now)
+          !deps.isFreshConsumedGoogleReauth(currentIntent, googlePurpose, current.id, now)
           || !googleAccountMatchesIntent(current, currentIntent)
         ) {
           throw new EnrollmentConflict()

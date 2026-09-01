@@ -10,6 +10,7 @@ import { consumeGoogleIntentStartRateLimit } from "@/lib/auth-rate-limit"
 import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 import {
   AUTH_METHOD_INTENT_COOKIE,
+  isSessionBoundGoogleIntentPurpose,
   serializeAuthMethodIntentBinding,
   startAuthMethodIntent,
   type GoogleIntentPurpose,
@@ -30,8 +31,8 @@ type IntentHandlerDependencies = {
 }
 
 /**
- * Keeps rate limiting ahead of intent persistence while requiring the reserved
- * LINK_GOOGLE security proof to cross the same-origin JSON boundary first.
+ * Keeps rate limiting ahead of intent persistence while requiring every
+ * session-bound security proof to cross the same-origin JSON boundary first.
  */
 export function createGoogleIntentHandler({
   prismaClient,
@@ -52,6 +53,7 @@ export function createGoogleIntentHandler({
       })
     }
     const { body, purpose } = parsed
+    const sessionBound = isSessionBoundGoogleIntentPurpose(purpose)
 
     const now = clock()
     const decision = await consumeLimit({
@@ -66,7 +68,7 @@ export function createGoogleIntentHandler({
         {
           status: 429,
           headers: {
-            ...(purpose === "LINK_GOOGLE" ? noStoreJsonHeaders() : {}),
+            ...(sessionBound ? noStoreJsonHeaders() : {}),
             "Retry-After": String(decision.retryAfterSeconds),
           },
         },
@@ -83,7 +85,7 @@ export function createGoogleIntentHandler({
       if (!targetUserId) {
         return NextResponse.json({ ok: false }, {
           status: 401,
-          headers: purpose === "LINK_GOOGLE" ? noStoreJsonHeaders() : undefined,
+          headers: sessionBound ? noStoreJsonHeaders() : undefined,
         })
       }
       // Security proofs always return to their owning surface, irrespective of
@@ -91,10 +93,17 @@ export function createGoogleIntentHandler({
       callbackUrl = "/account?tab=security"
     }
 
-    const intent = await startIntent({ prismaClient, purpose, targetUserId, secret, now })
+    const intent = await startIntent({
+      prismaClient,
+      purpose,
+      targetUserId,
+      callbackPath: purpose === "SIGN_IN_OR_LINK" ? callbackUrl : null,
+      secret,
+      now,
+    })
     const response = NextResponse.json(
       { ok: true, callbackUrl },
-      purpose === "LINK_GOOGLE" ? { headers: noStoreJsonHeaders() } : undefined,
+      sessionBound ? { headers: noStoreJsonHeaders() } : undefined,
     )
     response.cookies.set(
       AUTH_METHOD_INTENT_COOKIE,
@@ -126,7 +135,7 @@ async function parseGoogleIntentRequest({
 
   const purpose = googleIntentPurpose(bounded.body.purpose)
   if (!purpose) return { ok: false, code: "INVALID_REQUEST" }
-  if (purpose !== "LINK_GOOGLE") return { ok: true, body: bounded.body, purpose }
+  if (!isSessionBoundGoogleIntentPurpose(purpose)) return { ok: true, body: bounded.body, purpose }
 
   const trusted = validateTrustedAccountSecurityJson({
     request,
@@ -135,12 +144,12 @@ async function parseGoogleIntentRequest({
     allowedKeys: ["purpose"],
   })
   if (!trusted.ok) return trusted
-  if (trusted.body.purpose !== "LINK_GOOGLE") return { ok: false, code: "INVALID_REQUEST" }
+  if (trusted.body.purpose !== purpose) return { ok: false, code: "INVALID_REQUEST" }
   return { ok: true, body: trusted.body, purpose }
 }
 
 function googleIntentPurpose(value: unknown): GoogleIntentPurpose | null {
-  return value === "SIGN_IN_OR_LINK" || value === "LINK_GOOGLE" || value === "ADD_PASSWORD" || value === "REMOVE_PASSWORD"
+  return value === "SIGN_IN_OR_LINK" || isSessionBoundGoogleIntentPurpose(value)
     ? value
     : null
 }

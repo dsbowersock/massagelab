@@ -384,8 +384,8 @@ test.describe("private identity-method journeys", () => {
       scenario: "BOTH_METHODS",
     })
     const requests = await mockTwoFactorEnrollment(page)
-    await page.goto("/account?tab=security&reauth=two-factor", { waitUntil: "domcontentloaded" })
-    await expect(page.getByText(/Google confirmation is ready/i)).toBeVisible()
+    await page.goto("/account?tab=security&reauth=two-factor-enroll", { waitUntil: "domcontentloaded" })
+    await expect(page.getByText(/Google confirmation return detected for authenticator setup/i)).toBeVisible()
     await page.getByLabel("Confirm two-factor setup").check()
     await page.getByRole("button", { name: "Start two-factor setup" }).click()
     await expect(page.getByText("BROWSER-MANUAL-CODE")).toBeVisible()

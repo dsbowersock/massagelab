@@ -13,6 +13,14 @@ import { buildRegistrationLegalProviderRedirectPath } from "../lib/legal-accepta
 import { isGoogleIdentityUniqueConstraint } from "../lib/prisma-identity-unique-constraint.ts"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const SESSION_BOUND_PURPOSES = [
+  "LINK_GOOGLE",
+  "ADD_PASSWORD",
+  "REMOVE_PASSWORD",
+  "ENROLL_TWO_FACTOR",
+  "DISABLE_TWO_FACTOR",
+  "REGENERATE_TWO_FACTOR_BACKUP_CODES",
+]
 
 async function loadService({
   provisionCredits = async () => ({ balance: 2, granted: true }),
@@ -25,6 +33,7 @@ async function loadService({
     "@/lib/auth-users": { ensureUserRole: async () => "USER" },
     "@/lib/commerce/credit-service": { ensureVerifiedUserBackgroundCredits: provisionCredits },
     "@/lib/commerce/transactions": { runCommerceTransaction },
+    "@/lib/legal-acceptance-gate": { buildRegistrationLegalProviderRedirectPath },
     "@/lib/normalized-user-email": {
       resolveNormalizedUserId: async ({ prismaClient, email }) => prismaClient.resolveNormalizedUserId(email),
     },
@@ -90,6 +99,30 @@ describe("private Google auth-method intents", () => {
 
     assert.equal(started.intentId, "intent-1")
     assert.equal(db.state.intents.length, 1)
+  })
+
+  it("persists only a rebuilt, bounded registration callback path", async () => {
+    const service = await loadService()
+
+    for (const [label, callbackPath] of [
+      ["absolute URL", "https://attacker.example/steal"],
+      ["oversized path", `/${"a".repeat(3_000)}`],
+    ]) {
+      const db = createIntentDatabase()
+      const started = await service.startAuthMethodIntent({
+        prismaClient: db,
+        purpose: "SIGN_IN_OR_LINK",
+        callbackPath,
+        secret: "intent-test-secret",
+        now: new Date("2026-08-28T12:00:00.000Z"),
+      })
+      assert.equal(
+        db.intent(started.intentId).callbackPath,
+        "/legal/accept?callbackUrl=%2Fonboarding",
+        label,
+      )
+      assert.ok(db.intent(started.intentId).callbackPath.length <= 2048, label)
+    }
   })
 
   it("prunes expired intents without deleting fresh consumed security reauthentication", async () => {
@@ -179,7 +212,7 @@ describe("private Google auth-method intents", () => {
 
   it("requires target users for account-security purposes", async () => {
     const service = await loadService()
-    for (const purpose of ["LINK_GOOGLE", "ADD_PASSWORD", "REMOVE_PASSWORD"]) {
+    for (const purpose of SESSION_BOUND_PURPOSES) {
       await assert.rejects(
         service.startAuthMethodIntent({ prismaClient: createIntentDatabase(), purpose, secret: "intent-test-secret" }),
         /target user/i,
@@ -257,7 +290,7 @@ describe("private Google auth-method intents", () => {
         providerAccountId: "existing-google-sub",
       }],
     })
-    const intent = await start(service, db)
+    const intent = await start(service, db, "SIGN_IN_OR_LINK", undefined, "/clock?panel=background")
 
     const result = await service.prepareGoogleAuthentication(
       googleInput(db, "existing@example.com", "existing-google-sub", intent),
@@ -273,7 +306,7 @@ describe("private Google auth-method intents", () => {
     const db = createIntentDatabase({
       users: [{ id: "password-user", email: " Family@Example.com ", emailVerified: new Date() }],
     })
-    const intent = await start(service, db)
+    const intent = await start(service, db, "SIGN_IN_OR_LINK", undefined, "/clock?panel=background")
 
     const result = await service.prepareGoogleAuthentication(
       googleInput(db, "family@example.com", "new-google-sub", intent),
@@ -296,7 +329,7 @@ describe("private Google auth-method intents", () => {
       },
     })
     const db = createIntentDatabase()
-    const intent = await start(service, db)
+    const intent = await start(service, db, "SIGN_IN_OR_LINK", undefined, "/clock?panel=background")
 
     const result = await service.prepareGoogleAuthentication({
       ...googleInput(db, "brand-new@example.com", "brand-new-google-sub", intent),
@@ -306,7 +339,10 @@ describe("private Google auth-method intents", () => {
       },
     })
 
-    assert.deepEqual(result, { kind: "REGISTRATION_PAUSED" })
+    assert.deepEqual(result, {
+      kind: "REGISTRATION_PAUSED",
+      callbackPath: "/legal/accept?callbackUrl=%2Fclock%3Fpanel%3Dbackground",
+    })
     assert.equal(db.state.users.length, 0)
     assert.equal(db.state.accounts.length, 0)
     assert.equal(db.intent(intent.intentId).status, "PENDING")
@@ -696,19 +732,51 @@ describe("private Google auth-method intents", () => {
       ok: true,
       callbackUrl: "/legal/accept?callbackUrl=%2Fclock%3Fpanel%3Dbackground",
     })
+    assert.equal(started[0].callbackPath, "/legal/accept?callbackUrl=%2Fclock%3Fpanel%3Dbackground")
 
-    for (const purpose of ["LINK_GOOGLE", "ADD_PASSWORD", "REMOVE_PASSWORD"]) {
-      const response = await handler(intentRequest(
-        purpose === "LINK_GOOGLE"
-          ? { purpose }
-          : { purpose, callbackUrl: "https://evil.example/steal" },
-      ))
+    for (const purpose of SESSION_BOUND_PURPOSES) {
+      const response = await handler(intentRequest({ purpose }))
       assert.deepEqual(await response.json(), { ok: true, callbackUrl: "/account?tab=security" })
       assert.equal(started.at(-1).targetUserId, "user-1")
+      assert.equal(started.at(-1).callbackPath, null)
     }
   })
 
-  it("rejects untrusted, non-JSON, and unknown-key LINK_GOOGLE starts before limiter, session, or intent work", async () => {
+  it("marks every session-bound success, authentication failure, and rate limit private no-store", async () => {
+    const { createGoogleIntentHandler } = await loadIntentRoute()
+
+    for (const purpose of SESSION_BOUND_PURPOSES) {
+      const success = await createGoogleIntentHandler({
+        prismaClient: {},
+        secret: "intent-test-secret",
+        getSession: async () => ({ user: { id: "user-1" } }),
+        consumeLimit: async () => ({ allowed: true }),
+        startIntent: async () => ({ intentId: "intent-1", browserBindingToken: "a".repeat(43), expiresAt: new Date() }),
+      })(intentRequest({ purpose }))
+      const unauthenticated = await createGoogleIntentHandler({
+        prismaClient: {},
+        secret: "intent-test-secret",
+        getSession: async () => null,
+        consumeLimit: async () => ({ allowed: true }),
+      })(intentRequest({ purpose }))
+      const limited = await createGoogleIntentHandler({
+        prismaClient: {},
+        secret: "intent-test-secret",
+        getSession: async () => ({ user: { id: "user-1" } }),
+        consumeLimit: async () => ({ allowed: false, retryAfterSeconds: 73 }),
+      })(intentRequest({ purpose }))
+
+      assert.equal(success.status, 200, purpose)
+      assert.equal(unauthenticated.status, 401, purpose)
+      assert.equal(limited.status, 429, purpose)
+      for (const response of [success, unauthenticated, limited]) {
+        assert.equal(response.headers.get("Cache-Control"), "private, no-store", purpose)
+        assert.equal(response.headers.get("Pragma"), "no-cache", purpose)
+      }
+    }
+  })
+
+  it("rejects untrusted, non-JSON, and unknown-key session-bound starts before limiter, session, or intent work", async () => {
     const { createGoogleIntentHandler } = await loadIntentRoute()
     const calls = { limit: 0, session: 0, intent: 0 }
     const handler = createGoogleIntentHandler({
@@ -723,22 +791,25 @@ describe("private Google auth-method intents", () => {
       },
     })
 
-    const rejected = [
-      intentRequest({ purpose: "LINK_GOOGLE" }, { origin: null }),
-      intentRequest({ purpose: "LINK_GOOGLE" }, { origin: "https://attacker.example" }),
-      intentRequest({ purpose: "LINK_GOOGLE" }, { contentType: "text/plain" }),
-      intentRequest({ purpose: "LINK_GOOGLE", callbackUrl: "/account" }),
-    ]
-    for (const request of rejected) {
-      const response = await handler(request)
-      assert.ok(response.status === 400 || response.status === 403)
-      assert.equal(response.headers.get("Cache-Control"), "private, no-store")
-      assert.equal(response.headers.get("Pragma"), "no-cache")
+    for (const purpose of SESSION_BOUND_PURPOSES) {
+      const rejected = [
+        intentRequest({ purpose }, { origin: null }),
+        intentRequest({ purpose }, { origin: "https://attacker.example" }),
+        intentRequest({ purpose }, { fetchSite: "cross-site" }),
+        intentRequest({ purpose }, { contentType: "text/plain" }),
+        intentRequest({ purpose, callbackUrl: "/account" }),
+      ]
+      for (const request of rejected) {
+        const response = await handler(request)
+        assert.ok(response.status === 400 || response.status === 403, purpose)
+        assert.equal(response.headers.get("Cache-Control"), "private, no-store", purpose)
+        assert.equal(response.headers.get("Pragma"), "no-cache", purpose)
+      }
     }
     assert.deepEqual(calls, { limit: 0, session: 0, intent: 0 })
   })
 
-  it("rejects an oversized streaming LINK_GOOGLE body before limiter, session, or intent work", { timeout: 2_000 }, async () => {
+  it("rejects oversized streaming session-bound bodies before limiter, session, or intent work", { timeout: 2_000 }, async () => {
     const { createGoogleIntentHandler } = await loadIntentRoute()
     const calls = { limit: 0, session: 0, intent: 0 }
     const handler = createGoogleIntentHandler({
@@ -753,20 +824,22 @@ describe("private Google auth-method intents", () => {
       },
     })
 
-    const response = await settlesWithin(
-      handler(oversizedStreamingIntentRequest()),
-      500,
-      "oversized LINK_GOOGLE request did not settle",
-    )
+    for (const purpose of SESSION_BOUND_PURPOSES) {
+      const response = await settlesWithin(
+        handler(oversizedStreamingIntentRequest(purpose)),
+        500,
+        `oversized ${purpose} request did not settle`,
+      )
 
-    assert.equal(response.status, 400)
-    assert.equal(response.headers.get("Cache-Control"), "private, no-store")
-    assert.equal(response.headers.get("Pragma"), "no-cache")
-    assert.deepEqual(await response.json(), { ok: false })
+      assert.equal(response.status, 400, purpose)
+      assert.equal(response.headers.get("Cache-Control"), "private, no-store", purpose)
+      assert.equal(response.headers.get("Pragma"), "no-cache", purpose)
+      assert.deepEqual(await response.json(), { ok: false }, purpose)
+    }
     assert.deepEqual(calls, { limit: 0, session: 0, intent: 0 })
   })
 
-  it("preserves provenance-optional starts for SIGN_IN_OR_LINK, ADD_PASSWORD, and REMOVE_PASSWORD", async () => {
+  it("keeps only public SIGN_IN_OR_LINK provenance-optional", async () => {
     const { createGoogleIntentHandler } = await loadIntentRoute()
     const started = []
     const handler = createGoogleIntentHandler({
@@ -781,14 +854,12 @@ describe("private Google auth-method intents", () => {
       },
     })
 
-    for (const purpose of ["SIGN_IN_OR_LINK", "ADD_PASSWORD", "REMOVE_PASSWORD"]) {
-      const response = await handler(intentRequest(
-        { purpose, callbackUrl: "/wellness" },
-        { origin: null, fetchSite: null },
-      ))
-      assert.equal(response.status, 200, purpose)
-    }
-    assert.deepEqual(started.map(({ purpose }) => purpose), ["SIGN_IN_OR_LINK", "ADD_PASSWORD", "REMOVE_PASSWORD"])
+    const response = await handler(intentRequest(
+      { purpose: "SIGN_IN_OR_LINK", callbackUrl: "/wellness" },
+      { origin: null, fetchSite: null },
+    ))
+    assert.equal(response.status, 200)
+    assert.deepEqual(started.map(({ purpose }) => purpose), ["SIGN_IN_OR_LINK"])
   })
 })
 
@@ -810,6 +881,7 @@ async function loadIntentRoute() {
     "@/lib/auth-request": { authRequestNetworkIdentifier: () => "203.0.113.8" },
     "@/lib/auth-method-intents": {
       AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
+      isSessionBoundGoogleIntentPurpose: (value) => SESSION_BOUND_PURPOSES.includes(value),
       serializeAuthMethodIntentBinding: (id, token) => `${id}.${token}`,
       startAuthMethodIntent: async () => ({ intentId: "default-intent", browserBindingToken: "a".repeat(43), expiresAt: new Date() }),
     },
@@ -847,11 +919,11 @@ function intentRequest(body, {
   })
 }
 
-function oversizedStreamingIntentRequest() {
+function oversizedStreamingIntentRequest(purpose = "LINK_GOOGLE") {
   const body = new ReadableStream({
     start(controller) {
       controller.enqueue(new TextEncoder().encode(JSON.stringify({
-        purpose: "LINK_GOOGLE",
+        purpose,
         padding: "x".repeat(5_000),
       })))
     },
@@ -882,11 +954,12 @@ async function settlesWithin(promise, timeoutMs, message) {
   }
 }
 
-async function start(service, db, purpose = "SIGN_IN_OR_LINK", targetUserId) {
+async function start(service, db, purpose = "SIGN_IN_OR_LINK", targetUserId, callbackPath) {
   return service.startAuthMethodIntent({
     prismaClient: db,
     purpose,
     targetUserId,
+    callbackPath,
     secret: "intent-test-secret",
     now: new Date("2026-08-28T12:00:00.000Z"),
   })

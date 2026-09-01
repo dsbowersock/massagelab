@@ -3,6 +3,10 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import * as enrollmentBinding from "../lib/two-factor-enrollment-binding.ts"
+import {
+  consumeFreshGoogleReauth,
+  isFreshConsumedGoogleReauth,
+} from "../lib/auth-method-intent-proof.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const NOW = new Date("2026-08-29T12:00:00.000Z")
@@ -17,24 +21,28 @@ const googleManagementScenarios = [
   {
     label: "linked Google disable",
     operation: "DISABLE",
+    purpose: "DISABLE_TWO_FACTOR",
     passwordEnabled: true,
     twoFactorCode: "123456",
   },
   {
     label: "Google-only legacy regenerate",
     operation: "REGENERATE",
+    purpose: "REGENERATE_TWO_FACTOR_BACKUP_CODES",
     passwordEnabled: false,
     twoFactorCode: "BACKUP-CURRENT",
   },
   {
     label: "linked Google regenerate",
     operation: "REGENERATE",
+    purpose: "REGENERATE_TWO_FACTOR_BACKUP_CODES",
     passwordEnabled: true,
     twoFactorCode: "123456",
   },
   {
     label: "Google-only legacy disable",
     operation: "DISABLE",
+    purpose: "DISABLE_TWO_FACTOR",
     passwordEnabled: false,
     twoFactorCode: "BACKUP-CURRENT",
   },
@@ -48,8 +56,8 @@ const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const service = loadCompiledModule(source, "account-two-factor-management.test.ts", {
   "@/lib/auth-env": { getAuthSecret: () => AUTH_SECRET },
   "@/lib/auth-method-intent-proof": {
-    isFreshConsumedGoogleReauth: defaultIsFreshGoogleProof,
-    consumeFreshGoogleReauth: defaultConsumeGoogleProof,
+    isFreshConsumedGoogleReauth,
+    consumeFreshGoogleReauth: consumeGoogleProofWithFailureHooks,
   },
   "@/lib/auth-method-proof": {
     verifyPasswordMethodProof: async () => ({ status: "INVALID" }),
@@ -462,7 +470,11 @@ describe("dual-proof destructive two-factor management", () => {
       const googleDatabase = createDatabase({
         enabled: true,
         googleLinked: true,
-        googleIntent: freshGoogleIntent(),
+        googleIntent: freshGoogleIntent({
+          purpose: operation === service.disableTwoFactor
+            ? "DISABLE_TWO_FACTOR"
+            : "REGENERATE_TWO_FACTOR_BACKUP_CODES",
+        }),
       })
       assert.deepEqual(await operation(manageInput(googleDatabase, {
         primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
@@ -515,7 +527,7 @@ describe("dual-proof destructive two-factor management", () => {
         enabled: true,
         passwordEnabled: scenario.passwordEnabled,
         googleLinked: true,
-        googleIntent: freshGoogleIntent(),
+        googleIntent: freshGoogleIntent({ purpose: scenario.purpose }),
       })
       const secretBefore = structuredClone(database.secret)
       const operation = scenario.operation === "DISABLE"
@@ -549,6 +561,65 @@ describe("dual-proof destructive two-factor management", () => {
       assert.equal(database.user.authSessionVersion, 8, scenario.label)
       assert.equal(database.sessions.length, 0, scenario.label)
       assert.equal(database.committedSessionDeletes, 1, scenario.label)
+    }
+  })
+
+  it("accepts each two-factor Google proof only for its exact action", async () => {
+    const operations = [
+      {
+        purpose: "ENROLL_TWO_FACTOR",
+        createDatabase: (proofPurpose) => createDatabase({
+          googleLinked: true,
+          googleIntent: freshGoogleIntent({ purpose: proofPurpose }),
+        }),
+        run: (database) => start(database, {
+          primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
+        }),
+        successStatus: "SETUP_READY",
+      },
+      {
+        purpose: "DISABLE_TWO_FACTOR",
+        createDatabase: (proofPurpose) => createDatabase({
+          enabled: true,
+          googleLinked: true,
+          googleIntent: freshGoogleIntent({ purpose: proofPurpose }),
+        }),
+        run: (database) => service.disableTwoFactor(manageInput(database, {
+          primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
+        })),
+        successStatus: "DISABLED",
+      },
+      {
+        purpose: "REGENERATE_TWO_FACTOR_BACKUP_CODES",
+        createDatabase: (proofPurpose) => createDatabase({
+          enabled: true,
+          googleLinked: true,
+          googleIntent: freshGoogleIntent({ purpose: proofPurpose }),
+        }),
+        run: (database) => service.regenerateBackupCodes(manageInput(database, {
+          primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
+        })),
+        successStatus: "BACKUP_CODES_REGENERATED",
+      },
+    ]
+
+    for (const operation of operations) {
+      for (const proofPurpose of operations.map(({ purpose }) => purpose)) {
+        const database = operation.createDatabase(proofPurpose)
+        const before = database.snapshot()
+        const result = await operation.run(database)
+        if (proofPurpose === operation.purpose) {
+          assert.equal(result.status, operation.successStatus, `${proofPurpose} -> ${operation.purpose}`)
+          assert.equal(database.intent.providerProvenAt, null, operation.purpose)
+        } else {
+          assert.deepEqual(
+            result,
+            { status: "REJECTED", code: "GOOGLE_PROOF_EXPIRED" },
+            `${proofPurpose} must not authorize ${operation.purpose}`,
+          )
+          assert.deepEqual(database.snapshot(), before, `${proofPurpose} -> ${operation.purpose}`)
+        }
+      }
     }
   })
 
@@ -621,12 +692,26 @@ describe("dual-proof destructive two-factor management", () => {
         dependencies: dependencies({ database, ...dependencyFactory(database) }),
       }))
       assert.deepEqual(result, { status: "REJECTED", code: "CONFLICT" }, label)
-      assert.deepEqual(database.secret, label === "replaced secret" ? database.secret : secretBefore, label)
+      assert.deepEqual(
+        database.secret,
+        label === "replaced secret"
+          ? {
+              ...secretBefore,
+              encryptedSecret: "replacement-secret",
+              updatedAt: new Date(secretBefore.updatedAt.getTime() + 1),
+            }
+          : secretBefore,
+        label,
+      )
       if (label !== "used backup") assert.deepEqual(database.backups, backupsBefore, label)
       assert.deepEqual(database.sessions, sessionsBefore, label)
     }
 
-    const google = createDatabase({ enabled: true, googleLinked: true, googleIntent: freshGoogleIntent() })
+    const google = createDatabase({
+      enabled: true,
+      googleLinked: true,
+      googleIntent: freshGoogleIntent({ purpose: "DISABLE_TWO_FACTOR" }),
+    })
     const googleBefore = google.snapshot()
     const result = await service.disableTwoFactor(manageInput(google, {
       primaryProof: { kind: "GOOGLE", intentId: "intent-1" },
@@ -667,7 +752,11 @@ describe("dual-proof destructive two-factor management", () => {
         const database = createDatabase({
           enabled: true,
           googleLinked: true,
-          googleIntent: freshGoogleIntent(),
+          googleIntent: freshGoogleIntent({
+            purpose: operationName === "disable"
+              ? "DISABLE_TWO_FACTOR"
+              : "REGENERATE_TWO_FACTOR_BACKUP_CODES",
+          }),
         })
         const before = database.snapshot()
         database.failPoint = failurePoint
@@ -690,7 +779,9 @@ describe("dual-proof destructive two-factor management", () => {
       const input = manageInput(database)
       const results = await Promise.all([operation(input), operation(input)])
       assert.equal(results.filter((result) => result.status === successStatus).length, 1)
-      assert.equal(results.filter((result) => result.status === "REJECTED").length, 1)
+      assert.deepEqual(results.filter((result) => result.status === "REJECTED"), [
+        { status: "REJECTED", code: "CONFLICT" },
+      ])
       assert.equal(database.user.authSessionVersion, 8)
       assert.equal(database.sessions.length, 0)
       assert.equal(database.committedSessionDeletes, 1)
@@ -758,8 +849,8 @@ function dependencies(overrides = {}) {
         backupCodeConsumed: false,
       }
     },
-    isFreshConsumedGoogleReauth: defaultIsFreshGoogleProof,
-    consumeFreshGoogleReauth: defaultConsumeGoogleProof,
+    isFreshConsumedGoogleReauth,
+    consumeFreshGoogleReauth: consumeGoogleProofWithFailureHooks,
     generateTotpSecret: overrides.generateTotpSecret ?? (() => {
       overrides.database?.events.push("generate-secret")
       if (overrides.throwAt === "generate-secret") throw new Error("generation failed")
@@ -882,7 +973,7 @@ function freshGoogleIntent(overrides = {}) {
   return {
     id: "intent-1",
     targetUserId: "user-1",
-    purpose: "LINK_GOOGLE",
+    purpose: "ENROLL_TWO_FACTOR",
     status: "CONSUMED",
     provider: "google",
     providerAccountId: "google-subject-1",
@@ -892,35 +983,13 @@ function freshGoogleIntent(overrides = {}) {
   }
 }
 
-function defaultIsFreshGoogleProof(intent, purpose, userId, now) {
-  return Boolean(intent
-    && intent.targetUserId === userId
-    && intent.purpose === purpose
-    && intent.status === "CONSUMED"
-    && intent.provider === "google"
-    && intent.providerProvenAt instanceof Date
-    && now.getTime() - intent.providerProvenAt.getTime() >= 0
-    && now.getTime() - intent.providerProvenAt.getTime() <= 5 * 60_000
-    && intent.expiresAt > now)
-}
-
-async function defaultConsumeGoogleProof(tx, intent, now) {
-  const result = await tx.authMethodIntent.updateMany({
-    where: {
-      id: intent.id,
-      targetUserId: intent.targetUserId,
-      purpose: intent.purpose,
-      status: intent.status,
-      provider: intent.provider,
-      providerAccountId: intent.providerAccountId,
-      providerProvenAt: intent.providerProvenAt,
-      expiresAt: { gt: now },
-    },
-    data: { providerProvenAt: null },
-  })
-  tx.__database.events.push("consume-google")
-  maybeFail(tx.__database, "after-google-consume")
-  return result.count === 1
+async function consumeGoogleProofWithFailureHooks(tx, intent, now) {
+  const consumed = await consumeFreshGoogleReauth(tx, intent, now)
+  if (consumed) {
+    tx.__database.events.push("consume-google")
+    maybeFail(tx.__database, "after-google-consume")
+  }
+  return consumed
 }
 
 function createDatabase({

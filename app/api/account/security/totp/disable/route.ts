@@ -70,7 +70,7 @@ export function createTwoFactorDisableHandler({
         intent = await resolveIntent({
           prismaClient,
           cookieValue: readCookie(request, AUTH_METHOD_INTENT_COOKIE),
-          purpose: "LINK_GOOGLE",
+          purpose: "DISABLE_TWO_FACTOR",
           status: "CONSUMED",
           secret,
           now,

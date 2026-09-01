@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { buildRegistrationLegalProviderRedirectPath } from "../lib/legal-acceptance-gate.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
@@ -64,6 +65,7 @@ describe("Google callback safety seam", () => {
       "@/lib/auth-users": { ensureGoogleUserState: async () => {}, ensureUserRole: async () => {}, getUserAuthState: async () => ({}) },
       "@/lib/auth-session-version": { decideAuthSessionVersion: () => ({ accepted: false }) },
       "@/lib/auth-security": { normalizeEmail: (value) => String(value ?? "").trim().toLowerCase() },
+      "@/lib/legal-acceptance-gate": { buildRegistrationLegalProviderRedirectPath },
     })
 
     const google = { account: { provider: "google", providerAccountId: "sub-a" }, profile: { email_verified: true } }
@@ -80,10 +82,24 @@ describe("Google callback safety seam", () => {
     assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&auth=google-retry")
     decision = { kind: "LINK_REQUIRED", userId: "user-1" }
     assert.equal(await capturedConfig.callbacks.signIn(google), "/account/link-google")
-    decision = { kind: "REGISTRATION_PAUSED" }
-    assert.equal(await capturedConfig.callbacks.signIn(google), "/register")
+    decision = {
+      kind: "REGISTRATION_PAUSED",
+      callbackPath: "/legal/accept?callbackUrl=%2Fclock%3Fpanel%3Dbackground",
+    }
+    assert.equal(
+      await capturedConfig.callbacks.signIn(google),
+      "/register?callbackUrl=%2Flegal%2Faccept%3FcallbackUrl%3D%252Fclock%253Fpanel%253Dbackground",
+    )
     decision = { kind: "REAUTH_COMPLETE", purpose: "LINK_GOOGLE", userId: "user-1" }
-    assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&reauth=two-factor")
+    assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&reauth=complete")
+    for (const [purpose, path] of [
+      ["ENROLL_TWO_FACTOR", "/account?tab=security&reauth=two-factor-enroll"],
+      ["DISABLE_TWO_FACTOR", "/account?tab=security&reauth=two-factor-disable"],
+      ["REGENERATE_TWO_FACTOR_BACKUP_CODES", "/account?tab=security&reauth=two-factor-backup-codes"],
+    ]) {
+      decision = { kind: "REAUTH_COMPLETE", purpose, userId: "user-1" }
+      assert.equal(await capturedConfig.callbacks.signIn(google), path)
+    }
     for (const purpose of ["ADD_PASSWORD", "REMOVE_PASSWORD"]) {
       decision = { kind: "REAUTH_COMPLETE", purpose, userId: "user-1" }
       assert.equal(await capturedConfig.callbacks.signIn(google), "/account?tab=security&reauth=complete")

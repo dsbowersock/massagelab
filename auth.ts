@@ -18,6 +18,7 @@ import { ensureGoogleUserState, ensureUserRole, getUserAuthState } from "@/lib/a
 import { decideAuthSessionVersion } from "@/lib/auth-session-version"
 import type { AccountCapabilities, AccountRole, VerificationStatus } from "@/lib/domain-types"
 import { normalizeEmail } from "@/lib/auth-security"
+import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
 
 if (!process.env.NEXTAUTH_URL) {
   process.env.NEXTAUTH_URL = getSiteUrl()
@@ -135,13 +136,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (result.kind === "LINK_REQUIRED") return "/account/link-google"
         // Keep a paused new-account attempt on registration so the user sees
         // launch-control guidance instead of a generic OAuth failure surface.
-        if (result.kind === "REGISTRATION_PAUSED") return "/register"
+        if (result.kind === "REGISTRATION_PAUSED") {
+          const callbackPath = buildRegistrationLegalProviderRedirectPath(result.callbackPath)
+          return `/register?callbackUrl=${encodeURIComponent(callbackPath)}`
+        }
         if (result.kind === "REAUTH_COMPLETE") {
-          // Two-factor Google proof reuses LINK_GOOGLE intent semantics, so it
-          // returns to the dedicated setup state rather than generic success.
-          return result.purpose === "LINK_GOOGLE"
-            ? "/account?tab=security&reauth=two-factor"
-            : "/account?tab=security&reauth=complete"
+          if (result.purpose === "ENROLL_TWO_FACTOR") {
+            return "/account?tab=security&reauth=two-factor-enroll"
+          }
+          if (result.purpose === "DISABLE_TWO_FACTOR") {
+            return "/account?tab=security&reauth=two-factor-disable"
+          }
+          if (result.purpose === "REGENERATE_TWO_FACTOR_BACKUP_CODES") {
+            return "/account?tab=security&reauth=two-factor-backup-codes"
+          }
+          return "/account?tab=security&reauth=complete"
         }
         return result.recoveryPath
       }

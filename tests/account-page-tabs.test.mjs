@@ -68,35 +68,6 @@ function topLevelFunctionSource(source, functionName, fileName) {
 }
 
 /** Executes one production-local AccountPage initializer against controlled params. */
-function loadAccountPageInitializer(variableName) {
-  const sourceFile = ts.createSourceFile(
-    "app/account/page.tsx",
-    accountPageSource,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX,
-  )
-  let initializer = null
-  function visit(node) {
-    if (
-      ts.isVariableDeclaration(node)
-      && ts.isIdentifier(node.name)
-      && node.name.text === variableName
-      && node.initializer
-    ) {
-      initializer = node.initializer.getText(sourceFile)
-      return
-    }
-    ts.forEachChild(node, visit)
-  }
-  visit(sourceFile)
-  assert.ok(initializer, `app/account/page.tsx must define ${variableName}`)
-  return loadCompiledModule(
-    `export function resolve(params) { return ${initializer} }`,
-    `app/account/${variableName}.test.ts`,
-  ).resolve
-}
-
 /** Executes the production return normalizer together with its real notice mapper. */
 function loadAccountReturnContract() {
   const source = [
@@ -109,26 +80,27 @@ function loadAccountReturnContract() {
 }
 
 describe("Account page tab model", () => {
-  it("treats only exact reauth=two-factor as display state and passes it through the security tab", () => {
-    const resolve = loadAccountPageInitializer("googlePrimaryProofReady")
-    assert.equal(resolve({ reauth: "two-factor" }), true)
-    for (const params of [
-      undefined,
-      {},
-      { reauth: "complete" },
-      { reauth: "TWO-FACTOR" },
-      { reauth: "two-factor " },
-      { reauth: "two-factor", proof: "private" },
-    ]) {
-      assert.equal(resolve(params), params?.reauth === "two-factor")
+  it("maps only exact action-specific reauth values to a display-only return hint", () => {
+    const contract = loadCompiledModule(
+      `export ${topLevelFunctionSource(accountPageSource, "twoFactorGoogleReauthReturnHint", "app/account/page.tsx")}`,
+      "app/account/two-factor-google-return-hint.test.ts",
+    )
+    assert.equal(contract.twoFactorGoogleReauthReturnHint("two-factor-enroll"), "ENROLL_TWO_FACTOR")
+    assert.equal(contract.twoFactorGoogleReauthReturnHint("two-factor-disable"), "DISABLE_TWO_FACTOR")
+    assert.equal(
+      contract.twoFactorGoogleReauthReturnHint("two-factor-backup-codes"),
+      "REGENERATE_TWO_FACTOR_BACKUP_CODES",
+    )
+    for (const value of [undefined, null, "complete", "two-factor", "TWO-FACTOR-ENROLL", "two-factor-enroll "]) {
+      assert.equal(contract.twoFactorGoogleReauthReturnHint(value), null)
     }
     assert.match(
       accountPageSource,
-      /<ActiveAccountTab[\s\S]*googlePrimaryProofReady=\{googlePrimaryProofReady\}/,
+      /<ActiveAccountTab[\s\S]*googleReauthReturnHint=\{googleReauthReturnHint\}/,
     )
     assert.match(
       accountPageSource,
-      /<SecurityPanel[\s\S]*googlePrimaryProofReady=\{googlePrimaryProofReady\}/,
+      /<SecurityPanel[\s\S]*googleReauthReturnHint=\{googleReauthReturnHint\}/,
     )
   })
 

@@ -121,7 +121,6 @@ describe("two-factor management route boundaries", () => {
           intent: 0,
           service: 0,
           cache: 0,
-          email: 0,
         }, name)
         assertNoStore(response)
       }
@@ -141,7 +140,6 @@ describe("two-factor management route boundaries", () => {
       assert.deepEqual(await response.json(), ROUTES[name].publicSuccess)
       assert.equal(scenario.serviceCalls.length, 1)
       assert.equal(scenario.cacheCalls.length, 1)
-      assert.deepEqual(scenario.emailCalls, [])
       assertNoStore(response)
     })
   }
@@ -168,7 +166,6 @@ describe("two-factor management route boundaries", () => {
         intent: 0,
         service: 0,
         cache: 0,
-        email: 0,
       }, name)
       assertNoStore(response)
     }
@@ -205,10 +202,17 @@ describe("two-factor management route boundaries", () => {
       assert.equal(Object.hasOwn(input, "email"), false, name)
       assert.equal(input.networkIdentifier, "198.51.100.71", name)
       assert.equal(input.confirmed, true, name)
+      assert.equal(input.now, NOW, name)
+      assert.equal(scenario.clockCalls, 1, name)
     }
   })
 
-  it("resolves a consumed LINK_GOOGLE proof only for Google bodies and clears it only after commit", async () => {
+  it("resolves only the action-bound consumed Google proof and clears it only after commit", async () => {
+    const purposeByRoute = {
+      setup: "ENROLL_TWO_FACTOR",
+      disable: "DISABLE_TWO_FACTOR",
+      regenerate: "REGENERATE_TWO_FACTOR_BACKUP_CODES",
+    }
     for (const name of ["setup", "disable", "regenerate"]) {
       const googleBody = name === "setup"
         ? { proofMethod: "GOOGLE", confirmed: true }
@@ -218,13 +222,16 @@ describe("two-factor management route boundaries", () => {
 
       assert.deepEqual(scenario.intentCalls, [{
         cookieValue: "google-binding",
-        purpose: "LINK_GOOGLE",
+        purpose: purposeByRoute[name],
         status: "CONSUMED",
+        now: NOW,
       }], name)
       assert.deepEqual(scenario.serviceCalls[0].primaryProof, {
         kind: "GOOGLE",
         intentId: "intent-1",
       }, name)
+      assert.equal(scenario.serviceCalls[0].now, NOW, name)
+      assert.equal(scenario.clockCalls, 1, name)
       assertBindingCookieCleared(response)
 
       const rejected = loadRoute(name, { result: { status: "REJECTED", code: "GOOGLE_PROOF_EXPIRED" } })
@@ -379,7 +386,7 @@ function loadRoute(name, {
   const intentCalls = []
   const serviceCalls = []
   const cacheCalls = []
-  const emailCalls = []
+  let clockCalls = 0
   const prismaClient = { privateDatabaseAdapter: true }
   const service = async (input) => {
     serviceCalls.push(input)
@@ -439,11 +446,15 @@ function loadRoute(name, {
             cookieValue: input.cookieValue,
             purpose: input.purpose,
             status: input.status,
+            now: input.now,
           })
           return resolvedIntent
         },
         mutate: service,
-        clock: () => NOW,
+        clock: () => {
+          clockCalls += 1
+          return NOW
+        },
         clearCache: (userId, surface) => cacheCalls.push({ userId, surface }),
         secureCookies,
       })
@@ -455,13 +466,12 @@ function loadRoute(name, {
     intentCalls,
     serviceCalls,
     cacheCalls,
-    emailCalls,
+    get clockCalls() { return clockCalls },
     counts: () => ({
       session: sessionCalls.length,
       intent: intentCalls.length,
       service: serviceCalls.length,
       cache: cacheCalls.length,
-      email: emailCalls.length,
     }),
   }
 }

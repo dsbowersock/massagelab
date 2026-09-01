@@ -4,7 +4,10 @@ import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import { signIn, signOut } from "next-auth/react"
 
-import type { PendingSecurityAction } from "@/app/account/security/security-panel"
+import type {
+  PendingSecurityAction,
+  TwoFactorGoogleReauthPurpose,
+} from "@/app/account/security/security-panel"
 import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Input } from "@/components/ui/input"
@@ -33,7 +36,7 @@ type TwoFactorManagementPanelProps = {
   twoFactorEnabled: boolean
   hasPasswordCredential: boolean
   googleLinked: boolean
-  googlePrimaryProofReady: boolean
+  googleReauthReturnHint: TwoFactorGoogleReauthPurpose | null
   pendingAction: PendingSecurityAction
   beginAction: (action: Exclude<PendingSecurityAction, null>) => boolean
   finishAction: (action: Exclude<PendingSecurityAction, null>) => void
@@ -50,15 +53,14 @@ export function TwoFactorManagementPanel({
   twoFactorEnabled,
   hasPasswordCredential,
   googleLinked,
-  googlePrimaryProofReady,
+  googleReauthReturnHint,
   pendingAction,
   beginAction,
   finishAction,
 }: TwoFactorManagementPanelProps) {
-  const initialProofMethod: ProofMethod = googleLinked && googlePrimaryProofReady ? "GOOGLE" : "PASSWORD"
   const [enabled, setEnabled] = useState(twoFactorEnabled)
   const [setup, setSetup] = useState<SetupState>({
-    proofMethod: initialProofMethod,
+    proofMethod: initialProofMethod("ENROLL_TWO_FACTOR", googleLinked, googleReauthReturnHint),
     password: "",
     confirmed: false,
     code: "",
@@ -66,13 +68,13 @@ export function TwoFactorManagementPanel({
     enrollment: null,
   })
   const [disable, setDisable] = useState<ManagementState>({
-    proofMethod: initialProofMethod,
+    proofMethod: initialProofMethod("DISABLE_TWO_FACTOR", googleLinked, googleReauthReturnHint),
     password: "",
     twoFactorCode: "",
     confirmed: false,
   })
   const [regenerate, setRegenerate] = useState<ManagementState>({
-    proofMethod: initialProofMethod,
+    proofMethod: initialProofMethod("REGENERATE_TWO_FACTOR_BACKUP_CODES", googleLinked, googleReauthReturnHint),
     password: "",
     twoFactorCode: "",
     confirmed: false,
@@ -81,6 +83,7 @@ export function TwoFactorManagementPanel({
   const [backupCodesAcknowledged, setBackupCodesAcknowledged] = useState(false)
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [reauthRequired, setReauthRequired] = useState(false)
+  const [activeGoogleReauthReturnHint, setActiveGoogleReauthReturnHint] = useState(googleReauthReturnHint)
   const setupSurfaceRef = useRef<HTMLDivElement>(null)
   const disableSurfaceRef = useRef<HTMLDivElement>(null)
   const regenerateSurfaceRef = useRef<HTMLDivElement>(null)
@@ -99,13 +102,20 @@ export function TwoFactorManagementPanel({
     if (reauthRequired) focusSurface(reauthRecoveryRef)
   }, [reauthRequired])
 
-  function proofReady(method: ProofMethod) {
+  function proofReady(method: ProofMethod, purpose: TwoFactorGoogleReauthPurpose) {
     return method === "PASSWORD"
       ? hasPasswordCredential
-      : googleLinked && googlePrimaryProofReady
+      : googleLinked && activeGoogleReauthReturnHint === purpose
   }
 
-  function fail(status: number, result: unknown) {
+  function fail(
+    status: number,
+    result: unknown,
+    purpose?: TwoFactorGoogleReauthPurpose,
+  ) {
+    if (purpose && status === 403 && isResultCode(result, "GOOGLE_PROOF_EXPIRED")) {
+      setActiveGoogleReauthReturnHint((current) => current === purpose ? null : current)
+    }
     setFeedback({ kind: "error", ...resolveTwoFactorManagementRecovery(status, result) })
   }
 
@@ -113,15 +123,19 @@ export function TwoFactorManagementPanel({
     fail(0, null)
   }
 
-  async function startGoogleProof() {
-    if (!beginAction("google-proof")) return
+  async function startGoogleProof(
+    purpose: TwoFactorGoogleReauthPurpose,
+    action: "google-proof-enroll" | "google-proof-disable" | "google-proof-backup-codes",
+  ) {
+    if (!beginAction(action)) return
     setFeedback(null)
     let redirecting = false
     try {
+      const initialHref = window.location.href
       const response = await fetch("/api/auth/google/intent", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ purpose: "LINK_GOOGLE" }),
+        body: JSON.stringify({ purpose }),
       })
       const result = await readJson(response)
       if (!response.ok || !isJsonObject(result) || result.ok !== true || typeof result.callbackUrl !== "string") {
@@ -129,13 +143,14 @@ export function TwoFactorManagementPanel({
         return
       }
       await signIn("google", { redirectTo: result.callbackUrl })
-      redirecting = true
+      redirecting = window.location.href !== initialHref
+      if (!redirecting) throw new Error("Google sign-in returned without navigation.")
     } catch {
       redirecting = false
       failGeneric()
     } finally {
       if (!redirecting) {
-        finishAction("google-proof")
+        finishAction(action)
         focusSurface(googleSurfaceRef)
       }
     }
@@ -146,7 +161,7 @@ export function TwoFactorManagementPanel({
     if (
       !setupAvailable
       || !setup.confirmed
-      || !proofReady(setup.proofMethod)
+      || !proofReady(setup.proofMethod, "ENROLL_TWO_FACTOR")
       || (setup.proofMethod === "PASSWORD" && !setup.password)
       || !beginAction("setup")
     ) return
@@ -163,7 +178,7 @@ export function TwoFactorManagementPanel({
       })
       const result = await readJson(response)
       if (!response.ok || !isSetupReady(result)) {
-        fail(response.status, result)
+        fail(response.status, result, "ENROLL_TWO_FACTOR")
         return
       }
       setSetup((current) => ({
@@ -228,7 +243,7 @@ export function TwoFactorManagementPanel({
 
   async function disableTwoFactor(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!canSubmitManagement(disable, proofReady) || !beginAction("disable")) return
+    if (!canSubmitManagement(disable, (method) => proofReady(method, "DISABLE_TWO_FACTOR")) || !beginAction("disable")) return
     setFeedback(null)
     let disabledSuccessfully = false
     try {
@@ -239,7 +254,7 @@ export function TwoFactorManagementPanel({
       })
       const result = await readJson(response)
       if (!response.ok || !isResultCode(result, "TWO_FACTOR_DISABLED")) {
-        fail(response.status, result)
+        fail(response.status, result, "DISABLE_TWO_FACTOR")
         return
       }
       setEnabled(false)
@@ -259,7 +274,7 @@ export function TwoFactorManagementPanel({
 
   async function regenerateBackupCodes(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!canSubmitManagement(regenerate, proofReady) || !beginAction("backup-codes")) return
+    if (!canSubmitManagement(regenerate, (method) => proofReady(method, "REGENERATE_TWO_FACTOR_BACKUP_CODES")) || !beginAction("backup-codes")) return
     setFeedback(null)
     try {
       const response = await fetch("/api/account/security/backup-codes", {
@@ -269,7 +284,7 @@ export function TwoFactorManagementPanel({
       })
       const result = await readJson(response)
       if (!response.ok || !isBackupCodeSuccess(result, "BACKUP_CODES_REGENERATED")) {
-        fail(response.status, result)
+        fail(response.status, result, "REGENERATE_TWO_FACTOR_BACKUP_CODES")
         return
       }
       setRegenerate((current) => emptyManagementState(current.proofMethod))
@@ -324,24 +339,46 @@ export function TwoFactorManagementPanel({
 
       {googleLinked && (enabled || hasPasswordCredential) ? (
         <div ref={googleSurfaceRef} tabIndex={-1} className="space-y-2" data-two-factor-surface="google-proof">
-          {googlePrimaryProofReady ? (
+          {activeGoogleReauthReturnHint ? (
             <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-              Google confirmation is ready for one two-factor security change. You still need to choose and confirm that change.
+              Google confirmation return detected for {googleProofLabel(activeGoogleReauthReturnHint)}. The server still verifies the private proof when you submit.
             </p>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Use your password, or confirm your linked Google account before choosing a Google-proved change.</p>
+          ) : <p className="text-sm text-muted-foreground">Use your password, or confirm your linked Google account for the exact two-factor change you want to make.</p>}
+          <div className="flex flex-wrap gap-2">
+            {!enabled && hasPasswordCredential && activeGoogleReauthReturnHint !== "ENROLL_TWO_FACTOR" ? (
               <AsyncActionButton
                 type="button"
                 variant="outline"
                 disabled={busy}
-                pending={pendingAction === "google-proof"}
-                idleLabel="Confirm with Google"
+                pending={pendingAction === "google-proof-enroll"}
+                idleLabel="Confirm with Google for setup"
                 pendingLabel="Redirecting to Google…"
-                onClick={startGoogleProof}
+                onClick={() => startGoogleProof("ENROLL_TWO_FACTOR", "google-proof-enroll")}
               />
-            </div>
-          )}
+            ) : null}
+            {enabled && activeGoogleReauthReturnHint !== "REGENERATE_TWO_FACTOR_BACKUP_CODES" ? (
+              <AsyncActionButton
+                type="button"
+                variant="outline"
+                disabled={busy}
+                pending={pendingAction === "google-proof-backup-codes"}
+                idleLabel="Confirm with Google for backup codes"
+                pendingLabel="Redirecting to Google…"
+                onClick={() => startGoogleProof("REGENERATE_TWO_FACTOR_BACKUP_CODES", "google-proof-backup-codes")}
+              />
+            ) : null}
+            {enabled && activeGoogleReauthReturnHint !== "DISABLE_TWO_FACTOR" ? (
+              <AsyncActionButton
+                type="button"
+                variant="outline"
+                disabled={busy}
+                pending={pendingAction === "google-proof-disable"}
+                idleLabel="Confirm with Google to disable 2FA"
+                pendingLabel="Redirecting to Google…"
+                onClick={() => startGoogleProof("DISABLE_TWO_FACTOR", "google-proof-disable")}
+              />
+            ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -365,7 +402,7 @@ export function TwoFactorManagementPanel({
                 value={setup.proofMethod}
                 hasPasswordCredential={hasPasswordCredential}
                 googleLinked={googleLinked}
-                googlePrimaryProofReady={googlePrimaryProofReady}
+                googleReturnHintMatches={activeGoogleReauthReturnHint === "ENROLL_TWO_FACTOR"}
                 busy={busy}
                 onChange={(proofMethod) => setSetup((current) => ({ ...current, proofMethod }))}
               />
@@ -382,7 +419,7 @@ export function TwoFactorManagementPanel({
               <AsyncActionButton
                 type="submit"
                 variant="outline"
-                disabled={busy || !setup.confirmed || !proofReady(setup.proofMethod) || (setup.proofMethod === "PASSWORD" && !setup.password)}
+                disabled={busy || !setup.confirmed || !proofReady(setup.proofMethod, "ENROLL_TWO_FACTOR") || (setup.proofMethod === "PASSWORD" && !setup.password)}
                 pending={pendingAction === "setup"}
                 idleLabel="Start two-factor setup"
                 pendingLabel="Preparing two-factor setup…"
@@ -426,13 +463,13 @@ export function TwoFactorManagementPanel({
             surfaceRef={regenerateSurfaceRef}
             hasPasswordCredential={hasPasswordCredential}
             googleLinked={googleLinked}
-            googlePrimaryProofReady={googlePrimaryProofReady}
+            googleReturnHintMatches={activeGoogleReauthReturnHint === "REGENERATE_TWO_FACTOR_BACKUP_CODES"}
             busy={busy}
             pending={pendingAction === "backup-codes"}
             idleLabel="Regenerate backup codes"
             pendingLabel="Regenerating backup codes…"
             onSubmit={regenerateBackupCodes}
-            canSubmit={canSubmitManagement(regenerate, proofReady)}
+            canSubmit={canSubmitManagement(regenerate, (method) => proofReady(method, "REGENERATE_TWO_FACTOR_BACKUP_CODES"))}
           />
           <ManagementForm
             action="disable"
@@ -443,13 +480,13 @@ export function TwoFactorManagementPanel({
             surfaceRef={disableSurfaceRef}
             hasPasswordCredential={hasPasswordCredential}
             googleLinked={googleLinked}
-            googlePrimaryProofReady={googlePrimaryProofReady}
+            googleReturnHintMatches={activeGoogleReauthReturnHint === "DISABLE_TWO_FACTOR"}
             busy={busy}
             pending={pendingAction === "disable"}
             idleLabel="Disable two-factor authentication"
             pendingLabel="Disabling two-factor authentication…"
             onSubmit={disableTwoFactor}
-            canSubmit={canSubmitManagement(disable, proofReady)}
+            canSubmit={canSubmitManagement(disable, (method) => proofReady(method, "DISABLE_TWO_FACTOR"))}
           />
         </div>
       ) : null}
@@ -529,7 +566,7 @@ function ProofMethodFields({
   value,
   hasPasswordCredential,
   googleLinked,
-  googlePrimaryProofReady,
+  googleReturnHintMatches,
   busy,
   onChange,
 }: {
@@ -537,7 +574,7 @@ function ProofMethodFields({
   value: ProofMethod
   hasPasswordCredential: boolean
   googleLinked: boolean
-  googlePrimaryProofReady: boolean
+  googleReturnHintMatches: boolean
   busy: boolean
   onChange: (value: ProofMethod) => void
 }) {
@@ -552,7 +589,7 @@ function ProofMethodFields({
       ) : null}
       {googleLinked ? (
         <label className="flex gap-3 text-sm text-muted-foreground">
-          <input id={`${idPrefix}ProofGoogle`} type="radio" name={`${idPrefix}ProofMethod`} value="GOOGLE" checked={value === "GOOGLE"} disabled={busy || !googlePrimaryProofReady} onChange={() => onChange("GOOGLE")} />
+          <input id={`${idPrefix}ProofGoogle`} type="radio" name={`${idPrefix}ProofMethod`} value="GOOGLE" checked={value === "GOOGLE"} disabled={busy || !googleReturnHintMatches} onChange={() => onChange("GOOGLE")} />
           <span>Use the completed Google confirmation</span>
         </label>
       ) : null}
@@ -569,7 +606,7 @@ function ManagementForm({
   surfaceRef,
   hasPasswordCredential,
   googleLinked,
-  googlePrimaryProofReady,
+  googleReturnHintMatches,
   busy,
   pending,
   idleLabel,
@@ -585,7 +622,7 @@ function ManagementForm({
   surfaceRef: React.RefObject<HTMLDivElement | null>
   hasPasswordCredential: boolean
   googleLinked: boolean
-  googlePrimaryProofReady: boolean
+  googleReturnHintMatches: boolean
   busy: boolean
   pending: boolean
   idleLabel: string
@@ -602,7 +639,7 @@ function ManagementForm({
           value={state.proofMethod}
           hasPasswordCredential={hasPasswordCredential}
           googleLinked={googleLinked}
-          googlePrimaryProofReady={googlePrimaryProofReady}
+          googleReturnHintMatches={googleReturnHintMatches}
           busy={busy}
           onChange={(proofMethod) => setState((current) => ({ ...current, proofMethod }))}
         />
@@ -632,6 +669,20 @@ function AdminRecoveryGuidance() {
       <p>Self-service is unavailable because this account has no usable primary sign-in method. Ask a full administrator to use the existing two-factor recovery process.</p>
     </AppInset>
   )
+}
+
+function initialProofMethod(
+  purpose: TwoFactorGoogleReauthPurpose,
+  googleLinked: boolean,
+  returnHint: TwoFactorGoogleReauthPurpose | null,
+): ProofMethod {
+  return googleLinked && returnHint === purpose ? "GOOGLE" : "PASSWORD"
+}
+
+function googleProofLabel(purpose: TwoFactorGoogleReauthPurpose) {
+  if (purpose === "ENROLL_TWO_FACTOR") return "authenticator setup"
+  if (purpose === "DISABLE_TWO_FACTOR") return "disabling two-factor authentication"
+  return "regenerating backup codes"
 }
 
 function canSubmitManagement(state: ManagementState, proofReady: (method: ProofMethod) => boolean) {

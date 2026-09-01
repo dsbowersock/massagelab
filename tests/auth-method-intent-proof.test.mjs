@@ -1,10 +1,17 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
-const proofModule = await import("../lib/auth-method-intent-proof.ts").catch(() => ({}))
+const proofModule = await import("../lib/auth-method-intent-proof.ts")
 
 const NOW = new Date("2026-08-29T12:00:00.000Z")
-const PURPOSES = ["LINK_GOOGLE", "ADD_PASSWORD", "REMOVE_PASSWORD"]
+const PURPOSES = [
+  "LINK_GOOGLE",
+  "ADD_PASSWORD",
+  "REMOVE_PASSWORD",
+  "ENROLL_TWO_FACTOR",
+  "DISABLE_TWO_FACTOR",
+  "REGENERATE_TWO_FACTOR_BACKUP_CODES",
+]
 
 describe("fresh consumed Google security reauthentication", () => {
   it("accepts every security purpose at the exact five-minute boundary", () => {

@@ -9,11 +9,19 @@ type SecurityPanelProps = {
   twoFactorEnabled: boolean
   hasPasswordCredential: boolean
   googleLinked: boolean
-  googlePrimaryProofReady: boolean
+  googleReauthReturnHint: TwoFactorGoogleReauthPurpose | null
 }
+
+export type TwoFactorGoogleReauthPurpose =
+  | "ENROLL_TWO_FACTOR"
+  | "DISABLE_TWO_FACTOR"
+  | "REGENERATE_TWO_FACTOR_BACKUP_CODES"
 
 export type PendingSecurityAction =
   | "google-proof"
+  | "google-proof-enroll"
+  | "google-proof-disable"
+  | "google-proof-backup-codes"
   | "password"
   | "unlink-google"
   | "disable-password"
@@ -35,7 +43,7 @@ export function SecurityPanel({
   twoFactorEnabled,
   hasPasswordCredential,
   googleLinked,
-  googlePrimaryProofReady,
+  googleReauthReturnHint,
 }: SecurityPanelProps) {
   const [pendingAction, setPendingAction] = useState<PendingSecurityAction>(null)
   const [methodAvailability, setMethodAvailability] = useState<SignInMethodAvailability>({
@@ -80,7 +88,7 @@ export function SecurityPanel({
         twoFactorEnabled={twoFactorEnabled}
         hasPasswordCredential={methodAvailability.hasPasswordCredential}
         googleLinked={methodAvailability.googleLinked}
-        googlePrimaryProofReady={googlePrimaryProofReady}
+        googleReauthReturnHint={googleReauthReturnHint}
         pendingAction={pendingAction}
         beginAction={beginAction}
         finishAction={finishAction}

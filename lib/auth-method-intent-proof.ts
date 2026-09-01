@@ -4,6 +4,9 @@ export type SecurityGoogleReauthPurpose =
   | "LINK_GOOGLE"
   | "ADD_PASSWORD"
   | "REMOVE_PASSWORD"
+  | "ENROLL_TWO_FACTOR"
+  | "DISABLE_TWO_FACTOR"
+  | "REGENERATE_TWO_FACTOR_BACKUP_CODES"
 
 export type FreshGoogleReauthIntent = {
   id: string

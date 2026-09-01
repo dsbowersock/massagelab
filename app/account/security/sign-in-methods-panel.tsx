@@ -77,7 +77,9 @@ export function SignInMethodsPanel({
       const response = await fetch("/api/auth/google/intent", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ purpose, callbackUrl: "/account?tab=security" }),
+        body: JSON.stringify(purpose === "SIGN_IN_OR_LINK"
+          ? { purpose, callbackUrl: "/account?tab=security" }
+          : { purpose }),
       })
       const result = await response.json().catch(() => ({})) as { ok?: boolean; callbackUrl?: string }
       if (!response.ok || !result.ok || !result.callbackUrl) throw new Error("Google confirmation could not be started. Try again.")
