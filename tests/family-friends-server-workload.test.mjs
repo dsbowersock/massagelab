@@ -358,6 +358,21 @@ describe("family-and-friends server workload baseline", () => {
       "## Family-And-Friends Cost And Pause Gate",
       "## Navigation And Action Feedback Gate",
     )
+    const septemberMigrationCorrection = namedFunctionSlice(
+      projectLogSource,
+      "## 2026-09-01 — Combined migration-order correction",
+      "## 2026-08-29 — Bootstrap and public-pricing cost hardening evidence",
+    )
+    const augustSubscriptionReview = namedFunctionSlice(
+      projectLogSource,
+      "## 2026-08-29 — Final membership convergence review fixes",
+      "## 2026-08-29 — Initial subscription entitlement convergence implementation and Task 5 evidence",
+    )
+    const augustIdentityReview = namedFunctionSlice(
+      projectLogSource,
+      "## 2026-08-29 — Final identity safety review remediation",
+      "## 2026-08-28 — Local identity and account-method safety verification",
+    )
 
     assert.match(projectStateSource, /ordinary non-practice shell/i)
     assert.match(projectStateSource, /four logical ORM operations/i)
@@ -366,6 +381,7 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(projectStateSource, /public display catalog only/i)
     assert.match(projectStateSource, /local timing `first` is not platform cold/i)
     assert.match(projectStateSource, /live Stripe[^\n]*`NOT RUN`/i)
+    assert.match(projectStateSource, /^Verified: 2026-09-01$/m)
 
     assert.match(projectLogSource, /ordinary non-practice shell/i)
     assert.match(projectLogSource, /five-minute complete[^\n]*fifteen-second incomplete/i)
@@ -374,6 +390,13 @@ describe("family-and-friends server workload baseline", () => {
       projectLogSource,
       /127 Browser-QA passes.{0,160}37 documented authorization-gated skips.{0,80}zero failures/i,
     )
+    assert.match(septemberMigrationCorrection, /one exact five-migration pre-runtime order/i)
+    assert.match(augustSubscriptionReview, /then-current three-migration order/i)
+    assert.match(augustSubscriptionReview, /2026-09-01 correction above is the sole current migration inventory/i)
+    assert.match(augustIdentityReview, /two identity migrations plus `20260828130000_membership_subscription_convergence` formed the three-migration pre-runtime set/i)
+    assert.match(augustIdentityReview, /2026-09-01 correction above for the sole current migration inventory/i)
+    assert.equal(callCount(projectLogSource, /20260901100000_auth_method_intent_two_factor_purposes/g), 1)
+    assert.equal(callCount(projectLogSource, /20260901101000_auth_method_intent_registration_callback/g), 1)
 
     assert.match(deploymentSource, /public display catalog only/i)
     assert.match(deploymentCostControls, /owner is process-local and\s+single-flight/i)
@@ -413,14 +436,40 @@ describe("family-and-friends server workload baseline", () => {
       costHardeningPlanSource,
       /deterministic injected doubles may exercise these logical create contracts, but they neither contact Stripe nor persist provider resources/i,
     )
-    assert.match(costHardeningReportSource, /Dirty Task 9 snapshot measured/)
     assert.match(
       costHardeningReportSource,
-      /Every measured receipt in this table remains attributed to the unreproducible dirty Task 9 working-tree snapshot based on runtime SHA `706c52167466f984f3e405986af11ff3d2343a02`, including rows that additionally name a different implementation owner/,
+      /The measurements below were reported from the recorded runtime base `706c52167466f984f3e405986af11ff3d2343a02` plus an uncommitted dirty Task 9 working-tree delta/,
+    )
+    assert.match(
+      costHardeningReportSource,
+      /Every measured row is \*\*BLOCKED HISTORICAL CONTEXT\*\* and is explicitly not completion, release, or exact-head evidence/,
     )
     assert.match(
       costHardeningReportSource,
       /Bare SHAs identify runtime bases or implementation owners only; they do not identify reproducible measured working trees/,
+    )
+    assert.match(costHardeningReportSource, /Rows marked \*\*OPEN GATE\*\* were not run or measured and remain required before release/)
+    const reportDataRows = costHardeningReportSource
+      .split(/\r?\n/)
+      .filter((line) => /^\| \*\*(?:BLOCKED HISTORICAL CONTEXT|OPEN GATE)\*\* \|/.test(line))
+    const allReportRows = costHardeningReportSource
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("| ") && !line.startsWith("| Status |") && !line.startsWith("| --- |"))
+    assert.ok(reportDataRows.length > 0)
+    assert.deepEqual(reportDataRows, allReportRows)
+    for (const row of reportDataRows) {
+      const isOpenGate = /\*\*(?:NOT RUN|NOT MEASURED)/.test(row)
+      assert.match(
+        row,
+        isOpenGate
+          ? /^\| \*\*OPEN GATE\*\* \|/
+          : /^\| \*\*BLOCKED HISTORICAL CONTEXT\*\* \|/,
+      )
+    }
+    assert.doesNotMatch(costHardeningReportSource, /^Every measured receipt in this table remains attributed to /m)
+    assert.doesNotMatch(
+      costHardeningReportSource,
+      /^\| (?:\*\*BLOCKED HISTORICAL CONTEXT\*\* \| )?Dirty Task 9 snapshot measured \|/m,
     )
     assert.doesNotMatch(costHardeningReportSource, /^\| Candidate measured \|/m)
     assert.doesNotMatch(costHardeningReportSource, /^\| Claim \| Evidence \| Exact SHA \| Limits \|$/m)
@@ -431,6 +480,14 @@ describe("family-and-friends server workload baseline", () => {
     assert.doesNotMatch(
       costHardeningReportSource,
       /\|\s*Candidate `706c52167466f984f3e405986af11ff3d2343a02`\s*\|/,
+    )
+    assert.match(
+      costHardeningPlanSource,
+      /npm run test:browser -- tests\/browser\/app-shell\.spec\.ts tests\/browser\/background-commerce\.spec\.ts tests\/browser\/public-routes\.spec\.ts tests\/browser\/membership-return-status\.spec\.ts --project=desktop-chromium --workers=1 --retries=0/,
+    )
+    assert.match(
+      costHardeningPlanSource,
+      /npm run test:browser -- tests\/browser\/membership-return-status\.spec\.ts --project=mobile-chromium --workers=1 --retries=0/,
     )
   })
 

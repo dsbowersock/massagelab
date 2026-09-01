@@ -1033,7 +1033,8 @@ Record all 21 statuses, first/warm route durations, owned-process teardown resul
 
 ```bash
 npm run build:browser-qa
-npm run test:browser -- tests/browser/app-shell.spec.ts tests/browser/background-commerce.spec.ts tests/browser/public-routes.spec.ts --project=desktop-chromium --workers=1 --retries=0
+npm run test:browser -- tests/browser/app-shell.spec.ts tests/browser/background-commerce.spec.ts tests/browser/public-routes.spec.ts tests/browser/membership-return-status.spec.ts --project=desktop-chromium --workers=1 --retries=0
+npm run test:browser -- tests/browser/membership-return-status.spec.ts --project=mobile-chromium --workers=1 --retries=0
 ```
 
 Required synthetic/inert evidence:
