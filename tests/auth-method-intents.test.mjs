@@ -653,6 +653,14 @@ describe("private Google auth-method intents", () => {
     assert.match(routeSource, /maxAge:\s*600/)
     assert.match(routeSource, /secure:\s*process\.env\.NODE_ENV === "production"/)
     assert.doesNotMatch(routeSource, /access_token|refresh_token|id_token/)
+
+    const { POST } = await loadIntentRoute()
+    const response = await POST(intentRequest({
+      purpose: "SIGN_IN_OR_LINK",
+      callbackUrl: "/wellness",
+    }))
+    assert.equal(response.cookieSet[0], "ml-auth-method-binding")
+    assert.equal(response.cookieSet[2].path, "/")
   })
 
   it("accepts network start thirty, blocks thirty-one before creation, and returns exact Retry-After", async () => {

@@ -40,6 +40,8 @@ const [
   projectLogSource,
   deploymentSource,
   releaseChecklistSource,
+  costHardeningPlanSource,
+  costHardeningReportSource,
 ] = await Promise.all([
   readFile(new URL("../lib/auth-users.ts", import.meta.url), "utf8"),
   readFile(new URL("../components/sidebar/sidebar.tsx", import.meta.url), "utf8"),
@@ -57,6 +59,8 @@ const [
   readFile(new URL("../docs/project-log.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/wiki/deployment.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/wiki/release-checklist.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/superpowers/plans/2026-08-29-bootstrap-pricing-cost-hardening.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/superpowers/reports/2026-08-29-bootstrap-pricing-cost-hardening.md", import.meta.url), "utf8"),
 ])
 
 /** Returns one named function body bounded by the next named owner. */
@@ -400,6 +404,34 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(releaseCostControls, /switches independently/i)
     assert.match(releaseCostControls, /Only lowercase `true` pauses a path/i)
     assert.match(releaseCostControls, /absence defaults open/i)
+
+    assert.match(
+      costHardeningPlanSource,
+      /do not create real Stripe Checkout Session, Portal Session, Customer, subscription, payment, refund, cancellation, webhook, or provider-setting resources/i,
+    )
+    assert.match(
+      costHardeningPlanSource,
+      /deterministic injected doubles may exercise these logical create contracts, but they neither contact Stripe nor persist provider resources/i,
+    )
+    assert.match(costHardeningReportSource, /Dirty Task 9 snapshot measured/)
+    assert.match(
+      costHardeningReportSource,
+      /Every measured receipt in this table remains attributed to the unreproducible dirty Task 9 working-tree snapshot based on runtime SHA `706c52167466f984f3e405986af11ff3d2343a02`, including rows that additionally name a different implementation owner/,
+    )
+    assert.match(
+      costHardeningReportSource,
+      /Bare SHAs identify runtime bases or implementation owners only; they do not identify reproducible measured working trees/,
+    )
+    assert.doesNotMatch(costHardeningReportSource, /^\| Candidate measured \|/m)
+    assert.doesNotMatch(costHardeningReportSource, /^\| Claim \| Evidence \| Exact SHA \| Limits \|$/m)
+    assert.doesNotMatch(
+      costHardeningReportSource,
+      /\|[^|\n]*at candidate `706c52167466f984f3e405986af11ff3d2343a02`[^|\n]*\|/,
+    )
+    assert.doesNotMatch(
+      costHardeningReportSource,
+      /\|\s*Candidate `706c52167466f984f3e405986af11ff3d2343a02`\s*\|/,
+    )
   })
 
   it("keeps the shared display catalog out of membership, entitlement, and customer authority", () => {

@@ -13,6 +13,12 @@ const [authUsersSource, authSource, sidebarSource] = await Promise.all([
   read("components/sidebar/sidebar.tsx"),
 ])
 
+const strictLegalAcceptanceGate = {
+  buildRegistrationLegalProviderRedirectPath() {
+    assert.fail("Feature-key callback coverage must not enter the registration legal redirect flow")
+  },
+}
+
 function accountDatabase(calls) {
   return {
     user: {
@@ -97,6 +103,7 @@ function captureAuthCallbacks(getUserAuthState) {
       parseAuthMethodIntentBinding: () => null,
       prepareGoogleAuthentication: async () => ({ kind: "REJECTED", recoveryPath: "/login?auth=google-retry" }),
     },
+    "@/lib/legal-acceptance-gate": strictLegalAcceptanceGate,
     "@/lib/auth-users": {
       ensureGoogleUserState: async () => {},
       ensureUserRole: async () => {},

@@ -8,6 +8,12 @@ import { queueAccountSecurityEmail } from "../lib/account-security-email-intents
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
+const strictLegalAcceptanceGate = {
+  buildRegistrationLegalProviderRedirectPath() {
+    assert.fail("Session-version callback coverage must not enter the registration legal redirect flow")
+  },
+}
+
 describe("JWT session-version decisions", () => {
   it("adopts the current non-negative database version on sign-in", () => {
     assert.deepEqual(decideAuthSessionVersion({ currentVersion: 4, tokenVersion: undefined, isSignIn: true }), {
@@ -148,6 +154,7 @@ describe("JWT session-version integration contract", () => {
         parseAuthMethodIntentBinding: () => null,
         prepareGoogleAuthentication: async () => ({ kind: "REJECTED", recoveryPath: "/login?auth=google-retry" }),
       },
+      "@/lib/legal-acceptance-gate": strictLegalAcceptanceGate,
       "@/lib/auth-users": {
         ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
         async getUserAuthState(userId) {
@@ -210,6 +217,7 @@ describe("JWT session-version integration contract", () => {
         parseAuthMethodIntentBinding: () => null,
         prepareGoogleAuthentication: async () => ({ kind: "REJECTED", recoveryPath: "/login?auth=google-retry" }),
       },
+      "@/lib/legal-acceptance-gate": strictLegalAcceptanceGate,
       "@/lib/auth-users": {
         ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
         getUserAuthState: async () => ({
@@ -282,6 +290,7 @@ describe("JWT session-version integration contract", () => {
         parseAuthMethodIntentBinding: () => null,
         prepareGoogleAuthentication: async () => ({ kind: "REJECTED", recoveryPath: "/login?auth=google-retry" }),
       },
+      "@/lib/legal-acceptance-gate": strictLegalAcceptanceGate,
       "@/lib/auth-users": {
         ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
         getUserAuthState: async () => ({

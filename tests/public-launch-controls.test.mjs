@@ -24,6 +24,12 @@ describe("public launch controls", () => {
       getPublicLaunchControls({ MASSAGELAB_PUBLIC_REGISTRATION_PAUSED: "TRUE" }).registrationOpen,
       true,
     )
+    for (const value of ["TRUE", "True", " true "]) {
+      assert.equal(
+        getPublicLaunchControls({ MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED: value }).supporterCheckoutOpen,
+        true,
+      )
+    }
   })
 
   it("uses neutral copy that preserves existing-account paths", () => {

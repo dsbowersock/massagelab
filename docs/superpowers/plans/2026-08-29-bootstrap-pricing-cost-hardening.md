@@ -14,7 +14,7 @@
 
 - TDD Route is strict for every behavior-changing task: write the focused RED test, observe the intended failure, implement the smallest owner-level change, then run the listed GREEN and regression commands.
 - Do not connect to or mutate a live or private database. Do not apply a migration; this plan requires no schema change.
-- Do not create a Checkout, Portal session, Customer, subscription, payment, refund, cancellation, webhook event, or provider setting. Do not call live Stripe during implementation or verification.
+- Do not create real Stripe Checkout Session, Portal Session, Customer, subscription, payment, refund, cancellation, webhook, or provider-setting resources, and do not make live Stripe calls during implementation or verification. Deterministic injected doubles may exercise these logical create contracts, but they neither contact Stripe nor persist provider resources.
 - Do not push, deploy, merge, change Production environment values, or change OAuth, mail, Stripe, Neon, R2, Vercel, or Sentry configuration without a separate exact authorization.
 - Clinical notes, intake forms, journals, ROM sessions, transcripts, and other PHI-bearing workflows remain local-first. The shell bootstrap may serialize only the explicit app-layout and Music visualizer fields defined below.
 - The cross-request cache boundary is public display catalog data only. Session, user, practice, membership, entitlements, customers, Checkout, Portal, webhook receipts, commerce ownership, and billing-return status must not use module-TTL, persistent, or user-keyed caches. Measured request-scoped React memoization may deduplicate `getCurrentSession()` only within one RSC request, as specified in Task 6.
