@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { noStoreJsonHeaders } from "@/lib/account-security-request"
 import type { parseTrustedAccountSecurityJson } from "@/lib/account-security-request"
 import { AUTH_METHOD_INTENT_COOKIE } from "@/lib/auth-method-intents"
+import type { TwoFactorManagementFailureCode } from "@/lib/account-two-factor-management"
 
 type ManageBody =
   | { proofMethod: "PASSWORD"; password: string; twoFactorCode: string; confirmed: true }
@@ -59,7 +60,10 @@ export function requestFailure(code: "UNTRUSTED_REQUEST" | "INVALID_REQUEST") {
 }
 
 /** Maps private service outcomes onto the shared allowlisted public status contract. */
-export function serviceFailure(code: string, retryAfterSeconds?: number) {
+export function serviceFailure(
+  code: TwoFactorManagementFailureCode | "AUTHENTICATION_REQUIRED",
+  retryAfterSeconds?: number,
+) {
   if (code === "RATE_LIMITED") {
     return jsonCode("RATE_LIMITED", 429, { "Retry-After": retryAfterHeader(retryAfterSeconds) })
   }
@@ -85,7 +89,7 @@ export function clearGoogleBindingCookie(response: ReturnType<typeof NextRespons
 }
 
 function retryAfterHeader(value?: number) {
-  return String(Number.isSafeInteger(value) && (value ?? 0) > 0 ? value : 1)
+  return String(Number.isSafeInteger(value) && (value ?? 0) > 0 ? Math.min(value ?? 1, 900) : 1)
 }
 
 function failureStatus(code: string): number | null {

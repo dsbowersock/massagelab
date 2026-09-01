@@ -54,10 +54,11 @@ export async function parseBoundedAccountSecurityJson(input: {
     return { ok: false, code: "INVALID_REQUEST" }
   }
 
-  const maxBytes = input.maxBytes ?? DEFAULT_MAX_JSON_BYTES
-  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > DEFAULT_MAX_JSON_BYTES) {
+  const requestedMaxBytes = input.maxBytes ?? DEFAULT_MAX_JSON_BYTES
+  if (!Number.isSafeInteger(requestedMaxBytes) || requestedMaxBytes < 1) {
     return { ok: false, code: "INVALID_REQUEST" }
   }
+  const maxBytes = Math.min(requestedMaxBytes, DEFAULT_MAX_JSON_BYTES)
 
   const serialized = await readBoundedUtf8(input.request, maxBytes)
   if (serialized === null) return { ok: false, code: "INVALID_REQUEST" }

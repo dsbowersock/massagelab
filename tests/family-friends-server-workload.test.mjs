@@ -77,20 +77,34 @@ function callCount(source, callPattern) {
 }
 
 /** Loads a fresh copy of the production module so this test exercises its singleton owner. */
-function sharedMembershipPricingWorkload(priceReads) {
-  return loadCompiledModule(
+function sharedMembershipPricingWorkload(priceReads, {
+  configuredEnvironment = SIX_PRICE_ENVIRONMENT,
+  clientConstructions = [],
+  constructClient,
+  providerKey = "test-provider-key",
+} = {}) {
+  const membershipPricing = loadCompiledModule(
     membershipPricingSource,
     "lib/membership-pricing.shared-workload.test.js",
     {
       "./membership.js": {
         BILLING_INTERVALS,
         SUPPORTER_AMOUNT_CHOICES,
-        getConfiguredMembershipOptions: () => getConfiguredMembershipOptions(SIX_PRICE_ENVIRONMENT),
+        getConfiguredMembershipOptions: () => getConfiguredMembershipOptions(configuredEnvironment),
       },
       "./stripe-billing.js": {
-        getStripeSecretKey: () => "test-provider-key",
-        async retrieveStripePrice(priceId, { apiKey, requestOptions }) {
-          priceReads.push({ priceId, apiKey, options: requestOptions })
+        getStripeSecretKey: () => providerKey,
+        getStripeClient(apiKey) {
+          const construction = { apiKey, stripeClient: null }
+          clientConstructions.push(construction)
+          const stripeClient = constructClient
+            ? constructClient(apiKey)
+            : { constructionNumber: clientConstructions.length }
+          construction.stripeClient = stripeClient
+          return stripeClient
+        },
+        async retrieveStripePrice(priceId, { apiKey, stripeClient, requestOptions }) {
+          priceReads.push({ priceId, apiKey, stripeClient, options: requestOptions })
           return {
             id: priceId,
             unit_amount: 100,
@@ -104,6 +118,7 @@ function sharedMembershipPricingWorkload(priceReads) {
       },
     },
   )
+  return membershipPricing
 }
 
 function authSnapshotWorkload(calls) {
@@ -540,7 +555,10 @@ describe("family-and-friends server workload baseline", () => {
 
   it("shares six public display Price reads across concurrent cold and warm callers", async () => {
     const priceReads = []
-    const { getMembershipPricingCatalog } = sharedMembershipPricingWorkload(priceReads)
+    const clientConstructions = []
+    const { getMembershipPricingCatalog } = sharedMembershipPricingWorkload(priceReads, {
+      clientConstructions,
+    })
 
     await Promise.all(Array.from({ length: 20 }, () => getMembershipPricingCatalog()))
     const concurrentColdLogicalPriceReads = priceReads.length
@@ -550,11 +568,74 @@ describe("family-and-friends server workload baseline", () => {
 
     assert.equal(concurrentColdLogicalPriceReads, 6)
     assert.equal(warmLogicalPriceReads, 0)
+    assert.equal(clientConstructions.length, 1)
+    assert.equal(clientConstructions[0].apiKey, "test-provider-key")
+    assert.equal(priceReads.every(({ stripeClient }) => (
+      stripeClient === clientConstructions[0].stripeClient
+    )), true)
     assert.equal(priceReads.every(({ apiKey }) => apiKey === "test-provider-key"), true)
     assert.equal(priceReads.every(({ options }) => (
       options.timeout === 2_500 && options.maxNetworkRetries === 1
     )), true)
     console.log(`public pricing catalog: concurrent cold logical Price reads = ${concurrentColdLogicalPriceReads}; warm logical Price reads = ${warmLogicalPriceReads}`)
+  })
+
+  it("fails configured pricing visibly when the one Stripe client construction fails", async () => {
+    const priceReads = []
+    const clientConstructions = []
+    const { getMembershipPricingCatalog } = sharedMembershipPricingWorkload(priceReads, {
+      clientConstructions,
+      constructClient() {
+        throw new Error("private Stripe construction failure")
+      },
+    })
+
+    const catalog = await getMembershipPricingCatalog()
+    const configuredPrice = catalog.plans[0].amountChoices[0].prices.month
+
+    assert.equal(clientConstructions.length, 1)
+    assert.equal(priceReads.length, 0)
+    assert.equal(configuredPrice.isConfigured, true)
+    assert.equal(configuredPrice.isLookupAvailable, false)
+    assert.equal(configuredPrice.displayPrice, "Price unavailable")
+    assert.doesNotMatch(JSON.stringify(catalog), /private Stripe construction failure/)
+  })
+
+  it("does not construct a Stripe client for configured prices without a provider key", async () => {
+    const priceReads = []
+    const clientConstructions = []
+    const { getMembershipPricingCatalog } = sharedMembershipPricingWorkload(priceReads, {
+      clientConstructions,
+      providerKey: "",
+    })
+
+    const catalog = await getMembershipPricingCatalog()
+    const configuredPrice = catalog.plans[0].amountChoices[0].prices.month
+
+    assert.equal(clientConstructions.length, 0)
+    assert.equal(priceReads.length, 0)
+    assert.equal(configuredPrice.isConfigured, true)
+    assert.equal(configuredPrice.isLookupAvailable, false)
+    assert.equal(configuredPrice.displayPrice, "Price unavailable")
+  })
+
+  it("does not construct a Stripe client when no display Price slots are configured", async () => {
+    const priceReads = []
+    const clientConstructions = []
+    const { getMembershipPricingCatalog } = sharedMembershipPricingWorkload(priceReads, {
+      configuredEnvironment: {},
+      clientConstructions,
+      constructClient() {
+        throw new Error("must not construct")
+      },
+    })
+
+    const catalog = await getMembershipPricingCatalog()
+
+    assert.equal(clientConstructions.length, 0)
+    assert.equal(priceReads.length, 0)
+    assert.equal(catalog.plans[0].amountChoices[0].prices.month.isConfigured, false)
+    assert.equal(catalog.plans[0].amountChoices[0].prices.month.displayPrice, "Price unavailable")
   })
 
   it("locks the ordinary verified-auth and signed-in sidebar call counts", async () => {

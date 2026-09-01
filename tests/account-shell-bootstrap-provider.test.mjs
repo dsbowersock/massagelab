@@ -210,6 +210,31 @@ describe("account shell bootstrap provider", () => {
     ])
   })
 
+  it("lets the active write finish while dispose rejects queued and future writes", async () => {
+    const activeWrite = deferred()
+    const sent = []
+    const writer = accountPreferences.createSerializedAppSettingsPatchWriter({
+      async send(request) {
+        sent.push(request)
+        await activeWrite.promise
+        return true
+      },
+    })
+
+    const active = writer.enqueue({ ownerKey: "owner-a", patch: { themeMode: "light" } })
+    const queued = writer.enqueue({ ownerKey: "owner-b", patch: { themeMode: "dark" } })
+    writer.dispose()
+    const future = writer.enqueue({ ownerKey: "owner-c", patch: { appBarPosition: "top" } })
+
+    assert.equal(await queued, false)
+    assert.equal(await future, false)
+    assert.deepEqual(sent, [{ ownerKey: "owner-a", patch: { themeMode: "light" } }])
+
+    activeWrite.resolve()
+    assert.equal(await active, true)
+    assert.equal(sent.length, 1)
+  })
+
   it("makes no fallback request for a ready server bootstrap", async () => {
     let requests = 0
     const coordinator = loadProvider(async () => {

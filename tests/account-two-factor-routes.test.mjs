@@ -328,6 +328,25 @@ describe("two-factor management route boundaries", () => {
     }
   })
 
+  it("bounds Retry-After to a positive safe whole-second public value", async () => {
+    for (const [retryAfterSeconds, expectedHeader] of [
+      [900, "900"],
+      [901, "900"],
+      [Number.MAX_SAFE_INTEGER, "900"],
+      [0, "1"],
+      [-1, "1"],
+      [1.5, "1"],
+    ]) {
+      const scenario = loadRoute("setup", {
+        result: { status: "REJECTED", code: "RATE_LIMITED", retryAfterSeconds },
+      })
+      const response = await scenario.POST(routeRequest("setup", ROUTES.setup.body))
+
+      assert.equal(response.status, 429)
+      assert.equal(response.headers.get("Retry-After"), expectedHeader, String(retryAfterSeconds))
+    }
+  })
+
   it("maps only allowlisted service failures to fixed status/code-only no-store responses", async () => {
     const cases = [
       ["setup", "INVALID_REQUEST", 400],
@@ -354,6 +373,17 @@ describe("two-factor management route boundaries", () => {
       if (status === 429) assert.equal(response.headers.get("Retry-After"), "61")
       assert.equal(scenario.cacheCalls.length, 0, `${name}:${code}`)
     }
+  })
+
+  it("maps a malformed runtime service code to the private CONFLICT fallback", async () => {
+    const scenario = loadRoute("setup", {
+      result: { status: "REJECTED", code: "NOT_A_REAL_SERVICE_CODE" },
+    })
+    const response = await scenario.POST(routeRequest("setup", ROUTES.setup.body))
+
+    assert.equal(response.status, 409)
+    assert.deepEqual(await response.json(), { code: "CONFLICT" })
+    assertNoStore(response)
   })
 
   it("keeps routes free of email scheduling, direct persistence, and proof logging", () => {

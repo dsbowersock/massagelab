@@ -32,7 +32,7 @@ export type GoogleAuthenticationDecision =
   | { kind: "CONTINUE"; userId: string; created?: boolean }
   | { kind: "LINK_REQUIRED"; userId: string }
   | { kind: "REGISTRATION_PAUSED"; callbackPath: string }
-  | { kind: "REAUTH_COMPLETE"; purpose: Exclude<GoogleIntentPurpose, "SIGN_IN_OR_LINK">; userId: string }
+  | { kind: "REAUTH_COMPLETE"; purpose: SessionBoundGoogleIntentPurpose; userId: string }
   | { kind: "REJECTED"; recoveryPath: GoogleRecoveryPath }
 
 type GoogleRecoveryPath =
@@ -239,7 +239,7 @@ export async function prepareGoogleAuthentication({
       return prepareSecurityReauthentication({
         tx,
         intent,
-        purpose: purpose as SessionBoundGoogleIntentPurpose,
+        purpose,
         profileProof,
         accountProof,
         currentSessionUser,

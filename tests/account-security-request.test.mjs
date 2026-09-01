@@ -131,6 +131,34 @@ describe("trusted account-security JSON requests", () => {
     assert.deepEqual(oversized, { ok: false, code: "INVALID_REQUEST" })
   })
 
+  it("clamps a valid oversized maxBytes option to 4096 and rejects invalid limits", async () => {
+    const prefix = "{\"data\":\""
+    const suffix = "\"}"
+    const exactBody = `${prefix}${"x".repeat(4096 - Buffer.byteLength(prefix + suffix))}${suffix}`
+
+    const exact = await requestModule.parseBoundedAccountSecurityJson({
+      request: trustedRequest({ body: exactBody }),
+      maxBytes: 8192,
+    })
+    const oversized = await requestModule.parseBoundedAccountSecurityJson({
+      request: trustedRequest({ body: `${exactBody} ` }),
+      maxBytes: 8192,
+    })
+
+    assert.equal(exact.ok, true)
+    assert.deepEqual(oversized, { ok: false, code: "INVALID_REQUEST" })
+    for (const maxBytes of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      assert.deepEqual(
+        await requestModule.parseBoundedAccountSecurityJson({
+          request: trustedRequest(),
+          maxBytes,
+        }),
+        { ok: false, code: "INVALID_REQUEST" },
+        String(maxBytes),
+      )
+    }
+  })
+
   it("rejects malformed UTF-8 rather than parsing a replacement character", async () => {
     assert.equal(typeof requestModule.parseTrustedAccountSecurityJson, "function")
     const request = trustedRequest({ body: new Uint8Array([0xc3, 0x28]) })
