@@ -280,12 +280,19 @@ describe("one-time support pricing owner", () => {
     const storage = new Map()
     const storageWrites = []
     const listeners = new Map()
+    const animationFrames = []
+    const nativeSubmissions = []
     const previousWindow = globalThis.window
     const previousSessionStorage = globalThis.sessionStorage
+    const previousHtmlFormElement = globalThis.HTMLFormElement
     globalThis.window = {
       addEventListener: (type, listener) => listeners.set(type, listener),
       removeEventListener: (type, listener) => {
         if (listeners.get(type) === listener) listeners.delete(type)
+      },
+      requestAnimationFrame: (callback) => {
+        animationFrames.push(callback)
+        return animationFrames.length
       },
     }
     globalThis.sessionStorage = {
@@ -298,6 +305,15 @@ describe("one-time support pricing owner", () => {
     }
 
     try {
+      class FakeHtmlFormElement {
+        submit() {
+          nativeSubmissions.push({
+            amountCents: amountInput.value,
+            checkoutAttemptId: attemptInput.value,
+          })
+        }
+      }
+      globalThis.HTMLFormElement = FakeHtmlFormElement
       const stateSlots = []
       const refSlots = []
       const effectDependencies = []
@@ -341,6 +357,7 @@ describe("one-time support pricing owner", () => {
         {
           "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
           react,
+          "react-dom": { flushSync: (callback) => callback() },
           "@/lib/donation-checkout-attempt": loadDonationAttemptModule(),
         },
       )
@@ -361,8 +378,13 @@ describe("one-time support pricing owner", () => {
       }
 
       let tree = render()
+      let amountInput
+      let attemptInput
       for (const input of findElements(tree, (element) => element.type === "input")) {
-        input.props.ref.current = { value: input.props.defaultValue }
+        const renderedInput = { value: input.props.defaultValue }
+        input.props.ref.current = renderedInput
+        if (input.props.name === "amountCents") amountInput = renderedInput
+        if (input.props.name === "checkoutAttemptId") attemptInput = renderedInput
       }
       flushEffects()
       assert.equal(typeof listeners.get("pageshow"), "function")
@@ -374,11 +396,13 @@ describe("one-time support pricing owner", () => {
       )[0]
       let prevented = false
       form.props.onSubmitCapture({
+        currentTarget: new FakeHtmlFormElement(),
         nativeEvent: { submitter: submitButton.props },
         preventDefault: () => { prevented = true },
       })
-      assert.equal(prevented, false)
+      assert.equal(prevented, true)
       assert.equal(storageWrites.length, 1)
+      assert.equal(nativeSubmissions.length, 0, "native submit waits until pending can paint")
 
       tree = render()
       assert.equal(
@@ -387,6 +411,16 @@ describe("one-time support pricing owner", () => {
         true,
       )
       assert.equal(findElements(tree, (element) => element.props.role === "status").length, 1)
+
+      assert.equal(animationFrames.length, 1)
+      animationFrames.shift()()
+      assert.equal(nativeSubmissions.length, 0, "one painted frame precedes native navigation")
+      assert.equal(animationFrames.length, 1)
+      animationFrames.shift()()
+      assert.deepEqual(nativeSubmissions, [{
+        amountCents: "500",
+        checkoutAttemptId: CHECKOUT_ATTEMPT_ID,
+      }])
 
       listeners.get("pageshow")()
       tree = render()
@@ -397,6 +431,7 @@ describe("one-time support pricing owner", () => {
       )
       assert.equal(findElements(tree, (element) => element.props.role === "status").length, 0)
       assert.equal(storageWrites.length, 1, "pageshow must not replay or replace the retained attempt")
+      assert.equal(nativeSubmissions.length, 1, "pageshow must not resubmit the retained attempt")
 
       for (const cleanup of effectCleanups) cleanup?.()
       assert.equal(listeners.size, 0)
@@ -405,6 +440,8 @@ describe("one-time support pricing owner", () => {
       else globalThis.window = previousWindow
       if (previousSessionStorage === undefined) delete globalThis.sessionStorage
       else globalThis.sessionStorage = previousSessionStorage
+      if (previousHtmlFormElement === undefined) delete globalThis.HTMLFormElement
+      else globalThis.HTMLFormElement = previousHtmlFormElement
     }
   })
 

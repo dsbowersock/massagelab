@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type FormEvent } from "react"
+import { flushSync } from "react-dom"
 import {
   DONATION_CHECKOUT_ATTEMPT_STORAGE_KEY,
   donationCheckoutAttemptForAmount,
@@ -69,6 +70,7 @@ export function DonationCheckoutForm({
   }, [returnCode])
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    const form = event.currentTarget
     const submitter = (event.nativeEvent as SubmitEvent).submitter
     const amountCents = Number((submitter as HTMLButtonElement | null)?.value)
     const amountAllowed = options.some((option) => option.amountCents === amountCents)
@@ -98,9 +100,25 @@ export function DonationCheckoutForm({
         DONATION_CHECKOUT_ATTEMPT_STORAGE_KEY,
         JSON.stringify(attempt),
       )
-      setSelectedAmount(amountCents)
-      setStorageError(false)
-      setPending(true)
+      event.preventDefault()
+      flushSync(() => {
+        setSelectedAmount(amountCents)
+        setStorageError(false)
+        setPending(true)
+      })
+      // The synchronous React commit may reconcile uncontrolled defaults, so
+      // restore the already-persisted canonical fields before serialization.
+      amountInputRef.current.value = String(attempt.amountCents)
+      attemptInputRef.current.value = attempt.attemptId
+
+      // Native navigation begins before React would ordinarily paint updates
+      // queued by this submit event. Commit the pending owner first, then use
+      // the platform submission so retries remain explicit page navigations.
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          HTMLFormElement.prototype.submit.call(form)
+        })
+      })
     } catch {
       event.preventDefault()
       setPending(false)
