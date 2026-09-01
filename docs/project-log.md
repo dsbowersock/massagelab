@@ -6,6 +6,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 Catalog naming note: `Massage Laba Lamp` is the approved catalog label for the original free moving-gradient default. `MassageLaba Lamp` and general prose that says `MassageLab Lamp` are legacy references to that same stable `massage-lab-moving-gradient` entry, not separate backgrounds.
 
+## 2026-09-03 — Anatomime traffic hardening reconciliation
+
+- Replayed the 23 approved Layer B source commits in their original order onto reviewed Layer A head `05a6309f7100d23804255593ed2d94aae221b5d7` in `codex/family-friends-06-anatomime-traffic-r2`. The reconciliation preserves current-main navigation/loading, identity, membership, billing, music, and Admin behavior while adding only the approved Anatomime room-create/join limits, joined-player realtime-token proof, bounded HMAC-only poll shedding, durable bogus/unjoined protection, one-hydration polling, 15-second presence coalescing, status-aware cadence/backoff, accessible terminal recovery, and provider-intercepted browser coverage.
+- Layer B owns no Prisma schema or migration and changes no Layer A policy threshold. The repository therefore remains at 46 migration directories, with all 45 baseline migrations current in Production and only Layer A's additive `20260831120000_operational_rate_limit_bucket` pending before the combined runtime may serve. Historical Layer B validation receipts are context only; the reconciled exact candidate still requires its full focused, Prisma, type, lint, build, diff, migration-audit, and independent-review gates.
+- No database connection, schema or migration change, Ably or other provider action, email, payment, environment change, deployment, push, merge, or Production action occurred during the replay.
+
 ## 2026-09-02 — Operational limiter and email-ceiling foundation reconciliation
 
 - Replayed the approved Layer A source sequence onto exact current main in `codex/family-friends-05-abuse-cost-foundation-r2`. Source commits `d4a78647`, `2974bbf2`, and `2fcea1ab` add the closed policy contract and atomic Serializable operational-limiter owner; `451c6f1a` wires the shared SMTP boundary to mandatory `PUBLIC_AUTH` or `SECURITY` classification. Public-auth messages consume both 70/global/fixed-24h and 90-total/global/fixed-24h limits, while security/account-change messages consume only the total 90 limit. Unconfigured SMTP consumes no quota, denied or unavailable quota constructs no transporter, and provider failure or timeout after an allowed decision remains charged.
