@@ -3459,6 +3459,15 @@ describe("Stripe billing helpers", () => {
     }
   })
 
+  it("fails donation idempotency validation before creating an uninjected Stripe client", async () => {
+    await assert.rejects(
+      createStripeDonationCheckoutSession(donationCheckoutOptions({
+        idempotencyKey: "not-a-canonical-donation-key",
+      })),
+      /Donation Checkout idempotency key must use the canonical massagelab-donation-v1 UUID format\./,
+    )
+  })
+
   it("passes the donation idempotency key only as the sole Checkout create request option", async () => {
     const createCalls = []
     const session = await createStripeDonationCheckoutSession(donationCheckoutOptions({
@@ -3542,6 +3551,10 @@ describe("Stripe billing helpers", () => {
       Object.assign(new Error("Stripe API failure"), { type: "StripeAPIError" }),
       Object.assign(new Error("rate limited"), { type: "StripeRateLimitError" }),
       Object.assign(new Error("server failure"), { statusCode: 500 }),
+      Object.assign(new Error("server failure with an overlapping type"), {
+        statusCode: 500,
+        type: "StripeIdempotencyError",
+      }),
       new Error("unrelated failure"),
     ]
 
