@@ -85,3 +85,20 @@ test("interaction feedback is assigned to desktop lane 1 and mobile lane 2 exact
     ],
   )
 })
+
+test("Anatomime traffic recovery is assigned to desktop lane 1 and mobile lane 2 exactly once", () => {
+  assert.equal(
+    ORDINARY_BROWSER_QA_SPEC_FILES.filter((spec) => spec === "anatomime-traffic.spec.ts").length,
+    1,
+  )
+  const assignments = Object.entries(BROWSER_QA_LANES).flatMap(([laneId, lane]) => (
+    Object.entries(lane).flatMap(([project, specs]) => specs.map((spec) => ({ laneId, project, spec })))
+  ))
+  assert.deepEqual(
+    assignments.filter(({ spec }) => spec === "anatomime-traffic.spec.ts"),
+    [
+      { laneId: "1", project: "desktop-chromium", spec: "anatomime-traffic.spec.ts" },
+      { laneId: "2", project: "mobile-chromium", spec: "anatomime-traffic.spec.ts" },
+    ],
+  )
+})
