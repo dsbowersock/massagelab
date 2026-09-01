@@ -121,8 +121,18 @@ describe("public booking picker helpers", () => {
     assert.match(pickerSource, /visibleWaitlistActionState\.status === "SUCCESS"[\s\S]*setWaitlistRequestId\(createBrowserPublicBookingRequestId\(\)\)[\s\S]*router\.push/)
     assert.match(pickerSource, /RATE_LIMITED[\s\S]*retryAfterSeconds/)
     assert.match(actionStateSource, /UNAVAILABLE[\s\S]*Try again/)
-    assert.match(pickerSource, /Start a new booking request/)
-    assert.match(pickerSource, /Start a new waitlist request/)
+    const bookingRotationLabel = pickerSource.indexOf("Start a new booking request")
+    const waitlistRotationLabel = pickerSource.indexOf("Start a new waitlist request")
+    const bookingRotationButton = pickerSource.slice(
+      pickerSource.lastIndexOf("<Button", bookingRotationLabel),
+      bookingRotationLabel,
+    )
+    const waitlistRotationButton = pickerSource.slice(
+      pickerSource.lastIndexOf("<Button", waitlistRotationLabel),
+      waitlistRotationLabel,
+    )
+    assert.match(bookingRotationButton, /disabled=\{bookingPending\}/)
+    assert.match(waitlistRotationButton, /disabled=\{waitlistPending\}/)
   })
 
   it("hides provider preference when any-provider plus one named provider is the only meaningful choice", () => {

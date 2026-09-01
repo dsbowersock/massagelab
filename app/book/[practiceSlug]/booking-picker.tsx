@@ -750,7 +750,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                     <GuestHiddenContactInputs isSignedIn={model.viewer.isSignedIn} guestName={guestName} guestEmail={guestEmail} guestPhone={guestPhone} />
                     <PublicBookingActionStatus state={visibleBookingActionState} retrySeconds={bookingRetrySeconds} />
                     {visibleBookingActionState.status === "VALIDATION_ERROR" || visibleBookingActionState.status === "CONFLICT" ? (
-                      <Button type="button" variant="outline" className="mt-2" onClick={startNewBookingRequest}>
+                      <Button type="button" variant="outline" className="mt-2" disabled={bookingPending} onClick={startNewBookingRequest}>
                         Start a new booking request
                       </Button>
                     ) : null}
@@ -785,7 +785,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   <GuestHiddenContactInputs isSignedIn={model.viewer.isSignedIn} guestName={guestName} guestEmail={guestEmail} guestPhone={guestPhone} />
                   <PublicBookingActionStatus state={visibleWaitlistActionState} retrySeconds={waitlistRetrySeconds} />
                   {visibleWaitlistActionState.status === "VALIDATION_ERROR" || visibleWaitlistActionState.status === "CONFLICT" ? (
-                    <Button type="button" variant="outline" className="mt-2" onClick={startNewWaitlistRequest}>
+                    <Button type="button" variant="outline" className="mt-2" disabled={waitlistPending} onClick={startNewWaitlistRequest}>
                       Start a new waitlist request
                     </Button>
                   ) : null}
