@@ -36,6 +36,13 @@ import {
   serviceResourceIds,
   serviceSnapshotForCreate,
 } from "./service-catalog"
+import {
+  publicBookingConflict,
+  publicBookingSuccess,
+  publicBookingUnavailable,
+  publicBookingValidationError,
+  type PublicBookingActionState,
+} from "./public-booking-state"
 
 type BookingClientIdentity = {
   userId: string | null
@@ -444,88 +451,114 @@ async function createBookingSequenceMutation({
   return publicBookingPath
 }
 
-export async function requestBookingSequence(formData: FormData) {
-  const session = await getCurrentSession()
-  const userId = session?.user?.id ?? null
-  await assertCalendarDatabaseReady()
-  const practiceId = fieldString(formData, "practiceId")
-  const primaryServiceVariantId = fieldString(formData, "primaryServiceVariantId")
-  const addOnServiceVariantIds = selectedAddOnVariantIds(formData)
-  const pressureLevel = normalizePressureLevel(fieldString(formData, "requestedPressureLevel"))
-  const startsAt = dateValue(fieldString(formData, "startsAt"))
-  const preferredProviderId = fieldString(formData, "preferredProviderId")
+export async function requestBookingSequence(
+  previousState: PublicBookingActionState,
+  formData: FormData,
+): Promise<PublicBookingActionState> {
+  void previousState
+  try {
+    const session = await getCurrentSession()
+    const userId = session?.user?.id ?? null
+    await assertCalendarDatabaseReady()
+    const practiceId = fieldString(formData, "practiceId")
+    const primaryServiceVariantId = fieldString(formData, "primaryServiceVariantId")
+    const addOnServiceVariantIds = selectedAddOnVariantIds(formData)
+    const pressureLevel = normalizePressureLevel(fieldString(formData, "requestedPressureLevel"))
+    const startsAt = dateValue(fieldString(formData, "startsAt"))
+    const preferredProviderId = fieldString(formData, "preferredProviderId")
 
-  if (!practiceId || !primaryServiceVariantId || !pressureLevel || !startsAt) {
-    throw new Error("Choose a service, pressure preference, and available time.")
+    if (!practiceId || !primaryServiceVariantId || !pressureLevel || !startsAt) {
+      return publicBookingValidationError()
+    }
+    let clientIdentity: BookingClientIdentity
+    try {
+      clientIdentity = publicBookingClientIdentity(formData, userId)
+    } catch {
+      return publicBookingValidationError()
+    }
+
+    const publicBookingPath = await createBookingSequenceMutation({
+      userId,
+      clientIdentity,
+      practiceId,
+      primaryServiceVariantId,
+      addOnServiceVariantIds,
+      requestedPressureLevel: pressureLevel,
+      startsAt,
+      preferredProviderId,
+    })
+
+    return publicBookingSuccess(`${publicBookingPath}?booking=requested`)
+  } catch {
+    return publicBookingUnavailable()
   }
-  const clientIdentity = publicBookingClientIdentity(formData, userId)
-
-  const publicBookingPath = await createBookingSequenceMutation({
-    userId,
-    clientIdentity,
-    practiceId,
-    primaryServiceVariantId,
-    addOnServiceVariantIds,
-    requestedPressureLevel: pressureLevel,
-    startsAt,
-    preferredProviderId,
-  })
-
-  redirect(`${publicBookingPath}?booking=requested`)
 }
 
-export async function joinBookingWaitlist(formData: FormData) {
-  const session = await getCurrentSession()
-  const userId = session?.user?.id ?? null
-  await assertCalendarDatabaseReady()
-  const practiceId = fieldString(formData, "practiceId")
-  const primaryServiceVariantId = fieldString(formData, "primaryServiceVariantId")
-  const addOnServiceVariantIds = selectedAddOnVariantIds(formData)
-  const pressureLevel = normalizePressureLevel(fieldString(formData, "requestedPressureLevel"))
-  const preferredProviderId = fieldString(formData, "preferredProviderId")
-  const preferredStartsAtValue = fieldString(formData, "preferredStartsAt")
+export async function joinBookingWaitlist(
+  previousState: PublicBookingActionState,
+  formData: FormData,
+): Promise<PublicBookingActionState> {
+  void previousState
+  try {
+    const session = await getCurrentSession()
+    const userId = session?.user?.id ?? null
+    await assertCalendarDatabaseReady()
+    const practiceId = fieldString(formData, "practiceId")
+    const primaryServiceVariantId = fieldString(formData, "primaryServiceVariantId")
+    const addOnServiceVariantIds = selectedAddOnVariantIds(formData)
+    const pressureLevel = normalizePressureLevel(fieldString(formData, "requestedPressureLevel"))
+    const preferredProviderId = fieldString(formData, "preferredProviderId")
+    const preferredStartsAtValue = fieldString(formData, "preferredStartsAt")
 
-  if (!practiceId || !primaryServiceVariantId || !pressureLevel) {
-    throw new Error("Choose a service and pressure preference before joining the waitlist.")
-  }
-  const clientIdentity = publicBookingClientIdentity(formData, userId)
+    if (!practiceId || !primaryServiceVariantId || !pressureLevel) {
+      return publicBookingValidationError()
+    }
+    let clientIdentity: BookingClientIdentity
+    try {
+      clientIdentity = publicBookingClientIdentity(formData, userId)
+    } catch {
+      return publicBookingValidationError()
+    }
 
-  const context = await publicBookingSequenceOptions({
-    practiceId,
-    primaryServiceVariantId,
-    addOnServiceVariantIds,
-    requestedPressureLevel: pressureLevel,
-    preferredProviderId,
-    viewerUserId: userId,
-    maxOptions: 1,
-  })
-
-  if (!userId && !context.allowGuestBooking) {
-    throw new Error("Sign in before joining this practice waitlist.")
-  }
-  if (context.options.length > 0) {
-    throw new Error("Choose an available appointment time before joining the waitlist.")
-  }
-
-  await prisma.$transaction(async (tx) => {
-    const practiceClient = await ensureBookingPracticeClient(tx, practiceId, clientIdentity)
-    await tx.bookingWaitlistEntry.create({
-      data: {
-        practiceId,
-        practiceClientId: practiceClient.id,
-        createdById: userId,
-        requestedPressureLevel: pressureLevel,
-        primaryServiceVariantId,
-        addOnServiceVariantIds,
-        preferredProviderId: preferredProviderId || null,
-        preferredStartsAt: preferredStartsAtValue ? dateValue(preferredStartsAtValue) : null,
-      },
+    const context = await publicBookingSequenceOptions({
+      practiceId,
+      primaryServiceVariantId,
+      addOnServiceVariantIds,
+      requestedPressureLevel: pressureLevel,
+      preferredProviderId,
+      viewerUserId: userId,
+      maxOptions: 1,
     })
-  })
 
-  const publicBookingPath = publicBookingPathForPractice(context.practice)
-  revalidateCalendarRoutes(context.practice.slug, publicBookingPath)
-  redirect(`${publicBookingPath}?waitlist=joined`)
+    if (!userId && !context.allowGuestBooking) {
+      return publicBookingValidationError()
+    }
+    if (context.options.length > 0) {
+      return publicBookingConflict()
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const practiceClient = await ensureBookingPracticeClient(tx, practiceId, clientIdentity)
+      await tx.bookingWaitlistEntry.create({
+        data: {
+          practiceId,
+          practiceClientId: practiceClient.id,
+          createdById: userId,
+          requestedPressureLevel: pressureLevel,
+          primaryServiceVariantId,
+          addOnServiceVariantIds,
+          preferredProviderId: preferredProviderId || null,
+          preferredStartsAt: preferredStartsAtValue ? dateValue(preferredStartsAtValue) : null,
+        },
+      })
+    })
+
+    const publicBookingPath = publicBookingPathForPractice(context.practice)
+    revalidateCalendarRoutes(context.practice.slug, publicBookingPath)
+    return publicBookingSuccess(`${publicBookingPath}?waitlist=joined`)
+  } catch {
+    return publicBookingUnavailable()
+  }
 }
 
 export async function convertWaitlistEntry(formData: FormData) {

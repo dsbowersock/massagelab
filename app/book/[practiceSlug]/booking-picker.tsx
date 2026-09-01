@@ -1,11 +1,22 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, LogIn, MapPin, Plus, SlidersHorizontal, UserPlus, UserRound } from "lucide-react"
 import { joinBookingWaitlistAction, requestBookingSequenceAction } from "@/app/calendar/actions"
+import {
+  createBrowserPublicBookingRequestId,
+  INITIAL_PUBLIC_BOOKING_ACTION_STATE,
+  publicBookingActionStateForAttempt,
+  publicBookingActionStatusMessage,
+  publicBookingRemainingRetrySeconds,
+  publicBookingRetryAfterSeconds,
+  runPublicBookingActionWithRecovery,
+  schedulePublicAvailabilityRequest,
+  type PublicBookingActionState,
+} from "@/app/calendar/actions/public-booking-state"
 import { AppSurface } from "@/components/ui/app-surface"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -156,8 +167,96 @@ function distanceMiles(a: { latitude: number; longitude: number }, b: { latitude
   return 2 * earthMiles * Math.asin(Math.sqrt(h))
 }
 
+function usePublicBookingRetryWindow(state: PublicBookingActionState): number {
+  const [retryWindow, setRetryWindow] = useState<{
+    source: PublicBookingActionState | null
+    deadlineMs: number
+    remainingSeconds: number
+  }>({ source: null, deadlineMs: 0, remainingSeconds: 0 })
+
+  useEffect(() => {
+    if (state.status !== "RATE_LIMITED") {
+      setRetryWindow({ source: state, deadlineMs: 0, remainingSeconds: 0 })
+      return
+    }
+
+    const retryAfterSeconds = Math.max(1, Math.ceil(state.retryAfterSeconds))
+    const deadlineMs = Date.now() + retryAfterSeconds * 1_000
+    setRetryWindow({ source: state, deadlineMs, remainingSeconds: retryAfterSeconds })
+    const intervalId = window.setInterval(() => {
+      const remainingSeconds = publicBookingRemainingRetrySeconds(deadlineMs, Date.now())
+      setRetryWindow({ source: state, deadlineMs, remainingSeconds })
+      if (remainingSeconds === 0) window.clearInterval(intervalId)
+    }, 1_000)
+
+    return () => window.clearInterval(intervalId)
+  }, [state])
+
+  if (state.status === "RATE_LIMITED" && retryWindow.source !== state) {
+    return Math.max(1, Math.ceil(state.retryAfterSeconds))
+  }
+  return retryWindow.remainingSeconds
+}
+
+function PublicBookingActionStatus({
+  state,
+  retrySeconds,
+}: {
+  state: PublicBookingActionState
+  retrySeconds: number
+}) {
+  const urgent = state.status === "VALIDATION_ERROR" || state.status === "CONFLICT"
+  return (
+    <p
+      role={urgent ? "alert" : "status"}
+      aria-live={urgent ? "assertive" : "polite"}
+      aria-atomic="true"
+      className="text-sm text-muted-foreground"
+    >
+      {publicBookingActionStatusMessage(state, retrySeconds)}
+    </p>
+  )
+}
+
 export function BookingPicker({ model }: { model: BookingOptionModel }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const [bookingResultRequestId, setBookingResultRequestId] = useState("")
+  const [waitlistResultRequestId, setWaitlistResultRequestId] = useState("")
+  const requestBookingSequenceWithRecovery = useCallback(async (
+    previousState: PublicBookingActionState,
+    formData: FormData,
+  ) => {
+    const requestId = String(formData.get("requestId") ?? "")
+    const result = await runPublicBookingActionWithRecovery(
+      requestBookingSequenceAction,
+      previousState,
+      formData,
+    )
+    setBookingResultRequestId(requestId)
+    return result
+  }, [])
+  const joinBookingWaitlistWithRecovery = useCallback(async (
+    previousState: PublicBookingActionState,
+    formData: FormData,
+  ) => {
+    const requestId = String(formData.get("requestId") ?? "")
+    const result = await runPublicBookingActionWithRecovery(
+      joinBookingWaitlistAction,
+      previousState,
+      formData,
+    )
+    setWaitlistResultRequestId(requestId)
+    return result
+  }, [])
+  const [bookingActionState, bookingFormAction, bookingPending] = useActionState(
+    requestBookingSequenceWithRecovery,
+    INITIAL_PUBLIC_BOOKING_ACTION_STATE,
+  )
+  const [waitlistActionState, waitlistFormAction, waitlistPending] = useActionState(
+    joinBookingWaitlistWithRecovery,
+    INITIAL_PUBLIC_BOOKING_ACTION_STATE,
+  )
   const firstPrimaryVariant = model.primaryServices[0]?.variants[0]
   const initialProviderPreference = providerPreferenceModel(model.providers)
   const [activeStep, setActiveStep] = useState<BookingStep>("services")
@@ -171,12 +270,28 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   const [sequenceError, setSequenceError] = useState("")
   const [sequenceLoaded, setSequenceLoaded] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
+  const [sequenceRetryDeadlineMs, setSequenceRetryDeadlineMs] = useState(0)
+  const [sequenceRetryClockMs, setSequenceRetryClockMs] = useState(0)
   const [selectedWeekStartKey, setSelectedWeekStartKey] = useState("")
   const [selectedSequenceKey, setSelectedSequenceKey] = useState("")
   const [guestName, setGuestName] = useState("")
   const [guestEmail, setGuestEmail] = useState("")
   const [guestPhone, setGuestPhone] = useState("")
+  const [bookingRequestId, setBookingRequestId] = useState("")
+  const [waitlistRequestId, setWaitlistRequestId] = useState("")
   const [heroStepIndicatorTarget, setHeroStepIndicatorTarget] = useState<HTMLElement | null>(null)
+  const visibleBookingActionState = publicBookingActionStateForAttempt(
+    bookingActionState,
+    bookingResultRequestId,
+    bookingRequestId,
+  )
+  const visibleWaitlistActionState = publicBookingActionStateForAttempt(
+    waitlistActionState,
+    waitlistResultRequestId,
+    waitlistRequestId,
+  )
+  const bookingRetrySeconds = usePublicBookingRetryWindow(visibleBookingActionState)
+  const waitlistRetrySeconds = usePublicBookingRetryWindow(visibleWaitlistActionState)
   const providerPreference = useMemo(() => providerPreferenceModel(model.providers), [model.providers])
   const addOnVariantOrder = useMemo(() => model.addOnServices.flatMap((service) => service.variants.map((variant) => variant.id)), [model.addOnServices])
   const orderedSelectedAddOnVariantIds = useMemo(() => (
@@ -184,6 +299,10 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   ), [addOnVariantOrder, selectedAddOnVariantIds])
   const sequenceWeekGrid = useMemo(() => buildSequenceWeekGrid(sequenceOptions, model.timeZone, selectedWeekStartKey), [model.timeZone, selectedWeekStartKey, sequenceOptions])
   const selectedSequenceOption = sequenceOptions.find((option) => sequenceOptionKey(option) === selectedSequenceKey) ?? null
+  const sequenceRetrySeconds = publicBookingRemainingRetrySeconds(
+    sequenceRetryDeadlineMs,
+    sequenceRetryClockMs || Date.now(),
+  )
 
   const bookingReturnPath = pathname || `/book/${model.practiceSlug}`
   const loginHref = `/login?callbackUrl=${encodeURIComponent(bookingReturnPath)}`
@@ -204,6 +323,39 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   }, [])
 
   useEffect(() => {
+    setBookingRequestId((current) => current || createBrowserPublicBookingRequestId())
+    setWaitlistRequestId((current) => current || createBrowserPublicBookingRequestId())
+  }, [])
+
+  useEffect(() => {
+    if (visibleBookingActionState.status === "SUCCESS") {
+      setBookingRequestId(createBrowserPublicBookingRequestId())
+      router.push(visibleBookingActionState.redirectTo)
+    }
+  }, [router, visibleBookingActionState])
+
+  useEffect(() => {
+    if (visibleWaitlistActionState.status === "SUCCESS") {
+      setWaitlistRequestId(createBrowserPublicBookingRequestId())
+      router.push(visibleWaitlistActionState.redirectTo)
+    }
+  }, [router, visibleWaitlistActionState])
+
+  useEffect(() => {
+    if (!sequenceRetryDeadlineMs) return
+    setSequenceRetryClockMs(Date.now())
+    const intervalId = window.setInterval(() => {
+      const now = Date.now()
+      setSequenceRetryClockMs(now)
+      if (publicBookingRemainingRetrySeconds(sequenceRetryDeadlineMs, now) === 0) {
+        window.clearInterval(intervalId)
+      }
+    }, 1_000)
+
+    return () => window.clearInterval(intervalId)
+  }, [sequenceRetryDeadlineMs])
+
+  useEffect(() => {
     setSelectedSequenceKey("")
   }, [orderedSelectedAddOnVariantIds, preferredProviderId, requestedPressureLevel, selectedPrimaryVariantId])
 
@@ -213,18 +365,17 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
       setSequenceError("")
       setSequenceLoaded(false)
       setSequenceLoading(false)
+      setSequenceRetryDeadlineMs(0)
       return
     }
 
-    const controller = new AbortController()
-    let active = true
+    setSequenceLoading(true)
+    setSequenceError("")
+    setSequenceLoaded(false)
+    setSequenceOptions([])
+    setSequenceRetryDeadlineMs(0)
 
-    async function loadSequenceOptions() {
-      setSequenceLoading(true)
-      setSequenceError("")
-      setSequenceLoaded(false)
-      setSequenceOptions([])
-
+    return schedulePublicAvailabilityRequest(async (signal) => {
       try {
         const response = await fetch(`/api/book/${model.practiceSlug}/sequence-options`, {
           method: "POST",
@@ -235,38 +386,47 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
             requestedPressureLevel,
             preferredProviderId,
           }),
-          signal: controller.signal,
+          signal,
         })
         const payload = await response.json().catch(() => ({}))
 
-        if (!active) return
+        if (signal.aborted) return
+        if (response.status === 429) {
+          const retryAfterSeconds = publicBookingRetryAfterSeconds(response.headers.get("Retry-After"))
+          if (retryAfterSeconds) {
+            setSequenceRetryDeadlineMs(Date.now() + retryAfterSeconds * 1_000)
+            setSequenceError("Too many availability requests. Please wait before trying again.")
+          } else {
+            setSequenceError("Unable to load available times. Try again when you're ready.")
+          }
+          setSequenceLoaded(true)
+          return
+        }
+        if (response.status === 503) {
+          setSequenceError("Booking availability is temporarily unavailable. Try again when you're ready.")
+          setSequenceLoaded(true)
+          return
+        }
         if (!response.ok) {
-          throw new Error(typeof payload.error === "string" ? payload.error : "Unable to load available times.")
+          throw new Error("Unable to load available times.")
         }
 
         setSequenceOptions(Array.isArray(payload.options) ? payload.options : [])
         setSequenceLoaded(true)
       } catch (error) {
-        if (!active || (error instanceof DOMException && error.name === "AbortError")) {
+        if (signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
           return
         }
 
         setSequenceOptions([])
-        setSequenceError(error instanceof Error ? error.message : "Unable to load available times.")
+        setSequenceError("Unable to load available times. Try again when you're ready.")
         setSequenceLoaded(true)
       } finally {
-        if (active) {
+        if (!signal.aborted) {
           setSequenceLoading(false)
         }
       }
-    }
-
-    loadSequenceOptions()
-
-    return () => {
-      active = false
-      controller.abort()
-    }
+    })
   }, [model.practiceSlug, orderedSelectedAddOnVariantIds, preferredProviderId, reloadToken, requestedPressureLevel, selectedPrimaryVariantId])
 
   useEffect(() => {
@@ -288,6 +448,14 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
       if (current.length >= MAX_PUBLIC_ADD_ONS) return current
       return [...current, variantId]
     })
+  }
+
+  function startNewBookingRequest() {
+    setBookingRequestId(createBrowserPublicBookingRequestId())
+  }
+
+  function startNewWaitlistRequest() {
+    setWaitlistRequestId(createBrowserPublicBookingRequestId())
   }
 
   function checkDistance() {
@@ -524,15 +692,33 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
             </div>
           </CardHeader>
           <CardContent className="grid gap-4 p-0 pb-6">
+            <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+              {sequenceLoading && !sequenceLoaded
+                ? "Loading available times."
+                : sequenceError
+                  ? `${sequenceError}${sequenceRetrySeconds > 0 ? ` Try again in ${sequenceRetrySeconds} seconds.` : ""}`
+                  : sequenceLoaded
+                    ? "Available times are ready."
+                    : ""}
+            </p>
             {sequenceLoading && !sequenceLoaded ? (
               <div className="mx-4 rounded-lg border border-border/80 bg-background/50 p-6 sm:mx-6">
                 <p className="text-sm text-muted-foreground">Loading available times...</p>
               </div>
             ) : sequenceError ? (
               <div className="mx-4 rounded-lg border border-dashed border-border/80 bg-background/50 p-6 sm:mx-6">
-                <p className="text-sm text-muted-foreground">{sequenceError}</p>
-                <Button type="button" variant="outline" className="mt-4" onClick={() => setReloadToken((value) => value + 1)}>
-                  Try again
+                <p className="text-sm text-muted-foreground">
+                  {sequenceError}
+                  {sequenceRetrySeconds > 0 ? ` Try again in ${sequenceRetrySeconds} seconds.` : ""}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4"
+                  disabled={sequenceRetrySeconds > 0}
+                  onClick={() => setReloadToken((value) => value + 1)}
+                >
+                  {sequenceRetrySeconds > 0 ? `Try again in ${sequenceRetrySeconds}s` : "Try again"}
                 </Button>
               </div>
             ) : sequenceWeekGrid.weeks.length > 0 ? (
@@ -551,7 +737,8 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
 
                 <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6">
                   <Button type="button" variant="outline" onClick={() => setActiveStep("details")}>Back</Button>
-                  <form action={requestBookingSequenceAction}>
+                  <form action={bookingFormAction} aria-busy={bookingPending}>
+                    <input type="hidden" name="requestId" value={bookingRequestId} />
                     <input type="hidden" name="practiceId" value={model.practiceId} />
                     <input type="hidden" name="primaryServiceVariantId" value={selectedPrimaryVariantId} />
                     {orderedSelectedAddOnVariantIds.map((variantId) => (
@@ -561,8 +748,24 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                     <input type="hidden" name="preferredProviderId" value={preferredProviderId} />
                     <input type="hidden" name="startsAt" value={selectedSequenceOption?.startsAt ?? ""} />
                     <GuestHiddenContactInputs isSignedIn={model.viewer.isSignedIn} guestName={guestName} guestEmail={guestEmail} guestPhone={guestPhone} />
-                    <Button type="submit" className="bg-primary hover:bg-brand-orange-glow" disabled={!selectedSequenceOption || !guestContactComplete}>
-                      {selectedSequenceOption?.status === "CONFIRMED" ? "Book selected time" : "Request selected time"}
+                    <PublicBookingActionStatus state={visibleBookingActionState} retrySeconds={bookingRetrySeconds} />
+                    {visibleBookingActionState.status === "VALIDATION_ERROR" || visibleBookingActionState.status === "CONFLICT" ? (
+                      <Button type="button" variant="outline" className="mt-2" onClick={startNewBookingRequest}>
+                        Start a new booking request
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="submit"
+                      className="bg-primary hover:bg-brand-orange-glow"
+                      disabled={!selectedSequenceOption || !guestContactComplete || !bookingRequestId || bookingPending || bookingRetrySeconds > 0}
+                    >
+                      {bookingPending
+                        ? "Submitting request..."
+                        : bookingRetrySeconds > 0
+                          ? `Try again in ${bookingRetrySeconds}s`
+                          : selectedSequenceOption?.status === "CONFIRMED"
+                            ? "Book selected time"
+                            : "Request selected time"}
                     </Button>
                   </form>
                 </div>
@@ -570,7 +773,8 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
             ) : sequenceLoaded ? (
               <div className="mx-4 rounded-lg border border-dashed border-border/80 bg-background/50 p-6 sm:mx-6">
                 <p className="text-sm text-muted-foreground">No available time fits these services, pressure preference, provider rules, and current capacity.</p>
-                <form action={joinBookingWaitlistAction} className="mt-4">
+                <form action={waitlistFormAction} aria-busy={waitlistPending} className="mt-4">
+                  <input type="hidden" name="requestId" value={waitlistRequestId} />
                   <input type="hidden" name="practiceId" value={model.practiceId} />
                   <input type="hidden" name="primaryServiceVariantId" value={selectedPrimaryVariantId} />
                   {orderedSelectedAddOnVariantIds.map((variantId) => (
@@ -579,9 +783,25 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   <input type="hidden" name="requestedPressureLevel" value={requestedPressureLevel} />
                   <input type="hidden" name="preferredProviderId" value={preferredProviderId} />
                   <GuestHiddenContactInputs isSignedIn={model.viewer.isSignedIn} guestName={guestName} guestEmail={guestEmail} guestPhone={guestPhone} />
+                  <PublicBookingActionStatus state={visibleWaitlistActionState} retrySeconds={waitlistRetrySeconds} />
+                  {visibleWaitlistActionState.status === "VALIDATION_ERROR" || visibleWaitlistActionState.status === "CONFLICT" ? (
+                    <Button type="button" variant="outline" className="mt-2" onClick={startNewWaitlistRequest}>
+                      Start a new waitlist request
+                    </Button>
+                  ) : null}
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" variant="outline" onClick={() => setActiveStep("details")}>Back</Button>
-                    <Button type="submit" variant="outline" disabled={!guestContactComplete}>Join waitlist</Button>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      disabled={!guestContactComplete || !waitlistRequestId || waitlistPending || waitlistRetrySeconds > 0}
+                    >
+                      {waitlistPending
+                        ? "Joining waitlist..."
+                        : waitlistRetrySeconds > 0
+                          ? `Try again in ${waitlistRetrySeconds}s`
+                          : "Join waitlist"}
+                    </Button>
                   </div>
                 </form>
               </div>

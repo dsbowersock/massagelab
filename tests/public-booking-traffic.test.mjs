@@ -10,12 +10,18 @@ import { normalizeBookingPolicy } from "../lib/booking-policy.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
-const [routeSource, cacheSource] = await Promise.all([
+const [routeSource, cacheSource, actionStateSource, actionWrappersSource, publicBookingActionsSource] = await Promise.all([
   readFile(new URL("../app/api/book/[practiceSlug]/sequence-options/route.ts", import.meta.url), "utf8"),
   readFile(new URL("../lib/public-booking-availability-cache.ts", import.meta.url), "utf8").catch((error) => {
     if (error?.code === "ENOENT") return ""
     throw error
   }),
+  readFile(new URL("../app/calendar/actions/public-booking-state.ts", import.meta.url), "utf8").catch((error) => {
+    if (error?.code === "ENOENT") return ""
+    throw error
+  }),
+  readFile(new URL("../app/calendar/actions.ts", import.meta.url), "utf8"),
+  readFile(new URL("../app/calendar/actions/public-booking.ts", import.meta.url), "utf8"),
 ])
 
 const DESCRIPTOR_BODY = Object.freeze({
@@ -407,5 +413,71 @@ describe("public booking availability traffic", () => {
     assert.equal(readPublicAvailabilityCache("availability-0", { now: 251 }), null)
     assert.deepEqual(readPublicAvailabilityCache("availability-1", { now: 251 }), [])
     assert.deepEqual(readPublicAvailabilityCache("availability-250", { now: 251 }), [])
+  })
+})
+
+describe("public booking action state", () => {
+  it("action state owns the exact serializable union, ambiguous recovery, and fixed privacy-safe copy", async () => {
+    assert.ok(actionStateSource)
+    const state = loadCompiledModule(actionStateSource, "public-booking-state.test.ts", {})
+
+    assert.deepEqual(state.INITIAL_PUBLIC_BOOKING_ACTION_STATE, { status: "IDLE" })
+    assert.deepEqual(state.publicBookingSuccess("/book/practice?booking=requested"), {
+      status: "SUCCESS",
+      redirectTo: "/book/practice?booking=requested",
+    })
+    assert.deepEqual(state.publicBookingValidationError(), {
+      status: "VALIDATION_ERROR",
+      message: "Review your booking details and try again.",
+    })
+    assert.deepEqual(state.publicBookingConflict(), {
+      status: "CONFLICT",
+      message: "This request could not be completed. Start a new request and try again.",
+    })
+    assert.deepEqual(state.publicBookingRateLimited(2.1), {
+      status: "RATE_LIMITED",
+      message: "Too many requests. Please wait before trying again.",
+      retryAfterSeconds: 3,
+    })
+    assert.deepEqual(state.publicBookingUnavailable(), {
+      status: "UNAVAILABLE",
+      message: "Booking is temporarily unavailable. Please try again.",
+    })
+    const success = { status: "SUCCESS", redirectTo: "/book/practice?booking=requested" }
+    assert.equal(await state.runPublicBookingActionWithRecovery(async () => success, { status: "IDLE" }, new FormData()), success)
+    assert.deepEqual(
+      await state.runPublicBookingActionWithRecovery(async () => { throw new Error("private transport detail") }, { status: "IDLE" }, new FormData()),
+      state.publicBookingUnavailable(),
+    )
+    const conflict = state.publicBookingConflict()
+    assert.equal(state.publicBookingActionStateForAttempt(conflict, "request-1", "request-1"), conflict)
+    assert.deepEqual(
+      state.publicBookingActionStateForAttempt(conflict, "request-1", "request-2"),
+      { status: "IDLE" },
+      "a deliberately rotated attempt must not render or act on the old result",
+    )
+    assert.doesNotMatch(actionStateSource, /account exists|practice client|database row|quota key/i)
+  })
+
+  it("action state wrappers and domain functions use React 19 state signatures without server UUIDs or redirects", () => {
+    assert.match(actionWrappersSource, /requestBookingSequenceAction\(\s*previousState:\s*PublicBookingActionState,\s*formData:\s*FormData,?\s*\)/s)
+    assert.match(actionWrappersSource, /joinBookingWaitlistAction\(\s*previousState:\s*PublicBookingActionState,\s*formData:\s*FormData,?\s*\)/s)
+    assert.match(actionWrappersSource, /return requestBookingSequence\(previousState, formData\)/)
+    assert.match(actionWrappersSource, /return joinBookingWaitlist\(previousState, formData\)/)
+
+    const bookingStart = publicBookingActionsSource.indexOf("export async function requestBookingSequence(")
+    const waitlistStart = publicBookingActionsSource.indexOf("export async function joinBookingWaitlist(")
+    const convertStart = publicBookingActionsSource.indexOf("export async function convertWaitlistEntry(")
+    const bookingBlock = publicBookingActionsSource.slice(bookingStart, waitlistStart)
+    const waitlistBlock = publicBookingActionsSource.slice(waitlistStart, convertStart)
+    for (const block of [bookingBlock, waitlistBlock]) {
+      assert.match(block, /previousState:\s*PublicBookingActionState[\s\S]*formData:\s*FormData/)
+      assert.match(block, /Promise<PublicBookingActionState>/)
+      assert.doesNotMatch(block, /redirect\(/)
+      assert.doesNotMatch(block, /randomUUID/)
+    }
+    assert.match(bookingBlock, /publicBookingSuccess\([^)]*\?booking=requested/)
+    assert.match(waitlistBlock, /publicBookingSuccess\([^)]*\?waitlist=joined/)
+    assert.doesNotMatch(actionWrappersSource, /randomUUID|Retry-After|status:\s*429|status:\s*503/)
   })
 })

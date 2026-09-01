@@ -11,6 +11,7 @@ import {
   joinBookingWaitlist,
   requestBookingSequence,
 } from "./actions/public-booking"
+import type { PublicBookingActionState } from "./actions/public-booking-state"
 import { saveCalendarPreferences } from "./actions/preferences"
 import {
   createAppointment,
@@ -51,12 +52,18 @@ export async function saveProviderCapacityRulesAction(formData: FormData) {
   return saveProviderCapacityRules(formData)
 }
 
-export async function requestBookingSequenceAction(formData: FormData) {
-  return requestBookingSequence(formData)
+export async function requestBookingSequenceAction(
+  previousState: PublicBookingActionState,
+  formData: FormData,
+): Promise<PublicBookingActionState> {
+  return requestBookingSequence(previousState, formData)
 }
 
-export async function joinBookingWaitlistAction(formData: FormData) {
-  return joinBookingWaitlist(formData)
+export async function joinBookingWaitlistAction(
+  previousState: PublicBookingActionState,
+  formData: FormData,
+): Promise<PublicBookingActionState> {
+  return joinBookingWaitlist(previousState, formData)
 }
 
 export async function convertWaitlistEntryAction(formData: FormData) {
