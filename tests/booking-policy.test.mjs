@@ -249,11 +249,12 @@ describe("sequential public booking options", () => {
     assert.equal(options[0].startsAt, "2026-05-18T13:00:00.000Z")
   })
 
-  it("builds cross-provider primary plus add-on sequences from deterministic slots", () => {
+  it("keeps a preferred primary provider while team sequencing an add-on to another provider", () => {
     const options = buildSequentialBookingOptions({
       practiceId: "practice_1",
       timeZone: "America/New_York",
       pressureLevel: 3,
+      preferredProviderId: "provider_1",
       policy: { approvalMode: "AUTO_CONFIRM", teamSequencingEnabled: true },
       providers: [
         { userId: "provider_1", label: "Provider One", publiclyBookable: true, minRestMinutes: 0 },
