@@ -1,6 +1,57 @@
-import { expect, test, type Locator, type Page, type Response } from "@playwright/test"
+import { expect, test as base, type Locator, type Page, type Request, type Response, type Route } from "@playwright/test"
+import { readFile } from "node:fs/promises"
 import { centerCarouselItem } from "./carousel-test-helpers"
 import { installSignedInSessionCookie } from "./signed-in-session-cookie"
+
+type PublicNetworkGuardState = {
+  allowedExternalUrls: Set<string>
+  ownedPreviewCancellations: string[]
+  ownedPreviewFixtureRequests: WeakSet<Request>
+  unfulfilledAllowedExternalRequests: string[]
+  unexpectedExternalRequests: string[]
+}
+
+const publicNetworkGuardByPage = new WeakMap<Page, PublicNetworkGuardState>()
+
+/**
+ * Blocks external HTTP(S) by default and records unexpected requests or allowed
+ * URLs that no exact fixture fulfilled. Per-test page routes are registered
+ * later and must therefore take precedence over this catch-all guard.
+ */
+const test = base.extend<{ publicNetworkGuard: PublicNetworkGuardState }>({
+  publicNetworkGuard: [async ({ page }, use) => {
+    const state: PublicNetworkGuardState = {
+      allowedExternalUrls: new Set(),
+      ownedPreviewCancellations: [],
+      ownedPreviewFixtureRequests: new WeakSet(),
+      unfulfilledAllowedExternalRequests: [],
+      unexpectedExternalRequests: [],
+    }
+    publicNetworkGuardByPage.set(page, state)
+    await page.route((url) => isExternalHttpUrl(url.toString()), async (route) => {
+      const request = route.request()
+      const requestDescription = `${request.method()} ${request.url()}`
+      if (state.allowedExternalUrls.has(request.url())) {
+        state.unfulfilledAllowedExternalRequests.push(requestDescription)
+      } else {
+        state.unexpectedExternalRequests.push(requestDescription)
+      }
+      await route.abort("blockedbyclient")
+    })
+    await use(state)
+    expect(state.unexpectedExternalRequests, "unexpected external requests after public journey").toEqual([])
+    expect(
+      state.unfulfilledAllowedExternalRequests,
+      "allowed external requests without an exact fixture",
+    ).toEqual([])
+  }, { auto: true }],
+})
+
+function getPublicNetworkGuard(page: Page) {
+  const state = publicNetworkGuardByPage.get(page)
+  if (!state) throw new Error("Public network guard is unavailable for this page")
+  return state
+}
 
 const publicRoutes = [
   { path: "/", expectedText: /MassageLab/i },
@@ -35,6 +86,48 @@ const forbiddenAnonymousEndpoints = [
   "/api/account/preferences",
   "/api/account/profile",
 ] as const
+
+const externalFontUrl = "https://db.onlinewebfonts.com/t/8e22783d707ad140bffe18b2a3812529.woff2"
+const ablyCdnUrl = "https://cdn.ably.com/lib/ably.min-2.js"
+const chimerPreviewUrl = (name: string) => `https://media.massagelab.app/chimer/background-previews/${name}.webm`
+const atmosphereSampleIndexUrl = (pieceId: string) => (
+  `https://media.massagelab.app/atmosphere/${pieceId === "observable-streams"
+    ? "observable-streams-vsco-adaptation"
+    : `generative-fm/${pieceId}`}/sample-index.opus.json`
+)
+const initialAtmosphereSampleIndexUrls = [
+  "aisatsana",
+  "at-sunrise",
+  "day-dream",
+  "eno-machine",
+  "lemniscate",
+  "observable-streams",
+  "peace",
+  "trees",
+].map(atmosphereSampleIndexUrl)
+const atmosphereSampleIndexFixtureUrls = [
+  ...initialAtmosphereSampleIndexUrls,
+  atmosphereSampleIndexUrl("420hz-gamma-waves-for-big-brain"),
+  atmosphereSampleIndexUrl("last-transit"),
+]
+const deterministicAtmospherePayloadUrls = {
+  observableCorAnglais: "https://media.massagelab.app/atmosphere/browser-qa/observable-streams/cor-anglais-c4.opus",
+  observablePiano: "https://media.massagelab.app/atmosphere/browser-qa/observable-streams/piano-c4.opus",
+  observableViolin: "https://media.massagelab.app/atmosphere/browser-qa/observable-streams/violin-c4.opus",
+  lastTransitTruck: "/audio/atmosphere/media-session-carrier.mp3",
+  peaceFlute: "https://media.massagelab.app/atmosphere/browser-qa/peace/flute-c4.opus",
+  treesPiano: "https://media.massagelab.app/atmosphere/browser-qa/trees/piano-c4.opus",
+} as const
+
+function buildChromaticNoteFixture(payloadUrl: string) {
+  const notes: Record<string, string> = {}
+  for (let octave = 1; octave <= 7; octave += 1) {
+    for (const pitchClass of ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]) {
+      notes[`${pitchClass}${octave}`] = payloadUrl
+    }
+  }
+  return notes
+}
 
 function formatResponse(response: Response) {
   const url = new URL(response.url())
@@ -180,11 +273,27 @@ function isLocalHttpUrl(urlString: string) {
   return ["127.0.0.1", "localhost"].includes(url.hostname)
 }
 
-function capturePageHealth(page: Page) {
+function isExternalHttpUrl(urlString: string) {
+  const url = new URL(urlString)
+  return ["http:", "https:"].includes(url.protocol) && !isLocalHttpUrl(urlString)
+}
+
+function registerAllowedExternalUrls(page: Page, allowedExternalUrls: ReadonlySet<string>) {
+  const networkGuard = getPublicNetworkGuard(page)
+  for (const url of allowedExternalUrls) {
+    if (!isExternalHttpUrl(url)) throw new Error(`Public external allowlist contains a non-external URL: ${url}`)
+    networkGuard.allowedExternalUrls.add(url)
+  }
+}
+
+async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<string>) {
   const consoleErrors: string[] = []
+  const failedExternalRequests: string[] = []
   const pageErrors: string[] = []
   const failedLocalResponses: string[] = []
   const forbiddenRequests: string[] = []
+  const networkGuard = getPublicNetworkGuard(page)
+  registerAllowedExternalUrls(page, allowedExternalUrls)
 
   page.on("console", (message) => {
     if (message.type() === "error") {
@@ -203,6 +312,16 @@ function capturePageHealth(page: Page) {
     }
   })
 
+  page.on("requestfailed", (request) => {
+    if (isLocalHttpUrl(request.url())) return
+    const failureText = request.failure()?.errorText ?? "unknown failure"
+    if (failureText === "net::ERR_ABORTED" && networkGuard.ownedPreviewFixtureRequests.has(request)) {
+      networkGuard.ownedPreviewCancellations.push(`${request.method()} ${request.url()}`)
+      return
+    }
+    failedExternalRequests.push(`${failureText} ${request.url()}`)
+  })
+
   page.on("response", (response) => {
     if (response.status() >= 400 && isLocalHttpUrl(response.url())) {
       failedLocalResponses.push(formatResponse(response))
@@ -211,9 +330,247 @@ function capturePageHealth(page: Page) {
 
   return {
     consoleErrors,
+    failedExternalRequests,
     failedLocalResponses,
     forbiddenRequests,
+    ownedPreviewCancellations: networkGuard.ownedPreviewCancellations,
     pageErrors,
+    unexpectedExternalRequests: networkGuard.unexpectedExternalRequests,
+  }
+}
+
+test("every public journey blocks and records an unexpected successful external resource", async ({ context, page }) => {
+  const unexpectedExternalUrl = "https://unexpected.browser-qa.invalid/public-route-probe.js"
+  let successfulFixtureRequests = 0
+  await context.route(unexpectedExternalUrl, async (route) => {
+    successfulFixtureRequests += 1
+    await route.fulfill({
+      status: 200,
+      contentType: "application/javascript",
+      headers: { "access-control-allow-origin": "*" },
+      body: "window.__unexpectedPublicRouteProbe = true",
+    })
+  })
+  const networkGuard = getPublicNetworkGuard(page)
+
+  await page.goto("/about", { waitUntil: "domcontentloaded" })
+  const requestResult = await page.evaluate(async (url) => {
+    try {
+      const response = await fetch(url)
+      return { kind: "fulfilled", status: response.status }
+    } catch {
+      return { kind: "rejected" }
+    }
+  }, unexpectedExternalUrl)
+
+  expect.soft(requestResult, "unexpected request result").toEqual({ kind: "rejected" })
+  expect.soft(successfulFixtureRequests, "unexpected 2xx fixture requests").toBe(0)
+  expect.soft(networkGuard.unexpectedExternalRequests, "unexpected external requests").toEqual([
+    `GET ${unexpectedExternalUrl}`,
+  ])
+  networkGuard.unexpectedExternalRequests.length = 0
+})
+
+test("an exact allowlisted preview canceled by its media lifecycle is not an external failure", async ({ page }) => {
+  const canceledPreviewUrl = chimerPreviewUrl("intentional-cancel")
+  const nonOwnedAbortUrl = chimerPreviewUrl("non-owned-abort")
+  const health = await capturePageHealth(page, new Set([canceledPreviewUrl, nonOwnedAbortUrl]))
+  let announceFixtureStarted!: () => void
+  let releaseFixture!: () => void
+  const fixtureStarted = new Promise<void>((resolve) => {
+    announceFixtureStarted = resolve
+  })
+  const fixtureGate = new Promise<void>((resolve) => {
+    releaseFixture = resolve
+  })
+  let fixtureFinished = false
+  await installChimerPreviewRoute(page, canceledPreviewUrl, async (route) => {
+    announceFixtureStarted()
+    await fixtureGate
+    await route.fulfill({ status: 204, contentType: "video/webm", body: "" })
+    fixtureFinished = true
+  })
+  await page.route(nonOwnedAbortUrl, async (route) => {
+    await route.abort("aborted")
+  })
+
+  await page.goto("/about", { waitUntil: "domcontentloaded" })
+  const canceledRequestPromise = page.waitForEvent("requestfailed", {
+    predicate: (request) => request.url() === canceledPreviewUrl,
+  })
+  await page.evaluate((url) => {
+    const preview = document.createElement("video")
+    preview.dataset.browserQaCanceledPreview = "true"
+    preview.preload = "auto"
+    preview.src = url
+    document.body.append(preview)
+    preview.load()
+  }, canceledPreviewUrl)
+
+  await fixtureStarted
+  const teardownNavigation = page.goto("about:blank", { waitUntil: "domcontentloaded" })
+  const canceledRequest = await canceledRequestPromise
+  releaseFixture()
+  await teardownNavigation
+  await expect.poll(() => fixtureFinished, "exact preview fixture completion").toBe(true)
+  expect(canceledRequest.failure()?.errorText, "browser media cancellation").toBe("net::ERR_ABORTED")
+
+  const nonOwnedRequestPromise = page.waitForEvent("requestfailed", {
+    predicate: (request) => request.url() === nonOwnedAbortUrl,
+  })
+  const nonOwnedRequestResult = await page.evaluate(async (url) => {
+    try {
+      await fetch(url)
+      return "fulfilled"
+    } catch {
+      return "rejected"
+    }
+  }, nonOwnedAbortUrl)
+  const nonOwnedRequest = await nonOwnedRequestPromise
+  expect(nonOwnedRequestResult, "non-owned request result").toBe("rejected")
+  expect(nonOwnedRequest.failure()?.errorText, "non-owned network abort").toBe("net::ERR_ABORTED")
+  expect(health.failedExternalRequests, "failed external requests").toEqual([
+    `net::ERR_ABORTED ${nonOwnedAbortUrl}`,
+  ])
+  expect(health.ownedPreviewCancellations, "owned preview cancellation receipt").toEqual([
+    `GET ${canceledPreviewUrl}`,
+  ])
+})
+
+function requireAllowedExternalFixture(
+  page: Page,
+  allowedExternalUrls: ReadonlySet<string>,
+  url: string,
+) {
+  if (!allowedExternalUrls.has(url) || !getPublicNetworkGuard(page).allowedExternalUrls.has(url)) {
+    throw new Error(`External fixture URL is missing from this journey's allowlist: ${url}`)
+  }
+}
+
+/** Serves the one externally hosted display font from a deterministic repository-owned fixture. */
+async function installExternalFontFixture(page: Page, allowedExternalUrls: ReadonlySet<string>) {
+  registerAllowedExternalUrls(page, allowedExternalUrls)
+  requireAllowedExternalFixture(page, allowedExternalUrls, externalFontUrl)
+  await page.route(externalFontUrl, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "font/woff2",
+      body: await readFile(new URL("../fixtures/browser-external-font.woff2", import.meta.url)),
+    })
+  })
+}
+
+/** Marks the exact Request owned by a preview fixture before browser media teardown can cancel it. */
+async function installChimerPreviewRoute(
+  page: Page,
+  url: string,
+  handleRoute: (route: Route) => Promise<void>,
+) {
+  await page.route(url, async (route) => {
+    getPublicNetworkGuard(page).ownedPreviewFixtureRequests.add(route.request())
+    await handleRoute(route)
+  })
+}
+
+/** Fulfills only the named Chimer preview requests; other external media remains visible to health checks. */
+async function installChimerPreviewFixtures(
+  page: Page,
+  names: string[],
+  allowedExternalUrls: ReadonlySet<string>,
+) {
+  registerAllowedExternalUrls(page, allowedExternalUrls)
+  for (const name of names) {
+    const url = chimerPreviewUrl(name)
+    requireAllowedExternalFixture(page, allowedExternalUrls, url)
+    await installChimerPreviewRoute(page, url, async (route) => {
+      await route.fulfill({ status: 204, contentType: "video/webm", body: "" })
+    })
+  }
+}
+
+/**
+ * Installs deterministic Atmosphere network fixtures for public browser journeys.
+ * @param page Page whose external Atmosphere requests the fixtures intercept.
+ * @param allowedExternalUrls Explicit external-request allowlist shared with health checks.
+ * @param playbackPieceIds Pieces that need playable sample payloads; each piece must have an allowlisted sample-index fixture.
+ * @param sampleIndexFixtureUrls Sample-index URLs to fulfill, or the full catalog by default.
+ * @returns A `hitCount(url)` API reporting how often each fixture ran.
+ */
+async function installAtmosphereFixtures(
+  page: Page,
+  allowedExternalUrls: ReadonlySet<string>,
+  playbackPieceIds: Array<"observable-streams" | "last-transit" | "peace" | "trees"> = [],
+  sampleIndexFixtureUrls: readonly string[] = atmosphereSampleIndexFixtureUrls,
+) {
+  registerAllowedExternalUrls(page, allowedExternalUrls)
+  const fixtureHits = new Map<string, number>()
+  const recordHit = (url: string) => fixtureHits.set(url, (fixtureHits.get(url) ?? 0) + 1)
+  const playbackIndexes: Record<string, Record<string, Record<string, string> | string[]>> = {
+    "observable-streams": {
+      "observable-streams__sso-cor-anglais": buildChromaticNoteFixture(deterministicAtmospherePayloadUrls.observableCorAnglais),
+      "observable-streams__vsco2-piano-mf": buildChromaticNoteFixture(deterministicAtmospherePayloadUrls.observablePiano),
+      "observable-streams__vsco2-violin-arcvib": buildChromaticNoteFixture(deterministicAtmospherePayloadUrls.observableViolin),
+    },
+    "last-transit": {
+      "last-transit__idling-truck": [deterministicAtmospherePayloadUrls.lastTransitTruck],
+    },
+    peace: {
+      "peace__native-american-flute-susvib": buildChromaticNoteFixture(deterministicAtmospherePayloadUrls.peaceFlute),
+    },
+    trees: {
+      "trees__vsco2-piano-mf": buildChromaticNoteFixture(deterministicAtmospherePayloadUrls.treesPiano),
+    },
+  }
+  // Prewarm-only journeys deliberately fixture the smaller initial catalog.
+  const sampleIndexUrls = new Set(sampleIndexFixtureUrls)
+
+  for (const pieceId of playbackPieceIds) {
+    if (!sampleIndexUrls.has(atmosphereSampleIndexUrl(pieceId))) {
+      throw new Error(`Atmosphere playback piece has no sample-index fixture: ${pieceId}`)
+    }
+  }
+
+  for (const url of sampleIndexUrls) {
+    requireAllowedExternalFixture(page, allowedExternalUrls, url)
+    const pieceId = playbackPieceIds.find((candidate) => atmosphereSampleIndexUrl(candidate) === url)
+    await page.route(url, async (route) => {
+      recordHit(url)
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(pieceId ? playbackIndexes[pieceId] : {}),
+      })
+    })
+  }
+
+  const playbackPayloadUrls = playbackPieceIds.flatMap((pieceId) => {
+    if (pieceId === "observable-streams") {
+      return [
+        deterministicAtmospherePayloadUrls.observableCorAnglais,
+        deterministicAtmospherePayloadUrls.observablePiano,
+        deterministicAtmospherePayloadUrls.observableViolin,
+      ]
+    }
+    if (pieceId === "last-transit") return [deterministicAtmospherePayloadUrls.lastTransitTruck]
+    return pieceId === "peace"
+      ? [deterministicAtmospherePayloadUrls.peaceFlute]
+      : [deterministicAtmospherePayloadUrls.treesPiano]
+  })
+  for (const url of playbackPayloadUrls) {
+    if (url.startsWith("/")) continue
+    requireAllowedExternalFixture(page, allowedExternalUrls, url)
+    await page.route(url, async (route) => {
+      recordHit(url)
+      await route.fulfill({
+        status: 200,
+        contentType: "audio/mpeg",
+        body: await readFile(new URL("../../public/audio/atmosphere/media-session-carrier.mp3", import.meta.url)),
+      })
+    })
+  }
+
+  return {
+    hitCount: (url: string) => fixtureHits.get(url) ?? 0,
   }
 }
 
@@ -286,7 +643,18 @@ async function openQuickActionsAboveTrigger(page: Page, quickCreate: Locator) {
 
 for (const route of publicRoutes) {
   test(`anonymous public route ${route.path} renders without browser regressions`, async ({ page }) => {
-    const health = capturePageHealth(page)
+    const ownsAtmospherePrewarm = route.path === "/browse" || route.path === "/music"
+    const allowedExternalUrls = new Set<string>([
+      ...(route.path === "/chimer" || route.path === "/clock" ? [externalFontUrl] : []),
+      ...(ownsAtmospherePrewarm ? initialAtmosphereSampleIndexUrls : []),
+    ])
+    const health = await capturePageHealth(page, allowedExternalUrls)
+    if (route.path === "/chimer" || route.path === "/clock") {
+      await installExternalFontFixture(page, allowedExternalUrls)
+    }
+    if (ownsAtmospherePrewarm) {
+      await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
+    }
 
     await page.goto(route.path, { waitUntil: "domcontentloaded" })
     await expect(page.locator("body")).toContainText(route.expectedText)
@@ -294,6 +662,8 @@ for (const route of publicRoutes) {
     await page.waitForTimeout(250)
 
     expect(health.pageErrors, "uncaught page errors").toEqual([])
+    expect(health.failedExternalRequests, "failed external requests").toEqual([])
+    expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
     expect(health.consoleErrors, "browser console errors").toEqual([])
     expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
     expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -301,10 +671,14 @@ for (const route of publicRoutes) {
 }
 
 test("core public tool surfaces keep shell spacing and visible primary content", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.setViewportSize({ width: 390, height: 844 })
-  for (const path of ["/", "/tools", "/education", "/notes", "/music", "/wellness"]) {
+  for (const path of ["/", "/tools", "/education", "/notes", "/wellness", "/music"]) {
+    if (path === "/music") {
+      const allowedExternalUrls = new Set(initialAtmosphereSampleIndexUrls)
+      await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
+    }
     await page.goto(path, { waitUntil: "domcontentloaded" })
     await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toBeVisible()
     await expect(page.locator(".ml-app-content")).toBeVisible()
@@ -313,6 +687,7 @@ test("core public tool surfaces keep shell spacing and visible primary content",
   }
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -320,7 +695,9 @@ test("core public tool surfaces keep shell spacing and visible primary content",
 
 test("active app-tool metal ring keeps valid SVG geometry when its renderer collapses", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "The MetalFx collapse regression is covered once in Chromium.")
-  const health = capturePageHealth(page)
+  const allowedExternalUrls = new Set(initialAtmosphereSampleIndexUrls)
+  const health = await capturePageHealth(page, allowedExternalUrls)
+  await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
 
   await page.setViewportSize({ width: 1024, height: 720 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
@@ -365,13 +742,16 @@ test("active app-tool metal ring keeps valid SVG geometry when its renderer coll
   const invalidRects = metalRoot.locator('rect[width^="-"], rect[height^="-"]')
   await expect(invalidRects, "MetalFx SVG rectangles with negative dimensions").toHaveCount(0)
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("main bar exposes brand music clock quick create theme calendar and more controls", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const allowedExternalUrls = new Set(initialAtmosphereSampleIndexUrls)
+  const health = await capturePageHealth(page, allowedExternalUrls)
+  await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => {
@@ -416,13 +796,14 @@ test("main bar exposes brand music clock quick create theme calendar and more co
   await expect(mainBar.locator(".ml-main-bar-tools").getByRole("group", { name: /^Theme$/i })).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("main bar edge control stays aligned with the compact sidebar rail", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.setViewportSize({ width: 686, height: 682 })
   await page.addInitScript(() => {
@@ -451,6 +832,7 @@ test("main bar edge control stays aligned with the compact sidebar rail", async 
   expect(Math.abs(drawerCenter - railCenter)).toBeLessThanOrEqual(1)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -459,7 +841,9 @@ test("main bar edge control stays aligned with the compact sidebar rail", async 
 test("top app bar quick actions open inside the viewport below the plus button", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "Top app bar placement is covered by the desktop shell.")
 
-  const health = capturePageHealth(page)
+  const allowedExternalUrls = new Set(initialAtmosphereSampleIndexUrls)
+  const health = await capturePageHealth(page, allowedExternalUrls)
+  await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
 
   await page.setViewportSize({ width: 1024, height: 720 })
   await page.addInitScript(() => {
@@ -494,13 +878,14 @@ test("top app bar quick actions open inside the viewport below the plus button",
   }
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("mobile quick-create button opens a vertical speed dial", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/", { waitUntil: "domcontentloaded" })
@@ -521,13 +906,25 @@ test("mobile quick-create button opens a vertical speed dial", async ({ page }) 
   await expect(quickActions).toHaveCount(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("Chimer keeps the mobile main bar and opens quick actions above the plus button", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const previewNames = [
+    "massage-lab-hole-vertical",
+    "massage-lab-stars-vertical",
+    "massage-lab-moving-gradient-vertical",
+  ]
+  const allowedExternalUrls = new Set([
+    externalFontUrl,
+    ...previewNames.map(chimerPreviewUrl),
+  ])
+  const health = await capturePageHealth(page, allowedExternalUrls)
+  await installExternalFontFixture(page, allowedExternalUrls)
+  await installChimerPreviewFixtures(page, previewNames, allowedExternalUrls)
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/chimer", { waitUntil: "domcontentloaded" })
@@ -573,13 +970,17 @@ test("Chimer keeps the mobile main bar and opens quick actions above the plus bu
   await expect(page.locator(".ml-app-shell")).toHaveAttribute("data-main-bar-visible", "true")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("mobile primary bar keeps lighting controls available with a compact theme toggle", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const atmosphereFixtureUrls = new Set(atmosphereSampleIndexFixtureUrls)
+  const health = await capturePageHealth(page, atmosphereFixtureUrls)
+  await installAtmosphereFixtures(page, atmosphereFixtureUrls)
 
   await page.setViewportSize({ width: 319, height: 932 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
@@ -610,13 +1011,15 @@ test("mobile primary bar keeps lighting controls available with a compact theme 
   )
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("anonymous homepage presents landing copy and tool discovery rails", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
@@ -667,13 +1070,14 @@ test("anonymous homepage presents landing copy and tool discovery rails", async 
   await expect(availableTools.getByRole("link", { name: /Open roadmap/i })).toHaveAttribute("href", "/roadmap")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("Roadmap presents an unordered product portfolio", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.goto("/roadmap", { waitUntil: "domcontentloaded" })
 
@@ -711,13 +1115,26 @@ test("Roadmap presents an unordered product portfolio", async ({ page }) => {
   await expect(page.locator("#one-time-support")).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("Atmosphere visualizer action retains selected station across client routes", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const previewNames = [
+    "massage-lab-moving-gradient-vertical",
+    "massage-lab-stars-vertical",
+    "massage-lab-hole-vertical",
+    "massage-lab-retro-grid-vertical",
+  ]
+  const allowedExternalUrls = new Set([
+    ...atmosphereSampleIndexFixtureUrls,
+    ...previewNames.map(chimerPreviewUrl),
+  ])
+  const health = await capturePageHealth(page, allowedExternalUrls)
+  await installAtmosphereFixtures(page, allowedExternalUrls)
+  await installChimerPreviewFixtures(page, previewNames, allowedExternalUrls)
   const origin = "/music?task8=public-route"
 
   await page.goto(origin, { waitUntil: "domcontentloaded" })
@@ -798,6 +1215,8 @@ test("Atmosphere visualizer action retains selected station across client routes
   await expect(playerToolbar.getByRole("link", { name: /^Background$/i })).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -805,6 +1224,10 @@ test("Atmosphere visualizer action retains selected station across client routes
 
 test("non-Music compact landscape keeps the global rail without narrowing ordinary content", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Compact-landscape global rail is covered in mobile Chromium.")
+  const atmosphereFixtureUrls = new Set(atmosphereSampleIndexFixtureUrls)
+  const fontFixtureUrls = new Set([externalFontUrl])
+  await installAtmosphereFixtures(page, atmosphereFixtureUrls)
+  await installExternalFontFixture(page, fontFixtureUrls)
   await page.setViewportSize({ width: 844, height: 390 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   await centerCarouselItem(page, "mlab-proof-drone", "Next station")
@@ -831,7 +1254,19 @@ test("non-Music compact landscape keeps the global rail without narrowing ordina
 })
 
 test("Atmosphere restores the active station category after the Music route remounts", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const previewNames = [
+    "massage-lab-moving-gradient-vertical",
+    "massage-lab-stars-vertical",
+    "massage-lab-hole-vertical",
+    "massage-lab-retro-grid-vertical",
+  ]
+  const allowedExternalUrls = new Set([
+    ...atmosphereSampleIndexFixtureUrls,
+    ...previewNames.map(chimerPreviewUrl),
+  ])
+  const health = await capturePageHealth(page, allowedExternalUrls)
+  await installAtmosphereFixtures(page, allowedExternalUrls, ["last-transit"])
+  await installChimerPreviewFixtures(page, previewNames, allowedExternalUrls)
 
   await page.goto("/music?active-category=restore", { waitUntil: "domcontentloaded" })
   const categoryGroup = page.getByRole("group", { name: "Station category" })
@@ -842,8 +1277,10 @@ test("Atmosphere restores the active station category after the Music route remo
   await centerCarouselItem(page, "generative-fm-last-transit", "Next station")
   await page.getByRole("button", { name: /^Play Last Transit$/i }).click()
   await expect(page.getByRole("button", { name: /^Stop Last Transit$/i })).toBeVisible({ timeout: 45_000 })
+  const playerToolbar = page.getByTestId("music-player-toolbar")
+  await expect(playerToolbar).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
 
-  await page.getByTestId("music-player-toolbar").getByRole("link", { name: /^Background$/i }).click()
+  await playerToolbar.getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
   const backgroundDialog = page.getByRole("dialog", { name: "Background" })
   await expect(backgroundDialog).toBeVisible()
@@ -857,12 +1294,25 @@ test("Atmosphere restores the active station category after the Music route remo
   await page.getByRole("button", { name: /^Stop$/i }).last().click()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("immersive context changes keep only the displays owned by Chimer, Clock, and hidden Music", async ({ page }) => {
+  const previewNames = [
+    "massage-lab-moving-gradient-vertical",
+    "massage-lab-stars-vertical",
+    "massage-lab-hole-vertical",
+  ]
+  const allowedExternalUrls = new Set([
+    externalFontUrl,
+    ...previewNames.map(chimerPreviewUrl),
+  ])
+  await installExternalFontFixture(page, allowedExternalUrls)
+  await installChimerPreviewFixtures(page, previewNames, allowedExternalUrls)
   let releaseSession!: () => void
   const sessionGate = new Promise<void>((resolve) => {
     releaseSession = resolve
@@ -968,6 +1418,18 @@ test("Music visualizer uses the anonymous shell bootstrap without client account
 })
 
 test("Music visualizer background selection and account default actions preserve playback and device state", async ({ context, page }, testInfo) => {
+  const previewNames = [
+    "massage-lab-moving-gradient-vertical",
+    "massage-lab-stars-vertical",
+    "massage-lab-hole-vertical",
+    "massage-lab-retro-grid-vertical",
+  ]
+  const allowedExternalUrls = new Set([
+    ...previewNames.map(chimerPreviewUrl),
+    ...initialAtmosphereSampleIndexUrls,
+  ])
+  await installChimerPreviewFixtures(page, previewNames, allowedExternalUrls)
+  await installAtmosphereFixtures(page, allowedExternalUrls, [], initialAtmosphereSampleIndexUrls)
   const preferenceWrites: Array<Record<string, unknown>> = []
   const accountRequests: string[] = []
   const accountVisualizer = {
@@ -1047,6 +1509,10 @@ test("Music visualizer background selection and account default actions preserve
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
   await playerToolbar.getByRole("link", { name: /^Background$/i }).click()
   await expect(page).toHaveURL(/\/clock\?[^#]*source=music/)
+  await expect.poll(() => page.evaluate(() => (
+    JSON.parse(localStorage.getItem("massagelab-atmosphere-v2") ?? "{}")
+      .recentStations
+  ))).toEqual(["mlab-proof-drone"])
 
   const deviceStateBeforeSelection = await page.evaluate(() => {
     const stored = JSON.parse(localStorage.getItem("massagelab-atmosphere-v2") ?? "{}")
@@ -1174,7 +1640,7 @@ test("Music account preference owner switch ignores a delayed old-owner PUT", as
 })
 
 test("Breathing guide route runs separately from Music stations", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.goto("/wellness/breathing", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: /^Breathing guide$/i })).toBeVisible()
@@ -1188,6 +1654,7 @@ test("Breathing guide route runs separately from Music stations", async ({ page 
   await expect(page.getByRole("button", { name: /^Start breathing$/i })).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -1195,6 +1662,8 @@ test("Breathing guide route runs separately from Music stations", async ({ page 
 
 test("first station Play activation stays hidden before carousel readiness", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Mobile Chromium owns the first-action contract.")
+  const atmosphereFixtureUrls = new Set(atmosphereSampleIndexFixtureUrls)
+  await installAtmosphereFixtures(page, atmosphereFixtureUrls)
   let carouselBundleHeld = false
   let releaseCarouselBundle: () => void = () => undefined
   const carouselBundleGate = new Promise<void>((resolve) => {
@@ -1231,6 +1700,8 @@ test("first station Play activation stays hidden before carousel readiness", asy
 
 test("center station details support swipe and short tap while actions stay protected", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-chromium", "Touch carousel behavior is covered in mobile Chromium.")
+  const atmosphereFixtureUrls = new Set(atmosphereSampleIndexFixtureUrls)
+  await installAtmosphereFixtures(page, atmosphereFixtureUrls)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("region", { name: "Station carousel" })).toHaveAttribute("data-carousel-ready", "true")
@@ -1320,6 +1791,8 @@ for (const reducedMotion of [false, true] as const) {
       !["mobile-chromium", "desktop-chromium"].includes(testInfo.project.name),
       "Station loop coverage is owned by Chromium projects.",
     )
+    const atmosphereFixtureUrls = new Set(atmosphereSampleIndexFixtureUrls)
+    await installAtmosphereFixtures(page, atmosphereFixtureUrls)
     await page.emulateMedia({ reducedMotion: reducedMotion ? "reduce" : "no-preference" })
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto("/music", { waitUntil: "domcontentloaded" })
@@ -1411,6 +1884,19 @@ for (const reducedMotion of [false, true] as const) {
 for (const reducedMotion of [false, true] as const) {
   test(`Background default navigation and Background drag keep ${reducedMotion ? "reduced-motion finite" : "normal looped"} behavior`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-chromium", "Native Background drag coverage is owned by mobile Chromium.")
+    const previewNames = [
+      "massage-lab-gradient-vertical",
+      "massage-lab-moving-gradient-vertical",
+      "massage-lab-stars-vertical",
+      "massage-lab-hole-vertical",
+      "massage-lab-retro-grid-vertical",
+    ]
+    const allowedExternalUrls = new Set([
+      externalFontUrl,
+      ...previewNames.map(chimerPreviewUrl),
+    ])
+    await installExternalFontFixture(page, allowedExternalUrls)
+    await installChimerPreviewFixtures(page, previewNames, allowedExternalUrls)
     await page.emulateMedia({ reducedMotion: reducedMotion ? "reduce" : "no-preference" })
     if (reducedMotion) {
       await page.addInitScript(() => {
@@ -1493,7 +1979,23 @@ for (const reducedMotion of [false, true] as const) {
 }
 
 test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample station", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const payloadFixtureUrls = [
+    deterministicAtmospherePayloadUrls.observableCorAnglais,
+    deterministicAtmospherePayloadUrls.observablePiano,
+    deterministicAtmospherePayloadUrls.observableViolin,
+    deterministicAtmospherePayloadUrls.peaceFlute,
+    deterministicAtmospherePayloadUrls.treesPiano,
+  ]
+  const allowedExternalUrls = new Set([
+    ...atmosphereSampleIndexFixtureUrls,
+    ...payloadFixtureUrls,
+  ])
+  const health = await capturePageHealth(page, allowedExternalUrls)
+  const atmosphereFixtures = await installAtmosphereFixtures(
+    page,
+    allowedExternalUrls,
+    ["observable-streams", "peace", "trees"],
+  )
 
   await page.addInitScript(() => {
     window.addEventListener("massagelab:atmosphere-startup-timing", (event) => {
@@ -1611,14 +2113,23 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
     await expect(page.getByText(/Playing|Preparing audio|Preparing station/i)).toHaveCount(0)
   }
 
+  for (const pieceId of ["observable-streams", "peace", "trees"]) {
+    expect(atmosphereFixtures.hitCount(atmosphereSampleIndexUrl(pieceId)), `${pieceId} sample-index fixture hits`).toBeGreaterThan(0)
+  }
+  for (const payloadUrl of payloadFixtureUrls) {
+    expect(atmosphereFixtures.hitCount(payloadUrl), `${payloadUrl} fixture hits`).toBeGreaterThan(0)
+  }
+
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("anonymous onboarding routes through login with an onboarding callback", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.goto("/onboarding", { waitUntil: "domcontentloaded" })
 
@@ -1627,13 +2138,14 @@ test("anonymous onboarding routes through login with an onboarding callback", as
   await expect(page.getByRole("link", { name: /Create an account/i })).toHaveAttribute("href", "/register?callbackUrl=%2Fonboarding")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("anonymous registration legal gate routes through login before acceptance", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.goto("/legal/accept?callbackUrl=%2Fwellness", { waitUntil: "domcontentloaded" })
 
@@ -1647,13 +2159,14 @@ test("anonymous registration legal gate routes through login before acceptance",
   )
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("register defaults new accounts toward post-account onboarding", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.goto("/register", { waitUntil: "domcontentloaded" })
 
@@ -1662,13 +2175,14 @@ test("register defaults new accounts toward post-account onboarding", async ({ p
   await expect(page.getByRole("link", { name: /Sign in instead/i })).toHaveAttribute("href", "/login?callbackUrl=%2Fonboarding")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("homepage uses the final logo artwork for light and dark themes", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
@@ -1691,6 +2205,7 @@ test("homepage uses the final logo artwork for light and dark themes", async ({ 
   await expect(logo).toHaveAttribute("src", initialSrc ?? "")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -1698,7 +2213,7 @@ test("homepage uses the final logo artwork for light and dark themes", async ({ 
 
 test("theme switcher uses the compact toggle below desktop widths", async ({ page }) => {
   await page.setViewportSize({ width: 757, height: 682 })
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
@@ -1716,6 +2231,7 @@ test("theme switcher uses the compact toggle below desktop widths", async ({ pag
   )
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -1723,7 +2239,7 @@ test("theme switcher uses the compact toggle below desktop widths", async ({ pag
 
 test("homepage flip words advance when motion is allowed", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" })
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
@@ -1738,6 +2254,7 @@ test("homepage flip words advance when motion is allowed", async ({ page }) => {
     .not.toBe(firstWord)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -1793,7 +2310,7 @@ test("homepage widest audience phrase does not overflow at 390px", async ({ page
 
 test("homepage flip words stay stable when reduced motion is requested", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
@@ -1804,13 +2321,14 @@ test("homepage flip words stay stable when reduced motion is requested", async (
   await expect(flipWord).toHaveText(firstWord ?? "")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("anonymous flashcards setup keeps prompt controls usable before count hydration", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
 
   await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
@@ -1849,13 +2367,14 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   await expect(page.getByRole("button", { name: /Check|Correct|Missed/i })).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("anatomime shared game starts from the default setup", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const health = await capturePageHealth(page, new Set())
   let createPayload: { config?: { answerMode?: string; bodySystems?: string[]; clueLevel?: string; regions?: string[]; termCount?: number } } | null = null
   const teams = [
     { id: "team-1", name: "Team 1", sortOrder: 0, score: 0 },
@@ -1964,6 +2483,7 @@ test("anatomime shared game starts from the default setup", async ({ page }) => 
   await expect(page.getByRole("button", { name: /Start Shared Game/i })).toHaveCount(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
@@ -1989,7 +2509,13 @@ test("anatomime shared game create failures stay visible in setup", async ({ pag
 })
 
 test("anatomime player joins by code and submits typed guesses", async ({ page }) => {
-  const health = capturePageHealth(page)
+  const allowedExternalUrls = new Set([externalFontUrl])
+  const health = await capturePageHealth(page, allowedExternalUrls)
+  await installExternalFontFixture(page, allowedExternalUrls)
+  let ablyCdnRequestCount = 0
+  page.on("request", (request) => {
+    if (request.url() === ablyCdnUrl) ablyCdnRequestCount += 1
+  })
   await page.addInitScript(() => {
     window.Ably = {
       Realtime: class {
@@ -2093,14 +2619,19 @@ test("anatomime player joins by code and submits typed guesses", async ({ page }
   await page.getByRole("button", { name: /Submit Guess/i }).click()
   await expect(page.getByText("Correct. Your team scored.").first()).toBeVisible()
   await expect(page.getByText("2 of 4")).toBeVisible()
+  expect(ablyCdnRequestCount, "injected Ably fixture must prevent the CDN loader").toBe(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.failedExternalRequests, "failed external requests").toEqual([])
+  expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
 test("anatomime player sees steal guidance when another team is active", async ({ page }) => {
+  const fontFixtureUrls = new Set([externalFontUrl])
+  await installExternalFontFixture(page, fontFixtureUrls)
   await page.addInitScript(() => {
     window.localStorage.setItem("massagelab-anatomime-player:TEST01", JSON.stringify({
       playerId: "player-2",
@@ -2210,6 +2741,8 @@ test("anatomime stale player pass offers rejoin recovery", async ({ page }) => {
 })
 
 test("anatomime multiple-choice options unlock only on player devices", async ({ page }) => {
+  const fontFixtureUrls = new Set([externalFontUrl])
+  await installExternalFontFixture(page, fontFixtureUrls)
   await page.addInitScript(() => {
     window.localStorage.setItem("massagelab-anatomime-player:TEST01", JSON.stringify({
       playerId: "player-1",

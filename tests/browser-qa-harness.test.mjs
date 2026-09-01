@@ -30,6 +30,45 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
 
+const initialAtmosphereFixturePattern =
+  /installAtmosphereFixtures\(\s*page,\s*allowedExternalUrls,\s*\[\],\s*initialAtmosphereSampleIndexUrls,?\s*\)/g
+
+/** Finds the closing brace for a known block opener without depending on source indentation. */
+function findMatchingBraceIndex(source, openingBraceIndex) {
+  if (source[openingBraceIndex] !== "{") return -1
+
+  let depth = 0
+  for (let index = openingBraceIndex; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1
+    if (source[index] === "}") depth -= 1
+    if (depth === 0) return index
+  }
+  return -1
+}
+
+test("Atmosphere fixture matching survives wrapped calls and reindented nested guards", () => {
+  const source = [
+    'if (path === "/music") {',
+    "\tif (shouldPrewarm) {",
+    "\t\tinstallAtmosphereFixtures(",
+    "\t\t\tpage,",
+    "\t\t\tallowedExternalUrls,",
+    "\t\t\t[],",
+    "\t\t\tinitialAtmosphereSampleIndexUrls,",
+    "\t\t)",
+    "\t}",
+    "}",
+    "await page.goto(path)",
+  ].join("\n")
+  const guardIndex = source.indexOf('if (path === "/music")')
+  const openingBraceIndex = source.indexOf("{", guardIndex)
+  const closingBraceIndex = findMatchingBraceIndex(source, openingBraceIndex)
+
+  assert.equal((source.match(initialAtmosphereFixturePattern) ?? []).length, 1)
+  assert.ok(source.search(initialAtmosphereFixturePattern) < closingBraceIndex)
+  assert.ok(closingBraceIndex < source.indexOf("await page.goto(path)"))
+})
+
 test("install-prompt QA dispatches only while the provider listener is proven active", async () => {
   const appShellSpec = await readProjectFile("tests/browser/app-shell.spec.ts")
 
@@ -89,6 +128,141 @@ test("Code quality provisions Chromium with Linux dependencies before Node tests
     codeQualityJob,
     "npx playwright install --with-deps chromium",
     "npm run test",
+  )
+})
+
+test("browser QA enables the isolated RSC session proof at build and runtime", async () => {
+  const workflow = await readProjectFile(".github/workflows/ci.yml")
+
+  for (const jobId of ["browser_build", "browser_qa"]) {
+    assert.match(
+      getWorkflowJob(workflow, jobId),
+      /^      NEXT_PUBLIC_RSC_SESSION_PROOF: "1"\r?$/m,
+      `Expected ${jobId} to enable NEXT_PUBLIC_RSC_SESSION_PROOF`,
+    )
+  }
+})
+
+test("mobile Background carousel fixtures include the default preview", async () => {
+  const publicRoutesSpec = await readProjectFile("tests/browser/public-routes.spec.ts")
+  const fixtureStart = publicRoutesSpec.indexOf(
+    'test(`Background default navigation and Background drag keep',
+  )
+  const fixtureEnd = publicRoutesSpec.indexOf(
+    '\ntest("Atmosphere lists the Generative.fm catalog',
+    fixtureStart,
+  )
+
+  assert.notEqual(fixtureStart, -1, "Expected to locate the mobile Background fixture start")
+  assert.notEqual(fixtureEnd, -1, "Expected to locate the mobile Background fixture end")
+  assert.match(
+    publicRoutesSpec.slice(fixtureStart, fixtureEnd),
+    /"massage-lab-gradient-vertical"/,
+  )
+})
+
+test("public media journeys fixture opportunistic atmosphere prewarms", async () => {
+  const publicRoutesSpec = await readProjectFile("tests/browser/public-routes.spec.ts")
+  const genericStart = publicRoutesSpec.indexOf("for (const route of publicRoutes)")
+  const genericEnd = publicRoutesSpec.indexOf(
+    '\ntest("core public tool surfaces',
+    genericStart,
+  )
+  const coreToolsStart = genericEnd
+  const coreToolsEnd = publicRoutesSpec.indexOf(
+    '\ntest("active app-tool metal ring',
+    coreToolsStart,
+  )
+  const activeToolRingStart = coreToolsEnd
+  const activeToolRingEnd = publicRoutesSpec.indexOf(
+    '\ntest("main bar exposes brand music clock quick create theme calendar and more controls',
+    activeToolRingStart,
+  )
+  const mainBarStart = activeToolRingEnd
+  const mainBarEnd = publicRoutesSpec.indexOf(
+    '\ntest("main bar edge control stays aligned with the compact sidebar rail',
+    mainBarStart,
+  )
+  const topAppBarStart = publicRoutesSpec.indexOf(
+    'test("top app bar quick actions open inside the viewport below the plus button',
+    mainBarEnd,
+  )
+  const topAppBarEnd = publicRoutesSpec.indexOf(
+    '\ntest("mobile quick-create button opens a vertical speed dial',
+    topAppBarStart,
+  )
+  const visualizerStart = publicRoutesSpec.indexOf(
+    'test("Music visualizer background selection and account default actions',
+  )
+  const visualizerEnd = publicRoutesSpec.indexOf(
+    '\ntest("Music account preference owner switch',
+    visualizerStart,
+  )
+
+  for (const [boundaryName, boundary] of Object.entries({
+    genericStart,
+    genericEnd,
+    coreToolsStart,
+    coreToolsEnd,
+    activeToolRingStart,
+    activeToolRingEnd,
+    mainBarStart,
+    mainBarEnd,
+    topAppBarStart,
+    topAppBarEnd,
+    visualizerStart,
+    visualizerEnd,
+  })) {
+    assert.notEqual(boundary, -1, `Expected to locate ${boundaryName} in public-routes.spec.ts`)
+  }
+  const journeys = [
+    ["generic public routes", publicRoutesSpec.slice(genericStart, genericEnd)],
+    ["core public tools", publicRoutesSpec.slice(coreToolsStart, coreToolsEnd)],
+    ["active tool ring", publicRoutesSpec.slice(activeToolRingStart, activeToolRingEnd)],
+    ["main bar", publicRoutesSpec.slice(mainBarStart, mainBarEnd)],
+    ["top app bar", publicRoutesSpec.slice(topAppBarStart, topAppBarEnd)],
+    ["music visualizer", publicRoutesSpec.slice(visualizerStart, visualizerEnd)],
+  ]
+
+  for (const [journeyName, journeySource] of journeys) {
+    const fixtureIndex = journeySource.search(initialAtmosphereFixturePattern)
+    const firstNavigationIndex = journeySource.indexOf("await page.goto")
+    assert.notEqual(fixtureIndex, -1, `${journeyName} installs the exact initial Atmosphere fixture`)
+    assert.notEqual(firstNavigationIndex, -1, `${journeyName} contains a page navigation`)
+    assert.ok(
+      fixtureIndex < firstNavigationIndex,
+      `${journeyName} installs its exact initial Atmosphere fixture before navigation`,
+    )
+  }
+
+  const coreToolsSource = publicRoutesSpec.slice(coreToolsStart, coreToolsEnd)
+  assert.match(coreToolsSource, /const health = await capturePageHealth\(page, new Set\(\)\)/)
+  assert.equal(
+    (coreToolsSource.match(initialAtmosphereFixturePattern) ?? []).length,
+    1,
+    "the multi-route core journey owns exactly one initial Atmosphere fixture",
+  )
+  const coreRouteLoop = coreToolsSource.match(/for \(const path of \[([^\]]+)]\) \{/)
+  assert.ok(coreRouteLoop, "the multi-route core journey keeps an explicit route list")
+  const coreRoutePaths = [...coreRouteLoop[1].matchAll(/"([^"]+)"/g)].map((match) => match[1])
+  assert.equal(coreRoutePaths.at(-1), "/music", "the multi-route core journey visits Music last")
+  const coreMusicGuardIndex = coreToolsSource.indexOf('if (path === "/music") {')
+  const coreMusicGuardOpeningBraceIndex = coreToolsSource.indexOf("{", coreMusicGuardIndex)
+  const coreFixtureIndex = coreToolsSource.search(initialAtmosphereFixturePattern)
+  const coreMusicGuardEndIndex = findMatchingBraceIndex(coreToolsSource, coreMusicGuardOpeningBraceIndex)
+  const coreLoopNavigationIndex = coreToolsSource.indexOf("await page.goto(path", coreMusicGuardEndIndex)
+  assert.notEqual(coreMusicGuardIndex, -1, "the multi-route core journey has a Music-only fixture guard")
+  assert.notEqual(coreMusicGuardOpeningBraceIndex, -1, "the Music-only fixture guard has an opening brace")
+  assert.notEqual(coreMusicGuardEndIndex, -1, "the Music-only fixture guard has an explicit boundary")
+  assert.notEqual(coreLoopNavigationIndex, -1, "the Music-only fixture guard precedes the loop navigation")
+  assert.ok(
+    coreMusicGuardIndex < coreFixtureIndex && coreFixtureIndex < coreMusicGuardEndIndex,
+    "the multi-route core journey grants the exact prewarm fixture only inside the Music guard",
+  )
+  assert.equal(
+    coreToolsSource.slice(coreMusicGuardEndIndex + 1, coreLoopNavigationIndex).trim(),
+    "",
+    "the Music-only fixture guard stays immediately before the loop navigation",
   )
 })
 

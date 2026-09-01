@@ -91,8 +91,8 @@ async function renderPublicPricing({
         ShieldCheck: TestComponent,
         Sparkles: TestComponent,
       },
-      "@/auth": {
-        getCurrentSession: async () => session,
+      "@/lib/rsc-session": {
+        getCurrentRscSession: async () => session,
       },
       "@/lib/donations": {
         DONATION_OPTIONS: [],

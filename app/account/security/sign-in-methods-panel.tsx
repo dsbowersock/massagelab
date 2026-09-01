@@ -7,7 +7,7 @@ import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { PendingSecurityAction } from "@/app/account/security/security-panel"
+import type { PendingSecurityAction, SignInMethodAvailability } from "@/app/account/security/security-panel"
 
 type MethodActionState = "idle" | "proving" | "saving" | "redirecting" | "success" | "error"
 type MethodResponse = { code?: string; message?: string; googleLinked?: boolean; hasPasswordCredential?: boolean }
@@ -19,15 +19,17 @@ export function SignInMethodsPanel({
   pendingAction,
   beginAction,
   finishAction,
+  onMethodAvailabilityChange,
 }: {
   hasPasswordCredential: boolean
   googleLinked: boolean
   pendingAction: PendingSecurityAction
   beginAction: (action: Exclude<PendingSecurityAction, null>) => boolean
   finishAction: (action: Exclude<PendingSecurityAction, null>) => void
+  onMethodAvailabilityChange: (update: Partial<SignInMethodAvailability>) => void
 }) {
-  const [passwordAvailable, setPasswordAvailable] = useState(hasPasswordCredential)
-  const [googleAccountLinked, setGoogleAccountLinked] = useState(googleLinked)
+  const passwordAvailable = hasPasswordCredential
+  const googleAccountLinked = googleLinked
   const [addPassword, setAddPassword] = useState("")
   const [addPasswordConfirmed, setAddPasswordConfirmed] = useState(false)
   const [changeCurrentPassword, setChangeCurrentPassword] = useState("")
@@ -55,8 +57,17 @@ export function SignInMethodsPanel({
   }
 
   function applyMethodResponse(result: MethodResponse) {
-    if (typeof result.googleLinked === "boolean") setGoogleAccountLinked(result.googleLinked)
-    if (typeof result.hasPasswordCredential === "boolean") setPasswordAvailable(result.hasPasswordCredential)
+    // Preserve the current method availability when a mutation omits both explicit availability fields.
+    if (
+      typeof result.googleLinked !== "boolean"
+      && typeof result.hasPasswordCredential !== "boolean"
+    ) return
+    onMethodAvailabilityChange({
+      ...(typeof result.googleLinked === "boolean" ? { googleLinked: result.googleLinked } : {}),
+      ...(typeof result.hasPasswordCredential === "boolean"
+        ? { hasPasswordCredential: result.hasPasswordCredential }
+        : {}),
+    })
   }
 
   async function startGoogleProof(purpose: "SIGN_IN_OR_LINK" | "ADD_PASSWORD" | "REMOVE_PASSWORD") {

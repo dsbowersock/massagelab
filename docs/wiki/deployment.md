@@ -51,7 +51,7 @@ SMTP_FROM=MassageLab <no-reply@massagelab.app>
 ## Family-And-Friends Launch Cost Controls
 
 Use these independent, server-enforced emergency pause controls for a sharing
-window:
+window. They are separate controls and must be reviewed separately:
 
 ```text
 MASSAGELAB_PUBLIC_REGISTRATION_PAUSED=false
@@ -80,26 +80,45 @@ provider or platform cold start; subsequent samples for that route are `warm`.
 Compare baseline and final receipts only when they use the same machine,
 loopback port, sample count, and environment shape.
 
-The repeatable server-workload receipt records these exact dependency-call
-boundaries:
+The repeatable server-workload receipt records these exact final boundaries for
+an ordinary non-practice shell:
 
-| Workload | Baseline | Final |
-| --- | --- | --- |
-| Verified auth refresh | Background-credit provisioner calls: `1` | Background-credit provisioner calls: `0` |
-| Signed-in sidebar | Separate membership entitlement loads: `1` | Separate membership entitlement loads: `0` |
-| Membership status read | Persisted summary loads: `1`; Stripe calls: `0` | Persisted summary loads: `1`; Stripe calls: `0` |
-| Valid explicit Checkout | Checkout-session creates: `1`; tested launch/pricing render Checkout-session creates: `0` | Checkout-session creates: `1`; tested launch/pricing render Checkout-session creates: `0` |
-| Valid explicit Portal action | Portal-session creates: `1`; tested launch/pricing render Portal-session creates: `0` | Portal-session creates: `1`; tested launch/pricing render Portal-session creates: `0` |
+| Owner | Exact measured boundary |
+| --- | --- |
+| Auth snapshot | One underlying auth snapshot, one user-graph read, one temporary-grant read, and one entitlement build |
+| Account shell | One preference read, one practice-role read, and zero separate entitlement reads |
+| Total server data work | Four logical ORM operations |
+| Client bootstrap | Zero client bootstrap endpoints |
+| Background commerce | Zero ordinary commerce snapshots |
+| Public pricing | Six concurrent cold logical Price reads shared across callers; zero warm logical Price reads |
+| Explicit billing actions | One Checkout create for an explicit valid Checkout; one Portal create for an explicit valid Portal action; zero of either during the tested launch/pricing ordinary-render slice |
 
-Ordinary verified auth refresh must not open a credit-provisioning transaction,
-and sidebar navigation must reuse feature keys already carried in the session.
-Calendar context remains deferred behind its authenticated endpoint rather than
-the global layout. The tested launch/pricing ordinary-render slice creates zero
-Checkout sessions and zero Portal sessions. This workload does not establish
-site-wide absence of Stripe or email calls; Admin Billing preview is outside
-this row, and provider-wide/email render verification remains `NOT RUN`.
+The root server projection owns the initial preferences and practice-role read.
+Settings and Music receive its sanitized owner-keyed app settings; they make one
+shared fallback request only after a server preference-read failure. Owner
+changes abort and reset old work. Therapist local hydration remains immediate,
+but its cloud GET is lazy and deduplicated until an actual consumer appears.
+Zero-practice users skip the calendar endpoint; practice members retain it.
+Background commerce loads only for an actual carousel, Chimer, checkout-return,
+cart, or pending guest-cart-merge consumer. Focus and online refreshes begin
+only after a successful current-owner hydration or explicit mutation intent.
 
-The deployed exact commit needs a separate read-only Vercel aggregate that
+Pricing caches the public display catalog only. The owner is process-local and
+single-flight: complete results use a five-minute complete TTL; incomplete or fallback results use a fifteen-second incomplete TTL. Each read-only Stripe
+Price request has a 2.5-second timeout and one SDK network retry. This cache is
+not payment, customer, membership, or access authority. Checkout, Portal, entitlements, customers, and webhooks remain uncached and must continue to use
+their current server-owned validation and persistence paths. An incomplete
+display catalog may show `Price unavailable`; it must never make Checkout trust
+a displayed value. Each server instance owns its own display cache, so there is
+no cross-instance manual flush requirement for access or payment correctness.
+
+This workload does not establish site-wide absence of Stripe or email calls;
+Admin Billing preview is outside this row, and provider-wide/email render
+verification remains `NOT RUN`. PHI-bearing workflows remain local-first.
+
+The final local timing receipt returned HTTP `200` for 21/21 samples. The local
+timing `first` label is not platform cold evidence. The deployed exact commit
+needs a separate read-only Vercel aggregate that
 distinguishes observed platform cold-start latency from warm invocation
 latency. When the platform cannot expose that distinction, record the cold row
 as `NOT RUN`; never infer it from the local `first` sample.

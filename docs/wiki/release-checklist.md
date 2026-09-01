@@ -27,27 +27,44 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
 
 ## Family-And-Friends Cost And Pause Gate
 
-- Record the baseline head and final head, then run
+- Record the exact candidate and evidence head, then run
   `npm run readiness:timing-receipt -- --base-url=http://127.0.0.1:3010 --samples=3`
-  once at each head. Each receipt must build its own fresh Production output and
-  use the same machine, loopback port, sample count, and environment shape.
-  Treat `first` as the first measured sample for that route after the fresh
-  server passes readiness, not as a platform or provider cold start.
-- Attach the exact before/after matrix from
-  `tests/family-friends-server-workload.test.mjs`: verified-auth
-  background-credit calls `1 -> 0`; signed-in-sidebar membership-entitlement
-  loads `1 -> 0`; membership-status persisted-summary loads `1 -> 1` and Stripe
-  calls `0 -> 0`; explicit Checkout-session creates `1 -> 1`, while the tested
-  launch/pricing ordinary render has Checkout-session creates `0 -> 0`; and
-  explicit Portal-session creates `1 -> 1`, while that render has
-  Portal-session creates `0 -> 0`.
-- Include focused proof that ordinary session refresh performs zero
-  background-credit provisioning and source/test proof that the sidebar has no
-  separate entitlement reload. Confirm calendar context remains deferred behind
-  its authenticated endpoint. The tested launch/pricing ordinary render must
-  create zero Checkout sessions and zero Portal sessions. This row excludes
-  Admin Billing preview and does not establish site-wide absence of Stripe or
-  email calls; provider-wide/email render verification remains `NOT RUN`.
+  from a fresh Production build on the same machine, loopback port, sample count,
+  and environment shape. Require 21/21 HTTP `200` samples. Treat local timing
+  `first` as the first measured sample after readiness, not platform cold
+  evidence or a provider cold start.
+- Attach the exact `tests/family-friends-server-workload.test.mjs` receipt for
+  the ordinary non-practice shell: one auth snapshot, one user-graph read, one
+  temporary-grant read, one entitlement build, one preference read, one
+  practice-role read, four logical ORM operations, zero client bootstrap
+  endpoints, and zero ordinary commerce snapshots. Confirm zero-practice users
+  skip the calendar endpoint while practice members retain it. Confirm Settings
+  and Music reuse the sanitized server projection and that owner changes abort
+  and reset stale fallback, cloud-hydration, commerce, and mutation work.
+- Require the fresh built-network proof to show zero session, preferences,
+  profile, and calendar discovery GETs after a successful server bootstrap;
+  exactly one shared preferences fallback GET after a server preference-read
+  failure; zero Music session GETs; calendar suppression for zero-practice
+  users with retention for practice members; zero no-intent commerce snapshot
+  GETs with hydration for actual consumers; old-owner request/PUT/Checkout
+  results unable to commit after an owner switch; and exactly one underlying
+  RSC auth snapshot. These are public or synthetic/inert proofs only, not
+  private-account, database, provider, or payment evidence.
+- Prove the public display catalog only is process-local and single-flight:
+  concurrent cold callers share six logical Price reads, a warm call makes zero,
+  complete results have a five-minute complete TTL, incomplete/fallback results
+  have a fifteen-second incomplete TTL, and each Price read uses a 2.5-second
+  timeout with one SDK network retry. Checkout, Portal, entitlements, customers,
+  and webhooks remain uncached. Verify explicit Checkout still validates the
+  configured server Price and that display fallback never grants access or
+  supplies payment authority.
+- Require the fresh combined one-worker Browser-QA gate to report 127 passed, 37 skipped, and zero failed for the exact candidate. The 37 private rows are
+  authorization-gated skips, not passes. Also require 178/178 focused Node
+  tests, Prisma validate/generate, typecheck, lint, both fresh builds, and diff
+  checks. The 2026-08-29 complete Windows Node receipt is not green: 3,613
+  passed, 10 established fixture/line-ending checks failed, and 3 intentionally
+  skipped across 3,626 tests. Obtain hosted Linux evidence rather than changing
+  those unrelated fixtures in this gate.
 - Capture a separate read-only aggregate for the exact deployed commit that
   distinguishes observed Vercel cold-start latency from warm invocation
   latency. If the platform does not expose that distinction, write
@@ -59,6 +76,9 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
   absence defaults open. Browser proof must show that a registration pause
   preserves existing email/password and Google login plus recovery, and that a
   Checkout pause preserves existing entitlements and billing Portal access.
+- Keep live Stripe payment/catalog/webhook/Portal behavior, private database rows, provider settings, OAuth/mail delivery, deployment, push, merge, and Production actions recorded as `NOT RUN` until each receives its separate
+  authorization. Historical live payment evidence is context only, not
+  exact-candidate proof.
 - Complete read-only Neon pooled-host/connection/compute/transfer, Vercel
   usage/error/WAF Log mode, SMTP volume/bounce/complaint, Stripe webhook-failure,
   R2 custom-domain cache-header/Class A/Class B, and Sentry quota/privacy

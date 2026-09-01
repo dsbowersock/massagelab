@@ -11,7 +11,7 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { requestCredentialVerificationAction, saveProfileAction } from "@/app/account/actions"
 import { AccountAppSettingsPanel, LocalTherapistDefaultsPanel } from "@/app/account/app-settings-panel"
 import { AccountSettingsShell } from "@/app/account/account-settings-shell"

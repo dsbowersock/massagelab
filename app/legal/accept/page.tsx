@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { ShieldCheck } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { hasAcceptedCurrentDocuments } from "@/lib/legal-acceptance"
 import {
   buildRegistrationLegalAcceptancePath,

@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Layers3 } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { loadAnatomyReviewerActor } from "@/lib/admin/access"

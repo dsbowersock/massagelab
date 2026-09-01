@@ -3,7 +3,13 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import { fetchJsonWithTimeout } from "../lib/client-fetch.ts"
-import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import {
+  createCompiledModuleLoader,
+  createElement,
+  findElement,
+  passThroughElement,
+  renderFunctionComponents,
+} from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const formattedAccountDates = []
@@ -32,6 +38,10 @@ const {
       useEffect: () => {},
       useRef: () => ({ current: null }),
       useState: () => [null, () => {}],
+    },
+    "@/components/forms/pending-submission-form": {
+      PendingSubmissionForm: () => null,
+      PendingSubmitButton: () => null,
     },
     "@/components/ui/button": { Button: () => null },
     "@/components/ui/loader": { Loader: () => null },
@@ -322,6 +332,60 @@ describe("membership return component safety", () => {
     )
     assert.match(membershipReturnSource, /import \{ formatAccountDate \} from "@\/lib\/account-page"/)
     assert.doesNotMatch(membershipReturnSource, /currentPeriodEnd\.slice/)
+  })
+
+  it("gives the billing-attention portal form one synchronous pending owner", () => {
+    const states = [persistedStatus({ state: "billing-attention" }), false, false, 0]
+    let stateIndex = 0
+    let pendingFormProps = null
+    let pendingButtonProps = null
+    const compiled = loadCompiledModule(
+      membershipReturnSource,
+      "app/account/membership-return-status.portal-form-test.tsx",
+      {
+        "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
+        "next/link": passThroughElement("a"),
+        react: {
+          useCallback: (callback) => callback,
+          useEffect: () => {},
+          useRef: () => ({ current: null }),
+          useState: () => [states[stateIndex++], () => {}],
+        },
+        "@/components/forms/pending-submission-form": {
+          PendingSubmissionForm(props) {
+            pendingFormProps = props
+            return createElement("form", props)
+          },
+          PendingSubmitButton(props) {
+            pendingButtonProps = props
+            return createElement("button", props)
+          },
+        },
+        "@/components/ui/button": { Button: passThroughElement("button") },
+        "@/components/ui/loader": { Loader: passThroughElement("loader") },
+        "@/lib/account-page": { formatAccountDate: () => "local-account-date" },
+        "@/lib/billing-portal-destinations": {
+          BILLING_PORTAL_DESTINATIONS: { MANAGE: "manage" },
+        },
+        "@/lib/client-fetch": { fetchJsonWithTimeout },
+      },
+    )
+
+    const tree = renderFunctionComponents(compiled.MembershipReturnStatus({ kind: "portal" }))
+    assert.ok(pendingFormProps, "billing management must reuse the native pending form owner")
+    assert.equal(pendingFormProps.action, "/api/billing/portal")
+    assert.equal(pendingFormProps.method, "post")
+    assert.equal(pendingFormProps.pendingLabel, "Opening billing portal…")
+    assert.ok(pendingButtonProps, "billing management must expose the form's pending state")
+    assert.equal(pendingButtonProps.type, "submit")
+    assert.equal(pendingButtonProps.variant, "outline")
+    assert.equal(pendingButtonProps.pendingLabel, "Opening billing portal…")
+    assert.equal(pendingButtonProps.children, "Manage billing account")
+    const destination = findElement(tree, ({ type, props }) => (
+      type === "input" && props.name === "destination"
+    ))
+    assert.ok(destination)
+    assert.equal(destination.props.value, "manage")
   })
 
   it("uses one polite live region, canonical hidden loader semantics, retry-only timeout, and no Checkout recreation", async () => {

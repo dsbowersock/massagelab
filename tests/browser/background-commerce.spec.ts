@@ -317,8 +317,16 @@ async function openClockBackground(page: Page, href = "/clock") {
   // The router opens a URL-requested panel; clicking its toggle again would
   // close or otherwise change the state the caller is trying to exercise.
   if (!panelRequested) {
-    await expect(page.getByLabel("Chimer clock")).toBeVisible()
-    await page.getByRole("button", { name: "Background", exact: true }).click()
+    const clockOwner = page
+      .getByRole("region", { name: "Chimer clock", includeHidden: true })
+      .filter({ visible: true })
+    await expect(clockOwner).toHaveCount(1)
+    await expect(clockOwner).toBeVisible()
+    const controls = page.getByRole("group", { name: "Immersive display controls" }).filter({ visible: true })
+    await expect(controls).toHaveCount(1)
+    const backgroundButton = controls.getByRole("button", { name: "Background", exact: true })
+    await expect(backgroundButton).toHaveCount(1)
+    await backgroundButton.click()
   }
   await expect(backgroundPanel).toBeVisible()
 }
@@ -630,7 +638,19 @@ test("zero-credit cart persists across refresh and checkout failure keeps one su
     baseURL,
     initialSnapshot: emptySnapshot({ creditBalance: 0 }),
   })
+  await page.addInitScript(() => {
+    // Insert a hidden same-name clock region at DOMContentLoaded so
+    // openClockBackground proves it selects the visible clock fixture.
+    document.addEventListener("DOMContentLoaded", () => {
+      const duplicateStage = document.createElement("section")
+      duplicateStage.setAttribute("aria-label", "Chimer clock")
+      duplicateStage.setAttribute("data-browser-qa-hidden-clock-stage", "true")
+      duplicateStage.hidden = true
+      document.body.append(duplicateStage)
+    }, { once: true })
+  })
   await openClockBackground(page)
+  await expect(page.getByRole("region", { name: "Chimer clock", includeHidden: true })).toHaveCount(2)
   const panel = page.getByRole("dialog", { name: "Background" })
   await centerPremium(page, DOTTED_GLOW_ID)
   await panel.getByRole("button", { name: `Unlock ${DOTTED_GLOW_NAME} background` }).click()

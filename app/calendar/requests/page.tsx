@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Check, Clock, X } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { convertWaitlistEntryAction, updateAppointmentRequestStatusAction } from "@/app/calendar/actions"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"

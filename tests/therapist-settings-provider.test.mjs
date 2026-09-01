@@ -10,6 +10,10 @@ const providerSource = await readFile(
   "utf8",
 )
 const layoutSource = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8")
+const appShellBrowserSource = await readFile(
+  new URL("../tests/browser/app-shell.spec.ts", import.meta.url),
+  "utf8",
+)
 
 function deferred() {
   let resolve
@@ -330,6 +334,19 @@ function loadStoredTherapistSettingsProjector() {
 }
 
 describe("therapist settings cloud hydration", () => {
+  it("retires the anonymous pre-change browser guard", () => {
+    // The old signed-out-shell guard is replaced by the isolated provider harness,
+    // so the retired title must stay absent while the replacement stays present.
+    assert.doesNotMatch(
+      appShellBrowserSource,
+      /anonymous bootstrap leaves therapist and calendar specialization dormant/,
+    )
+    assert.match(
+      appShellBrowserSource,
+      /exerciseSpecializedProviderHarness\(page\)/,
+    )
+  })
+
   it("does not load a profile merely because the provider owner mounted", async () => {
     let requests = 0
     const coordinator = loadCoordinator({

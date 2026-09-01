@@ -117,6 +117,7 @@ function loadSidebar(database, session = null) {
     "@/components/sidebar/app-sidebar-client": { AppSidebarClient: () => null },
     "@/lib/account-preferences": { canSyncAccountPreferences },
     "@/lib/account-shell-bootstrap": { projectAccountShellAppSettings: () => ({}) },
+    "@/lib/rsc-session": { getCurrentRscSession: async () => session },
     "@/lib/membership": {
       FEATURE_KEYS: { therapistDocumentationTools: "therapist_documentation_tools" },
     },
@@ -226,6 +227,27 @@ describe("auth session feature-key reuse", () => {
 
     assert.deepEqual(context, { authState: "anonymous" })
     assert.equal(calls.practiceRoleReads, 0)
+  })
+
+  it("hydrates the account shell from the authenticated RSC session supplied by the test", async () => {
+    const database = {
+      practiceMembership: { findMany: async () => [] },
+      userPreference: { findUnique: async () => ({ appSettings: {} }) },
+    }
+    const session = {
+      user: {
+        id: "user-1",
+        name: "Session User",
+        email: "session@example.test",
+        featureKeys: [],
+      },
+    }
+    const { getAppSidebarData } = loadSidebar(database, session)
+
+    const shell = await getAppSidebarData()
+
+    assert.equal(shell.user?.email, "session@example.test")
+    assert.equal(shell.accountBootstrap.ownerKey, "user-1")
   })
 
   it("keeps a whitespace-only session owner out of the complete account shell", async () => {

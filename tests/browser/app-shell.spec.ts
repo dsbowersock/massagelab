@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page, type Route } from "@playwright/test"
+import { randomUUID } from "node:crypto"
 import { withPlayerViewportCollisionPadding } from "../../components/ui/use-player-viewport-insets"
+import { exerciseSpecializedProviderHarness } from "../helpers/specialized-provider-browser-harness.mjs"
 import { centerCarouselItem, waitForStableSlideGeometry } from "./carousel-test-helpers"
 import { isDevelopmentReviewUnavailable } from "./development-review-test-helpers"
 
@@ -55,21 +57,37 @@ async function gotoShell(page: Page, path: string) {
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
 }
 
-test("anonymous bootstrap leaves therapist and calendar specialization dormant", async ({ page }) => {
-  const reads = { calendar: 0, therapist: 0 }
-  await page.route("**/api/account/profile", async (route) => {
-    if (route.request().method() === "GET") reads.therapist += 1
-    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
-  })
-  await page.route("**/api/calendar/sidebar-context", async (route) => {
-    if (route.request().method() === "GET") reads.calendar += 1
-    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
-  })
+test("RSC session snapshot count is exactly one", async ({ page }) => {
+  const proofId = randomUUID()
+  await page.setExtraHTTPHeaders({ "x-massagelab-rsc-session-proof": proofId })
 
-  await gotoShell(page, "/music")
-  await page.waitForTimeout(250)
+  const response = await page.goto("/dev/rsc-session-proof", { waitUntil: "domcontentloaded" })
+  expect(response?.status()).toBe(200)
+  const receipt = page.locator("[data-rsc-session-count]")
+  await expect(receipt).toBeVisible()
+  const count = Number(await receipt.getAttribute("data-rsc-session-count"))
+  console.log(`RSC session snapshot count: ${count}`)
 
-  expect(reads).toEqual({ calendar: 0, therapist: 0 })
+  expect(Number.isInteger(count)).toBe(true)
+  expect(count).toBe(1)
+})
+
+test("inert bootstrap fixture defers therapist and practice specialization until demand", async ({ page }) => {
+  test.setTimeout(45_000)
+  const result = await exerciseSpecializedProviderHarness(page)
+
+  expect(result.mounted.profileGets).toBe(0)
+  expect(result.mounted.calendarGets).toBe(0)
+  expect(result.firstConsumer.profileGets).toBe(1)
+  expect(result.firstConsumer.calendarGets).toBe(0)
+  expect(result.concurrentConsumer.profileGets).toBe(1)
+  expect(result.hydrated.consumerNames).toEqual([
+    "Synthetic Therapist",
+    "Synthetic Therapist",
+  ])
+  expect(result.practiceEnabled.calendarGets).toBe(1)
+  expect(result.practiceEnabled.practiceId).toBe("practice-inert")
+  expect(result.practiceEnabled.errors).toEqual([])
 })
 
 /** Aborts a held fixture request unless the app's own cancellation already won the race. */
@@ -80,6 +98,56 @@ async function abortHeldFixtureRequest(route: Route) {
     if (!(error instanceof Error) || !error.message.includes("Route is already handled!")) {
       throw error
     }
+  }
+}
+
+/** Holds one real App Router response so a route-owned readiness barrier can be proven. */
+async function holdRscNavigationResponse(page: Page, pathname: string) {
+  const matchesPathname = (url: URL) => url.pathname === pathname
+  let releaseHold: () => void = () => undefined
+  let markRequestStarted: () => void = () => undefined
+  let markRequestFinished: () => void = () => undefined
+  let requestStarted = false
+  let requestFinished = false
+  const hold = new Promise<void>((resolve) => {
+    releaseHold = resolve
+  })
+  const started = new Promise<void>((resolve) => {
+    markRequestStarted = resolve
+  })
+  const finished = new Promise<void>((resolve) => {
+    markRequestFinished = resolve
+  })
+  const handler = async (route: Route) => {
+    const request = route.request()
+    const headers = request.headers()
+    if (headers["next-router-prefetch"] || headers.purpose === "prefetch") {
+      await route.abort()
+      return
+    }
+    if (headers.rsc || request.isNavigationRequest()) {
+      requestStarted = true
+      markRequestStarted()
+      try {
+        const response = await route.fetch()
+        await hold
+        await route.fulfill({ response })
+      } finally {
+        requestFinished = true
+        markRequestFinished()
+      }
+      return
+    }
+    await route.continue()
+  }
+  await page.route(matchesPathname, handler)
+  return {
+    waitForRequest: () => started,
+    async releaseAndCleanup() {
+      releaseHold()
+      if (requestStarted && !requestFinished) await finished
+      await page.unroute(matchesPathname, handler)
+    },
   }
 }
 
@@ -1305,6 +1373,8 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
     "Constrained-landscape rail geometry is covered in Chromium.",
   )
   await installInterruptionNoticeMediaFakes(page)
+  const wellnessHold = await holdRscNavigationResponse(page, "/wellness")
+  let wellnessHoldActive = true
   const geometryReceipt: Array<Record<string, unknown>> = []
   const measureStageReservations = () => page.locator("[data-immersive-stage]").evaluate((stage) => {
     const measureVariable = (variable: string) => {
@@ -1334,7 +1404,17 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
   await expect.poll(async () => (await resolvedMusicRailSpacing(page)).rightSafe).toBe(0)
   await page.getByRole("link", { name: "Open clock" }).click()
   await expect(page).toHaveURL(/\/clock$/)
-  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  await expect(page.getByRole("region", { name: "Chimer clock" })).toBeVisible()
+  await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
+  await page.getByRole("button", { name: "Reveal clock controls" }).click()
+  const noPlayerDisplayControls = page.locator(
+    '[data-immersive-shell] [role="group"][aria-label="Immersive display controls"]',
+  )
+  await expect(noPlayerDisplayControls).toHaveCount(1)
+  await expect(noPlayerDisplayControls).toBeVisible()
+  const noPlayerClockControl = noPlayerDisplayControls.locator('button[aria-label="Clock"]')
+  await expect(noPlayerClockControl).toHaveCount(1)
+  await noPlayerClockControl.click()
   const noPlayerClockPanel = page.locator('[data-immersive-panel="clock"]')
   await expect(noPlayerClockPanel).toHaveAttribute("data-immersive-layout", "side")
   await expect.poll(async () => (await measureStageReservations()).right).toBeGreaterThan(0)
@@ -1344,6 +1424,8 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
   await page.getByRole("button", { name: "Close clock", exact: true }).click()
   await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
 
+  const homeHold = await holdRscNavigationResponse(page, "/")
+  let homeHoldActive = true
   await page.setViewportSize({ width: 390, height: 844 })
   const toolbar = await startProofDrone(page)
   await expect(toolbar).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
@@ -1576,12 +1658,31 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
   const navigateFrom = async (route: string) => {
     if (route === "music") {
       await page.locator('a[aria-label="MassageLab home"]:visible').first().click()
+      const homeLandmark = page.getByTestId("home-brand-wordmark")
+      if (homeHoldActive) {
+        await homeHold.waitForRequest()
+        await expect(homeLandmark).toHaveCount(0)
+        await homeHold.releaseAndCleanup()
+        homeHoldActive = false
+      }
       await expect(page).toHaveURL(/\/$/)
+      await expect(homeLandmark).toBeVisible()
+      await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
       return
     }
     if (route === "home") {
       await page.getByRole("link", { name: "Open wellness", exact: true }).first().click()
+      const wellnessLandmark = page.locator("#quick-log")
+        .getByRole("heading", { name: "Quick log", exact: true, level: 2 })
+      if (wellnessHoldActive) {
+        await wellnessHold.waitForRequest()
+        await expect(wellnessLandmark).toHaveCount(0)
+        await wellnessHold.releaseAndCleanup()
+        wellnessHoldActive = false
+      }
       await expect(page).toHaveURL(/\/wellness$/)
+      await expect(wellnessLandmark).toBeVisible()
+      await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
       return
     }
     await page.getByRole("link", { name: "Open clock" }).click()
