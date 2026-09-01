@@ -160,6 +160,35 @@ describe("Music visualizer provider contract", () => {
     })
   })
 
+  it("projects an owned default background without reading inherited unrelated fields", () => {
+    for (const [defaultBackgroundId, expectedBackgroundId] of [
+      ["  trimmed-background  ", "trimmed-background"],
+      ["   ", null],
+    ]) {
+      const changes = Object.create(Object.defineProperty({}, "showClock", {
+        get() {
+          throw new Error("unrelated inherited showClock must not be read")
+        },
+      }))
+      Object.defineProperty(changes, "defaultBackgroundId", {
+        value: defaultBackgroundId,
+        enumerable: true,
+      })
+      const tracker = musicVisualizer.createMusicVisualizerAccountIntentTracker()
+
+      const intent = tracker.record({
+        ownerKey: "owner-a",
+        changes,
+        basePreferences: { defaultBackgroundId: "server-background", showClock: true },
+      })
+
+      assert.deepEqual(intent.preferences, {
+        defaultBackgroundId: expectedBackgroundId,
+        showClock: true,
+      })
+    }
+  })
+
   it("keeps completed local intent over stale same-owner bootstrap until acknowledgement", () => {
     const tracker = musicVisualizer.createMusicVisualizerAccountIntentTracker()
     const intent = tracker.record({

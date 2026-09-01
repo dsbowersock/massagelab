@@ -204,6 +204,8 @@ function validRowSnapshot(input: EnrollmentRowSnapshot, updatedAtMs: number): bo
 }
 
 function validAuthSecret(value: unknown): value is string {
+  // This binding boundary validates presence only. AUTH_SECRET strength is a
+  // canonical deployment-wide contract, not a separate binding-only threshold.
   return typeof value === "string" && value.length > 0
 }
 
