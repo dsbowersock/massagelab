@@ -73,6 +73,7 @@ describe("privacy-safe problem reports", () => {
   it("falls back to known safe values for unknown report categories and event ids", () => {
     const payload = buildProblemReportSentryPayload({
       category: "freeform problem with dana@example.com",
+      area: "private-area-with-dana@example.com",
       route: "/support",
       linkedEventId: "not-a-sentry-event",
       clientContext: {
@@ -83,6 +84,8 @@ describe("privacy-safe problem reports", () => {
     })
 
     assert.equal(payload.contexts.problemReport.category, "action-failed")
+    assert.equal(payload.contexts.problemReport.selectedArea, "not-sure")
+    assert.equal(payload.contexts.problemReport.area, "public-page")
     assert.equal(payload.contexts.problemReport.safePath, "/support")
     assert.equal(payload.contexts.problemReport.displayMode, "unknown")
     assert.equal(payload.contexts.problemReport.network, "unknown")
