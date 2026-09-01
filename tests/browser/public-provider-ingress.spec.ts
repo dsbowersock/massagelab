@@ -166,6 +166,7 @@ async function followDonationRedirect({
   await expect.poll(() => calls.length).toBe(before + 1)
   await navigation
   await expect(page).toHaveURL(new RegExp(`[?&]donation=${returnCode}(?:&|$)`))
+  await settledDonationForm(page)
   return calls[before]
 }
 
@@ -267,13 +268,13 @@ test("donation keeps one attempt through bounded, unavailable, generic, and ambi
   await expect.poll(() => calls.length).toBe(1)
   releaseFirst()
   await firstNavigation
+  form = await settledDonationForm(page)
   await expect(page.getByText("One-time support checkout temporarily paused", { exact: true })).toBeVisible()
 
   const firstAttempt = calls[0].attemptId
   expect(firstAttempt).toMatch(/^[0-9a-f-]{36}$/)
   expect(calls[0].amounts).toEqual(["500"])
   await expect.poll(async () => (await storedAttempt(page))?.attemptId).toBe(firstAttempt)
-  form = await settledDonationForm(page)
   await page.evaluate(() => {
     window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }))
   })
