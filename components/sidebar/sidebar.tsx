@@ -37,8 +37,9 @@ export async function getAppSidebarData() {
       featureKeys?: string[] | null
     }
     | undefined
-  const authenticatedUser = canSyncAccountPreferences(sessionUser)
-    ? sessionUser
+  const ownerId = canonicalSidebarOwnerId(sessionUser?.id)
+  const authenticatedUser = canSyncAccountPreferences(sessionUser) && ownerId
+    ? { ...sessionUser, id: ownerId }
     : undefined
   const [preferenceContext, navigationContext] = await Promise.all([
     loadSidebarAccountPreference(authenticatedUser?.id),
@@ -125,16 +126,13 @@ export async function getSidebarNavigationContext(sessionUser?: {
   capabilities?: Record<string, boolean> | null
   featureKeys?: string[] | null
 }, database: SidebarDatabase = prisma) {
-  if (
-    !sessionUser
-    || typeof sessionUser.id !== "string"
-    || sessionUser.id.trim().length === 0
-  ) {
+  const ownerId = canonicalSidebarOwnerId(sessionUser?.id)
+  if (!sessionUser || !ownerId) {
     return { authState: "anonymous" as const }
   }
 
   const featureKeys = sidebarFeatureKeys(sessionUser)
-  const practiceRoles = await loadSidebarPracticeRoles(sessionUser.id, database)
+  const practiceRoles = await loadSidebarPracticeRoles(ownerId, database)
 
   return {
     authState: "signed-in" as const,
@@ -144,6 +142,13 @@ export async function getSidebarNavigationContext(sessionUser?: {
     capabilities: sessionUser.capabilities ?? {},
     practiceRoles,
   }
+}
+
+/** Account ids are opaque; reject surrounding whitespace instead of remapping it. */
+function canonicalSidebarOwnerId(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 && value === value.trim()
+    ? value
+    : null
 }
 
 /** Coerces JSON-ish values into object records; arrays and primitives become empty objects. */

@@ -12,10 +12,14 @@ import {
 } from "react"
 import type { AccountShellBootstrap } from "@/components/sidebar/sidebar"
 import { projectAccountShellAppSettings } from "@/lib/account-shell-bootstrap"
-import { fetchJsonWithTimeout } from "@/lib/client-fetch"
+import { createSerializedAppSettingsPatchWriter } from "@/lib/account-preferences"
+import { fetchJsonWithTimeout, fetchWithTimeout } from "@/lib/client-fetch"
 
 type BootstrapAppSettings = AccountShellBootstrap["appSettings"]
 type BootstrapStatus = "anonymous" | "ready" | "fallback-loading" | "failed"
+export type AccountAppSettingsPatch = Partial<BootstrapAppSettings["app"]> & {
+  musicVisualizer?: BootstrapAppSettings["musicVisualizer"]
+}
 
 type BootstrapValue = {
   ownerKey: string | null
@@ -26,6 +30,7 @@ type BootstrapValue = {
 
 type BootstrapContextValue = BootstrapValue & {
   retryFallback: () => Promise<void>
+  writeAppSettingsPatch: (patch: AccountAppSettingsPatch) => Promise<boolean>
 }
 
 type LoadPreferences = (input: {
@@ -250,6 +255,14 @@ export function AccountShellBootstrapProvider({
     hasPracticeMembership: initialBootstrap.hasPracticeMembership,
   })
   const adoptedBootstrapKeyRef = useRef<string | null>(null)
+  const appSettingsWriteOwnerRef = useRef({
+    ownerKey: value.ownerKey,
+    syncEnabled: value.syncEnabled,
+  })
+  const appSettingsWriteControllerRef = useRef<AbortController | null>(null)
+  const appSettingsPatchWriterRef = useRef<ReturnType<
+    typeof createSerializedAppSettingsPatchWriter
+  > | null>(null)
 
   useEffect(() => coordinator.subscribe(setValue), [coordinator])
 
@@ -262,7 +275,79 @@ export function AccountShellBootstrapProvider({
     void coordinator.adopt(initialBootstrap)
   }, [coordinator, initialBootstrap, initialBootstrapKey])
 
-  useEffect(() => () => coordinator.dispose(), [coordinator])
+  useEffect(() => {
+    const previousOwner = appSettingsWriteOwnerRef.current
+    if (
+      previousOwner.ownerKey !== value.ownerKey
+      || previousOwner.syncEnabled !== value.syncEnabled
+    ) {
+      appSettingsWriteControllerRef.current?.abort()
+      appSettingsWriteControllerRef.current = null
+      appSettingsWriteOwnerRef.current = {
+        ownerKey: value.ownerKey,
+        syncEnabled: value.syncEnabled,
+      }
+    }
+  }, [value.ownerKey, value.syncEnabled])
+
+  useEffect(() => () => {
+    adoptedBootstrapKeyRef.current = null
+    appSettingsWriteControllerRef.current?.abort()
+    appSettingsWriteControllerRef.current = null
+    appSettingsPatchWriterRef.current?.dispose()
+    appSettingsPatchWriterRef.current = null
+    coordinator.dispose()
+  }, [coordinator])
+
+  const sendAppSettingsPatch = useCallback(async ({
+    ownerKey: requestOwnerKey,
+    patch,
+  }: {
+    ownerKey: string
+    patch: Record<string, unknown>
+  }) => {
+    const currentOwner = appSettingsWriteOwnerRef.current
+    if (currentOwner.ownerKey !== requestOwnerKey || !currentOwner.syncEnabled) {
+      return false
+    }
+
+    const controller = new AbortController()
+    appSettingsWriteControllerRef.current = controller
+    try {
+      const response = await fetchWithTimeout("/api/account/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({ appSettings: patch }),
+      })
+      return response.ok
+        && !controller.signal.aborted
+        && appSettingsWriteOwnerRef.current.ownerKey === requestOwnerKey
+    } catch {
+      return false
+    } finally {
+      if (appSettingsWriteControllerRef.current === controller) {
+        appSettingsWriteControllerRef.current = null
+      }
+    }
+  }, [])
+
+  const getAppSettingsPatchWriter = useCallback(() => {
+    if (!appSettingsPatchWriterRef.current) {
+      appSettingsPatchWriterRef.current = createSerializedAppSettingsPatchWriter({
+        send: sendAppSettingsPatch,
+      })
+    }
+    return appSettingsPatchWriterRef.current
+  }, [sendAppSettingsPatch])
+
+  const writeAppSettingsPatch = useCallback((patch: AccountAppSettingsPatch) => {
+    if (!value.ownerKey || !value.syncEnabled) return Promise.resolve(false)
+    return getAppSettingsPatchWriter().enqueue({
+      ownerKey: value.ownerKey,
+      patch,
+    })
+  }, [getAppSettingsPatchWriter, value.ownerKey, value.syncEnabled])
 
   const retryFallback = useCallback(
     () => coordinator.retryFallback(),
@@ -271,7 +356,8 @@ export function AccountShellBootstrapProvider({
   const contextValue = useMemo<BootstrapContextValue>(() => ({
     ...value,
     retryFallback,
-  }), [retryFallback, value])
+    writeAppSettingsPatch,
+  }), [retryFallback, value, writeAppSettingsPatch])
 
   return (
     <AccountShellBootstrapContext.Provider value={contextValue}>

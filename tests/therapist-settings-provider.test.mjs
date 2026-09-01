@@ -62,6 +62,32 @@ function loadCoordinator({ loadProfile, applyProfile = () => undefined }) {
   })
 }
 
+function loadProfileWriter(send) {
+  const provider = loadCompiledModule(
+    providerSource,
+    "components/providers/therapist-profile-writer.test.tsx",
+    {
+      react: {
+        createContext: () => ({ Provider: () => null }),
+        useCallback: (callback) => callback,
+        useContext: () => null,
+        useEffect: () => undefined,
+        useMemo: (factory) => factory(),
+        useRef: (value) => ({ current: value }),
+        useState: (initial) => [typeof initial === "function" ? initial() : initial, () => undefined],
+      },
+      "@/components/providers/account-shell-bootstrap-provider": {
+        useAccountShellBootstrap: () => ({ ownerKey: null, syncEnabled: false }),
+      },
+      "@/lib/client-fetch": {
+        fetchJsonWithTimeout: async () => ({ response: { ok: false }, json: undefined }),
+        fetchWithTimeout: async () => ({ ok: true }),
+      },
+    },
+  )
+  return provider.createTherapistProfileWriter({ send })
+}
+
 function loadProviderUpdaterHarness({ profile = {} } = {}) {
   const profileWrites = []
   const storageWrites = []
@@ -132,6 +158,7 @@ function loadProviderUpdaterHarness({ profile = {} } = {}) {
 
 function loadProviderOwnerTransitionHarness({
   moduleSource = providerSource,
+  writeProfile = async () => ({ ok: true }),
   storedValues = new Map([
     ["massage-lab-therapist-settings", JSON.stringify({ name: "Owner A" })],
     ["massage-lab-therapist-settings:account:owner-a", JSON.stringify({
@@ -155,6 +182,8 @@ function loadProviderOwnerTransitionHarness({
   const storageReads = []
   const storageWrites = []
   const storageRemovals = []
+  const profileWrites = []
+  const windowListeners = new Map()
   let profileRequests = 0
   const ownerBProfile = deferred()
   let stateCursor = 0
@@ -178,6 +207,7 @@ function loadProviderOwnerTransitionHarness({
   }
 
   const previousLocalStorage = globalThis.localStorage
+  const previousWindow = globalThis.window
   globalThis.localStorage = {
     getItem: (key) => {
       storageReads.push(key)
@@ -190,6 +220,16 @@ function loadProviderOwnerTransitionHarness({
     setItem: (key, value) => {
       storageWrites.push([key, value])
       storedValues.set(key, value)
+    },
+  }
+  globalThis.window = {
+    addEventListener(type, listener) {
+      const listeners = windowListeners.get(type) ?? new Set()
+      listeners.add(listener)
+      windowListeners.set(type, listeners)
+    },
+    removeEventListener(type, listener) {
+      windowListeners.get(type)?.delete(listener)
     },
   }
 
@@ -254,7 +294,10 @@ function loadProviderOwnerTransitionHarness({
             json: await ownerBProfile.promise,
           }
         },
-        fetchWithTimeout: async () => ({ ok: true }),
+        fetchWithTimeout: async (...args) => {
+          profileWrites.push(args)
+          return writeProfile(...args)
+        },
       },
     },
   )
@@ -264,6 +307,7 @@ function loadProviderOwnerTransitionHarness({
     provider = loadOwnerTransitionProvider()
   } catch (error) {
     globalThis.localStorage = previousLocalStorage
+    globalThis.window = previousWindow
     throw error
   }
 
@@ -295,6 +339,10 @@ function loadProviderOwnerTransitionHarness({
     restore() {
       for (const slot of effectSlots) slot?.cleanup?.()
       globalThis.localStorage = previousLocalStorage
+      globalThis.window = previousWindow
+    },
+    dispatchOnline() {
+      for (const listener of [...(windowListeners.get("online") ?? [])]) listener()
     },
     setOwner(nextOwnerKey) {
       ownerKey = nextOwnerKey
@@ -305,6 +353,7 @@ function loadProviderOwnerTransitionHarness({
     get profileRequests() {
       return profileRequests
     },
+    profileWrites,
     storageReads,
     storageRemovals,
     storageWrites,
@@ -334,6 +383,120 @@ function loadStoredTherapistSettingsProjector() {
 }
 
 describe("therapist settings cloud hydration", () => {
+  it("serializes a hydration correction before a newer local profile edit", async () => {
+    const correctionGate = deferred()
+    const sent = []
+    let serverProfile = null
+    const writer = loadProfileWriter(async ({ settings }) => {
+      sent.push(settings)
+      if (sent.length === 1) await correctionGate.promise
+      serverProfile = settings
+      return true
+    })
+    const correction = {
+      name: "Hydration edit",
+      location: "Cleveland",
+      licenseNumber: "A-1",
+      licenseOrganization: "Ohio Board",
+      npiNumber: "111",
+    }
+    const newerEdit = { ...correction, name: "Newest local edit" }
+
+    const correctionWrite = writer.enqueue({ ownerKey: "owner-a", settings: correction })
+    const newerWrite = writer.enqueue({ ownerKey: "owner-a", settings: newerEdit })
+    assert.deepEqual(sent, [correction])
+    correctionGate.resolve()
+
+    assert.deepEqual(await Promise.all([correctionWrite, newerWrite]), [true, true])
+    assert.deepEqual(sent, [correction, newerEdit])
+    assert.deepEqual(serverProfile, newerEdit)
+  })
+
+  it("retains and retries the latest profile snapshot after a non-2xx result", async () => {
+    const attempted = []
+    let shouldSucceed = false
+    const writer = loadProfileWriter(async (request) => {
+      attempted.push(request)
+      return shouldSucceed
+    })
+    const latest = {
+      name: "Retry me",
+      location: "Columbus",
+      licenseNumber: "A-2",
+      licenseOrganization: "Ohio Board",
+      npiNumber: "222",
+    }
+
+    assert.equal(await writer.enqueue({ ownerKey: "owner-a", settings: latest }), false)
+    assert.deepEqual(writer.getFailed("owner-a"), latest)
+    shouldSucceed = true
+    assert.equal(await writer.retry("owner-a"), true)
+    assert.deepEqual(attempted.map(({ settings }) => settings), [latest, latest])
+    assert.equal(writer.getFailed("owner-a"), null)
+    assert.match(providerSource, /return response\.ok/)
+  })
+
+  it("retries one retained non-2xx profile write on a later explicit hydration demand", async () => {
+    let writeAttempt = 0
+    const harness = loadProviderOwnerTransitionHarness({
+      writeProfile: async () => ({ ok: (writeAttempt += 1) > 1 }),
+    })
+    try {
+      harness.render()
+      harness.flushEffects()
+      const initialView = harness.render()
+      const hydration = initialView.ensureCloudHydrated()
+      harness.resolveOwnerBProfile({ therapistName: "Cloud owner" })
+      await hydration
+
+      const readyView = harness.render()
+      readyView.updateSettings({ name: "Retry on demand" })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      assert.equal(harness.profileWrites.length, 1)
+
+      await readyView.ensureCloudHydrated()
+      assert.equal(harness.profileWrites.length, 2)
+      assert.equal(harness.profileWrites[0][1].body, harness.profileWrites[1][1].body)
+
+      await readyView.ensureCloudHydrated()
+      assert.equal(harness.profileWrites.length, 2, "a successful retry must clear retained work")
+    } finally {
+      harness.restore()
+    }
+  })
+
+  it("retries one retained non-2xx profile write when the browser comes online", async () => {
+    let writeAttempt = 0
+    const harness = loadProviderOwnerTransitionHarness({
+      writeProfile: async () => ({ ok: (writeAttempt += 1) > 1 }),
+    })
+    try {
+      harness.render()
+      harness.flushEffects()
+      const initialView = harness.render()
+      const hydration = initialView.ensureCloudHydrated()
+      harness.resolveOwnerBProfile({ therapistName: "Cloud owner" })
+      await hydration
+
+      harness.render().updateSettings({ name: "Retry online" })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      assert.equal(harness.profileWrites.length, 1)
+
+      harness.dispatchOnline()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      assert.equal(harness.profileWrites.length, 2)
+      assert.equal(harness.profileWrites[0][1].body, harness.profileWrites[1][1].body)
+
+      harness.dispatchOnline()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      assert.equal(harness.profileWrites.length, 2, "online recovery must not create a retry loop")
+      assert.match(providerSource, /window\.addEventListener\("online", handleOnline\)/)
+      assert.doesNotMatch(providerSource, /setInterval|setTimeout/)
+    } finally {
+      harness.restore()
+    }
+  })
+
   it("retires the anonymous pre-change browser guard", () => {
     // The old signed-out-shell guard is replaced by the isolated provider harness,
     // so the retired title must stay absent while the replacement stays present.
@@ -575,6 +738,33 @@ describe("therapist settings cloud hydration", () => {
     }
   })
 
+  it("keeps edits made during cloud hydration over the older profile response", async () => {
+    const harness = loadProviderOwnerTransitionHarness()
+    try {
+      harness.render()
+      harness.flushEffects()
+      const view = harness.render()
+      const hydration = view.ensureCloudHydrated()
+
+      view.updateSettings({ name: "Local edit" })
+      harness.resolveOwnerBProfile({
+        therapistName: "Older cloud name",
+        therapistLocation: "Cleveland",
+      })
+      await hydration
+
+      const reconciled = harness.render().settings
+      assert.equal(reconciled.name, "Local edit")
+      assert.equal(reconciled.location, "Cleveland")
+      assert.equal(harness.profileWrites.length, 1)
+      assert.deepEqual(JSON.parse(harness.profileWrites[0][1].body), {
+        therapistSettings: reconciled,
+      })
+    } finally {
+      harness.restore()
+    }
+  })
+
   it("restores the previous local storage when owner-transition setup throws", () => {
     const previousLocalStorage = globalThis.localStorage
     const sentinelLocalStorage = { sentinel: true }
@@ -772,7 +962,7 @@ describe("therapist settings cloud hydration", () => {
       /export function useTherapistSettings[\s\S]*useEffect\([\s\S]*ensureCloudHydrated/,
     )
     assert.match(providerSource, /method:\s*"PUT"/)
-    assert.match(providerSource, /body:\s*JSON\.stringify\(\{ therapistSettings: updated \}\)/)
+    assert.match(providerSource, /body:\s*JSON\.stringify\(\{ therapistSettings: nextSettings \}\)/)
     assert.match(layoutSource, /<TherapistSettingsProvider>/)
     assert.doesNotMatch(layoutSource, /<TherapistSettingsProvider\s+syncEnabled=/)
   })

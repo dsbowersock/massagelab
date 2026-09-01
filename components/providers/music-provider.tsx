@@ -19,7 +19,6 @@ import {
 } from "@/lib/atmosphere/storage"
 import { BACKGROUND_STORAGE_KEYS } from "@/lib/background-options"
 import { useAccountShellBootstrap } from "@/components/providers/account-shell-bootstrap-provider"
-import { fetchWithTimeout } from "@/lib/client-fetch"
 import { startAbortableGenerativeFmPrewarm } from "@/lib/atmosphere/generative-fm-provider"
 import {
   resolveAtmosphereStationArtworkInput,
@@ -39,6 +38,7 @@ import {
   transitionAtmospherePlayback,
 } from "@/lib/atmosphere/playback-lifecycle"
 import {
+  createMusicVisualizerAccountIntentTracker,
   normalizeMusicVisualizerAccountPreferences,
   normalizeMusicVisualizerDevicePreferences,
 } from "@/lib/music-visualizer"
@@ -490,6 +490,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     status: bootstrapStatus,
     appSettings: bootstrapAppSettings,
     retryFallback,
+    writeAppSettingsPatch,
   } = useAccountShellBootstrap()
   const [activePlaybackKind, setActivePlaybackKind] = useState<PlaybackKind>(null)
   const [activeStationId, setActiveStationId] = useState<string | null>(null)
@@ -553,12 +554,17 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   }
   const storageStateRef = useRef(defaultStorage)
   const accountRequestIdRef = useRef(0)
-  const accountAbortControllerRef = useRef<AbortController | null>(null)
+  const adoptedAccountOwnerRef = useRef<{ ownerKey: string | null, syncEnabled: boolean }>({
+    ownerKey,
+    syncEnabled,
+  })
   const accountSyncVerifiedRef = useRef(false)
   const accountPreferencesHydratedRef = useRef(false)
   const accountDefaultBackgroundIdRef = useRef<string | null>(null)
   const pendingAccountDefaultBackgroundIdRef = useRef<string | null>(null)
   const failedAccountPayloadRef = useRef<MusicVisualizerAccountPreferences | null>(null)
+  const accountWritePendingRef = useRef<{ ownerKey: string, requestId: number } | null>(null)
+  const [accountIntentTracker] = useState(() => createMusicVisualizerAccountIntentTracker())
   const isMountedRef = useRef(true)
   const activePlaybackKindRef = useRef<PlaybackKind>(null)
   const activeStationIdRef = useRef<string | null>(null)
@@ -810,15 +816,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     return nextDisposal
   }, [])
 
-  const beginAccountRequest = useCallback(() => {
-    accountAbortControllerRef.current?.abort()
-    const controller = new AbortController()
-    const requestId = accountRequestIdRef.current + 1
-    accountAbortControllerRef.current = controller
-    accountRequestIdRef.current = requestId
-    return { controller, requestId }
-  }, [])
-
   const persistVisualizerAccountPreferences = useCallback(async (
     preferences: MusicVisualizerAccountPreferences,
   ) => {
@@ -835,32 +832,26 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
 
     const payload = normalizeMusicVisualizerAccountPreferences(preferences)
-    const { controller, requestId } = beginAccountRequest()
+    const requestId = accountRequestIdRef.current + 1
+    accountRequestIdRef.current = requestId
+    accountWritePendingRef.current = { ownerKey, requestId }
+    failedAccountPayloadRef.current = null
     setAccountStatus("saving")
     setAccountError(null)
+    const succeeded = await writeAppSettingsPatch({ musicVisualizer: payload })
+    if (
+      !isMountedRef.current
+      || requestId !== accountRequestIdRef.current
+      || ownerKey !== adoptedAccountOwnerRef.current.ownerKey
+    ) {
+      return
+    }
 
-    try {
-      const response = await fetchWithTimeout("/api/account/preferences", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          appSettings: {
-            musicVisualizer: payload,
-          },
-        }),
+    if (succeeded) {
+      const confirmedPreferences = accountIntentTracker.confirm({
+        ownerKey,
+        preferences: payload,
       })
-
-      if (!response.ok) {
-        throw new Error("Music visualizer preferences could not be saved.")
-      }
-
-      const responsePayload = await response.json().catch(() => null)
-      if (!isMountedRef.current || requestId !== accountRequestIdRef.current) {
-        return
-      }
-
-      const confirmedPreferences = readMusicVisualizerAccountPreferences(responsePayload) ?? payload
       accountPreferencesHydratedRef.current = true
       accountDefaultBackgroundIdRef.current = confirmedPreferences.defaultBackgroundId
       pendingAccountDefaultBackgroundIdRef.current = null
@@ -868,20 +859,18 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setAccountDefaultBackgroundId(confirmedPreferences.defaultBackgroundId)
       setAccountStatus("synced")
       setAccountError(null)
-    } catch (caughtError) {
-      if (
-        isAbortError(caughtError)
-        || !isMountedRef.current
-        || requestId !== accountRequestIdRef.current
-      ) {
-        return
-      }
-
+    } else {
       failedAccountPayloadRef.current = payload
       setAccountStatus("error")
       setAccountError("Music visualizer preferences could not be saved. Try again.")
     }
-  }, [beginAccountRequest, ownerKey, syncEnabled])
+    if (
+      accountWritePendingRef.current?.ownerKey === ownerKey
+      && accountWritePendingRef.current.requestId === requestId
+    ) {
+      accountWritePendingRef.current = null
+    }
+  }, [accountIntentTracker, ownerKey, syncEnabled, writeAppSettingsPatch])
 
   // Browser media ownership is provider-scoped so route changes reuse one
   // carrier and one set of notification handlers.
@@ -965,8 +954,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     return () => {
       isMountedRef.current = false
       accountRequestIdRef.current += 1
-      accountAbortControllerRef.current?.abort()
-      accountAbortControllerRef.current = null
+      accountWritePendingRef.current = null
     }
   }, [])
 
@@ -1006,19 +994,26 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    // Reset ownership before adopting any new account projection. Aborting the
-    // transport plus advancing the generation keeps late PUT continuations stale.
-    accountRequestIdRef.current += 1
-    accountAbortControllerRef.current?.abort()
-    accountAbortControllerRef.current = null
-    accountSyncVerifiedRef.current = false
-    accountPreferencesHydratedRef.current = false
-    accountDefaultBackgroundIdRef.current = null
-    pendingAccountDefaultBackgroundIdRef.current = null
-    failedAccountPayloadRef.current = null
-    setAccountDefaultBackgroundId(null)
-    setAccountError(null)
-    setAccountSignedIn(false)
+    const previousOwner = adoptedAccountOwnerRef.current
+    const ownerChanged = previousOwner.ownerKey !== ownerKey
+      || previousOwner.syncEnabled !== syncEnabled
+    adoptedAccountOwnerRef.current = { ownerKey, syncEnabled }
+
+    if (ownerChanged) {
+      // Only an ownership transition invalidates the active transport. Shared
+      // bootstrap republishes for the same owner must not cancel a newer save.
+      accountIntentTracker.clear()
+      accountRequestIdRef.current += 1
+      accountWritePendingRef.current = null
+      accountSyncVerifiedRef.current = false
+      accountPreferencesHydratedRef.current = false
+      accountDefaultBackgroundIdRef.current = null
+      pendingAccountDefaultBackgroundIdRef.current = null
+      failedAccountPayloadRef.current = null
+      setAccountDefaultBackgroundId(null)
+      setAccountError(null)
+      setAccountSignedIn(false)
+    }
 
     if (bootstrapStatus === "anonymous" || !syncEnabled || !ownerKey) {
       setAccountStatus("anonymous")
@@ -1031,6 +1026,17 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setAccountSignedIn(true)
 
     if (bootstrapStatus !== "ready") {
+      if (
+        !ownerChanged
+        && (
+          accountIntentTracker.hasIntent(ownerKey)
+          || pendingAccountDefaultBackgroundIdRef.current !== null
+          || failedAccountPayloadRef.current !== null
+          || accountWritePendingRef.current
+        )
+      ) {
+        return
+      }
       setAccountStatus(bootstrapStatus === "failed" ? "error" : "loading")
       setAccountError(
         bootstrapStatus === "failed"
@@ -1040,9 +1046,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const accountPreferences = normalizeMusicVisualizerAccountPreferences(
-      bootstrapAppSettings.musicVisualizer,
-    )
+    const intentResolution = accountIntentTracker.reconcile({
+      ownerKey,
+      projection: bootstrapAppSettings.musicVisualizer,
+    })
+    const accountPreferences = intentResolution.preferences
     accountPreferencesHydratedRef.current = true
     accountDefaultBackgroundIdRef.current = accountPreferences.defaultBackgroundId
     setAccountDefaultBackgroundId(accountPreferences.defaultBackgroundId)
@@ -1053,11 +1061,21 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         showClock: accountPreferences.showClock,
       },
     }))
-    setAccountStatus("synced")
+    const transportPending = accountWritePendingRef.current !== null
+    const transportFailed = failedAccountPayloadRef.current !== null
+    if (!transportPending && !transportFailed) {
+      setAccountStatus("synced")
+      setAccountError(null)
+    }
+    if (intentResolution.status === "repersist" && !transportPending && !transportFailed) {
+      void persistVisualizerAccountPreferences(accountPreferences)
+    }
   }, [
+    accountIntentTracker,
     bootstrapAppSettings.musicVisualizer,
     bootstrapStatus,
     ownerKey,
+    persistVisualizerAccountPreferences,
     storageHydrated,
     syncEnabled,
   ])
@@ -2762,15 +2780,28 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    if (accountSyncVerifiedRef.current && accountPreferencesHydratedRef.current) {
-      void persistVisualizerAccountPreferences({
-        defaultBackgroundId:
-          pendingAccountDefaultBackgroundIdRef.current
-          ?? accountDefaultBackgroundIdRef.current,
-        showClock: normalizedShowClock,
+    const accountIntent = ownerKey && syncEnabled
+      ? accountIntentTracker.record({
+        ownerKey,
+        changes: { showClock: normalizedShowClock },
+        basePreferences: accountPreferencesHydratedRef.current
+          ? {
+            defaultBackgroundId:
+              pendingAccountDefaultBackgroundIdRef.current
+              ?? accountDefaultBackgroundIdRef.current,
+            showClock: normalizedShowClock,
+          }
+          : undefined,
       })
+      : null
+    if (
+      accountSyncVerifiedRef.current
+      && accountPreferencesHydratedRef.current
+      && accountIntent?.preferences
+    ) {
+      void persistVisualizerAccountPreferences(accountIntent.preferences)
     }
-  }, [persistVisualizerAccountPreferences])
+  }, [accountIntentTracker, ownerKey, persistVisualizerAccountPreferences, syncEnabled])
 
   const setCurrentVisualizerBackgroundAsDefault = useCallback(async () => {
     if (!accountSyncVerifiedRef.current) {
@@ -2788,11 +2819,26 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
 
     pendingAccountDefaultBackgroundIdRef.current = backgroundId
-    await persistVisualizerAccountPreferences({
-      defaultBackgroundId: backgroundId,
-      showClock: storageStateRef.current.visualizer.showClock,
-    })
-  }, [persistVisualizerAccountPreferences])
+    const accountIntent = ownerKey && syncEnabled
+      ? accountIntentTracker.record({
+        ownerKey,
+        changes: {
+          defaultBackgroundId: backgroundId,
+          showClock: storageStateRef.current.visualizer.showClock,
+        },
+        basePreferences: accountPreferencesHydratedRef.current
+          ? {
+            defaultBackgroundId: accountDefaultBackgroundIdRef.current,
+            showClock: storageStateRef.current.visualizer.showClock,
+          }
+          : undefined,
+      })
+      : null
+    if (!accountPreferencesHydratedRef.current || !accountIntent?.preferences) {
+      return
+    }
+    await persistVisualizerAccountPreferences(accountIntent.preferences)
+  }, [accountIntentTracker, ownerKey, persistVisualizerAccountPreferences, syncEnabled])
 
   const restoreVisualizerAccountDefault = useCallback(() => {
     setStorageState((current) => {
@@ -2980,35 +3026,6 @@ function persistStoredAtmosphereState(storageState: AtmosphereStorageState) {
   } catch {
     return "This browser blocked local Atmosphere preferences."
   }
-}
-
-/**
- * Reads only the account-scoped visualizer namespace from the merged app
- * settings response, leaving unrelated settings owned by their providers.
- */
-function readMusicVisualizerAccountPreferences(
-  value: unknown,
-): MusicVisualizerAccountPreferences | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null
-  }
-
-  const appSettings = (value as { appSettings?: unknown }).appSettings
-  if (!appSettings || typeof appSettings !== "object" || Array.isArray(appSettings)) {
-    return null
-  }
-
-  if (!Object.prototype.hasOwnProperty.call(appSettings, "musicVisualizer")) {
-    return null
-  }
-
-  return normalizeMusicVisualizerAccountPreferences(
-    (appSettings as { musicVisualizer?: unknown }).musicVisualizer,
-  )
-}
-
-function isAbortError(error: unknown) {
-  return error instanceof DOMException && error.name === "AbortError"
 }
 
 function clampLoadingProgress(progress: number) {

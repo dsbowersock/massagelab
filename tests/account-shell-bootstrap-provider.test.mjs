@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import { projectAccountShellAppSettings } from "../lib/account-shell-bootstrap.js"
+import * as accountPreferences from "../lib/account-preferences.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -66,7 +67,11 @@ function loadProvider(loadPreferences) {
         useState: (initial) => [typeof initial === "function" ? initial() : initial, () => {}],
       },
       "@/lib/account-shell-bootstrap": { projectAccountShellAppSettings },
-      "@/lib/client-fetch": { fetchJsonWithTimeout: async () => ({}) },
+      "@/lib/account-preferences": accountPreferences,
+      "@/lib/client-fetch": {
+        fetchJsonWithTimeout: async () => ({}),
+        fetchWithTimeout: async () => ({ ok: true }),
+      },
     },
   ).createAccountShellBootstrapCoordinator({
     initialBootstrap: bootstrap(),
@@ -74,7 +79,113 @@ function loadProvider(loadPreferences) {
   })
 }
 
+function loadStrictModeProviderHarness(loadPreferences) {
+  const effects = []
+  const refs = []
+  const states = []
+  let refCursor = 0
+  let stateCursor = 0
+  const provider = loadCompiledModule(
+    providerSource,
+    "components/providers/account-shell-bootstrap-provider-strict-mode.test.tsx",
+    {
+      react: {
+        createContext: () => ({ Provider: "AccountShellBootstrapContextProvider" }),
+        useCallback: (callback) => callback,
+        useContext: () => null,
+        useEffect: (effect) => effects.push(effect),
+        useMemo: (factory) => factory(),
+        useRef: (value) => {
+          const cursor = refCursor
+          refCursor += 1
+          if (!refs[cursor]) refs[cursor] = { current: value }
+          return refs[cursor]
+        },
+        useState: (initial) => {
+          const cursor = stateCursor
+          stateCursor += 1
+          if (!states[cursor]) {
+            states[cursor] = { value: typeof initial === "function" ? initial() : initial }
+          }
+          return [states[cursor].value, (nextValue) => {
+            states[cursor].value = typeof nextValue === "function"
+              ? nextValue(states[cursor].value)
+              : nextValue
+          }]
+        },
+      },
+      "@/lib/account-shell-bootstrap": { projectAccountShellAppSettings },
+      "@/lib/account-preferences": accountPreferences,
+      "@/lib/client-fetch": {
+        fetchJsonWithTimeout: async (_url, init) => {
+          const json = await loadPreferences({ ownerKey: "owner-a", signal: init.signal })
+          return { response: { ok: true }, json }
+        },
+        fetchWithTimeout: async () => ({ ok: true }),
+      },
+    },
+  )
+
+  refCursor = 0
+  stateCursor = 0
+  provider.AccountShellBootstrapProvider({
+    children: null,
+    initialBootstrap: bootstrap({ preferenceStatus: "failed" }),
+  })
+
+  return {
+    replayEffects() {
+      const cleanups = effects.map((effect) => effect())
+      for (const cleanup of cleanups) cleanup?.()
+      effects.forEach((effect) => effect())
+    },
+  }
+}
+
 describe("account shell bootstrap provider", () => {
+  it("serializes and coalesces Settings and Music app-settings subpatches", async () => {
+    const firstWrite = deferred()
+    const sent = []
+    let serverSettings = {}
+    const writer = accountPreferences.createSerializedAppSettingsPatchWriter({
+      async send({ ownerKey, patch }) {
+        sent.push({ ownerKey, patch })
+        if (sent.length === 1) await firstWrite.promise
+        serverSettings = { ...serverSettings, ...patch }
+        return true
+      },
+    })
+
+    const firstSettings = writer.enqueue({
+      ownerKey: "owner-a",
+      patch: { themeMode: "light", sidebarPosition: "right" },
+    })
+    const music = writer.enqueue({
+      ownerKey: "owner-a",
+      patch: { musicVisualizer: { defaultBackgroundId: "linen", showClock: true } },
+    })
+    const latestSettings = writer.enqueue({
+      ownerKey: "owner-a",
+      patch: { themeMode: "dark", appBarPosition: "top" },
+    })
+
+    assert.equal(sent.length, 1)
+    firstWrite.resolve()
+    assert.deepEqual(await Promise.all([firstSettings, music, latestSettings]), [true, true, true])
+    assert.equal(sent.length, 2)
+    assert.deepEqual(sent[1].patch, {
+      musicVisualizer: { defaultBackgroundId: "linen", showClock: true },
+      themeMode: "dark",
+      appBarPosition: "top",
+    })
+    assert.deepEqual(serverSettings, {
+      themeMode: "dark",
+      sidebarPosition: "right",
+      musicVisualizer: { defaultBackgroundId: "linen", showClock: true },
+      appBarPosition: "top",
+    })
+  })
+
   it("makes no fallback request for a ready server bootstrap", async () => {
     let requests = 0
     const coordinator = loadProvider(async () => {
@@ -248,6 +359,20 @@ describe("account shell bootstrap provider", () => {
       coordinator.getValue().appSettings.musicVisualizer.defaultBackgroundId,
       "retry-success",
     )
+  })
+
+  it("re-adopts an aborted fallback during Strict Mode effect replay", () => {
+    const calls = []
+    const harness = loadStrictModeProviderHarness(({ signal }) => {
+      calls.push(signal)
+      return new Promise(() => undefined)
+    })
+
+    harness.replayEffects()
+
+    assert.equal(calls.length, 2)
+    assert.equal(calls[0].aborted, true)
+    assert.equal(calls[1].aborted, false)
   })
 
   it("keeps projection, deadline, and owner-key layout contracts explicit", () => {

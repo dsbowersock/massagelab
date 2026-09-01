@@ -43,8 +43,59 @@ const SidebarCalendarContextValue = React.createContext<SidebarCalendarProviderV
   refreshCalendarContext: () => undefined,
 })
 
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+/** Rejects malformed endpoint data before it can enter shared navigation UI. */
+export function projectSidebarCalendarContext(value: unknown): SidebarCalendarContext {
+  const context = objectRecord(value)
+  if (!context) return defaultCalendarContext
+
+  let practice: SidebarCalendarContext["practice"] = null
+  if (context.practice !== null) {
+    const candidate = objectRecord(context.practice)
+    if (
+      !candidate
+      || typeof candidate.id !== "string"
+      || typeof candidate.name !== "string"
+    ) return defaultCalendarContext
+    practice = { id: candidate.id, name: candidate.name }
+  }
+
+  if (!Array.isArray(context.therapists)) return defaultCalendarContext
+  const therapists: SidebarCalendarContext["therapists"] = []
+  for (const therapist of context.therapists) {
+    const candidate = objectRecord(therapist)
+    if (
+      !candidate
+      || typeof candidate.id !== "string"
+      || typeof candidate.label !== "string"
+    ) return defaultCalendarContext
+    therapists.push({ id: candidate.id, label: candidate.label })
+  }
+
+  if (
+    typeof context.canManageAvailability !== "boolean"
+    || !Number.isInteger(context.pendingAppointmentRequestCount)
+    || Number(context.pendingAppointmentRequestCount) < 0
+    || !Number.isInteger(context.openWaitlistEntryCount)
+    || Number(context.openWaitlistEntryCount) < 0
+  ) return defaultCalendarContext
+
+  return {
+    practice,
+    therapists,
+    canManageAvailability: context.canManageAvailability,
+    pendingAppointmentRequestCount: Number(context.pendingAppointmentRequestCount),
+    openWaitlistEntryCount: Number(context.openWaitlistEntryCount),
+  }
+}
+
 async function loadSidebarCalendarContext({ signal }: { signal: AbortSignal }) {
-  const { response, json } = await fetchJsonWithTimeout<SidebarCalendarContext>(
+  const { response, json } = await fetchJsonWithTimeout<unknown>(
     "/api/calendar/sidebar-context",
     {
       method: "GET",
@@ -55,8 +106,8 @@ async function loadSidebarCalendarContext({ signal }: { signal: AbortSignal }) {
     },
     10_000,
   )
-  return response.ok && json
-    ? json
+  return response.ok
+    ? projectSidebarCalendarContext(json)
     : defaultCalendarContext
 }
 
@@ -120,9 +171,10 @@ export function createSidebarCalendarCoordinator({
 
   return {
     adopt(nextOwner) {
+      const ownerChanged = ownerKey !== nextOwner.ownerKey
       ownerKey = nextOwner.ownerKey
       enabled = nextOwner.enabled
-      return startLoad({ reset: true })
+      return startLoad({ reset: ownerChanged || !enabled })
     },
     dispose() {
       generation += 1

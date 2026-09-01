@@ -1,9 +1,12 @@
 "use client"
 
-import { fetchWithTimeout } from "@/lib/client-fetch"
-import { defaultAppSettings, normalizeAppSettings } from "@/lib/app-settings"
+import {
+  defaultAppSettings,
+  normalizeAppSettings,
+  reconcileAppSettingsAfterBootstrap,
+} from "@/lib/app-settings"
 import { useAccountShellBootstrap } from "@/components/providers/account-shell-bootstrap-provider"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 
 export type SidebarPosition = "left" | "right"
 type SidebarTriggerPosition = "top" | "bottom"
@@ -62,10 +65,55 @@ export function applyAppBarPositionAttribute(appBarPosition: AppBarPosition) {
 }
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const { ownerKey, syncEnabled, status, appSettings } = useAccountShellBootstrap()
+  const {
+    ownerKey,
+    syncEnabled,
+    status,
+    appSettings,
+    writeAppSettingsPatch,
+  } = useAccountShellBootstrap()
   const [settings, setSettings] = useState<Settings>(defaultSettings)
+  const settingsRef = useRef<Settings>(defaultSettings)
   const [localHydrated, setLocalHydrated] = useState(false)
-  const canSync = Boolean(ownerKey && syncEnabled && status === "ready")
+  const pendingPreReadySettingsRef = useRef<{
+    ownerKey: string | null
+    settings: Partial<Settings>
+  }>({ ownerKey: null, settings: {} })
+  const serverProjectionAdoptedRef = useRef<{
+    ownerKey: string | null
+    ready: boolean
+  }>({ ownerKey: null, ready: false })
+  const settingsWriteRevisionRef = useRef(0)
+  const pendingSettingsWriteRef = useRef<{
+    ownerKey: string
+    revision: number
+    settings: Settings
+  } | null>(null)
+
+  /** Retains the newest owner-scoped snapshot until the shared writer confirms it. */
+  const queueSettingsWrite = useCallback((writeOwnerKey: string, updated: Settings) => {
+    const revision = settingsWriteRevisionRef.current + 1
+    settingsWriteRevisionRef.current = revision
+    pendingSettingsWriteRef.current = {
+      ownerKey: writeOwnerKey,
+      revision,
+      settings: updated,
+    }
+    void writeAppSettingsPatch(updated).then((succeeded) => {
+      const pendingWrite = pendingSettingsWriteRef.current
+      if (
+        !succeeded
+        || pendingWrite?.ownerKey !== writeOwnerKey
+        || pendingWrite.revision !== revision
+      ) {
+        return
+      }
+      pendingSettingsWriteRef.current = null
+      if (pendingPreReadySettingsRef.current.ownerKey === writeOwnerKey) {
+        pendingPreReadySettingsRef.current = { ownerKey: null, settings: {} }
+      }
+    })
+  }, [writeAppSettingsPatch])
 
   useEffect(() => {
     applyThemeClass(settings.themeMode)
@@ -105,35 +153,73 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
 
     localStorage.setItem("massage-lab-settings", JSON.stringify(nextSettings))
+    settingsRef.current = nextSettings
     setSettings(nextSettings)
     setLocalHydrated(true)
   }, [])
+
+  useEffect(() => {
+    if (!ownerKey || !syncEnabled || status !== "ready") {
+      serverProjectionAdoptedRef.current = { ownerKey, ready: false }
+    }
+  }, [ownerKey, status, syncEnabled])
 
   useEffect(() => {
     if (!localHydrated || !ownerKey || !syncEnabled || status !== "ready") {
       return
     }
 
-    const nextSettings = normalizeSettings(appSettings.app)
+    const pendingWrite = pendingSettingsWriteRef.current?.ownerKey === ownerKey
+      ? pendingSettingsWriteRef.current
+      : null
+    const pendingLocalEdits = pendingWrite?.settings
+      ?? (pendingPreReadySettingsRef.current.ownerKey === ownerKey
+        ? pendingPreReadySettingsRef.current.settings
+        : {})
+    const nextSettings = reconcileAppSettingsAfterBootstrap(
+      appSettings.app,
+      pendingLocalEdits,
+    ) as Settings
+    serverProjectionAdoptedRef.current = { ownerKey, ready: true }
     localStorage.setItem("massage-lab-settings", JSON.stringify(nextSettings))
+    settingsRef.current = nextSettings
     setSettings(nextSettings)
-  }, [appSettings.app, localHydrated, ownerKey, status, syncEnabled])
+    if (Object.keys(pendingLocalEdits).length > 0) {
+      queueSettingsWrite(ownerKey, nextSettings)
+    }
+  }, [appSettings.app, localHydrated, ownerKey, queueSettingsWrite, status, syncEnabled])
 
   const updateSettings = (newSettings: Partial<Settings>) => {
-    setSettings(prev => {
-      const updated = normalizeSettings({ ...prev, ...newSettings })
-      localStorage.setItem("massage-lab-settings", JSON.stringify(updated))
-
-      if (canSync) {
-        void fetchWithTimeout("/api/account/preferences", {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ appSettings: updated }),
-        }).catch(() => undefined)
+    const adoptedProjection = serverProjectionAdoptedRef.current
+    const isPreReadyEdit = Boolean(
+      ownerKey
+      && syncEnabled
+      && (
+        status !== "ready"
+        || adoptedProjection.ownerKey !== ownerKey
+        || !adoptedProjection.ready
+      ),
+    )
+    if (isPreReadyEdit) {
+      const pendingSettings = pendingPreReadySettingsRef.current.ownerKey === ownerKey
+        ? pendingPreReadySettingsRef.current.settings
+        : {}
+      pendingPreReadySettingsRef.current = {
+        ownerKey,
+        settings: {
+          ...pendingSettings,
+          ...newSettings,
+        },
       }
+    }
+    const updated = normalizeSettings({ ...settingsRef.current, ...newSettings })
+    settingsRef.current = updated
+    localStorage.setItem("massage-lab-settings", JSON.stringify(updated))
+    setSettings(updated)
 
-      return updated
-    })
+    if (ownerKey && syncEnabled && status === "ready" && !isPreReadyEdit) {
+      queueSettingsWrite(ownerKey, updated)
+    }
   }
 
   return (

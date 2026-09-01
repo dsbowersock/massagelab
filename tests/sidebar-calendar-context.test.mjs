@@ -1,8 +1,10 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { readFileSync } from "node:fs"
-import { emptySidebarCalendarContext } from "../lib/sidebar-calendar-context.js"
+import * as sidebarCalendarContextModule from "../lib/sidebar-calendar-context.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+
+const { emptySidebarCalendarContext } = sidebarCalendarContextModule
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const providerSource = readFileSync(
@@ -56,6 +58,27 @@ function loadCoordinator(loadContext, options = {}) {
     initialOwnerKey: null,
     loadContext,
     ...coordinatorOptions,
+  })
+}
+
+function loadRoute(session, downstreamReads) {
+  return loadCompiledModule(routeSource, "app/api/calendar/sidebar-context/route.test.ts", {
+    "next/server": {
+      NextResponse: {
+        json: (body, init = {}) => ({ body, status: init.status ?? 200 }),
+      },
+    },
+    "@/auth": { getCurrentSession: async () => session },
+    "@/lib/sidebar-calendar-context": {
+      isCanonicalSidebarCalendarOwnerId:
+        sidebarCalendarContextModule.isCanonicalSidebarCalendarOwnerId,
+      getSidebarCalendarContext: async () => {
+        downstreamReads.readiness += 1
+        downstreamReads.preferences += 1
+        downstreamReads.memberships += 1
+        return emptySidebarCalendarContext
+      },
+    },
   })
 }
 
@@ -118,6 +141,64 @@ describe("sidebar calendar context route gating", () => {
     assert.equal(calls[0][1].signal instanceof AbortSignal, true)
     assert.equal(calls[0][2], 10_000)
     assert.deepEqual(coordinator.getValue(), expected)
+  })
+
+  it("rejects a padded route owner before readiness, preference, or membership reads", async () => {
+    const downstreamReads = { readiness: 0, preferences: 0, memberships: 0 }
+    const route = loadRoute({ user: { id: " owner-a " } }, downstreamReads)
+
+    const response = await route.GET()
+
+    assert.equal(response.status, 401)
+    assert.deepEqual(downstreamReads, { readiness: 0, preferences: 0, memberships: 0 })
+    assert.equal(
+      await sidebarCalendarContextModule.getSidebarCalendarContext(" owner-a "),
+      emptySidebarCalendarContext,
+    )
+  })
+
+  it("fails closed when the sidebar endpoint returns a malformed payload", async () => {
+    const coordinator = loadCoordinator(undefined, {
+      initialEnabled: true,
+      initialOwnerKey: "owner-a",
+      fetchJsonWithTimeout: async () => ({
+        response: { ok: true },
+        json: {
+          practice: { id: "practice-a", name: { unsafe: true } },
+          therapists: "not-an-array",
+          canManageAvailability: "yes",
+          pendingAppointmentRequestCount: -1,
+          openWaitlistEntryCount: 2.5,
+        },
+      }),
+    })
+
+    await coordinator.refresh()
+
+    assert.equal(coordinator.getValue(), emptySidebarCalendarContext)
+  })
+
+  it("preserves a same-owner server initial context while its refresh is pending", async () => {
+    const refreshRequest = deferred()
+    const initialContext = {
+      ...emptySidebarCalendarContext,
+      practice: { id: "practice-a", name: "Server Practice" },
+    }
+    const coordinator = loadCoordinator(() => refreshRequest.promise, {
+      initialContext,
+      initialEnabled: true,
+      initialOwnerKey: "owner-a",
+    })
+
+    const refresh = coordinator.adopt({ ownerKey: "owner-a", enabled: true })
+
+    assert.deepEqual(coordinator.getValue(), initialContext)
+    refreshRequest.resolve({
+      ...initialContext,
+      practice: { id: "practice-a", name: "Refreshed Practice" },
+    })
+    await refresh
+    assert.equal(coordinator.getValue().practice?.name, "Refreshed Practice")
   })
 
   it("keeps the last context visible while an explicit refresh replaces it", async () => {
@@ -211,9 +292,9 @@ describe("sidebar calendar context route gating", () => {
 
   it("keeps the endpoint authenticated and its PHI-minimized response owner unchanged", () => {
     assert.match(routeSource, /getCurrentSession/)
-    assert.match(routeSource, /if \(!session\?\.user\?\.id\)/)
+    assert.match(routeSource, /isCanonicalSidebarCalendarOwnerId/)
     assert.match(routeSource, /status:\s*401/)
-    assert.match(routeSource, /getSidebarCalendarContext\(session\.user\.id\)/)
+    assert.match(routeSource, /getSidebarCalendarContext\(ownerId\)/)
     assert.doesNotMatch(routeSource, /practiceClient|clinical|soap|intake/i)
   })
 })

@@ -6,6 +6,7 @@ import {
   getAudioPlayerToolbarPlacement,
   normalizeAppSettings,
 } from "../lib/app-settings.js"
+import * as appSettingsModule from "../lib/app-settings.js"
 import {
   getMusicPlayerPlacement,
   resolveMainBarLayout,
@@ -15,6 +16,9 @@ import {
   shouldCollapseSidebarFromOutsidePointer,
   shouldExpandSidebarFromRail,
 } from "../lib/sidebar-layout.js"
+import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 const settingsProviderSource = readFileSync(
   new URL("../components/providers/settings-provider.tsx", import.meta.url),
@@ -32,13 +36,118 @@ function sliceLinkProps(toolLink) {
 }
 
 describe("App settings helpers", () => {
-  it("hydrates from the shared shell bootstrap and retains PUT as its only account request", () => {
+  it("hydrates and writes through the shared owner-scoped app-settings writer", () => {
     assert.match(settingsProviderSource, /useAccountShellBootstrap/)
-    assert.equal((settingsProviderSource.match(/\/api\/account\/preferences/g) ?? []).length, 1)
+    assert.equal((settingsProviderSource.match(/\/api\/account\/preferences/g) ?? []).length, 0)
     assert.match(settingsProviderSource, /appSettings\.app/)
     assert.doesNotMatch(settingsProviderSource, /syncEnabled\?: boolean/)
     assert.match(settingsProviderSource, /localStorage\.getItem\("massage-lab-settings"\)/)
-    assert.match(settingsProviderSource, /body: JSON\.stringify\(\{ appSettings: updated \}\)/)
+    assert.match(settingsProviderSource, /writeAppSettingsPatch\(updated\)/)
+  })
+
+  it("performs storage and shared-writer effects once under replayable updater semantics", async () => {
+    const effects = []
+    const storageWrites = []
+    const accountWrites = []
+    let stateCall = 0
+    const provider = loadCompiledModule(
+      settingsProviderSource,
+      "components/providers/settings-provider-replay.test.tsx",
+      {
+        react: {
+          createContext: () => ({ Provider: "SettingsContextProvider" }),
+          useCallback: (callback) => callback,
+          useContext: () => null,
+          useEffect: (effect) => effects.push(effect),
+          useRef: (value) => ({ current: value }),
+          useState: (initial) => {
+            stateCall += 1
+            const value = stateCall === 2
+              ? true
+              : typeof initial === "function" ? initial() : initial
+            return [value, (update) => {
+              if (typeof update === "function") {
+                update(value)
+                update(value)
+              }
+            }]
+          },
+        },
+        "@/components/providers/account-shell-bootstrap-provider": {
+          useAccountShellBootstrap: () => ({
+            ownerKey: "owner-a",
+            syncEnabled: true,
+            status: "ready",
+            appSettings: { app: defaultAppSettings },
+            writeAppSettingsPatch: async (patch) => {
+              accountWrites.push(patch)
+              return true
+            },
+          }),
+        },
+        "@/lib/app-settings": appSettingsModule,
+      },
+    )
+    const previousDocument = globalThis.document
+    const previousLocalStorage = globalThis.localStorage
+    const previousWindow = globalThis.window
+    globalThis.document = {
+      documentElement: {
+        classList: { toggle: () => undefined },
+        dataset: {},
+        style: {},
+      },
+    }
+    globalThis.localStorage = {
+      getItem: () => null,
+      removeItem: () => undefined,
+      setItem: (...args) => storageWrites.push(args),
+    }
+    globalThis.window = {
+      matchMedia: () => ({
+        matches: true,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }),
+    }
+
+    try {
+      const element = provider.SettingsProvider({ children: null })
+      effects.forEach((effect) => effect())
+      storageWrites.length = 0
+      element.props.value.updateSettings({ themeMode: "light" })
+      await Promise.resolve()
+
+      assert.equal(storageWrites.length, 1)
+      assert.equal(accountWrites.length, 1)
+      assert.equal(accountWrites[0].themeMode, "light")
+      assert.doesNotMatch(settingsProviderSource, /setSettings\s*\(\s*(?:\([^)]*\)|\w+)\s*=>/)
+    } finally {
+      globalThis.document = previousDocument
+      globalThis.localStorage = previousLocalStorage
+      globalThis.window = previousWindow
+    }
+  })
+
+  it("reconciles edits made before the shared bootstrap becomes ready", () => {
+    assert.equal(
+      typeof appSettingsModule.reconcileAppSettingsAfterBootstrap,
+      "function",
+      "app settings must expose one bootstrap reconciliation rule",
+    )
+    const reconciled = appSettingsModule.reconcileAppSettingsAfterBootstrap(
+      {
+        ...defaultAppSettings,
+        appBarPosition: "top",
+        themeMode: "dark",
+      },
+      { themeMode: "light" },
+    )
+
+    assert.equal(reconciled.appBarPosition, "top")
+    assert.equal(reconciled.themeMode, "light")
+    assert.match(settingsProviderSource, /pendingPreReadySettingsRef/)
+    assert.match(settingsProviderSource, /reconcileAppSettingsAfterBootstrap/)
   })
 
   it("lets the shared bootstrap own Settings and Music account enablement", () => {

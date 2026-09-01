@@ -92,6 +92,87 @@ function normalizeTherapistSettings(value: unknown): TherapistSettings {
   }
 }
 
+/**
+ * Serializes full profile snapshots per owner, supersedes only queued work,
+ * and retains the latest failed snapshot for an explicit or subsequent retry.
+ */
+export function createTherapistProfileWriter({
+  send,
+}: {
+  send: (request: { ownerKey: string, settings: TherapistSettings }) => Promise<boolean>
+}) {
+  type Batch = {
+    ownerKey: string
+    settings: TherapistSettings
+    settle: Array<(succeeded: boolean) => void>
+  }
+  let activeBatch: Batch | null = null
+  let queuedBatch: Batch | null = null
+  let disposed = false
+  const failedByOwner = new Map<string, TherapistSettings>()
+
+  const drain = async () => {
+    if (activeBatch) return
+
+    while (queuedBatch) {
+      const batch = queuedBatch
+      queuedBatch = null
+      activeBatch = batch
+      let succeeded = false
+      try {
+        succeeded = await send({ ownerKey: batch.ownerKey, settings: batch.settings })
+      } catch {
+        succeeded = false
+      }
+      const nextQueuedBatch = queuedBatch as Batch | null
+      const newerSameOwner = nextQueuedBatch?.ownerKey === batch.ownerKey
+      if (succeeded) {
+        if (!newerSameOwner) failedByOwner.delete(batch.ownerKey)
+      } else if (!newerSameOwner) {
+        failedByOwner.set(batch.ownerKey, batch.settings)
+      }
+      for (const settle of batch.settle) settle(succeeded)
+      activeBatch = null
+    }
+  }
+
+  const enqueue = (request: { ownerKey: string, settings: TherapistSettings }) => {
+    if (disposed || !request.ownerKey) return Promise.resolve(false)
+    failedByOwner.delete(request.ownerKey)
+    return new Promise<boolean>((resolve) => {
+      if (queuedBatch?.ownerKey === request.ownerKey) {
+        queuedBatch.settings = request.settings
+        queuedBatch.settle.push(resolve)
+      } else {
+        if (queuedBatch) {
+          for (const settle of queuedBatch.settle) settle(false)
+        }
+        queuedBatch = { ...request, settle: [resolve] }
+      }
+      void drain()
+    })
+  }
+
+  return {
+    enqueue,
+    getFailed(ownerKey: string) {
+      return failedByOwner.get(ownerKey) ?? null
+    },
+    retry(ownerKey: string) {
+      const settings = failedByOwner.get(ownerKey)
+      return settings ? enqueue({ ownerKey, settings }) : Promise.resolve(false)
+    },
+    dispose() {
+      disposed = true
+      failedByOwner.clear()
+      if (queuedBatch) {
+        for (const settle of queuedBatch.settle) settle(false)
+        queuedBatch = null
+      }
+    },
+  }
+}
+
 /** Validates the complete browser snapshot and projects only its five allowed fields. */
 export function projectStoredTherapistSettings(value: unknown): TherapistSettings | null {
   const settings = objectRecord(value)
@@ -145,11 +226,13 @@ export function createTherapistSettingsCloudCoordinator({
   initialOwnerKey,
   initialSyncEnabled,
   loadProfile = loadTherapistProfile,
+  onHydrationStarted = () => undefined,
 }: {
   applyProfile: (ownerKey: string, settings: TherapistSettings) => void
   initialOwnerKey: string | null
   initialSyncEnabled: boolean
   loadProfile?: LoadTherapistProfile
+  onHydrationStarted?: (ownerKey: string) => void
 }): TherapistSettingsCloudCoordinator {
   let ownerKey = initialOwnerKey
   let syncEnabled = initialSyncEnabled
@@ -179,6 +262,7 @@ export function createTherapistSettingsCloudCoordinator({
     const requestGeneration = generation
     const requestController = new AbortController()
     controller = requestController
+    onHydrationStarted(requestOwnerKey)
     publish({ ownerKey: requestOwnerKey, status: "loading", canSync: false })
 
     const operation = (async () => {
@@ -264,21 +348,99 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
   // Compose back-to-back edits from the latest value without putting storage
   // or network side effects inside React's replayable state updater.
   const settingsRef = useRef<OwnedTherapistSettings>({ ownerKey, settings })
+  const profileWriteOwnerRef = useRef({ ownerKey, syncEnabled })
+  const profileWriteControllerRef = useRef<AbortController | null>(null)
+  const profileWriterRef = useRef<ReturnType<typeof createTherapistProfileWriter> | null>(null)
+  const sendProfileWrite = useCallback(async ({
+    ownerKey: requestOwnerKey,
+    settings: nextSettings,
+  }: {
+    ownerKey: string
+    settings: TherapistSettings
+  }) => {
+    const currentOwner = profileWriteOwnerRef.current
+    if (currentOwner.ownerKey !== requestOwnerKey || !currentOwner.syncEnabled) {
+      return false
+    }
+    const controller = new AbortController()
+    profileWriteControllerRef.current = controller
+    try {
+      const response = await fetchWithTimeout("/api/account/profile", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({ therapistSettings: nextSettings }),
+      })
+      return response.ok
+        && !controller.signal.aborted
+        && profileWriteOwnerRef.current.ownerKey === requestOwnerKey
+    } catch {
+      return false
+    } finally {
+      if (profileWriteControllerRef.current === controller) {
+        profileWriteControllerRef.current = null
+      }
+    }
+  }, [])
+  const getProfileWriter = useCallback(() => {
+    if (!profileWriterRef.current) {
+      profileWriterRef.current = createTherapistProfileWriter({ send: sendProfileWrite })
+    }
+    return profileWriterRef.current
+  }, [sendProfileWrite])
+  const enqueueProfileWrite = useCallback((profileOwnerKey: string, nextSettings: TherapistSettings) => (
+    getProfileWriter().enqueue({ ownerKey: profileOwnerKey, settings: nextSettings })
+  ), [getProfileWriter])
+  const retryFailedProfileWrite = useCallback((retryOwnerKey: string) => {
+    const currentOwner = profileWriteOwnerRef.current
+    if (
+      currentOwner.ownerKey !== retryOwnerKey
+      || !currentOwner.syncEnabled
+      || !profileWriterRef.current
+    ) {
+      return Promise.resolve(false)
+    }
+    return profileWriterRef.current.retry(retryOwnerKey)
+  }, [])
+  const hydrationEditsRef = useRef<{
+    fields: Set<keyof TherapistSettings>
+    ownerKey: string | null
+  }>({ fields: new Set(), ownerKey: null })
+  const markCloudHydrationStarted = useCallback((profileOwnerKey: string) => {
+    if (hydrationEditsRef.current.ownerKey !== profileOwnerKey) {
+      hydrationEditsRef.current = { fields: new Set(), ownerKey: profileOwnerKey }
+    }
+  }, [])
   const applyCloudProfile = useCallback((profileOwnerKey: string, nextSettings: TherapistSettings) => {
-    const nextOwnedSettings = { ownerKey: profileOwnerKey, settings: nextSettings }
+    const currentSettings = settingsRef.current.ownerKey === profileOwnerKey
+      ? settingsRef.current.settings
+      : defaultSettings
+    const hydrationEdits = hydrationEditsRef.current.ownerKey === profileOwnerKey
+      ? hydrationEditsRef.current.fields
+      : new Set<keyof TherapistSettings>()
+    const reconciledSettings = { ...nextSettings }
+    for (const field of hydrationEdits) {
+      reconciledSettings[field] = currentSettings[field]
+    }
+    const nextOwnedSettings = { ownerKey: profileOwnerKey, settings: reconciledSettings }
     settingsRef.current = nextOwnedSettings
     localStorage.setItem(
       therapistSettingsStorageKey(profileOwnerKey),
-      JSON.stringify(nextSettings),
+      JSON.stringify(reconciledSettings),
     )
     setOwnedSettings(nextOwnedSettings)
-  }, [])
+    hydrationEditsRef.current = { fields: new Set(), ownerKey: null }
+    if (hydrationEdits.size > 0) {
+      void enqueueProfileWrite(profileOwnerKey, reconciledSettings)
+    }
+  }, [enqueueProfileWrite])
   // Construction stores the callback; only a later demanded network result can invoke it.
   // eslint-disable-next-line react-hooks/refs -- no ref access occurs during this render.
   const [coordinator] = useState(() => createTherapistSettingsCloudCoordinator({
     initialOwnerKey: ownerKey,
     initialSyncEnabled: syncEnabled,
     applyProfile: applyCloudProfile,
+    onHydrationStarted: markCloudHydrationStarted,
   }))
   const [cloudState, setCloudState] = useState<TherapistCloudState>(() => coordinator.getState())
   const adoptedOwnerRef = useRef({ ownerKey, syncEnabled })
@@ -302,6 +464,9 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
       }
     }
     const nextOwnedSettings = { ownerKey, settings: nextSettings }
+    if (hydrationEditsRef.current.ownerKey !== ownerKey) {
+      hydrationEditsRef.current = { fields: new Set(), ownerKey: null }
+    }
     if (shouldNormalizeStoredSettings) {
       localStorage.setItem(storageKey, JSON.stringify(nextSettings))
     }
@@ -318,6 +483,9 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
       return Promise.resolve()
     }
     adoptedOwnerRef.current = { ownerKey, syncEnabled }
+    profileWriteControllerRef.current?.abort()
+    profileWriteControllerRef.current = null
+    profileWriteOwnerRef.current = { ownerKey, syncEnabled }
     return coordinator.adopt({ ownerKey, syncEnabled })
   }, [coordinator, ownerKey, syncEnabled])
 
@@ -325,14 +493,47 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
     void adoptCurrentOwner()
   }, [adoptCurrentOwner])
 
-  useEffect(() => () => coordinator.dispose(), [coordinator])
+  useEffect(() => {
+    if (!ownerKey || !syncEnabled) return
+    const retryOwnerKey = ownerKey
+    const handleOnline = () => {
+      void retryFailedProfileWrite(retryOwnerKey)
+    }
+    window.addEventListener("online", handleOnline)
+    return () => window.removeEventListener("online", handleOnline)
+  }, [ownerKey, retryFailedProfileWrite, syncEnabled])
+
+  useEffect(() => () => {
+    profileWriteControllerRef.current?.abort()
+    profileWriteControllerRef.current = null
+    profileWriterRef.current?.dispose()
+    profileWriterRef.current = null
+    coordinator.dispose()
+  }, [coordinator])
 
   const ensureCloudHydrated = useCallback(
     async () => {
+      const currentCloudState = coordinator.getState()
+      if (
+        ownerKey
+        && (
+          currentCloudState.ownerKey !== ownerKey
+          || currentCloudState.status !== "ready"
+        )
+      ) {
+        markCloudHydrationStarted(ownerKey)
+      }
       await adoptCurrentOwner()
       await coordinator.ensureCloudHydrated()
+      if (ownerKey) await retryFailedProfileWrite(ownerKey)
     },
-    [adoptCurrentOwner, coordinator],
+    [
+      adoptCurrentOwner,
+      coordinator,
+      markCloudHydrationStarted,
+      ownerKey,
+      retryFailedProfileWrite,
+    ],
   )
   const canSync = Boolean(
     ownerKey
@@ -350,14 +551,16 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
     localStorage.setItem(therapistSettingsStorageKey(ownerKey), JSON.stringify(updated))
     setOwnedSettings(nextOwnedSettings)
 
-    if (canSync) {
-      void fetchWithTimeout("/api/account/profile", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ therapistSettings: updated }),
-      }).catch(() => undefined)
+    if (hydrationEditsRef.current.ownerKey === ownerKey) {
+      for (const field of Object.keys(newSettings) as Array<keyof TherapistSettings>) {
+        hydrationEditsRef.current.fields.add(field)
+      }
     }
-  }, [canSync, ownerKey])
+
+    if (canSync && ownerKey) {
+      void enqueueProfileWrite(ownerKey, updated)
+    }
+  }, [canSync, enqueueProfileWrite, ownerKey])
   const value = useMemo<TherapistSettingsContextType>(() => ({
     settings,
     updateSettings,
