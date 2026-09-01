@@ -444,10 +444,11 @@ describe("Anatomime realtime token traffic boundary", () => {
       2,
     )
     assert.equal(sharedSessionClientSource.match(/setLookupCode\(nextLookupCode\)/g)?.length, 1)
-    assert.equal(sharedSessionClientSource.match(/setLookupCode\(/g)?.length, 3)
+    assert.equal(sharedSessionClientSource.match(/setLookupCode\(""\)/g)?.length, 1)
+    assert.equal(sharedSessionClientSource.match(/setLookupCode\(/g)?.length, 4)
     assert.match(
       sharedSessionClientSource,
-      /fetch\(`\/api\/anatomime\/sessions\/\$\{encodeURIComponent\(lookupCode\)\}\$\{playerQuery\}`/,
+      /fetchAnatomimeRoomSnapshot\(\{[\s\S]*?code: lookupCode,[\s\S]*?credentials,/,
     )
     assert.match(
       sharedSessionClientSource,
@@ -1061,6 +1062,7 @@ function loadSharedSessionClient() {
       useCallback: (callback) => callback,
       useEffect: () => {},
       useMemo: (callback) => callback(),
+      useRef: (initialValue) => ({ current: initialValue }),
       useState: (initialValue) => [initialValue, () => {}],
     },
     "react/jsx-runtime": {
@@ -1079,6 +1081,11 @@ function loadSharedSessionClient() {
     "@/components/ui/page-heading": { PageHeading: emptyComponent },
     "@/components/moving-background": { MovingBackground: emptyComponent },
     "./anatomime-action-button": { AnatomimeActionButton: emptyComponent },
+    "./anatomime-polling": {
+      anatomimeRetryAfterSeconds: () => 0,
+      fetchAnatomimeRoomSnapshot: async () => ({ kind: "FAILED" }),
+      nextAnatomimePollSchedule: () => ({ action: "SCHEDULE", delayMs: 2_000, consecutiveFailures: 1 }),
+    },
     "./styles.css": {},
   })
 }
