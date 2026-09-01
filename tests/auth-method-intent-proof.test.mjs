@@ -46,6 +46,7 @@ describe("fresh consumed Google security reauthentication", () => {
       { label: "future proof time", intent: freshIntent({ providerProvenAt: new Date(NOW.getTime() + 1) }) },
       { label: "expired", intent: freshIntent({ expiresAt: NOW }) },
       { label: "invalid expiry", intent: freshIntent({ expiresAt: "later" }) },
+      { label: "decorated array", intent: Object.assign([], freshIntent()) },
     ]
 
     for (const { label, intent } of invalidRows) {

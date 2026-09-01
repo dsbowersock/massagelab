@@ -322,7 +322,13 @@ export async function startTwoFactorEnrollment(
       manualCode: setup.secret,
       enrollmentBinding,
     }
-  } catch {
+  } catch (error) {
+    if (!(error instanceof EnrollmentConflict)) {
+      console.error("Two-factor management transaction failed", {
+        operation: "START",
+        code: safeErrorCode(error),
+      })
+    }
     return rejected("CONFLICT")
   }
 }
@@ -467,7 +473,13 @@ export async function enableTwoFactor(input: EnableTwoFactorInput): Promise<Enab
       }
     }
     return result
-  } catch {
+  } catch (error) {
+    if (!(error instanceof EnrollmentConflict)) {
+      console.error("Two-factor management transaction failed", {
+        operation: "ENABLE",
+        code: safeErrorCode(error),
+      })
+    }
     return rejected("CONFLICT")
   }
 }

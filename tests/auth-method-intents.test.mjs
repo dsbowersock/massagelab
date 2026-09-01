@@ -352,12 +352,32 @@ describe("private Google auth-method intents", () => {
       kind: "REGISTRATION_PAUSED",
       callbackPath: "/legal/accept?callbackUrl=%2Fclock%3Fpanel%3Dbackground",
     })
+    assert.equal((await service.prepareGoogleAuthentication(
+      googleInput(db, "brand-new@example.com", "brand-new-google-sub", intent),
+    )).kind, "REJECTED")
     assert.equal(db.state.users.length, 0)
     assert.equal(db.state.accounts.length, 0)
-    assert.equal(db.intent(intent.intentId).status, "PENDING")
-    assert.equal(db.intentConsumeWins(intent.intentId), 0)
+    assert.equal(db.intent(intent.intentId).status, "CONSUMED")
+    assert.equal(db.intentConsumeWins(intent.intentId), 1)
     assert.equal(roleCalls, 0)
     assert.deepEqual(provisionedUserIds, [])
+  })
+
+  it("returns the normal rejection when paused registration intent consumption loses its CAS", async () => {
+    const service = await loadService({ registrationOpen: false })
+    const db = createIntentDatabase({ consumeLoss: true })
+    const intent = await start(service, db)
+
+    assert.deepEqual(
+      await service.prepareGoogleAuthentication(
+        googleInput(db, "brand-new@example.com", "brand-new-google-sub", intent),
+      ),
+      { kind: "REJECTED", recoveryPath: "/login?auth=google-retry" },
+    )
+    assert.equal(db.intent(intent.intentId).status, "PENDING")
+    assert.equal(db.intentConsumeWins(intent.intentId), 0)
+    assert.equal(db.state.users.length, 0)
+    assert.equal(db.state.accounts.length, 0)
   })
 
   it("provisions initial credits once only for a durably-created Google user", async () => {
@@ -1095,6 +1115,7 @@ function transactionClient(state, root, seed) {
       },
       async findUnique({ where }) { return state.intents.find((row) => row.id === where.id) ?? null },
       async updateMany({ where, data }) {
+        if (data.status === "CONSUMED" && seed.consumeLoss) return { count: 0 }
         const row = state.intents.find((candidate) => (
           candidate.id === where.id
           && candidate.status === where.status

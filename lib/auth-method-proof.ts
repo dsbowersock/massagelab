@@ -218,7 +218,6 @@ async function verifyPasswordMethodProofInternal(
         await deps.recordCredentialFailure({ ...limiterInput, purpose: "TWO_FACTOR" })
       }
       if (factorResult.status === "TWO_FACTOR_REQUIRED") return { status: "TWO_FACTOR_REQUIRED" }
-      if (factorResult.status === "RATE_LIMITED") return factorResult
       return { status: "TWO_FACTOR_INVALID" }
     }
 
@@ -256,9 +255,14 @@ async function credentialProofDecision(
   deps: ProofDependencies,
   input: Omit<Parameters<typeof checkCredentialRateLimit>[0], "purpose">,
 ): Promise<AuthRateLimitDecision> {
+  let allowed = true
+  let retryAfterSeconds = 0
   for (const purpose of ["LOGIN", "TWO_FACTOR"] as const) {
     const decision = await deps.checkCredentialRateLimit({ ...input, purpose })
-    if (!decision.allowed) return decision
+    if (!decision.allowed) {
+      allowed = false
+      retryAfterSeconds = Math.max(retryAfterSeconds, decision.retryAfterSeconds)
+    }
   }
-  return { allowed: true }
+  return allowed ? { allowed: true } : { allowed: false, retryAfterSeconds }
 }

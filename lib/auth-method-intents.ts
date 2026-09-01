@@ -283,6 +283,7 @@ export async function prepareGoogleAuthentication({
     // Existing provider and same-email owners resolve above. Only the new
     // identity branch observes the server-owned public registration pause.
     if (!getPublicLaunchControls().registrationOpen) {
+      if (!await consumePendingIntent(tx, intent.id, now)) return rejected(purpose, currentSessionUser)
       return {
         kind: "REGISTRATION_PAUSED" as const,
         callbackPath: boundedRegistrationCallbackPath(intent.callbackPath),

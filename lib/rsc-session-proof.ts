@@ -30,7 +30,11 @@ function recordRscSessionProofEntry(proofId: string | null) {
   )
 }
 
-/** Counts entry into the real auth loader without retaining or inspecting its result. */
+/**
+ * Counts entry into the real auth loader without retaining or inspecting its
+ * result. This local export intentionally shadows the auth star export so
+ * Browser QA instrumentation observes every call through this boundary.
+ */
 export async function getCurrentSession() {
   const requestHeaders = await headers()
   recordRscSessionProofEntry(requestHeaders.get(RSC_SESSION_PROOF_HEADER))

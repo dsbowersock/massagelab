@@ -422,6 +422,76 @@ describe("proved and browser-bound two-factor enrollment", () => {
     assert.equal(database.sessions.length, 0)
     assert.equal(database.committedSessionDeletes, 1)
   })
+
+  it("keeps expected setup and enable transaction conflicts silent", async () => {
+    const setupDatabase = createDatabase({ pending: true })
+    const setupResult = await captureConsoleErrors(async (calls) => {
+      const result = await start(setupDatabase, {
+        dependencies: dependencies({
+          database: setupDatabase,
+          generateTotpSecret() {
+            setupDatabase.user.authSessionVersion += 1
+            return { secret: MANUAL_CODE, otpauthUrl: OTPAUTH_URL }
+          },
+        }),
+      })
+      assert.deepEqual(calls, [])
+      return result
+    })
+    assert.deepEqual(setupResult, { status: "REJECTED", code: "CONFLICT" })
+
+    const enableDatabase = createDatabase()
+    const pending = await start(enableDatabase)
+    const enableResult = await captureConsoleErrors(async (calls) => {
+      const result = await service.enableTwoFactor(enableInput(enableDatabase, pending.enrollmentBinding, {
+        dependencies: dependencies({
+          database: enableDatabase,
+          generateBackupCodes() {
+            enableDatabase.secret.updatedAt = new Date(enableDatabase.secret.updatedAt.getTime() + 1)
+            return backupCodes()
+          },
+        }),
+      }))
+      assert.deepEqual(calls, [])
+      return result
+    })
+    assert.deepEqual(enableResult, { status: "REJECTED", code: "CONFLICT" })
+  })
+
+  it("logs only an allowlisted operation and code for unexpected setup and enable transaction failures", async () => {
+    const setupDatabase = createDatabase({ pending: true })
+    setupDatabase.failPoint = "after-secret-cas"
+    setupDatabase.failError = Object.assign(new Error("private setup failure"), {
+      code: "P2024",
+      meta: { privateUserId: "user-1" },
+    })
+    const setupResult = await captureConsoleErrors(async (calls) => {
+      const result = await start(setupDatabase)
+      assert.deepEqual(calls, [[
+        "Two-factor management transaction failed",
+        { operation: "START", code: "P2024" },
+      ]])
+      return result
+    })
+    assert.deepEqual(setupResult, { status: "REJECTED", code: "CONFLICT" })
+
+    const enableDatabase = createDatabase()
+    const pending = await start(enableDatabase)
+    enableDatabase.failPoint = "after-secret-cas"
+    enableDatabase.failError = Object.assign(new Error("private enable failure"), {
+      code: "P2024",
+      meta: { privateUserId: "user-1" },
+    })
+    const enableResult = await captureConsoleErrors(async (calls) => {
+      const result = await service.enableTwoFactor(enableInput(enableDatabase, pending.enrollmentBinding))
+      assert.deepEqual(calls, [[
+        "Two-factor management transaction failed",
+        { operation: "ENABLE", code: "P2024" },
+      ]])
+      return result
+    })
+    assert.deepEqual(enableResult, { status: "REJECTED", code: "CONFLICT" })
+  })
 })
 
 describe("dual-proof destructive two-factor management", () => {
