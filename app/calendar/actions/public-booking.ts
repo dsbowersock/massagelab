@@ -21,9 +21,12 @@ import { prisma } from "@/lib/prisma"
 import {
   acquirePublicRequestLock,
   findPublicBookingRequest,
+  findPublicWaitlistRequest,
   hasExactPublicRequestSelection,
   publicBookingRequestOwner,
   type PublicBookingRequestSelection,
+  publicWaitlistRequestOwner,
+  type PublicWaitlistRequestSelection,
 } from "@/lib/public-booking-idempotency"
 import { PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS, publicBookingSequenceOptions } from "@/lib/public-booking-sequences"
 import { publicBookingPathForPractice } from "@/lib/public-booking-url"
@@ -66,6 +69,8 @@ type BookingClientIdentity = {
 
 type PublicBookingOwner = ReturnType<typeof publicBookingRequestOwner>
 type ExistingPublicBookingRequest = Awaited<ReturnType<typeof findPublicBookingRequest>>
+type PublicWaitlistOwner = ReturnType<typeof publicWaitlistRequestOwner>
+type ExistingPublicWaitlistRequest = Awaited<ReturnType<typeof findPublicWaitlistRequest>>
 
 type PreparedPublicBookingRequest = {
   userId: string | null
@@ -78,6 +83,22 @@ type PreparedPublicBookingRequest = {
   preferredProviderId: string
   selection: PublicBookingRequestSelection
   owner: PublicBookingOwner
+  limiterOwner:
+    | { kind: "ACCOUNT_ID"; value: string }
+    | { kind: "GUEST_EMAIL"; value: string }
+}
+
+type PreparedPublicWaitlistRequest = {
+  userId: string | null
+  clientIdentity: BookingClientIdentity
+  practiceId: string
+  primaryServiceVariantId: string
+  addOnServiceVariantIds: string[]
+  requestedPressureLevel: number
+  preferredProviderId: string
+  preferredStartsAt: Date | null
+  selection: PublicWaitlistRequestSelection
+  owner: PublicWaitlistOwner
   limiterOwner:
     | { kind: "ACCOUNT_ID"; value: string }
     | { kind: "GUEST_EMAIL"; value: string }
@@ -154,6 +175,66 @@ function preparePublicBookingRequest(formData: FormData, userId: string | null):
     requestedPressureLevel,
     startsAt,
     preferredProviderId,
+    selection,
+    owner,
+    limiterOwner: userId
+      ? { kind: "ACCOUNT_ID", value: userId }
+      : { kind: "GUEST_EMAIL", value: clientIdentity.guestEmail ?? "" },
+  }
+}
+
+/** Canonicalizes the immutable waitlist selection separately from caller identity. */
+function preparePublicWaitlistRequest(
+  formData: FormData,
+  userId: string | null,
+): PreparedPublicWaitlistRequest {
+  const requestId = normalizePublicRequestId(formData.get("requestId"))
+  const practiceId = fieldString(formData, "practiceId")
+  const primaryServiceVariantId = fieldString(formData, "primaryServiceVariantId")
+  const addOnServiceVariantIds = selectedAddOnVariantIds(formData)
+  const requestedPressureLevel = normalizePressureLevel(fieldString(formData, "requestedPressureLevel"))
+  const preferredProviderId = fieldString(formData, "preferredProviderId")
+  const preferredStartsAtInput = formData.get("preferredStartsAt")
+  const preferredStartsAtValue = preferredStartsAtInput === null ? "" : preferredStartsAtInput
+
+  if (!requestId || !boundedPublicBookingIdentifier(practiceId) || !requestedPressureLevel) {
+    throw new Error("Provide a valid public waitlist request.")
+  }
+  if (typeof preferredStartsAtValue !== "string") {
+    throw new Error("Provide a canonical preferred waitlist start.")
+  }
+
+  let preferredStartsAt: Date | null = null
+  if (preferredStartsAtValue) {
+    preferredStartsAt = dateValue(preferredStartsAtValue)
+    if (preferredStartsAt.toISOString() !== preferredStartsAtValue) {
+      throw new Error("Provide a canonical preferred waitlist start.")
+    }
+  }
+
+  const clientIdentity = publicBookingClientIdentity(formData, userId)
+  if (!publicBookingIdentityIsBounded(clientIdentity)) {
+    throw new Error("Provide bounded public booking identity fields.")
+  }
+
+  const selection: PublicWaitlistRequestSelection = {
+    requestId,
+    primaryServiceVariantId,
+    addOnServiceVariantIds,
+    requestedPressureLevel,
+    preferredStartsAt: preferredStartsAtValue,
+    preferredProviderId,
+  }
+  const owner = publicWaitlistRequestOwner(selection)
+  return {
+    userId,
+    clientIdentity,
+    practiceId,
+    primaryServiceVariantId,
+    addOnServiceVariantIds,
+    requestedPressureLevel,
+    preferredProviderId,
+    preferredStartsAt,
     selection,
     owner,
     limiterOwner: userId
@@ -242,6 +323,70 @@ async function publicBookingReplayPathIfPresent(
 ): Promise<string | null> {
   const existing = await findPublicBookingRequest(prisma, prepared.owner)
   const replayDecision = publicBookingReplayDecision(existing, prepared)
+  if (replayDecision === "CONFLICT") throw new PublicBookingConflictError()
+  return replayDecision === "REPLAY"
+    ? trustedPublicBookingPath(prepared.practiceId)
+    : null
+}
+
+function publicWaitlistCallerOwnsExistingRequest(
+  existing: NonNullable<ExistingPublicWaitlistRequest>,
+  prepared: PreparedPublicWaitlistRequest,
+): boolean {
+  if (prepared.userId) {
+    return existing.createdById === prepared.userId
+      && existing.practiceClient?.userId === prepared.userId
+  }
+  return existing.createdById === null
+    && existing.practiceClient?.userId === null
+    && normalizeEmail(existing.practiceClient?.email) === prepared.clientIdentity.guestEmail
+}
+
+function publicWaitlistPersistedSelectionMatches(
+  existing: NonNullable<ExistingPublicWaitlistRequest>,
+  selection: PublicWaitlistRequestSelection,
+): boolean {
+  if (existing.requestedPressureLevel !== selection.requestedPressureLevel
+    || existing.primaryServiceVariantId !== selection.primaryServiceVariantId
+    || (existing.preferredProviderId ?? "") !== selection.preferredProviderId) {
+    return false
+  }
+
+  const actualAddOns = [...existing.addOnServiceVariantIds].sort()
+  const expectedAddOns = [...selection.addOnServiceVariantIds].sort()
+  if (actualAddOns.length !== expectedAddOns.length
+    || actualAddOns.some((value, index) => value !== expectedAddOns[index])) {
+    return false
+  }
+
+  try {
+    const actualPreferredStart = existing.preferredStartsAt
+      ? dateValue(existing.preferredStartsAt).toISOString()
+      : ""
+    return actualPreferredStart === selection.preferredStartsAt
+  } catch {
+    return false
+  }
+}
+
+function publicWaitlistReplayDecision(
+  existing: ExistingPublicWaitlistRequest,
+  prepared: PreparedPublicWaitlistRequest,
+): PublicBookingReplayDecision {
+  if (!existing) return "MISS"
+  return hasExactPublicRequestSelection(existing, prepared.owner)
+    && existing.practiceId === prepared.practiceId
+    && publicWaitlistCallerOwnsExistingRequest(existing, prepared)
+    && publicWaitlistPersistedSelectionMatches(existing, prepared.selection)
+    ? "REPLAY"
+    : "CONFLICT"
+}
+
+async function publicWaitlistReplayPathIfPresent(
+  prepared: PreparedPublicWaitlistRequest,
+): Promise<string | null> {
+  const existing = await findPublicWaitlistRequest(prisma, prepared.owner)
+  const replayDecision = publicWaitlistReplayDecision(existing, prepared)
   if (replayDecision === "CONFLICT") throw new PublicBookingConflictError()
   return replayDecision === "REPLAY"
     ? trustedPublicBookingPath(prepared.practiceId)
@@ -735,65 +880,102 @@ export async function joinBookingWaitlist(
   formData: FormData,
 ): Promise<PublicBookingActionState> {
   void previousState
+  let userId: string | null
+  let requestHeaders: Awaited<ReturnType<typeof headers>>
   try {
     const session = await getCurrentSession()
-    const userId = session?.user?.id ?? null
-    await assertCalendarDatabaseReady()
-    const practiceId = fieldString(formData, "practiceId")
-    const primaryServiceVariantId = fieldString(formData, "primaryServiceVariantId")
-    const addOnServiceVariantIds = selectedAddOnVariantIds(formData)
-    const pressureLevel = normalizePressureLevel(fieldString(formData, "requestedPressureLevel"))
-    const preferredProviderId = fieldString(formData, "preferredProviderId")
-    const preferredStartsAtValue = fieldString(formData, "preferredStartsAt")
+    userId = session?.user?.id ?? null
+    requestHeaders = await headers()
+  } catch {
+    return publicBookingUnavailable()
+  }
 
-    if (!practiceId || !primaryServiceVariantId || !pressureLevel) {
-      return publicBookingValidationError()
+  let prepared: PreparedPublicWaitlistRequest
+  try {
+    prepared = preparePublicWaitlistRequest(formData, userId)
+  } catch {
+    return publicBookingValidationError()
+  }
+
+  try {
+    const networkIdentifier = authRequestNetworkIdentifier({ headers: requestHeaders })
+    const replayPath = await publicWaitlistReplayPathIfPresent(prepared)
+    if (replayPath) {
+      return publicBookingSuccess(`${replayPath}?waitlist=joined`)
     }
-    let clientIdentity: BookingClientIdentity
-    try {
-      clientIdentity = publicBookingClientIdentity(formData, userId)
-    } catch {
-      return publicBookingValidationError()
+
+    const limiterDecision = await consumeOperationalRateLimit({
+      operation: "WAITLIST_JOIN",
+      networkIdentifier,
+      practiceId: prepared.practiceId,
+      owner: prepared.limiterOwner,
+    })
+    if (!limiterDecision.allowed) {
+      return limiterDecision.reason === "RATE_LIMITED"
+        ? publicBookingRateLimited(limiterDecision.retryAfterSeconds)
+        : publicBookingUnavailable()
     }
+
+    await assertCalendarDatabaseReady()
 
     const context = await publicBookingSequenceOptions({
-      practiceId,
-      primaryServiceVariantId,
-      addOnServiceVariantIds,
-      requestedPressureLevel: pressureLevel,
-      preferredProviderId,
-      viewerUserId: userId,
+      practiceId: prepared.practiceId,
+      primaryServiceVariantId: prepared.primaryServiceVariantId,
+      addOnServiceVariantIds: prepared.addOnServiceVariantIds,
+      requestedPressureLevel: prepared.requestedPressureLevel,
+      preferredProviderId: prepared.preferredProviderId,
+      viewerUserId: prepared.userId,
       maxOptions: 1,
     })
 
-    if (!userId && !context.allowGuestBooking) {
+    if (!prepared.userId && !context.allowGuestBooking) {
       return publicBookingValidationError()
     }
     if (context.options.length > 0) {
       return publicBookingConflict()
     }
 
-    await prisma.$transaction(async (tx) => {
-      const practiceClient = await ensureBookingPracticeClient(tx, practiceId, clientIdentity)
+    const mutationOutcome = await prisma.$transaction(async (tx) => {
+      await acquirePublicRequestLock(tx, prepared.owner)
+      const existing = await findPublicWaitlistRequest(tx, prepared.owner)
+      const replayDecision = publicWaitlistReplayDecision(existing, prepared)
+      if (replayDecision === "CONFLICT") throw new PublicBookingConflictError()
+      if (replayDecision === "REPLAY") {
+        return "REPLAY" as const
+      }
+
+      const practiceClient = await ensureBookingPracticeClient(
+        tx,
+        prepared.practiceId,
+        prepared.clientIdentity,
+      )
       await tx.bookingWaitlistEntry.create({
         data: {
-          practiceId,
+          id: prepared.owner.id,
+          practiceId: prepared.practiceId,
           practiceClientId: practiceClient.id,
-          createdById: userId,
-          requestedPressureLevel: pressureLevel,
-          primaryServiceVariantId,
-          addOnServiceVariantIds,
-          preferredProviderId: preferredProviderId || null,
-          preferredStartsAt: preferredStartsAtValue ? dateValue(preferredStartsAtValue) : null,
+          createdById: prepared.userId,
+          requestedPressureLevel: prepared.requestedPressureLevel,
+          primaryServiceVariantId: prepared.primaryServiceVariantId,
+          addOnServiceVariantIds: prepared.addOnServiceVariantIds,
+          preferredProviderId: prepared.preferredProviderId || null,
+          preferredStartsAt: prepared.preferredStartsAt,
         },
       })
+      return "CREATED" as const
     })
 
-    const publicBookingPath = publicBookingPathForPractice(context.practice)
-    revalidateCalendarRoutes(context.practice.slug, publicBookingPath)
+    const publicBookingPath = mutationOutcome === "REPLAY"
+      ? await trustedPublicBookingPath(prepared.practiceId)
+      : publicBookingPathForPractice(context.practice)
+    if (mutationOutcome === "CREATED") {
+      revalidateCalendarRoutes(context.practice.slug, publicBookingPath)
+    }
     return publicBookingSuccess(`${publicBookingPath}?waitlist=joined`)
-  } catch {
-    return publicBookingUnavailable()
+  } catch (error) {
+    return error instanceof PublicBookingConflictError
+      ? publicBookingConflict()
+      : publicBookingUnavailable()
   }
 }
 
