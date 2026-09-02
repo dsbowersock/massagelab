@@ -199,10 +199,12 @@ function trustedRequest({
 function malformedUrlRequest() {
   const valid = trustedRequest()
   // Request rejects malformed URLs during construction. This minimal request-like
-  // object keeps a valid body so the test isolates provenance-before-body ordering.
+  // object throws if body access occurs so provenance must fail before parsing.
   return {
     url: "not a URL",
     headers: valid.headers,
-    body: valid.body,
+    get body() {
+      throw new Error("malformed request body must not be read")
+    },
   }
 }

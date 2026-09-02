@@ -322,7 +322,11 @@ async function openClockBackground(page: Page, href = "/clock") {
       .filter({ visible: true })
     await expect(clockOwner).toHaveCount(1)
     await expect(clockOwner).toBeVisible()
-    const controls = page.getByRole("group", { name: "Immersive display controls" }).filter({ visible: true })
+    // The clock owns a body-portal shell, so scope controls to that sole visible
+    // shell after proving the visible clock owner instead of using DOM ancestry.
+    const immersiveShell = page.locator("[data-immersive-shell]").filter({ visible: true })
+    await expect(immersiveShell).toHaveCount(1)
+    const controls = immersiveShell.getByRole("group", { name: "Immersive display controls" })
     await expect(controls).toHaveCount(1)
     const backgroundButton = controls.getByRole("button", { name: "Background", exact: true })
     await expect(backgroundButton).toHaveCount(1)

@@ -47,13 +47,20 @@ function source(relativePath) {
   return readFileSync(absolutePath, "utf8")
 }
 
+/** Restricts render discovery to production TypeScript modules, not declarations or colocated fixtures. */
+function isProductionSourceFile(fileName) {
+  return /\.(?:ts|tsx)$/.test(fileName)
+    && !fileName.endsWith(".d.ts")
+    && !/\.(?:test|spec|story|stories)\.(?:ts|tsx)$/.test(fileName)
+}
+
 function discoverSourceFiles(relativeRoot) {
   const discovered = []
   const visit = (relativeDirectory) => {
     for (const entry of readdirSync(path.join(projectRoot, relativeDirectory), { withFileTypes: true })) {
       const relativePath = path.join(relativeDirectory, entry.name)
       if (entry.isDirectory()) visit(relativePath)
-      else if (/\.(?:ts|tsx)$/.test(entry.name)) discovered.push(relativePath.replaceAll("\\", "/"))
+      else if (isProductionSourceFile(entry.name)) discovered.push(relativePath.replaceAll("\\", "/"))
     }
   }
   visit(relativeRoot)
@@ -170,10 +177,13 @@ describe("RSC session snapshot proof boundary", () => {
     assert.match(wrapper, /from "@\/lib\/rsc-session-proof"/)
     assert.match(wrapper, /NEXT_PUBLIC_RSC_SESSION_PROOF === "1"/)
     assert.match(wrapper, /export const getCurrentRscSession = cache\(loadCurrentRscSession\)/)
-    assert.doesNotMatch(
-      wrapper,
-      /\b(?:setTimeout|setInterval)\b|\bnew\s+Map\b|ttl|expires|persist/i,
-    )
+    assertNoLeakPatterns(wrapper, "lib/rsc-session.ts", [
+      { label: "timer retention", pattern: /\bset(?:Timeout|Interval)\b/ },
+      { label: "map-backed retention", pattern: /\bnew\s+Map\b/ },
+      { label: "TTL-bearing identifiers", pattern: /\b[\w$]*ttl[\w$]*\b/i },
+      { label: "expiry-bearing identifiers", pattern: /\b[\w$]*expires[\w$]*\b/i },
+      { label: "persistence-bearing identifiers", pattern: /\b[\w$]*persist[\w$]*\b/i },
+    ])
 
     for (const relativePath of rscSessionConsumers) {
       const consumer = source(relativePath)

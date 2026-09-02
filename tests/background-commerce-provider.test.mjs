@@ -19,6 +19,35 @@ async function source(fileUrl) {
   return readFile(fileUrl, "utf8")
 }
 
+/** Returns one named useCallback arrow body so source contracts cannot match neighboring callbacks. */
+function callbackArrowBody(sourceText, callbackName) {
+  const sourceFile = ts.createSourceFile(
+    "BackgroundCommerceProvider.tsx",
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  const matches = []
+
+  function visit(node) {
+    if (
+      ts.isVariableDeclaration(node)
+      && ts.isIdentifier(node.name)
+      && node.name.text === callbackName
+      && ts.isCallExpression(node.initializer)
+      && ts.isArrowFunction(node.initializer.arguments[0])
+    ) {
+      matches.push(node.initializer.arguments[0].body)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+
+  assert.equal(matches.length, 1, `expected exactly one ${callbackName} useCallback arrow`)
+  return sourceText.slice(matches[0].getStart(sourceFile), matches[0].getEnd())
+}
+
 let providerHarnessBundlePromise
 
 /** Bundles the real provider with only its data-shape dependencies replaced by deterministic doubles. */
@@ -760,17 +789,21 @@ describe("BackgroundCommerceProvider contract", () => {
 
   it("reconciles preference ownership only when commerce did not advance", async () => {
     const value = await source(providerPath)
+    const captureBody = callbackArrowBody(value, "captureOwnershipReconciliationRevision")
+    const reconcileBody = callbackArrowBody(value, "reconcileOwnedBackgroundIds")
+    const refreshBody = callbackArrowBody(value, "refresh")
+    const mutationBody = callbackArrowBody(value, "enqueueMutation")
     assert.match(
-      value,
-      /const captureOwnershipReconciliationRevision[\s\S]*commerceRevisionRef\.current/,
+      captureBody,
+      /commerceRevisionRef\.current/,
     )
     assert.match(
-      value,
-      /const reconcileOwnedBackgroundIds[\s\S]*shouldApplyPreferenceOwnershipProof\([\s\S]*requestRevision,[\s\S]*commerceRevisionRef\.current[\s\S]*type: "ownership-reconcile"[\s\S]*await refresh\(\)/,
+      reconcileBody,
+      /shouldApplyPreferenceOwnershipProof\([\s\S]*requestRevision,[\s\S]*commerceRevisionRef\.current[\s\S]*type: "ownership-reconcile"[\s\S]*await refresh\(\)/,
     )
-    assert.match(value, /commerceRevisionRef\.current \+= 1[\s\S]*type: "mutation-begin"/)
-    assert.match(value, /await fetchSnapshot\(controller\.signal\)[\s\S]*commerceRevisionRef\.current \+= 1[\s\S]*type: "fetch-success"/)
-    assert.match(value, /await fetchSnapshot\(controller\.signal\)[\s\S]*commerceRevisionRef\.current \+= 1[\s\S]*type: "mutation-success"/)
+    assert.match(mutationBody, /commerceRevisionRef\.current \+= 1[\s\S]*type: "mutation-begin"/)
+    assert.match(refreshBody, /await fetchSnapshot\(controller\.signal\)[\s\S]*commerceRevisionRef\.current \+= 1[\s\S]*type: "fetch-success"/)
+    assert.match(mutationBody, /await fetchSnapshot\(controller\.signal\)[\s\S]*commerceRevisionRef\.current \+= 1[\s\S]*type: "mutation-success"/)
   })
 
   it("keeps guest cart identities unique and removes one matching line", async () => {

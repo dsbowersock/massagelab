@@ -17,6 +17,11 @@ const SIX_PRICE_ENVIRONMENT = Object.freeze({
   STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_month",
   STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_year",
 })
+assert.equal(
+  typeof membershipPricing.createMembershipPricingCatalogLoader,
+  "function",
+  "membership pricing must expose an isolated catalog loader",
+)
 
 function stripePrice({ id, amount, currency = "usd", interval }) {
   return {
@@ -39,11 +44,6 @@ function configuredStripePrices(amountOffset = 0) {
 }
 
 function createTestCatalogLoader(options) {
-  assert.equal(
-    typeof membershipPricing.createMembershipPricingCatalogLoader,
-    "function",
-    "membership pricing must expose an isolated catalog loader",
-  )
   return membershipPricing.createMembershipPricingCatalogLoader(options)
 }
 

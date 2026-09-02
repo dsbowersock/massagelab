@@ -140,6 +140,9 @@ function loadRoute({
       calls.transactions += 1
       const transactionId = calls.transactions
       calls.transactionStarts.push(transactionId)
+      // PostgreSQL row locks are transaction-reentrant even after another
+      // transaction has queued for the same owner.
+      const heldOwnerLocks = new Set()
       const releaseOwnerLocks = []
       try {
         return await callback({
@@ -150,6 +153,11 @@ function loadRoute({
             calls.lockAttempts.push(transactionId)
             if (calls.lockAttempts.length === 2) secondLockAttempted.resolve()
 
+            if (heldOwnerLocks.has(userId)) {
+              calls.lockAcquisitions.push(transactionId)
+              return []
+            }
+
             // Transactions begin independently. Only the simulated stable User
             // row lock queues work for the same owner, matching PostgreSQL's
             // FOR UPDATE boundary closely enough to catch a read-before-lock.
@@ -157,6 +165,7 @@ function loadRoute({
             const currentOwnerLock = deferred()
             ownerLocks.set(userId, currentOwnerLock)
             if (precedingOwnerLock) await precedingOwnerLock.promise
+            heldOwnerLocks.add(userId)
             calls.lockAcquisitions.push(transactionId)
             releaseOwnerLocks.push(() => {
               if (ownerLocks.get(userId) === currentOwnerLock) ownerLocks.delete(userId)

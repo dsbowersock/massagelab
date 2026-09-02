@@ -205,7 +205,7 @@ describe("Music visualizer provider contract", () => {
     }
   })
 
-  it("serializes active saves and collapses queued work to the latest snapshot", async () => {
+  it("serializes active saves and collapses queued work to the latest snapshot", { timeout: 2_000 }, async () => {
     assert.equal(
       typeof accountPreferences.createSerializedPreferenceWriter,
       "function",
@@ -213,9 +213,12 @@ describe("Music visualizer provider contract", () => {
     )
     const deferred = []
     const sentRequestIds = []
+    let markSecondSendStarted
+    const secondSendStarted = new Promise((resolve) => { markSecondSendStarted = resolve })
     const writer = accountPreferences.createSerializedPreferenceWriter({
       send: (request) => {
         sentRequestIds.push(request.requestId)
+        if (sentRequestIds.length === 2) markSecondSendStarted()
         return new Promise((resolve) => deferred.push(resolve))
       },
     })
@@ -226,7 +229,7 @@ describe("Music visualizer provider contract", () => {
     assert.deepEqual(sentRequestIds, [1])
 
     deferred.shift()(true)
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await secondSendStarted
     assert.deepEqual(sentRequestIds, [1, 3])
     deferred.shift()(true)
     await writer.whenIdle()

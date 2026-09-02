@@ -217,9 +217,14 @@ async function loadPreferenceSync(ownerKey, {
       storageReads,
       async syncLocalPreferences() {
         const componentWork = syncButton.props.onClick()
+        assert.equal(
+          typeof componentWork?.then,
+          "function",
+          "PreferenceSync manual action must return promise-like work",
+        )
         // Observe rejection before the settling loop yields to the event loop;
         // the final await below still preserves the component promise's result.
-        void componentWork.catch(() => undefined)
+        void Promise.resolve(componentWork).catch(() => undefined)
         await settleAsyncWork()
         return await componentWork
       },

@@ -151,13 +151,22 @@ describe("same-browser two-factor enrollment binding", () => {
     const payload = decodePayload(bindingModule.signTwoFactorEnrollmentBinding(BASE_INPUT))
     const reordered = signedSerializedPayload(JSON.stringify({ userId: payload.userId, version: 1, ...payload }))
     const extra = signedSerializedPayload(JSON.stringify({ ...payload, encryptedSecret: ENCRYPTED_SECRET }))
-    const badFingerprint = signedPayload({ ...payload, secretRowFingerprint: "f".repeat(43) })
+    const mismatchedFingerprint = signedPayload({ ...payload, secretRowFingerprint: "f".repeat(43) })
+    const wrongLengthFingerprint = signedPayload({ ...payload, secretRowFingerprint: "f".repeat(42) })
+    const nonBase64UrlFingerprint = signedPayload({ ...payload, secretRowFingerprint: `${"f".repeat(42)}+` })
     const duplicate = signedSerializedPayload(canonicalSerializedPayload(payload).replace(
       '"userId":"user-1"',
       '"userId":"user-1","userId":"user-1"',
     ))
 
-    for (const value of [reordered, extra, badFingerprint, duplicate]) {
+    for (const value of [
+      reordered,
+      extra,
+      mismatchedFingerprint,
+      wrongLengthFingerprint,
+      nonBase64UrlFingerprint,
+      duplicate,
+    ]) {
       assert.equal(bindingModule.verifyTwoFactorEnrollmentBinding({ ...BASE_INPUT, value }), null)
     }
   })

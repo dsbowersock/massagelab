@@ -10,20 +10,15 @@ const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const providerSource = await readFile(
   new URL("../components/providers/account-shell-bootstrap-provider.tsx", import.meta.url),
   "utf8",
-).catch((error) => {
-  if (error?.code === "ENOENT") return ""
-  throw error
-})
+)
 const layoutSource = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8")
 
 function deferred() {
   let resolve
-  let reject
-  const promise = new Promise((resolvePromise, rejectPromise) => {
+  const promise = new Promise((resolvePromise) => {
     resolve = resolvePromise
-    reject = rejectPromise
   })
-  return { promise, resolve, reject }
+  return { promise, resolve }
 }
 
 function projectedSettings(backgroundId = "aurora") {
@@ -55,8 +50,6 @@ function bootstrap({
 
 /** Compiles inert React solely to exercise the provider's exported fallback coordinator. */
 function loadProvider(loadPreferences) {
-  assert.notEqual(providerSource, "", "account shell bootstrap provider must exist")
-
   return loadCompiledModule(
     providerSource,
     "components/providers/account-shell-bootstrap-provider.test.tsx",

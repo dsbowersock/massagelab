@@ -30,6 +30,23 @@ function deferred() {
   return { promise, reject, resolve }
 }
 
+/** Clears and runs every Provider effect cleanup before surfacing any failures. */
+function cleanupSidebarEffectSlots(effectSlots) {
+  const cleanupErrors = []
+  const mountedSlots = effectSlots.splice(0)
+  for (const slot of mountedSlots.toReversed()) {
+    try {
+      slot.cleanup?.()
+    } catch (error) {
+      cleanupErrors.push(error)
+    }
+  }
+  if (cleanupErrors.length === 1) throw cleanupErrors[0]
+  if (cleanupErrors.length > 1) {
+    throw new AggregateError(cleanupErrors, "Sidebar calendar Provider effect cleanups failed")
+  }
+}
+
 function loadCoordinator(loadContext, options = {}) {
   const {
     fetchJsonWithTimeout = async () => ({ response: { ok: false }, json: undefined }),
@@ -129,8 +146,7 @@ function createSidebarProviderEffectHarness(fetchJsonWithTimeout) {
       }
     },
     unmount() {
-      for (const slot of effectSlots.toReversed()) slot.cleanup?.()
-      effectSlots.length = 0
+      cleanupSidebarEffectSlots(effectSlots)
     },
   }
 }
@@ -156,6 +172,33 @@ function loadRoute(session, contextLoads, ownerCalls = []) {
 }
 
 describe("sidebar calendar context route gating", () => {
+  it("drains and clears every Provider cleanup before surfacing failures", () => {
+    const events = []
+    const singleFailure = new Error("single cleanup failed")
+    const singleFailureSlots = [
+      { cleanup: () => { events.push("first"); throw singleFailure } },
+      { cleanup: () => { events.push("second") } },
+    ]
+
+    assert.throws(
+      () => cleanupSidebarEffectSlots(singleFailureSlots),
+      (error) => error === singleFailure,
+    )
+    assert.deepEqual(events, ["second", "first"])
+    assert.equal(singleFailureSlots.length, 0)
+    assert.doesNotThrow(() => cleanupSidebarEffectSlots(singleFailureSlots))
+
+    const multipleFailures = [new Error("first cleanup failed"), new Error("second cleanup failed")]
+    const multipleFailureSlots = multipleFailures.map((error) => ({ cleanup: () => { throw error } }))
+    assert.throws(
+      () => cleanupSidebarEffectSlots(multipleFailureSlots),
+      (error) => error instanceof AggregateError
+        && error.errors[0] === multipleFailures[1]
+        && error.errors[1] === multipleFailures[0],
+    )
+    assert.equal(multipleFailureSlots.length, 0)
+  })
+
   it("makes zero endpoint requests for an owner without a practice membership", async () => {
     let requests = 0
     const coordinator = loadCoordinator(async () => {

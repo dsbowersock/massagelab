@@ -22,10 +22,9 @@ const supportedSpecializedProviderImports = new Set([
   "@/lib/client-fetch",
   "@/lib/sidebar-calendar-context",
   "react",
-  "react/jsx-runtime",
 ])
 
-/** Fails with harness context before webpack sees a provider import the fixture cannot safely supply. */
+/** Fails on authored provider imports before transpilation can elide a dependency the fixture cannot supply. */
 export function assertSpecializedProviderImportSurface(source, providerLabel) {
   const importedFiles = ts.preProcessFile(source, true, true).importedFiles
   for (const importedFile of importedFiles) {
@@ -71,16 +70,18 @@ const specializedProviderBundle = createSpecializedProviderBundleLoader(async ()
         target: ts.ScriptTarget.ES2020,
       }
 
+      const therapistAuthoredSource = await readFile(therapistProviderPath, "utf8")
+      const calendarAuthoredSource = await readFile(calendarProviderPath, "utf8")
+      assertSpecializedProviderImportSurface(therapistAuthoredSource, "therapist settings provider")
+      assertSpecializedProviderImportSurface(calendarAuthoredSource, "sidebar calendar provider")
       const therapistModuleSource = ts.transpileModule(
-        await readFile(therapistProviderPath, "utf8"),
+        therapistAuthoredSource,
         { compilerOptions },
       ).outputText
       const calendarModuleSource = ts.transpileModule(
-        await readFile(calendarProviderPath, "utf8"),
+        calendarAuthoredSource,
         { compilerOptions },
       ).outputText
-      assertSpecializedProviderImportSurface(therapistModuleSource, "therapist settings provider")
-      assertSpecializedProviderImportSurface(calendarModuleSource, "sidebar calendar provider")
       writeFileSync(therapistModulePath, therapistModuleSource)
       writeFileSync(calendarModulePath, calendarModuleSource)
       writeFileSync(supportModulePath, `

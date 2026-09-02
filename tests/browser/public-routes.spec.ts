@@ -1128,10 +1128,12 @@ test("Atmosphere visualizer action retains selected station across client routes
     "massage-lab-retro-grid-vertical",
   ]
   const allowedExternalUrls = new Set([
+    externalFontUrl,
     ...atmosphereSampleIndexFixtureUrls,
     ...previewNames.map(chimerPreviewUrl),
   ])
   const health = await capturePageHealth(page, allowedExternalUrls)
+  await installExternalFontFixture(page, allowedExternalUrls)
   await installAtmosphereFixtures(page, allowedExternalUrls)
   await installChimerPreviewFixtures(page, previewNames, allowedExternalUrls)
   const origin = "/music?task8=public-route"
@@ -1260,10 +1262,12 @@ test("Atmosphere restores the active station category after the Music route remo
     "massage-lab-retro-grid-vertical",
   ]
   const allowedExternalUrls = new Set([
+    externalFontUrl,
     ...atmosphereSampleIndexFixtureUrls,
     ...previewNames.map(chimerPreviewUrl),
   ])
   const health = await capturePageHealth(page, allowedExternalUrls)
+  await installExternalFontFixture(page, allowedExternalUrls)
   await installAtmosphereFixtures(page, allowedExternalUrls, ["last-transit"])
   await installChimerPreviewFixtures(page, previewNames, allowedExternalUrls)
 

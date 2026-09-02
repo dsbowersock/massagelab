@@ -382,15 +382,7 @@ function loadStoredTherapistSettingsProjector() {
   const provider = loadCompiledModule(
     providerSource,
     "components/providers/therapist-settings-provider-storage-contract.test.tsx",
-    {
-      "@/components/providers/account-shell-bootstrap-provider": {
-        useAccountShellBootstrap: () => ({ ownerKey: null, syncEnabled: false }),
-      },
-      "@/lib/client-fetch": {
-        fetchJsonWithTimeout: async () => ({ response: { ok: false }, json: undefined }),
-        fetchWithTimeout: async () => ({ ok: true }),
-      },
-    },
+    inertProviderMocks(),
   )
   assert.equal(
     typeof provider.projectStoredTherapistSettings,
