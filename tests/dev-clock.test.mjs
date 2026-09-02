@@ -84,13 +84,37 @@ describe("development Clock review route", () => {
     )
     assert.ok(ownerAdoptionStart >= 0 && ownerAdoptionEnd > ownerAdoptionStart)
     const ownerAdoptionSource = musicProviderSource.slice(ownerAdoptionStart, ownerAdoptionEnd)
+    const ownerResetStart = ownerAdoptionSource.indexOf("if (ownerChanged) {")
+    const ownerResetEnd = ownerAdoptionSource.indexOf(
+      'if (bootstrapStatus === "anonymous"',
+      ownerResetStart,
+    )
+    assert.ok(ownerResetStart >= 0 && ownerResetEnd > ownerResetStart)
+    const ownerResetSource = ownerAdoptionSource.slice(ownerResetStart, ownerResetEnd)
     assert.match(
       ownerAdoptionSource,
-      /const ownerChanged[\s\S]*adoptedAccountOwnerRef\.current = \{ ownerKey, syncEnabled \}[\s\S]*if \(ownerChanged\) \{[\s\S]*accountRequestIdRef\.current \+= 1[\s\S]*accountWritePendingRef\.current = null/,
+      /const ownerChanged = previousOwner\.ownerKey !== ownerKey\s*\|\| previousOwner\.syncEnabled !== syncEnabled/,
+    )
+    assert.match(ownerAdoptionSource, /adoptedAccountOwnerRef\.current = \{ ownerKey, syncEnabled \}/)
+    assert.match(ownerResetSource, /accountIntentTracker\.clear\(\)/)
+    assert.match(ownerResetSource, /accountRequestIdRef\.current \+= 1/)
+    assert.match(ownerResetSource, /accountWritePendingRef\.current = null/)
+
+    const persistPreferencesStart = musicProviderSource.indexOf(
+      "const persistVisualizerAccountPreferences = useCallback(",
+    )
+    const persistPreferencesEnd = musicProviderSource.indexOf(
+      "// Browser media ownership is provider-scoped",
+      persistPreferencesStart,
+    )
+    assert.ok(persistPreferencesStart >= 0 && persistPreferencesEnd > persistPreferencesStart)
+    const persistPreferencesSource = musicProviderSource.slice(
+      persistPreferencesStart,
+      persistPreferencesEnd,
     )
     assert.match(
-      musicProviderSource,
-      /const persistVisualizerAccountPreferences = useCallback\([\s\S]*?if \(!syncEnabled \|\| !ownerKey\) \{[\s\S]*?return[\s\S]*?\}/,
+      persistPreferencesSource,
+      /if \(!syncEnabled \|\| !ownerKey\) \{\s*return\s*\}/,
     )
     assert.doesNotMatch(musicProviderSource, /syncVisualizerAccountPreferences/)
     assert.match(wrapperSource, /pathname === "\/dev\/clock"/)

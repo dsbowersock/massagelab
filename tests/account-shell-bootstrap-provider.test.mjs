@@ -87,6 +87,7 @@ function loadStrictModeProviderHarness(loadPreferences) {
   const effects = []
   const refs = []
   const states = []
+  let replayCleanups = []
   let refCursor = 0
   let stateCursor = 0
   const provider = loadCompiledModule(
@@ -141,7 +142,11 @@ function loadStrictModeProviderHarness(loadPreferences) {
     replayEffects() {
       const cleanups = effects.map((effect) => effect())
       for (const cleanup of cleanups) cleanup?.()
-      effects.forEach((effect) => effect())
+      replayCleanups = effects.map((effect) => effect())
+    },
+    cleanupReplayedEffects() {
+      for (const cleanup of replayCleanups) cleanup?.()
+      replayCleanups = []
     },
   }
 }
@@ -421,18 +426,23 @@ describe("account shell bootstrap provider", () => {
       return new Promise(() => undefined)
     })
 
-    harness.replayEffects()
+    try {
+      harness.replayEffects()
 
-    assert.equal(calls.length, 2)
-    assert.equal(calls[0].aborted, true)
-    assert.equal(calls[1].aborted, false)
+      assert.equal(calls.length, 2)
+      assert.equal(calls[0].aborted, true)
+      assert.equal(calls[1].aborted, false)
+    } finally {
+      harness.cleanupReplayedEffects()
+    }
+    assert.equal(calls[1].aborted, true)
   })
 
   it("keeps projection, deadline, and owner-key layout contracts explicit", () => {
     assert.match(providerSource, /projectAccountShellAppSettings/)
     assert.match(
       providerSource,
-      /fetchJsonWithTimeout<unknown>\(\s*"\/api\/account\/preferences",[\s\S]*?\n\s*10_000,\s*\)/,
+      /fetchJsonWithTimeout<unknown>\(\s*"\/api\/account\/preferences",[\s\S]*?\b10_000\b[\s,]*\)/,
     )
     assert.match(layoutSource, /<AccountShellBootstrapProvider/)
     assert.match(layoutSource, /key=\{accountBootstrap\.ownerKey \?\? "anonymous"\}/)

@@ -183,18 +183,64 @@ async function loadCheckoutReviewHarness() {
     resolveCheckout,
     render: () => hooks.render(review.BackgroundCheckoutReview, { open: true, onOpenChange: () => {} }),
     cleanup() {
-      if (previousStorage) Object.defineProperty(globalThis, "sessionStorage", previousStorage)
-      else delete globalThis.sessionStorage
+      try {
+        hooks.unmount()
+      } finally {
+        if (previousStorage) Object.defineProperty(globalThis, "sessionStorage", previousStorage)
+        else delete globalThis.sessionStorage
+      }
     },
   }
 }
 
+describe("checkout review hook harness", () => {
+  it("memoizes by dependency and cleans changed, removed, and unmounted effects by hook index", () => {
+    const hooks = createHookHarness()
+    const events = []
+    let memoized
+
+    function Fixture({ dependency, includeTail }) {
+      memoized = hooks.react.useMemo(() => ({ dependency }), [dependency])
+      hooks.react.useEffect(() => {
+        events.push(`setup:${dependency}`)
+        return () => events.push(`cleanup:${dependency}`)
+      }, [dependency])
+      if (includeTail) {
+        hooks.react.useEffect(() => {
+          events.push("setup:tail")
+          return () => events.push("cleanup:tail")
+        }, [])
+      }
+      return null
+    }
+
+    hooks.render(Fixture, { dependency: "first", includeTail: true })
+    const firstMemo = memoized
+    hooks.render(Fixture, { dependency: "first", includeTail: true })
+    assert.equal(memoized, firstMemo)
+    hooks.render(Fixture, { dependency: "second", includeTail: false })
+    assert.notEqual(memoized, firstMemo)
+    hooks.unmount()
+
+    assert.deepEqual(events, [
+      "setup:first",
+      "setup:tail",
+      "cleanup:first",
+      "cleanup:tail",
+      "setup:second",
+      "cleanup:second",
+    ])
+  })
+})
+
 /** Supplies enough React hook lifecycle to observe event-driven rerenders. */
 function createHookHarness() {
   const states = []
-  const effectDependencies = []
+  const effects = []
+  const memos = []
   let stateCursor = 0
   let effectCursor = 0
+  let memoCursor = 0
   let pendingEffects = []
   const react = {
     useState(initialValue) {
@@ -207,18 +253,24 @@ function createHookHarness() {
         states[index] = typeof value === "function" ? value(states[index]) : value
       }]
     },
-    useMemo(factory) {
-      return factory()
+    useMemo(factory, dependencies) {
+      const index = memoCursor
+      memoCursor += 1
+      const previous = memos[index]
+      if (!previous || dependenciesChanged(previous.dependencies, dependencies)) {
+        memos[index] = {
+          dependencies: dependencies === undefined ? undefined : [...dependencies],
+          value: factory(),
+        }
+      }
+      return memos[index].value
     },
     useEffect(effect, dependencies) {
       const index = effectCursor
       effectCursor += 1
-      const previous = effectDependencies[index]
-      const changed = !previous
-        || previous.length !== dependencies.length
-        || dependencies.some((value, dependencyIndex) => !Object.is(value, previous[dependencyIndex]))
-      effectDependencies[index] = [...dependencies]
-      if (changed) pendingEffects.push(effect)
+      if (dependenciesChanged(effects[index]?.dependencies, dependencies)) {
+        pendingEffects.push({ effect, dependencies, index })
+      }
     },
   }
 
@@ -227,12 +279,41 @@ function createHookHarness() {
     render(Component, props) {
       stateCursor = 0
       effectCursor = 0
+      memoCursor = 0
       pendingEffects = []
       const tree = renderFunctionComponents(Component(props))
-      for (const effect of pendingEffects) effect()
+      const changedIndexes = new Set(pendingEffects.map(({ index }) => index))
+      const cleanups = []
+      for (let index = 0; index < effects.length; index += 1) {
+        if (index < effectCursor && !changedIndexes.has(index)) continue
+        const cleanup = effects[index]?.cleanup
+        if (cleanup) cleanups.push(cleanup)
+      }
+      for (const cleanup of cleanups) cleanup()
+      effects.length = effectCursor
+      for (const { dependencies, effect, index } of pendingEffects) {
+        const cleanup = effect()
+        effects[index] = {
+          cleanup: typeof cleanup === "function" ? cleanup : undefined,
+          dependencies: dependencies === undefined ? undefined : [...dependencies],
+        }
+      }
+      memos.length = memoCursor
       return tree
     },
+    unmount() {
+      for (const effect of effects) effect?.cleanup?.()
+      effects.length = 0
+      pendingEffects = []
+    },
   }
+}
+
+function dependenciesChanged(previous, next) {
+  return next === undefined
+    || previous === undefined
+    || previous.length !== next.length
+    || previous.some((value, index) => !Object.is(value, next[index]))
 }
 
 describe("checkout return recovery", () => {

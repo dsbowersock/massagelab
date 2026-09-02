@@ -286,6 +286,7 @@ function registerAllowedExternalUrls(page: Page, allowedExternalUrls: ReadonlySe
   }
 }
 
+/** Registers health listeners and returns live arrays that collect the journey's later events. */
 async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<string>) {
   const consoleErrors: string[] = []
   const failedExternalRequests: string[] = []
@@ -557,17 +558,22 @@ async function installAtmosphereFixtures(
       ? [deterministicAtmospherePayloadUrls.peaceFlute]
       : [deterministicAtmospherePayloadUrls.treesPiano]
   })
-  for (const url of playbackPayloadUrls) {
-    if (url.startsWith("/")) continue
-    requireAllowedExternalFixture(page, allowedExternalUrls, url)
-    await page.route(url, async (route) => {
-      recordHit(url)
-      await route.fulfill({
-        status: 200,
-        contentType: "audio/mpeg",
-        body: await readFile(new URL("../../public/audio/atmosphere/media-session-carrier.mp3", import.meta.url)),
+  const externalPlaybackPayloadUrls = playbackPayloadUrls.filter((url) => !url.startsWith("/"))
+  if (externalPlaybackPayloadUrls.length > 0) {
+    const playbackPayloadBody = await readFile(
+      new URL("../../public/audio/atmosphere/media-session-carrier.mp3", import.meta.url),
+    )
+    for (const url of externalPlaybackPayloadUrls) {
+      requireAllowedExternalFixture(page, allowedExternalUrls, url)
+      await page.route(url, async (route) => {
+        recordHit(url)
+        await route.fulfill({
+          status: 200,
+          contentType: "audio/mpeg",
+          body: playbackPayloadBody,
+        })
       })
-    })
+    }
   }
 
   return {

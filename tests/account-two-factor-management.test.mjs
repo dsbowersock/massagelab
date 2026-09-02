@@ -1024,9 +1024,20 @@ function manageInput(database, overrides = {}) {
 }
 
 function dependencies(overrides = {}) {
+  const {
+    database,
+    passwordResult,
+    throwAt,
+    validTotpCode,
+    checkRateLimit,
+    failureRetryAfterSeconds,
+    passwordManagementResult,
+    currentFactorResult,
+    ...dependencyOverrides
+  } = overrides
   return {
     async verifyPasswordMethodProof() {
-      return overrides.passwordResult ?? {
+      return passwordResult ?? {
         status: "VERIFIED",
         userId: "user-1",
         authSessionVersion: 7,
@@ -1036,42 +1047,42 @@ function dependencies(overrides = {}) {
     isFreshConsumedGoogleReauth,
     consumeFreshGoogleReauth: consumeGoogleProofWithFailureHooks,
     generateTotpSecret: overrides.generateTotpSecret ?? (() => {
-      overrides.database?.events.push("generate-secret")
-      if (overrides.throwAt === "generate-secret") throw new Error("generation failed")
+      database?.events.push("generate-secret")
+      if (throwAt === "generate-secret") throw new Error("generation failed")
       return { secret: MANUAL_CODE, otpauthUrl: OTPAUTH_URL }
     }),
     encryptSecret: overrides.encryptSecret ?? (() => {
-      overrides.database?.events.push("encrypt-secret")
-      if (overrides.throwAt === "encrypt-secret") throw new Error("encryption failed")
+      database?.events.push("encrypt-secret")
+      if (throwAt === "encrypt-secret") throw new Error("encryption failed")
       return ENCRYPTED_SECRET
     }),
     renderQrCode: async () => {
-      overrides.database?.events.push("render-qr")
-      if (overrides.throwAt === "render-qr") throw new Error("QR failed")
+      database?.events.push("render-qr")
+      if (throwAt === "render-qr") throw new Error("QR failed")
       return QR_CODE
     },
     decryptSecret: overrides.decryptSecret ?? (() => MANUAL_CODE),
-    verifyTotpCode: (_secret, code) => code === (overrides.validTotpCode ?? "123456"),
+    verifyTotpCode: (_secret, code) => code === (validTotpCode ?? "123456"),
     generateBackupCodes: () => backupCodes(),
     async hashBackupCode(code) {
-      overrides.database?.events.push(`hash:${code}`)
+      database?.events.push(`hash:${code}`)
       return `hash:${code}`
     },
     async checkCredentialRateLimit(input) {
       input.prismaClient.events.push("check-factor-limit")
-      return overrides.checkRateLimit ?? { allowed: true }
+      return checkRateLimit ?? { allowed: true }
     },
     async recordCredentialFailure(input) {
       input.prismaClient.events.push("record-factor-failure")
-      return overrides.failureRetryAfterSeconds
-        ? { allowed: false, retryAfterSeconds: overrides.failureRetryAfterSeconds }
+      return failureRetryAfterSeconds
+        ? { allowed: false, retryAfterSeconds: failureRetryAfterSeconds }
         : { allowed: true }
     },
     async clearCredentialAccountFailure(input) {
       input.prismaClient.events.push("clear-factor-account-limit")
     },
     async preparePasswordMethodProofForTwoFactorManagement(input) {
-      if (overrides.passwordManagementResult) return overrides.passwordManagementResult
+      if (passwordManagementResult) return passwordManagementResult
       if (input.password !== "correct-password") return { status: "INVALID" }
       if (!input.twoFactorCode) return { status: "TWO_FACTOR_REQUIRED" }
       return verifiedPasswordManagementProof(input.prismaClient, {
@@ -1079,7 +1090,7 @@ function dependencies(overrides = {}) {
       })
     },
     async prepareCurrentTwoFactorProof(input) {
-      if (overrides.currentFactorResult) return overrides.currentFactorResult
+      if (currentFactorResult) return currentFactorResult
       if (!input.twoFactorCode) return { status: "TWO_FACTOR_REQUIRED" }
       return {
         status: "VERIFIED",
@@ -1089,7 +1100,7 @@ function dependencies(overrides = {}) {
       }
     },
     consumePreparedTwoFactorProof: defaultConsumeFactorProof,
-    ...overrides,
+    ...dependencyOverrides,
   }
 }
 
@@ -1273,6 +1284,8 @@ function createDatabase({
   }
   const rootClient = transactionClient(database)
   database.userDelegate = rootClient.user
+  // The test double deliberately exposes both the mutable user row and its
+  // Prisma-like delegate through database.user, matching existing call sites.
   database.user = Object.assign(database.user, rootClient.user)
   database.twoFactorSecret = rootClient.twoFactorSecret
   database.backupCode = rootClient.backupCode

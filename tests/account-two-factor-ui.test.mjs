@@ -32,6 +32,11 @@ function jsonResponse(status, body) {
   }
 }
 
+/**
+ * Installs temporary fetch/window globals and returns an idempotent restore.
+ * Nested harnesses must restore in LIFO order; afterEach is the failure-safe
+ * cleanup for any harness a test does not restore explicitly.
+ */
 async function createPanelHarness({
   twoFactorEnabled = false,
   hasPasswordCredential = true,
@@ -603,6 +608,7 @@ describe("recoverable two-factor management UI", () => {
     assert.doesNotMatch(elementText(regenerateHarness.render()), /Google confirmation return detected/)
     assert.ok(button(regenerateHarness.render(), "Confirm with Google for backup codes"))
     assert.equal(field(regenerateHarness.render(), "disableProofGoogle").props.disabled, true)
+    regenerateHarness.restore()
 
     const disableHarness = await createPanelHarness({
       twoFactorEnabled: true,
@@ -627,6 +633,7 @@ describe("recoverable two-factor management UI", () => {
     assert.equal(disableHarness.signOutCalls.length, 0)
     await button(tree, "Sign in again").props.onClick()
     assert.deepEqual(disableHarness.signOutCalls, [[{ redirectTo: "/login?security=two-factor-changed" }]])
+    disableHarness.restore()
   })
 
   it("offers the same exact Google confirmation again after its private proof expires", async () => {

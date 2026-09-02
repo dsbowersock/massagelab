@@ -105,17 +105,13 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
   const matchesPathname = (url: URL) => url.pathname === pathname
   let releaseHold: () => void = () => undefined
   let markRequestStarted: () => void = () => undefined
-  let markRequestFinished: () => void = () => undefined
   let requestStarted = false
-  let requestFinished = false
+  const activeRequests = new Set<Promise<void>>()
   const hold = new Promise<void>((resolve) => {
     releaseHold = resolve
   })
   const started = new Promise<void>((resolve) => {
     markRequestStarted = resolve
-  })
-  const finished = new Promise<void>((resolve) => {
-    markRequestFinished = resolve
   })
   const handler = async (route: Route) => {
     const request = route.request()
@@ -127,12 +123,17 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
     if (headers.rsc || request.isNavigationRequest()) {
       requestStarted = true
       markRequestStarted()
+      let markRequestFinished: () => void = () => undefined
+      const requestFinished = new Promise<void>((resolve) => {
+        markRequestFinished = resolve
+      })
+      activeRequests.add(requestFinished)
       try {
         const response = await route.fetch()
         await hold
         await route.fulfill({ response })
       } finally {
-        requestFinished = true
+        activeRequests.delete(requestFinished)
         markRequestFinished()
       }
       return
@@ -141,11 +142,26 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
   }
   await page.route(matchesPathname, handler)
   return {
-    waitForRequest: () => started,
+    async waitForRequest() {
+      let timeoutId: ReturnType<typeof setTimeout> | undefined
+      try {
+        await Promise.race([
+          started,
+          new Promise<void>((_resolve, reject) => {
+            timeoutId = setTimeout(() => {
+              reject(new Error(`Timed out waiting for held RSC navigation to ${pathname}`))
+            }, 10_000)
+          }),
+        ])
+      } finally {
+        if (timeoutId !== undefined) clearTimeout(timeoutId)
+      }
+    },
     async releaseAndCleanup() {
       releaseHold()
-      if (requestStarted && !requestFinished) await finished
+      if (requestStarted) await Promise.all([...activeRequests])
       await page.unroute(matchesPathname, handler)
+      if (requestStarted) await Promise.all([...activeRequests])
     },
   }
 }

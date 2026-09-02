@@ -26,6 +26,35 @@ function loadSidebar(database) {
   })
 }
 
+it("loads practice roles for an exact authenticated sidebar owner id", async () => {
+  let practiceRoleQuery
+  const database = {
+    practiceMembership: {
+      async findMany(query) {
+        practiceRoleQuery = query
+        return [{ practiceId: "practice-1", role: "OWNER" }]
+      },
+    },
+  }
+  const { getSidebarNavigationContext } = loadSidebar(database)
+
+  const context = await getSidebarNavigationContext({ id: "user-1", featureKeys: [] }, database)
+
+  assert.deepEqual(context, {
+    authState: "signed-in",
+    accountRoles: ["USER"],
+    roleAssignments: [],
+    featureKeys: [],
+    capabilities: {},
+    practiceRoles: [{ practiceId: "practice-1", role: "OWNER" }],
+  })
+  assert.deepEqual(practiceRoleQuery, {
+    where: { userId: "user-1" },
+    select: { practiceId: true, role: true },
+    orderBy: { createdAt: "asc" },
+  })
+})
+
 it("fails closed for a whitespace-padded sidebar owner id", async () => {
   const calls = { practiceRoleReads: 0 }
   const database = {

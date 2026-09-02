@@ -507,16 +507,21 @@ test("ordinary signed-in shell defers commerce until a real background consumer 
   await page.waitForFunction(() => (
     document.documentElement.dataset.backgroundCommerceRefreshPairReady === "true"
   ))
-  const browserStateReads = await page.evaluate(() => {
+  await page.evaluate(() => {
     if (document.documentElement.dataset.backgroundCommerceRefreshPairReady !== "true") {
       throw new Error("Background commerce refresh listener pair was removed before dispatch")
     }
     window.dispatchEvent(new Event("focus"))
     window.dispatchEvent(new Event("online"))
-    return Number(document.documentElement.dataset.backgroundCommerceStateFetches)
   })
-  expect(browserStateReads).toBe(0)
-  expect(fixture.getSnapshotReads()).toBe(0)
+  for (const settleDelayMs of [0, 100, 250]) {
+    if (settleDelayMs > 0) await page.waitForTimeout(settleDelayMs)
+    const browserStateReads = await page.evaluate(() => (
+      Number(document.documentElement.dataset.backgroundCommerceStateFetches)
+    ))
+    expect(browserStateReads).toBe(0)
+    expect(fixture.getSnapshotReads()).toBe(0)
+  }
 
   await openClockBackground(page, "/clock?panel=background")
   await expect.poll(fixture.getSnapshotReads).toBeGreaterThan(0)

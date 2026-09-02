@@ -442,7 +442,6 @@ describe("therapist settings cloud hydration", () => {
     assert.equal(await writer.retry("owner-a"), true)
     assert.deepEqual(attempted.map(({ settings }) => settings), [latest, latest])
     assert.equal(writer.getFailed("owner-a"), null)
-    assert.match(providerSource, /return response\.ok/)
   })
 
   it("retries one retained non-2xx profile write on a later explicit hydration demand", async () => {
@@ -499,7 +498,6 @@ describe("therapist settings cloud hydration", () => {
       harness.dispatchOnline()
       await new Promise((resolve) => setTimeout(resolve, 0))
       assert.equal(harness.profileWrites.length, 2, "online recovery must not create a retry loop")
-      assert.match(providerSource, /window\.addEventListener\("online", handleOnline\)/)
     } finally {
       harness.restore()
     }

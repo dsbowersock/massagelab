@@ -178,6 +178,7 @@ const specializedProviderBundle = createSpecializedProviderBundleLoader(async ()
               openWaitlistEntryCount: 0,
             }));
           }
+          harness.errors.push(\`Unexpected synthetic request: \${method} \${pathname}\`);
           return Promise.resolve(jsonResponse({ ok: true }));
         };
 

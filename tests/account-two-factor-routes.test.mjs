@@ -12,7 +12,7 @@ import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const SITE_URL = "https://massagelab.test"
 const NOW = new Date("2026-08-29T12:00:00.000Z")
-const BACKUP_CODES = Array.from({ length: 8 }, (_, index) => `backup-${index + 1}`)
+const BACKUP_CODES = Object.freeze(Array.from({ length: 8 }, (_, index) => `backup-${index + 1}`))
 
 const ROUTES = {
   setup: {
@@ -500,35 +500,34 @@ function loadRoute(name, {
   }
   const routeModule = loadCompiledModule(routeSources[name], ROUTES[name].filename, dependencies)
   const factory = routeModule[ROUTES[name].factory]
-  const POST = typeof factory === "function"
-    ? factory({
-        prismaClient,
-        getSession: async () => {
-          sessionCalls.push(true)
-          if (sessionError) throw sessionError
-          return session
-        },
-        expectedSiteUrl: SITE_URL,
-        parseRequest: parseTrustedAccountSecurityJson,
-        secret: "route-secret",
-        resolveIntent: async (input) => {
-          intentCalls.push({
-            cookieValue: input.cookieValue,
-            purpose: input.purpose,
-            status: input.status,
-            now: input.now,
-          })
-          return resolvedIntent
-        },
-        mutate: service,
-        clock: () => {
-          clockCalls += 1
-          return NOW
-        },
-        clearCache: (userId, surface) => cacheCalls.push({ userId, surface }),
-        secureCookies,
+  assert.equal(typeof factory, "function", `${name} route factory`)
+  const POST = factory({
+    prismaClient,
+    getSession: async () => {
+      sessionCalls.push(true)
+      if (sessionError) throw sessionError
+      return session
+    },
+    expectedSiteUrl: SITE_URL,
+    parseRequest: parseTrustedAccountSecurityJson,
+    secret: "route-secret",
+    resolveIntent: async (input) => {
+      intentCalls.push({
+        cookieValue: input.cookieValue,
+        purpose: input.purpose,
+        status: input.status,
+        now: input.now,
       })
-    : undefined
+      return resolvedIntent
+    },
+    mutate: service,
+    clock: () => {
+      clockCalls += 1
+      return NOW
+    },
+    clearCache: (userId, surface) => cacheCalls.push({ userId, surface }),
+    secureCookies,
+  })
 
   return {
     POST,

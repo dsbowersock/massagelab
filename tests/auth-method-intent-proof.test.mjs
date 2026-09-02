@@ -96,10 +96,17 @@ describe("fresh consumed Google security reauthentication", () => {
     assert.equal(second, false)
     assert.equal(db.intent.providerProvenAt, null)
     assert.equal(db.updateCount, 1)
-    assert.deepEqual(
-      db.updateWheres.map((where) => where.expiresAt.gt),
-      [NOW, NOW],
-    )
+    const expectedWhere = {
+      id: "intent-1",
+      targetUserId: "user-1",
+      purpose: "LINK_GOOGLE",
+      status: "CONSUMED",
+      provider: "google",
+      providerAccountId: "google-subject-1",
+      providerProvenAt: NOW,
+      expiresAt: { gt: NOW },
+    }
+    assert.deepEqual(db.updateWheres, [expectedWhere, expectedWhere])
   })
 
   it("does not consume a fresh proof for a different caller-expected purpose", async () => {
