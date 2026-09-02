@@ -442,7 +442,7 @@ describe("Supporter membership final-review contracts", () => {
     assert.equal(result.mode, "auth")
     assert.equal(result.supporterCheckoutOpen, true)
     assert.ok(pricingPageTree, "PricingPage must expose its rendered registration boundary")
-    assert.match(elementText(pricingPageTree), /New account registration is temporarily paused/i)
+    assert.equal(elementText(pricingPageTree).includes(REGISTRATION_PAUSED_MESSAGE), true)
     assert.equal(
       findElements(
         pricingPageTree,

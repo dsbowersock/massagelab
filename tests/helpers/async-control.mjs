@@ -17,6 +17,15 @@ export async function settlesWithin(promise, timeoutMs, message) {
   return settleBeforeTimeout(promise, timeoutMs, message)
 }
 
+/** Bounds a promise-set drain while retaining requests registered during earlier batches. */
+export async function drainPromiseSetWithin(pendingPromises, timeoutMs, message) {
+  return settlesWithin((async () => {
+    while (pendingPromises.size > 0) {
+      await Promise.all([...pendingPromises])
+    }
+  })(), timeoutMs, message)
+}
+
 async function settleBeforeTimeout(promise, timeoutMs, message) {
   let timeout
   try {

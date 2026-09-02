@@ -100,6 +100,9 @@ describe("calendar booking settings schema and route surface", () => {
       assert.equal(safePostLegalAcceptanceCallback(callback, "/account"), callback)
     }
     for (const unsafeCallback of [
+      "",
+      undefined,
+      null,
       "https://evil.example/calendar",
       " https://evil.example/calendar",
       "\u0001/calendar/booking",

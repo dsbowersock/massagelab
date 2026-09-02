@@ -51,7 +51,8 @@ const preferenceSyncEffectCleanupOptions = Object.freeze({
   reverse: true,
 })
 
-function deferred() {
+/** Creates a manual promise gate whose rejection path drives request-failure coverage. */
+function rejectableDeferred() {
   let reject
   let resolve
   const promise = new Promise((resolvePromise, rejectPromise) => {
@@ -382,8 +383,8 @@ describe("Account preference sync therapist ownership", () => {
   })
 
   it("settles failed preference and profile requests without leaving sync pending", async () => {
-    const preferenceRequest = deferred()
-    const profileRequest = deferred()
+    const preferenceRequest = rejectableDeferred()
+    const profileRequest = rejectableDeferred()
     const unhandledRejections = []
     const onUnhandledRejection = (error) => unhandledRejections.push(error)
     process.on("unhandledRejection", onUnhandledRejection)

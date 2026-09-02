@@ -30,6 +30,19 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
 
+/**
+ * Returns the exact source between ordered markers after validating both bounds.
+ * `searchFrom` lets callers preserve chained section order without reusing a missing bound.
+ */
+function sliceBetweenMarkers(source, startMarker, endMarker, label, searchFrom = 0) {
+  const start = source.indexOf(startMarker, searchFrom)
+  assert.notEqual(start, -1, `Expected to locate ${label} start`)
+  const end = source.indexOf(endMarker, start + startMarker.length)
+  assert.notEqual(end, -1, `Expected to locate ${label} end`)
+  assert.ok(end > start, `Expected ${label} end after its start`)
+  return { end, slice: source.slice(start, end) }
+}
+
 const initialAtmosphereFixturePattern =
   /installAtmosphereFixtures\(\s*page,\s*allowedExternalUrls,\s*\[\],\s*initialAtmosphereSampleIndexUrls,?\s*\)/g
 const musicPathGuardPattern = /if\s*\(\s*path\s*===\s*["']\/music["']\s*\)\s*\{/
@@ -169,65 +182,54 @@ test("mobile Background carousel fixtures include the default preview", async ()
 
 test("public media journeys fixture opportunistic atmosphere prewarms", async () => {
   const publicRoutesSpec = await readProjectFile("tests/browser/public-routes.spec.ts")
-  const genericStart = publicRoutesSpec.indexOf("for (const route of publicRoutes)")
-  const genericEnd = publicRoutesSpec.indexOf(
+  const genericJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
+    "for (const route of publicRoutes)",
     '\ntest("core public tool surfaces',
-    genericStart,
+    "generic public routes",
   )
-  const coreToolsStart = genericEnd
-  const coreToolsEnd = publicRoutesSpec.indexOf(
+  const coreToolsJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
+    '\ntest("core public tool surfaces',
     '\ntest("active app-tool metal ring',
-    coreToolsStart,
+    "core public tools",
+    genericJourney.end,
   )
-  const activeToolRingStart = coreToolsEnd
-  const activeToolRingEnd = publicRoutesSpec.indexOf(
+  const activeToolRingJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
+    '\ntest("active app-tool metal ring',
     '\ntest("main bar exposes brand music clock quick create theme calendar and more controls',
-    activeToolRingStart,
+    "active tool ring",
+    coreToolsJourney.end,
   )
-  const mainBarStart = activeToolRingEnd
-  const mainBarEnd = publicRoutesSpec.indexOf(
+  const mainBarJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
+    '\ntest("main bar exposes brand music clock quick create theme calendar and more controls',
     '\ntest("main bar edge control stays aligned with the compact sidebar rail',
-    mainBarStart,
+    "main bar",
+    activeToolRingJourney.end,
   )
-  const topAppBarStart = publicRoutesSpec.indexOf(
+  const topAppBarJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
     'test("top app bar quick actions open inside the viewport below the plus button',
-    mainBarEnd,
-  )
-  const topAppBarEnd = publicRoutesSpec.indexOf(
     '\ntest("mobile quick-create button opens a vertical speed dial',
-    topAppBarStart,
+    "top app bar",
+    mainBarJourney.end,
   )
-  const visualizerStart = publicRoutesSpec.indexOf(
+  const visualizerJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
     'test("Music visualizer background selection and account default actions',
-  )
-  const visualizerEnd = publicRoutesSpec.indexOf(
     '\ntest("Music account preference owner switch',
-    visualizerStart,
+    "music visualizer",
   )
 
-  for (const [boundaryName, boundary] of Object.entries({
-    genericStart,
-    genericEnd,
-    coreToolsStart,
-    coreToolsEnd,
-    activeToolRingStart,
-    activeToolRingEnd,
-    mainBarStart,
-    mainBarEnd,
-    topAppBarStart,
-    topAppBarEnd,
-    visualizerStart,
-    visualizerEnd,
-  })) {
-    assert.notEqual(boundary, -1, `Expected to locate ${boundaryName} in public-routes.spec.ts`)
-  }
   const journeys = [
-    ["generic public routes", publicRoutesSpec.slice(genericStart, genericEnd)],
-    ["core public tools", publicRoutesSpec.slice(coreToolsStart, coreToolsEnd)],
-    ["active tool ring", publicRoutesSpec.slice(activeToolRingStart, activeToolRingEnd)],
-    ["main bar", publicRoutesSpec.slice(mainBarStart, mainBarEnd)],
-    ["top app bar", publicRoutesSpec.slice(topAppBarStart, topAppBarEnd)],
-    ["music visualizer", publicRoutesSpec.slice(visualizerStart, visualizerEnd)],
+    ["generic public routes", genericJourney.slice],
+    ["core public tools", coreToolsJourney.slice],
+    ["active tool ring", activeToolRingJourney.slice],
+    ["main bar", mainBarJourney.slice],
+    ["top app bar", topAppBarJourney.slice],
+    ["music visualizer", visualizerJourney.slice],
   ]
 
   for (const [journeyName, journeySource] of journeys) {
@@ -241,7 +243,7 @@ test("public media journeys fixture opportunistic atmosphere prewarms", async ()
     )
   }
 
-  const coreToolsSource = publicRoutesSpec.slice(coreToolsStart, coreToolsEnd)
+  const coreToolsSource = coreToolsJourney.slice
   assert.match(coreToolsSource, /const health = await capturePageHealth\(page, new Set\(\)\)/)
   assert.equal(
     (coreToolsSource.match(initialAtmosphereFixturePattern) ?? []).length,

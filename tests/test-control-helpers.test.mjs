@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 import {
   boundedLatch,
   deferred,
+  drainPromiseSetWithin,
   settlesWithin,
 } from "./helpers/async-control.mjs"
 import { drainEffectCleanups } from "./helpers/effect-cleanups.mjs"
@@ -42,6 +43,49 @@ describe("shared test control helpers", () => {
     await assert.rejects(
       settlesWithin(new Promise(() => {}), 1, "exact caller failure"),
       /exact caller failure/,
+    )
+  })
+
+  it("bounds a transitive promise-set drain and preserves request failures", async () => {
+    const first = deferred()
+    const transitive = deferred()
+    const pending = new Set([first.promise])
+    let settled = false
+    const draining = drainPromiseSetWithin(
+      pending,
+      100,
+      "held requests did not drain",
+    ).then(() => {
+      settled = true
+    })
+
+    pending.add(transitive.promise)
+    pending.delete(first.promise)
+    first.resolve()
+    await Promise.resolve()
+    assert.equal(settled, false)
+
+    pending.delete(transitive.promise)
+    transitive.resolve()
+    await draining
+    assert.equal(settled, true)
+
+    const requestFailure = new Error("held route fetch failed")
+    await assert.rejects(
+      drainPromiseSetWithin(
+        new Set([Promise.reject(requestFailure)]),
+        100,
+        "request failure was hidden",
+      ),
+      (error) => error === requestFailure,
+    )
+    await assert.rejects(
+      drainPromiseSetWithin(
+        new Set([new Promise(() => {})]),
+        1,
+        "held request cleanup timed out",
+      ),
+      /held request cleanup timed out/,
     )
   })
 

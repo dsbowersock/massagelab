@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page, type Route } from "@playwright/t
 import { randomUUID } from "node:crypto"
 import { withPlayerViewportCollisionPadding } from "../../components/ui/use-player-viewport-insets"
 import { exerciseSpecializedProviderHarness } from "../helpers/specialized-provider-browser-harness.mjs"
+import { drainPromiseSetWithin } from "../helpers/async-control.mjs"
 import { centerCarouselItem, waitForStableSlideGeometry } from "./carousel-test-helpers"
 import { isDevelopmentReviewUnavailable } from "./development-review-test-helpers"
 import { isHeldRouteTeardownCancellation } from "./held-route-teardown"
@@ -116,11 +117,13 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
   const started = new Promise<void>((resolve) => {
     markRequestStarted = resolve
   })
-  /** Waits until every currently or transitively registered held request has settled. */
+  /** Boundedly waits until every currently or transitively registered held request settles. */
   const drainActiveRequests = async () => {
-    while (activeRequests.size > 0) {
-      await Promise.all([...activeRequests])
-    }
+    await drainPromiseSetWithin(
+      activeRequests,
+      10_000,
+      `Timed out draining held RSC navigation requests to ${pathname}`,
+    )
   }
   const handler = async (route: Route) => {
     try {

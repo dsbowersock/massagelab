@@ -53,6 +53,25 @@ async function mockTwoFactorEnrollment(page: Page, backupCodes = ["browser-backu
   return requests
 }
 
+/**
+ * Completes password-proven authenticator enrollment through the enable response.
+ * Callers retain backup-code acknowledgement and its distinct security assertions.
+ */
+async function completePasswordTwoFactorEnrollment(
+  page: Page,
+  password: string,
+  backupCodes?: string[],
+) {
+  await mockTwoFactorEnrollment(page, backupCodes)
+  await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
+  await page.getByLabel("Password for two-factor setup").fill(password)
+  await page.getByLabel("Confirm two-factor setup").check()
+  await page.getByRole("button", { name: "Start two-factor setup" }).click()
+  await page.getByLabel("New authenticator code").fill("123456")
+  await page.getByLabel("Confirm enable two-factor authentication").check()
+  await page.getByRole("button", { name: "Verify and enable" }).click()
+}
+
 test.describe("public account-entry recovery", () => {
   test("login prevents duplicate Credentials submission and recovers from a thrown request", async ({ page }) => {
     const providerRequests = await blockLiveGoogleProviderRequests(page)
@@ -419,14 +438,7 @@ test.describe("private identity-method journeys", () => {
       projectName: testInfo.project.name,
       scenario: "MATCHING_LINK",
     })
-    await mockTwoFactorEnrollment(page)
-    await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
-    await page.getByLabel("Password for two-factor setup").fill(installed.password)
-    await page.getByLabel("Confirm two-factor setup").check()
-    await page.getByRole("button", { name: "Start two-factor setup" }).click()
-    await page.getByLabel("New authenticator code").fill("123456")
-    await page.getByLabel("Confirm enable two-factor authentication").check()
-    await page.getByRole("button", { name: "Verify and enable" }).click()
+    await completePasswordTwoFactorEnrollment(page, installed.password)
     await expect(page.getByText("browser-backup-one")).toBeVisible()
     const acknowledge = page.getByRole("button", { name: "I saved these codes; sign in again" })
     await expect(acknowledge).toBeDisabled()
@@ -444,14 +456,7 @@ test.describe("private identity-method journeys", () => {
       projectName: testInfo.project.name,
       scenario: "MATCHING_LINK",
     })
-    await mockTwoFactorEnrollment(page, ["browser-final-backup"])
-    await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
-    await page.getByLabel("Password for two-factor setup").fill(installed.password)
-    await page.getByLabel("Confirm two-factor setup").check()
-    await page.getByRole("button", { name: "Start two-factor setup" }).click()
-    await page.getByLabel("New authenticator code").fill("123456")
-    await page.getByLabel("Confirm enable two-factor authentication").check()
-    await page.getByRole("button", { name: "Verify and enable" }).click()
+    await completePasswordTwoFactorEnrollment(page, installed.password, ["browser-final-backup"])
     await page.getByLabel("I saved these backup codes").check()
     await page.getByRole("button", { name: "I saved these codes; sign in again" }).click()
     await expect(page).toHaveURL(/\/login\?security=two-factor-changed$/)
