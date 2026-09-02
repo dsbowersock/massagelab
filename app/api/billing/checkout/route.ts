@@ -20,6 +20,7 @@ import {
 import { requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
 import { createMembershipCheckoutPostHandler } from "@/lib/membership-checkout"
 import { prisma } from "@/lib/prisma"
+import { getPublicLaunchControls } from "@/lib/public-launch-controls"
 
 export const runtime = "nodejs"
 
@@ -35,6 +36,7 @@ const createConfiguredStripeCheckoutSession = (
 export const POST = createMembershipCheckoutPostHandler({
   NextResponse,
   getCurrentSession,
+  getPublicLaunchControls,
   getSiteUrl,
   isPublicSupporterCheckoutSelection,
   resolveStripePriceId,

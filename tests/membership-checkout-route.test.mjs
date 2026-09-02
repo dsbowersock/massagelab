@@ -1,7 +1,17 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { createMembershipCheckoutPostHandler } from "../lib/membership-checkout.js"
-import { hasSubscriptionBlockingNewCheckout } from "../lib/membership.js"
+import {
+  hasSubscriptionBlockingNewCheckout,
+  resolveStripePriceId,
+} from "../lib/membership.js"
+import { MEMBERSHIP_PRICING_IMPORT_PATTERN } from "./helpers/membership-pricing-import-guard.mjs"
+
+const [checkoutRouteSource, membershipCheckoutSource] = await Promise.all([
+  readFile(new URL("../app/api/billing/checkout/route.ts", import.meta.url), "utf8"),
+  readFile(new URL("../lib/membership-checkout.js", import.meta.url), "utf8"),
+])
 
 const MEMBERSHIP_BILLING_DOCUMENT = Object.freeze({
   key: "membership-billing-refunds",
@@ -9,6 +19,93 @@ const MEMBERSHIP_BILLING_DOCUMENT = Object.freeze({
 })
 
 describe("Membership Checkout POST route", () => {
+  it("keeps the cached display catalog outside current Checkout price authority", () => {
+    assert.doesNotMatch(checkoutRouteSource, MEMBERSHIP_PRICING_IMPORT_PATTERN)
+    assert.doesNotMatch(membershipCheckoutSource, MEMBERSHIP_PRICING_IMPORT_PATTERN)
+  })
+
+  it("recognizes every supported display-catalog import form", () => {
+    for (const source of [
+      'import catalog from "@/lib/membership-pricing"',
+      'import { getMembershipPricingCatalog } from"@/lib/membership-pricing"',
+      'export { getMembershipPricingCatalog } from "@/lib/membership-pricing"',
+      'export { getMembershipPricingCatalog } from "../lib/membership-pricing.js"',
+      'import "@/lib/membership-pricing"',
+      'await import("@/lib/membership-pricing")',
+      'await import("../lib/membership-pricing.js")',
+      'require("@/lib/membership-pricing")',
+      'await import(`@/lib/membership-pricing`)',
+      'require(`@/lib/membership-pricing`)',
+    ]) {
+      assert.match(source, MEMBERSHIP_PRICING_IMPORT_PATTERN)
+    }
+  })
+
+  it("does not confuse prose, identifiers, or differently named modules with catalog imports", () => {
+    for (const source of [
+      "Membership pricing stays display-only in this explanatory prose.",
+      'const membershipPricingModule = "@/lib/membership-pricing"',
+      'import "@/lib/membership-pricing-preview"',
+      'import "@/lib/not-membership-pricing"',
+    ]) {
+      assert.doesNotMatch(source, MEMBERSHIP_PRICING_IMPORT_PATTERN)
+    }
+  })
+
+  it("intentionally flags commented-out exact catalog imports in the raw-source boundary", () => {
+    // Fail closed so protected payment-authority files cannot park a dormant catalog import.
+    assert.match('// import "@/lib/membership-pricing"', MEMBERSHIP_PRICING_IMPORT_PATTERN)
+  })
+
+  it("returns a paused JSON response after authentication and before membership, legal, customer, or Stripe work", async () => {
+    const calls = checkoutCallCounts({
+      guardCallOrder: [],
+      launchControlArguments: [],
+      legalAcceptanceLookup: 0,
+      selectionValidation: 0,
+    })
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      captureGuardCalls: true,
+      supporterCheckoutOpen: false,
+    }))(jsonRequest({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-1" }))
+
+    // Keep the response copy independent so production-message drift fails the API contract.
+    assert.deepEqual(response, {
+      body: {
+        error: "New Supporter checkout is temporarily paused. Existing memberships and the billing portal remain available.",
+      },
+      status: 503,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      guardCallOrder: ["session", "launch-controls"],
+      launchControlArguments: [[]],
+      membershipLookup: 0,
+      legalAcceptanceLookup: 0,
+      selectionValidation: 0,
+      sessionReads: 1,
+    })
+  })
+
+  it("redirects a paused form to the account notice before new Checkout work", async () => {
+    const calls = checkoutCallCounts()
+    const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
+      supporterCheckoutOpen: false,
+    }))(formRequest({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-1" }))
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/account?billing=checkout-paused",
+      status: 303,
+    })
+    assert.deepEqual(calls, {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 0,
+      sessionReads: 1,
+    })
+  })
+
   it("returns JSON 401 for an anonymous API request before billing work", async () => {
     const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
@@ -26,6 +123,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -46,17 +144,15 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
   it("rejects a cross-origin form before parsing, validation, legal acceptance, or billing work", async () => {
-    const calls = {
-      ensureCustomer: 0,
-      createCheckout: 0,
-      membershipLookup: 0,
+    const calls = checkoutCallCounts({
       selectionValidation: 0,
       legalAcceptanceLookup: 0,
-    }
+    })
     let formDataCalls = 0
     const request = {
       url: "https://massagelab.app/api/billing/checkout",
@@ -84,6 +180,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 0,
       selectionValidation: 0,
       legalAcceptanceLookup: 0,
     })
@@ -124,6 +221,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 0,
       })
     })
   }
@@ -159,6 +257,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 0,
       })
     })
   }
@@ -195,6 +294,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 0,
       })
     })
   }
@@ -225,6 +325,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -363,6 +464,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 0,
       })
     })
   }
@@ -390,7 +492,7 @@ describe("Membership Checkout POST route", () => {
 
   for (const membershipLevel of ["THERAPIST", "PRACTICE"]) {
     it(`rejects ${membershipLevel} before creating a Stripe customer or Checkout Session`, async () => {
-      const calls = { ensureCustomer: 0, createCheckout: 0 }
+      const calls = checkoutCallCounts()
       const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls))(jsonRequest({
         membershipLevel,
         supporterAmountChoiceId: "support-1",
@@ -400,7 +502,12 @@ describe("Membership Checkout POST route", () => {
         body: { error: "Unsupported membership level" },
         status: 400,
       })
-      assert.deepEqual(calls, { ensureCustomer: 0, createCheckout: 0 })
+      assert.deepEqual(calls, {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+        sessionReads: 1,
+      })
     })
   }
 
@@ -420,6 +527,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -439,6 +547,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -460,7 +569,36 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
+  })
+
+  it("rejects a stale displayed Price when current server configuration no longer contains it", async () => {
+    const calls = checkoutCallCounts({ priceResolutionInputs: [] })
+    const dependencies = checkoutDependencies(calls)
+    dependencies.resolveStripePriceId = (input) => {
+      calls.priceResolutionInputs.push(input)
+      return resolveStripePriceId({ ...input, env: {} })
+    }
+
+    const response = await createMembershipCheckoutPostHandler(dependencies)(jsonRequest({
+      membershipLevel: "SUPPORTER",
+      supporterAmountChoiceId: "support-1",
+      interval: "month",
+    }))
+
+    assert.deepEqual(response, {
+      body: { error: "Stripe price is not configured" },
+      status: 400,
+    })
+    assert.equal(calls.priceResolutionInputs.length, 1)
+    const [priceResolutionInput] = calls.priceResolutionInputs
+    assert.equal(priceResolutionInput.membershipLevel, "SUPPORTER")
+    assert.equal(priceResolutionInput.supporterAmountChoiceId, "support-1")
+    assert.equal(priceResolutionInput.interval, "month")
+    assert.equal(calls.membershipLookup, 0)
+    assert.equal(calls.ensureCustomer, 0)
+    assert.equal(calls.createCheckout, 0)
   })
 
   it("redirects an unconfigured form Supporter price before billing work", async () => {
@@ -481,11 +619,12 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
   it("does not send an early-access discount with public Supporter Checkout", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, checkoutOptions: null }
+    const calls = checkoutCallCounts({ checkoutOptions: null })
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       captureSelectionInputs: true,
     }))(jsonRequest({
@@ -623,6 +762,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -655,6 +795,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 0,
     })
     assert.deepEqual(logged, [[
       "Unable to start membership checkout",
@@ -681,6 +822,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 1,
       })
     })
   }
@@ -897,6 +1039,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 1,
       })
       assert.deepEqual(logged, [[
         "Unable to start membership checkout",
@@ -905,10 +1048,29 @@ describe("Membership Checkout POST route", () => {
     })
   }
 
-  for (const [label, errorOption] of [
-    ["membership subscription lookup", "membershipLookupError"],
-    ["legal acceptance lookup", "acceptedDocumentsError"],
-    ["user lookup", "userLookupError"],
+  for (const [label, errorOption, expectedCalls] of [
+    ["membership subscription lookup", "membershipLookupError", {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 1,
+      sessionReads: 1,
+    }],
+    ["legal acceptance lookup", "acceptedDocumentsError", {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 1,
+      sessionReads: 1,
+      requiredLegalEvents: ["checkout"],
+      acceptedLegalDocumentInputs: [["membership-billing-refunds:current"]],
+    }],
+    ["user lookup", "userLookupError", {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 1,
+      sessionReads: 1,
+      requiredLegalEvents: ["checkout"],
+      acceptedLegalDocumentInputs: [["membership-billing-refunds:current"]],
+    }],
   ]) {
     it(`routes a rejected ${label} through the form-safe Checkout error response`, async (context) => {
       const calls = checkoutCallCounts()
@@ -930,8 +1092,7 @@ describe("Membership Checkout POST route", () => {
         url: "https://massagelab.app/account?billing=checkout-error",
         status: 303,
       })
-      assert.equal(calls.ensureCustomer, 0)
-      assert.equal(calls.createCheckout, 0)
+      assert.deepEqual(calls, expectedCalls)
       assert.deepEqual(logged, [[
         "Unable to start membership checkout",
         { code: "unexpected_error" },
@@ -946,6 +1107,7 @@ function checkoutCallCounts(overrides = {}) {
     ensureCustomer: 0,
     createCheckout: 0,
     membershipLookup: 0,
+    sessionReads: 0,
     ...overrides,
   }
 }
@@ -1021,6 +1183,7 @@ function checkoutDependencies(calls, {
   captureSelectionInputs = false,
   captureGuardCalls = false,
   siteUrl = "https://massagelab.app",
+  supporterCheckoutOpen = true,
 } = {}) {
   const prisma = {
     user: {
@@ -1044,10 +1207,22 @@ function checkoutDependencies(calls, {
       redirect: (url, status) => ({ url, status }),
     },
     getCurrentSession: async () => {
+      if (captureGuardCalls) calls.guardCallOrder.push("session")
+      calls.sessionReads = (calls.sessionReads ?? 0) + 1
       if (sessionError) throw sessionError
       return session
     },
     getSiteUrl: () => siteUrl,
+    getPublicLaunchControls: (...args) => {
+      if (captureGuardCalls) {
+        calls.guardCallOrder.push("launch-controls")
+        calls.launchControlArguments.push(args)
+      }
+      return {
+        registrationOpen: true,
+        supporterCheckoutOpen,
+      }
+    },
     isPublicSupporterCheckoutSelection: (input) => {
       if (captureGuardCalls) calls.selectionValidation = (calls.selectionValidation ?? 0) + 1
       if (selectionError) throw selectionError

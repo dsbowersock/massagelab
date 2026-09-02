@@ -5,12 +5,18 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signIn } from "next-auth/react"
 
+import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  GENERIC_GOOGLE_LINK_RECOVERY_MESSAGE,
+  resolveCredentialLinkRecovery,
+  resolveGoogleLinkConfirmationRecovery,
+} from "@/lib/google-link-confirmation-recovery"
 
-type LinkActionState = "idle" | "proving" | "saving" | "redirecting" | "success" | "error"
+type LinkActionState = "idle" | "proving" | "saving" | "redirecting" | "error"
 
 /** Confirms account ownership through Auth.js before sending a proof-free link request. */
 export function LinkGoogleForm({ validIntent }: { validIntent: boolean }) {
@@ -40,13 +46,11 @@ export function LinkGoogleForm({ validIntent }: { validIntent: boolean }) {
       })
       if (signInResult?.error) {
         const code = signInResult.code ?? signInResult.error
-        if (code === "TWO_FACTOR_REQUIRED") {
-          setNeedsTwoFactor(true)
-          throw new Error("Enter your authenticator or backup code, then try again.")
-        }
-        throw new Error(code === "TWO_FACTOR_INVALID"
-          ? "The authenticator or backup code was not accepted."
-          : "The account email or password was not accepted.")
+        const recovery = resolveCredentialLinkRecovery(code)
+        if (recovery.needsTwoFactor) setNeedsTwoFactor(true)
+        setActionState("error")
+        setMessage(recovery.message)
+        return
       }
 
       setActionState("saving")
@@ -56,19 +60,22 @@ export function LinkGoogleForm({ validIntent }: { validIntent: boolean }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ confirmed: true }),
       })
-      const result = await response.json().catch(() => ({})) as { message?: string }
-      if (!response.ok) throw new Error(result.message ?? "This confirmation expired. Start again with Google sign-in.")
+      const result = await response.json().catch(() => ({})) as { code?: unknown }
+      if (!response.ok || result.code !== "GOOGLE_LINKED") {
+        const recovery = resolveGoogleLinkConfirmationRecovery(response.status, result.code)
+        setActionState("error")
+        setMessage(recovery.message)
+        return
+      }
 
       completed = true
-      setActionState("success")
-      setMessage(result.message ?? "The sign-in methods now belong to the same MassageLab account.")
       setActionState("redirecting")
       setMessage("Linked. Redirecting to account security…")
       router.push("/account?tab=security")
       router.refresh()
-    } catch (error) {
+    } catch {
       setActionState("error")
-      setMessage(error instanceof Error ? error.message : "The account could not be linked. Try again.")
+      setMessage(GENERIC_GOOGLE_LINK_RECOVERY_MESSAGE)
     } finally {
       actionLock.current = false
       if (!completed) {
@@ -106,16 +113,25 @@ export function LinkGoogleForm({ validIntent }: { validIntent: boolean }) {
               <Input id="linkAccountTwoFactor" autoComplete="one-time-code" value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value)} required disabled={busy} />
             </div>
           ) : null}
-          <Button type="submit" className="w-full" disabled={busy}>
-            {actionState === "proving" ? "Checking password…" : actionState === "saving" ? "Linking sign-in methods…" : actionState === "redirecting" ? "Redirecting…" : "Confirm same MassageLab account"}
-          </Button>
+          <AsyncActionButton
+            type="submit"
+            className="w-full"
+            pending={busy}
+            idleLabel="Confirm same MassageLab account"
+            pendingLabel="Connecting Google…"
+            announcePending={false}
+          />
         </form>
       )}
-      {message ? (
-        <AppInset className="p-3 text-sm">
-          <p role={actionState === "error" ? "alert" : "status"} aria-live={actionState === "error" ? "assertive" : "polite"}>{message}</p>
-        </AppInset>
-      ) : null}
+      <AppInset className={`p-3 text-sm${message ? "" : " sr-only"}`}>
+        {busy ? <p aria-hidden="true">{message}</p> : null}
+        <p role="status" aria-live="polite" aria-atomic="true" className={actionState === "error" || busy ? "sr-only" : undefined}>
+          {actionState !== "error" ? message : ""}
+        </p>
+        <p role="alert" aria-live="assertive" aria-atomic="true" className={actionState === "error" ? undefined : "sr-only"}>
+          {actionState === "error" ? message : ""}
+        </p>
+      </AppInset>
     </AppSurface>
   )
 }

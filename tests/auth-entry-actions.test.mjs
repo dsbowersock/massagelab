@@ -42,7 +42,7 @@ describe("shared account-entry client behavior", () => {
       },
       signInImpl: async (...args) => {
         calls.push(["signIn", ...args])
-        href = "https://accounts.google.com/o/oauth2/v2/auth"
+        href = "/api/auth/signin/google"
       },
       currentHref: () => href,
     })

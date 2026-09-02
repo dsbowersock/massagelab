@@ -268,15 +268,32 @@ describe("verified-account background credit provisioning", () => {
     assert.equal(database.state.events.length, 0)
   })
 
-  it("routes all verification transitions and verified-state loading through the shared service", async () => {
-    const [authUsers, verifyPage, passwordRoute] = await Promise.all([
+  it("provisions only at verification transitions and not during verified-state loading", async () => {
+    const [authUsers, authMethodIntents, verifyPage, passwordRoute] = await Promise.all([
       readFile(new URL("../lib/auth-users.ts", import.meta.url), "utf8"),
+      readFile(new URL("../lib/auth-method-intents.ts", import.meta.url), "utf8"),
       readFile(new URL("../app/verify-email/page.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/api/account/security/password/route.ts", import.meta.url), "utf8"),
     ])
 
-    assert.match(authUsers, /ensureVerifiedUserBackgroundCredits\(tx, userId\)/)
-    assert.match(authUsers, /if \(user\?\.emailVerified\)[\s\S]*ensureVerifiedUserBackgroundCredits\(prisma, userId\)/)
+    const authStateStart = authUsers.indexOf("export async function getUserAuthState")
+    assert.notEqual(authStateStart, -1, "getUserAuthState must remain present")
+    const authStateLoader = authUsers.slice(authStateStart)
+    assert.doesNotMatch(authStateLoader, /ensureVerifiedUserBackgroundCredits/)
+    const googleStateLoader = authUsers.match(/export async function ensureGoogleUserState[\s\S]*?\n\}/)?.[0]
+    assert.ok(googleStateLoader, "ensureGoogleUserState must remain present")
+    assert.doesNotMatch(googleStateLoader, /ensureVerifiedUserBackgroundCredits/)
+    const prepareStart = authMethodIntents.indexOf("export async function prepareGoogleAuthentication")
+    const prepareEnd = authMethodIntents.indexOf("async function prepareSecurityReauthentication", prepareStart)
+    assert.ok(prepareStart >= 0 && prepareEnd > prepareStart, "Google authentication intent bounds must resolve")
+    const prepareGoogleAuthentication = authMethodIntents.slice(prepareStart, prepareEnd)
+    const createdStart = prepareGoogleAuthentication.indexOf(
+      'if (decision.kind === "CONTINUE" && decision.created === true)',
+    )
+    const createdEnd = prepareGoogleAuthentication.indexOf("  return decision", createdStart)
+    assert.ok(createdStart >= 0 && createdEnd > createdStart, "created-identity transition bounds must resolve")
+    const createdIdentityTransition = prepareGoogleAuthentication.slice(createdStart, createdEnd)
+    assert.match(createdIdentityTransition, /ensureVerifiedUserBackgroundCredits\(prismaClient, userId\)/)
     const verifyTransaction = verifyPage.match(/await runCommerceTransaction\(prisma, async \(txValue\) => \{([\s\S]*?)\n      \}\)/)?.[1]
     assert.ok(verifyTransaction)
     assert.doesNotMatch(verifyTransaction, /ensureVerifiedUserBackgroundCredits/)

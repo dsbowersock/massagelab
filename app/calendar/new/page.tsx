@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { CalendarClock, CalendarDays, CalendarOff, ClipboardList, Plus, Settings2, UsersRound } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { AppSurface, appCalloutClassName } from "@/components/ui/app-surface"

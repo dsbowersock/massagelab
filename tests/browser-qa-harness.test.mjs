@@ -16,6 +16,7 @@ import {
   assertBrowserQaLaneCoverage,
   resolveCiBrowserQaLaneProjects,
 } from "./browser/ci-lanes.mjs"
+import { isHeldRouteTeardownCancellation } from "./browser/held-route-teardown.ts"
 
 async function readProjectFile(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
@@ -29,6 +30,92 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.notEqual(secondIndex, -1, `Expected workflow to include ${secondStep}`)
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
+
+test("held-route teardown recognizes only its exact Playwright cancellation shapes", () => {
+  for (const message of [
+    "Route is already handled!",
+    "route.abort: Route is already handled!",
+    "route.continue: Target page, context or browser has been closed",
+    "route.fallback: Request context disposed",
+    "route.fetch: Route is already handled!",
+    "route.fulfill: Target page, context or browser has been closed",
+  ]) {
+    assert.equal(isHeldRouteTeardownCancellation(new Error(message)), true, message)
+  }
+
+  for (const value of [
+    new Error(" Route is already handled!"),
+    new Error("Route is already handled! after retry"),
+    new Error("Target page, context or browser has been closed"),
+    new Error("Request context disposed"),
+    new Error("page.close: Request context disposed"),
+    new Error("route.abort: unrelated failure"),
+    "Route is already handled!",
+  ]) {
+    assert.equal(isHeldRouteTeardownCancellation(value), false, String(value))
+  }
+})
+
+/**
+ * Returns the exact source between ordered markers after validating both bounds.
+ * `searchFrom` lets callers preserve chained section order without reusing a missing bound.
+ */
+function sliceBetweenMarkers(source, startMarker, endMarker, label, searchFrom = 0) {
+  const start = source.indexOf(startMarker, searchFrom)
+  assert.notEqual(start, -1, `Expected to locate ${label} start`)
+  const end = source.indexOf(endMarker, start + startMarker.length)
+  assert.notEqual(end, -1, `Expected to locate ${label} end`)
+  assert.ok(end > start, `Expected ${label} end after its start`)
+  return { end, slice: source.slice(start, end) }
+}
+
+const initialAtmosphereFixturePattern =
+  /installAtmosphereFixtures\(\s*page,\s*allowedExternalUrls,\s*\[\],\s*initialAtmosphereSampleIndexUrls,?\s*\)/g
+const musicPathGuardPattern = /if\s*\(\s*path\s*===\s*["']\/music["']\s*\)\s*\{/
+
+/**
+ * Finds a closing brace without depending on indentation. This raw scanner also
+ * counts braces inside strings, templates, regexes, and comments, so fixtures
+ * using it must keep those constructs brace-free within the scanned boundary.
+ */
+function findMatchingBraceIndex(source, openingBraceIndex) {
+  if (source[openingBraceIndex] !== "{") return -1
+
+  let depth = 0
+  for (let index = openingBraceIndex; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1
+    if (source[index] === "}") depth -= 1
+    if (depth === 0) return index
+  }
+  return -1
+}
+
+test("Atmosphere fixture matching survives wrapped calls and reindented nested guards", () => {
+  const source = [
+    "if (",
+    "\tpath === '/music'",
+    ") {",
+    "\tif (shouldPrewarm) {",
+    "\t\tinstallAtmosphereFixtures(",
+    "\t\t\tpage,",
+    "\t\t\tallowedExternalUrls,",
+    "\t\t\t[],",
+    "\t\t\tinitialAtmosphereSampleIndexUrls,",
+    "\t\t)",
+    "\t}",
+    "}",
+    "await page.goto(path)",
+  ].join("\n")
+  const guardMatch = musicPathGuardPattern.exec(source)
+  assert.ok(guardMatch)
+  const guardIndex = guardMatch.index
+  const openingBraceIndex = guardIndex + guardMatch[0].lastIndexOf("{")
+  const closingBraceIndex = findMatchingBraceIndex(source, openingBraceIndex)
+
+  assert.equal((source.match(initialAtmosphereFixturePattern) ?? []).length, 1)
+  assert.ok(source.search(initialAtmosphereFixturePattern) < closingBraceIndex)
+  assert.ok(closingBraceIndex < source.indexOf("await page.goto(path)"))
+})
 
 test("install-prompt QA dispatches only while the provider listener is proven active", async () => {
   const appShellSpec = await readProjectFile("tests/browser/app-shell.spec.ts")
@@ -92,6 +179,132 @@ test("Code quality provisions Chromium with Linux dependencies before Node tests
   )
 })
 
+test("browser QA enables the isolated RSC session proof at build and runtime", async () => {
+  const workflow = await readProjectFile(".github/workflows/ci.yml")
+
+  for (const jobId of ["browser_build", "browser_qa"]) {
+    assert.match(
+      getWorkflowJob(workflow, jobId),
+      /^      NEXT_PUBLIC_RSC_SESSION_PROOF: "1"\r?$/m,
+      `Expected ${jobId} to enable NEXT_PUBLIC_RSC_SESSION_PROOF`,
+    )
+  }
+})
+
+test("mobile Background carousel fixtures include the default preview", async () => {
+  const publicRoutesSpec = await readProjectFile("tests/browser/public-routes.spec.ts")
+  const fixtureStart = publicRoutesSpec.indexOf(
+    'test(`Background default navigation and Background drag keep',
+  )
+  assert.notEqual(fixtureStart, -1, "Expected to locate the mobile Background fixture start")
+
+  const fixtureEnd = publicRoutesSpec.indexOf(
+    '\ntest("Atmosphere lists the Generative.fm catalog',
+    fixtureStart,
+  )
+
+  assert.notEqual(fixtureEnd, -1, "Expected to locate the mobile Background fixture end")
+  assert.match(
+    publicRoutesSpec.slice(fixtureStart, fixtureEnd),
+    /"massage-lab-gradient-vertical"/,
+  )
+})
+
+test("public media journeys fixture opportunistic atmosphere prewarms", async () => {
+  const publicRoutesSpec = await readProjectFile("tests/browser/public-routes.spec.ts")
+  const genericJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
+    "for (const route of publicRoutes)",
+    '\ntest("core public tool surfaces',
+    "generic public routes",
+  )
+  const coreToolsJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
+    '\ntest("core public tool surfaces',
+    '\ntest("active app-tool metal ring',
+    "core public tools",
+    genericJourney.end,
+  )
+  const activeToolRingJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
+    '\ntest("active app-tool metal ring',
+    '\ntest("main bar exposes brand music clock quick create theme calendar and more controls',
+    "active tool ring",
+    coreToolsJourney.end,
+  )
+  const mainBarJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
+    '\ntest("main bar exposes brand music clock quick create theme calendar and more controls',
+    '\ntest("main bar edge control stays aligned with the compact sidebar rail',
+    "main bar",
+    activeToolRingJourney.end,
+  )
+  const topAppBarJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
+    'test("top app bar quick actions open inside the viewport below the plus button',
+    '\ntest("mobile quick-create button opens a vertical speed dial',
+    "top app bar",
+    mainBarJourney.end,
+  )
+  const visualizerJourney = sliceBetweenMarkers(
+    publicRoutesSpec,
+    'test("Music visualizer background selection and account default actions',
+    '\ntest("Music account preference owner switch',
+    "music visualizer",
+    topAppBarJourney.end,
+  )
+
+  const journeys = [
+    ["generic public routes", genericJourney.slice],
+    ["core public tools", coreToolsJourney.slice],
+    ["active tool ring", activeToolRingJourney.slice],
+    ["main bar", mainBarJourney.slice],
+    ["top app bar", topAppBarJourney.slice],
+    ["music visualizer", visualizerJourney.slice],
+  ]
+
+  for (const [journeyName, journeySource] of journeys) {
+    const fixtureIndex = journeySource.search(initialAtmosphereFixturePattern)
+    const firstNavigationIndex = journeySource.indexOf("await page.goto")
+    assert.notEqual(fixtureIndex, -1, `${journeyName} installs the exact initial Atmosphere fixture`)
+    assert.notEqual(firstNavigationIndex, -1, `${journeyName} contains a page navigation`)
+    assert.ok(
+      fixtureIndex < firstNavigationIndex,
+      `${journeyName} installs its exact initial Atmosphere fixture before navigation`,
+    )
+  }
+
+  const coreToolsSource = coreToolsJourney.slice
+  assert.match(coreToolsSource, /const health = await capturePageHealth\(page, new Set\(\)\)/)
+  assert.equal(
+    (coreToolsSource.match(initialAtmosphereFixturePattern) ?? []).length,
+    1,
+    "the multi-route core journey owns exactly one initial Atmosphere fixture",
+  )
+  const coreRouteLoop = coreToolsSource.match(/for \(const path of \[([^\]]+)]\) \{/)
+  assert.ok(coreRouteLoop, "the multi-route core journey keeps an explicit route list")
+  const coreRoutePaths = [...coreRouteLoop[1].matchAll(/"([^"]+)"/g)].map((match) => match[1])
+  assert.equal(coreRoutePaths.at(-1), "/music", "the multi-route core journey visits Music last")
+  const coreMusicGuardMatch = musicPathGuardPattern.exec(coreToolsSource)
+  assert.ok(coreMusicGuardMatch, "the multi-route core journey has a Music-only fixture guard")
+  const coreMusicGuardIndex = coreMusicGuardMatch.index
+  const coreMusicGuardOpeningBraceIndex = coreMusicGuardIndex + coreMusicGuardMatch[0].lastIndexOf("{")
+  const coreFixtureIndex = coreToolsSource.search(initialAtmosphereFixturePattern)
+  const coreMusicGuardEndIndex = findMatchingBraceIndex(coreToolsSource, coreMusicGuardOpeningBraceIndex)
+  assert.notEqual(coreMusicGuardEndIndex, -1, "the Music-only fixture guard has an explicit boundary")
+  const coreLoopNavigationIndex = coreToolsSource.indexOf("await page.goto(path", coreMusicGuardEndIndex)
+  assert.notEqual(coreLoopNavigationIndex, -1, "the Music-only fixture guard precedes the loop navigation")
+  assert.ok(
+    coreMusicGuardIndex < coreFixtureIndex && coreFixtureIndex < coreMusicGuardEndIndex,
+    "the multi-route core journey grants the exact prewarm fixture only inside the Music guard",
+  )
+  assert.equal(
+    coreToolsSource.slice(coreMusicGuardEndIndex + 1, coreLoopNavigationIndex).trim(),
+    "",
+    "the Music-only fixture guard stays immediately before the loop navigation",
+  )
+})
+
 test("browser QA lanes cover each ordinary project and spec exactly once", async () => {
   const expectedProjects = ["desktop-chromium", "mobile-chromium"]
   const expectedSpecs = [
@@ -102,6 +315,7 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
     "control-system-review.spec.ts",
     "identity-method-safety.spec.ts",
     "immersive-panel-shell.spec.ts",
+    "interaction-feedback.spec.ts",
     "local-first.spec.ts",
     "membership-return-status.spec.ts",
     "music-media-session.spec.ts",
@@ -125,8 +339,8 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
   const expectedPairs = new Set(
     expectedProjects.flatMap((projectName) => expectedSpecs.map((spec) => `${projectName}:${spec}`)),
   )
-  assert.equal(expectedSpecs.length, 13)
-  assert.equal(expectedPairs.size, 26)
+  assert.equal(expectedSpecs.length, 14)
+  assert.equal(expectedPairs.size, 28)
 
   const actualPairs = []
   for (const lane of Object.values(BROWSER_QA_LANES)) {
@@ -176,6 +390,7 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
           "**/local-first.spec.ts",
           "**/identity-method-safety.spec.ts",
           "**/membership-return-status.spec.ts",
+          "**/interaction-feedback.spec.ts",
         ],
       },
       {
@@ -201,6 +416,7 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
           "**/local-first.spec.ts",
           "**/identity-method-safety.spec.ts",
           "**/membership-return-status.spec.ts",
+          "**/interaction-feedback.spec.ts",
         ],
       },
     ],

@@ -1,33 +1,124 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
+const QUIET_GEOMETRY_RANGE_CSS_PX = 1
+const QUIET_GEOMETRY_WINDOW_MS = 50
+const QUIET_GEOMETRY_SAMPLE_COUNT = 4
+const GEOMETRY_SAMPLE_INTERVAL_MS = 16
+const GEOMETRY_OBSERVATION_LIMIT_MS = 250
+
+/**
+ * Requires a near-frame-cadence quiet window whose total geometry range stays
+ * within one CSS pixel, rather than accepting a single easing-tail lull.
+ */
 export async function waitForStableSlideGeometry(slide: Locator, label: string) {
-  let previousBox: Awaited<ReturnType<Locator["boundingBox"]>> = null
-  let stableComparisons = 0
-  await expect.poll(async () => {
-    const box = await slide.boundingBox()
-    if (!box) {
-      // Discard pre-detachment samples so a reconnected slide must establish
-      // fresh consecutive geometry before it can be considered settled.
-      previousBox = null
-      stableComparisons = 0
-      return false
-    }
-    const stable = previousBox !== null && Math.max(
-      Math.abs(box.x - previousBox.x),
-      Math.abs(box.y - previousBox.y),
-      Math.abs(box.width - previousBox.width),
-      Math.abs(box.height - previousBox.height),
-    ) <= 0.25
-    stableComparisons = stable ? stableComparisons + 1 : 0
-    previousBox = box
-    // Embla can briefly pause near a snap while momentum is still active.
-    // Require a sustained quiet window so a setup selection is not ignored
-    // by an in-flight drag from the preceding test action.
-    return stableComparisons >= 5
-  }, {
-    message: `${label} settled`,
-    intervals: [50, 75, 100, 100, 100],
-  }).toBe(true)
+  let recentSamples: string[] = []
+  try {
+    await expect.poll(async () => {
+      const observation = await slide.evaluate(async (element, limits) => {
+        type Geometry = { x: number; y: number; width: number; height: number }
+
+        const maximumDelta = (left: Geometry, right: Geometry) => Math.max(
+          Math.abs(left.x - right.x),
+          Math.abs(left.y - right.y),
+          Math.abs(left.width - right.width),
+          Math.abs(left.height - right.height),
+        )
+        // Some headless WebKit runs throttle rAF while an async locator
+        // evaluation is pending. A page-context timer keeps all samples on one
+        // browser roundtrip while performance.now() supplies monotonic timing.
+        const nextSample = () => new Promise<void>((resolve) => {
+          setTimeout(resolve, limits.sampleIntervalMs)
+        })
+        const observedAt = performance.now()
+        let previous: Geometry | null = null
+        let minimum: Geometry | null = null
+        let maximum: Geometry | null = null
+        let quietStartedAt = observedAt
+        let quietSampleCount = 0
+        const samples: string[] = []
+
+        while (performance.now() - observedAt <= limits.observationLimitMs) {
+          if (!element.isConnected) {
+            return { recentSamples: ["detached"], settled: false }
+          }
+
+          const rect = element.getBoundingClientRect()
+          const box = { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+          const sampledAt = performance.now()
+          const stepDelta = previous === null ? null : maximumDelta(box, previous)
+          if (minimum === null || maximum === null) {
+            minimum = box
+            maximum = box
+            quietStartedAt = sampledAt
+            quietSampleCount = 1
+          } else {
+            const candidateMinimum: Geometry = {
+              x: Math.min(minimum.x, box.x),
+              y: Math.min(minimum.y, box.y),
+              width: Math.min(minimum.width, box.width),
+              height: Math.min(minimum.height, box.height),
+            }
+            const candidateMaximum: Geometry = {
+              x: Math.max(maximum.x, box.x),
+              y: Math.max(maximum.y, box.y),
+              width: Math.max(maximum.width, box.width),
+              height: Math.max(maximum.height, box.height),
+            }
+            if (maximumDelta(candidateMinimum, candidateMaximum) > limits.rangeCssPx) {
+              // Reseed after any per-axis peak-to-peak range exceeds the WebKit
+              // allowance, including damped motion on opposite sides of an anchor.
+              minimum = box
+              maximum = box
+              quietStartedAt = sampledAt
+              quietSampleCount = 1
+            } else {
+              minimum = candidateMinimum
+              maximum = candidateMaximum
+              quietSampleCount += 1
+            }
+          }
+
+          if (minimum === null || maximum === null) {
+            throw new Error("Geometry bounds were not seeded by the current sample.")
+          }
+          const quietRange = maximumDelta(minimum, maximum)
+          const quietDuration = sampledAt - quietStartedAt
+          previous = box
+          samples.push(
+            `x=${box.x.toFixed(2)},y=${box.y.toFixed(2)},w=${box.width.toFixed(2)},h=${box.height.toFixed(2)},step=${stepDelta?.toFixed(2) ?? "initial"},range=${quietRange.toFixed(2)},quiet=${quietDuration.toFixed(0)}ms`,
+          )
+          samples.splice(0, Math.max(0, samples.length - 6))
+          if (
+            quietSampleCount >= limits.sampleCount
+            && quietDuration >= limits.windowMs
+          ) {
+            return { recentSamples: samples, settled: true }
+          }
+          await nextSample()
+        }
+
+        return { recentSamples: samples, settled: false }
+      }, {
+        observationLimitMs: GEOMETRY_OBSERVATION_LIMIT_MS,
+        rangeCssPx: QUIET_GEOMETRY_RANGE_CSS_PX,
+        sampleCount: QUIET_GEOMETRY_SAMPLE_COUNT,
+        sampleIntervalMs: GEOMETRY_SAMPLE_INTERVAL_MS,
+        windowMs: QUIET_GEOMETRY_WINDOW_MS,
+      })
+      recentSamples = observation.recentSamples
+      return observation.settled
+    }, {
+      message: `${label} settled`,
+      // Retry a bounded browser-side observation if the slide stayed in motion.
+      // The assertion timeout intentionally remains Playwright's 7.5s default.
+      intervals: [16],
+    }).toBe(true)
+  } catch (error) {
+    throw new Error(
+      `${label} did not settle; recent geometry: ${recentSamples.join(" | ") || "no samples"}`,
+      { cause: error },
+    )
+  }
 }
 
 /**
@@ -44,15 +135,15 @@ export async function centerCarouselItem(
     name: nextButtonName === "Next station" ? "Station carousel" : "Background carousel",
   })
   const stage = carousel.locator('div[tabindex="0"]').first()
-  const slide = page.locator(
+  const slide = carousel.locator(
     `[data-carousel-slide="true"][data-carousel-item-id="${itemId}"]:not([data-carousel-loop-clone="true"])`,
   )
+  const centeredSlide = carousel.locator('[data-carousel-slide="true"][data-centered="true"]')
   await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
   await expect(slide, `${nextButtonName} setup target ${itemId}`).toBeAttached()
-  await waitForStableSlideGeometry(
-    carousel.locator('[data-carousel-slide="true"][data-centered="true"]'),
-    `${nextButtonName} current slide`,
-  )
+  await expect(centeredSlide).toHaveCount(1)
+  await expect(centeredSlide).toHaveAttribute("data-carousel-item-id", /.+/)
+  await waitForStableSlideGeometry(centeredSlide, `${nextButtonName} current slide`)
   if (
     nextButtonName === "Next station"
     && (await carousel.getByRole("button", { name: nextButtonName }).count()) === 0
@@ -74,6 +165,9 @@ export async function centerCarouselItem(
     }
   }
   await expect(slide).toHaveAttribute("data-centered", "true")
+  await expect(centeredSlide).toHaveAttribute("data-carousel-item-id", itemId)
   await waitForStableSlideGeometry(slide, `${nextButtonName} setup target ${itemId}`)
+  await expect(carousel).toHaveAttribute("data-carousel-ready", "true")
+  await expect(centeredSlide).toHaveAttribute("data-carousel-item-id", itemId)
   return slide
 }

@@ -1,7 +1,6 @@
 import type { Prisma } from "@prisma/client"
 import { isAdminEmail } from "@/lib/auth-env"
 import { buildAccountCapabilities, highestRole as highestAccountRole, normalizeRoleAssignments } from "@/lib/account-permissions"
-import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { buildEntitlements, loadActiveTemporaryGrants } from "@/lib/membership"
 import { isHostedClinicalSyncEnabled } from "@/lib/phi-sync"
@@ -50,6 +49,10 @@ export async function ensureUserRole(userId: string, email?: string | null, data
   return "USER"
 }
 
+/**
+ * Refreshes verified identity and role state after Google authentication.
+ * Repeat sign-ins never open a background-credit provisioning transaction.
+ */
 export async function ensureGoogleUserState(userId: string, email?: string | null) {
   await runCommerceTransaction(prisma, async (txValue) => {
     const tx = txValue as Prisma.TransactionClient
@@ -60,7 +63,6 @@ export async function ensureGoogleUserState(userId: string, email?: string | nul
 
     if (updateResult.count > 0) {
       await ensureUserRole(userId, email, tx)
-      await ensureVerifiedUserBackgroundCredits(tx, userId)
     }
   })
 }
@@ -68,13 +70,18 @@ export async function ensureGoogleUserState(userId: string, email?: string | nul
 /**
  * Loads the request-time account snapshot used by authentication. Full-Admin
  * features come only from a verified persisted role, never from stale session
- * claims, and remain separate from paid membership level.
+ * claims, and remain separate from paid membership level. The request-time
+ * snapshot is read-only with respect to background-credit provisioning.
  */
-export async function getUserAuthState(userId: string) {
+export async function getUserAuthState(
+  userId: string,
+  database: AuthDatabase = prisma,
+  loadTemporaryGrants: typeof loadActiveTemporaryGrants = loadActiveTemporaryGrants,
+) {
   // Capture one boundary for both the database predicate and defensive pure
   // resolver so a grant cannot change state midway through one auth refresh.
   const now = new Date()
-  const [user, temporaryGrants] = await Promise.all([prisma.user.findUnique({
+  const [user, temporaryGrants] = await Promise.all([database.user.findUnique({
     where: { id: userId },
     select: {
       email: true,
@@ -101,25 +108,20 @@ export async function getUserAuthState(userId: string) {
         select: { enabledAt: true },
       },
     },
-  }), loadActiveTemporaryGrants(prisma, userId, now)])
+  }), loadTemporaryGrants(database, userId, now)])
 
   const roleAssignments = normalizeRoleAssignments(user?.roles.map((role) => ({
     role: role.role,
     status: role.status,
   })) ?? [{ role: "USER", status: "VERIFIED" }]) as Array<{ role: AccountRole; status: VerificationStatus }>
   const roles = roleAssignments.map((role) => role.role)
-  // Safe deployment repair: the service independently reloads verification and
-  // remains idempotent when this account state is loaded repeatedly.
-  if (user?.emailVerified) {
-    await ensureVerifiedUserBackgroundCredits(prisma, userId)
-  }
 
   const hasVerifiedAdminRole = roleAssignments.some((assignment) => (
     assignment.role === "ADMIN" && assignment.status === "VERIFIED"
   ))
   if (user?.email && isAdminEmail(user.email) && !hasVerifiedAdminRole) {
-    await ensureUserRole(userId, user.email)
-    const persistedAdminRole = await prisma.userRole.findUnique({
+    await ensureUserRole(userId, user.email, database)
+    const persistedAdminRole = await database.userRole.findUnique({
       where: { userId_role: { userId, role: "ADMIN" } },
       select: { role: true, status: true },
     })
@@ -133,6 +135,13 @@ export async function getUserAuthState(userId: string) {
   const adminAccess = roleAssignments.some((assignment) => (
     assignment.role === "ADMIN" && assignment.status === "VERIFIED"
   ))
+  const entitlements = buildEntitlements({
+    adminAccess,
+    subscriptions: user?.membershipSubscriptions ?? [],
+    studentAccess: user?.studentAccess ?? null,
+    temporaryGrants,
+    now,
+  })
 
   return {
     authSessionVersion: user?.authSessionVersion,
@@ -140,15 +149,10 @@ export async function getUserAuthState(userId: string) {
     roles,
     roleAssignments,
     capabilities: buildAccountCapabilities(roleAssignments, {
-      features: buildEntitlements({
-        adminAccess,
-        subscriptions: user?.membershipSubscriptions ?? [],
-        studentAccess: user?.studentAccess ?? null,
-        temporaryGrants,
-        now,
-      }).features,
+      features: entitlements.features,
       hostedClinicalSyncEnabled: isHostedClinicalSyncEnabled(),
     }),
+    featureKeys: entitlements.features,
     emailVerified: Boolean(user?.emailVerified),
     twoFactorEnabled: Boolean(user?.twoFactorSecret?.enabledAt),
   }

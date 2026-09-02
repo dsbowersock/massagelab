@@ -1,6 +1,11 @@
-import { expect, test, type Locator, type Page } from "@playwright/test"
+import { errors as playwrightErrors, expect, test, type Locator, type Page, type Route } from "@playwright/test"
+import { randomUUID } from "node:crypto"
 import { withPlayerViewportCollisionPadding } from "../../components/ui/use-player-viewport-insets"
+import { exerciseSpecializedProviderHarness } from "../helpers/specialized-provider-browser-harness.mjs"
+import { drainPromiseSetWithin } from "../helpers/async-control.mjs"
 import { centerCarouselItem, waitForStableSlideGeometry } from "./carousel-test-helpers"
+import { isDevelopmentReviewUnavailable } from "./development-review-test-helpers"
+import { isHeldRouteTeardownCancellation } from "./held-route-teardown"
 
 const desktopProject = "desktop-chromium"
 const mobileProject = "mobile-chromium"
@@ -52,6 +57,134 @@ async function expectFavoritesMosaicUsesBalancedFill(mosaic: Locator) {
 async function gotoShell(page: Page, path: string) {
   await page.goto(path, { waitUntil: "domcontentloaded" })
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
+}
+
+/** Fails if a blocked navigation renders its destination at any point in the observation window. */
+async function expectLocatorToRemainAbsent(locator: Locator, message: string) {
+  await expect(
+    locator.waitFor({ state: "attached", timeout: 250 }),
+    message,
+  ).rejects.toBeInstanceOf(playwrightErrors.TimeoutError)
+}
+
+test("RSC session snapshot count is exactly one", async ({ page }) => {
+  const proofId = randomUUID()
+  await page.setExtraHTTPHeaders({ "x-massagelab-rsc-session-proof": proofId })
+
+  const response = await page.goto("/dev/rsc-session-proof", { waitUntil: "domcontentloaded" })
+  expect(response?.status()).toBe(200)
+  const receipt = page.locator("[data-rsc-session-count]")
+  await expect(receipt).toBeVisible()
+  const count = Number(await receipt.getAttribute("data-rsc-session-count"))
+
+  expect(Number.isInteger(count)).toBe(true)
+  expect(count).toBe(1)
+})
+
+test("inert bootstrap fixture defers therapist and practice specialization until demand", async ({ page }) => {
+  test.setTimeout(45_000)
+  const result = await exerciseSpecializedProviderHarness(page)
+
+  expect(result.mounted.profileGets).toBe(0)
+  expect(result.mounted.calendarGets).toBe(0)
+  expect(result.firstConsumer.profileGets).toBe(1)
+  expect(result.firstConsumer.calendarGets).toBe(0)
+  expect(result.concurrentConsumer.profileGets).toBe(1)
+  expect(result.hydrated.consumerNames).toEqual([
+    "Synthetic Therapist",
+    "Synthetic Therapist",
+  ])
+  expect(result.practiceEnabled.calendarGets).toBe(1)
+  expect(result.practiceEnabled.practiceId).toBe("practice-inert")
+  expect(result.practiceEnabled.errors).toEqual([])
+})
+
+/** Aborts a held fixture request unless the app's own cancellation already won the race. */
+async function abortHeldFixtureRequest(route: Route) {
+  try {
+    await route.abort("aborted")
+  } catch (error) {
+    if (!isHeldRouteTeardownCancellation(error)) throw error
+  }
+}
+
+/** Holds one real App Router response so a route-owned readiness barrier can be proven. */
+async function holdRscNavigationResponse(page: Page, pathname: string) {
+  const matchesPathname = (url: URL) => url.pathname === pathname
+  let releaseHold: () => void = () => undefined
+  let markRequestStarted: () => void = () => undefined
+  let suppressTeardownCancellations = false
+  const activeRequests = new Set<Promise<void>>()
+  const hold = new Promise<void>((resolve) => {
+    releaseHold = resolve
+  })
+  const started = new Promise<void>((resolve) => {
+    markRequestStarted = resolve
+  })
+  /** Boundedly waits until every currently or transitively registered held request settles. */
+  const drainActiveRequests = async () => {
+    await drainPromiseSetWithin(
+      activeRequests,
+      10_000,
+      `Timed out draining held RSC navigation requests to ${pathname}`,
+    )
+  }
+  const handler = async (route: Route) => {
+    try {
+      const request = route.request()
+      const headers = request.headers()
+      if (headers["next-router-prefetch"] || headers.purpose === "prefetch") {
+        await abortHeldFixtureRequest(route)
+        return
+      }
+      if (headers.rsc || request.isNavigationRequest()) {
+        markRequestStarted()
+        let markRequestFinished: () => void = () => undefined
+        const requestFinished = new Promise<void>((resolve) => {
+          markRequestFinished = resolve
+        })
+        activeRequests.add(requestFinished)
+        try {
+          const response = await route.fetch()
+          await hold
+          await route.fulfill({ response })
+        } finally {
+          activeRequests.delete(requestFinished)
+          markRequestFinished()
+        }
+        return
+      }
+      await route.continue()
+    } catch (error) {
+      if (suppressTeardownCancellations && isHeldRouteTeardownCancellation(error)) return
+      throw error
+    }
+  }
+  await page.route(matchesPathname, handler)
+  return {
+    async waitForRequest() {
+      let timeoutId: ReturnType<typeof setTimeout> | undefined
+      try {
+        await Promise.race([
+          started,
+          new Promise<void>((_resolve, reject) => {
+            timeoutId = setTimeout(() => {
+              reject(new Error(`Timed out waiting for held RSC navigation to ${pathname}`))
+            }, 10_000)
+          }),
+        ])
+      } finally {
+        if (timeoutId !== undefined) clearTimeout(timeoutId)
+      }
+    },
+    async releaseAndCleanup({ teardown = false }: { teardown?: boolean } = {}) {
+      suppressTeardownCancellations = teardown
+      releaseHold()
+      await drainActiveRequests()
+      await page.unroute(matchesPathname, handler)
+      await drainActiveRequests()
+    },
+  }
 }
 
 /** Persists a deterministic newest-first Atmosphere Favorites fixture before app hydration. */
@@ -1305,7 +1438,17 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
   await expect.poll(async () => (await resolvedMusicRailSpacing(page)).rightSafe).toBe(0)
   await page.getByRole("link", { name: "Open clock" }).click()
   await expect(page).toHaveURL(/\/clock$/)
-  await page.getByRole("button", { name: "Clock", exact: true }).click()
+  await expect(page.getByRole("region", { name: "Chimer clock" })).toBeVisible()
+  await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
+  await page.getByRole("button", { name: "Reveal clock controls" }).click()
+  const noPlayerDisplayControls = page.locator(
+    '[data-immersive-shell] [role="group"][aria-label="Immersive display controls"]',
+  )
+  await expect(noPlayerDisplayControls).toHaveCount(1)
+  await expect(noPlayerDisplayControls).toBeVisible()
+  const noPlayerClockControl = noPlayerDisplayControls.locator('button[aria-label="Clock"]')
+  await expect(noPlayerClockControl).toHaveCount(1)
+  await noPlayerClockControl.click()
   const noPlayerClockPanel = page.locator('[data-immersive-panel="clock"]')
   await expect(noPlayerClockPanel).toHaveAttribute("data-immersive-layout", "side")
   await expect.poll(async () => (await measureStageReservations()).right).toBeGreaterThan(0)
@@ -1315,8 +1458,16 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
   await page.getByRole("button", { name: "Close clock", exact: true }).click()
   await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
 
+  const homeHold = await holdRscNavigationResponse(page, "/")
+  let homeHoldActive = true
+  let wellnessHold: Awaited<ReturnType<typeof holdRscNavigationResponse>> | null = null
+  let wellnessHoldActive = false
+  try {
+  wellnessHold = await holdRscNavigationResponse(page, "/wellness")
+  wellnessHoldActive = true
   await page.setViewportSize({ width: 390, height: 844 })
   const toolbar = await startProofDrone(page)
+  await expect(toolbar).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
   const interruptionNotice = page.getByTestId("music-interruption-notice")
   if (await interruptionNotice.isVisible().catch(() => false)) {
     await interruptionNotice.getByRole("button", { name: "Close" }).click()
@@ -1546,12 +1697,37 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
   const navigateFrom = async (route: string) => {
     if (route === "music") {
       await page.locator('a[aria-label="MassageLab home"]:visible').first().click()
+      const homeLandmark = page.getByTestId("home-brand-wordmark")
+      if (homeHoldActive) {
+        await homeHold.waitForRequest()
+        await expectLocatorToRemainAbsent(
+          homeLandmark,
+          "home landmark must remain absent while its navigation response is held",
+        )
+        await homeHold.releaseAndCleanup()
+        homeHoldActive = false
+      }
       await expect(page).toHaveURL(/\/$/)
+      await expect(homeLandmark).toBeVisible()
+      await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
       return
     }
     if (route === "home") {
       await page.getByRole("link", { name: "Open wellness", exact: true }).first().click()
+      const wellnessLandmark = page.locator("#quick-log")
+        .getByRole("heading", { name: "Quick log", exact: true, level: 2 })
+      if (wellnessHoldActive && wellnessHold) {
+        await wellnessHold.waitForRequest()
+        await expectLocatorToRemainAbsent(
+          wellnessLandmark,
+          "wellness landmark must remain absent while its navigation response is held",
+        )
+        await wellnessHold.releaseAndCleanup()
+        wellnessHoldActive = false
+      }
       await expect(page).toHaveURL(/\/wellness$/)
+      await expect(wellnessLandmark).toBeVisible()
+      await expect(page.locator('[data-route-progress="pending"]')).toHaveCount(0)
       return
     }
     await page.getByRole("link", { name: "Open clock" }).click()
@@ -1732,6 +1908,13 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
     body: JSON.stringify(geometryReceipt, null, 2),
     contentType: "application/json",
   })
+  } finally {
+    try {
+      if (homeHoldActive) await homeHold.releaseAndCleanup({ teardown: true })
+    } finally {
+      if (wellnessHoldActive && wellnessHold) await wellnessHold.releaseAndCleanup({ teardown: true })
+    }
+  }
 })
 
 test("full constrained landscape four-view matrix plus S24 class keeps controls 16px below and category pill glow clear", async ({ page }, testInfo) => {
@@ -2697,7 +2880,10 @@ test("player rail keeps overlays clear in the popover fixture", async ({ page },
   // observable without adding test-only production components.
   await page.setViewportSize({ width: 844, height: 390 })
   const response = await page.goto("/dev/buttons", { waitUntil: "domcontentloaded" })
-  test.skip(response?.status() === 404, "The real Popover fixture is intentionally development-only.")
+  test.skip(
+    await isDevelopmentReviewUnavailable(page, response?.status()),
+    "The real Popover fixture is intentionally development-only.",
+  )
   await expect(page.getByRole("heading", { name: "Control system review" })).toBeVisible()
   await page.locator("body").evaluate((body) => {
     body.style.setProperty("--ml-player-right-safe", "320px")
@@ -4530,6 +4716,7 @@ test("Atmosphere expanded player actions expose session and saved interruption p
   await installInterruptionNoticeMediaFakes(page)
   await page.setViewportSize({ width: 390, height: 844 })
   const player = await startInterruptionNoticeSession(page)
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
   const controls = player.getByTestId("music-player-toolbar-controls")
   const notice = page.getByRole("region", { name: "Interruption preference" })
 
@@ -4587,11 +4774,42 @@ test("Atmosphere expanded player actions expose session and saved interruption p
   await close.focus()
   await page.keyboard.press("Enter")
   await expect(notice).toBeHidden()
-  await player.getByRole("button", { name: "Previous station" }).click()
-  await expect(notice).toBeHidden()
-  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
-  await player.getByRole("button", { name: "Next station" }).click()
-  await expect(notice).toBeHidden()
+
+  let releaseZedSampleIndex: () => void = () => undefined
+  let matchedZedSampleIndexUrl: string | null = null
+  const zedSampleIndexGate = new Promise<void>((resolve) => {
+    releaseZedSampleIndex = resolve
+  })
+  const zedSampleIndexPattern = "**/atmosphere/generative-fm/zed/sample-index*.json"
+  const zedSampleIndexHandler = async (route: Route) => {
+    matchedZedSampleIndexUrl = route.request().url()
+    await zedSampleIndexGate
+    await abortHeldFixtureRequest(route)
+  }
+  await page.route(zedSampleIndexPattern, zedSampleIndexHandler)
+  try {
+    await player.getByRole("button", { name: "Previous station" }).click()
+    await expect.poll(() => matchedZedSampleIndexUrl).toMatch(
+      /\/atmosphere\/generative-fm\/zed\/sample-index(?:\.[^/?]+)?\.json(?:\?.*)?$/,
+    )
+    await expect(player.getByTestId("music-player-toolbar-identity").locator("p").first())
+      .toHaveText("Zed")
+    await expect(player).toHaveAttribute("data-playback-state", "loading")
+    await expect(notice).toBeHidden()
+
+    releaseZedSampleIndex()
+    await expect(player).toHaveAttribute("data-playback-state", "failed")
+    const nextStation = player.getByRole("button", { name: "Next station" })
+    await expect(nextStation).toBeEnabled()
+    await nextStation.click()
+    await expect(player.getByTestId("music-player-toolbar-identity").locator("p").first())
+      .toHaveText("MassageLab Proof Drone")
+    await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 30_000 })
+    await expect(notice).toBeHidden()
+  } finally {
+    releaseZedSampleIndex()
+    await page.unroute(zedSampleIndexPattern, zedSampleIndexHandler)
+  }
 })
 
 test("vinyl player controls expose grouped semantic actions and a minimal collapsed set", async ({ page }) => {
@@ -5285,6 +5503,7 @@ test("mobile top player consumes its safe inset exactly once while expanded and 
 
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toBeVisible()
+  await expect(player).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
   await placeRenderedToolbarAtTop(player, safeTop)
   await expect(player).toHaveAttribute("data-placement", "top")
 
@@ -5314,59 +5533,70 @@ test("mobile top player consumes its safe inset exactly once while expanded and 
 test("mobile loading toolbar fits expanded and collapsed increased-text content", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Mobile loading geometry is covered in mobile Chromium.")
   const safeBottom = 24
-  let releaseSampleIndex!: () => void
+  let releaseSampleIndex: () => void = () => undefined
+  let matchedSampleIndexUrl: string | null = null
   const sampleIndexGate = new Promise<void>((resolve) => {
     releaseSampleIndex = resolve
   })
-  await page.route("**/observable-streams-vsco-adaptation/sample-index.json", async (route) => {
+  const sampleIndexPattern = "**/observable-streams-vsco-adaptation/sample-index*.json"
+  const sampleIndexHandler = async (route: Route) => {
+    matchedSampleIndexUrl = route.request().url()
     await sampleIndexGate
-    await route.abort("aborted")
-  })
-  await page.setViewportSize({ width: 390, height: 844 })
-  await gotoShell(page, "/music")
-  await page.locator("body").evaluate(
-    (body, value) => body.style.setProperty("--ml-safe-bottom", `${value}px`),
-    safeBottom,
-  )
-  await page.addStyleTag({ content: `
-    [data-testid="music-player-toolbar-identity"] > p {
-      font-size: 24px !important;
-      line-height: 30px !important;
-    }
-  ` })
+    await abortHeldFixtureRequest(route)
+  }
+  await page.route(sampleIndexPattern, sampleIndexHandler)
+  try {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await gotoShell(page, "/music")
+    await page.locator("body").evaluate(
+      (body, value) => body.style.setProperty("--ml-safe-bottom", `${value}px`),
+      safeBottom,
+    )
+    await page.addStyleTag({ content: `
+      [data-testid="music-player-toolbar-identity"] > p {
+        font-size: 24px !important;
+        line-height: 30px !important;
+      }
+    ` })
 
-  await centerCarouselItem(page, "observable-streams-probe", "Next station")
-  await page.getByRole("button", { name: /^Play Observable Streams$/i }).click()
-  const player = page.getByTestId("music-player-toolbar")
-  await expect(player).toHaveAttribute("data-playback-state", "loading")
-  await expectCompactLoadingIdentity(player)
+    await centerCarouselItem(page, "observable-streams-probe", "Next station")
+    await page.getByRole("button", { name: /^Play Observable Streams$/i }).click()
+    await expect.poll(() => matchedSampleIndexUrl).toMatch(
+      /\/observable-streams-vsco-adaptation\/sample-index(?:\.[^/?]+)?\.json(?:\?.*)?$/,
+    )
+    const player = page.getByTestId("music-player-toolbar")
+    await expect(player).toHaveAttribute("data-playback-state", "loading")
+    await expectCompactLoadingIdentity(player)
 
-  let spacing = await resolvedShellSpacing(page)
-  expect(spacing.audioToolbar).toBeCloseTo(160, 0)
-  await expectSafeAreaToolbarGeometry(
-    player,
-    160,
-    160,
-    spacing.bottomStack,
-    ["Previous station", "Play", "Cancel loading", "Next station", "Background", "Player settings", "Minimize"],
-  )
+    let spacing = await resolvedShellSpacing(page)
+    expect(spacing.audioToolbar).toBeCloseTo(160, 0)
+    await expectSafeAreaToolbarGeometry(
+      player,
+      160,
+      160,
+      spacing.bottomStack,
+      ["Previous station", "Play", "Cancel loading", "Next station", "Background", "Player settings", "Minimize"],
+    )
 
-  await player.getByRole("button", { name: "Minimize", exact: true }).click()
-  await expect(player).toHaveAttribute("data-collapsed", "true")
-  await expect(player).toHaveAttribute("data-playback-state", "loading")
-  await expectCompactLoadingIdentity(player)
-  spacing = await resolvedShellSpacing(page)
-  expect(spacing.audioToolbar).toBeCloseTo(72, 0)
-  await expectSafeAreaToolbarGeometry(
-    player,
-    72,
-    72,
-    spacing.bottomStack,
-    ["Play", "Cancel loading", "Expand"],
-  )
+    await player.getByRole("button", { name: "Minimize", exact: true }).click()
+    await expect(player).toHaveAttribute("data-collapsed", "true")
+    await expect(player).toHaveAttribute("data-playback-state", "loading")
+    await expectCompactLoadingIdentity(player)
+    spacing = await resolvedShellSpacing(page)
+    expect(spacing.audioToolbar).toBeCloseTo(72, 0)
+    await expectSafeAreaToolbarGeometry(
+      player,
+      72,
+      72,
+      spacing.bottomStack,
+      ["Play", "Cancel loading", "Expand"],
+    )
 
-  await player.getByRole("button", { name: "Cancel loading", exact: true }).click()
-  releaseSampleIndex()
+    await player.getByRole("button", { name: "Cancel loading", exact: true }).click()
+  } finally {
+    releaseSampleIndex()
+    await page.unroute(sampleIndexPattern, sampleIndexHandler)
+  }
 })
 
 test("running alerting and preview capture clear computed shell offsets while bars are hidden", async ({ page }) => {

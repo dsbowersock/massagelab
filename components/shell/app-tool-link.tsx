@@ -14,6 +14,7 @@ import { usePathname } from "next/navigation"
 import type { LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { MetalAttentionRing } from "@/components/ui/metal-attention-button"
+import { LinkPendingIndicator } from "@/components/shell/link-pending-indicator"
 import { isNavigationRouteActive } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 
@@ -99,6 +100,22 @@ function ActiveToolMetalRing({ children }: { children: ReactNode }) {
   )
 }
 
+function AppToolLinkContent({
+  icon: Icon,
+  label,
+  showLabel,
+}: Pick<AppToolLinkProps, "icon" | "label" | "showLabel">) {
+  return (
+    <>
+      <span className="relative flex size-4 shrink-0 items-center justify-center">
+        <Icon aria-hidden="true" className="size-4 group-data-[navigation-pending=true]:opacity-0" />
+        <LinkPendingIndicator />
+      </span>
+      {showLabel ? <span>{label}</span> : null}
+    </>
+  )
+}
+
 /**
  * Renders a global tool shortcut and forwards composed trigger behavior to its anchor.
  */
@@ -113,18 +130,21 @@ export const AppToolLink = forwardRef<HTMLAnchorElement, AppToolLinkProps>(funct
   const pathname = usePathname() ?? "/"
   const active = isNavigationRouteActive(pathname, href)
 
+  const linkProps = {
+    ...triggerProps,
+    ref,
+    href,
+    "aria-label": label,
+    "aria-current": active ? "page" as const : undefined,
+    "data-active": active,
+    className: "group",
+  }
+  const contentProps = { icon: Icon, label, showLabel }
+
   const toolLink = (
     <Button asChild variant="ctaBlue" size="icon" className={cn("ml-app-tool-link", className)}>
-      <Link
-        {...triggerProps}
-        ref={ref}
-        href={href}
-        aria-label={label}
-        aria-current={active ? "page" : undefined}
-        data-active={active}
-      >
-        <Icon aria-hidden="true" />
-        {showLabel ? <span>{label}</span> : null}
+      <Link {...linkProps}>
+        <AppToolLinkContent {...contentProps} />
       </Link>
     </Button>
   )

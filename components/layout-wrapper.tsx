@@ -9,6 +9,7 @@ import { CalendarOperatorTopBar } from "@/components/calendar/calendar-operator-
 import { CalendarOperatorToolbarProvider } from "@/components/calendar/calendar-operator-toolbar-context"
 import { MovingBackground } from "@/components/moving-background"
 import { MusicMiniPlayer } from "@/components/providers/music-mini-player"
+import { useAccountShellBootstrap } from "@/components/providers/account-shell-bootstrap-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { MobileMainBar } from "@/components/shell/mobile-main-bar"
 import type { SidebarNavigation, SidebarUser } from "@/components/sidebar/app-sidebar-client"
@@ -26,6 +27,7 @@ export function LayoutWrapper({
 }) {
   const pathname = usePathname() ?? ""
   const { settings } = useSettings()
+  const { ownerKey } = useAccountShellBootstrap()
   const isCalendarOperatorRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
   const isCalendarWorkspaceRoute = pathname === "/calendar"
   const isPublicBookingRoute = pathname.startsWith("/book/")
@@ -93,7 +95,7 @@ export function LayoutWrapper({
   ) : shell
 
   return (
-    <BackgroundCommerceProvider enabled={Boolean(user)}>
+    <BackgroundCommerceProvider ownerKey={ownerKey}>
       {content}
       <BackgroundCommerceCart variant="dialog" />
       <BackgroundCheckoutReturnStatus />

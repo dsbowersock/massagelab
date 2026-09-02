@@ -38,7 +38,11 @@ type GoogleAuthDependencies = {
  */
 export async function startGoogleAuthMethodIntent(
   googleRedirectTo: string,
-  { fetchImpl = fetch, signInImpl = signIn, currentHref = () => window.location.href }: GoogleAuthDependencies = {},
+  {
+    fetchImpl = fetch,
+    signInImpl = signIn,
+    currentHref = () => window.location.href,
+  }: GoogleAuthDependencies = {},
 ): Promise<"navigating"> {
   const response = await fetchImpl("/api/auth/google/intent", {
     method: "POST",

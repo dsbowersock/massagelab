@@ -1,9 +1,13 @@
 import { expect, test } from "@playwright/test"
+import { isDevelopmentReviewUnavailable } from "./development-review-test-helpers"
 
 test.describe("control-system review lab", () => {
   test.beforeEach(async ({ page }) => {
     const response = await page.goto("/dev/buttons")
-    test.skip(response?.status() === 404, "The control-system review lab is development-only.")
+    test.skip(
+      await isDevelopmentReviewUnavailable(page, response?.status()),
+      "The control-system review lab is development-only.",
+    )
     await expect(page.getByRole("heading", { name: "Control system review", level: 1 })).toBeVisible()
     await page.waitForLoadState("networkidle")
     await expect(page.locator('[data-review-lab-ready="true"]')).toBeAttached()

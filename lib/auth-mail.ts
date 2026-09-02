@@ -149,3 +149,25 @@ export async function sendPasswordResetEmail(email: string, token: string) {
 
   return process.env.NODE_ENV === "production" ? result : { ...result, devLink: link }
 }
+
+/** Builds one of two fixed setup messages from authoritative linked-method state. */
+export function passwordSetupEmailCopy(link: string, googleLinked: boolean) {
+  const subject = "Add password sign-in to your MassageLab account"
+  const sharedEnding = "This link expires in 60 minutes. If you did not request this, ignore this email and nothing will change."
+  const text = googleLinked
+    ? `A password registration request was received for the same MassageLab account you already use with Google.\n\nComplete this secure link to add email and password sign-in to that same account:\n\n${link}\n\nThis does not create a duplicate account and does not disconnect Google sign-in. ${sharedEnding}`
+    : `A password registration request was received for an existing MassageLab account.\n\nComplete this secure link to add email and password sign-in to that same account:\n\n${link}\n\nThis does not create a duplicate account. Existing sign-in methods remain connected. ${sharedEnding}`
+  return { subject, text }
+}
+
+/**
+ * Sends fixed same-account setup copy selected only from authoritative linked
+ * Google state. The reset-token route remains the credential mutation owner.
+ */
+export async function sendPasswordSetupEmail(email: string, token: string, googleLinked: boolean) {
+  const link = `${getSiteUrl()}/reset-password?token=${encodeURIComponent(token)}`
+  const copy = passwordSetupEmailCopy(link, googleLinked)
+  const result = await sendMail(email, copy.subject, copy.text)
+
+  return process.env.NODE_ENV === "production" ? result : { ...result, devLink: link }
+}

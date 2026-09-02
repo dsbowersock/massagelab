@@ -18,6 +18,7 @@ import { ensureGoogleUserState, ensureUserRole, getUserAuthState } from "@/lib/a
 import { decideAuthSessionVersion } from "@/lib/auth-session-version"
 import type { AccountCapabilities, AccountRole, VerificationStatus } from "@/lib/domain-types"
 import { normalizeEmail } from "@/lib/auth-security"
+import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
 
 if (!process.env.NEXTAUTH_URL) {
   process.env.NEXTAUTH_URL = getSiteUrl()
@@ -133,7 +134,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         })
         if (result.kind === "CONTINUE") return true
         if (result.kind === "LINK_REQUIRED") return "/account/link-google"
-        if (result.kind === "REAUTH_COMPLETE") return "/account?tab=security&reauth=complete"
+        // Keep a paused new-account attempt on registration so the user sees
+        // launch-control guidance instead of a generic OAuth failure surface.
+        if (result.kind === "REGISTRATION_PAUSED") {
+          const callbackPath = buildRegistrationLegalProviderRedirectPath(result.callbackPath)
+          return `/register?callbackUrl=${encodeURIComponent(callbackPath)}`
+        }
+        if (result.kind === "REAUTH_COMPLETE") {
+          if (result.purpose === "ENROLL_TWO_FACTOR") {
+            return "/account?tab=security&reauth=two-factor-enroll"
+          }
+          if (result.purpose === "DISABLE_TWO_FACTOR") {
+            return "/account?tab=security&reauth=two-factor-disable"
+          }
+          if (result.purpose === "REGENERATE_TWO_FACTOR_BACKUP_CODES") {
+            return "/account?tab=security&reauth=two-factor-backup-codes"
+          }
+          return "/account?tab=security&reauth=complete"
+        }
         return result.recoveryPath
       }
 
@@ -172,6 +190,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.roles = state.roles
           token.roleAssignments = state.roleAssignments
           token.capabilities = state.capabilities
+          token.featureKeys = state.featureKeys
           token.emailVerified = state.emailVerified
           token.twoFactorEnabled = state.twoFactorEnabled
         } catch (error) {
@@ -181,6 +200,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.roles = ["USER"]
           token.roleAssignments = [{ role: "USER", status: "VERIFIED" }]
           token.capabilities = defaultAccountCapabilities("USER")
+          token.featureKeys = []
           token.emailVerified = false
           token.twoFactorEnabled = false
         }
@@ -199,6 +219,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           roles: AccountRole[]
           roleAssignments: Array<{ role: AccountRole; status: VerificationStatus }>
           capabilities: AccountCapabilities
+          featureKeys: string[]
           emailVerified: boolean
           twoFactorEnabled: boolean
         }
@@ -210,6 +231,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           ? (token.roleAssignments as Array<{ role: AccountRole; status: VerificationStatus }>)
           : sessionUser.roles.map((role) => ({ role, status: "VERIFIED" as VerificationStatus }))
         sessionUser.capabilities = (token.capabilities ?? defaultAccountCapabilities(sessionUser.role)) as AccountCapabilities
+        sessionUser.featureKeys = Array.isArray(token.featureKeys)
+          ? token.featureKeys.filter((value): value is string => typeof value === "string")
+          : []
         sessionUser.emailVerified = Boolean(token.emailVerified)
         sessionUser.twoFactorEnabled = Boolean(token.twoFactorEnabled)
       }

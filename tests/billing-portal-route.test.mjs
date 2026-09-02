@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 
 import { BILLING_PORTAL_DESTINATIONS } from "../lib/billing-portal-destinations.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { MEMBERSHIP_PRICING_IMPORT_PATTERN } from "./helpers/membership-pricing-import-guard.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const portalRouteSource = await readFile(
@@ -107,6 +108,10 @@ function portalPost({
 }
 
 describe("Customer Portal POST route", () => {
+  it("keeps the cached display catalog outside Portal customer and subscription authority", () => {
+    assert.doesNotMatch(portalRouteSource, MEMBERSHIP_PRICING_IMPORT_PATTERN)
+  })
+
   it("opens the general billing-account Portal without querying a subscription", async () => {
     const { calls, POST } = portalPost()
 

@@ -15,6 +15,16 @@ function jsonObject(value: Record<string, unknown>) {
   return value as Prisma.InputJsonObject
 }
 
+/** Locks the stable preference owner before merging onboarding app settings. */
+async function lockOnboardingPreferenceOwner(tx: Prisma.TransactionClient, userId: string) {
+  await tx.$queryRaw`
+    SELECT id
+    FROM "User"
+    WHERE id = ${userId}
+    FOR UPDATE
+  `
+}
+
 export async function saveOnboardingAction(formData: FormData) {
   const session = await getCurrentSession()
 
@@ -23,25 +33,28 @@ export async function saveOnboardingAction(formData: FormData) {
   }
 
   const onboarding = buildOnboardingPreference(formData)
-  const existing = await prisma.userPreference.findUnique({
-    where: { userId: session.user.id },
-  })
-  const appSettings = {
-    ...objectRecord(existing?.appSettings),
-    onboarding,
-  }
+  await prisma.$transaction(async (tx) => {
+    await lockOnboardingPreferenceOwner(tx, session.user.id)
+    const existing = await tx.userPreference.findUnique({
+      where: { userId: session.user.id },
+    })
+    const appSettings = {
+      ...objectRecord(existing?.appSettings),
+      onboarding,
+    }
 
-  await prisma.userPreference.upsert({
-    where: { userId: session.user.id },
-    create: {
-      userId: session.user.id,
-      version: USER_PREFERENCES_VERSION,
-      appSettings: jsonObject(appSettings),
-    },
-    update: {
-      version: USER_PREFERENCES_VERSION,
-      appSettings: jsonObject(appSettings),
-    },
+    await tx.userPreference.upsert({
+      where: { userId: session.user.id },
+      create: {
+        userId: session.user.id,
+        version: USER_PREFERENCES_VERSION,
+        appSettings: jsonObject(appSettings),
+      },
+      update: {
+        version: USER_PREFERENCES_VERSION,
+        appSettings: jsonObject(appSettings),
+      },
+    })
   })
   clearAccountSurfaceDataCache(session.user.id, "sync")
   clearAccountSurfaceDataCache(session.user.id, "overview")

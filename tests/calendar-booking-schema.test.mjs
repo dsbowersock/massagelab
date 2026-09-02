@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { readFileSync, existsSync } from "node:fs"
 import { describe, it } from "node:test"
+import { safePostLegalAcceptanceCallback } from "../lib/legal-acceptance-gate.js"
 
 const schema = readFileSync(new URL("../prisma/schema.prisma", import.meta.url), "utf8")
 const actions = readFileSync(new URL("../app/calendar/actions.ts", import.meta.url), "utf8")
@@ -91,8 +92,55 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(publicBookingPage, /AccountRequiredCard bookingPath/)
     assert.match(publicBookingPage, /primaryServices\.length > 0 && providerPreferences\.length === 0 && publiclyBookableProviders\.length > 0 && !viewerUserId/)
     assert.match(publicBookingPage, /\/register\?callbackUrl=/)
-    assert.match(loginForm, /safeCallbackUrl/)
-    assert.match(loginForm, /value\.includes\("\\\\"\)/)
+    assert.match(loginForm, /const requestedCallbackUrl = searchParams\.get\("callbackUrl"\)/)
+    assert.match(loginForm, /isRegistrationLegalAcceptancePath\(requestedCallbackUrl\)/)
+    assert.match(loginForm, /buildRegistrationLegalProviderRedirectPath\(requestedCallbackUrl\)/)
+    assert.match(loginForm, /safePostLegalAcceptanceCallback\(requestedCallbackUrl, "\/account"\)/)
+    for (const callback of ["/calendar/booking", "/book/ohio/example-practice?step=time"]) {
+      assert.equal(safePostLegalAcceptanceCallback(callback, "/account"), callback)
+    }
+    for (const unsafeCallback of [
+      "",
+      undefined,
+      null,
+      "https://evil.example/calendar",
+      " https://evil.example/calendar",
+      "\u0001/calendar/booking",
+      "HTTP://evil.example/calendar",
+      "javascript:alert(1)",
+      "JaVaScRiPt:alert(1)",
+      "//evil.example/calendar",
+      "///evil.example/calendar",
+      "/\\evil.example/calendar",
+      "\\/evil.example/calendar",
+      "/calendar\\booking",
+      "/calendar%5Cbooking",
+      "/calendar%5cbooking",
+      "/%5Cevil.example/calendar",
+      "/%5cevil.example/calendar",
+      "/calendar%00booking",
+      "/calendar%1Fbooking",
+      "/calendar%1fbooking",
+      "/calendar%7Fbooking",
+      "/calendar%7fbooking",
+      "/%00calendar/booking",
+      "/%1Fcalendar/booking",
+      "/%1fcalendar/booking",
+      "/%7Fcalendar/booking",
+      "/%7fcalendar/booking",
+      "/calendar%255cbooking",
+      "/calendar%2500booking",
+      "/calendar%251fbooking",
+      "/calendar%257fbooking",
+      "/api/calendar/sidebar-context",
+      "/legal/accept?callbackUrl=%2Fcalendar",
+    ]) {
+      assert.equal(
+        safePostLegalAcceptanceCallback(unsafeCallback, "/account"),
+        "/account",
+        `unsafe callback ${JSON.stringify(unsafeCallback)} must fall back to /account`,
+      )
+    }
     assert.match(loginForm, /router\.push\(callbackUrl\)/)
     assert.match(loginForm, /buildRegistrationLegalProviderRedirectPath/)
     assert.match(loginForm, /const googleCallbackUrl = hasCallbackUrl \? callbackUrl : "\/onboarding"/)
