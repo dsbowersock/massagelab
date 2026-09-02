@@ -47,7 +47,7 @@ function persistedDateIso(value: unknown) {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null
 }
 
-/** Selects the latest database revision independently from the account page's display ordering. */
+/** Selects the latest valid database revision, placing missing or invalid timestamps after valid ones. */
 function newestPersistedSubscription(subscriptions: PersistedSubscription[]) {
   return [...subscriptions].sort((left, right) => {
     const leftTime = persistedDateIso(left.updatedAt)
