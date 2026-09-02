@@ -90,6 +90,7 @@ describe("email verification request route", () => {
       },
     })
 
+    // Exercise the trusted Vercel edge while restoring process-global state so later tests stay isolated.
     const previousVercel = process.env.VERCEL
     process.env.VERCEL = "1"
     try {
