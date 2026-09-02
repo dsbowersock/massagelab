@@ -100,6 +100,48 @@ describe("persisted membership convergence status", () => {
     }
   })
 
+  it("prefers valid persisted revisions to invalid dates in either input order", () => {
+    const invalidRevision = subscription({
+      status: "canceled",
+      updatedAt: "not-a-date",
+      currentPeriodEnd: null,
+    })
+    const validRevision = subscription({
+      status: "past_due",
+      updatedAt: "2026-08-29T13:00:00.000Z",
+      currentPeriodEnd: null,
+    })
+
+    const projections = [
+      [invalidRevision, validRevision],
+      [validRevision, invalidRevision],
+    ].map((subscriptions) => {
+      const status = buildMembershipConvergenceStatus(summary({
+        paidLevel: null,
+        features: [],
+        subscriptions,
+      }))
+      return {
+        state: status.state,
+        subscriptionStatus: status.subscriptionStatus,
+        revision: status.revision,
+      }
+    })
+
+    assert.deepEqual(projections, [
+      {
+        state: "billing-attention",
+        subscriptionStatus: "past_due",
+        revision: "2026-08-29T13:00:00.000Z",
+      },
+      {
+        state: "billing-attention",
+        subscriptionStatus: "past_due",
+        revision: "2026-08-29T13:00:00.000Z",
+      },
+    ])
+  })
+
   it("reports no active membership and Portal availability independently", () => {
     assert.deepEqual(buildMembershipConvergenceStatus(summary({
       paidLevel: null,

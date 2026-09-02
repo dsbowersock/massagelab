@@ -52,7 +52,9 @@ function newestPersistedSubscription(subscriptions: PersistedSubscription[]) {
   return [...subscriptions].sort((left, right) => {
     const leftTime = persistedDateIso(left.updatedAt)
     const rightTime = persistedDateIso(right.updatedAt)
-    return Date.parse(rightTime ?? "") - Date.parse(leftTime ?? "")
+    if (leftTime === null) return rightTime === null ? 0 : 1
+    if (rightTime === null) return -1
+    return Date.parse(rightTime) - Date.parse(leftTime)
   })[0] ?? null
 }
 

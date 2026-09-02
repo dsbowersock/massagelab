@@ -12,6 +12,7 @@ import {
   renderFunctionComponents,
 } from "./helpers/compiled-module.mjs"
 
+const CHECKOUT_SESSION_IDENTIFIER_PATTERN = /(?:checkout[-_]?session|session)[-_]?id/i
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const formattedAccountDates = []
 const membershipReturnSource = await readFile(
@@ -414,7 +415,8 @@ describe("membership return component safety", () => {
     assert.match(source, /\/api\/billing\/membership-status/)
     assert.match(source, /\/chimer\?panel=background/)
     assert.match(source, /\/api\/billing\/portal/)
-    assert.doesNotMatch(source, /\/api\/billing\/checkout|CHECKOUT_SESSION_ID|session_id|stripe/i)
+    assert.doesNotMatch(source, /\/api\/billing\/checkout|stripe/i)
+    assert.doesNotMatch(source, CHECKOUT_SESSION_IDENTIFIER_PATTERN)
   })
 
   it("reuses the exact disposable-target guard and migration-gated fixture boundary", async () => {

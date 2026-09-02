@@ -328,7 +328,7 @@ function createPrismaFixture({
   }
 }
 
-async function process(fixture, event, options = {}) {
+async function processMembershipEvent(fixture, event, options = {}) {
   return processStripeMembershipEvent({
     prismaClient: fixture.prismaClient,
     event,
@@ -351,7 +351,7 @@ describe("membership webhook service", () => {
       receipts: [receipt({ status: "APPLIED", processedAt: new Date(BASE_TIME) })],
     })
 
-    const result = await process(fixture, subscriptionEvent({ eventId: "evt_123", created: 1787918400 }))
+    const result = await processMembershipEvent(fixture, subscriptionEvent({ eventId: "evt_123", created: 1787918400 }))
 
     assert.deepEqual(result, { outcome: "duplicate", changed: false, userId: "user_123" })
     assert.equal(fixture.subscriptionMutations, 0)
@@ -364,7 +364,7 @@ describe("membership webhook service", () => {
       receipts: [receipt({ failureCode: "provider_unavailable", attemptCount: 1 })],
     })
 
-    const result = await process(fixture, subscriptionEvent({ eventId: "evt_123", created: 1787918400 }))
+    const result = await processMembershipEvent(fixture, subscriptionEvent({ eventId: "evt_123", created: 1787918400 }))
 
     assert.deepEqual(result, { outcome: "applied", changed: false, userId: "user_123" })
     assert.equal(fixture.receipts[0].status, "APPLIED")
@@ -375,11 +375,11 @@ describe("membership webhook service", () => {
 
   it("applies older-then-newer delivery and ignores newer-then-older delivery", async () => {
     const olderThenNewer = createPrismaFixture()
-    assert.deepEqual(await process(olderThenNewer, subscriptionEvent({ eventId: "evt_active", created: 100, status: "active" })), { outcome: "applied", changed: true, userId: "user_123" })
-    assert.deepEqual(await process(olderThenNewer, subscriptionEvent({ eventId: "evt_canceled", created: 200, status: "canceled", type: "customer.subscription.deleted" })), { outcome: "applied", changed: true, userId: "user_123" })
+    assert.deepEqual(await processMembershipEvent(olderThenNewer, subscriptionEvent({ eventId: "evt_active", created: 100, status: "active" })), { outcome: "applied", changed: true, userId: "user_123" })
+    assert.deepEqual(await processMembershipEvent(olderThenNewer, subscriptionEvent({ eventId: "evt_canceled", created: 200, status: "canceled", type: "customer.subscription.deleted" })), { outcome: "applied", changed: true, userId: "user_123" })
     assert.equal(olderThenNewer.subscriptions[0].status, "canceled")
 
-    const delayed = await process(olderThenNewer, subscriptionEvent({ eventId: "evt_delayed_active", created: 150, status: "active" }))
+    const delayed = await processMembershipEvent(olderThenNewer, subscriptionEvent({ eventId: "evt_delayed_active", created: 150, status: "active" }))
     assert.deepEqual(delayed, { outcome: "ignored", changed: false, userId: "user_123" })
     assert.equal(olderThenNewer.subscriptions[0].status, "canceled")
   })
@@ -389,7 +389,7 @@ describe("membership webhook service", () => {
       subscriptions: [persistedSubscription({ status: "canceled", lastStripeEventId: "evt_canceled", lastStripeEventCreatedAt: new Date(200_000) })],
     })
 
-    const result = await process(fixture, subscriptionEvent({ eventId: "evt_resumed", created: 300, status: "active", type: "customer.subscription.resumed" }))
+    const result = await processMembershipEvent(fixture, subscriptionEvent({ eventId: "evt_resumed", created: 300, status: "active", type: "customer.subscription.resumed" }))
 
     assert.deepEqual(result, { outcome: "applied", changed: true, userId: "user_123" })
     const entitlements = buildEntitlements({ subscriptions: fixture.subscriptions, now: new Date("2026-08-28T12:01:00.000Z") })
@@ -405,7 +405,7 @@ describe("membership webhook service", () => {
     ]) {
       const fixture = createPrismaFixture({ subscriptions: [scenario.stored] })
       let retrievals = 0
-      const result = await process(fixture, scenario.event, {
+      const result = await processMembershipEvent(fixture, scenario.event, {
         retrieveSubscription: async () => {
           retrievals += 1
           return stripeSubscription({ status: "canceled" })
@@ -421,15 +421,15 @@ describe("membership webhook service", () => {
   })
 
   it("never ignores solely because the local authoritative clock is ahead or behind Stripe", async () => {
-    for (const lastStripeAuthoritativeAt of [
+    for (const [skewIndex, lastStripeAuthoritativeAt] of [
       new Date("2020-01-01T00:00:00.000Z"),
       new Date("2035-01-01T00:00:00.000Z"),
-    ]) {
+    ].entries()) {
       const fixture = createPrismaFixture({
         subscriptions: [persistedSubscription({ lastStripeEventId: null, lastStripeEventCreatedAt: null, lastStripeAuthoritativeAt })],
       })
       let retrievals = 0
-      const result = await process(fixture, subscriptionEvent({ eventId: `evt_skew_${retrievals}`, created: 1787918400 }), {
+      const result = await processMembershipEvent(fixture, subscriptionEvent({ eventId: `evt_skew_${skewIndex}`, created: 1787918400 }), {
         retrieveSubscription: async () => {
           retrievals += 1
           return stripeSubscription()
@@ -445,7 +445,7 @@ describe("membership webhook service", () => {
       subscriptions: [persistedSubscription({ lastStripeEventId: null, lastStripeEventCreatedAt: null })],
     })
     await assert.rejects(
-      process(fixture, subscriptionEvent({ eventId: "evt_provider_down", created: 700 }), {
+      processMembershipEvent(fixture, subscriptionEvent({ eventId: "evt_provider_down", created: 700 }), {
         retrieveSubscription: async () => {
           assert.equal(fixture.activeTransactionCallbacks, 0)
           throw new Error("sensitive provider detail")
@@ -467,7 +467,7 @@ describe("membership webhook service", () => {
     })
     const gate = deferred()
     const started = deferred()
-    const reconciling = process(fixture, subscriptionEvent({ eventId: "evt_equal", created: 800 }), {
+    const reconciling = processMembershipEvent(fixture, subscriptionEvent({ eventId: "evt_equal", created: 800 }), {
       retrieveSubscription: async () => {
         started.resolve()
         await gate.promise
@@ -475,7 +475,7 @@ describe("membership webhook service", () => {
       },
     })
     await started.promise
-    const newer = await process(fixture, subscriptionEvent({ eventId: "evt_newer", created: 900, status: "canceled" }))
+    const newer = await processMembershipEvent(fixture, subscriptionEvent({ eventId: "evt_newer", created: 900, status: "canceled" }))
     assert.equal(newer.outcome, "applied")
     gate.resolve()
     const reconciled = await reconciling
@@ -493,7 +493,7 @@ describe("membership webhook service", () => {
     const firstStarted = deferred()
     let retrievals = 0
     const event = subscriptionEvent({ eventId: "evt_shared", created: 1000 })
-    const first = process(fixture, event, {
+    const first = processMembershipEvent(fixture, event, {
       retrieveSubscription: async () => {
         retrievals += 1
         firstStarted.resolve()
@@ -502,7 +502,7 @@ describe("membership webhook service", () => {
       },
     })
     await firstStarted.promise
-    const second = await process(fixture, event, {
+    const second = await processMembershipEvent(fixture, event, {
       retrieveSubscription: async () => {
         retrievals += 1
         return stripeSubscription({ status: "canceled" })
@@ -521,14 +521,14 @@ describe("membership webhook service", () => {
   it("preserves existing entitlement semantics across Stripe statuses", async () => {
     for (const status of ["past_due", "unpaid", "paused", "canceled"]) {
       const fixture = createPrismaFixture()
-      const result = await process(fixture, subscriptionEvent({ eventId: `evt_${status}`, created: 1100, status }))
+      const result = await processMembershipEvent(fixture, subscriptionEvent({ eventId: `evt_${status}`, created: 1100, status }))
       assert.equal(result.changed, true, status)
       const entitlements = buildEntitlements({ subscriptions: fixture.subscriptions, now: new Date("2026-08-28T12:01:00.000Z") })
       assert.equal(entitlements.hasFeature(FEATURE_KEYS.premiumBackgrounds), false, status)
     }
     for (const status of ["active", "trialing"]) {
       const fixture = createPrismaFixture()
-      await process(fixture, subscriptionEvent({ eventId: `evt_${status}`, created: 1200, status }))
+      await processMembershipEvent(fixture, subscriptionEvent({ eventId: `evt_${status}`, created: 1200, status }))
       const entitlements = buildEntitlements({ subscriptions: fixture.subscriptions, now: new Date("2026-08-28T12:01:00.000Z") })
       assert.equal(entitlements.hasFeature(FEATURE_KEYS.premiumBackgrounds), true, status)
     }
@@ -537,7 +537,7 @@ describe("membership webhook service", () => {
   it("updates a mapped Price without changing feature-key rules", async () => {
     const fixture = createPrismaFixture({ subscriptions: [persistedSubscription()] })
     const previousUpdatedAt = fixture.subscriptions[0].updatedAt
-    const result = await process(fixture, subscriptionEvent({ eventId: "evt_price", created: 1787918500, priceId: "price_supporter_2" }))
+    const result = await processMembershipEvent(fixture, subscriptionEvent({ eventId: "evt_price", created: 1787918500, priceId: "price_supporter_2" }))
 
     assert.deepEqual(result, { outcome: "applied", changed: true, userId: "user_123" })
     assert.equal(fixture.subscriptions[0].stripePriceId, "price_supporter_2")
@@ -549,7 +549,7 @@ describe("membership webhook service", () => {
     const fixture = createPrismaFixture({ subscriptions: [persistedSubscription()] })
     const previous = fixture.subscriptions[0]
 
-    const result = await process(fixture, subscriptionEvent({ eventId: "evt_same_state", created: 1787918460 }))
+    const result = await processMembershipEvent(fixture, subscriptionEvent({ eventId: "evt_same_state", created: 1787918460 }))
 
     assert.deepEqual(result, { outcome: "applied", changed: false, userId: "user_123" })
     assert.deepEqual(fixture.subscriptions[0].updatedAt, previous.updatedAt)
@@ -568,7 +568,7 @@ describe("membership webhook service", () => {
     })
     const previous = fixture.subscriptions[0]
 
-    const result = await process(fixture, subscriptionEvent({ eventId: "evt_legacy_revision", created: 1787918460 }))
+    const result = await processMembershipEvent(fixture, subscriptionEvent({ eventId: "evt_legacy_revision", created: 1787918460 }))
 
     assert.deepEqual(result, { outcome: "applied", changed: false, userId: "user_123" })
     assert.deepEqual(fixture.subscriptions[0].updatedAt, previous.updatedAt)
@@ -588,7 +588,7 @@ describe("membership webhook service", () => {
     }
     event.data.object.address = { line1: "must-not-persist" }
 
-    await process(fixture, event)
+    await processMembershipEvent(fixture, event)
 
     assert.deepEqual(fixture.subscriptions[0].metadata, {
       userId: "user_123",
@@ -650,7 +650,7 @@ describe("membership webhook service", () => {
 
     for (const testCase of cases) {
       await assert.rejects(
-        process(testCase.fixture, testCase.event, { retrieveSubscription: testCase.retrieveSubscription }),
+        processMembershipEvent(testCase.fixture, testCase.event, { retrieveSubscription: testCase.retrieveSubscription }),
         (error) => error instanceof MembershipWebhookRetryableError && error.code === testCase.code,
         testCase.name,
       )
@@ -669,7 +669,7 @@ describe("membership webhook service", () => {
     ]) {
       const fixture = createPrismaFixture()
       await assert.rejects(
-        process(fixture, event),
+        processMembershipEvent(fixture, event),
         (error) => error instanceof MembershipWebhookRetryableError && error.code === "malformed_event",
       )
       assert.equal(fixture.subscriptionMutations, 0)
@@ -681,7 +681,7 @@ describe("membership webhook service", () => {
     const fixture = createPrismaFixture({ conflicts: 3 })
 
     await assert.rejects(
-      process(fixture, subscriptionEvent({ eventId: "evt_conflict", created: 1600 })),
+      processMembershipEvent(fixture, subscriptionEvent({ eventId: "evt_conflict", created: 1600 })),
       (error) => error?.code === "P2034",
     )
     assert.equal(fixture.transactionOptions.length, 3)
@@ -706,7 +706,7 @@ describe("membership webhook service", () => {
       }],
     })
 
-    const result = await process(fixture, event)
+    const result = await processMembershipEvent(fixture, event)
 
     assert.deepEqual(result, { outcome: "duplicate", changed: false, userId: "user_123" })
     assert.equal(fixture.transactionOptions.length, 2)
@@ -723,7 +723,7 @@ describe("membership webhook service", () => {
       }],
     })
 
-    const result = await process(fixture, event)
+    const result = await processMembershipEvent(fixture, event)
 
     assert.deepEqual(result, { outcome: "applied", changed: true, userId: "user_123" })
     assert.equal(fixture.transactionOptions.length, 2)
@@ -760,7 +760,7 @@ describe("membership webhook service", () => {
         receiptCreateRaces: [{ error, winner: {} }],
       })
       await assert.rejects(
-        process(fixture, subscriptionEvent({ eventId: `evt_near_miss_${index}`, created: 2000 + index })),
+        processMembershipEvent(fixture, subscriptionEvent({ eventId: `evt_near_miss_${index}`, created: 2000 + index })),
         (received) => received === error,
       )
       assert.equal(fixture.transactionOptions.length, 1, index)
@@ -772,7 +772,7 @@ describe("membership webhook service", () => {
     const fixture = createPrismaFixture()
     const event = subscriptionEvent({ eventId: "evt_concurrent", created: 1700 })
 
-    const results = await Promise.all([process(fixture, event), process(fixture, event)])
+    const results = await Promise.all([processMembershipEvent(fixture, event), processMembershipEvent(fixture, event)])
 
     assert.deepEqual(results.map(({ outcome, changed }) => ({ outcome, changed })).sort((left, right) => Number(right.changed) - Number(left.changed)), [
       { outcome: "applied", changed: true },

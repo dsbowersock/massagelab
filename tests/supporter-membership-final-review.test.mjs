@@ -27,6 +27,7 @@ import {
 } from "./helpers/compiled-module.mjs"
 import { renderMembershipPricingCards } from "./helpers/membership-pricing-cards.mjs"
 
+const CHECKOUT_SESSION_IDENTIFIER_PATTERN = /(?:checkout[-_]?session|session)[-_]?id/i
 const LEGACY_RUNTIME_PRICE_KEYS = Object.freeze([
   "STRIPE_SUPPORTER_MONTHLY_PRICE_ID",
   "STRIPE_SUPPORTER_YEARLY_PRICE_ID",
@@ -316,7 +317,17 @@ describe("Supporter membership final-review contracts", () => {
     assert.match(checkoutSource, /account\?tab=membership&checkout=success/)
     assert.match(checkoutSource, /account\?tab=membership&checkout=cancelled/)
     assert.match(portalSource, /account\?tab=membership&portal=returned/)
-    assert.doesNotMatch(`${checkoutSource}\n${accountSource}`, /CHECKOUT_SESSION_ID|session_id/)
+    for (const identifier of [
+      "CHECKOUT_SESSION_ID",
+      "checkout_session_id",
+      "checkoutSessionId",
+      "Checkout-Session-Id",
+      "session_id",
+      "sessionId",
+    ]) {
+      assert.match(identifier, CHECKOUT_SESSION_IDENTIFIER_PATTERN)
+    }
+    assert.doesNotMatch(`${checkoutSource}\n${accountSource}`, CHECKOUT_SESSION_IDENTIFIER_PATTERN)
     assert.match(checkoutSource, /resolveStripePriceId/)
     assert.match(checkoutSource, /createStripeCheckoutSession/)
     assert.match(portalSource, /createStripeCustomerPortalSession/)

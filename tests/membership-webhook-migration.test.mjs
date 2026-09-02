@@ -10,7 +10,7 @@ const [schema, migration] = await Promise.all([
       import.meta.url,
     ),
     "utf8",
-  ).catch(() => ""),
+  ),
 ])
 
 /** Normalizes insignificant SQL whitespace while preserving contract tokens. */

@@ -1,10 +1,11 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
 import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
 import { isHeldRouteTeardownCancellation } from "./held-route-teardown"
 import { installNativeSubmitSnapshotRecorder } from "./native-submission-snapshot"
 
 const PRIVATE_QA_SKIP_REASON = "Membership return database-backed browser QA requires an explicitly approved disposable target/fingerprint and applied 20260828130000_membership_subscription_convergence migration."
 const hasPrivateQaAuthorization = isBrowserQaDatabaseTargetAuthorized(process.env)
+const MEMBERSHIP_STATUS_PATH = "/api/billing/membership-status"
 
 /** Flags provider or provider-starting billing calls while allowing database-only status reads. */
 function recordsProviderRequest(urlValue: string) {
@@ -12,6 +13,19 @@ function recordsProviderRequest(urlValue: string) {
   return url.hostname.endsWith("stripe.com")
     || url.pathname === "/api/billing/checkout"
     || url.pathname === "/api/billing/portal"
+}
+
+/** Counts status reads synchronously and exposes the first response to the owning test. */
+function watchMembershipStatusResponses(page: Page) {
+  let count = 0
+  const firstResponse = page.waitForResponse((response) => response.url().includes(MEMBERSHIP_STATUS_PATH))
+  page.on("response", (response) => {
+    if (response.url().includes(MEMBERSHIP_STATUS_PATH)) count += 1
+  })
+  return {
+    firstResponse,
+    readCount: () => count,
+  }
 }
 
 test.describe("public membership return boundary", () => {
@@ -69,19 +83,9 @@ test.describe("private persisted membership returns", () => {
       status: "incomplete_expired",
     })
     const providerRequests: string[] = []
-    let statusReads = 0
+    const statusResponses = watchMembershipStatusResponses(page)
     page.on("request", (request) => {
       if (recordsProviderRequest(request.url())) providerRequests.push(request.url())
-    })
-    page.on("response", async (response) => {
-      if (!response.url().includes("/api/billing/membership-status")) return
-      statusReads += 1
-      if (statusReads === 1) {
-        await fixture.updateMembershipReturnStatusFixture({
-          projectName: testInfo.project.name,
-          status: "active",
-        })
-      }
     })
 
     await page.emulateMedia({ reducedMotion: "reduce" })
@@ -89,10 +93,15 @@ test.describe("private persisted membership returns", () => {
     await page.goto("/account?tab=membership&checkout=success&session_id=ignored", {
       waitUntil: "domcontentloaded",
     })
+    await statusResponses.firstResponse
     const returnStatus = page.locator("[data-membership-return-status]")
     await expect(returnStatus).toHaveAttribute("aria-busy", "true")
     await expect(returnStatus).toContainText(/finalizing your membership/i)
     await expect(returnStatus).not.toContainText(/needs billing attention/i)
+    await fixture.updateMembershipReturnStatusFixture({
+      projectName: testInfo.project.name,
+      status: "active",
+    })
     await expect(returnStatus).toContainText(/membership access is active/i)
     await expect(returnStatus).toHaveAttribute("aria-busy", "false")
 
@@ -102,7 +111,7 @@ test.describe("private persisted membership returns", () => {
     await page.setViewportSize({ width: 844, height: 390 })
     await page.addStyleTag({ content: "html { font-size: 200% !important; }" })
     expect(await page.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-    expect(statusReads).toBeGreaterThanOrEqual(2)
+    expect(statusResponses.readCount()).toBeGreaterThanOrEqual(2)
     expect(providerRequests).toEqual([])
   })
 
@@ -116,28 +125,23 @@ test.describe("private persisted membership returns", () => {
       status: "past_due",
     })
     const providerRequests: string[] = []
-    let statusReads = 0
+    const statusResponses = watchMembershipStatusResponses(page)
     page.on("request", (request) => {
       if (recordsProviderRequest(request.url())) providerRequests.push(request.url())
     })
-    page.on("response", async (response) => {
-      if (!response.url().includes("/api/billing/membership-status")) return
-      statusReads += 1
-      if (statusReads === 1) {
-        await fixture.updateMembershipReturnStatusFixture({
-          projectName: testInfo.project.name,
-          status: "active",
-        })
-      }
-    })
 
     await page.goto("/account?tab=membership&portal=returned", { waitUntil: "domcontentloaded" })
+    await statusResponses.firstResponse
     const returnStatus = page.locator("[data-membership-return-status]")
     await expect(returnStatus).toContainText(/needs billing attention/i)
     await expect(returnStatus).toHaveAttribute("aria-busy", "true")
+    await fixture.updateMembershipReturnStatusFixture({
+      projectName: testInfo.project.name,
+      status: "active",
+    })
     await expect(returnStatus).toContainText(/membership access is active/i)
     await expect(returnStatus).toHaveAttribute("aria-busy", "false")
-    expect(statusReads).toBeGreaterThanOrEqual(2)
+    expect(statusResponses.readCount()).toBeGreaterThanOrEqual(2)
     expect(providerRequests).toEqual([])
   })
 
