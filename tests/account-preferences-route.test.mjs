@@ -89,6 +89,7 @@ function loadRoute({
   const firstUpsertStarted = deferred()
   const releaseFirstUpsert = deferred()
   const secondLockAttempted = deferred()
+  const lockAttemptTransactions = new Set()
   const ownerLocks = new Map()
   let upsertCount = 0
   const userPreferenceFor = (transactionId) => ({
@@ -129,7 +130,8 @@ function loadRoute({
             calls.locks.push(query)
             const userId = query[1]
             calls.lockAttempts.push(transactionId)
-            if (calls.lockAttempts.length === 2) secondLockAttempted.resolve()
+            lockAttemptTransactions.add(transactionId)
+            if (lockAttemptTransactions.size === 2) secondLockAttempted.resolve()
 
             if (heldOwnerLocks.has(userId)) {
               calls.lockAcquisitions.push(transactionId)

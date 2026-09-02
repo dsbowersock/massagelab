@@ -48,10 +48,12 @@ describe("same-browser two-factor enrollment binding", () => {
     assert.equal(Object.hasOwn(verified, "secret"), false)
   })
 
-  it("accepts the test signer positive control through the production verifier", () => {
-    const payload = decodePayload(bindingModule.signTwoFactorEnrollmentBinding(BASE_INPUT))
+  it("matches the independent test signer and accepts it through the production verifier", () => {
+    const productionValue = bindingModule.signTwoFactorEnrollmentBinding(BASE_INPUT)
+    const payload = decodePayload(productionValue)
     const value = signedPayload(payload)
 
+    assert.equal(value, productionValue)
     assert.deepEqual(
       bindingModule.verifyTwoFactorEnrollmentBinding({ ...BASE_INPUT, value }),
       payload,
@@ -228,7 +230,7 @@ function signedSerializedPayload(serializedPayload) {
   return signedPayloadSegment(payloadSegment)
 }
 
-/** Signs a payload segment with production's HMAC and null-byte domain separator. */
+/** Independently signs the production wire domain, including its null-byte separator. */
 function signedPayloadSegment(payloadSegment) {
   const signature = createHmac("sha256", AUTH_SECRET)
     .update(`two-factor-enrollment-binding\0${payloadSegment}`)
