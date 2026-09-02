@@ -72,6 +72,14 @@ describe("development Clock review route", () => {
       musicProviderSource,
       /bootstrapStatus === "anonymous"[\s\S]*setAccountStatus\("anonymous"\)/,
     )
+    assert.match(wrapperSource, /pathname === "\/dev\/clock"/)
+  })
+
+  it("resets stale Music transport when the account bootstrap owner changes", async () => {
+    const musicProviderSource = await readFile(
+      new URL("../components/providers/music-provider.tsx", import.meta.url),
+      "utf8",
+    )
     const ownerAdoptionAnchor = musicProviderSource.indexOf("if (!storageHydrated)")
     assert.notEqual(ownerAdoptionAnchor, -1, "Music provider owner-adoption anchor missing")
     const ownerAdoptionStart = musicProviderSource.lastIndexOf(
@@ -106,7 +114,13 @@ describe("development Clock review route", () => {
     assert.match(ownerResetSource, /accountIntentTracker\.clear\(\)/)
     assert.match(ownerResetSource, /accountRequestIdRef\.current \+= 1/)
     assert.match(ownerResetSource, /accountWritePendingRef\.current = null/)
+  })
 
+  it("skips Music preference persistence without a sync-enabled account owner", async () => {
+    const musicProviderSource = await readFile(
+      new URL("../components/providers/music-provider.tsx", import.meta.url),
+      "utf8",
+    )
     const persistPreferencesStart = musicProviderSource.indexOf(
       "const persistVisualizerAccountPreferences = useCallback(",
     )
@@ -132,6 +146,5 @@ describe("development Clock review route", () => {
       /if \(!syncEnabled \|\| !ownerKey\) \{\s*return\s*\}/,
     )
     assert.doesNotMatch(musicProviderSource, /syncVisualizerAccountPreferences/)
-    assert.match(wrapperSource, /pathname === "\/dev\/clock"/)
   })
 })

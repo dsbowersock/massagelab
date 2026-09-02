@@ -49,6 +49,7 @@ describe("Membership Checkout POST route", () => {
       supporterCheckoutOpen: false,
     }))(jsonRequest({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-1" }))
 
+    // Keep the response copy independent so production-message drift fails the API contract.
     assert.deepEqual(response, {
       body: {
         error: "New Supporter checkout is temporarily paused. Existing memberships and the billing portal remain available.",

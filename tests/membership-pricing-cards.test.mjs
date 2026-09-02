@@ -28,6 +28,7 @@ describe("MembershipPricingCards configured price rendering", () => {
     ])
 
     for (const cards of [checkoutCards, portalCards, authCards]) {
+      // Keep the expected copy independent so a rendered-message drift fails this UI contract.
       assert.ok(elementText(cards).includes(
         "New Supporter checkout is temporarily paused. Existing memberships and the billing portal remain available.",
       ))

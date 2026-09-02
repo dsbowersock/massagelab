@@ -21,6 +21,23 @@ function deferred() {
   return { promise, reject, resolve }
 }
 
+/** Clears and runs every committed effect cleanup before surfacing failures. */
+function cleanupProviderEffectSlots(effectSlots) {
+  const cleanupErrors = []
+  const mountedEffectSlots = effectSlots.splice(0)
+  for (const slot of mountedEffectSlots) {
+    try {
+      slot?.cleanup?.()
+    } catch (error) {
+      cleanupErrors.push(error)
+    }
+  }
+  if (cleanupErrors.length === 1) throw cleanupErrors[0]
+  if (cleanupErrors.length > 1) {
+    throw new AggregateError(cleanupErrors, "Therapist settings Provider effect cleanups failed")
+  }
+}
+
 /** Returns fresh inert provider dependencies so compiled harnesses cannot share hook state. */
 function inertProviderMocks({
   bootstrap = () => ({ ownerKey: null, syncEnabled: false }),
@@ -343,8 +360,9 @@ function loadProviderOwnerTransitionHarness({
       profileResponse.resolve(profile)
     },
     restore() {
+      pendingEffects.clear()
       try {
-        for (const slot of effectSlots) slot?.cleanup?.()
+        cleanupProviderEffectSlots(effectSlots)
       } finally {
         globalThis.localStorage = previousLocalStorage
         globalThis.window = previousWindow
@@ -825,12 +843,40 @@ describe("therapist settings cloud hydration", () => {
       harness.flushEffects()
 
       assert.throws(() => harness.restore(), /forced cleanup failure/)
+      assert.doesNotThrow(() => harness.restore(), "failed cleanup slots must be cleared before execution")
       assert.equal(globalThis.localStorage, sentinelLocalStorage)
       assert.equal(globalThis.window, sentinelWindow)
     } finally {
       globalThis.localStorage = previousLocalStorage
       globalThis.window = previousWindow
     }
+  })
+
+  it("drains every effect cleanup and preserves cleanup failure identity", () => {
+    const events = []
+    const cleanupFailures = [new Error("first cleanup failure"), new Error("third cleanup failure")]
+    const effectSlots = [
+      { cleanup: () => { events.push("first"); throw cleanupFailures[0] } },
+      { cleanup: () => { events.push("second") } },
+      { cleanup: () => { events.push("third"); throw cleanupFailures[1] } },
+    ]
+
+    assert.throws(
+      () => cleanupProviderEffectSlots(effectSlots),
+      (error) => error instanceof AggregateError
+        && error.errors[0] === cleanupFailures[0]
+        && error.errors[1] === cleanupFailures[1],
+    )
+    assert.deepEqual(events, ["first", "second", "third"])
+    assert.equal(effectSlots.length, 0)
+
+    const singleFailure = new Error("single cleanup failure")
+    const singleFailureSlots = [{ cleanup: () => { throw singleFailure } }]
+    assert.throws(
+      () => cleanupProviderEffectSlots(singleFailureSlots),
+      (error) => error === singleFailure,
+    )
+    assert.equal(singleFailureSlots.length, 0)
   })
 
   it("never renders owner A fields while owner B storage and cloud settings hydrate", async () => {

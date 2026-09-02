@@ -118,7 +118,7 @@ describe("identity method safety persistence", () => {
     // identity-writer drain interval before the bounded-pause paragraph. These
     // anchors prevent unrelated prose from satisfying the deployment-SHA drain gate.
     const pausedBridgeDrain = releasePlan.match(
-      /\*\*Step 5: Prove the paused bridge and drain every pre-bridge writer\*\*[\s\S]*?(?=- \[ \] \*\*Step 6:)/,
+      /\*\*Step 5: Prove the paused bridge and drain every pre-bridge writer\*\*[\s\S]*?(?=- \[[ xX]\] \*\*Step 6:)/,
     )?.[0] ?? ""
     const identityWriterDrain = pausedBridgeDrain.match(
       /Use that same complete drain interval[\s\S]*?(?=\r?\n\r?\nDuring this bounded pause)/,
@@ -142,10 +142,10 @@ describe("identity method safety persistence", () => {
 
   it("requires complete migration integrity on both paused and unpaused deployment readbacks", () => {
     const pausedReadback = releasePlan.match(
-      /\*\*Step 5: Prove the paused bridge[\s\S]*?(?=Read the current configured maximum invocation lifetime)/,
+      /\*\*Step 5: Prove the paused bridge[\s\S]*?(?=- \[[ xX]\] \*\*Step 6:)/,
     )?.[0] ?? ""
     const unpausedReadback = releasePlan.match(
-      /\*\*Step 6: Deploy the unpaused bridge[\s\S]*?(?=Retain the bridge code)/,
+      /\*\*Step 6: Deploy the unpaused bridge[\s\S]*?(?=- \[[ xX]\] \*\*Step 7:)/,
     )?.[0] ?? ""
 
     assert.notEqual(pausedReadback, "", "release plan must contain the paused deployment readback")

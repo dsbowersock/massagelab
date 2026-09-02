@@ -51,6 +51,30 @@ ${effectBody}
   `, "components/providers/music-provider-account-ownership.test.ts")
 }
 
+/** Executes the provider's exact account-sync retry callback in an isolated scope. */
+function loadProviderRetryVisualizerAccountSync() {
+  const startMarker = /const retryVisualizerAccountSync = useCallback\s*\(\s*async\s*\(\s*\)\s*=>\s*\{/
+  const startMatch = startMarker.exec(providerSource)
+  assert.ok(startMatch, "Music provider account-sync retry callback start marker missing")
+  const bodyStart = providerSource.indexOf("{", startMatch.index) + 1
+  const endMarker = /\}\s*,\s*\[\s*(?=[^\]]*\bbootstrapStatus\b)(?=[^\]]*\bpersistVisualizerAccountPreferences\b)(?=[^\]]*\bretryFallback\b)[^\]]*\]\s*\)/
+  const endMatch = endMarker.exec(providerSource.slice(bodyStart))
+  assert.ok(endMatch, "Music provider account-sync retry callback dependency boundary missing")
+  const callbackBody = providerSource.slice(bodyStart, bodyStart + endMatch.index)
+
+  return loadCompiledModule(`
+    export async function runProviderRetryVisualizerAccountSync(scope) {
+      const {
+        bootstrapStatus,
+        failedAccountPayloadRef,
+        persistVisualizerAccountPreferences,
+        retryFallback,
+      } = scope
+${callbackBody}
+    }
+  `, "components/providers/music-provider-account-sync-retry.test.ts")
+}
+
 describe("Music visualizer provider contract", () => {
   it("exposes visualizer state and actions through MusicContext", () => {
     for (const contract of [
@@ -324,17 +348,50 @@ describe("Music visualizer provider contract", () => {
     assert.equal(tracker.hasIntent("owner-a"), false)
   })
 
-  it("retries the exact failed write before delegating a failed bootstrap retry", () => {
-    const retryStart = providerSource.indexOf("const retryVisualizerAccountSync")
-    assert.notEqual(retryStart, -1, "retryVisualizerAccountSync anchor missing")
-    const retryEnd = providerSource.indexOf("const getPlaybackDiagnostics", retryStart)
-    assert.notEqual(retryEnd, -1, "getPlaybackDiagnostics anchor missing")
-    const retrySource = providerSource.slice(retryStart, retryEnd)
-    assert.match(
-      retrySource,
-      /failedAccountPayloadRef\.current[\s\S]*persistVisualizerAccountPreferences\(failedPayload\)[\s\S]*return/,
-    )
-    assert.match(retrySource, /bootstrapStatus === "failed"[\s\S]*retryFallback\(\)/)
+  it("retries the exact failed write before delegating a failed bootstrap retry", async () => {
+    const { runProviderRetryVisualizerAccountSync } = loadProviderRetryVisualizerAccountSync()
+    const failedPayload = { defaultBackgroundId: "failed-background", showClock: true }
+    const failedAccountPayloadRef = { current: failedPayload }
+    const calls = []
+    let releasePersist
+    const persistGate = new Promise((resolve) => { releasePersist = resolve })
+    let firstRetrySettled = false
+
+    const firstRetry = runProviderRetryVisualizerAccountSync({
+      bootstrapStatus: "failed",
+      failedAccountPayloadRef,
+      persistVisualizerAccountPreferences: async (payload) => {
+        calls.push(["persist", payload])
+        await persistGate
+      },
+      retryFallback: async () => calls.push(["fallback"]),
+    })
+    void firstRetry.then(() => { firstRetrySettled = true }, () => undefined)
+    try {
+      await Promise.resolve()
+      assert.deepEqual(calls, [["persist", failedPayload]])
+      assert.equal(firstRetrySettled, false, "retry must await the failed write")
+    } finally {
+      releasePersist()
+    }
+    await firstRetry
+
+    failedAccountPayloadRef.current = null
+    await runProviderRetryVisualizerAccountSync({
+      bootstrapStatus: "failed",
+      failedAccountPayloadRef,
+      persistVisualizerAccountPreferences: async (payload) => calls.push(["persist", payload]),
+      retryFallback: async () => calls.push(["fallback"]),
+    })
+    assert.deepEqual(calls, [["persist", failedPayload], ["fallback"]])
+
+    await runProviderRetryVisualizerAccountSync({
+      bootstrapStatus: "ready",
+      failedAccountPayloadRef,
+      persistVisualizerAccountPreferences: async (payload) => calls.push(["persist", payload]),
+      retryFallback: async () => calls.push(["fallback"]),
+    })
+    assert.deepEqual(calls, [["persist", failedPayload], ["fallback"]])
   })
 
   it("carries a pending default through a newer show-clock save", () => {
