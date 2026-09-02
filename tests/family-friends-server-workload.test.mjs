@@ -416,7 +416,7 @@ describe("family-and-friends server workload baseline", () => {
     )
     assert.ok(
       verifiedDateMatch[1] <= PROJECT_STATE_VERIFIED_DATE_UPPER_BOUND,
-      `project-state Verified date must not exceed ${PROJECT_STATE_VERIFIED_DATE_UPPER_BOUND}`,
+      `project-state Verified date must not exceed ${PROJECT_STATE_VERIFIED_DATE_UPPER_BOUND}; update both the project-state Verified date and this bound in the same verified evidence change`,
     )
   })
 
@@ -509,7 +509,7 @@ describe("family-and-friends server workload baseline", () => {
       assert.match(deploymentTimingContext, concept)
     }
     assert.match(deploymentTimingContext, /\bunreproducible\b/i)
-    const blockedEvidenceNegation = /\bnot\b[^.]{0,160}\bevidence\b/i
+    const blockedEvidenceNegation = /\bnot\b(?=[^.]{0,160}\bcompletion\b)(?=[^.]{0,160}\brelease\b)(?=[^.]{0,160}\bexact-candidate\b)[^.]{0,160}\bevidence\b/i
       .exec(deploymentTimingContext)?.[0] ?? ""
     assert.notEqual(blockedEvidenceNegation, "", "historical context must retain a bounded not-evidence clause")
     for (const blockedEvidenceKind of [/\bcompletion\b/i, /\brelease\b/i, /\bexact-candidate\b/i]) {

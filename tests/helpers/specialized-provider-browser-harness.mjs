@@ -307,6 +307,41 @@ export function createPageErrorRecorder(page) {
   }
 }
 
+/** Races harness work against its first page error without losing later failures. */
+export function createPageErrorAwaiter(pageErrors) {
+  const firstPageErrorFailure = pageErrors.firstError.then((error) => { throw error })
+  // Observation prevents an unhandled-rejection gap before the first phase starts;
+  // phase races still receive the original rejecting promise above.
+  void firstPageErrorFailure.catch(() => undefined)
+
+  const combineFailures = (error, phase) => {
+    const recordedErrors = [...pageErrors.errors]
+    if (recordedErrors.length === 0) return error
+    if (recordedErrors.length === 1 && recordedErrors[0] === error) return error
+    return new AggregateError(
+      recordedErrors.includes(error) ? recordedErrors : [error, ...recordedErrors],
+      `Specialized provider harness captured page errors during ${phase}`,
+      { cause: recordedErrors[0] },
+    )
+  }
+
+  return async function awaitOrPageError(operation, phase) {
+    if (pageErrors.errors.length > 0) {
+      throw combineFailures(pageErrors.errors[0], phase)
+    }
+    let result
+    try {
+      result = await Promise.race([firstPageErrorFailure, operation])
+    } catch (error) {
+      throw combineFailures(error, phase)
+    }
+    if (pageErrors.errors.length > 0) {
+      throw combineFailures(pageErrors.errors[0], phase)
+    }
+    return result
+  }
+}
+
 /** Opens the isolated provider fixture and returns snapshots for each demand boundary. */
 export async function exerciseSpecializedProviderHarness(page) {
   const fixtureUrl = "https://massagelab-specialized.test/fixture"
@@ -322,22 +357,7 @@ export async function exerciseSpecializedProviderHarness(page) {
     await page.unroute(fixtureUrl, fulfillFixture)
   }
   const pageErrors = createPageErrorRecorder(page)
-  const firstPageErrorFailure = pageErrors.firstError.then((error) => { throw error })
-  const awaitOrPageError = async (operation, phase) => {
-    if (pageErrors.errors.length > 0) throw pageErrors.errors[0]
-    try {
-      const result = await Promise.race([firstPageErrorFailure, operation])
-      if (pageErrors.errors.length > 0) throw pageErrors.errors[0]
-      return result
-    } catch (error) {
-      if (pageErrors.errors.length <= 1 || !pageErrors.errors.includes(error)) throw error
-      throw new AggregateError(
-        [...pageErrors.errors],
-        `Specialized provider harness captured page errors during ${phase}`,
-        { cause: pageErrors.errors[0] },
-      )
-    }
-  }
+  const awaitOrPageError = createPageErrorAwaiter(pageErrors)
   try {
     await awaitOrPageError(
       (async () => {

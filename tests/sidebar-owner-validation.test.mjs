@@ -70,6 +70,8 @@ it("fails closed for every rejected sidebar owner id shape", async () => {
     { label: "empty", value: "" },
     { label: "whitespace", value: "   " },
     { label: "whitespace-padded canonical id", value: " user-1 " },
+    { label: "null", value: null },
+    { label: "undefined", value: undefined },
     { label: "non-string", value: 42 },
   ]
   for (const { label, value } of rejectedOwnerIds) {

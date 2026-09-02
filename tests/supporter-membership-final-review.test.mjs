@@ -427,6 +427,37 @@ describe("Supporter membership final-review contracts", () => {
     })
 
     assert.equal(result.supporterCheckoutOpen, false)
+    const [guestCards, checkoutCards] = await Promise.all([
+      renderMembershipPricingCards({
+        mode: result.mode,
+        activeMembershipLevel: result.activeMembershipLevel,
+        portalActionAvailable: result.portalActionAvailable,
+        supporterCheckoutOpen: result.supporterCheckoutOpen,
+      }),
+      renderMembershipPricingCards({
+        mode: "checkout",
+        activeMembershipLevel: null,
+        portalActionAvailable: false,
+        supporterCheckoutOpen: result.supporterCheckoutOpen,
+      }),
+    ])
+    for (const cards of [guestCards, checkoutCards]) {
+      assert.match(elementText(cards), /New Supporter checkout is temporarily paused\./)
+      assert.match(elementText(cards), /Existing memberships and the billing portal remain available\./)
+      assert.doesNotMatch(elementText(cards), /Choose \$1(?!\d)|Support with \$1(?!\d)/)
+    }
+    assert.equal(
+      findElements(guestCards, (element) => element.props["data-membership-auth-amount-choice"] != null).length,
+      0,
+      "closed Checkout must not render an active guest choice",
+    )
+    assert.equal(
+      findElements(checkoutCards, (element) => (
+        element.type === "form" && element.props.action === "/api/billing/checkout"
+      )).length,
+      0,
+      "closed Checkout must not render an active checkout form",
+    )
   })
 
   it("renders an anonymous registration link while public registration is open", async () => {

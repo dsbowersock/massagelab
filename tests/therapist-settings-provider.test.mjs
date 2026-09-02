@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import ts from "typescript"
 
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 import { deferred, settlesWithin } from "./helpers/async-control.mjs"
@@ -16,6 +17,31 @@ const layoutSource = await readFile(new URL("../app/layout.tsx", import.meta.url
 const providerEffectCleanupOptions = Object.freeze({
   label: "Therapist settings Provider",
 })
+
+/** Finds client-helper and raw fetch calls without crossing expression boundaries. */
+function therapistProfileFetchCalls(source) {
+  const sourceFile = ts.createSourceFile(
+    "therapist-settings-provider.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  const jsonFetchCalls = []
+  const directFetchCalls = []
+  const visit = (node) => {
+    if (ts.isCallExpression(node)) {
+      let calleeName = null
+      if (ts.isIdentifier(node.expression)) calleeName = node.expression.text
+      else if (ts.isPropertyAccessExpression(node.expression)) calleeName = node.expression.name.text
+      if (calleeName === "fetchJsonWithTimeout") jsonFetchCalls.push(node)
+      if (calleeName === "fetch") directFetchCalls.push(node)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  return { directFetchCalls, jsonFetchCalls, sourceFile }
+}
 
 /** Returns fresh inert provider dependencies so compiled harnesses cannot share hook state. */
 function inertProviderMocks({
@@ -1118,7 +1144,13 @@ describe("therapist settings cloud hydration", () => {
 
   it("keeps lazy hook, bounded GET, local-first storage, and exact PUT contracts explicit", () => {
     assert.match(providerSource, /useAccountShellBootstrap/)
-    assert.match(providerSource, /fetchJsonWithTimeout[\s\S]*\/api\/account\/profile/)
+    const profileFetches = therapistProfileFetchCalls(providerSource)
+    assert.equal(profileFetches.jsonFetchCalls.length, 1, "provider must own one JSON profile fetch")
+    const [profileFetch] = profileFetches.jsonFetchCalls
+    assert.equal(profileFetch.arguments[0]?.getText(profileFetches.sourceFile), '"/api/account/profile"')
+    assert.match(profileFetch.arguments[1]?.getText(profileFetches.sourceFile) ?? "", /method:\s*"GET"/)
+    assert.equal(profileFetch.arguments[2]?.getText(profileFetches.sourceFile), "10_000")
+    assert.equal(profileFetches.directFetchCalls.length, 0, "provider must not call raw fetch directly")
     assert.match(providerSource, /massage-lab-therapist-settings/)
     assert.match(
       providerSource,

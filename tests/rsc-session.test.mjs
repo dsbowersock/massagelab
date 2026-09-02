@@ -8,6 +8,8 @@ import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const sessionFieldReadPattern = /\bsession\s*\??\./
+const userFieldReadPattern = /\buser\s*\??\./
 const rscSessionConsumers = [
   "components/sidebar/sidebar.tsx",
   "app/page.tsx",
@@ -89,6 +91,15 @@ function assertNoLeakPatterns(sourceText, relativePath, forbiddenPatterns) {
 }
 
 describe("RSC session snapshot proof boundary", () => {
+  it("detects ordinary and optional-chained session field reads", () => {
+    for (const sourceText of ["session.user", "session?.user"]) {
+      assert.match(sourceText, sessionFieldReadPattern)
+    }
+    for (const sourceText of ["user.id", "user?.id"]) {
+      assert.match(sourceText, userFieldReadPattern)
+    }
+  })
+
   it("ignores comments in leak scans without stripping comment-like literals", () => {
     const scanned = sourceWithoutComments(`
       const url = "https://example.test/sessionValue"
@@ -194,8 +205,8 @@ describe("RSC session snapshot proof boundary", () => {
     assert.match(page, /data-rsc-session-count/)
     assertNoLeakPatterns(page, "app/dev/rsc-session-proof/page.tsx", [
       { label: "serialized values", pattern: /\bJSON\.stringify\b/ },
-      { label: "session field reads", pattern: /\bsession\s*\./ },
-      { label: "user field reads", pattern: /\buser\s*\./ },
+      { label: "session field reads", pattern: sessionFieldReadPattern },
+      { label: "user field reads", pattern: userFieldReadPattern },
       { label: "email-bearing identifiers", pattern: /\b[\w$]*email[\w$]*\b/i },
       { label: "cookie-bearing identifiers", pattern: /\b[\w$]*cookie[\w$]*\b/i },
       { label: "token-bearing identifiers", pattern: /\b[\w$]*token[\w$]*\b/i },

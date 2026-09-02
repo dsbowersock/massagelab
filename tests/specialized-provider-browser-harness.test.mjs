@@ -3,12 +3,35 @@ import { createRequire } from "node:module"
 import { describe, it } from "node:test"
 import {
   assertSpecializedProviderImportSurface,
+  createPageErrorAwaiter,
   createPageErrorRecorder,
   createSpecializedProviderBundleLoader,
   exerciseSpecializedProviderHarness,
 } from "./helpers/specialized-provider-browser-harness.mjs"
 
 const require = createRequire(import.meta.url)
+
+/** Creates a minimal Playwright pageerror emitter around the real recorder helper. */
+function pageErrorRecorderFixture(initialListeners = []) {
+  const listeners = new Set(initialListeners)
+  const page = {
+    on(type, listener) {
+      assert.equal(type, "pageerror")
+      listeners.add(listener)
+    },
+    off(type, listener) {
+      assert.equal(type, "pageerror")
+      listeners.delete(listener)
+    },
+  }
+  return {
+    listeners,
+    recorder: createPageErrorRecorder(page),
+    emit(error) {
+      for (const listener of listeners) listener(error)
+    },
+  }
+}
 
 describe("specialized account-shell provider browser harness", () => {
   it("rejects unsupported provider imports before webpack resolution", () => {
@@ -69,33 +92,70 @@ describe("specialized account-shell provider browser harness", () => {
   })
 
   it("records every page error and detaches only its own listener", async () => {
-    const listeners = new Set()
     const sentinelListener = () => undefined
-    listeners.add(sentinelListener)
-    const page = {
-      on(type, listener) {
-        assert.equal(type, "pageerror")
-        listeners.add(listener)
-      },
-      off(type, listener) {
-        assert.equal(type, "pageerror")
-        listeners.delete(listener)
-      },
-    }
-    const recorder = createPageErrorRecorder(page)
+    const fixture = pageErrorRecorderFixture([sentinelListener])
+    const { recorder } = fixture
     const first = new Error("first synthetic page error")
     const second = new Error("second synthetic page error")
 
-    for (const listener of listeners) listener(first)
-    for (const listener of listeners) listener(second)
+    fixture.emit(first)
+    fixture.emit(second)
     assert.equal(await recorder.firstError, first)
     assert.deepEqual(recorder.errors, [first, second])
 
     recorder.dispose()
-    assert.deepEqual([...listeners], [sentinelListener])
+    assert.deepEqual([...fixture.listeners], [sentinelListener])
     recorder.dispose()
-    for (const listener of listeners) listener(new Error("post-disposal page error"))
+    fixture.emit(new Error("post-disposal page error"))
     assert.deepEqual(recorder.errors, [first, second])
+  })
+
+  it("observes a page-error rejection before a delayed phase consumes the exact error", async () => {
+    const fixture = pageErrorRecorderFixture()
+    const awaitOrPageError = createPageErrorAwaiter(fixture.recorder)
+    const first = new Error("delayed phase page error")
+    const unhandledRejections = []
+    const onUnhandledRejection = (error) => unhandledRejections.push(error)
+    process.on("unhandledRejection", onUnhandledRejection)
+
+    try {
+      fixture.emit(first)
+      await new Promise((resolve) => setImmediate(resolve))
+      assert.deepEqual(unhandledRejections, [])
+      await assert.rejects(
+        awaitOrPageError(Promise.resolve("ignored phase result"), "delayed phase"),
+        (error) => error === first,
+      )
+    } finally {
+      process.off("unhandledRejection", onUnhandledRejection)
+      fixture.recorder.dispose()
+    }
+  })
+
+  it("reports an unrelated operation failure together with every recorded page error", async () => {
+    const fixture = pageErrorRecorderFixture()
+    const awaitOrPageError = createPageErrorAwaiter(fixture.recorder)
+    let rejectOperation
+    const operation = new Promise((_resolve, reject) => {
+      rejectOperation = reject
+    })
+    const operationError = new Error("synthetic operation failure")
+    const pageError = new Error("concurrent synthetic page error")
+
+    try {
+      const guardedOperation = awaitOrPageError(operation, "mixed failure phase")
+      rejectOperation(operationError)
+      fixture.emit(pageError)
+      await assert.rejects(guardedOperation, (error) => {
+        assert.ok(error instanceof AggregateError)
+        assert.equal(error.message, "Specialized provider harness captured page errors during mixed failure phase")
+        assert.equal(error.cause, pageError)
+        assert.deepEqual(error.errors, [operationError, pageError])
+        return true
+      })
+    } finally {
+      fixture.recorder.dispose()
+    }
   })
 
   it("surfaces an early bundle page error and removes its temporary listener", {
