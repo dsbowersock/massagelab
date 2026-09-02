@@ -205,13 +205,16 @@ const defaultWebServerCommand = runsDevelopmentPaletteReview
   : `npm run start -- -p ${browserQaPort}`
 
 // Playwright owns this spawned server, so it must not inherit a developer's
-// live SMTP transport. Blank values preserve production behavior while making
-// automated account-change delivery fail safely and locally.
+// live SMTP or Google OAuth credentials. Inert Google values render the public
+// controls for fully intercepted QA; SMTP remains blank so account-change
+// delivery fails safely and locally.
 const playwrightWebServerEnvironment: Record<string, string> = {}
 for (const [name, value] of Object.entries(process.env)) {
   if (value !== undefined) playwrightWebServerEnvironment[name] = value
 }
 Object.assign(playwrightWebServerEnvironment, {
+  AUTH_GOOGLE_ID: "browser-qa-inert-google-client-id.invalid",
+  AUTH_GOOGLE_SECRET: "browser-qa-inert-google-client-secret.invalid",
   SMTP_HOST: "",
   SMTP_FROM: "",
   SMTP_USER: "",

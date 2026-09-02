@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { createCorrectionFlagAction } from "@/app/anatomy/corrections/actions"
 import { prisma } from "@/lib/prisma"
 import { AppInset, AppPageShell, AppSurface } from "@/components/ui/app-surface"

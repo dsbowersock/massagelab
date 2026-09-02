@@ -20,6 +20,21 @@ function jsonObject(value: Record<string, unknown>) {
 }
 
 /**
+ * Serializes every preference merge for one user, including the first write
+ * before a UserPreference row exists. Calendar and onboarding writers use the
+ * same stable parent-row lock, so pooled requests cannot commit stale JSON
+ * projections over one another.
+ */
+async function lockAccountPreferenceOwner(tx: Prisma.TransactionClient, userId: string) {
+  await tx.$queryRaw`
+    SELECT id
+    FROM "User"
+    WHERE id = ${userId}
+    FOR UPDATE
+  `
+}
+
+/**
  * Reduces additive entitlement provenance to the carousel's presentation
  * source: membership wins over Admin, and Admin wins over temporary access.
  * This presentation value neither changes billing level nor creates ownership.
@@ -115,81 +130,97 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  let parsedBody: unknown
+  try {
+    parsedBody = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
+  if (parsedBody === null || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
+  // Establish one record-shaped boundary before property projection or `in`
+  // checks so syntactically valid JSON scalars cannot reach access or Prisma.
+  const body = parsedBody as Record<string, unknown>
   const payload = buildUserPreferencePayload(body, {
     backgroundPreferenceOptions: backgroundPreferenceNormalizationOptions,
   })
-  const [entitlements, commerceSnapshot, existing] = await Promise.all([
+  const [entitlements, commerceSnapshot] = await Promise.all([
     getUserEntitlementState(prisma, session.user.id),
     getBackgroundCommerceSnapshot({
       prismaClient: prisma,
       userId: session.user.id,
       includeRecentOrders: false,
     }),
-    prisma.userPreference.findUnique({
-      where: { userId: session.user.id },
-    }),
   ])
-  // Merge existing app settings with incoming values only when callers provide
-  // appSettings. This preserves previously saved flags for omitted keys and
-  // applies replacements only for explicitly submitted entries.
-  const mergedAppSettings = {
-    ...objectRecord(existing?.appSettings),
-    ...payload.app_settings,
-  }
-  const retainedChimerSettings = objectRecord(existing?.chimerSettings)
-  // An authoritative empty preference means the device may seed its local
-  // settings later. Preserve that sentinel on unrelated partial writes while
-  // still re-sanitizing every non-empty retained snapshot against fresh access.
-  const chimerSettings = !("chimerSettings" in body)
-    && Object.keys(retainedChimerSettings).length === 0
-    ? jsonObject({})
-    : jsonObject(sanitizeAccessibleChimerSettings(
-        "chimerSettings" in body
-          ? payload.chimer_settings
-          : retainedChimerSettings,
-        {
-          featureKeys: entitlements.features,
-          ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
-        },
-      ))
+  const saved = await prisma.$transaction(async (tx) => {
+    await lockAccountPreferenceOwner(tx, session.user.id)
 
-  const preferences = await prisma.userPreference.upsert({
-    where: { userId: session.user.id },
-    create: {
-      userId: session.user.id,
+    const existing = await tx.userPreference.findUnique({
+      where: { userId: session.user.id },
+    })
+    // The locked read is the only projection used for a JSON merge. A concurrent
+    // writer for this owner must commit before this request can read and merge.
+    const mergedAppSettings = {
+      ...objectRecord(existing?.appSettings),
+      ...payload.app_settings,
+    }
+    const retainedChimerSettings = objectRecord(existing?.chimerSettings)
+    // Always sanitize the returned projection against fresh access. Persist it
+    // only when Chimer was explicitly supplied; unrelated patches must not
+    // rewrite any omitted preference column.
+    const chimerSettings = !("chimerSettings" in body)
+      && Object.keys(retainedChimerSettings).length === 0
+      ? jsonObject({})
+      : jsonObject(sanitizeAccessibleChimerSettings(
+          "chimerSettings" in body
+            ? payload.chimer_settings
+            : retainedChimerSettings,
+          {
+            featureKeys: entitlements.features,
+            ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
+          },
+        ))
+    const update: Prisma.UserPreferenceUpdateInput = {
       version: USER_PREFERENCES_VERSION,
-      appSettings: jsonObject(mergedAppSettings),
-      chimerSettings,
-      anatomimeSettings: jsonObject(payload.anatomime_settings),
-      notePreferences: jsonObject(payload.note_preferences),
-      calendarPreferences: jsonObject(payload.calendar_preferences),
-    },
-    update: {
-      version: USER_PREFERENCES_VERSION,
-      // Only update app settings on explicit appSettings payloads; otherwise keep
-      // existing settings unchanged to avoid accidental overwrite during partial updates.
-      appSettings: "appSettings" in body ? jsonObject(mergedAppSettings) : (existing?.appSettings as Prisma.InputJsonValue | undefined) ?? {},
-      chimerSettings,
-      anatomimeSettings: "anatomimeSettings" in body ? jsonObject(payload.anatomime_settings) : (existing?.anatomimeSettings as Prisma.InputJsonValue | undefined) ?? {},
-      notePreferences: "notePreferences" in body ? jsonObject(payload.note_preferences) : (existing?.notePreferences as Prisma.InputJsonValue | undefined) ?? {},
-      calendarPreferences: "calendarPreferences" in body ? jsonObject(payload.calendar_preferences) : (existing?.calendarPreferences as Prisma.InputJsonValue | undefined) ?? {},
-    },
+    }
+    // Omitted preference sections must stay omitted from the SQL update. Writing
+    // their values from any earlier projection would reintroduce lost updates.
+    if ("appSettings" in body) update.appSettings = jsonObject(mergedAppSettings)
+    if ("chimerSettings" in body) update.chimerSettings = chimerSettings
+    if ("anatomimeSettings" in body) update.anatomimeSettings = jsonObject(payload.anatomime_settings)
+    if ("notePreferences" in body) update.notePreferences = jsonObject(payload.note_preferences)
+    if ("calendarPreferences" in body) update.calendarPreferences = jsonObject(payload.calendar_preferences)
+
+    const preferences = await tx.userPreference.upsert({
+      where: { userId: session.user.id },
+      create: {
+        userId: session.user.id,
+        version: USER_PREFERENCES_VERSION,
+        appSettings: jsonObject(mergedAppSettings),
+        chimerSettings,
+        anatomimeSettings: jsonObject(payload.anatomime_settings),
+        notePreferences: jsonObject(payload.note_preferences),
+        calendarPreferences: jsonObject(payload.calendar_preferences),
+      },
+      update,
+    })
+    return { preferences, chimerSettings }
   })
   clearAccountSurfaceDataCache(session.user.id, "sync")
 
   return NextResponse.json({
-    version: preferences.version,
-    appSettings: preferences.appSettings,
-    chimerSettings: preferences.chimerSettings,
-    anatomimeSettings: preferences.anatomimeSettings,
-    notePreferences: preferences.notePreferences,
-    calendarPreferences: preferences.calendarPreferences,
+    version: saved.preferences.version,
+    appSettings: saved.preferences.appSettings,
+    chimerSettings: saved.chimerSettings,
+    anatomimeSettings: saved.preferences.anatomimeSettings,
+    notePreferences: saved.preferences.notePreferences,
+    calendarPreferences: saved.preferences.calendarPreferences,
     membershipLevel: entitlements.level,
     features: entitlements.features,
     premiumBackgroundAccessSource: premiumBackgroundAccessSource(entitlements.featureAccess),
     ownedBackgroundIds: commerceSnapshot.ownedBackgroundIds,
     accessAuthoritative: true,
-    updatedAt: preferences.updatedAt,
+    updatedAt: saved.preferences.updatedAt,
   })
 }

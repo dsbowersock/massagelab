@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Mail, Map, ShieldCheck } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { prisma } from "@/lib/prisma"
 import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { SocialLinksSurface } from "@/components/social-links"

@@ -2,21 +2,23 @@ import NextAuth, { CredentialsSignin } from "next-auth"
 import type { NextAuthConfig } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import GoogleProvider from "next-auth/providers/google"
+import { cookies } from "next/headers"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { googleProfileEmail, isVerifiedGoogleProfile } from "@/lib/auth-account-linking"
 import { getAuthSecret, getGoogleAuthConfig, getSiteUrl } from "@/lib/auth-env"
-import { assertRateLimit, clearAttempts, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
+import { verifyPasswordMethodProof } from "@/lib/auth-method-proof"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
+import {
+  AUTH_METHOD_INTENT_COOKIE,
+  parseAuthMethodIntentBinding,
+  prepareGoogleAuthentication,
+} from "@/lib/auth-method-intents"
 import { ensureGoogleUserState, ensureUserRole, getUserAuthState } from "@/lib/auth-users"
 import { decideAuthSessionVersion } from "@/lib/auth-session-version"
 import type { AccountCapabilities, AccountRole, VerificationStatus } from "@/lib/domain-types"
-import {
-  decryptSecret,
-  normalizeEmail,
-  verifyBackupCode,
-  verifyPassword,
-  verifyTotpCode,
-} from "@/lib/auth-security"
+import { normalizeEmail } from "@/lib/auth-security"
+import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
 
 if (!process.env.NEXTAUTH_URL) {
   process.env.NEXTAUTH_URL = getSiteUrl()
@@ -42,10 +44,6 @@ function loginError(code: LoginErrorCode) {
   return new LoginCredentialsError(code)
 }
 
-function requestIp(request: Request) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? "unknown"
-}
-
 const providers: NextAuthConfig["providers"] = [
   CredentialsProvider({
     name: "Email and password",
@@ -58,74 +56,19 @@ const providers: NextAuthConfig["providers"] = [
       const email = normalizeEmail(credentials?.email)
       const password = typeof credentials?.password === "string" ? credentials.password : ""
       const twoFactorCode = typeof credentials?.twoFactorCode === "string" ? credentials.twoFactorCode : ""
-      const key = rateLimitKey(email, requestIp(request))
-
-      try {
-        await assertRateLimit("LOGIN", key)
-      } catch {
-        throw loginError("RATE_LIMITED")
-      }
-
-      const user = await prisma.user.findUnique({
-        where: { email },
-        include: {
-          passwordCredential: true,
-          roles: true,
-          twoFactorSecret: true,
-          backupCodes: {
-            where: { usedAt: null },
-            orderBy: { createdAt: "asc" },
-          },
-        },
+      const proof = await verifyPasswordMethodProof({
+        prismaClient: prisma,
+        email,
+        password,
+        twoFactorCode,
+        networkIdentifier: authRequestNetworkIdentifier(request),
+        secret: getAuthSecret(),
       })
+      if (proof.status === "INVALID") throw loginError("INVALID_CREDENTIALS")
+      if (proof.status !== "VERIFIED") throw loginError(proof.status)
 
-      const passwordIsValid = user?.passwordCredential
-        ? await verifyPassword(user.passwordCredential.passwordHash, password)
-        : false
-
-      if (!user || !passwordIsValid) {
-        await recordFailedAttempt("LOGIN", key)
-        throw loginError("INVALID_CREDENTIALS")
-      }
-
-      if (!user.emailVerified) {
-        await recordFailedAttempt("LOGIN", key)
-        throw loginError("EMAIL_UNVERIFIED")
-      }
-
-      if (user.twoFactorSecret?.enabledAt) {
-        if (!twoFactorCode) {
-          throw loginError("TWO_FACTOR_REQUIRED")
-        }
-
-        const secret = decryptSecret(user.twoFactorSecret.encryptedSecret)
-        const validTotp = verifyTotpCode(secret, twoFactorCode)
-        let validBackupCodeId: string | null = null
-
-        if (!validTotp) {
-          for (const backupCode of user.backupCodes) {
-            if (await verifyBackupCode(backupCode.codeHash, twoFactorCode)) {
-              validBackupCodeId = backupCode.id
-              break
-            }
-          }
-        }
-
-        if (!validTotp && !validBackupCodeId) {
-          await recordFailedAttempt("TWO_FACTOR", key)
-          throw loginError("TWO_FACTOR_INVALID")
-        }
-
-        if (validBackupCodeId) {
-          await prisma.backupCode.update({
-            where: { id: validBackupCodeId },
-            data: { usedAt: new Date() },
-          })
-        }
-      }
-
-      await clearAttempts("LOGIN", key)
-      await clearAttempts("TWO_FACTOR", key)
+      const user = await prisma.user.findUnique({ where: { id: proof.userId } })
+      if (!user) throw loginError("INVALID_CREDENTIALS")
       await ensureUserRole(user.id, user.email)
 
       return {
@@ -133,6 +76,7 @@ const providers: NextAuthConfig["providers"] = [
         name: user.name,
         email: user.email,
         image: user.image,
+        passwordAuthenticatedAt: Date.now(),
       }
     },
   }),
@@ -145,7 +89,6 @@ if (googleAuthConfig) {
     GoogleProvider({
       clientId: googleAuthConfig.clientId,
       clientSecret: googleAuthConfig.clientSecret,
-      allowDangerousEmailAccountLinking: true,
       profile(profile) {
         const email = googleProfileEmail(profile)
 
@@ -174,7 +117,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ account, profile }) {
       if (account?.provider === "google") {
-        return isVerifiedGoogleProfile(profile)
+        // Profile verification remains the first gate; rejected OAuth callbacks
+        // always land on a fixed retry surface rather than Auth.js AccessDenied.
+        if (!isVerifiedGoogleProfile(profile)) return "/login?auth=google-unavailable"
+        const cookieStore = await cookies()
+        const binding = parseAuthMethodIntentBinding(cookieStore.get(AUTH_METHOD_INTENT_COOKIE)?.value)
+        const currentSession = await auth().catch(() => null)
+        const result = await prepareGoogleAuthentication({
+          prismaClient: prisma,
+          intentId: binding?.intentId ?? "",
+          browserBindingToken: binding?.browserBindingToken ?? "",
+          profile,
+          account,
+          currentSessionUser: currentSession?.user,
+          secret: getAuthSecret(),
+        })
+        if (result.kind === "CONTINUE") return true
+        if (result.kind === "LINK_REQUIRED") return "/account/link-google"
+        // Keep a paused new-account attempt on registration so the user sees
+        // launch-control guidance instead of a generic OAuth failure surface.
+        if (result.kind === "REGISTRATION_PAUSED") {
+          const callbackPath = buildRegistrationLegalProviderRedirectPath(result.callbackPath)
+          return `/register?callbackUrl=${encodeURIComponent(callbackPath)}`
+        }
+        if (result.kind === "REAUTH_COMPLETE") {
+          if (result.purpose === "ENROLL_TWO_FACTOR") {
+            return "/account?tab=security&reauth=two-factor-enroll"
+          }
+          if (result.purpose === "DISABLE_TWO_FACTOR") {
+            return "/account?tab=security&reauth=two-factor-disable"
+          }
+          if (result.purpose === "REGENERATE_TWO_FACTOR_BACKUP_CODES") {
+            return "/account?tab=security&reauth=two-factor-backup-codes"
+          }
+          return "/account?tab=security&reauth=complete"
+        }
+        return result.recoveryPath
       }
 
       return true
@@ -183,6 +161,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const isSignIn = Boolean(user?.id)
       if (user?.id) {
         token.id = user.id
+      }
+      if (account?.provider === "credentials" && Number.isFinite(user?.passwordAuthenticatedAt)) {
+        token.lastPasswordAuthenticatedAt = user.passwordAuthenticatedAt
+      } else if (isSignIn) {
+        delete token.lastPasswordAuthenticatedAt
       }
 
       const userId = typeof token.id === "string" ? token.id : token.sub
@@ -207,6 +190,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.roles = state.roles
           token.roleAssignments = state.roleAssignments
           token.capabilities = state.capabilities
+          token.featureKeys = state.featureKeys
           token.emailVerified = state.emailVerified
           token.twoFactorEnabled = state.twoFactorEnabled
         } catch (error) {
@@ -216,6 +200,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.roles = ["USER"]
           token.roleAssignments = [{ role: "USER", status: "VERIFIED" }]
           token.capabilities = defaultAccountCapabilities("USER")
+          token.featureKeys = []
           token.emailVerified = false
           token.twoFactorEnabled = false
         }
@@ -224,6 +209,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token
     },
     async session({ session, token }) {
+      session.lastPasswordAuthenticatedAt = Number.isFinite(token.lastPasswordAuthenticatedAt)
+        ? token.lastPasswordAuthenticatedAt
+        : undefined
       if (session.user) {
         const sessionUser = session.user as {
           id: string
@@ -231,6 +219,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           roles: AccountRole[]
           roleAssignments: Array<{ role: AccountRole; status: VerificationStatus }>
           capabilities: AccountCapabilities
+          featureKeys: string[]
           emailVerified: boolean
           twoFactorEnabled: boolean
         }
@@ -242,6 +231,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           ? (token.roleAssignments as Array<{ role: AccountRole; status: VerificationStatus }>)
           : sessionUser.roles.map((role) => ({ role, status: "VERIFIED" as VerificationStatus }))
         sessionUser.capabilities = (token.capabilities ?? defaultAccountCapabilities(sessionUser.role)) as AccountCapabilities
+        sessionUser.featureKeys = Array.isArray(token.featureKeys)
+          ? token.featureKeys.filter((value): value is string => typeof value === "string")
+          : []
         sessionUser.emailVerified = Boolean(token.emailVerified)
         sessionUser.twoFactorEnabled = Boolean(token.twoFactorEnabled)
       }

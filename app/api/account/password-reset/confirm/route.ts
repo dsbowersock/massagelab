@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { after, NextResponse } from "next/server"
+import { deliverAccountSecurityEmailIntent } from "@/lib/account-security-email-intents"
 import { hashPassword, hashToken } from "@/lib/auth-security"
 import {
   confirmPasswordReset,
@@ -39,6 +40,16 @@ export async function POST(request: Request) {
 
   if (result.status === "INVALID") {
     return NextResponse.json({ message: "This reset link is expired or has already been used." }, { status: 400 })
+  }
+
+  // The transaction has committed before this delivery is scheduled, so a
+  // transport failure cannot roll back password recovery or token consumption.
+  const emailIntentId = result.emailIntentId
+  if (emailIntentId) {
+    after(() => deliverAccountSecurityEmailIntent({
+      prismaClient: prisma,
+      intentId: emailIntentId,
+    }).then(() => undefined).catch(() => undefined))
   }
 
   return NextResponse.json({ message: "Password updated. You can sign in now." })

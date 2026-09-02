@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import { Layers3 } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { loadAnatomyReviewerActor } from "@/lib/admin/access"
 import type { FlashcardDeckSummary } from "@/lib/flashcard-community"

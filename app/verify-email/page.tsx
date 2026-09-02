@@ -8,6 +8,7 @@ import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { prisma } from "@/lib/prisma"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
+import { ResendVerificationForm } from "./resend-verification-form"
 
 export default async function VerifyEmailPage({
   searchParams,
@@ -62,6 +63,14 @@ export default async function VerifyEmailPage({
             <Button asChild>
               <Link href={loginHref}>Go to login</Link>
             </Button>
+            {!verified ? (
+              <div className="space-y-3 border-t border-border/70 pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Need a new verification link? Request one below. The same response appears whether or not the address still needs verification.
+                </p>
+                <ResendVerificationForm callbackUrl={callbackUrl} />
+              </div>
+            ) : null}
         </AppSurface>
     </AppPageShell>
   )

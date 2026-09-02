@@ -8,6 +8,8 @@ import { PrismaNeon } from "@prisma/adapter-neon"
 import { neonConfig } from "@neondatabase/serverless"
 import { config as loadDotenv } from "dotenv"
 import ws from "ws"
+
+import { formatOperationalError } from "./operational-error-redaction.mjs"
 import { ensureVerifiedUserBackgroundCredits } from "../lib/commerce/credit-service.ts"
 
 const DEFAULT_BATCH_SIZE = 100
@@ -123,16 +125,7 @@ export function formatBackgroundCreditBackfillSummary(result) {
 
 /** Returns actionable error text while replacing any URL or secret-bearing token wholesale. */
 export function formatBackgroundCreditBackfillError(error) {
-  const message = error instanceof Error ? error.message : String(error ?? "Unknown error.")
-  return message
-    .split(/\s+/)
-    .map((token) => (
-      token.includes("://") || /\b(?:password|passwd|pwd|token|secret)=/i.test(token)
-        ? "[redacted]"
-        : token
-    ))
-    .join(" ")
-    .slice(0, 500)
+  return formatOperationalError(error)
 }
 
 function isolatedDirectConnectionString() {

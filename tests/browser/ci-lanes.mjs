@@ -9,8 +9,11 @@ export const ORDINARY_BROWSER_QA_SPEC_FILES = [
   "atmoshaper.spec.ts",
   "background-commerce.spec.ts",
   "control-system-review.spec.ts",
+  "identity-method-safety.spec.ts",
   "immersive-panel-shell.spec.ts",
+  "interaction-feedback.spec.ts",
   "local-first.spec.ts",
+  "membership-return-status.spec.ts",
   "music-media-session.spec.ts",
   "music-visualizer.spec.ts",
   "public-routes.spec.ts",
@@ -22,6 +25,9 @@ export const BROWSER_QA_LANES = {
     "desktop-chromium": [
       "public-routes.spec.ts",
       "local-first.spec.ts",
+      "identity-method-safety.spec.ts",
+      "membership-return-status.spec.ts",
+      "interaction-feedback.spec.ts",
     ],
     "mobile-chromium": [
       "app-shell.spec.ts",
@@ -36,6 +42,9 @@ export const BROWSER_QA_LANES = {
     "mobile-chromium": [
       "public-routes.spec.ts",
       "local-first.spec.ts",
+      "identity-method-safety.spec.ts",
+      "membership-return-status.spec.ts",
+      "interaction-feedback.spec.ts",
     ],
   },
   "3": {

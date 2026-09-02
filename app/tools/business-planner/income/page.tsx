@@ -1,4 +1,4 @@
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { prisma } from "@/lib/prisma"
 import {
   BUSINESS_INCOME_APP_SETTINGS_KEY,

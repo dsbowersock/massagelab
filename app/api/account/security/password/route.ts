@@ -1,77 +1,171 @@
-import type { Prisma } from "@prisma/client"
 import { after, NextResponse } from "next/server"
+
 import { getCurrentSession } from "@/auth"
+import { deliverAccountSecurityEmailIntent } from "@/lib/account-security-email-intents"
+import { setPasswordMethod } from "@/lib/account-security-methods"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
-import { hashPassword, verifyPassword } from "@/lib/auth-security"
-import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
-import { runCommerceTransaction } from "@/lib/commerce/transactions"
+import { getAuthSecret } from "@/lib/auth-env"
+import { AUTH_METHOD_INTENT_COOKIE, resolveBoundAuthMethodIntent } from "@/lib/auth-method-intents"
+import { hashPassword } from "@/lib/auth-security"
 import { prisma } from "@/lib/prisma"
 
-export async function POST(request: Request) {
-  const session = await getCurrentSession()
+type MethodSession = { user?: { id?: string | null } | null } | null
+type PasswordBody = {
+  mode: "ADD" | "CHANGE"
+  newPassword: string
+  currentPassword?: string
+  twoFactorCode?: string
+  confirmed: true
+}
 
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+/** Validates password-method input and delegates one ADD or CHANGE mutation. */
+export function createPasswordMethodHandler({
+  prismaClient,
+  getSession,
+  secret,
+  resolveIntent,
+  mutate,
+  scheduleAfter,
+  deliver,
+  hashPassword: hash,
+  clock = () => new Date(),
+  clearCache,
+}: {
+  prismaClient: typeof prisma
+  getSession: () => Promise<MethodSession>
+  secret: string
+  resolveIntent: typeof resolveBoundAuthMethodIntent
+  mutate: typeof setPasswordMethod
+  scheduleAfter: typeof after
+  deliver: typeof deliverAccountSecurityEmailIntent
+  hashPassword: typeof hashPassword
+  clock?: () => Date
+  clearCache: (userId: string, surface: "security") => void
+}) {
+  return async function passwordMethodHandler(request: Request) {
+    const session = await getSession()
+    const userId = typeof session?.user?.id === "string" ? session.user.id : ""
+    if (!userId) return safeResponse("AUTHENTICATION_REQUIRED", "Sign in and try again.", 401)
 
-  const body = await request.json().catch(() => ({}))
-  const password = typeof body.password === "string" ? body.password : ""
-  const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : ""
-
-  if (password.length < 12) {
-    return NextResponse.json({ message: "Use a password with at least 12 characters." }, { status: 400 })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: {
-      passwordCredential: true,
-    },
-  })
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  if (user.passwordCredential) {
-    const currentPasswordIsValid = await verifyPassword(user.passwordCredential.passwordHash, currentPassword)
-
-    if (!currentPasswordIsValid) {
-      return NextResponse.json({ message: "Current password was not accepted." }, { status: 400 })
+    const body = await request.json().catch(() => null)
+    if (!validPasswordBody(body)) {
+      return safeResponse("INVALID_REQUEST", "Check the password fields, confirm the change, and try again.", 400)
     }
-  }
-
-  const passwordHash = await hashPassword(password)
-
-  await runCommerceTransaction(prisma, async (txValue) => {
-    const tx = txValue as Prisma.TransactionClient
-    await tx.passwordCredential.upsert({
-      where: { userId: user.id },
-      create: {
-        userId: user.id,
-        passwordHash,
-      },
-      update: {
-        passwordHash,
-      },
-    })
-
-    if (!user.emailVerified) {
-      await tx.user.update({
-        where: { id: user.id },
-        data: { emailVerified: new Date() },
+    const now = clock()
+    let intentId: string | undefined
+    if (body.mode === "ADD") {
+      const intent = await resolveIntent({
+        prismaClient,
+        cookieValue: readCookie(request, AUTH_METHOD_INTENT_COOKIE),
+        purpose: "ADD_PASSWORD",
+        status: "CONSUMED",
+        secret,
+        now,
       })
+      if (!intent || intent.targetUserId !== userId) {
+        return safeResponse("PROOF_EXPIRED", proofRecoveryMessage(), 403)
+      }
+      intentId = intent.id
     }
-  })
-  // Keep password changes durable: credit provisioning is best-effort, and the
-  // idempotent repair/backfill path reconciles any deferred credits.
-  after(() => ensureVerifiedUserBackgroundCredits(prisma, user.id).catch((error) => {
-    console.error("Background credit provisioning deferred after a password security update.", error)
-  }))
-  clearAccountSurfaceDataCache(user.id, "security")
 
-  return NextResponse.json({
-    message: user.passwordCredential ? "Password updated." : "Email/password sign-in enabled.",
-    hasPasswordCredential: true,
+    const result = await mutate({
+      prismaClient,
+      userId,
+      mode: body.mode,
+      googleReauthPreflight: intentId ? { intentId, targetUserId: userId } : undefined,
+      currentPassword: body.currentPassword,
+      newPassword: body.newPassword,
+      twoFactorCode: body.twoFactorCode,
+      networkIdentifier: authRequestNetworkIdentifier(request),
+      confirmed: true,
+      now,
+      hashPasswordFn: hash,
+    })
+    if (result.status === "REJECTED") {
+      return rejectedResponse(result.code, result.code === "RATE_LIMITED" ? result.retryAfterSeconds : undefined)
+    }
+
+    scheduleAfter(() => deliver({ prismaClient, intentId: result.emailIntentId }).then(() => undefined).catch(() => undefined))
+    clearCache(userId, "security")
+    const response = NextResponse.json({
+      code: body.mode === "ADD" ? "PASSWORD_ENABLED" : "PASSWORD_CHANGED",
+      message: body.mode === "ADD" ? "Password sign-in is now enabled." : "Your password was changed.",
+      googleLinked: result.googleLinked,
+      hasPasswordCredential: result.passwordEnabled,
+    })
+    if (body.mode === "ADD") clearBindingCookie(response)
+    return response
+  }
+}
+
+function validPasswordBody(value: unknown): value is PasswordBody {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false
+  const body = value as Record<string, unknown>
+  if (body.mode !== "ADD" && body.mode !== "CHANGE") return false
+  const allowed = body.mode === "ADD"
+    ? new Set(["mode", "newPassword", "confirmed"])
+    : new Set(["mode", "newPassword", "currentPassword", "twoFactorCode", "confirmed"])
+  const keys = Object.keys(body)
+  if (!keys.every((key) => allowed.has(key))) return false
+  if (typeof body.newPassword !== "string" || body.newPassword.length < 12 || body.newPassword.length > 1024 || body.confirmed !== true) return false
+  if (body.mode === "CHANGE" && (typeof body.currentPassword !== "string" || body.currentPassword.length === 0 || body.currentPassword.length > 1024)) return false
+  return body.twoFactorCode === undefined || (typeof body.twoFactorCode === "string" && body.twoFactorCode.length <= 128)
+}
+
+function rejectedResponse(code: string, retryAfterSeconds?: number) {
+  if (code === "RATE_LIMITED") {
+    return safeResponse(code, "Too many attempts. Wait a little, then try again.", 429, {
+      "Retry-After": retryAfterHeader(retryAfterSeconds),
+    })
+  }
+  if (code === "CONFLICT" || code === "ALREADY_LINKED" || code === "LAST_METHOD") {
+    return safeResponse(code, "Your sign-in methods changed. Refresh and try again.", 409)
+  }
+  if (code === "INTENT_EXPIRED") return safeResponse("PROOF_EXPIRED", proofRecoveryMessage(), 403)
+  const message = code === "TWO_FACTOR_REQUIRED"
+    ? "Enter your authenticator or backup code."
+    : code === "TWO_FACTOR_INVALID"
+      ? "The authenticator or backup code was not accepted."
+      : "Your current password proof was not accepted."
+  return safeResponse(code, message, 403)
+}
+
+function readCookie(request: Request, name: string) {
+  const prefix = `${name}=`
+  return request.headers.get("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix))?.slice(prefix.length) ?? ""
+}
+
+function proofRecoveryMessage() {
+  return "This Google confirmation expired or belongs to another session. Start again."
+}
+
+function safeResponse(code: string, message: string, status: number, headers?: Record<string, string>) {
+  return NextResponse.json({ code, message }, { status, headers })
+}
+
+function retryAfterHeader(value?: number) {
+  return String(Number.isSafeInteger(value) && (value ?? 0) > 0 ? Math.min(value ?? 1, 900) : 1)
+}
+
+function clearBindingCookie(response: ReturnType<typeof NextResponse.json>) {
+  response.cookies.set(AUTH_METHOD_INTENT_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 0,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
   })
 }
+
+export const POST = createPasswordMethodHandler({
+  prismaClient: prisma,
+  getSession: getCurrentSession,
+  secret: getAuthSecret(),
+  resolveIntent: resolveBoundAuthMethodIntent,
+  mutate: setPasswordMethod,
+  scheduleAfter: after,
+  deliver: deliverAccountSecurityEmailIntent,
+  hashPassword,
+  clearCache: clearAccountSurfaceDataCache,
+})

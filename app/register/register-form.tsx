@@ -2,24 +2,26 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { signIn } from "next-auth/react"
 import { Mail, ShieldCheck } from "lucide-react"
+import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { REGISTRATION_VERIFICATION_SENT_MESSAGE } from "@/lib/auth-registration"
+import { startGoogleAuthMethodIntent, useEntryAction } from "@/lib/auth-entry-actions"
+import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-entry-messages"
 import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
 import { legalDocumentAcceptanceId, requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
+import { REGISTRATION_PAUSED_MESSAGE } from "@/lib/public-launch-controls"
 
 const REGISTRATION_REQUEST_FAILED_MESSAGE = "We could not create your account right now. Please try again."
 
 type RegisterFormProps = {
   googleEnabled: boolean
   initialCallbackUrl: string
+  registrationOpen: boolean
 }
 
-export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterFormProps) {
+export function RegisterForm({ googleEnabled, initialCallbackUrl, registrationOpen }: RegisterFormProps) {
   const registrationDocuments = requiredLegalDocumentsForEvent("registration")
   const googleRedirectTo = buildRegistrationLegalProviderRedirectPath(initialCallbackUrl)
   const loginHref = `/login?callbackUrl=${encodeURIComponent(initialCallbackUrl)}`
@@ -30,7 +32,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
   const [status, setStatus] = useState("")
   const [statusIsError, setStatusIsError] = useState(false)
   const [devLink, setDevLink] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { entryAction, beginEntryAction, finishEntryAction } = useEntryAction()
 
   function toggleLegalDocument(documentId: string, checked: boolean) {
     setAcceptedLegalDocuments((current) => (
@@ -42,9 +44,8 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (isSubmitting) return
+    if (!beginEntryAction("email")) return
 
-    setIsSubmitting(true)
     setStatus("")
     setStatusIsError(false)
     setDevLink("")
@@ -65,7 +66,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       })
       const result = (await response.json().catch(() => ({}))) as { message?: string; devLink?: string }
 
-      setStatus(result.message ?? (response.ok ? REGISTRATION_VERIFICATION_SENT_MESSAGE : REGISTRATION_REQUEST_FAILED_MESSAGE))
+      setStatus(result.message ?? (response.ok ? PUBLIC_ACCOUNT_ENTRY_MESSAGE : REGISTRATION_REQUEST_FAILED_MESSAGE))
       setStatusIsError(!response.ok)
       setDevLink(result.devLink ?? "")
     } catch {
@@ -73,7 +74,23 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       setStatusIsError(true)
       setDevLink("")
     } finally {
-      setIsSubmitting(false)
+      finishEntryAction()
+    }
+  }
+
+  async function handleGoogleRegistration() {
+    if (!beginEntryAction("google")) return
+    setStatus("")
+    setStatusIsError(false)
+    let navigating = false
+    try {
+      navigating = await startGoogleAuthMethodIntent(googleRedirectTo) === "navigating"
+      setStatus("Taking you to Google…")
+    } catch {
+      setStatus("Something went wrong. Please try again.")
+      setStatusIsError(true)
+    } finally {
+      if (!navigating) finishEntryAction()
     }
   }
 
@@ -87,11 +104,24 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       }
       contentClassName="gap-5"
     >
+      {!registrationOpen ? (
+        <AppInset className="p-3 text-sm text-muted-foreground">
+          <p role="status">{REGISTRATION_PAUSED_MESSAGE}</p>
+        </AppInset>
+      ) : null}
+
       {googleEnabled ? (
-        <Button type="button" variant="outline" className="w-full" onClick={() => signIn("google", { redirectTo: googleRedirectTo })}>
-          <ShieldCheck className="mr-2 h-4 w-4" />
-          Continue with Google
-        </Button>
+        <AsyncActionButton
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={!registrationOpen || entryAction !== "idle"}
+          pending={entryAction === "google"}
+          idleLabel="Continue with Google"
+          pendingLabel="Connecting to Google…"
+          icon={<ShieldCheck className="h-4 w-4" />}
+          onClick={handleGoogleRegistration}
+        />
       ) : (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
           Google registration is not available right now. Use email and password, or try Google again later.
@@ -101,16 +131,19 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
-          <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
+          <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" disabled={!registrationOpen} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
+          <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required disabled={!registrationOpen} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={12} required />
+          <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={12} required disabled={!registrationOpen} />
         </div>
+        <p className="text-sm text-muted-foreground">
+          If you use a matching email for an existing MassageLab sign-in, we keep it with the same account and send the safe next step to that inbox.
+        </p>
         <div className="space-y-3">
           {registrationDocuments.map((document) => {
             const documentId = legalDocumentAcceptanceId(document)
@@ -123,6 +156,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
                   checked={acceptedLegalDocuments.includes(documentId)}
                   onChange={(event) => toggleLegalDocument(documentId, event.target.checked)}
                   required
+                  disabled={!registrationOpen}
                 />
                 <span>
                   I agree to the{" "}
@@ -135,10 +169,15 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
             )
           })}
         </div>
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          <Mail className="mr-2 h-4 w-4" />
-          Create account with email
-        </Button>
+        <AsyncActionButton
+          type="submit"
+          className="w-full"
+          disabled={!registrationOpen || entryAction !== "idle"}
+          pending={entryAction === "email"}
+          idleLabel="Create account with email"
+          pendingLabel="Creating account…"
+          icon={<Mail className="h-4 w-4" />}
+        />
       </form>
       {status && (
         <AppInset className={`p-3 text-sm ${statusIsError ? "text-amber-100" : "text-muted-foreground"}`}>

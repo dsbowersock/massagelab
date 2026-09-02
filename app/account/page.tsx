@@ -11,15 +11,20 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { requestCredentialVerificationAction, saveProfileAction } from "@/app/account/actions"
 import { AccountAppSettingsPanel, LocalTherapistDefaultsPanel } from "@/app/account/app-settings-panel"
 import { AccountSettingsShell } from "@/app/account/account-settings-shell"
+import { MembershipReturnStatus } from "@/app/account/membership-return-status"
 import { PreferenceSync } from "@/app/account/preference-sync"
-import { SecurityPanel } from "@/app/account/security/security-panel"
+import {
+  SecurityPanel,
+  type TwoFactorGoogleReauthPurpose,
+} from "@/app/account/security/security-panel"
 import { SignOutButton } from "@/app/account/sign-out-button"
 import { SupporterInterestsPanel } from "@/app/account/supporter-interests-panel"
 import { BackgroundCommercePanel } from "@/components/account/BackgroundCommercePanel"
+import { PendingSubmissionForm, PendingSubmitButton } from "@/components/forms/pending-submission-form"
 import { accountPageGroups, accountPageTabs, formatAccountDate, selectAccountTab } from "@/lib/account-page"
 import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
 import { getAccountSurfaceData, sessionHasActiveMembershipBenefits } from "@/lib/account-surface-data"
@@ -27,6 +32,7 @@ import { BILLING_PORTAL_DESTINATIONS } from "@/lib/billing-portal-destinations"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
 import { FEATURE_KEYS, resolveMembershipPricingMode } from "@/lib/membership"
+import { getPublicLaunchControls, SUPPORTER_CHECKOUT_PAUSED_MESSAGE } from "@/lib/public-launch-controls"
 import type { AccountRole, VerificationStatus } from "@/lib/domain-types"
 import { cn } from "@/lib/utils"
 import {
@@ -49,10 +55,71 @@ type AccountPageProps = {
   searchParams?: Promise<{
     billing?: string
     checkout?: string
+    credential?: string
     legal?: string
     portal?: string
+    profile?: string
+    reauth?: string
     tab?: string
   }>
+}
+
+type AccountNoticeInput = {
+  billing?: string
+  checkout?: string
+  credential?: string
+  legal?: string
+  portal?: string
+  profile?: string
+  returnKind?: "checkout" | "portal" | null
+}
+
+type NormalizedAccountReturnState = {
+  kind: "checkout" | "portal" | null
+  notice: AccountNoticeInput
+}
+
+/**
+ * Selects exactly one account-return owner. Controller returns outrank notices,
+ * and Checkout success wins when malformed input contains both controllers.
+ */
+function normalizeAccountReturnState(params: {
+  billing?: string
+  checkout?: string
+  credential?: string
+  legal?: string
+  portal?: string
+  profile?: string
+} | undefined): NormalizedAccountReturnState {
+  if (params?.checkout === "success") {
+    return { kind: "checkout", notice: {} }
+  }
+  if (params?.portal === "returned") {
+    return { kind: "portal", notice: {} }
+  }
+  if (params?.checkout === "cancelled") {
+    return { kind: null, notice: { checkout: "cancelled" } }
+  }
+  if (
+    params?.portal === "customer-not-found"
+    || params?.portal === "subscription-not-found"
+    || params?.portal === "error"
+  ) {
+    return { kind: null, notice: { portal: params.portal } }
+  }
+  if (params?.legal === "therapist-agreement-required") {
+    return { kind: null, notice: { legal: params.legal } }
+  }
+  if (params?.profile === "saved" || params?.profile === "save-failed") {
+    return { kind: null, notice: { profile: params.profile } }
+  }
+  if (params?.credential === "submitted" || params?.credential === "submit-failed") {
+    return { kind: null, notice: { credential: params.credential } }
+  }
+  if (params?.billing) {
+    return { kind: null, notice: { billing: params.billing } }
+  }
+  return { kind: null, notice: {} }
 }
 
 type AccountPageTab = {
@@ -65,6 +132,8 @@ const typedAccountPageTabs = accountPageTabs as AccountPageTab[]
 
 export default async function AccountPage({ searchParams }: AccountPageProps) {
   const params = await searchParams
+  const googleReauthReturnHint = twoFactorGoogleReauthReturnHint(params?.reauth)
+  const returnState = normalizeAccountReturnState(params)
   const session = await getCurrentSession()
   const defaultTab = selectAccountTab(params?.tab, {
     billing: params?.billing,
@@ -72,12 +141,12 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     legal: params?.legal,
     portal: params?.portal,
   })
-  const showMobileIndexFirst = !params?.tab && !params?.billing && !params?.checkout && !params?.legal && !params?.portal
+  const showMobileIndexFirst = !params?.tab && !params?.billing && !params?.checkout && !params?.credential && !params?.legal && !params?.portal && !params?.profile
 
   if (!session?.user?.id) {
     return (
       <AccountShell>
-        <AccountNotice billing={params?.billing} checkout={params?.checkout} legal={params?.legal} portal={params?.portal} />
+        <AccountNotice {...returnState.notice} returnKind={returnState.kind} />
         <AccountSettingsShell
           defaultValue={defaultTab}
           groups={accountPageGroups}
@@ -204,12 +273,8 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
 
   return (
     <AccountShell>
-      <AccountNotice
-        billing={params?.billing}
-        checkout={params?.checkout}
-        legal={params?.legal}
-        portal={params?.portal}
-      />
+      <AccountNotice {...returnState.notice} />
+      {returnState.kind ? <MembershipReturnStatus kind={returnState.kind} /> : null}
 
       <AccountSettingsShell
         defaultValue={defaultTab}
@@ -224,7 +289,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
         }}
       >
         <Suspense fallback={<AccountTabLoading tabId={defaultTab} />}>
-          <ActiveAccountTab tabId={defaultTab} userId={session.user.id} sessionUser={session.user as AccountSessionUser} />
+          <ActiveAccountTab tabId={defaultTab} userId={session.user.id} sessionUser={session.user as AccountSessionUser} googleReauthReturnHint={googleReauthReturnHint} />
         </Suspense>
       </AccountSettingsShell>
     </AccountShell>
@@ -264,17 +329,19 @@ async function ActiveAccountTab({
   tabId,
   userId,
   sessionUser,
+  googleReauthReturnHint,
 }: {
   tabId: string
   userId: string
   sessionUser: AccountSessionUser
+  googleReauthReturnHint: TwoFactorGoogleReauthPurpose | null
 }) {
   if (tabId === "profile") {
     return <ProfileTab userId={userId} sessionUser={sessionUser} />
   }
 
   if (tabId === "security") {
-    return <SecurityTab userId={userId} sessionUser={sessionUser} />
+    return <SecurityTab userId={userId} sessionUser={sessionUser} googleReauthReturnHint={googleReauthReturnHint} />
   }
 
   if (tabId === "credentials") {
@@ -406,7 +473,15 @@ async function OverviewTab({ userId, sessionUser }: { userId: string; sessionUse
   )
 }
 
-async function SecurityTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
+async function SecurityTab({
+  userId,
+  sessionUser,
+  googleReauthReturnHint,
+}: {
+  userId: string
+  sessionUser: AccountSessionUser
+  googleReauthReturnHint: TwoFactorGoogleReauthPurpose | null
+}) {
   const data = await getAccountSurfaceData("security", userId, sessionUser)
 
   return (
@@ -417,10 +492,19 @@ async function SecurityTab({ userId, sessionUser }: { userId: string; sessionUse
           twoFactorEnabled={Boolean(sessionUser.twoFactorEnabled)}
           hasPasswordCredential={data.hasPasswordCredential}
           googleLinked={data.googleLinked}
+          googleReauthReturnHint={googleReauthReturnHint}
         />
       </div>
     </TabsContent>
   )
+}
+
+/** Converts OAuth return state into display-only action context. */
+function twoFactorGoogleReauthReturnHint(value: unknown): TwoFactorGoogleReauthPurpose | null {
+  if (value === "two-factor-enroll") return "ENROLL_TWO_FACTOR"
+  if (value === "two-factor-disable") return "DISABLE_TWO_FACTOR"
+  if (value === "two-factor-backup-codes") return "REGENERATE_TWO_FACTOR_BACKUP_CODES"
+  return null
 }
 
 async function ProfileTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
@@ -438,7 +522,7 @@ async function ProfileTab({ userId, sessionUser }: { userId: string; sessionUser
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={saveProfileAction} className="space-y-5">
+          <PendingSubmissionForm action={saveProfileAction} className="space-y-5">
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="display_name">Display name</Label>
@@ -467,10 +551,8 @@ async function ProfileTab({ userId, sessionUser }: { userId: string; sessionUser
                 <Input id="npi_number" name="npi_number" defaultValue={profile?.npiNumber ?? ""} />
               </div>
             </div>
-            <Button type="submit">
-              Save profile
-            </Button>
-          </form>
+            <PendingSubmitButton type="submit" idleLabel="Save profile" pendingLabel="Saving profile…" />
+          </PendingSubmissionForm>
         </CardContent>
       </Card>
     </TabsContent>
@@ -534,7 +616,7 @@ async function CredentialsTab({ userId, sessionUser }: { userId: string; session
             </div>
           ) : null}
 
-          <form action={requestCredentialVerificationAction} className="grid gap-4 border-t border-border/80 pt-5 md:grid-cols-2">
+          <PendingSubmissionForm action={requestCredentialVerificationAction} className="grid gap-4 border-t border-border/80 pt-5 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="credential_kind">Credential type</Label>
               <select
@@ -612,11 +694,9 @@ async function CredentialsTab({ userId, sessionUser }: { userId: string; session
               </span>
             </label>
             <div className="md:col-span-2">
-              <Button type="submit" variant="outline">
-                Request verification
-              </Button>
+              <PendingSubmitButton type="submit" variant="outline" idleLabel="Request verification" pendingLabel="Submitting verification…" />
             </div>
-          </form>
+          </PendingSubmissionForm>
         </CardContent>
       </Card>
     </TabsContent>
@@ -763,6 +843,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
           activeMembershipLevel={membershipSummary.entitlements.paidLevel}
           mode={subscriptionPricingMode}
           portalActionAvailable={canOpenBillingPortal}
+          supporterCheckoutOpen={getPublicLaunchControls().supporterCheckoutOpen}
         />
       </div>
 
@@ -1021,15 +1102,13 @@ function AccountActionLink({
 function AccountNotice({
   billing,
   checkout,
+  credential,
   legal,
   portal,
-}: {
-  billing?: string
-  checkout?: string
-  legal?: string
-  portal?: string
-}) {
-  const notice = accountNotice({ billing, checkout, legal, portal })
+  profile,
+  returnKind,
+}: AccountNoticeInput) {
+  const notice = accountNotice({ billing, checkout, credential, legal, portal, profile, returnKind })
 
   if (!notice) {
     return null
@@ -1040,22 +1119,21 @@ function AccountNotice({
   )
 }
 
+/** Maps redirect state to fixed public copy without exposing private billing details. */
 function accountNotice({
   billing,
   checkout,
+  credential,
   legal,
   portal,
-}: {
-  billing?: string
-  checkout?: string
-  legal?: string
-  portal?: string
-}) {
-  if (checkout === "success") {
+  profile,
+  returnKind,
+}: AccountNoticeInput) {
+  if (returnKind) {
     return {
-      title: "Checkout complete",
-      description: "Your membership is being updated. If it does not appear right away, refresh this page in a minute.",
-      tone: "accent" as const,
+      title: "Sign in to check your membership update",
+      description: "Membership and billing status is private to your account. Sign in below to review the latest status.",
+      tone: "default" as const,
     }
   }
 
@@ -1064,14 +1142,6 @@ function accountNotice({
       title: "Checkout cancelled",
       description: "No membership changes were made. Free access remains available.",
       tone: "default" as const,
-    }
-  }
-
-  if (portal === "returned") {
-    return {
-      title: "Billing portal closed",
-      description: "Any subscription changes you made may take a moment to appear here. Refresh this page if they do not show right away.",
-      tone: "accent" as const,
     }
   }
 
@@ -1108,6 +1178,38 @@ function accountNotice({
     }
   }
 
+  if (profile === "saved") {
+    return {
+      title: "Profile saved",
+      description: "Your account profile was saved.",
+      tone: "default" as const,
+    }
+  }
+
+  if (profile === "save-failed") {
+    return {
+      title: "Profile could not be saved",
+      description: "Something went wrong. Please try again.",
+      tone: "destructive" as const,
+    }
+  }
+
+  if (credential === "submitted") {
+    return {
+      title: "Verification submitted",
+      description: "Your verification request was submitted.",
+      tone: "default" as const,
+    }
+  }
+
+  if (credential === "submit-failed") {
+    return {
+      title: "Verification could not be submitted",
+      description: "Something went wrong. Please try again.",
+      tone: "destructive" as const,
+    }
+  }
+
   if (billing) {
     return {
       title: "Checkout unavailable",
@@ -1120,6 +1222,7 @@ function accountNotice({
 }
 
 function billingMessage(code: string) {
+  if (code === "checkout-paused") return SUPPORTER_CHECKOUT_PAUSED_MESSAGE
   if (code === "unsupported-plan") return "That membership option is not available yet."
   if (code === "price-not-configured") return "That membership option is not available yet."
   if (code === "existing-subscription") return "Use Change support amount or billing period to update your current membership."

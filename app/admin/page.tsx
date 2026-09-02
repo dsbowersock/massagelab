@@ -1,7 +1,7 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
 import { redirect } from "next/navigation"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"

@@ -23,6 +23,7 @@ import {
 } from "../lib/account-page.js"
 import { BILLING_PORTAL_DESTINATIONS } from "../lib/billing-portal-destinations.js"
 import { resolveMembershipPricingMode } from "../lib/membership.js"
+import { renderMembershipPricingCards } from "./helpers/membership-pricing-cards.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const accountPageSource = await readFile(
@@ -67,7 +68,42 @@ function topLevelFunctionSource(source, functionName, fileName) {
   return source.slice(declaration.start, declaration.end)
 }
 
+/** Extracts and compiles the three production return-state functions as one isolated contract. */
+function loadAccountReturnContract() {
+  const source = [
+    `export ${topLevelFunctionSource(accountPageSource, "normalizeAccountReturnState", "app/account/page.tsx")}`,
+    topLevelFunctionSource(accountPageSource, "billingMessage", "app/account/page.tsx"),
+    `export ${topLevelFunctionSource(accountPageSource, "accountNotice", "app/account/page.tsx")}`,
+  ].join("\n")
+
+  return loadCompiledModule(source, "app/account/account-return-state.test.ts")
+}
+
 describe("Account page tab model", () => {
+  it("maps only exact action-specific reauth values to a display-only return hint", () => {
+    const contract = loadCompiledModule(
+      `export ${topLevelFunctionSource(accountPageSource, "twoFactorGoogleReauthReturnHint", "app/account/page.tsx")}`,
+      "app/account/two-factor-google-return-hint.test.ts",
+    )
+    assert.equal(contract.twoFactorGoogleReauthReturnHint("two-factor-enroll"), "ENROLL_TWO_FACTOR")
+    assert.equal(contract.twoFactorGoogleReauthReturnHint("two-factor-disable"), "DISABLE_TWO_FACTOR")
+    assert.equal(
+      contract.twoFactorGoogleReauthReturnHint("two-factor-backup-codes"),
+      "REGENERATE_TWO_FACTOR_BACKUP_CODES",
+    )
+    for (const value of [undefined, null, "complete", "two-factor", "TWO-FACTOR-ENROLL", "two-factor-enroll "]) {
+      assert.equal(contract.twoFactorGoogleReauthReturnHint(value), null)
+    }
+    assert.match(
+      accountPageSource,
+      /<ActiveAccountTab\b[^>]*googleReauthReturnHint=\{googleReauthReturnHint\}[^>]*\/>/,
+    )
+    assert.match(
+      accountPageSource,
+      /<SecurityPanel\b[^>]*googleReauthReturnHint=\{googleReauthReturnHint\}[^>]*\/>/,
+    )
+  })
+
   it("extracts only lexical top-level function declarations", () => {
     const fixture = [
       "async function Target() {",
@@ -177,6 +213,122 @@ describe("Account page tab model", () => {
     assert.equal(selectAccountTab(undefined, { checkout: "success" }), "membership")
     assert.equal(selectAccountTab(undefined, { portal: "returned" }), "membership")
     assert.equal(selectAccountTab(undefined, { billing: "checkout-error" }), "membership")
+  })
+
+  it("normalizes conflicting account outcomes to one controller or notice owner", () => {
+    const { accountNotice, normalizeAccountReturnState } = loadAccountReturnContract()
+
+    for (const [params, expectedKind] of [
+      [{ checkout: "success", portal: "error" }, "checkout"],
+      [{ checkout: "success", portal: "returned" }, "checkout"],
+      [{ checkout: "cancelled", portal: "returned" }, "portal"],
+    ]) {
+      const state = normalizeAccountReturnState(params)
+      assert.deepEqual(state, { kind: expectedKind, notice: {} })
+      assert.equal(accountNotice(state.notice), null)
+    }
+
+    const conflictingNotices = normalizeAccountReturnState({
+      checkout: "cancelled",
+      portal: "error",
+    })
+    assert.deepEqual(conflictingNotices, {
+      kind: null,
+      notice: { checkout: "cancelled" },
+    })
+    assert.equal(accountNotice(conflictingNotices.notice)?.title, "Checkout cancelled")
+
+    assert.match(accountPageSource, /MembershipReturnStatus/)
+    assert.equal((accountPageSource.match(/<MembershipReturnStatus/g) ?? []).length, 1)
+    assert.match(accountPageSource, /<MembershipReturnStatus kind=\{returnState\.kind\} \/>/)
+    assert.equal((accountPageSource.match(/<AccountNotice/g) ?? []).length, 2)
+    assert.equal((accountPageSource.match(/<AccountNotice \{\.\.\.returnState\.notice\} \/>/g) ?? []).length, 1)
+    assert.doesNotMatch(accountPageSource, /session_id|CHECKOUT_SESSION_ID/)
+  })
+
+  it("preserves each ordinary account controller and notice outcome", () => {
+    const { accountNotice, normalizeAccountReturnState } = loadAccountReturnContract()
+
+    for (const [params, expectedKind] of [
+      [{ checkout: "success" }, "checkout"],
+      [{ portal: "returned" }, "portal"],
+    ]) {
+      const state = normalizeAccountReturnState(params)
+      assert.deepEqual(state, { kind: expectedKind, notice: {} })
+      assert.equal(accountNotice(state.notice), null)
+    }
+
+    const checkoutCancelled = normalizeAccountReturnState({ checkout: "cancelled" })
+    assert.deepEqual(checkoutCancelled, {
+      kind: null,
+      notice: { checkout: "cancelled" },
+    })
+    assert.equal(accountNotice(checkoutCancelled.notice)?.title, "Checkout cancelled")
+
+    for (const [portal, expectedTitle] of [
+      ["customer-not-found", "Billing portal unavailable"],
+      ["subscription-not-found", "Subscription change unavailable"],
+      ["error", "Billing portal unavailable"],
+    ]) {
+      const state = normalizeAccountReturnState({ portal })
+      assert.deepEqual(state, { kind: null, notice: { portal } })
+      assert.equal(accountNotice(state.notice)?.title, expectedTitle)
+    }
+
+    const legal = normalizeAccountReturnState({ legal: "therapist-agreement-required" })
+    assert.deepEqual(legal, {
+      kind: null,
+      notice: { legal: "therapist-agreement-required" },
+    })
+    assert.equal(accountNotice(legal.notice)?.title, "Therapist Agreement required")
+
+    const billing = normalizeAccountReturnState({ billing: "existing-subscription" })
+    assert.deepEqual(billing, {
+      kind: null,
+      notice: { billing: "existing-subscription" },
+    })
+    assert.equal(accountNotice(billing.notice)?.title, "Checkout unavailable")
+
+    assert.match(accountPageSource, /checkout === "cancelled"/)
+    assert.match(accountPageSource, /portal === "error"/)
+  })
+
+  it("maps profile and credential action outcomes to explicit safe notices", () => {
+    const { accountNotice, normalizeAccountReturnState } = loadAccountReturnContract()
+    const cases = [
+      [{ profile: "saved" }, "Profile saved"],
+      [{ profile: "save-failed" }, "Profile could not be saved"],
+      [{ credential: "submitted" }, "Verification submitted"],
+      [{ credential: "submit-failed" }, "Verification could not be submitted"],
+    ]
+    for (const [params, expectedTitle] of cases) {
+      const state = normalizeAccountReturnState(params)
+      assert.deepEqual(state, { kind: null, notice: params })
+      assert.equal(accountNotice(state.notice)?.title, expectedTitle)
+    }
+    assert.match(accountPageSource, /<PendingSubmissionForm action=\{saveProfileAction\}/)
+    assert.match(accountPageSource, /pendingLabel="Saving profile…"/)
+    assert.match(accountPageSource, /<PendingSubmissionForm action=\{requestCredentialVerificationAction\}/)
+    assert.match(accountPageSource, /pendingLabel="Submitting verification…"/)
+  })
+
+  it("keeps signed-out membership returns visible without provider details", () => {
+    const { accountNotice } = loadAccountReturnContract()
+
+    for (const returnKind of ["checkout", "portal"]) {
+      const notice = accountNotice({ returnKind })
+      assert.deepEqual(notice, {
+        title: "Sign in to check your membership update",
+        description: "Membership and billing status is private to your account. Sign in below to review the latest status.",
+        tone: "default",
+      })
+      assert.doesNotMatch(JSON.stringify(notice), /checkout|portal|stripe|session[_ -]?id/i)
+    }
+
+    assert.match(
+      accountPageSource,
+      /<AccountNotice \{\.\.\.returnState\.notice\} returnKind=\{returnState\.kind\} \/>/,
+    )
   })
 
   it("builds stable account tab hrefs for route-backed navigation", () => {
@@ -350,6 +502,32 @@ describe("Account page tab model", () => {
     )
   })
 
+  it("passes a closed Supporter Checkout control to the real pricing-card actions", async () => {
+    const membershipTab = await renderMembershipTab({
+      supporterCheckoutOpen: false,
+      subscriptions: [subscription("canceled")],
+      stripeCustomer: null,
+    })
+    const pricingProps = membershipPricingProps(membershipTab)
+    assert.equal(pricingProps.mode, "checkout")
+    assert.equal(pricingProps.supporterCheckoutOpen, false)
+
+    const pricingCards = renderMembershipPricingCards({
+      activeMembershipLevel: pricingProps.activeMembershipLevel,
+      mode: pricingProps.mode,
+      portalActionAvailable: pricingProps.portalActionAvailable,
+      supporterCheckoutOpen: pricingProps.supporterCheckoutOpen,
+    })
+    assert.match(elementText(pricingCards), /New Supporter checkout is temporarily paused/)
+    assert.equal(
+      findElements(
+        pricingCards,
+        (element) => element.type === "form" && element.props.action === "/api/billing/checkout",
+      ).length,
+      0,
+    )
+  })
+
   it("filters account navigation by label, group, and description", () => {
     assert.deepEqual(
       filterAccountPageGroups("billing").flatMap((group) => group.items.map((item) => item.id)),
@@ -450,6 +628,7 @@ function billingPortalForms(tree) {
 async function renderMembershipTab({
   features = [],
   featureAccess = [],
+  supporterCheckoutOpen = true,
   subscriptions,
   stripeCustomer,
 }) {
@@ -479,6 +658,7 @@ async function renderMembershipTab({
       formatAccountDate,
       formatMembershipLevel,
       getAccountSurfaceData,
+      getPublicLaunchControls,
       resolveMembershipPricingMode,
       settingsInsetClassName,
       settingsSurfaceClassName,
@@ -525,6 +705,7 @@ async function renderMembershipTab({
           subscriptions,
         },
       }),
+      getPublicLaunchControls: () => ({ supporterCheckoutOpen }),
       resolveMembershipPricingMode,
       settingsInsetClassName: "settings-inset",
       settingsSurfaceClassName: "settings-surface",

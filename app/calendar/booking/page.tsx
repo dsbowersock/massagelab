@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { CalendarCog, Clock, MapPin, SlidersHorizontal, UserRound } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import {
   saveBookingPolicyAction,
   saveProviderBookingPolicyAction,

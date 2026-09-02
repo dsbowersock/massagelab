@@ -167,6 +167,7 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
   const { settings: appSettings } = useSettings()
   const {
     state: backgroundCommerceState,
+    ensureSnapshot: ensureBackgroundCommerceSnapshot,
     captureOwnershipReconciliationRevision:
       captureBackgroundCommerceOwnershipRevision,
     reconcileOwnedBackgroundIds: reconcileBackgroundCommerceOwnership,
@@ -255,6 +256,11 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
       transientOwnedBackgroundIds,
     ],
   )
+
+  useEffect(() => {
+    if (developmentSubscriberReview) return
+    void ensureBackgroundCommerceSnapshot()
+  }, [developmentSubscriberReview, ensureBackgroundCommerceSnapshot])
   const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const alertTimeout = useRef<number | null>(null)
   const timerStateRef = useRef(timerState)
@@ -344,6 +350,10 @@ export default function ChimerPage({ developmentSubscriberReview = false }: Chim
     setTransientOwnedBackgroundIds([])
   }, [commerceOwnedBackgroundIds])
 
+  // This effect owns Production session/account-preference hydration on mount
+  // and coalesced resume, applying access only from authoritative results.
+  // developmentSubscriberReview is the auth-free fixed-paid-feature review
+  // surface, so it intentionally skips those account reads and listeners.
   useEffect(() => {
     let isMounted = true
 

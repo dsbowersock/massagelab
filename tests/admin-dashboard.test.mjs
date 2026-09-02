@@ -124,8 +124,8 @@ function loadDashboardModule(actor) {
     appSurfaceClassName: "surface",
   }
   const compiledModule = loadCompiledModule(dashboardSource, "app/admin/page.test.tsx", {
-    "@/auth": {
-      getCurrentSession: async () => {
+    "@/lib/rsc-session": {
+      getCurrentRscSession: async () => {
         calls.session += 1
         return { user: { id: "session-user" } }
       },

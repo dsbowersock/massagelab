@@ -5,11 +5,17 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { signIn } from "next-auth/react"
 import { Mail, ShieldCheck } from "lucide-react"
+import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
+import { startGoogleAuthMethodIntent, useEntryAction } from "@/lib/auth-entry-actions"
+import { buildVerificationRequestPath } from "@/lib/auth-registration"
+import {
+  buildRegistrationLegalProviderRedirectPath,
+  isRegistrationLegalAcceptancePath,
+  safePostLegalAcceptanceCallback,
+} from "@/lib/legal-acceptance-gate"
 
 type LoginFormProps = {
   googleEnabled: boolean
@@ -23,55 +29,91 @@ const ERROR_MESSAGES: Record<string, string> = {
   CredentialsSignin: "Email or password is incorrect.",
 }
 
-function safeCallbackUrl(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/account"
-  return value
-}
-
 export function LoginForm({ googleEnabled }: LoginFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const hasCallbackUrl = searchParams.has("callbackUrl")
-  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"))
+  const requestedCallbackUrl = searchParams.get("callbackUrl")
+  const callbackUrl = isRegistrationLegalAcceptancePath(requestedCallbackUrl)
+    ? buildRegistrationLegalProviderRedirectPath(requestedCallbackUrl)
+    : safePostLegalAcceptanceCallback(requestedCallbackUrl, "/account")
   // Google OAuth defaults to onboarding only when no callback was requested.
   const googleCallbackUrl = hasCallbackUrl ? callbackUrl : "/onboarding"
   const googleRedirectTo = buildRegistrationLegalProviderRedirectPath(googleCallbackUrl)
+  const verificationRequestHref = buildVerificationRequestPath(callbackUrl)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [twoFactorCode, setTwoFactorCode] = useState("")
   const [needsTwoFactor, setNeedsTwoFactor] = useState(false)
-  const [status, setStatus] = useState(searchParams.get("verified") ? "Email verified. You can sign in now." : "")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [status, setStatus] = useState(
+    searchParams.get("verified")
+      ? "Email verified. You can sign in now."
+      : searchParams.get("security") === "sign-in-methods-changed"
+        ? "Your sign-in methods changed. Sign in again to continue."
+        : "",
+  )
+  const [statusIsError, setStatusIsError] = useState(false)
+  const { entryAction, beginEntryAction, finishEntryAction } = useEntryAction()
+
+  /** A two-factor challenge belongs only to the exact primary credentials that produced it. */
+  function clearStaleTwoFactorChallenge() {
+    if (!needsTwoFactor) return
+    setNeedsTwoFactor(false)
+    setTwoFactorCode("")
+    setStatus("")
+    setStatusIsError(false)
+  }
 
   async function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!beginEntryAction("email")) return
+    let navigationStarted = false
     setStatus("")
-    setIsSubmitting(true)
-
-    const result = await signIn("credentials", {
-      email,
-      password,
-      twoFactorCode,
-      redirect: false,
-    })
-
-    setIsSubmitting(false)
-
-    if (!result?.error) {
-      router.push(callbackUrl)
-      router.refresh()
-      return
+    setStatusIsError(false)
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        twoFactorCode,
+        redirect: false,
+      })
+      if (!result?.error) {
+        router.push(callbackUrl)
+        router.refresh()
+        navigationStarted = true
+        return
+      }
+      const errorCode = result.code ?? result.error
+      if (errorCode === "TWO_FACTOR_REQUIRED") {
+        setNeedsTwoFactor(true)
+        setStatus("Enter your authenticator app code or a backup code.")
+        setStatusIsError(false)
+        return
+      }
+      setStatus((errorCode ? ERROR_MESSAGES[errorCode] : undefined) ?? "Sign in failed. Try again.")
+      setStatusIsError(true)
+    } catch {
+      setStatus("Something went wrong. Please try again.")
+      setStatusIsError(true)
+    } finally {
+      if (!navigationStarted) finishEntryAction()
     }
+  }
 
-    const errorCode = result.code ?? result.error
-
-    if (errorCode === "TWO_FACTOR_REQUIRED") {
-      setNeedsTwoFactor(true)
-      setStatus("Enter your authenticator app code or a backup code.")
-      return
+  async function handleGoogleLogin() {
+    if (!beginEntryAction("google")) return
+    setStatus("")
+    setStatusIsError(false)
+    let navigating = false
+    try {
+      navigating = await startGoogleAuthMethodIntent(googleRedirectTo) === "navigating"
+      setStatus("Taking you to Google…")
+    } catch {
+      setStatus("Something went wrong. Please try again.")
+      setStatusIsError(true)
+    } finally {
+      if (!navigating) finishEntryAction()
     }
-
-    setStatus((errorCode ? ERROR_MESSAGES[errorCode] : undefined) ?? "Sign in failed. Try again.")
   }
 
   return (
@@ -92,7 +134,11 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value)
+                clearStaleTwoFactorChallenge()
+              }}
+              disabled={entryAction === "email"}
               placeholder="you@example.com"
               required
             />
@@ -104,7 +150,11 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
               type="password"
               autoComplete="current-password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(event) => {
+                setPassword(event.target.value)
+                clearStaleTwoFactorChallenge()
+              }}
+              disabled={entryAction === "email"}
               required
             />
           </div>
@@ -120,17 +170,29 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
               />
             </div>
           )}
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            <Mail className="mr-2 h-4 w-4" />
-            Sign in with email
-          </Button>
+          <AsyncActionButton
+            type="submit"
+            className="w-full"
+            disabled={entryAction !== "idle"}
+            pending={entryAction === "email"}
+            idleLabel="Sign in with email"
+            pendingLabel="Signing in…"
+            icon={<Mail className="h-4 w-4" />}
+          />
         </form>
 
         {googleEnabled ? (
-          <Button type="button" variant="outline" className="w-full" onClick={() => signIn("google", { redirectTo: googleRedirectTo })}>
-            <ShieldCheck className="mr-2 h-4 w-4" />
-            Continue with Google
-          </Button>
+          <AsyncActionButton
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={entryAction !== "idle"}
+            pending={entryAction === "google"}
+            idleLabel="Continue with Google"
+            pendingLabel="Connecting to Google…"
+            icon={<ShieldCheck className="h-4 w-4" />}
+            onClick={handleGoogleLogin}
+          />
         ) : (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
             Google sign-in is not available right now. Use email and password, or try Google again later.
@@ -138,8 +200,8 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
         )}
 
         {status && (
-          <AppInset className="p-3 text-sm text-muted-foreground">
-            {status}
+          <AppInset className={`p-3 text-sm ${statusIsError ? "text-amber-100" : "text-muted-foreground"}`}>
+            <p role={statusIsError ? "alert" : "status"} aria-live={statusIsError ? "assertive" : "polite"}>{status}</p>
           </AppInset>
         )}
 
@@ -149,6 +211,9 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
           </Link>
           <Link href="/forgot-password" className="text-brand-orange underline-offset-4 hover:underline">
             Forgot password?
+          </Link>
+          <Link href={verificationRequestHref} className="text-brand-orange underline-offset-4 hover:underline">
+            Resend verification email
           </Link>
         </div>
     </AppSurface>

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
+import { env as processEnv } from "node:process"
 import {
   BACKGROUND_PURCHASE_PURPOSE,
   classifyStripeCheckoutSessionPurpose,
   getStripeClient,
   getStripeWebhookSecret,
-  recordCheckoutSessionCompleted,
   retrieveBackgroundPurchaseCheckoutSessionForFulfillment,
-  upsertMembershipSubscriptionFromStripe,
+  retrieveStripeSubscription,
   verifyStripeWebhookSignature,
 } from "@/lib/stripe-billing"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
@@ -15,7 +15,12 @@ import {
   applyStripeDisputeEvent,
   applyStripeRefundEvent,
 } from "@/lib/commerce/reversal-service"
+import {
+  MembershipWebhookRetryableError,
+  processStripeMembershipEvent,
+} from "@/lib/membership-webhook-service"
 import { prisma } from "@/lib/prisma"
+import { safeErrorCode } from "@/lib/safe-error-code"
 import {
   STRIPE_BACKGROUND_CHECKOUT_WEBHOOK_EVENTS,
   STRIPE_BACKGROUND_DISPUTE_WEBHOOK_EVENTS,
@@ -29,6 +34,7 @@ const BACKGROUND_CHECKOUT_EVENT_TYPES = new Set(STRIPE_BACKGROUND_CHECKOUT_WEBHO
 const REFUND_EVENT_TYPES = new Set(STRIPE_BACKGROUND_REFUND_WEBHOOK_EVENTS)
 const DISPUTE_EVENT_TYPES = new Set(STRIPE_BACKGROUND_DISPUTE_WEBHOOK_EVENTS)
 const MEMBERSHIP_EVENT_TYPES = new Set(STRIPE_MEMBERSHIP_WEBHOOK_EVENTS)
+const MEMBERSHIP_WEBHOOK_WRITES_PAUSED_ENV = "MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED"
 
 function processorObjectId(value: unknown) {
   if (typeof value === "string") return value
@@ -36,6 +42,43 @@ function processorObjectId(value: unknown) {
     return typeof value.id === "string" ? value.id : ""
   }
   return ""
+}
+
+/**
+ * Owns the two-deployment cutover bridge while old legacy-writer invocations
+ * drain. The first convergence deployment uses exact `1` to make Stripe retry;
+ * only a later deployment removes it or sets `0` and lets convergence write.
+ */
+function membershipWebhookWritesPaused(environment: NodeJS.ProcessEnv) {
+  return environment[MEMBERSHIP_WEBHOOK_WRITES_PAUSED_ENV] === "1"
+}
+
+function membershipRetryResponse() {
+  return NextResponse.json({ received: false, retry: true }, { status: 503 })
+}
+
+/**
+ * Delegates one signed membership event to the convergence owner and maps only
+ * its safe retry signal to Stripe's retryable HTTP contract.
+ */
+async function processMembershipEvent(event: unknown) {
+  try {
+    const result = await processStripeMembershipEvent({
+      prismaClient: prisma,
+      event,
+      retrieveSubscription: retrieveStripeSubscription,
+    })
+    if (result.changed) {
+      clearAccountSurfaceDataCache(result.userId, "membership")
+    }
+    return null
+  } catch (error) {
+    if (error instanceof MembershipWebhookRetryableError) {
+      return membershipRetryResponse()
+    }
+    console.error("Membership webhook processing failed", { code: safeErrorCode(error) })
+    return NextResponse.json({ received: false }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
@@ -71,19 +114,18 @@ export async function POST(request: Request) {
         clearAccountSurfaceDataCache(result.userId, "membership")
       }
     } else if (event.type === "checkout.session.completed" && purpose === "membership") {
-      const result = await recordCheckoutSessionCompleted(prisma, object)
-      clearAccountSurfaceDataCache(
-        result?.customer?.userId ?? result?.subscription?.userId,
-        "membership",
-      )
+      if (membershipWebhookWritesPaused(processEnv)) return membershipRetryResponse()
+      const response = await processMembershipEvent(event)
+      if (response) return response
     }
     // Donation and unknown explicit purposes are acknowledged without
     // membership or commerce mutation, preserving the existing donation path.
   }
 
   if (MEMBERSHIP_EVENT_TYPES.has(event?.type)) {
-    const subscription = await upsertMembershipSubscriptionFromStripe(prisma, object)
-    clearAccountSurfaceDataCache(subscription?.userId, "membership")
+    if (membershipWebhookWritesPaused(processEnv)) return membershipRetryResponse()
+    const response = await processMembershipEvent(event)
+    if (response) return response
   }
 
   if (REFUND_EVENT_TYPES.has(event?.type)) {

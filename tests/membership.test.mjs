@@ -63,18 +63,28 @@ describe("Membership and entitlement helpers", () => {
   it("captures one auth-request time and resolves complete temporary candidates through the shared loader", () => {
     assert.match(authUsersSource, /buildEntitlements, loadActiveTemporaryGrants/)
     assert.match(authUsersSource, /const now = new Date\(\)/)
-    assert.match(authUsersSource, /loadActiveTemporaryGrants\(prisma, userId, now\)/)
     assert.match(
       authUsersSource,
-      /features:\s*buildEntitlements\(\{\s*adminAccess,\s*subscriptions:\s*user\?\.membershipSubscriptions \?\? \[\],\s*studentAccess:\s*user\?\.studentAccess \?\? null,\s*temporaryGrants,\s*now,\s*\}\)\.features/,
+      /database\.user\.findUnique\([\s\S]*loadTemporaryGrants\(database, userId, now\)/,
     )
+    assert.match(
+      authUsersSource,
+      /loadTemporaryGrants: typeof loadActiveTemporaryGrants = loadActiveTemporaryGrants/,
+    )
+    assert.match(
+      authUsersSource,
+      /const entitlements = buildEntitlements\(\{\s*adminAccess,\s*subscriptions:\s*user\?\.membershipSubscriptions \?\? \[\],\s*studentAccess:\s*user\?\.studentAccess \?\? null,\s*temporaryGrants,\s*now,\s*\}\)/,
+    )
+    assert.equal(authUsersSource.match(/buildEntitlements\(\{/g)?.length, 1)
+    assert.match(authUsersSource, /features: entitlements\.features/)
+    assert.match(authUsersSource, /featureKeys: entitlements\.features/)
     assert.doesNotMatch(authUsersSource, /temporaryFeatureGrant[\s\S]*take:/)
   })
 
   it("reloads a repaired Admin role before granting request-time features", () => {
     assert.match(
       authUsersSource,
-      /await ensureUserRole\(userId, user\.email\)[\s\S]*await prisma\.userRole\.findUnique\([\s\S]*userId_role:[\s\S]*role: "ADMIN"/,
+      /await ensureUserRole\(userId, user\.email, database\)[\s\S]*await database\.userRole\.findUnique\([\s\S]*userId_role:[\s\S]*role: "ADMIN"/,
     )
     assert.match(
       authUsersSource,
@@ -352,6 +362,16 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(canceled.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
     assert.equal(isActiveSubscriptionStatus("trialing"), true)
     assert.equal(isActiveSubscriptionStatus("incomplete"), false)
+  })
+
+  it("keeps every non-active Stripe billing state outside paid feature access", () => {
+    for (const status of ["past_due", "unpaid", "paused", "canceled"]) {
+      const entitlements = buildEntitlements({
+        subscriptions: [{ status, membershipLevel: "SUPPORTER" }],
+      })
+
+      assert.equal(entitlements.hasFeature(FEATURE_KEYS.premiumBackgrounds), false, status)
+    }
   })
 
   it("grants verified full admins the maximum current non-PHI features without inventing a paid membership", () => {

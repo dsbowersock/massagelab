@@ -152,7 +152,7 @@ describe("confirmPasswordReset", () => {
     })
 
     const state = database.state
-    assert.deepEqual(result, { status: "UPDATED" })
+    assert.deepEqual(result, { status: "UPDATED", emailIntentId: "intent-1" })
     assert.equal(Object.hasOwn(result, "sessionCount"), false)
     assert.equal(Object.hasOwn(result, "deletedSessionCount"), false)
     assert.equal(state.passwordCredential.passwordHash, "new-password-hash")
@@ -162,7 +162,41 @@ describe("confirmPasswordReset", () => {
     assert.equal(state.sessions.length, 0)
     assert.equal(state.adminActions.length, 0)
     assert.equal(state.activities.length, 0)
-    assert.equal(state.emailIntents.length, 0)
+    assert.equal(state.emailIntents.length, 1)
+    assert.deepEqual(state.emailIntents[0], {
+      id: "intent-1",
+      userId: state.user.id,
+      kind: "PASSWORD_RECOVERED",
+      recipientEmail: "person@example.com",
+      subject: "Password sign-in added or replaced for your MassageLab account",
+      message: "Password sign-in was added or replaced for your MassageLab account. This can add email and password to an existing account, or replace an existing password. Existing sign-in methods remain connected. If you made this change, no action is needed. If you did not, contact support. You may receive this notice more than once if delivery had to be retried.",
+      idempotencyKey: "password-recovered:reset-active-a",
+    })
+    assert.deepEqual(state.accounts, [{
+      id: "google-account-1",
+      userId: "user-1",
+      provider: "google",
+      providerAccountId: "google-subject-1",
+    }])
+  })
+
+  it("adds password sign-in to a Google-first account without changing its Google Account row", async () => {
+    const database = createResetDatabase({ googleFirst: true })
+    const originalAccounts = structuredClone(database.state.accounts)
+
+    assert.deepEqual(await confirmPasswordReset({
+      prismaClient: database,
+      tokenHash: "active-token-hash-a",
+      passwordHash: "new-google-first-password-hash",
+      clock: () => NOW,
+    }), { status: "UPDATED", emailIntentId: "intent-1" })
+
+    assert.deepEqual(database.state.passwordCredential, {
+      id: "credential-created",
+      userId: "user-1",
+      passwordHash: "new-google-first-password-hash",
+    })
+    assert.deepEqual(database.state.accounts, originalAccounts)
   })
 
   it("rolls back every mutation when final Session deletion fails", async () => {
@@ -240,14 +274,17 @@ describe("confirmPasswordReset", () => {
   })
 
   it("retries one serialization conflict without duplicating committed effects", async () => {
-    const database = createResetDatabase({ serializationConflicts: 1 })
+    const database = createResetDatabase({
+      serializationConflicts: 1,
+      userEmail: " Person@Example.COM ",
+    })
 
     assert.deepEqual(await confirmPasswordReset({
       prismaClient: database,
       tokenHash: "active-token-hash-a",
       passwordHash: "retried-password-hash",
       clock: () => NOW,
-    }), { status: "UPDATED" })
+    }), { status: "UPDATED", emailIntentId: "intent-1" })
 
     assert.equal(database.transactionAttempts, 2)
     assert.equal(database.state.passwordCredential.passwordHash, "retried-password-hash")
@@ -255,6 +292,13 @@ describe("confirmPasswordReset", () => {
     assert.equal(database.state.passwordResetTokens
       .filter((token) => token.userId === database.state.user.id)
       .every((token) => token.consumedAt), true)
+    assert.deepEqual(database.state.emailIntents.map(({ recipientEmail, idempotencyKey }) => ({
+      recipientEmail,
+      idempotencyKey,
+    })), [{
+      recipientEmail: "person@example.com",
+      idempotencyKey: "password-recovered:reset-active-a",
+    }])
   })
 
   it("captures a fresh authoritative time for every transaction retry", async () => {
@@ -310,10 +354,13 @@ function createResetDatabase({
   claimGate = null,
   failSessionDelete = false,
   serializationConflicts = 0,
+  googleFirst = false,
+  userEmail = "person@example.com",
 } = {}) {
   let state = {
-    user: { id: "user-1", authSessionVersion: 4 },
-    passwordCredential: { id: "credential-1", userId: "user-1", passwordHash: "old-password-hash" },
+    user: { id: "user-1", email: userEmail, authSessionVersion: 4 },
+    accounts: [{ id: "google-account-1", userId: "user-1", provider: "google", providerAccountId: "google-subject-1" }],
+    passwordCredential: googleFirst ? null : { id: "credential-1", userId: "user-1", passwordHash: "old-password-hash" },
     passwordResetTokens: [
       {
         id: "reset-active-a",
@@ -449,6 +496,19 @@ function createResetDatabase({
             snapshot.user.authSessionVersion += 1
             dirty = true
             return structuredClone(snapshot.user)
+          },
+        },
+        accountSecurityEmailIntent: {
+          async upsert({ where, create, update, select }) {
+            assert.deepEqual(where, { idempotencyKey: create.idempotencyKey })
+            assert.deepEqual(update, {})
+            assert.deepEqual(select, { id: true })
+            const existing = snapshot.emailIntents.find((intent) => intent.idempotencyKey === create.idempotencyKey)
+            if (existing) return { id: existing.id }
+            const intent = { id: `intent-${snapshot.emailIntents.length + 1}`, ...create }
+            snapshot.emailIntents.push(intent)
+            dirty = true
+            return { id: intent.id }
           },
         },
         session: {

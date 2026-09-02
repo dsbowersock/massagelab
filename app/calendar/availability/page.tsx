@@ -1,7 +1,7 @@
 import Link from "next/link"
 import * as React from "react"
 import { CalendarDays, CalendarOff, Clock, Layers3 } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import {
   createAvailabilityOverrideAction,
   createAvailabilityRuleAction,

@@ -1,142 +1,94 @@
-import { NextResponse } from "next/server"
-import { hashPassword, generateRandomToken, hashToken, normalizeEmail, tokenExpiresIn, verifyPassword } from "@/lib/auth-security"
-import { registrationVerificationResponse, sendRegistrationVerification } from "@/lib/auth-registration"
-import { sendVerificationEmail } from "@/lib/auth-mail"
+import { after, NextResponse } from "next/server"
+import { getAuthSecret } from "@/lib/auth-env"
+import { sendAccountChangeEmail, sendPasswordSetupEmail, sendVerificationEmail } from "@/lib/auth-mail"
+import { consumeEmailWorkRateLimit } from "@/lib/auth-rate-limit"
+import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-entry-messages"
+import { authRequestNetworkIdentifier, isPublicAccountEmail } from "@/lib/auth-request"
+import { registerPasswordAccount } from "@/lib/auth-registration-service"
+import { sendRegistrationVerification } from "@/lib/auth-registration"
+import { generateRandomToken, hashPassword, hashToken, normalizeEmail, tokenExpiresIn, verifyPassword } from "@/lib/auth-security"
 import { ensureUserRole } from "@/lib/auth-users"
-import { assertRateLimit, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
 import {
   acceptedDocumentIdsFromInput,
   legalRequestMetadata,
   missingRequiredLegalDocuments,
   recordLegalAcceptances,
 } from "@/lib/legal-acceptance"
-import { requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
 import { safePostLegalAcceptanceCallback } from "@/lib/legal-acceptance-gate"
+import { requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
 import { prisma } from "@/lib/prisma"
+import {
+  getPublicLaunchControls,
+  REGISTRATION_PAUSED_MESSAGE,
+} from "@/lib/public-launch-controls"
+
+const RATE_LIMIT_MESSAGE = "Too many requests. Please try again later."
+const EXISTING_ACCOUNT_NOTICE_SUBJECT = "MassageLab account sign-in request"
+const EXISTING_ACCOUNT_NOTICE_MESSAGE =
+  "A password registration request was received for this MassageLab account. Sign in with your existing password, or use account recovery if you need to reset it. If you did not make this request, no action is needed."
 
 export async function POST(request: Request) {
+  if (!getPublicLaunchControls().registrationOpen) {
+    return NextResponse.json({ message: REGISTRATION_PAUSED_MESSAGE }, { status: 503 })
+  }
+
   const body = await request.json().catch(() => ({}))
   const email = normalizeEmail(body.email)
   const password = typeof body.password === "string" ? body.password : ""
   const name = typeof body.name === "string" ? body.name.trim() : ""
-  // Gate the app-local destination before it reaches verification-link generation.
   const callbackUrl = safePostLegalAcceptanceCallback(body.callbackUrl)
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? "unknown"
-  const key = rateLimitKey(email, ip)
   const requiredDocuments = requiredLegalDocumentsForEvent("registration")
   const missingLegalDocuments = missingRequiredLegalDocuments({
     acceptedDocumentIds: acceptedDocumentIdsFromInput(body.acceptedLegalDocuments),
     documents: requiredDocuments,
   })
 
-  await assertRateLimit("REGISTER", key)
-
-  if (!email || password.length < 12) {
-    await recordFailedAttempt("REGISTER", key)
+  // Invalid input is rejected before the service consumes quota or performs
+  // expensive work; every valid request enters the same bounded service path.
+  if (!isPublicAccountEmail(email) || password.length < 12) {
     return NextResponse.json({ message: "Use a valid email and a password with at least 12 characters." }, { status: 400 })
   }
-
   if (missingLegalDocuments.length > 0) {
-    await recordFailedAttempt("REGISTER", key)
     return NextResponse.json({
       message: `Accept ${missingLegalDocuments.map((document) => document.shortLabel).join(" and ")} before creating an account.`,
     }, { status: 400 })
   }
 
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-    include: { passwordCredential: true },
+  const result = await registerPasswordAccount({
+    prismaClient: prisma,
+    email,
+    password,
+    name,
+    callbackUrl,
+    networkIdentifier: authRequestNetworkIdentifier(request),
+    secret: getAuthSecret(),
+    requiredDocuments,
+    legalMetadata: legalRequestMetadata(request),
+    consumeRateLimit: consumeEmailWorkRateLimit,
+    hashPassword,
+    verifyPassword,
+    generateToken: generateRandomToken,
+    hashToken,
+    tokenExpiresAt: tokenExpiresIn,
+    ensureUserRole,
+    recordLegalAcceptances,
+    sendVerification: (recipient, token, safeCallbackUrl) => (
+      sendRegistrationVerification(sendVerificationEmail, recipient, token, safeCallbackUrl)
+    ),
+    sendPasswordSetup: sendPasswordSetupEmail,
+    sendExistingAccountNotice: (recipient) => sendAccountChangeEmail(
+      recipient,
+      EXISTING_ACCOUNT_NOTICE_SUBJECT,
+      EXISTING_ACCOUNT_NOTICE_MESSAGE,
+    ),
+    scheduleAccountWork: (work) => after(work),
   })
-  if (existingUser) {
-    if (!existingUser.emailVerified && existingUser.passwordCredential) {
-      const passwordIsValid = await verifyPassword(existingUser.passwordCredential.passwordHash, password)
 
-      if (passwordIsValid) {
-        const verificationToken = generateRandomToken()
-        const resendRequestedAt = new Date()
-        const emailVerificationToken = await prisma.emailVerificationToken.create({
-          data: {
-            userId: existingUser.id,
-            email,
-            tokenHash: hashToken(verificationToken),
-            expiresAt: tokenExpiresIn(24 * 60),
-          },
-        })
-        await recordLegalAcceptances({
-          prismaClient: prisma,
-          userId: existingUser.id,
-          documents: requiredDocuments,
-          metadata: legalRequestMetadata(request),
-        })
-        const resendResult = registrationVerificationResponse(
-          await sendRegistrationVerification(sendVerificationEmail, email, verificationToken, callbackUrl),
-        )
-
-        // Preserve usable links from overlapping resend requests; a successful resend only clears expired tokens.
-        if (resendResult.status === 200) {
-          await prisma.emailVerificationToken.deleteMany({
-            where: {
-              userId: existingUser.id,
-              consumedAt: null,
-              id: { not: emailVerificationToken.id },
-              expiresAt: { lt: resendRequestedAt },
-            },
-          })
-        } else {
-          await prisma.emailVerificationToken.deleteMany({
-            where: {
-              id: emailVerificationToken.id,
-            },
-          })
-        }
-
-        return NextResponse.json(resendResult.body, { status: resendResult.status })
-      }
-    }
-
-    await recordFailedAttempt("REGISTER", key)
+  if (result.status === "RATE_LIMITED") {
     return NextResponse.json(
-      { message: "An account already exists for that email. Sign in instead, or use forgot password to set or reset an email password." },
-      { status: 409 },
+      { message: RATE_LIMIT_MESSAGE },
+      { status: 429, headers: { "Retry-After": String(result.retryAfterSeconds) } },
     )
   }
-
-  const verificationToken = generateRandomToken()
-  const passwordHash = await hashPassword(password)
-
-  const user = await prisma.user.create({
-    data: {
-      email,
-      name,
-      passwordCredential: {
-        create: {
-          passwordHash,
-        },
-      },
-      profile: {
-        create: {
-          displayName: name,
-        },
-      },
-      emailVerificationTokens: {
-        create: {
-          email,
-          tokenHash: hashToken(verificationToken),
-          expiresAt: tokenExpiresIn(24 * 60),
-        },
-      },
-    },
-  })
-
-  await ensureUserRole(user.id, user.email)
-  await recordLegalAcceptances({
-    prismaClient: prisma,
-    userId: user.id,
-    documents: requiredDocuments,
-    metadata: legalRequestMetadata(request),
-  })
-  const mailResult = await sendRegistrationVerification(sendVerificationEmail, email, verificationToken, callbackUrl)
-  const response = registrationVerificationResponse(mailResult)
-
-  return NextResponse.json(response.body, { status: response.status })
+  return NextResponse.json({ message: PUBLIC_ACCOUNT_ENTRY_MESSAGE }, { status: 202 })
 }

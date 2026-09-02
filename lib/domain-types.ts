@@ -15,7 +15,7 @@ export type AccountCapabilities = {
   hostedClinicalSyncEnabled: boolean
 }
 
-export type AuthAttemptPurpose = "LOGIN" | "REGISTER" | "PASSWORD_RESET" | "TWO_FACTOR"
+export type AuthAttemptPurpose = "LOGIN" | "REGISTER" | "PASSWORD_RESET" | "TWO_FACTOR" | "GOOGLE_INTENT"
 
 export type AnatomyKind =
   | "SYSTEM"

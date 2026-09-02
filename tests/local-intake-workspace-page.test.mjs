@@ -20,7 +20,9 @@ describe("local intake workspace page source", () => {
     assert.match(source, /Start follow-up intake/)
     assert.match(source, /Use in SOAP/)
     assert.match(source, /createSoapDraftFromIntakeDocument/)
-    assert.match(source, /router\.push\("\/notes\/soap"\)/)
+    assert.match(source, /import \{ usePendingNavigation \} from "@\/components\/shell\/use-pending-navigation"/)
+    assert.match(source, /const \{ isPending: isNavigationPending, push \} = usePendingNavigation\(\)/)
+    assert.match(source, /push\("\/notes\/soap"\)/)
     assert.match(source, /localClientId/)
   })
 

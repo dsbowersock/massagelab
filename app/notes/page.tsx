@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Activity, ClipboardCheck, ClipboardList, FileText, Footprints, HeartPulse, LifeBuoy, LockKeyhole, ShieldCheck } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Badge } from "@/components/ui/badge"
 import { createPublicPageMetadata } from "@/lib/seo"

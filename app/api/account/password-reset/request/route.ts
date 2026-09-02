@@ -1,40 +1,63 @@
-import { NextResponse } from "next/server"
-import { generateRandomToken, hashToken, normalizeEmail, tokenExpiresIn } from "@/lib/auth-security"
+import { after, NextResponse } from "next/server"
+import { getAuthSecret } from "@/lib/auth-env"
 import { sendPasswordResetEmail } from "@/lib/auth-mail"
-import { assertRateLimit, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
+import { consumeEmailWorkRateLimit } from "@/lib/auth-rate-limit"
+import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-entry-messages"
+import { authRequestNetworkIdentifier, isPublicAccountEmail } from "@/lib/auth-request"
+import { generateRandomToken, hashToken, normalizeEmail, tokenExpiresIn } from "@/lib/auth-security"
+import { requestPasswordReset } from "@/lib/password-reset-request"
 import { prisma } from "@/lib/prisma"
 
-export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}))
-  const email = normalizeEmail(body.email)
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? "unknown"
-  const key = rateLimitKey(email, ip)
+const RATE_LIMIT_MESSAGE = "Too many requests. Please try again later."
 
-  await assertRateLimit("PASSWORD_RESET", key)
-
-  if (!email) {
-    await recordFailedAttempt("PASSWORD_RESET", key)
-    return NextResponse.json({ message: "If that email is registered, a reset link has been sent." })
-  }
-
-  const user = await prisma.user.findUnique({ where: { email } })
-
-  if (user?.emailVerified) {
-    const resetToken = generateRandomToken()
-    await prisma.passwordResetToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: hashToken(resetToken),
-        expiresAt: tokenExpiresIn(60),
-      },
-    })
-    const mailResult = await sendPasswordResetEmail(email, resetToken)
-
-    return NextResponse.json({
-      message: "If that email is registered, a reset link has been sent.",
-      devLink: mailResult.devLink,
-    })
-  }
-
-  return NextResponse.json({ message: "If that email is registered, a reset link has been sent." })
+type PasswordResetRequestDependencies = {
+  prismaClient: typeof prisma
+  secret: string
+  clock?: () => Date
+  shouldPrune?: () => boolean
+  resetWork?: typeof requestPasswordReset
 }
+
+/** Builds the thin HTTP adapter while keeping service ordering testable. */
+export function createPasswordResetRequestHandler({
+  prismaClient,
+  secret,
+  clock = () => new Date(),
+  shouldPrune,
+  resetWork = requestPasswordReset,
+}: PasswordResetRequestDependencies) {
+  return async function passwordResetRequestHandler(request: Request) {
+    const body = await request.json().catch(() => ({}))
+    const email = normalizeEmail(body.email)
+    if (!isPublicAccountEmail(email)) {
+      return NextResponse.json({ message: PUBLIC_ACCOUNT_ENTRY_MESSAGE }, { status: 202 })
+    }
+
+    const result = await resetWork({
+      prismaClient,
+      email,
+      networkIdentifier: authRequestNetworkIdentifier(request),
+      secret,
+      now: clock(),
+      shouldPrune,
+      consumeRateLimit: consumeEmailWorkRateLimit,
+      generateToken: generateRandomToken,
+      hashToken,
+      tokenExpiresAt: tokenExpiresIn,
+      sendPasswordReset: sendPasswordResetEmail,
+      scheduleAccountWork: (work) => after(work),
+    })
+    if (result.status === "RATE_LIMITED") {
+      return NextResponse.json(
+        { message: RATE_LIMIT_MESSAGE },
+        { status: 429, headers: { "Retry-After": String(result.retryAfterSeconds) } },
+      )
+    }
+    return NextResponse.json({ message: PUBLIC_ACCOUNT_ENTRY_MESSAGE }, { status: 202 })
+  }
+}
+
+export const POST = createPasswordResetRequestHandler({
+  prismaClient: prisma,
+  secret: getAuthSecret(),
+})
