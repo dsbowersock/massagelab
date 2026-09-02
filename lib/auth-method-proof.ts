@@ -251,6 +251,10 @@ async function verifyPasswordMethodProofInternal(
     : verified
 }
 
+/**
+ * Denies credential proof when either the LOGIN or TWO_FACTOR limiter is
+ * blocked, returning the longest retry delay among the blocked decisions.
+ */
 async function credentialProofDecision(
   deps: ProofDependencies,
   input: Omit<Parameters<typeof checkCredentialRateLimit>[0], "purpose">,
