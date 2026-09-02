@@ -94,7 +94,7 @@ function loadRoute({
   const userPreferenceFor = (transactionId) => ({
     findUnique: async () => {
       calls.reads.push(transactionId)
-      return preferenceRecord
+      return structuredClone(preferenceRecord)
     },
     upsert: async (input) => {
       calls.upserts.push(input)

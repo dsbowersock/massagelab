@@ -6,6 +6,7 @@ const requestModule = await import("../lib/account-security-request.ts")
 const SITE_URL = "https://massagelab.app/account"
 const ENDPOINT_URL = "https://massagelab.app/api/account/security/totp/setup"
 const ALLOWED_KEYS = ["proofMethod", "confirmed"]
+const MALFORMED_REQUEST_BODY_READS = Symbol("malformed request body reads")
 
 describe("trusted account-security JSON requests", () => {
   it("accepts only the configured request origin with exact browser provenance and JSON shape", async () => {
@@ -47,6 +48,8 @@ describe("trusted account-security JSON requests", () => {
         }),
         { ok: false, code: "UNTRUSTED_REQUEST" },
       )
+      const bodyReads = request[MALFORMED_REQUEST_BODY_READS]
+      if (bodyReads) assert.deepEqual(bodyReads, [], "provenance rejection must precede body reads")
     })
   }
 
@@ -198,13 +201,30 @@ function trustedRequest({
 
 function malformedUrlRequest() {
   const valid = trustedRequest()
+  const bodyReads = []
+  const expectedError = new Error("malformed request body must not be read")
+  const rejectBodyRead = (reader) => {
+    bodyReads.push(reader)
+    throw expectedError
+  }
   // Request rejects malformed URLs during construction. This minimal request-like
-  // object throws if body access occurs so provenance must fail before parsing.
+  // object exposes valid headers but throws one sentinel error from every body
+  // surface so provenance must fail before any parsing strategy is attempted.
   return {
     url: "not a URL",
     headers: valid.headers,
+    [MALFORMED_REQUEST_BODY_READS]: bodyReads,
     get body() {
-      throw new Error("malformed request body must not be read")
+      return rejectBodyRead("body")
+    },
+    text() {
+      return rejectBodyRead("text")
+    },
+    json() {
+      return rejectBodyRead("json")
+    },
+    arrayBuffer() {
+      return rejectBodyRead("arrayBuffer")
     },
   }
 }

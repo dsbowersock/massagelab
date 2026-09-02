@@ -3,6 +3,7 @@ import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
 import { describe, it } from "node:test"
+import ts from "typescript"
 
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
@@ -46,6 +47,86 @@ function actionHandlerSource(source, functionName, nextFunctionName) {
   const end = source.indexOf(endMarker, start + startMarker.length)
   assert.notEqual(end, -1, `missing ${nextFunctionName} boundary after ${functionName}`)
   return source.slice(start, end)
+}
+
+/** Finds direct, optional, indexed, or destructured `result.message` reads. */
+function resultMessageReads(source) {
+  const sourceFile = ts.createSourceFile(
+    "result-message-privacy.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  const reads = []
+  const unwrapExpression = (node) => {
+    let value = node
+    while (
+      value
+      && (ts.isParenthesizedExpression(value)
+        || ts.isAsExpression(value)
+        || ts.isTypeAssertionExpression(value)
+        || ts.isNonNullExpression(value)
+        || ts.isSatisfiesExpression(value))
+    ) {
+      value = value.expression
+    }
+    return value
+  }
+  const isResult = (node) => {
+    const value = unwrapExpression(node)
+    return Boolean(value && ts.isIdentifier(value) && value.text === "result")
+  }
+  const isMessage = (node) => {
+    const value = unwrapExpression(node)
+    return Boolean(
+      value
+      && ((ts.isIdentifier(value) && value.text === "message")
+        || (ts.isStringLiteralLike(value) && value.text === "message")),
+    )
+  }
+  const objectLiteralReadsMessage = (node) => {
+    const value = ts.isParenthesizedExpression(node) ? node.expression : node
+    return ts.isObjectLiteralExpression(value) && value.properties.some((property) => (
+      (ts.isShorthandPropertyAssignment(property) && property.name.text === "message")
+      || (ts.isPropertyAssignment(property) && isMessage(property.name))
+    ))
+  }
+
+  function visit(node) {
+    if (
+      ts.isPropertyAccessExpression(node)
+      && isResult(node.expression)
+      && node.name.text === "message"
+    ) {
+      reads.push(node)
+    } else if (
+      ts.isElementAccessExpression(node)
+      && isResult(node.expression)
+      && isMessage(node.argumentExpression)
+    ) {
+      reads.push(node)
+    } else if (
+      ts.isVariableDeclaration(node)
+      && isResult(node.initializer)
+      && ts.isObjectBindingPattern(node.name)
+      && node.name.elements.some((element) => (
+        !element.dotDotDotToken && isMessage(element.propertyName ?? element.name)
+      ))
+    ) {
+      reads.push(node)
+    } else if (
+      ts.isBinaryExpression(node)
+      && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      && isResult(node.right)
+      && objectLiteralReadsMessage(node.left)
+    ) {
+      reads.push(node)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  return reads
 }
 
 const UPDATED = {
@@ -199,6 +280,27 @@ describe("account security route adapters", () => {
 })
 
 describe("recoverable account-method UI contracts", () => {
+  it("recognizes every direct result-message access form at the privacy boundary", () => {
+    for (const source of [
+      "consume(result.message)",
+      "consume(result?.message)",
+      "consume((result).message)",
+      "consume(result!.message)",
+      "consume((result as { message: string }).message)",
+      'consume(result["message"])',
+      'consume(result[("message")])',
+      'consume(result["message" as const])',
+      'consume(result?.["message"])',
+      "const { message } = result",
+      "const { message } = (result satisfies { message: string })",
+      "const { message: feedback } = result",
+      "({ message } = result)",
+    ]) {
+      assert.equal(resultMessageReads(source).length, 1, source)
+    }
+    assert.equal(resultMessageReads("consume(result.code); const { code } = result").length, 0)
+  })
+
   it("allowlists actionable matching-account recovery without rendering arbitrary response text", async () => {
     assert.equal(
       existsSync(fileURLToPath(linkRecoveryUrl)),
@@ -314,7 +416,11 @@ describe("recoverable account-method UI contracts", () => {
     assert.match(methodsPanelSource, /role=\{(?=[^}]*"alert")(?=[^}]*"status")(?=[^}]*\?)(?=[^}]*:)[^}]*\}/)
     assert.match(methodsPanelSource, /aria-live=\{(?=[^}]*"assertive")(?=[^}]*"polite")(?=[^}]*\?)(?=[^}]*:)[^}]*\}/)
     assert.match(twoFactorPanelSource, /resolveTwoFactorManagementRecovery/)
-    assert.doesNotMatch(twoFactorPanelSource, /result\.message/)
+    assert.equal(
+      resultMessageReads(twoFactorPanelSource).length,
+      0,
+      "two-factor recovery must not render arbitrary response message fields",
+    )
     assert.doesNotMatch(twoFactorPanelSource, /localStorage|sessionStorage|useRouter|router\.refresh|console\s*\.|logger\s*\./)
   })
 

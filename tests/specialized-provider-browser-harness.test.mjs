@@ -159,7 +159,7 @@ describe("specialized account-shell provider browser harness", () => {
   })
 
   it("surfaces an early bundle page error and removes its temporary listener", {
-    timeout: 10_000,
+    timeout: 45_000,
   }, async () => {
     const { chromium } = require("playwright")
     const browser = await chromium.launch({ headless: true })

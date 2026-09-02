@@ -510,7 +510,12 @@ test("ordinary signed-in shell defers commerce until a real background consumer 
     .toBeAttached()
   await page.waitForFunction(() => (
     document.documentElement.dataset.backgroundCommerceRefreshPairReady === "true"
-  ))
+  ), undefined, { timeout: 45_000 }).catch((error) => {
+    throw new Error(
+      "Background commerce focus/online same-listener pair did not become ready within 45 seconds",
+      { cause: error },
+    )
+  })
   await page.evaluate(() => {
     if (document.documentElement.dataset.backgroundCommerceRefreshPairReady !== "true") {
       throw new Error("Background commerce refresh listener pair was removed before dispatch")
