@@ -323,6 +323,11 @@ export async function exerciseSpecializedProviderHarness(page) {
     return state.calendarGets === 1 && state.practiceId === "practice-inert"
   })
   const practiceEnabled = await read()
+  const snapshots = { mounted, firstConsumer, concurrentConsumer, hydrated, practiceEnabled }
 
-  return { mounted, firstConsumer, concurrentConsumer, hydrated, practiceEnabled }
+  if (practiceEnabled.errors.length > 0) {
+    throw new Error(`Specialized provider harness captured browser errors: ${JSON.stringify(snapshots)}`)
+  }
+
+  return snapshots
 }

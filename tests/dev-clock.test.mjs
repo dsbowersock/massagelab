@@ -82,14 +82,20 @@ describe("development Clock review route", () => {
       "const retryVisualizerAccountSync",
       ownerAdoptionStart,
     )
-    assert.ok(ownerAdoptionStart >= 0 && ownerAdoptionEnd > ownerAdoptionStart)
+    assert.ok(
+      ownerAdoptionStart >= 0 && ownerAdoptionEnd > ownerAdoptionStart,
+      "Music provider owner-adoption effect boundaries missing or reordered",
+    )
     const ownerAdoptionSource = musicProviderSource.slice(ownerAdoptionStart, ownerAdoptionEnd)
     const ownerResetStart = ownerAdoptionSource.indexOf("if (ownerChanged) {")
     const ownerResetEnd = ownerAdoptionSource.indexOf(
       'if (bootstrapStatus === "anonymous"',
       ownerResetStart,
     )
-    assert.ok(ownerResetStart >= 0 && ownerResetEnd > ownerResetStart)
+    assert.ok(
+      ownerResetStart >= 0 && ownerResetEnd > ownerResetStart,
+      "Music provider owner-reset block boundaries missing or reordered",
+    )
     const ownerResetSource = ownerAdoptionSource.slice(ownerResetStart, ownerResetEnd)
     assert.match(
       ownerAdoptionSource,
@@ -103,14 +109,19 @@ describe("development Clock review route", () => {
     const persistPreferencesStart = musicProviderSource.indexOf(
       "const persistVisualizerAccountPreferences = useCallback(",
     )
-    const persistPreferencesEnd = musicProviderSource.indexOf(
-      "// Browser media ownership is provider-scoped",
+    const persistPreferencesEndMarker =
+      "}, [accountIntentTracker, ownerKey, syncEnabled, writeAppSettingsPatch])"
+    const persistPreferencesEndStart = musicProviderSource.indexOf(
+      persistPreferencesEndMarker,
       persistPreferencesStart,
     )
-    assert.ok(persistPreferencesStart >= 0 && persistPreferencesEnd > persistPreferencesStart)
+    assert.ok(
+      persistPreferencesStart >= 0 && persistPreferencesEndStart > persistPreferencesStart,
+      "Music provider visualizer-persistence callback boundaries missing or reordered",
+    )
     const persistPreferencesSource = musicProviderSource.slice(
       persistPreferencesStart,
-      persistPreferencesEnd,
+      persistPreferencesEndStart + persistPreferencesEndMarker.length,
     )
     assert.match(
       persistPreferencesSource,
