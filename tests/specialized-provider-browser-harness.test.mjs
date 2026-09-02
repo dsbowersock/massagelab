@@ -3,6 +3,7 @@ import { createRequire } from "node:module"
 import { describe, it } from "node:test"
 import {
   assertSpecializedProviderImportSurface,
+  createPageErrorRecorder,
   createSpecializedProviderBundleLoader,
   exerciseSpecializedProviderHarness,
 } from "./helpers/specialized-provider-browser-harness.mjs"
@@ -65,6 +66,36 @@ describe("specialized account-shell provider browser harness", () => {
     assert.equal(await retry, "recovered bundle")
     assert.equal(loadBundle(), retry)
     assert.equal(builds, 2)
+  })
+
+  it("records every page error and detaches only its own listener", async () => {
+    const listeners = new Set()
+    const sentinelListener = () => undefined
+    listeners.add(sentinelListener)
+    const page = {
+      on(type, listener) {
+        assert.equal(type, "pageerror")
+        listeners.add(listener)
+      },
+      off(type, listener) {
+        assert.equal(type, "pageerror")
+        listeners.delete(listener)
+      },
+    }
+    const recorder = createPageErrorRecorder(page)
+    const first = new Error("first synthetic page error")
+    const second = new Error("second synthetic page error")
+
+    for (const listener of listeners) listener(first)
+    for (const listener of listeners) listener(second)
+    assert.equal(await recorder.firstError, first)
+    assert.deepEqual(recorder.errors, [first, second])
+
+    recorder.dispose()
+    assert.deepEqual([...listeners], [sentinelListener])
+    recorder.dispose()
+    for (const listener of listeners) listener(new Error("post-disposal page error"))
+    assert.deepEqual(recorder.errors, [first, second])
   })
 
   it("surfaces an early bundle page error and removes its temporary listener", {

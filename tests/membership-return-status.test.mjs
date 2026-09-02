@@ -340,6 +340,7 @@ describe("membership return component safety", () => {
     const states = [persistedStatus({ state: "billing-attention" }), false, false, 0]
     let stateIndex = 0
     let pendingFormCount = 0
+    let pendingButtonCount = 0
     let pendingFormProps = null
     let pendingButtonProps = null
     const compiled = loadCompiledModule(
@@ -367,6 +368,7 @@ describe("membership return component safety", () => {
             return createElement("form", props)
           },
           PendingSubmitButton(props) {
+            pendingButtonCount += 1
             pendingButtonProps = props
             return createElement("button", props)
           },
@@ -388,6 +390,7 @@ describe("membership return component safety", () => {
     assert.equal(pendingFormProps.action, "/api/billing/portal")
     assert.equal(pendingFormProps.method, "post")
     assert.equal(pendingFormProps.pendingLabel, "Opening billing portal…")
+    assert.equal(pendingButtonCount, 1, "billing management must render exactly one pending submit button")
     assert.ok(pendingButtonProps, "billing management must expose the form's pending state")
     assert.equal(pendingButtonProps.type, "submit")
     assert.equal(pendingButtonProps.variant, "outline")

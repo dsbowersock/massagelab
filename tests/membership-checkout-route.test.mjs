@@ -591,11 +591,11 @@ describe("Membership Checkout POST route", () => {
       body: { error: "Stripe price is not configured" },
       status: 400,
     })
-    assert.deepEqual(calls.priceResolutionInputs, [{
-      membershipLevel: "SUPPORTER",
-      supporterAmountChoiceId: "support-1",
-      interval: "month",
-    }])
+    assert.equal(calls.priceResolutionInputs.length, 1)
+    const [priceResolutionInput] = calls.priceResolutionInputs
+    assert.equal(priceResolutionInput.membershipLevel, "SUPPORTER")
+    assert.equal(priceResolutionInput.supporterAmountChoiceId, "support-1")
+    assert.equal(priceResolutionInput.interval, "month")
     assert.equal(calls.membershipLookup, 0)
     assert.equal(calls.ensureCustomer, 0)
     assert.equal(calls.createCheckout, 0)

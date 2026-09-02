@@ -81,8 +81,9 @@ function callCount(source, callPattern) {
 
 /**
  * Requires two nearby semantic fragments in either prose order. Fragments must
- * be anchor-free and must not depend on captures or backreferences because
- * their sources are embedded into one new case-insensitive expression.
+ * be anchor-free and must not depend on captures or backreferences. Only each
+ * fragment's source is retained; its flags are discarded and the composed
+ * expression is case-insensitive only.
  */
 function assertBoundedEitherOrder(source, left, right, maxCharacters = 120) {
   assert.match(
@@ -94,7 +95,11 @@ function assertBoundedEitherOrder(source, left, right, maxCharacters = 120) {
   )
 }
 
-/** Loads a fresh copy of the production module so this test exercises its singleton owner. */
+/**
+ * Compiles one fresh isolated pricing module per invocation. Calls through the
+ * returned module share that invocation's singleton cache, while separate tests
+ * and helper invocations receive independent module and cache state.
+ */
 function sharedMembershipPricingWorkload(priceReads, {
   configuredEnvironment = SIX_PRICE_ENVIRONMENT,
   clientConstructions = [],

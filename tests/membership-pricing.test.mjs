@@ -464,6 +464,8 @@ describe("Membership pricing catalog", () => {
       },
     })
 
+    // The stale build cannot reach this latch until all six configured Price
+    // reads have started concurrently and the sixth read opens oldReadsStarted.
     const staleBuild = loader.get()
     let currentCatalog
     let staleCatalog

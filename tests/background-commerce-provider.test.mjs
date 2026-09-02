@@ -128,12 +128,31 @@ function providerHarnessBundle() {
           ["online", new Map()],
         ]);
         window.addEventListener = (type, listener, options) => {
-          refreshListeners.get(type)?.set(listener, harness.owner);
-          return nativeAddEventListener(type, listener, options);
+          const listeners = refreshListeners.get(type);
+          if (!listeners) return nativeAddEventListener(type, listener, options);
+          const existing = listeners.get(listener);
+          if (existing) return nativeAddEventListener(type, existing.wrapped, options);
+          const record = {
+            owner: harness.owner,
+            wrapped(event) {
+              try {
+                if (typeof listener === "function") return listener.call(window, event);
+                return listener.handleEvent(event);
+              } finally {
+                record.completions += 1;
+              }
+            },
+            completions: 0,
+          };
+          listeners.set(listener, record);
+          return nativeAddEventListener(type, record.wrapped, options);
         };
         window.removeEventListener = (type, listener, options) => {
-          refreshListeners.get(type)?.delete(listener);
-          return nativeRemoveEventListener(type, listener, options);
+          const listeners = refreshListeners.get(type);
+          const record = listeners?.get(listener);
+          if (!record) return nativeRemoveEventListener(type, listener, options);
+          listeners.delete(listener);
+          return nativeRemoveEventListener(type, record.wrapped, options);
         };
         window.addEventListener("error", (event) => harness.errors.push(String(event.error || event.message)));
         window.addEventListener("unhandledrejection", (event) => harness.errors.push(String(event.reason)));
@@ -233,10 +252,22 @@ function providerHarnessBundle() {
         harness.resolveStateFetches = () => {
           for (const request of [...pendingStateRequests]) request.resolve();
         };
-        harness.dispatchFocus = () => window.dispatchEvent(new Event("focus"));
-        harness.dispatchOnline = () => window.dispatchEvent(new Event("online"));
+        harness.dispatchRefresh = (type) => {
+          const active = [...refreshListeners.get(type).values()]
+            .filter((record) => record.owner === harness.owner);
+          if (active.length !== 1) {
+            throw new Error("expected one active " + type + " refresh listener for " + harness.owner);
+          }
+          const completionsBefore = active[0].completions;
+          window.dispatchEvent(new Event(type));
+          if (active[0].completions !== completionsBefore + 1) {
+            throw new Error(type + " refresh listener did not complete synchronously");
+          }
+        };
+        harness.dispatchFocus = () => harness.dispatchRefresh("focus");
+        harness.dispatchOnline = () => harness.dispatchRefresh("online");
         harness.refreshListenersReady = (owner) => ["focus", "online"].every((type) => (
-          [...refreshListeners.get(type).values()].includes(owner)
+          [...refreshListeners.get(type).values()].some((record) => record.owner === owner)
         ));
         harness.read = () => ({ owner: harness.owner, state: latestCommerce.state, calls: [...harness.calls] });
 
@@ -300,19 +331,15 @@ async function openProviderHarness(browser, {
   return page
 }
 
-/** Dispatches one refresh signal and samples request count across two browser turns. */
+/** Dispatches one refresh signal and reads after the exact registered listener completes. */
 async function dispatchRefreshAndObserveStateFetches(page, dispatchMethod) {
-  return page.evaluate(async (method) => {
+  return page.evaluate((method) => {
     const harness = window.__commerceProviderHarness
     const stateFetchCount = () => harness.read().calls
       .filter((call) => call === "GET /api/background-commerce/state").length
+    const before = stateFetchCount()
     harness[method]()
-    const stateFetchCounts = []
-    for (let poll = 0; poll < 2; poll += 1) {
-      await new Promise((resolve) => requestAnimationFrame(resolve))
-      stateFetchCounts.push(stateFetchCount())
-    }
-    return { current: harness.read(), stateFetchCounts }
+    return { current: harness.read(), stateFetchCounts: [before, stateFetchCount()] }
   }, dispatchMethod)
 }
 

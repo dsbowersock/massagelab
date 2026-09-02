@@ -6,6 +6,7 @@ import {
   createCompiledModuleLoader,
   findElement,
 } from "./helpers/compiled-module.mjs"
+import { settlesWithin } from "./helpers/async-control.mjs"
 import { drainEffectCleanups } from "./helpers/effect-cleanups.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -171,7 +172,11 @@ async function loadPreferenceSync(ownerKey, {
     for (let pass = 1; pass <= maxPasses; pass += 1) {
       const requestsToSettle = initiatedRequests.slice(observedRequestCount)
       observedRequestCount = initiatedRequests.length
-      await Promise.allSettled(requestsToSettle)
+      await settlesWithin(
+        Promise.allSettled(requestsToSettle),
+        1_000,
+        `PreferenceSync async work pass ${pass} did not settle`,
+      )
       await new Promise((resolve) => setImmediate(resolve))
       if (initiatedRequests.length === observedRequestCount) return
     }
@@ -411,6 +416,24 @@ describe("Account preference sync therapist ownership", () => {
     } finally {
       await sync?.cleanup()
       process.off("unhandledRejection", onUnhandledRejection)
+    }
+  })
+
+  it("bounds a never-settling preference request and remains cleanable after it resolves", async () => {
+    const stalledRequest = rejectableDeferred()
+    const sync = await loadPreferenceSync(null, {
+      fetchImpl: () => stalledRequest.promise,
+      hasCloudPreferences: true,
+    })
+
+    try {
+      await assert.rejects(
+        sync.syncLocalPreferences(),
+        new Error("PreferenceSync async work pass 1 did not settle"),
+      )
+    } finally {
+      stalledRequest.resolve({ ok: true })
+      await sync.cleanup()
     }
   })
 
