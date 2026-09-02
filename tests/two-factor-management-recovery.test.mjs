@@ -9,6 +9,7 @@ import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const recoveryUrl = new URL("../lib/two-factor-management-recovery.ts", import.meta.url)
 
+/** Verifies the recovery owner exists before compiling it in an isolated test module. */
 function loadRecovery() {
   assert.equal(existsSync(fileURLToPath(recoveryUrl)), true, "missing two-factor recovery owner")
   return readFile(recoveryUrl, "utf8").then((source) => (

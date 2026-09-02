@@ -67,6 +67,37 @@ describe("specialized account-shell provider browser harness", () => {
     assert.equal(builds, 2)
   })
 
+  it("surfaces an early bundle page error and removes its temporary listener", {
+    timeout: 10_000,
+  }, async () => {
+    const { chromium } = require("playwright")
+    const browser = await chromium.launch({ headless: true })
+    try {
+      const page = await browser.newPage()
+      page.setDefaultTimeout(250)
+      await page.addInitScript(() => {
+        Object.defineProperty(window, "__specializedProviderBootstrap", {
+          configurable: true,
+          set() {
+            throw new Error("synthetic specialized-provider bundle evaluation failure")
+          },
+        })
+      })
+      const initialPageErrorListeners = page.listenerCount("pageerror")
+
+      await assert.rejects(
+        exerciseSpecializedProviderHarness(page),
+        (error) => (
+          error instanceof Error
+          && error.message === "synthetic specialized-provider bundle evaluation failure"
+        ),
+      )
+      assert.equal(page.listenerCount("pageerror"), initialPageErrorListeners)
+    } finally {
+      await browser.close()
+    }
+  })
+
   it("defers profile and calendar reads until their real consumers require them", {
     timeout: 45_000,
   }, async () => {

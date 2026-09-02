@@ -63,6 +63,8 @@ const normalizedProjectStateSource = normalizeDocumentationWhitespace(projectSta
 const normalizedProjectLogSource = normalizeDocumentationWhitespace(projectLogSource)
 const normalizedDeploymentSource = normalizeDocumentationWhitespace(deploymentSource)
 const normalizedReleaseChecklistSource = normalizeDocumentationWhitespace(releaseChecklistSource)
+// Advance this review-date ceiling only alongside newly verified project-state evidence.
+const PROJECT_STATE_VERIFIED_DATE_UPPER_BOUND = "2026-09-02"
 
 /** Returns one named function body bounded by the next named owner. */
 function namedFunctionSlice(source, startMarker, endMarker) {
@@ -408,8 +410,8 @@ describe("family-and-friends server workload baseline", () => {
       "project-state Verified must be a real ISO calendar date",
     )
     assert.ok(
-      verifiedDateMatch[1] <= new Date().toISOString().slice(0, 10),
-      "project-state Verified date must not be in the future",
+      verifiedDateMatch[1] <= PROJECT_STATE_VERIFIED_DATE_UPPER_BOUND,
+      `project-state Verified date must not exceed ${PROJECT_STATE_VERIFIED_DATE_UPPER_BOUND}`,
     )
   })
 

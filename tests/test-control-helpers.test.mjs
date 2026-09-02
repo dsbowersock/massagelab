@@ -60,15 +60,19 @@ describe("shared test control helpers", () => {
     })
 
     pending.add(transitive.promise)
-    pending.delete(first.promise)
     first.resolve()
     await Promise.resolve()
     assert.equal(settled, false)
 
-    pending.delete(transitive.promise)
     transitive.resolve()
     await draining
     assert.equal(settled, true)
+
+    await assert.doesNotReject(drainPromiseSetWithin(
+      new Set([Promise.resolve("already settled")]),
+      100,
+      "a retained settled promise was processed twice",
+    ))
 
     const requestFailure = new Error("held route fetch failed")
     await assert.rejects(

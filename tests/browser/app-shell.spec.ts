@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page, type Route } from "@playwright/test"
+import { errors as playwrightErrors, expect, test, type Locator, type Page, type Route } from "@playwright/test"
 import { randomUUID } from "node:crypto"
 import { withPlayerViewportCollisionPadding } from "../../components/ui/use-player-viewport-insets"
 import { exerciseSpecializedProviderHarness } from "../helpers/specialized-provider-browser-harness.mjs"
@@ -57,6 +57,14 @@ async function expectFavoritesMosaicUsesBalancedFill(mosaic: Locator) {
 async function gotoShell(page: Page, path: string) {
   await page.goto(path, { waitUntil: "domcontentloaded" })
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
+}
+
+/** Fails if a blocked navigation renders its destination at any point in the observation window. */
+async function expectLocatorToRemainAbsent(locator: Locator, message: string) {
+  await expect(
+    locator.waitFor({ state: "attached", timeout: 250 }),
+    message,
+  ).rejects.toBeInstanceOf(playwrightErrors.TimeoutError)
 }
 
 test("RSC session snapshot count is exactly one", async ({ page }) => {
@@ -1696,7 +1704,10 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
       const homeLandmark = page.getByTestId("home-brand-wordmark")
       if (homeHoldActive) {
         await homeHold.waitForRequest()
-        await expect(homeLandmark).toHaveCount(0)
+        await expectLocatorToRemainAbsent(
+          homeLandmark,
+          "home landmark must remain absent while its navigation response is held",
+        )
         await homeHold.releaseAndCleanup()
         homeHoldActive = false
       }
@@ -1711,7 +1722,10 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
         .getByRole("heading", { name: "Quick log", exact: true, level: 2 })
       if (wellnessHoldActive && wellnessHold) {
         await wellnessHold.waitForRequest()
-        await expect(wellnessLandmark).toHaveCount(0)
+        await expectLocatorToRemainAbsent(
+          wellnessLandmark,
+          "wellness landmark must remain absent while its navigation response is held",
+        )
         await wellnessHold.releaseAndCleanup()
         wellnessHoldActive = false
       }

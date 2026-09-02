@@ -138,7 +138,7 @@ describe("calendar booking settings schema and route surface", () => {
       assert.equal(
         safePostLegalAcceptanceCallback(unsafeCallback, "/account"),
         "/account",
-        unsafeCallback,
+        `unsafe callback ${JSON.stringify(unsafeCallback)} must fall back to /account`,
       )
     }
     assert.match(loginForm, /router\.push\(callbackUrl\)/)

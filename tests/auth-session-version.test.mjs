@@ -3,18 +3,17 @@ import { readFile } from "node:fs/promises"
 import { beforeEach, describe, it } from "node:test"
 import { decideAuthSessionVersion } from "../lib/auth-session-version.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { createStrictLegalAcceptanceGateDouble } from "./helpers/legal-acceptance-gate-double.mjs"
 import { queueAccountSecurityEmail } from "../lib/account-security-email-intents.ts"
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
-const legalRedirectInvocations = []
-const strictLegalAcceptanceGate = {
-  buildRegistrationLegalProviderRedirectPath(...args) {
-    legalRedirectInvocations.push(args)
-    return "/register?callbackUrl=%2F"
-  },
-}
+const {
+  legalRedirectInvocations,
+  resetLegalRedirectInvocations,
+  strictLegalAcceptanceGate,
+} = createStrictLegalAcceptanceGateDouble()
 
 describe("JWT session-version decisions", () => {
   it("adopts the current non-negative database version on sign-in", () => {
@@ -70,7 +69,7 @@ describe("JWT session-version decisions", () => {
 
 describe("JWT session-version integration contract", () => {
   beforeEach(() => {
-    legalRedirectInvocations.length = 0
+    resetLegalRedirectInvocations()
   })
 
   it("rejects a pre-reset JWT version after reset consumption advances the account version", async () => {

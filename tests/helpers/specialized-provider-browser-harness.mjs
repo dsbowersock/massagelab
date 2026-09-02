@@ -296,11 +296,26 @@ export async function exerciseSpecializedProviderHarness(page) {
   } finally {
     await page.unroute(fixtureUrl, fulfillFixture)
   }
-  await page.addScriptTag({ content: await specializedProviderBundle() })
-  await page.waitForFunction(() => {
-    const state = window.__specializedProviderHarness?.read()
-    return state && (state.errors.length > 0 || state.passiveConsumerCount === 0)
+  let reportBundlePageError
+  const bundlePageError = new Promise((resolve) => {
+    reportBundlePageError = resolve
   })
+  const captureBundlePageError = (error) => reportBundlePageError(error)
+  page.on("pageerror", captureBundlePageError)
+  try {
+    await Promise.race([
+      (async () => {
+        await page.addScriptTag({ content: await specializedProviderBundle() })
+        await page.waitForFunction(() => {
+          const state = window.__specializedProviderHarness?.read?.()
+          return state && (state.errors.length > 0 || state.passiveConsumerCount === 0)
+        })
+      })(),
+      bundlePageError.then((error) => { throw error }),
+    ])
+  } finally {
+    page.off("pageerror", captureBundlePageError)
+  }
 
   const read = () => page.evaluate(() => window.__specializedProviderHarness.read())
   const readHealthySnapshot = async (phase) => {

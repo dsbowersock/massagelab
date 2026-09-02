@@ -6,6 +6,7 @@ import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
 type PublicNetworkGuardState = {
   allowedExternalUrls: Set<string>
+  localHostname: string
   ownedPreviewCancellations: string[]
   ownedPreviewFixtureRequests: WeakSet<Request>
   unfulfilledAllowedExternalRequests: string[]
@@ -20,16 +21,18 @@ const publicNetworkGuardByPage = new WeakMap<Page, PublicNetworkGuardState>()
  * later and must therefore take precedence over this catch-all guard.
  */
 const test = base.extend<{ publicNetworkGuard: PublicNetworkGuardState }>({
-  publicNetworkGuard: [async ({ page }, use) => {
+  publicNetworkGuard: [async ({ baseURL, page }, use) => {
+    if (!baseURL) throw new Error("Public network guard requires the configured Browser-QA base URL")
     const state: PublicNetworkGuardState = {
       allowedExternalUrls: new Set(),
+      localHostname: new URL(baseURL).hostname,
       ownedPreviewCancellations: [],
       ownedPreviewFixtureRequests: new WeakSet(),
       unfulfilledAllowedExternalRequests: [],
       unexpectedExternalRequests: [],
     }
     publicNetworkGuardByPage.set(page, state)
-    await page.route((url) => isExternalHttpUrl(url.toString()), async (route) => {
+    await page.route((url) => isExternalHttpUrl(url.toString(), state.localHostname), async (route) => {
       const request = route.request()
       const requestDescription = `${request.method()} ${request.url()}`
       if (state.allowedExternalUrls.has(request.url())) {
@@ -269,20 +272,24 @@ async function waitForCarouselMotionToSettle(
   })
 }
 
-function isLocalHttpUrl(urlString: string) {
+const loopbackHostnames = new Set(["127.0.0.1", "localhost", "0.0.0.0", "[::1]"])
+
+function isLocalHttpUrl(urlString: string, configuredHostname: string) {
   const url = new URL(urlString)
-  return ["127.0.0.1", "localhost"].includes(url.hostname)
+  return loopbackHostnames.has(url.hostname) || url.hostname === configuredHostname
 }
 
-function isExternalHttpUrl(urlString: string) {
+function isExternalHttpUrl(urlString: string, configuredHostname: string) {
   const url = new URL(urlString)
-  return ["http:", "https:"].includes(url.protocol) && !isLocalHttpUrl(urlString)
+  return ["http:", "https:"].includes(url.protocol) && !isLocalHttpUrl(urlString, configuredHostname)
 }
 
 function registerAllowedExternalUrls(page: Page, allowedExternalUrls: ReadonlySet<string>) {
   const networkGuard = getPublicNetworkGuard(page)
   for (const url of allowedExternalUrls) {
-    if (!isExternalHttpUrl(url)) throw new Error(`Public external allowlist contains a non-external URL: ${url}`)
+    if (!isExternalHttpUrl(url, networkGuard.localHostname)) {
+      throw new Error(`Public external allowlist contains a non-external URL: ${url}`)
+    }
     networkGuard.allowedExternalUrls.add(url)
   }
 }
@@ -315,7 +322,7 @@ async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<st
   })
 
   page.on("requestfailed", (request) => {
-    if (isLocalHttpUrl(request.url())) return
+    if (isLocalHttpUrl(request.url(), networkGuard.localHostname)) return
     const failureText = request.failure()?.errorText ?? "unknown failure"
     if (failureText === "net::ERR_ABORTED" && networkGuard.ownedPreviewFixtureRequests.has(request)) {
       networkGuard.ownedPreviewCancellations.push(`${request.method()} ${request.url()}`)
@@ -325,7 +332,7 @@ async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<st
   })
 
   page.on("response", (response) => {
-    if (response.status() >= 400 && isLocalHttpUrl(response.url())) {
+    if (response.status() >= 400 && isLocalHttpUrl(response.url(), networkGuard.localHostname)) {
       failedLocalResponses.push(formatResponse(response))
     }
   })
@@ -340,6 +347,28 @@ async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<st
     unexpectedExternalRequests: networkGuard.unexpectedExternalRequests,
   }
 }
+
+test("public network classification keeps locality exact to loopback and the configured host", async ({ baseURL }) => {
+  if (!baseURL) throw new Error("Public network classification requires the configured Browser-QA base URL")
+  const configuredHostname = new URL(baseURL).hostname
+  const configuredUrl = new URL("/browser-qa-local-classification", baseURL).toString()
+
+  for (const localUrl of [
+    "http://localhost:3010/local",
+    "http://127.0.0.1:3010/local",
+    "http://0.0.0.0:3010/local",
+    "http://[::1]:3010/local",
+    configuredUrl,
+  ]) {
+    expect(isLocalHttpUrl(localUrl, configuredHostname), localUrl).toBe(true)
+    expect(isExternalHttpUrl(localUrl, configuredHostname), localUrl).toBe(false)
+  }
+
+  const configuredLanHostname = "192.168.50.20"
+  expect(isLocalHttpUrl(`http://${configuredLanHostname}:3010/local`, configuredLanHostname)).toBe(true)
+  expect(isLocalHttpUrl("http://192.168.50.21:3010/private", configuredLanHostname)).toBe(false)
+  expect(isExternalHttpUrl("http://192.168.50.21:3010/private", configuredLanHostname)).toBe(true)
+})
 
 test("every public journey blocks and records an unexpected successful external resource", async ({ context, page }) => {
   const unexpectedExternalUrl = "https://unexpected.browser-qa.invalid/public-route-probe.js"

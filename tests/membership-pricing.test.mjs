@@ -11,12 +11,6 @@ import { TARGET_PRICE_SPECS } from "../lib/stripe-supporter-membership-migration
 import { boundedLatch } from "./helpers/async-control.mjs"
 import { SIX_PRICE_ENVIRONMENT } from "./helpers/membership-pricing-environment.mjs"
 
-assert.equal(
-  typeof membershipPricing.createMembershipPricingCatalogLoader,
-  "function",
-  "membership pricing must expose an isolated catalog loader",
-)
-
 function stripePrice({ id, amount, currency = "usd", interval }) {
   return {
     id,
@@ -56,6 +50,14 @@ const TEST_SETTLE_TIMEOUT_MS = (() => {
 })()
 
 describe("Membership pricing catalog", () => {
+  it("exposes an isolated catalog loader", () => {
+    assert.equal(
+      typeof membershipPricing.createMembershipPricingCatalogLoader,
+      "function",
+      "membership pricing must expose an isolated catalog loader",
+    )
+  })
+
   it("leads with premium backgrounds while retaining every current Supporter benefit", () => {
     assert.deepEqual(MEMBERSHIP_PLAN_DETAILS.SUPPORTER.currentFeatures, [
       "Access to all premium backgrounds while membership is active",

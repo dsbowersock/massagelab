@@ -4,6 +4,7 @@ import { beforeEach, describe, it } from "node:test"
 
 import { canSyncAccountPreferences } from "../lib/account-preferences.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { createStrictLegalAcceptanceGateDouble } from "./helpers/legal-acceptance-gate-double.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
@@ -13,13 +14,11 @@ const [authUsersSource, authSource, sidebarSource] = await Promise.all([
   read("components/sidebar/sidebar.tsx"),
 ])
 
-const legalRedirectInvocations = []
-const strictLegalAcceptanceGate = {
-  buildRegistrationLegalProviderRedirectPath(...args) {
-    legalRedirectInvocations.push(args)
-    return "/register?callbackUrl=%2F"
-  },
-}
+const {
+  legalRedirectInvocations,
+  resetLegalRedirectInvocations,
+  strictLegalAcceptanceGate,
+} = createStrictLegalAcceptanceGateDouble()
 
 function accountDatabase(calls) {
   return {
@@ -137,7 +136,7 @@ function loadSidebar(database, session = null) {
 
 describe("auth session feature-key reuse", () => {
   beforeEach(() => {
-    legalRedirectInvocations.length = 0
+    resetLegalRedirectInvocations()
   })
 
   it("computes feature keys once in auth state and exposes the same array to capabilities", async () => {
