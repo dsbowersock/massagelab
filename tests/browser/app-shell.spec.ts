@@ -66,7 +66,6 @@ test("RSC session snapshot count is exactly one", async ({ page }) => {
   const receipt = page.locator("[data-rsc-session-count]")
   await expect(receipt).toBeVisible()
   const count = Number(await receipt.getAttribute("data-rsc-session-count"))
-  console.log(`RSC session snapshot count: ${count}`)
 
   expect(Number.isInteger(count)).toBe(true)
   expect(count).toBe(1)

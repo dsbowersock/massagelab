@@ -285,9 +285,9 @@ describe("sidebar calendar context route gating", () => {
     assert.match(layoutSource, /ownerKey=\{accountBootstrap\.ownerKey\}/)
     assert.match(layoutSource, /enabled=\{accountBootstrap\.hasPracticeMembership\}/)
     assert.doesNotMatch(layoutSource, /<SidebarCalendarProvider\s+enabled=\{Boolean\(user\)\}/)
-    assert.match(providerSource, /new AbortController\(\)/)
-    assert.match(providerSource, /fetchJsonWithTimeout[\s\S]*"\/api\/calendar\/sidebar-context"/)
-    assert.match(providerSource, /fetchJsonWithTimeout[\s\S]*10_000/)
+    assert.match(providerSource, /createSidebarCalendarCoordinator/)
+    assert.match(providerSource, /coordinator\.adopt\(\{ ownerKey, enabled \}\)/)
+    assert.match(providerSource, /coordinator\.dispose\(\)/)
   })
 
   it("keeps the endpoint authenticated and its PHI-minimized response owner unchanged", () => {

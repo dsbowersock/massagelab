@@ -284,13 +284,11 @@ describe("proved and browser-bound two-factor enrollment", () => {
     if (primaryFailure) throw primaryFailure
     if (cleanupFailure) throw cleanupFailure
     assert.deepEqual(results.map((result) => result.status).sort(), ["REJECTED", "SETUP_READY"])
-    assert.equal(results.find((result) => result.status === "REJECTED").code, "CONFLICT")
+    const loser = results.find((result) => result.status === "REJECTED")
+    assert.equal(loser.code, "CONFLICT")
+    assert.equal(Object.hasOwn(loser, "enrollmentBinding"), false)
     const winner = results.find((result) => result.status === "SETUP_READY")
-    const loserBinding = results.find((result) => result.status === "REJECTED")?.enrollmentBinding ?? ""
     assert.equal((await service.enableTwoFactor(enableInput(database, winner.enrollmentBinding, { dependencies: deps }))).status, "ENABLED")
-    if (loserBinding) {
-      assert.equal((await service.enableTwoFactor(enableInput(database, loserBinding, { dependencies: deps }))).status, "REJECTED")
-    }
   })
 
   it("rejects missing, tampered, expired, wrong-user, wrong-version, and wrong-row bindings", async () => {

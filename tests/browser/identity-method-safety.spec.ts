@@ -435,7 +435,7 @@ test.describe("private identity-method journeys", () => {
     await expect(acknowledge).toBeEnabled()
   })
 
-  test("acknowledging changed security signs the revoked browser session out", async ({ context, page }, testInfo) => {
+  test("acknowledging changed security signs the current browser out", async ({ context, page }, testInfo) => {
     const fixture = await import("./identity-method-safety-fixture")
     const baseURL = String(testInfo.project.use.baseURL)
     const installed = await fixture.installIdentityMethodSafetyFixture({
@@ -456,6 +456,9 @@ test.describe("private identity-method journeys", () => {
     await page.getByRole("button", { name: "I saved these codes; sign in again" }).click()
     await expect(page).toHaveURL(/\/login\?security=two-factor-changed$/)
     await expect(page.getByText("browser-final-backup")).toHaveCount(0)
+    await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
+    await expect(page).toHaveURL(/\/login(?:\?|$)/)
+    await expect(page).not.toHaveURL(/\/account\?tab=security/)
   })
 
   test("security surface remains usable with keyboard, enlarged text, landscape, and reduced motion", async ({ context, page }, testInfo) => {

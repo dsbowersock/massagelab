@@ -3,6 +3,7 @@ import { createRequire } from "node:module"
 import { describe, it } from "node:test"
 import {
   assertSpecializedProviderImportSurface,
+  createSpecializedProviderBundleLoader,
   exerciseSpecializedProviderHarness,
 } from "./helpers/specialized-provider-browser-harness.mjs"
 
@@ -21,6 +22,46 @@ describe("specialized account-shell provider browser harness", () => {
       ),
       /Unsupported specialized provider import in unsupported provider: @\/lib\/unsupported-provider-dependency/,
     )
+  })
+
+  it("shares and caches a successful bundle build", async () => {
+    let builds = 0
+    let resolveBuild
+    const loadBundle = createSpecializedProviderBundleLoader(() => {
+      builds += 1
+      return new Promise((resolve) => {
+        resolveBuild = resolve
+      })
+    })
+
+    const first = loadBundle()
+    const concurrent = loadBundle()
+    assert.equal(concurrent, first)
+    assert.equal(builds, 0)
+
+    await Promise.resolve()
+    assert.equal(builds, 1)
+    resolveBuild("compiled bundle")
+    assert.equal(await first, "compiled bundle")
+    assert.equal(loadBundle(), first)
+    assert.equal(builds, 1)
+  })
+
+  it("clears the exact failed build so the next load retries and caches success", async () => {
+    let builds = 0
+    const loadBundle = createSpecializedProviderBundleLoader(async () => {
+      builds += 1
+      if (builds === 1) throw new Error("synthetic bundle failure")
+      return "recovered bundle"
+    })
+
+    const failed = loadBundle()
+    await assert.rejects(failed, /synthetic bundle failure/)
+    const retry = loadBundle()
+    assert.notEqual(retry, failed)
+    assert.equal(await retry, "recovered bundle")
+    assert.equal(loadBundle(), retry)
+    assert.equal(builds, 2)
   })
 
   it("defers profile and calendar reads until their real consumers require them", {

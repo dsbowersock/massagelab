@@ -16,7 +16,6 @@ const calendarProviderPath = path.join(
   projectRoot,
   "components/sidebar/sidebar-calendar-provider.tsx",
 )
-let bundlePromise
 
 const supportedSpecializedProviderImports = new Set([
   "@/components/providers/account-shell-bootstrap-provider",
@@ -38,14 +37,27 @@ export function assertSpecializedProviderImportSurface(source, providerLabel) {
   }
 }
 
+/** Caches one successful build while allowing a failed current build to be retried. */
+export function createSpecializedProviderBundleLoader(buildBundle) {
+  let currentBuild
+
+  return function loadBundle() {
+    if (currentBuild) return currentBuild
+
+    const build = Promise.resolve().then(buildBundle)
+    currentBuild = build
+    void build.catch(() => {
+      if (currentBuild === build) currentBuild = undefined
+    })
+    return build
+  }
+}
+
 /**
  * Bundles the real specialized shell providers with only owner-bootstrap and fetch adapters
  * replaced by inert browser doubles. No application route, account, or provider is contacted.
  */
-function specializedProviderBundle() {
-  if (bundlePromise) return bundlePromise
-
-  bundlePromise = (async () => {
+const specializedProviderBundle = createSpecializedProviderBundleLoader(async () => {
     const fixtureRoot = mkdtempSync(path.join(tmpdir(), "massagelab-specialized-providers-"))
     try {
       const outputRoot = path.join(fixtureRoot, "dist")
@@ -250,10 +262,7 @@ function specializedProviderBundle() {
     } finally {
       rmSync(fixtureRoot, { recursive: true, force: true })
     }
-  })()
-
-  return bundlePromise
-}
+  })
 
 /** Opens the isolated provider fixture and returns snapshots for each demand boundary. */
 export async function exerciseSpecializedProviderHarness(page) {

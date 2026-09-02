@@ -368,6 +368,7 @@ test("every public journey blocks and records an unexpected successful external 
   expect.soft(networkGuard.unexpectedExternalRequests, "unexpected external requests").toEqual([
     `GET ${unexpectedExternalUrl}`,
   ])
+  // The expected probe receipt was asserted above; consume it so the fixture's final guard covers later requests.
   networkGuard.unexpectedExternalRequests.length = 0
 })
 

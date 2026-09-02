@@ -72,6 +72,14 @@ async function boundedLatch(promise, label, timeoutMs = 1_000) {
   }
 }
 
+/** Attaches both handlers immediately while preserving the request outcome for later assertions. */
+function observeOutcome(promise) {
+  return promise.then(
+    (value) => ({ status: "fulfilled", value }),
+    (reason) => ({ reason, status: "rejected" }),
+  )
+}
+
 function loadRoute({
   savedSettings = ownedOnlySettings(),
   failAccess = false,
@@ -507,21 +515,21 @@ describe("account preference route ownership boundary", () => {
 
   it("serializes concurrent app-settings and Chimer patches without losing either write", { timeout: 5_000 }, async () => {
     const route = loadRoute({ savedSettings: {}, pauseFirstUpsert: true })
-    let appSettingsWrite
-    let chimerWrite
+    let appSettingsOutcome
+    let chimerOutcome
     try {
-      appSettingsWrite = route.PUT(new Request("https://massagelab.app/api/account/preferences", {
+      appSettingsOutcome = observeOutcome(route.PUT(new Request("https://massagelab.app/api/account/preferences", {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ appSettings: { showClock: false } }),
-      }))
+      })))
       await boundedLatch(route.firstUpsertStarted, "first upsert start")
 
-      chimerWrite = route.PUT(new Request("https://massagelab.app/api/account/preferences", {
+      chimerOutcome = observeOutcome(route.PUT(new Request("https://massagelab.app/api/account/preferences", {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ chimerSettings: ownedOnlySettings() }),
-      }))
+      })))
       await boundedLatch(route.secondLockAttempted, "second owner-lock attempt")
 
       assert.deepEqual(route.calls.transactionStarts, [1, 2], "both transactions must begin")
@@ -539,10 +547,16 @@ describe("account preference route ownership boundary", () => {
       // strand either simulated transaction or hang the test process.
       route.releaseFirstUpsert()
     }
-    const [appSettingsResponse, chimerResponse] = await boundedLatch(
-      Promise.all([appSettingsWrite, chimerWrite]),
+    const outcomes = await boundedLatch(
+      Promise.all([appSettingsOutcome, chimerOutcome]),
       "serialized preference writes",
     )
+    assert.deepEqual(
+      outcomes.map(({ status }) => status),
+      ["fulfilled", "fulfilled"],
+      JSON.stringify(outcomes.map((outcome) => outcome.reason)),
+    )
+    const [appSettingsResponse, chimerResponse] = outcomes.map(({ value }) => value)
     const saved = route.readPreferenceRecord()
 
     assert.equal(appSettingsResponse.status, 200)

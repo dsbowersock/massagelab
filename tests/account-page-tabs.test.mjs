@@ -96,11 +96,11 @@ describe("Account page tab model", () => {
     }
     assert.match(
       accountPageSource,
-      /<ActiveAccountTab[\s\S]*googleReauthReturnHint=\{googleReauthReturnHint\}/,
+      /<ActiveAccountTab\b[^>]*googleReauthReturnHint=\{googleReauthReturnHint\}[^>]*\/>/,
     )
     assert.match(
       accountPageSource,
-      /<SecurityPanel[\s\S]*googleReauthReturnHint=\{googleReauthReturnHint\}/,
+      /<SecurityPanel\b[^>]*googleReauthReturnHint=\{googleReauthReturnHint\}[^>]*\/>/,
     )
   })
 

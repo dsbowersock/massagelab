@@ -451,16 +451,71 @@ test("guest cart persists locally and requires an account only at checkout", asy
 
 test("ordinary signed-in shell defers commerce until a real background consumer mounts", async ({ context, page }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL)
+  await page.addInitScript(() => {
+    const originalFetch = window.fetch
+    window.fetch = ((input, init) => {
+      const request = input instanceof Request ? input : null
+      const url = new URL(request?.url ?? String(input), window.location.href)
+      const method = (init?.method ?? request?.method ?? "GET").toUpperCase()
+      if (
+        method === "GET"
+        && (url.pathname === "/api/background-commerce" || url.pathname === "/api/background-commerce/state")
+      ) {
+        const current = Number(document.documentElement.dataset.backgroundCommerceStateFetches ?? "0")
+        document.documentElement.dataset.backgroundCommerceStateFetches = String(current + 1)
+      }
+      return originalFetch.call(window, input, init)
+    }) as typeof window.fetch
+
+    const focusListeners = new Set<EventListenerOrEventListenerObject>()
+    const onlineListeners = new Set<EventListenerOrEventListenerObject>()
+    const updateRefreshPairReadiness = () => {
+      const hasActivePair = [...focusListeners].some((listener) => onlineListeners.has(listener))
+      document.documentElement.dataset.backgroundCommerceRefreshPairReady = String(hasActivePair)
+    }
+    window.addEventListener = ((
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | AddEventListenerOptions,
+    ) => {
+      EventTarget.prototype.addEventListener.call(window, type, listener, options)
+      if (type === "focus" || type === "online") {
+        document.documentElement.dataset.backgroundCommerceStateFetches ??= "0"
+        const listeners = type === "focus" ? focusListeners : onlineListeners
+        listeners.add(listener)
+        updateRefreshPairReadiness()
+      }
+    }) as typeof window.addEventListener
+    window.removeEventListener = ((
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | EventListenerOptions,
+    ) => {
+      EventTarget.prototype.removeEventListener.call(window, type, listener, options)
+      if (type === "focus" || type === "online") {
+        const listeners = type === "focus" ? focusListeners : onlineListeners
+        listeners.delete(listener)
+        updateRefreshPairReadiness()
+      }
+    }) as typeof window.removeEventListener
+  })
   const fixture = await installCommerceFixture({ context, page, baseURL })
 
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true }))
     .toBeAttached()
-  await page.evaluate(() => {
+  await page.waitForFunction(() => (
+    document.documentElement.dataset.backgroundCommerceRefreshPairReady === "true"
+  ))
+  const browserStateReads = await page.evaluate(() => {
+    if (document.documentElement.dataset.backgroundCommerceRefreshPairReady !== "true") {
+      throw new Error("Background commerce refresh listener pair was removed before dispatch")
+    }
     window.dispatchEvent(new Event("focus"))
     window.dispatchEvent(new Event("online"))
+    return Number(document.documentElement.dataset.backgroundCommerceStateFetches)
   })
-  await page.waitForTimeout(250)
+  expect(browserStateReads).toBe(0)
   expect(fixture.getSnapshotReads()).toBe(0)
 
   await openClockBackground(page, "/clock?panel=background")

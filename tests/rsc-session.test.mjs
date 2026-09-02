@@ -161,13 +161,16 @@ describe("RSC session snapshot proof boundary", () => {
       ...discoverSourceFiles("app"),
       ...discoverSourceFiles("components"),
     ]
+    const renderSourceContents = new Map(
+      renderSources.map((relativePath) => [relativePath, source(relativePath)]),
+    )
     const discoveredConsumers = renderSources.filter((relativePath) => (
-      /from "@\/lib\/rsc-session"/.test(source(relativePath))
+      /from "@\/lib\/rsc-session"/.test(renderSourceContents.get(relativePath))
     ))
     assert.deepEqual(discoveredConsumers.sort(), [...rscSessionConsumers].sort())
 
     const unexpectedDirectAuthConsumers = renderSources.filter((relativePath) => {
-      if (!/from "@\/auth"/.test(source(relativePath))) return false
+      if (!/from "@\/auth"/.test(renderSourceContents.get(relativePath))) return false
       return !relativePath.startsWith("app/api/")
         && !relativePath.endsWith("/actions.ts")
         && !relativePath.includes("/actions/")

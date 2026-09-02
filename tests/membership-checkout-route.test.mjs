@@ -27,7 +27,6 @@ describe("Membership Checkout POST route", () => {
     const calls = checkoutCallCounts({
       legalAcceptanceLookup: 0,
       selectionValidation: 0,
-      sessionReads: 0,
     })
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       captureGuardCalls: true,
@@ -51,7 +50,7 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("redirects a paused form to the account notice before new Checkout work", async () => {
-    const calls = checkoutCallCounts({ sessionReads: 0 })
+    const calls = checkoutCallCounts()
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       supporterCheckoutOpen: false,
     }))(formRequest({ membershipLevel: "SUPPORTER", supporterAmountChoiceId: "support-1" }))
@@ -85,6 +84,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -105,17 +105,15 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
   it("rejects a cross-origin form before parsing, validation, legal acceptance, or billing work", async () => {
-    const calls = {
-      ensureCustomer: 0,
-      createCheckout: 0,
-      membershipLookup: 0,
+    const calls = checkoutCallCounts({
       selectionValidation: 0,
       legalAcceptanceLookup: 0,
-    }
+    })
     let formDataCalls = 0
     const request = {
       url: "https://massagelab.app/api/billing/checkout",
@@ -143,6 +141,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 0,
       selectionValidation: 0,
       legalAcceptanceLookup: 0,
     })
@@ -183,6 +182,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 0,
       })
     })
   }
@@ -218,6 +218,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 0,
       })
     })
   }
@@ -254,6 +255,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 0,
       })
     })
   }
@@ -284,6 +286,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -422,6 +425,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 0,
       })
     })
   }
@@ -449,7 +453,7 @@ describe("Membership Checkout POST route", () => {
 
   for (const membershipLevel of ["THERAPIST", "PRACTICE"]) {
     it(`rejects ${membershipLevel} before creating a Stripe customer or Checkout Session`, async () => {
-      const calls = { ensureCustomer: 0, createCheckout: 0 }
+      const calls = checkoutCallCounts()
       const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls))(jsonRequest({
         membershipLevel,
         supporterAmountChoiceId: "support-1",
@@ -459,7 +463,12 @@ describe("Membership Checkout POST route", () => {
         body: { error: "Unsupported membership level" },
         status: 400,
       })
-      assert.deepEqual(calls, { ensureCustomer: 0, createCheckout: 0 })
+      assert.deepEqual(calls, {
+        ensureCustomer: 0,
+        createCheckout: 0,
+        membershipLookup: 0,
+        sessionReads: 1,
+      })
     })
   }
 
@@ -479,6 +488,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -498,6 +508,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -519,6 +530,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -583,11 +595,12 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
   it("does not send an early-access discount with public Supporter Checkout", async () => {
-    const calls = { ensureCustomer: 0, createCheckout: 0, checkoutOptions: null }
+    const calls = checkoutCallCounts({ checkoutOptions: null })
     const response = await createMembershipCheckoutPostHandler(checkoutDependencies(calls, {
       captureSelectionInputs: true,
     }))(jsonRequest({
@@ -725,6 +738,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 1,
     })
   })
 
@@ -757,6 +771,7 @@ describe("Membership Checkout POST route", () => {
       ensureCustomer: 0,
       createCheckout: 0,
       membershipLookup: 0,
+      sessionReads: 0,
     })
     assert.deepEqual(logged, [[
       "Unable to start membership checkout",
@@ -783,6 +798,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 1,
       })
     })
   }
@@ -999,6 +1015,7 @@ describe("Membership Checkout POST route", () => {
         ensureCustomer: 0,
         createCheckout: 0,
         membershipLookup: 0,
+        sessionReads: 1,
       })
       assert.deepEqual(logged, [[
         "Unable to start membership checkout",
@@ -1048,6 +1065,7 @@ function checkoutCallCounts(overrides = {}) {
     ensureCustomer: 0,
     createCheckout: 0,
     membershipLookup: 0,
+    sessionReads: 0,
     ...overrides,
   }
 }
@@ -1147,7 +1165,7 @@ function checkoutDependencies(calls, {
       redirect: (url, status) => ({ url, status }),
     },
     getCurrentSession: async () => {
-      if (Object.hasOwn(calls, "sessionReads")) calls.sessionReads += 1
+      calls.sessionReads += 1
       if (sessionError) throw sessionError
       return session
     },

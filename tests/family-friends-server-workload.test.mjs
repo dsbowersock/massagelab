@@ -401,7 +401,14 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(projectStateSource, /public display catalog only/i)
     assert.match(projectStateSource, /local timing `first` is not platform cold/i)
     assert.match(projectStateSource, /live Stripe[^\n]*`NOT RUN`/i)
-    assert.match(projectStateSource, /^Verified: 2026-09-01$/m)
+    const verifiedDateMatch = /^Verified: (\d{4}-\d{2}-\d{2})$/m.exec(projectStateSource)
+    assert.ok(verifiedDateMatch, "project state must include one ISO-formatted Verified date")
+    const verifiedDate = new Date(`${verifiedDateMatch[1]}T00:00:00.000Z`)
+    assert.equal(
+      Number.isNaN(verifiedDate.getTime()) ? null : verifiedDate.toISOString().slice(0, 10),
+      verifiedDateMatch[1],
+      "project-state Verified must be a real ISO calendar date",
+    )
 
     assert.match(projectLogSource, /ordinary non-practice shell/i)
     assert.match(projectLogSource, /five-minute complete[^\n]*fifteen-second incomplete/i)

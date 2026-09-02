@@ -49,59 +49,52 @@ describe("Music visualizer provider contract", () => {
     assert.match(providerSource, /writeAppSettingsPatch\(\{ musicVisualizer: payload \}\)/)
   })
 
-  it("invalidates old-owner writes before adopting the next bootstrap projection", () => {
-    assert.match(
-      providerSource,
-      /useEffect\(\(\) => \{[\s\S]*accountRequestIdRef\.current \+= 1[\s\S]*accountWritePendingRef\.current = null[\s\S]*failedAccountPayloadRef\.current = null[\s\S]*setAccountDefaultBackgroundId\(null\)[\s\S]*ownerKey/,
-    )
-    assert.match(providerSource, /if \(bootstrapStatus !== "ready"\)[\s\S]*return[\s\S]*accountIntentTracker\.reconcile/)
-    assert.match(providerSource, /accountDefaultBackgroundIdRef\.current = accountPreferences\.defaultBackgroundId/)
-  })
-
-  it("keeps a same-owner bootstrap republish from replacing an active save", () => {
+  it("retains the provider ownership-transition wiring around the behavioral guard", () => {
     assert.match(providerSource, /adoptedAccountOwnerRef/)
-    assert.match(
-      providerSource,
-      /const ownerChanged =[^]*if \(ownerChanged\) \{[^]*accountWritePendingRef\.current = null/,
-    )
-    assert.match(
-      providerSource,
-      /if \(\s*!ownerChanged[^]*accountWritePendingRef\.current\s*\)\s*\)\s*\{[^]*return/,
-    )
-  })
-
-  it("ignores a deferred write completion after same-owner sync is disabled", async () => {
-    let resolveWrite
-    const write = new Promise((resolve) => {
-      resolveWrite = resolve
-    })
-    const currentOwner = { ownerKey: "owner-a", syncEnabled: true }
-    const completion = (async () => {
-      await write
-      return musicVisualizer.shouldApplyMusicVisualizerAccountWriteCompletion({
-        currentOwner,
-        currentRequestId: 7,
-        isMounted: true,
-        requestId: 7,
-        requestOwnerKey: "owner-a",
-      })
-    })()
-
-    currentOwner.syncEnabled = false
-    resolveWrite()
-
-    assert.equal(await completion, false)
+    assert.match(providerSource, /accountRequestIdRef\.current \+= 1/)
+    assert.match(providerSource, /accountWritePendingRef\.current = null/)
+    assert.match(providerSource, /failedAccountPayloadRef\.current = null/)
+    assert.match(providerSource, /setAccountDefaultBackgroundId\(null\)/)
+    assert.match(providerSource, /accountIntentTracker\.reconcile/)
     assert.match(providerSource, /shouldApplyMusicVisualizerAccountWriteCompletion\(\{/)
   })
 
-  it("rejects an ownerless write completion without throwing", () => {
-    assert.equal(musicVisualizer.shouldApplyMusicVisualizerAccountWriteCompletion({
-      currentOwner: null,
+  it("admits only the exact mounted, sync-enabled owner and request generation", () => {
+    const current = {
+      currentOwner: { ownerKey: "owner-a", syncEnabled: true },
       currentRequestId: 7,
       isMounted: true,
       requestId: 7,
-      requestOwnerKey: undefined,
-    }), false)
+      requestOwnerKey: "owner-a",
+    }
+    const cases = [
+      { label: "exact current write", input: {}, expected: true },
+      {
+        label: "owner mismatch",
+        input: { currentOwner: { ownerKey: "owner-b", syncEnabled: true } },
+        expected: false,
+      },
+      { label: "request generation mismatch", input: { currentRequestId: 8 }, expected: false },
+      { label: "unmounted provider", input: { isMounted: false }, expected: false },
+      {
+        label: "sync-disabled owner",
+        input: { currentOwner: { ownerKey: "owner-a", syncEnabled: false } },
+        expected: false,
+      },
+      {
+        label: "ownerless completion",
+        input: { currentOwner: null, requestOwnerKey: undefined },
+        expected: false,
+      },
+    ]
+
+    for (const { label, input, expected } of cases) {
+      assert.equal(
+        musicVisualizer.shouldApplyMusicVisualizerAccountWriteCompletion({ ...current, ...input }),
+        expected,
+        label,
+      )
+    }
   })
 
   it("serializes active saves and collapses queued work to the latest snapshot", async () => {

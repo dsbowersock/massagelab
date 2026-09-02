@@ -336,6 +336,7 @@ describe("membership return component safety", () => {
   })
 
   it("gives the billing-attention portal form one synchronous pending owner", () => {
+    // Render-order useState values: persisted billing attention, busy, exhausted, retry epoch.
     const states = [persistedStatus({ state: "billing-attention" }), false, false, 0]
     let stateIndex = 0
     let pendingFormProps = null

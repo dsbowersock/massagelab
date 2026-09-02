@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { describe, it } from "node:test"
+import { after, before, describe, it } from "node:test"
 import ts from "typescript"
 
 const providerPath = new URL("../components/backgrounds/BackgroundCommerceProvider.tsx", import.meta.url)
@@ -236,17 +236,31 @@ async function openProviderHarness(browser, {
   return page
 }
 
-describe("BackgroundCommerceProvider owner behavior", () => {
-  it("replaces an aborted automatic mount read when Strict Mode replays the consumer", { timeout: 45_000 }, async () => {
+describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, () => {
+  let browser = null
+
+  before(async () => {
     const { chromium } = require("playwright")
-    const browser = await chromium.launch({ headless: true })
+    browser = await chromium.launch({ headless: true })
+  })
+
+  after(async () => {
+    await browser?.close()
+  })
+
+  it("replaces an aborted automatic mount read when Strict Mode replays the consumer", { timeout: 45_000 }, async () => {
+    let page = null
     try {
-      const page = await openProviderHarness(browser, {
+      page = await openProviderHarness(browser, {
         automaticDemand: true,
         stateFetchMode: "pending",
       })
-      await page.waitForFunction(() => window.__commerceProviderHarness.stateFetchAborts === 1)
-      await page.waitForTimeout(50)
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.stateFetchAborts === 1
+        && window.__commerceProviderHarness.pendingStateFetches === 1
+        && window.__commerceProviderHarness.read().calls
+          .filter((call) => call === "GET /api/background-commerce/state").length === 2
+      ))
 
       const replay = await page.evaluate(() => ({
         ...window.__commerceProviderHarness.read(),
@@ -263,18 +277,21 @@ describe("BackgroundCommerceProvider owner behavior", () => {
       await page.evaluate(() => window.__commerceProviderHarness.resolveStateFetches())
       await page.waitForFunction(() => window.__commerceProviderHarness.read().state.status === "ready")
     } finally {
-      await browser.close()
+      await page?.close()
     }
   })
 
   it("restores the current owner after Strict Mode replays layout effects", { timeout: 45_000 }, async () => {
-    const { chromium } = require("playwright")
-    const browser = await chromium.launch({ headless: true })
+    let page = null
     try {
-      const page = await openProviderHarness(browser)
+      page = await openProviderHarness(browser)
 
       await page.evaluate(() => window.__commerceProviderHarness.ensureSnapshot())
-      await page.waitForTimeout(100)
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.read().state.status === "ready"
+        && window.__commerceProviderHarness.read().calls
+          .filter((call) => call === "GET /api/background-commerce/state").length === 1
+      ))
 
       const current = await page.evaluate(() => window.__commerceProviderHarness.read())
       assert.equal(
@@ -284,15 +301,14 @@ describe("BackgroundCommerceProvider owner behavior", () => {
       )
       assert.equal(current.state.status, "ready", JSON.stringify(current))
     } finally {
-      await browser.close()
+      await page?.close()
     }
   })
 
   it("does not redirect or commit state when an old owner's delayed checkout succeeds", { timeout: 45_000 }, async () => {
-    const { chromium } = require("playwright")
-    const browser = await chromium.launch({ headless: true })
+    let page = null
     try {
-      const page = await openProviderHarness(browser)
+      page = await openProviderHarness(browser)
       const fixtureUrl = page.url()
       await page.route("https://checkout.stripe.com/**", (route) => route.fulfill({
         status: 200,
@@ -301,7 +317,9 @@ describe("BackgroundCommerceProvider owner behavior", () => {
       }))
 
       await page.evaluate(() => window.__commerceProviderHarness.startCheckout())
-      await page.waitForTimeout(100)
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.read().calls.includes("POST /api/background-commerce/checkout")
+      ))
       const checkoutStart = await page.evaluate(() => ({
         current: window.__commerceProviderHarness.read(),
         errors: window.__commerceProviderHarness.errors,
@@ -325,20 +343,19 @@ describe("BackgroundCommerceProvider owner behavior", () => {
       assert.equal(current.state.status, "idle")
       assert.equal(current.state.pendingAction, null)
     } finally {
-      await browser.close()
+      await page?.close()
     }
   })
 
   it("retries only the current owner's failed demanded hydration on focus or reconnect", { timeout: 45_000 }, async () => {
-    const { chromium } = require("playwright")
-    const browser = await chromium.launch({ headless: true })
+    let page = null
     try {
-      const page = await openProviderHarness(browser)
+      page = await openProviderHarness(browser)
       await page.evaluate(async () => {
         window.__commerceProviderHarness.stateFetchMode = "fail"
         await window.__commerceProviderHarness.ensureSnapshot()
       })
-      await page.waitForTimeout(100)
+      await page.waitForFunction(() => window.__commerceProviderHarness.read().state.status === "error")
       const failedHydration = await page.evaluate(() => ({
         current: window.__commerceProviderHarness.read(),
         errors: window.__commerceProviderHarness.errors,
@@ -369,7 +386,11 @@ describe("BackgroundCommerceProvider owner behavior", () => {
         window.__commerceProviderHarness.dispatchFocus()
         window.__commerceProviderHarness.dispatchOnline()
       })
-      await page.waitForTimeout(100)
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.read().state.status === "ready"
+        && window.__commerceProviderHarness.read().calls
+          .filter((call) => call === "GET /api/background-commerce/state").length === 3
+      ))
       current = await page.evaluate(() => window.__commerceProviderHarness.read())
       assert.equal(current.owner, "owner-b")
       assert.equal(current.state.status, "ready", JSON.stringify(current))
@@ -378,15 +399,14 @@ describe("BackgroundCommerceProvider owner behavior", () => {
         3,
       )
     } finally {
-      await browser.close()
+      await page?.close()
     }
   })
 
   it("shares a demanded focus retry with concurrent consumer hydration", { timeout: 45_000 }, async () => {
-    const { chromium } = require("playwright")
-    const browser = await chromium.launch({ headless: true })
+    let page = null
     try {
-      const page = await openProviderHarness(browser)
+      page = await openProviderHarness(browser)
       await page.evaluate(async () => {
         window.__commerceProviderHarness.stateFetchMode = "fail"
         await window.__commerceProviderHarness.ensureSnapshot()
@@ -440,15 +460,14 @@ describe("BackgroundCommerceProvider owner behavior", () => {
       assert.equal(settled.concurrentEnsureSettled, true, JSON.stringify(settled))
       assert.deepEqual(settled.errors, [])
     } finally {
-      await browser.close()
+      await page?.close()
     }
   })
 
   it("keeps mutation-started owners eligible for a single focus or reconnect refresh", { timeout: 45_000 }, async () => {
-    const { chromium } = require("playwright")
-    const browser = await chromium.launch({ headless: true })
+    let page = null
     try {
-      const page = await openProviderHarness(browser)
+      page = await openProviderHarness(browser)
       await page.evaluate(async () => {
         window.__commerceProviderHarness.mutationMode = "fail"
         await window.__commerceProviderHarness.failAddToCart()
@@ -462,15 +481,14 @@ describe("BackgroundCommerceProvider owner behavior", () => {
         1,
       )
     } finally {
-      await browser.close()
+      await page?.close()
     }
   })
 
   it("invalidates pre-mutation hydration so queued demand retries a failed follow-up read", { timeout: 45_000 }, async () => {
-    const { chromium } = require("playwright")
-    const browser = await chromium.launch({ headless: true })
+    let page = null
     try {
-      const page = await openProviderHarness(browser)
+      page = await openProviderHarness(browser)
       await page.evaluate(() => window.__commerceProviderHarness.ensureSnapshot())
       await page.waitForFunction(() => window.__commerceProviderHarness.read().state.status === "ready")
       await page.evaluate(() => {
@@ -502,7 +520,7 @@ describe("BackgroundCommerceProvider owner behavior", () => {
         JSON.stringify(current),
       )
     } finally {
-      await browser.close()
+      await page?.close()
     }
   })
 })

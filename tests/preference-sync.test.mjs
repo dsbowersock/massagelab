@@ -39,6 +39,13 @@ const localPreferenceKeys = {
   calendarPreferences: "massagelab-calendar-preferences",
 }
 
+// Mirrors PreferenceSync's render-order useState calls so harness reads stay named.
+const PREFERENCE_SYNC_STATE_SLOT = Object.freeze({
+  STATUS: 0,
+  IS_SYNCING: 1,
+  DID_AUTO_SYNC: 2,
+})
+
 function deferred() {
   let reject
   let resolve
@@ -51,9 +58,9 @@ function deferred() {
 
 /**
  * Runs PreferenceSync for one active owner with injectable storage and network
- * inputs, then exposes its captured requests and manual-sync callback.
+ * inputs. Its async cleanup drains component work before restoring process globals.
  */
-function loadPreferenceSync(ownerKey, {
+async function loadPreferenceSync(ownerKey, {
   fetchImpl = async () => ({ ok: true }),
   getItem,
   hasCloudPreferences = false,
@@ -77,6 +84,7 @@ function loadPreferenceSync(ownerKey, {
   ]),
 } = {}) {
   const effects = []
+  const initiatedRequests = []
   const requests = []
   const storageReads = []
   const stateSlots = []
@@ -127,8 +135,8 @@ function loadPreferenceSync(ownerKey, {
     },
   )
 
-  // The compiled client component reads browser APIs directly, so the harness
-  // substitutes them only while rendering and running its initial effects.
+  // The compiled client component reads browser APIs directly. Keep the doubles
+  // installed through every request continuation, then restore them in cleanup.
   const previousWindow = globalThis.window
   const previousFetch = globalThis.fetch
   const testWindow = {
@@ -140,10 +148,32 @@ function loadPreferenceSync(ownerKey, {
       },
     },
   }
-  const testFetch = async (url, init) => {
+  const testFetch = (url, init) => {
     requests.push({ url, init })
-    return fetchImpl(url, init)
+    const request = Promise.resolve().then(() => fetchImpl(url, init))
+    initiatedRequests.push(request)
+    return request
   }
+  let restored = false
+
+  async function settleAsyncWork() {
+    let observedRequestCount = 0
+    while (true) {
+      const requestsToSettle = initiatedRequests.slice(observedRequestCount)
+      observedRequestCount = initiatedRequests.length
+      await Promise.allSettled(requestsToSettle)
+      await new Promise((resolve) => setImmediate(resolve))
+      if (initiatedRequests.length === observedRequestCount) return
+    }
+  }
+
+  function restoreGlobals() {
+    if (restored) return
+    restored = true
+    globalThis.window = previousWindow
+    globalThis.fetch = previousFetch
+  }
+
   globalThis.window = testWindow
   globalThis.fetch = testFetch
 
@@ -152,71 +182,75 @@ function loadPreferenceSync(ownerKey, {
     for (const effect of effects) effect()
     const syncButton = findElement(element, ({ type }) => type === "Button")
     assert.ok(syncButton, "preference sync must render its manual sync button")
-    return {
+    const harness = {
       requests,
       storageReads,
       async syncLocalPreferences() {
-        // Manual sync runs after initial setup has restored the process globals;
-        // re-enter the isolated APIs for this call and always unwind afterward.
-        const currentWindow = globalThis.window
-        const currentFetch = globalThis.fetch
-        globalThis.window = testWindow
-        globalThis.fetch = testFetch
-        try {
-          return await syncButton.props.onClick()
-        } finally {
-          globalThis.window = currentWindow
-          globalThis.fetch = currentFetch
-        }
+        const componentWork = syncButton.props.onClick()
+        await settleAsyncWork()
+        return await componentWork
+      },
+      async cleanup() {
+        await settleAsyncWork()
+        restoreGlobals()
       },
       get isSyncing() {
-        return stateSlots[1].value
+        return stateSlots[PREFERENCE_SYNC_STATE_SLOT.IS_SYNCING].value
       },
       get status() {
-        return stateSlots[0].value
+        return stateSlots[PREFERENCE_SYNC_STATE_SLOT.STATUS].value
       },
     }
-  } finally {
-    // Restoration is mandatory because node:test shares these process globals
-    // with the remaining tests even when component setup throws.
-    globalThis.window = previousWindow
-    globalThis.fetch = previousFetch
+    await settleAsyncWork()
+    return harness
+  } catch (error) {
+    await settleAsyncWork()
+    restoreGlobals()
+    throw error
   }
 }
 
 describe("Account preference sync therapist ownership", () => {
-  it("uploads only the current owner's scoped therapist settings and ignores legacy data", () => {
-    const ownerA = loadPreferenceSync("owner-a")
-    const ownerB = loadPreferenceSync("owner-b")
+  it("uploads only the current owner's scoped therapist settings and ignores legacy data", async () => {
+    const ownerA = await loadPreferenceSync("owner-a")
+    try {
+      const ownerAProfileRequest = ownerA.requests.find(({ url }) => url === "/api/account/profile")
+      assert.deepEqual(JSON.parse(ownerAProfileRequest.init.body), {
+        therapistSettings: {
+          name: "Owner A",
+          location: "Columbus",
+          licenseNumber: "A-1",
+          licenseOrganization: "Ohio Board",
+          npiNumber: "111",
+        },
+      })
+      assert.ok(ownerA.storageReads.includes("massage-lab-therapist-settings:account:owner-a"))
+      assert.ok(!ownerA.storageReads.includes("massage-lab-therapist-settings"))
+    } finally {
+      await ownerA.cleanup()
+    }
 
-    const ownerAProfileRequest = ownerA.requests.find(({ url }) => url === "/api/account/profile")
-    const ownerBProfileRequest = ownerB.requests.find(({ url }) => url === "/api/account/profile")
-    assert.deepEqual(JSON.parse(ownerAProfileRequest.init.body), {
-      therapistSettings: {
-        name: "Owner A",
-        location: "Columbus",
-        licenseNumber: "A-1",
-        licenseOrganization: "Ohio Board",
-        npiNumber: "111",
-      },
-    })
-    assert.deepEqual(JSON.parse(ownerBProfileRequest.init.body), {
-      therapistSettings: {
-        name: "Owner B",
-        location: "Cleveland",
-        licenseNumber: "B-2",
-        licenseOrganization: "Ohio Board",
-        npiNumber: "222",
-      },
-    })
-    assert.ok(ownerA.storageReads.includes("massage-lab-therapist-settings:account:owner-a"))
-    assert.ok(ownerB.storageReads.includes("massage-lab-therapist-settings:account:owner-b"))
-    assert.ok(!ownerA.storageReads.includes("massage-lab-therapist-settings"))
-    assert.ok(!ownerB.storageReads.includes("massage-lab-therapist-settings"))
+    const ownerB = await loadPreferenceSync("owner-b")
+    try {
+      const ownerBProfileRequest = ownerB.requests.find(({ url }) => url === "/api/account/profile")
+      assert.deepEqual(JSON.parse(ownerBProfileRequest.init.body), {
+        therapistSettings: {
+          name: "Owner B",
+          location: "Cleveland",
+          licenseNumber: "B-2",
+          licenseOrganization: "Ohio Board",
+          npiNumber: "222",
+        },
+      })
+      assert.ok(ownerB.storageReads.includes("massage-lab-therapist-settings:account:owner-b"))
+      assert.ok(!ownerB.storageReads.includes("massage-lab-therapist-settings"))
+    } finally {
+      await ownerB.cleanup()
+    }
   })
 
   it("skips profile migration when the current owner has no scoped therapist value", async () => {
-    const sync = loadPreferenceSync("owner-b", {
+    const sync = await loadPreferenceSync("owner-b", {
       values: new Map([
         ["massage-lab-therapist-settings", JSON.stringify({ name: "Ambiguous legacy owner" })],
         ["massage-lab-therapist-settings:account:owner-a", JSON.stringify({
@@ -228,22 +262,26 @@ describe("Account preference sync therapist ownership", () => {
         })],
       ]),
     })
-    await new Promise((resolve) => setImmediate(resolve))
-
-    assert.deepEqual(sync.requests.map(({ url }) => url), ["/api/account/preferences"])
-    assert.equal(sync.status, "Local preferences synced to your account.")
-    assert.ok(sync.storageReads.includes("massage-lab-therapist-settings:account:owner-b"))
-    assert.ok(!sync.storageReads.includes("massage-lab-therapist-settings"))
-    assert.ok(!sync.storageReads.includes("massage-lab-therapist-settings:owner-a"))
+    try {
+      assert.deepEqual(sync.requests.map(({ url }) => url), ["/api/account/preferences"])
+      assert.equal(sync.status, "Local preferences synced to your account.")
+      assert.ok(sync.storageReads.includes("massage-lab-therapist-settings:account:owner-b"))
+      assert.ok(!sync.storageReads.includes("massage-lab-therapist-settings"))
+      assert.ok(!sync.storageReads.includes("massage-lab-therapist-settings:owner-a"))
+    } finally {
+      await sync.cleanup()
+    }
   })
 
   it("treats ownerless preference-only sync as successful without uploading a profile", async () => {
-    const sync = loadPreferenceSync(null)
-    await new Promise((resolve) => setImmediate(resolve))
-
-    assert.deepEqual(sync.requests.map(({ url }) => url), ["/api/account/preferences"])
-    assert.equal(sync.status, "Local preferences synced to your account.")
-    assert.ok(!sync.storageReads.some((key) => key.startsWith("massage-lab-therapist-settings")))
+    const sync = await loadPreferenceSync(null)
+    try {
+      assert.deepEqual(sync.requests.map(({ url }) => url), ["/api/account/preferences"])
+      assert.equal(sync.status, "Local preferences synced to your account.")
+      assert.ok(!sync.storageReads.some((key) => key.startsWith("massage-lab-therapist-settings")))
+    } finally {
+      await sync.cleanup()
+    }
   })
 
   it("skips valid JSON that is not the complete five-field therapist snapshot", async () => {
@@ -261,15 +299,17 @@ describe("Account preference sync therapist ownership", () => {
     ]
 
     for (const snapshot of invalidSnapshots) {
-      const sync = loadPreferenceSync("owner-b", {
+      const sync = await loadPreferenceSync("owner-b", {
         values: new Map([
           ["massage-lab-therapist-settings:account:owner-b", JSON.stringify(snapshot)],
         ]),
       })
-      await new Promise((resolve) => setImmediate(resolve))
-
-      assert.deepEqual(sync.requests.map(({ url }) => url), ["/api/account/preferences"])
-      assert.equal(sync.status, "Local preferences synced to your account.")
+      try {
+        assert.deepEqual(sync.requests.map(({ url }) => url), ["/api/account/preferences"])
+        assert.equal(sync.status, "Local preferences synced to your account.")
+      } finally {
+        await sync.cleanup()
+      }
     }
   })
 
@@ -279,9 +319,10 @@ describe("Account preference sync therapist ownership", () => {
     const unhandledRejections = []
     const onUnhandledRejection = (error) => unhandledRejections.push(error)
     process.on("unhandledRejection", onUnhandledRejection)
+    let sync
 
     try {
-      const sync = loadPreferenceSync("owner-b", {
+      sync = await loadPreferenceSync("owner-b", {
         fetchImpl: (url) => (
           url === "/api/account/preferences"
             ? preferenceRequest.promise
@@ -293,29 +334,32 @@ describe("Account preference sync therapist ownership", () => {
       const result = sync.syncLocalPreferences()
       assert.equal(sync.isSyncing, true)
       preferenceRequest.reject(new Error("preferences unavailable"))
-
-      await assert.doesNotReject(result)
       profileRequest.reject(new Error("profile unavailable"))
-      await new Promise((resolve) => setImmediate(resolve))
+      await assert.doesNotReject(result)
       assert.equal(sync.isSyncing, false)
       assert.equal(sync.status, "Preference sync failed. Sign in again and retry.")
       assert.deepEqual(unhandledRejections, [])
     } finally {
+      await sync?.cleanup()
       process.off("unhandledRejection", onUnhandledRejection)
     }
   })
 
   it("clears pending and reports failure when browser storage cannot be read", async () => {
-    const sync = loadPreferenceSync(null, {
+    const sync = await loadPreferenceSync(null, {
       getItem: () => {
         throw new Error("browser storage unavailable")
       },
       hasCloudPreferences: true,
     })
 
-    await assert.doesNotReject(sync.syncLocalPreferences())
-    assert.equal(sync.isSyncing, false)
-    assert.equal(sync.status, "Preference sync failed. Sign in again and retry.")
-    assert.deepEqual(sync.requests, [])
+    try {
+      await assert.doesNotReject(sync.syncLocalPreferences())
+      assert.equal(sync.isSyncing, false)
+      assert.equal(sync.status, "Preference sync failed. Sign in again and retry.")
+      assert.deepEqual(sync.requests, [])
+    } finally {
+      await sync.cleanup()
+    }
   })
 })

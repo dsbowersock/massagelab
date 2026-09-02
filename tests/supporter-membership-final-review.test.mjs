@@ -56,7 +56,9 @@ function TestPendingSubmitButton(props) {
  * Returns the card's action props plus Customer/subscription query counters.
  */
 async function renderPublicPricing({
+  registrationOpen = true,
   session,
+  supporterCheckoutOpen = true,
   stripeCustomer = null,
   subscriptions,
   membershipStatusError = null,
@@ -110,8 +112,8 @@ async function renderPublicPricing({
       },
       "@/lib/public-launch-controls": {
         getPublicLaunchControls: () => ({
-          registrationOpen: true,
-          supporterCheckoutOpen: true,
+          registrationOpen,
+          supporterCheckoutOpen,
         }),
       },
       "@/lib/prisma": {
@@ -174,6 +176,7 @@ async function renderPublicPricing({
     activeMembershipLevel: pricingCards.props.activeMembershipLevel ?? null,
     mode: pricingCards.props.mode,
     portalActionAvailable: pricingCards.props.portalActionAvailable,
+    supporterCheckoutOpen: pricingCards.props.supporterCheckoutOpen,
     stripeCustomerQueries,
     subscriptionQueries,
   }
@@ -337,6 +340,7 @@ describe("Supporter membership final-review contracts", () => {
       activeMembershipLevel: "SUPPORTER",
       mode: "portal",
       portalActionAvailable: true,
+      supporterCheckoutOpen: true,
       stripeCustomerQueries: 1,
       subscriptionQueries: 1,
     })
@@ -344,6 +348,7 @@ describe("Supporter membership final-review contracts", () => {
       activeMembershipLevel: null,
       mode: "checkout",
       portalActionAvailable: false,
+      supporterCheckoutOpen: true,
       stripeCustomerQueries: 1,
       subscriptionQueries: 1,
     })
@@ -351,6 +356,7 @@ describe("Supporter membership final-review contracts", () => {
       activeMembershipLevel: null,
       mode: "auth",
       portalActionAvailable: false,
+      supporterCheckoutOpen: true,
       stripeCustomerQueries: 0,
       subscriptionQueries: 0,
     })
@@ -407,6 +413,17 @@ describe("Supporter membership final-review contracts", () => {
     )
   })
 
+  it("forwards a closed supporter Checkout launch control to public pricing cards", async () => {
+    const result = await renderPublicPricing({
+      registrationOpen: false,
+      session: null,
+      supporterCheckoutOpen: false,
+      subscriptions: [],
+    })
+
+    assert.equal(result.supporterCheckoutOpen, false)
+  })
+
   it("keeps Portal mode unavailable after a successful lookup without a Stripe Customer", async () => {
     const result = await renderPublicPricing({
       session: { user: { id: "user_member_without_customer" } },
@@ -422,6 +439,7 @@ describe("Supporter membership final-review contracts", () => {
       activeMembershipLevel: "SUPPORTER",
       mode: "portal",
       portalActionAvailable: false,
+      supporterCheckoutOpen: true,
       stripeCustomerQueries: 1,
       subscriptionQueries: 1,
     })
@@ -445,6 +463,7 @@ describe("Supporter membership final-review contracts", () => {
       activeMembershipLevel: null,
       mode: "portal",
       portalActionAvailable: false,
+      supporterCheckoutOpen: true,
       stripeCustomerQueries: 1,
       subscriptionQueries: 1,
     })

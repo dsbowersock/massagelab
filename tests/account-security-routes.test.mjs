@@ -22,9 +22,12 @@ const linkPageSource = await readFile(new URL("../app/account/link-google/page.t
 const methodsPanelSource = await readFile(new URL("../app/account/security/sign-in-methods-panel.tsx", import.meta.url), "utf8")
 const securityPanelSource = await readFile(new URL("../app/account/security/security-panel.tsx", import.meta.url), "utf8")
 const twoFactorPanelUrl = new URL("../app/account/security/two-factor-management-panel.tsx", import.meta.url)
-const twoFactorPanelSource = existsSync(fileURLToPath(twoFactorPanelUrl))
-  ? await readFile(twoFactorPanelUrl, "utf8")
-  : ""
+assert.equal(
+  existsSync(fileURLToPath(twoFactorPanelUrl)),
+  true,
+  "the account security 2FA panel source must exist",
+)
+const twoFactorPanelSource = await readFile(twoFactorPanelUrl, "utf8")
 const linkRecoveryUrl = new URL("../lib/google-link-confirmation-recovery.ts", import.meta.url)
 
 const UPDATED = {
