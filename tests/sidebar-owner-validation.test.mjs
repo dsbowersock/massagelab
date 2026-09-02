@@ -54,7 +54,7 @@ it("loads practice roles for an exact authenticated sidebar owner id", async () 
   })
 })
 
-it("fails closed for a whitespace-padded sidebar owner id", async () => {
+it("fails closed for every rejected sidebar owner id shape", async () => {
   const calls = { practiceRoleReads: 0 }
   const database = {
     practiceMembership: {
@@ -66,8 +66,15 @@ it("fails closed for a whitespace-padded sidebar owner id", async () => {
   }
   const { getSidebarNavigationContext } = loadSidebar(database)
 
-  const context = await getSidebarNavigationContext({ id: " user-1 ", featureKeys: [] }, database)
-
-  assert.deepEqual(context, { authState: "anonymous" })
+  const rejectedOwnerIds = [
+    { label: "empty", value: "" },
+    { label: "whitespace", value: "   " },
+    { label: "whitespace-padded canonical id", value: " user-1 " },
+    { label: "non-string", value: 42 },
+  ]
+  for (const { label, value } of rejectedOwnerIds) {
+    const context = await getSidebarNavigationContext({ id: value, featureKeys: [] }, database)
+    assert.deepEqual(context, { authState: "anonymous" }, label)
+  }
   assert.equal(calls.practiceRoleReads, 0)
 })

@@ -61,7 +61,7 @@ describe("shared test control helpers", () => {
 
     pending.add(transitive.promise)
     first.resolve()
-    await Promise.resolve()
+    await new Promise((resolve) => setImmediate(resolve))
     assert.equal(settled, false)
 
     transitive.resolve()

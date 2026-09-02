@@ -67,8 +67,7 @@ function topLevelFunctionSource(source, functionName, fileName) {
   return source.slice(declaration.start, declaration.end)
 }
 
-/** Executes one production-local AccountPage initializer against controlled params. */
-/** Executes the production return normalizer together with its real notice mapper. */
+/** Extracts and compiles the three production return-state functions as one isolated contract. */
 function loadAccountReturnContract() {
   const source = [
     `export ${topLevelFunctionSource(accountPageSource, "normalizeAccountReturnState", "app/account/page.tsx")}`,

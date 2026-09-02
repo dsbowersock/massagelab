@@ -223,6 +223,7 @@ function signedSerializedPayload(serializedPayload) {
   return signedPayloadSegment(payloadSegment)
 }
 
+/** Signs a payload segment with production's HMAC and null-byte domain separator. */
 function signedPayloadSegment(payloadSegment) {
   const signature = createHmac("sha256", AUTH_SECRET)
     .update(`two-factor-enrollment-binding\0${payloadSegment}`)

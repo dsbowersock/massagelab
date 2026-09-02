@@ -429,6 +429,27 @@ describe("Supporter membership final-review contracts", () => {
     assert.equal(result.supporterCheckoutOpen, false)
   })
 
+  it("renders an anonymous registration link while public registration is open", async () => {
+    let pricingPageTree = null
+    const result = await renderPublicPricing({
+      capturePageTree: (tree) => { pricingPageTree = tree },
+      registrationOpen: true,
+      session: null,
+      subscriptions: [],
+    })
+
+    assert.equal(result.mode, "auth")
+    assert.ok(pricingPageTree, "PricingPage must expose its open registration boundary")
+    assert.equal(
+      findElements(
+        pricingPageTree,
+        (element) => element.props.href === "/register?callbackUrl=%2Fpricing",
+      ).length,
+      1,
+      "open registration must render its exact active Create account link",
+    )
+  })
+
   it("keeps supporter Checkout open when only public registration is paused", async () => {
     let pricingPageTree = null
     const result = await renderPublicPricing({

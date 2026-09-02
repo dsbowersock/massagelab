@@ -368,12 +368,14 @@ function loadProviderOwnerTransitionHarness({
     profileRequestStarted,
     /** Waits for every write started by the serialized writer, including batches queued while waiting. */
     async settleProfileWrites() {
-      let settled = 0
-      while (settled < profileWriteSettlements.length) {
-        const batch = profileWriteSettlements.slice(settled)
-        settled += batch.length
-        await Promise.allSettled(batch)
-      }
+      await settlesWithin((async () => {
+        let settled = 0
+        while (settled < profileWriteSettlements.length) {
+          const batch = profileWriteSettlements.slice(settled)
+          settled += batch.length
+          await Promise.allSettled(batch)
+        }
+      })(), 1_000, "therapist profile writes did not settle")
     },
     profileWrites,
     storageReads,
@@ -503,6 +505,27 @@ describe("therapist settings cloud hydration", () => {
       harness.dispatchOnline()
       await harness.settleProfileWrites()
       assert.equal(harness.profileWrites.length, 2, "online recovery must not create a retry loop")
+    } finally {
+      harness.restore()
+    }
+  })
+
+  it("bounds profile-write settlement when a transport never resolves", async () => {
+    const harness = loadProviderOwnerTransitionHarness({
+      writeProfile: () => new Promise(() => {}),
+    })
+    try {
+      harness.render()
+      harness.flushEffects()
+      const hydration = harness.render().ensureCloudHydrated()
+      harness.resolveProfileResponse({ therapistName: "Cloud owner" })
+      await hydration
+      harness.render().updateSettings({ name: "Pending forever" })
+
+      await assert.rejects(
+        harness.settleProfileWrites(),
+        new Error("therapist profile writes did not settle"),
+      )
     } finally {
       harness.restore()
     }

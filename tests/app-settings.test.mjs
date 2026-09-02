@@ -145,6 +145,7 @@ function createSettingsOwnerTransitionHarness({
             }
             const current = stateSlots[cursor].value
             const next = update(current)
+            // React Strict Mode may replay an updater, discarding its first result and committing the second.
             stateSlots[cursor].value = replayFunctionalStateUpdaters
               ? update(current)
               : next
