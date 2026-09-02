@@ -48,12 +48,115 @@ SMTP_PASSWORD=
 SMTP_FROM=MassageLab <no-reply@massagelab.app>
 ```
 
+## Family-And-Friends Launch Cost Controls
+
+Use these independent, server-enforced emergency pause controls for a sharing
+window. They are separate controls and must be reviewed separately:
+
+```text
+MASSAGELAB_PUBLIC_REGISTRATION_PAUSED=false
+MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED=false
+```
+
+Only the exact lowercase value `true` pauses its path. An absent flag, `false`,
+or any other value leaves that path open, and changing one flag does not change
+the other. A registration pause blocks only new account creation; existing
+email/password and Google login, verification, password reset, and account
+recovery remain available. A Supporter Checkout pause blocks only new
+membership Checkout; existing subscriptions, feature-key entitlements,
+membership status, and billing Portal access remain available. The server is
+the enforcement boundary; disabled client controls and pause copy are only the
+user-facing explanation.
+
+Capture each local route-timing receipt from a fresh Production build with:
+
+```bash
+npm run readiness:timing-receipt -- --base-url=http://127.0.0.1:3010 --samples=3
+```
+
+The `first` sample for each route is only the first measured sample for that
+route after the fresh Production server passes readiness. It is not proof of a
+provider or platform cold start; subsequent samples for that route are `warm`.
+Compare baseline and final receipts only when they use the same machine,
+loopback port, sample count, and environment shape.
+
+The repeatable server-workload receipt records these exact final boundaries for
+an ordinary non-practice shell:
+
+| Owner | Exact measured boundary |
+| --- | --- |
+| Auth snapshot | One underlying auth snapshot, one user-graph read, one temporary-grant read, and one entitlement build |
+| Account shell | One preference read, one practice-role read, and zero separate entitlement reads |
+| Total server data work | Four logical ORM operations |
+| Client bootstrap | Zero client bootstrap endpoints |
+| Background commerce | Zero ordinary commerce snapshots when no guest-cart merge or commerce consumer is active |
+| Public pricing | Six concurrent cold logical Price reads shared across callers; zero warm logical Price reads |
+| Explicit billing actions | One Checkout create for an explicit valid Checkout; one Portal create for an explicit valid Portal action; zero of either during the tested launch/pricing ordinary-render slice |
+
+The root server projection owns the initial preferences and practice-role read.
+Settings and Music receive its sanitized owner-keyed app settings; they make one
+shared fallback request only after a server preference-read failure. Owner
+changes abort and reset old work. Therapist local hydration remains immediate,
+but its cloud GET is lazy and deduplicated until an actual consumer appears.
+Zero-practice users skip the calendar endpoint; practice members retain it.
+Background commerce loads only for an actual carousel, Chimer, checkout-return,
+cart, or pending guest-cart-merge consumer. Focus and online recovery may retry
+a snapshot after the current owner demanded it, including after failed initial
+hydration; established hydration and explicit mutation intent remain eligible.
+
+Pricing caches the public display catalog only. The owner is process-local and
+single-flight: stable results use a five-minute TTL whether every slot is
+configured or some slots are exactly unconfigured; configured lookup or
+malformed projection failures use a fifteen-second retry TTL. Each read-only Stripe
+Price request has a 2.5-second timeout and one SDK network retry. This cache is
+not payment, customer, membership, or access authority. Checkout, Portal, entitlements, customers, and webhooks remain uncached and must continue to use
+their current server-owned validation and persistence paths. An incomplete
+display catalog may show `Price unavailable`; an unconfigured slot remains
+release-not-ready even though its absence is stable, and display state must
+never make Checkout trust a displayed value. Each server instance owns its own display cache, so there is
+no cross-instance manual flush requirement for access or payment correctness.
+
+This workload does not establish site-wide absence of Stripe or email calls;
+Admin Billing preview is outside this row, and provider-wide/email render
+verification remains `NOT RUN`. PHI-bearing workflows remain local-first.
+
+**BLOCKED HISTORICAL CONTEXT:** The HTTP `200` observation for 21/21 samples
+across seven fixed routes with three samples per route was reported from runtime
+base `706c52167466f984f3e405986af11ff3d2343a02` plus an uncommitted dirty Task 9
+working-tree delta whose patch identity was not recorded. It is unreproducible
+and is not completion, release, or exact-candidate evidence. The local timing
+`first` label is not platform cold evidence. The deployed exact commit still
+requires a separate read-only Vercel aggregate that distinguishes observed
+platform cold-start latency from warm invocation latency; this remains an
+operational gate. When the platform cannot expose that distinction, record the
+cold row as `NOT RUN`; never infer it from the local `first` sample.
+
+Before a sharing window, review these provider surfaces read-only and retain
+only aggregate, count, or status evidence without identifiers or secret values:
+
+- Neon: confirm the runtime uses the pooled host, then review connection,
+  compute, and transfer graphs.
+- Vercel: confirm the exact deployed commit, then review usage, invocation
+  latency, error rates, and WAF Log mode.
+- SMTP: review send volume plus bounce, complaint, suppression, and delivery
+  health without sending a message.
+- Stripe: review webhook delivery failures without creating a Checkout,
+  payment, event, replay, refund, cancellation, or Portal session.
+- Cloudflare R2: review the public custom-domain cache headers and aggregate
+  Class A/Class B operation counts without changing or enumerating objects.
+- Sentry: review quota use and the approved privacy posture without exposing
+  event or user identifiers.
+
+These checks do not authorize an environment, provider, WAF, cache, quota,
+alert, billing, or privacy-setting change. Authorize every such change
+separately from its read-only review.
+
 ## Identity, Membership Schema, And Writer Rollout
 
 Do not print auth, database, OAuth, SMTP, target, or fingerprint configuration values in release evidence. The combined rollout is expand, pause/cut over, drain, unpause, and only then clean up:
 
 1. Run `npm run auth:check-normalized-emails` against the separately selected direct, non-pooler maintenance target. The command is read-only and may report only `normalized_collision_count=<number>`. Stop unless the count is zero; resolve collisions through a separately reviewed account-recovery process before applying or deploying identity code.
-2. Apply `20260828120000_identity_method_safety`, then the dedicated one-statement `20260828121000_identity_normalized_email_index`, then `20260828130000_membership_subscription_convergence` before deploying any new runtime. The first expansion creates `AuthRateLimitBucket`, `AuthMethodIntent`, and `AccountSecurityEmailIntent`, adds their supporting enums/indexes, and expands the shared `AuthAttemptPurpose` enum with `GOOGLE_INTENT` for forward compatibility. The second migration contains only PostgreSQL `CREATE UNIQUE INDEX CONCURRENTLY` for `User_normalized_email_key`, which keeps ordinary User reads/writes available and avoids Prisma 7's multi-statement execution boundary for nontransactional DDL. The zero-collision preflight is mandatory but does not replace migration monitoring. If the concurrent build fails, stop the migration and runtime rollout; do not deploy, mark the migration applied, or assume the index exists. A failed concurrent build can leave an invalid index. Inspect only count/status catalog evidence, then use a separately reviewed recovery to resolve collisions, remove the invalid index, recreate and verify the concurrent index, and reconcile Prisma's failed-migration record only after every expansion object is proven correct. The third migration adds only the membership receipt owner and nullable ordering/authoritative watermarks without rewriting existing membership rows. Verify all three reviewed migrations current with no extras or failure. The `AuthAttempt` table's columns, indexes, and data remain untouched. This work did not apply any of the three migrations to a database.
+2. Apply the five reviewed migrations in this exact order before the first bridge-capable runtime deployment: `20260828120000_identity_method_safety`; the dedicated one-statement `20260828121000_identity_normalized_email_index`; `20260828130000_membership_subscription_convergence`; `20260901100000_auth_method_intent_two_factor_purposes`; then `20260901101000_auth_method_intent_registration_callback`. The first expansion creates `AuthRateLimitBucket`, `AuthMethodIntent`, and `AccountSecurityEmailIntent`, adds their supporting enums/indexes, and expands the shared `AuthAttemptPurpose` enum with `GOOGLE_INTENT` for forward compatibility. The second migration contains only PostgreSQL `CREATE UNIQUE INDEX CONCURRENTLY` for `User_normalized_email_key`, which keeps ordinary User reads/writes available and avoids Prisma 7's multi-statement execution boundary for nontransactional DDL. The zero-collision preflight is mandatory but does not replace migration monitoring. If the concurrent build fails, stop the migration and runtime rollout; do not deploy, mark the migration applied, or assume the index exists. A failed concurrent build can leave an invalid index. Inspect only count/status catalog evidence, then use a separately reviewed recovery to resolve collisions, remove the invalid index, recreate and verify the concurrent index, and reconcile Prisma's failed-migration record only after every expansion object is proven correct. The third migration adds only the membership receipt owner and nullable ordering/authoritative watermarks without rewriting existing membership rows. The fourth adds the `ENROLL_TWO_FACTOR`, `DISABLE_TWO_FACTOR`, and `REGENERATE_TWO_FACTOR_BACKUP_CODES` auth-method intent purposes. The fifth adds the bounded `AuthMethodIntent.callbackPath` registration callback owner. Verify all five reviewed migrations current with no extras or failure before the first bridge-capable deployment. The `AuthAttempt` table's columns, indexes, and data remain untouched. The repository now contains 45 migration directories; all five reviewed migrations are presently unapplied locally, and this documentation change does not claim any live application or deployment.
 3. Perform exactly two runtime deployments. First deploy the exact bridge-capable combined runtime with `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` exactly `1`. Prove the Production alias serves its exact SHA, read the current configured maximum invocation lifetime, wait at least that long after alias cutover, and prove no pre-bridge SHA is receiving or executing webhook requests. Every new identity caller uses `AuthRateLimitBucket` with no dual-write/fallback, while signed membership deliveries return private retryable `503` before membership provider/database/cache work. Stripe retries those deliveries and access may remain in processing guidance; do not manually replay or acknowledge them. Old pre-bridge instances may still write raw `AuthAttempt.key` only until the drain proof closes. After that proof, deploy the same bridge-capable runtime again with the flag absent or exactly `0`; verify held deliveries reach `2xx`, their receipts become terminal, and persisted access converges. Rollback after bridge cutover is permitted only to a bridge-capable deployment with exact flag `1`, never to the pre-bridge legacy writer. Keep the additive schema with no destructive migration rollback. Retain the bridge through held-delivery/backlog proof and the rollout window; removing it is a separately reviewed retirement.
 4. Keep `AuthAttempt` through the bridge-capable rollback window. Read-only target fingerprinting with `npm run auth:cleanup-legacy-attempts -- --print-fingerprint` and any cleanup are later release actions, not part of deployment. After cutover/drain evidence, separately authorize the exact production fingerprint and bounded mutation scope before each approved invocation of `npm run auth:cleanup-legacy-attempts -- --expected-fingerprint=<64 lowercase hex> --max-rows=<1..100>`. Record only `legacy_auth_attempt_rows_deleted=<number>`; never record target values, row identifiers, raw keys, email addresses, or network identifiers. No cleanup or future table-drop contract migration occurred in Task 7. Dropping `AuthAttempt` requires its own reviewed migration and authorization after rollback is retired.
 

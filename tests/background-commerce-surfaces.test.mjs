@@ -6,6 +6,7 @@ import {
   resolveBackgroundCommerceAccessSource,
   resolveAccessibleBackgroundControls,
 } from "../components/backgrounds/backgroundRegistry.ts"
+import { sourceBetween } from "./helpers/source-structure.mjs"
 import {
   backgroundCardCommerceState,
   hasActivePermanentOwnership,
@@ -16,6 +17,9 @@ const cardPath = new URL("../components/backgrounds/background-carousel-card.tsx
 const trayPath = new URL("../components/backgrounds/background-carousel-control-tray.tsx", import.meta.url)
 const accessLabelPath = new URL("../lib/background-carousel-access-label.js", import.meta.url)
 const carouselPath = new URL("../components/backgrounds/background-carousel.tsx", import.meta.url)
+const providerPath = new URL("../components/backgrounds/BackgroundCommerceProvider.tsx", import.meta.url)
+const accountPanelPath = new URL("../components/account/BackgroundCommercePanel.tsx", import.meta.url)
+const chimerPagePath = new URL("../app/chimer/page.tsx", import.meta.url)
 const selectorPath = new URL("../components/backgrounds/BackgroundSelector.tsx", import.meta.url)
 const setTimerPath = new URL("../app/chimer/set-timer.tsx", import.meta.url)
 const setTimerStylesPath = new URL("../app/chimer/set-timer.module.css", import.meta.url)
@@ -255,6 +259,61 @@ describe("background acquisition and shared account cart", () => {
   const cartPath = new URL("../components/backgrounds/BackgroundCommerceCart.tsx", import.meta.url)
   const triggerPath = new URL("../components/commerce/CommerceCartTrigger.tsx", import.meta.url)
   const layoutPath = new URL("../components/layout-wrapper.tsx", import.meta.url)
+
+  it("defers owner commerce until intent and keeps one current-owner read", async () => {
+    const [provider, layout] = await Promise.all([
+      readFile(providerPath, "utf8"),
+      readFile(layoutPath, "utf8"),
+    ])
+    assert.match(provider, /ownerKey:\s*string \| null/)
+    assert.match(provider, /ensureSnapshot\(\): Promise<void>/)
+    assert.match(provider, /snapshotPromiseRef/)
+    assert.match(provider, /ownerGenerationRef/)
+    assert.match(provider, /activeOwnerKeyRef\.current !== ownerKey/)
+    assert.match(provider, /key=\{ownerKey \?\? "guest"\}/)
+    assert.match(
+      provider,
+      /useLayoutEffect\(\(\) => \{[\s\S]*activeOwnerKeyRef\.current = ownerKey[\s\S]*return \(\) => \{[\s\S]*ownerGenerationRef\.current \+= 1[\s\S]*controller\.abort\(\)/,
+    )
+    assert.doesNotMatch(provider, /Account state must load even when there is no guest intent/)
+    assert.match(provider, /pendingIds\.length > 0/)
+    assert.match(provider, /hydratedOwnerRef\.current !== ownerKey/)
+    assert.match(provider, /mutationStartedOwnerRef\.current !== ownerKey/)
+    assert.match(layout, /ownerKey=\{ownerKey\}/)
+    assert.doesNotMatch(layout, /enabled=\{Boolean\(user\)\}/)
+  })
+
+  it("hydrates only actual carousel, Chimer, return, or account-cart consumers", async () => {
+    const [carousel, chimer, panel, cart, trigger] = await Promise.all([
+      readFile(carouselPath, "utf8"),
+      readFile(chimerPagePath, "utf8"),
+      readFile(accountPanelPath, "utf8"),
+      readFile(cartPath, "utf8"),
+      readFile(triggerPath, "utf8"),
+    ])
+    assert.match(
+      carousel,
+      /const \{[^}]*\bensureSnapshot\b[^}]*\} = useBackgroundCommerce\(\)/,
+    )
+    assert.match(
+      carousel,
+      /useEffect\(\(\) => \{\s*void ensureSnapshot\(\)\s*\}, \[ensureSnapshot\]\)/,
+    )
+    assert.match(chimer, /ensureSnapshot:\s*ensureBackgroundCommerceSnapshot/)
+    assert.match(chimer, /void ensureBackgroundCommerceSnapshot\(\)/)
+    const openAccountCartHandler = sourceBetween(
+      panel.replace(/\r\n?/g, "\n"),
+      "  const openAccountCart = () => {",
+      "  }\n\n  return (",
+      "BackgroundCommercePanel openAccountCart handler",
+    )
+    assert.match(
+      openAccountCartHandler,
+      /\bensureSnapshot\(\)[\s\S]*\bopenCart\(\)/,
+    )
+    assert.doesNotMatch(cart, /ensureSnapshot/)
+    assert.doesNotMatch(trigger, /ensureSnapshot/)
+  })
 
   it("offers exactly the approved locked-card actions and subscriber distinction", async () => {
     const source = await readFile(acquisitionPath, "utf8")

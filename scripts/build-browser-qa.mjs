@@ -5,6 +5,9 @@ const result = spawnSync(process.execPath, ["--run", "build:next"], {
   env: {
     ...process.env,
     NEXT_PUBLIC_ATMOSHAPER_BROWSER_QA: "1",
+    // Child-process only: instrument explicit RSC snapshot consumers for the
+    // content-free request-entry proof without changing route/action auth imports.
+    NEXT_PUBLIC_RSC_SESSION_PROOF: "1",
   },
   stdio: "inherit",
 })

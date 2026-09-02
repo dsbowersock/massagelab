@@ -17,6 +17,7 @@ import {
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
+import { STRIPE_API_VERSION as CENTRAL_STRIPE_API_VERSION } from "../lib/stripe-webhook-contract.js"
 import { safeErrorCode } from "../lib/safe-error-code.js"
 
 const DEFAULT_SUPPORTER_PRICE_ID = "price_supporter_1_monthly"
@@ -65,6 +66,47 @@ function captureTimersWithDelay(delayMs) {
 }
 
 describe("Stripe billing helpers", () => {
+  it("constructs the default Stripe client with the centralized API version", () => {
+    const stripeClient = stripeBilling.getStripeClient("sk_test_api_version_contract")
+
+    assert.equal(stripeClient.getApiField("version"), CENTRAL_STRIPE_API_VERSION)
+  })
+
+  it("passes optional per-request options through the read-only Price lookup", async () => {
+    const calls = []
+    const requestOptions = { timeout: 2_500, maxNetworkRetries: 1 }
+    const price = {
+      id: "price_public_display",
+      object: "price",
+      currency: "usd",
+      recurring: { interval: "month" },
+      unit_amount: 500,
+    }
+    const stripeClient = {
+      prices: {
+        async retrieve(...args) {
+          calls.push(args)
+          return price
+        },
+      },
+    }
+
+    const result = await stripeBilling.retrieveStripePrice("price_public_display", {
+      stripeClient,
+      requestOptions,
+    })
+
+    assert.equal(result, price)
+    assert.deepEqual(calls, [["price_public_display", {}, requestOptions]])
+
+    calls.length = 0
+    assert.equal(
+      await stripeBilling.retrieveStripePrice("price_public_display", { stripeClient }),
+      price,
+    )
+    assert.deepEqual(calls, [["price_public_display", {}, undefined]])
+  })
+
   it("keeps authority failures catchable, distinct, and private", () => {
     const {
       deadline,

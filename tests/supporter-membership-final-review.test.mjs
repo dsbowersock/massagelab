@@ -17,6 +17,7 @@ import {
 } from "../lib/stripe-price-contract.js"
 import { TARGET_PRICE_SPECS } from "../lib/stripe-supporter-membership-migration-contract.js"
 import { safeErrorCode } from "../lib/safe-error-code.js"
+import { REGISTRATION_PAUSED_MESSAGE } from "../lib/public-launch-controls.js"
 import {
   createCompiledModuleLoader,
   createElement,
@@ -53,10 +54,14 @@ function TestPendingSubmitButton(props) {
  * Renders the real public Pricing page with controlled session, Customer,
  * subscription, and lookup-failure inputs. The component double records the
  * mode passed to MembershipPricingCards without rendering its internals.
+ * An optional callback exposes the rendered page tree for boundary assertions.
  * Returns the card's action props plus Customer/subscription query counters.
  */
 async function renderPublicPricing({
+  capturePageTree = () => undefined,
+  registrationOpen = true,
   session,
+  supporterCheckoutOpen = true,
   stripeCustomer = null,
   subscriptions,
   membershipStatusError = null,
@@ -91,8 +96,8 @@ async function renderPublicPricing({
         ShieldCheck: TestComponent,
         Sparkles: TestComponent,
       },
-      "@/auth": {
-        getCurrentSession: async () => session,
+      "@/lib/rsc-session": {
+        getCurrentRscSession: async () => session,
       },
       "@/lib/donations": {
         DONATION_OPTIONS: [],
@@ -107,6 +112,13 @@ async function renderPublicPricing({
           intervals: [],
           plans: [],
         }),
+      },
+      "@/lib/public-launch-controls": {
+        getPublicLaunchControls: () => ({
+          registrationOpen,
+          supporterCheckoutOpen,
+        }),
+        REGISTRATION_PAUSED_MESSAGE,
       },
       "@/lib/prisma": {
         prisma: {
@@ -158,6 +170,7 @@ async function renderPublicPricing({
   const tree = await pricingPage.default({
     searchParams: Promise.resolve({}),
   })
+  capturePageTree(tree)
   const pricingCards = findElement(
     tree,
     (element) => element.type === MembershipPricingCards,
@@ -168,6 +181,7 @@ async function renderPublicPricing({
     activeMembershipLevel: pricingCards.props.activeMembershipLevel ?? null,
     mode: pricingCards.props.mode,
     portalActionAvailable: pricingCards.props.portalActionAvailable,
+    supporterCheckoutOpen: pricingCards.props.supporterCheckoutOpen,
     stripeCustomerQueries,
     subscriptionQueries,
   }
@@ -331,6 +345,7 @@ describe("Supporter membership final-review contracts", () => {
       activeMembershipLevel: "SUPPORTER",
       mode: "portal",
       portalActionAvailable: true,
+      supporterCheckoutOpen: true,
       stripeCustomerQueries: 1,
       subscriptionQueries: 1,
     })
@@ -338,6 +353,7 @@ describe("Supporter membership final-review contracts", () => {
       activeMembershipLevel: null,
       mode: "checkout",
       portalActionAvailable: false,
+      supporterCheckoutOpen: true,
       stripeCustomerQueries: 1,
       subscriptionQueries: 1,
     })
@@ -345,6 +361,7 @@ describe("Supporter membership final-review contracts", () => {
       activeMembershipLevel: null,
       mode: "auth",
       portalActionAvailable: false,
+      supporterCheckoutOpen: true,
       stripeCustomerQueries: 0,
       subscriptionQueries: 0,
     })
@@ -401,6 +418,101 @@ describe("Supporter membership final-review contracts", () => {
     )
   })
 
+  it("forwards a closed supporter Checkout launch control to public pricing cards", async () => {
+    const result = await renderPublicPricing({
+      registrationOpen: true,
+      session: null,
+      supporterCheckoutOpen: false,
+      subscriptions: [],
+    })
+
+    assert.equal(result.supporterCheckoutOpen, false)
+    const [guestCards, checkoutCards] = await Promise.all([
+      renderMembershipPricingCards({
+        mode: result.mode,
+        activeMembershipLevel: result.activeMembershipLevel,
+        portalActionAvailable: result.portalActionAvailable,
+        supporterCheckoutOpen: result.supporterCheckoutOpen,
+      }),
+      renderMembershipPricingCards({
+        mode: "checkout",
+        activeMembershipLevel: null,
+        portalActionAvailable: false,
+        supporterCheckoutOpen: result.supporterCheckoutOpen,
+      }),
+    ])
+    for (const cards of [guestCards, checkoutCards]) {
+      assert.match(elementText(cards), /New Supporter checkout is temporarily paused\./)
+      assert.match(elementText(cards), /Existing memberships and the billing portal remain available\./)
+      assert.doesNotMatch(elementText(cards), /Choose \$1(?!\d)|Support with \$1(?!\d)/)
+    }
+    assert.equal(
+      findElements(guestCards, (element) => element.props["data-membership-auth-amount-choice"] != null).length,
+      0,
+      "closed Checkout must not render an active guest choice",
+    )
+    assert.equal(
+      findElements(checkoutCards, (element) => (
+        element.type === "form" && element.props.action === "/api/billing/checkout"
+      )).length,
+      0,
+      "closed Checkout must not render an active checkout form",
+    )
+  })
+
+  it("renders an anonymous registration link while public registration is open", async () => {
+    let pricingPageTree = null
+    const result = await renderPublicPricing({
+      capturePageTree: (tree) => { pricingPageTree = tree },
+      registrationOpen: true,
+      session: null,
+      subscriptions: [],
+    })
+
+    assert.equal(result.mode, "auth")
+    assert.ok(pricingPageTree, "PricingPage must expose its open registration boundary")
+    assert.equal(
+      findElements(
+        pricingPageTree,
+        (element) => element.props.href === "/register?callbackUrl=%2Fpricing",
+      ).length,
+      1,
+      "open registration must render its exact active Create account link",
+    )
+  })
+
+  it("keeps supporter Checkout open when only public registration is paused", async () => {
+    let pricingPageTree = null
+    const result = await renderPublicPricing({
+      capturePageTree: (tree) => { pricingPageTree = tree },
+      registrationOpen: false,
+      session: null,
+      supporterCheckoutOpen: true,
+      subscriptions: [],
+    })
+
+    assert.equal(result.mode, "auth")
+    assert.equal(result.supporterCheckoutOpen, true)
+    assert.ok(pricingPageTree, "PricingPage must expose its rendered registration boundary")
+    assert.equal(elementText(pricingPageTree).includes(REGISTRATION_PAUSED_MESSAGE), true)
+    assert.equal(
+      findElements(
+        pricingPageTree,
+        (element) => element.props.href === "/register?callbackUrl=%2Fpricing",
+      ).length,
+      0,
+      "paused registration must not render an active Create account link",
+    )
+
+    const checkoutCards = await renderMembershipPricingCards({
+      mode: result.mode,
+      activeMembershipLevel: result.activeMembershipLevel,
+      portalActionAvailable: result.portalActionAvailable,
+      supporterCheckoutOpen: result.supporterCheckoutOpen,
+    })
+    assert.match(elementText(checkoutCards), /Choose \$1(?!\d)/)
+  })
+
   it("keeps Portal mode unavailable after a successful lookup without a Stripe Customer", async () => {
     const result = await renderPublicPricing({
       session: { user: { id: "user_member_without_customer" } },
@@ -416,6 +528,7 @@ describe("Supporter membership final-review contracts", () => {
       activeMembershipLevel: "SUPPORTER",
       mode: "portal",
       portalActionAvailable: false,
+      supporterCheckoutOpen: true,
       stripeCustomerQueries: 1,
       subscriptionQueries: 1,
     })
@@ -439,6 +552,7 @@ describe("Supporter membership final-review contracts", () => {
       activeMembershipLevel: null,
       mode: "portal",
       portalActionAvailable: false,
+      supporterCheckoutOpen: true,
       stripeCustomerQueries: 1,
       subscriptionQueries: 1,
     })

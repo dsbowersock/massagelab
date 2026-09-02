@@ -42,13 +42,27 @@ async function renderPricingPage() {
         ShieldCheck: Div,
         Sparkles: Div,
       },
-      "@/auth": { getCurrentSession: async () => null },
+      "@/lib/rsc-session": { getCurrentRscSession: async () => null },
       "@/lib/donations": { DONATION_OPTIONS },
       "@/lib/membership": {
         getUserMembershipPricingStatus: async () => null,
         resolveMembershipPricingMode: () => "auth",
       },
-      "@/lib/membership-pricing": { getMembershipPricingCatalog: async () => ({}) },
+      "@/lib/membership-pricing": {
+        getMembershipPricingCatalog: async () => ({
+          defaultInterval: "year",
+          intervals: [{
+            id: "year",
+            label: "Yearly",
+            nudge: "Best value",
+            displaySuffix: "/year",
+          }],
+          plans: [],
+        }),
+      },
+      "@/lib/public-launch-controls": {
+        getPublicLaunchControls: () => ({ registrationOpen: true, supporterCheckoutOpen: true }),
+      },
       "@/lib/prisma": { prisma: {} },
       "@/components/membership/pricing-cards": { MembershipPricingCards: Div },
       "@/components/forms/pending-submission-form": {

@@ -14,16 +14,26 @@ import {
 } from "../lib/stripe-webhook-contract.js"
 import { safeErrorCode } from "../lib/safe-error-code.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { MEMBERSHIP_PRICING_IMPORT_PATTERN } from "./helpers/membership-pricing-import-guard.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const routeSource = readFileSync(
   new URL("../app/api/billing/webhook/route.ts", import.meta.url),
   "utf8",
 )
+const membershipWebhookServiceSource = readFileSync(
+  new URL("../lib/membership-webhook-service.ts", import.meta.url),
+  "utf8",
+)
 const envExample = readFileSync(new URL("../.env.example", import.meta.url), "utf8")
 const MEMBERSHIP_WRITES_PAUSED_ENV = "MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED"
 
 describe("signed membership webhook route", () => {
+  it("keeps the cached display catalog outside webhook convergence authority", () => {
+    assert.doesNotMatch(routeSource, MEMBERSHIP_PRICING_IMPORT_PATTERN)
+    assert.doesNotMatch(membershipWebhookServiceSource, MEMBERSHIP_PRICING_IMPORT_PATTERN)
+  })
+
   it("verifies the exact raw body and signature before parsing or writing", async () => {
     const harness = createWebhookHarness({ signatureValid: false })
     const rawBody = "{not-valid-json"

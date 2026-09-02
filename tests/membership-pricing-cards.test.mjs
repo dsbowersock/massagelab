@@ -11,6 +11,57 @@ import {
 } from "./helpers/membership-pricing-cards.mjs"
 
 describe("MembershipPricingCards configured price rendering", () => {
+  it("shows the Checkout pause without hiding an existing member's Portal actions", async () => {
+    const [checkoutCards, portalCards, authCards] = await Promise.all([
+      renderMembershipPricingCards({
+        mode: "checkout",
+        supporterCheckoutOpen: false,
+      }),
+      renderMembershipPricingCards({
+        mode: "portal",
+        supporterCheckoutOpen: false,
+      }),
+      renderMembershipPricingCards({
+        mode: "auth",
+        supporterCheckoutOpen: false,
+      }),
+    ])
+
+    for (const [mode, cards] of [
+      ["checkout", checkoutCards],
+      ["portal", portalCards],
+      ["auth", authCards],
+    ]) {
+      // Keep the expected copy independent so a rendered-message drift fails this UI contract.
+      assert.ok(elementText(cards).includes(
+        "New Supporter checkout is temporarily paused. Existing memberships and the billing portal remain available.",
+      ), `${mode} mode must show the Checkout pause`)
+      assert.equal(
+        findElements(
+          cards,
+          (element) => element.type === "form" && element.props.action === "/api/billing/checkout",
+        ).length,
+        0,
+        `${mode} mode must hide Checkout forms while paused`,
+      )
+    }
+    assert.equal(
+      findElements(
+        portalCards,
+        (element) => element.type === "form" && element.props.action === "/api/billing/portal",
+      ).length,
+      2,
+    )
+    assert.match(elementText(portalCards), /Current member/)
+    assert.equal(
+      findElements(
+        authCards,
+        (element) => element.props["data-membership-auth-amount-choice"] != null,
+      ).length,
+      0,
+    )
+  })
+
   it("advertises only lookup-verified prices in portal and pre-auth modes", async () => {
     const configuredPrice = supporterMonthlyPrice()
     const amountChoices = [
@@ -320,14 +371,19 @@ describe("MembershipPricingCards configured price rendering", () => {
       yearAmountCents: 1000,
       prices: { year: yearlyPrice },
     }]
+    const modes = ["checkout", "auth", "portal"]
     const cardsByMode = await Promise.all(
-      ["checkout", "auth", "portal"].map((mode) => (
+      modes.map((mode) => (
         renderMembershipPricingCards({ mode, interval: "year", amountChoices })
       )),
     )
 
-    for (const cards of cardsByMode) {
-      assert.match(elementText(cards), /Save \$2 per year vs monthly/)
+    for (const [index, cards] of cardsByMode.entries()) {
+      assert.match(
+        elementText(cards),
+        /Save \$2 per year vs monthly/,
+        `${modes[index]} mode must show annual savings`,
+      )
     }
   })
 

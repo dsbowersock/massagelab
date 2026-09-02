@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Plus } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { createPracticeAction } from "@/app/calendar/actions"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { normalizeCalendarPreferences } from "@/lib/calendar-preferences"

@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -46,6 +47,7 @@ export type PurchaseConsentInput = {
 export type BackgroundCommerceContextValue = {
   state: BackgroundCommerceClientState
   signedIn: boolean
+  ensureSnapshot(): Promise<void>
   refresh(): Promise<void>
   captureOwnershipReconciliationRevision(): number
   reconcileOwnedBackgroundIds(
@@ -171,20 +173,43 @@ function validCheckoutUrl(value: unknown): string | null {
 
 export function BackgroundCommerceProvider({
   children,
-  enabled,
+  ownerKey,
 }: {
   children: ReactNode
-  enabled: boolean
+  ownerKey: string | null
 }) {
+  // A keyed owner boundary gives every account its own reducer, cart, and
+  // request generation; cleanup invalidates work retained by the old instance.
+  return (
+    <OwnerScopedBackgroundCommerceProvider key={ownerKey ?? "guest"} ownerKey={ownerKey}>
+      {children}
+    </OwnerScopedBackgroundCommerceProvider>
+  )
+}
+
+function OwnerScopedBackgroundCommerceProvider({
+  children,
+  ownerKey,
+}: {
+  children: ReactNode
+  ownerKey: string | null
+}) {
+  const signedIn = Boolean(ownerKey)
   const [state, dispatch] = useReducer(
     backgroundCommerceReducer,
     EMPTY_BACKGROUND_COMMERCE_STATE,
   ) as [BackgroundCommerceClientState, React.Dispatch<Record<string, unknown>>]
   const readControllerRef = useRef<AbortController | null>(null)
+  const snapshotPromiseRef = useRef<Promise<void> | null>(null)
   const mutationControllersRef = useRef(new Set<AbortController>())
   const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
   const mutationActiveRef = useRef(false)
   const commerceRevisionRef = useRef(0)
+  const demandedOwnerRef = useRef<string | null>(null)
+  const hydratedOwnerRef = useRef<string | null>(null)
+  const mutationStartedOwnerRef = useRef<string | null>(null)
+  const activeOwnerKeyRef = useRef(ownerKey)
+  const ownerGenerationRef = useRef(0)
   const [cartOpen, setCartOpen] = useState(false)
   const [guestCartIds, setGuestCartIds] = useState<string[]>([])
   const guestState = useMemo<BackgroundCommerceClientState>(() => ({
@@ -193,7 +218,7 @@ export function BackgroundCommerceProvider({
     pendingAction: null,
     error: null,
   }), [guestCartIds])
-  const exposedState = enabled ? state : guestState
+  const exposedState = signedIn ? state : guestState
 
   const updateGuestCart = useCallback((update: (current: string[]) => string[]) => {
     setGuestCartIds((current) => {
@@ -203,15 +228,24 @@ export function BackgroundCommerceProvider({
   }, [])
 
   const refresh = useCallback(async () => {
-    if (!enabled) {
+    if (!ownerKey) {
       setGuestCartIds(readGuestBackgroundCartIds(window.localStorage))
       return
     }
-    if (mutationActiveRef.current) {
+    if (activeOwnerKeyRef.current !== ownerKey) return
+    const requestOwnerKey = ownerKey
+    const requestGeneration = ownerGenerationRef.current
+    while (mutationActiveRef.current) {
       await mutationQueueRef.current
-      return
+      if (
+        requestGeneration !== ownerGenerationRef.current
+        || requestOwnerKey !== activeOwnerKeyRef.current
+        || hydratedOwnerRef.current === requestOwnerKey
+      ) return
     }
 
+    // Every completion guard below treats aborts, generation changes, and
+    // owner changes as stale so an old read cannot dispatch into a new owner.
     readControllerRef.current?.abort()
     const controller = new AbortController()
     readControllerRef.current = controller
@@ -219,16 +253,48 @@ export function BackgroundCommerceProvider({
     dispatch({ type: "fetch-begin", requestId: id })
     try {
       const snapshot = await fetchSnapshot(controller.signal)
-      if (controller.signal.aborted || readControllerRef.current !== controller) return
+      if (
+        controller.signal.aborted
+        || readControllerRef.current !== controller
+        || requestGeneration !== ownerGenerationRef.current
+        || requestOwnerKey !== activeOwnerKeyRef.current
+      ) return
       commerceRevisionRef.current += 1
+      hydratedOwnerRef.current = requestOwnerKey
       dispatch({ type: "fetch-success", requestId: id, snapshot })
     } catch (error) {
-      if (controller.signal.aborted) return
+      if (
+        controller.signal.aborted
+        || requestGeneration !== ownerGenerationRef.current
+        || requestOwnerKey !== activeOwnerKeyRef.current
+      ) return
       dispatch({ type: "fetch-failure", requestId: id, error: asClientError(error) })
     } finally {
       if (readControllerRef.current === controller) readControllerRef.current = null
     }
-  }, [enabled])
+  }, [ownerKey])
+
+  /**
+   * Coalesces current-owner demand and records it so focus or reconnect can
+   * recover a failed first load. Keyed owner mounts keep demand account-local.
+   */
+  const ensureSnapshot = useCallback((): Promise<void> => {
+    if (!ownerKey) {
+      setGuestCartIds(readGuestBackgroundCartIds(window.localStorage))
+      return Promise.resolve()
+    }
+    if (activeOwnerKeyRef.current !== ownerKey) return Promise.resolve()
+    demandedOwnerRef.current = ownerKey
+    if (hydratedOwnerRef.current === ownerKey) return Promise.resolve()
+    if (snapshotPromiseRef.current) return snapshotPromiseRef.current
+
+    const operation = refresh()
+    const request = operation.finally(() => {
+      if (snapshotPromiseRef.current === request) snapshotPromiseRef.current = null
+    })
+    snapshotPromiseRef.current = request
+    return request
+  }, [ownerKey, refresh])
 
   /** Captures the commerce generation against which a preference write starts. */
   const captureOwnershipReconciliationRevision = useCallback(
@@ -244,7 +310,7 @@ export function BackgroundCommerceProvider({
     ownedBackgroundIds: readonly string[],
     requestRevision: number,
   ) => {
-    if (!enabled) return
+    if (!ownerKey || activeOwnerKeyRef.current !== ownerKey) return
     readControllerRef.current?.abort()
     if (shouldApplyPreferenceOwnershipProof(
       requestRevision,
@@ -253,7 +319,7 @@ export function BackgroundCommerceProvider({
       dispatch({ type: "ownership-reconcile", ownedBackgroundIds })
     }
     await refresh()
-  }, [enabled, refresh])
+  }, [ownerKey, refresh])
 
   /** Serializes cart, credit, reservation, and checkout writes through one queue. */
   const enqueueSerializedOperation = useCallback((operation: () => Promise<void>) => {
@@ -266,8 +332,17 @@ export function BackgroundCommerceProvider({
     action: string,
     operation: (signal: AbortSignal) => Promise<void>,
     externalSignal?: AbortSignal,
-  ) => (
-    enqueueSerializedOperation(async () => {
+  ) => {
+    const requestGeneration = ownerGenerationRef.current
+    const requestOwnerKey = ownerKey
+    // Queued and completed work must still belong to this owner generation;
+    // stale work may neither write nor dispatch against a replacement owner.
+    return enqueueSerializedOperation(async () => {
+      if (
+        !requestOwnerKey
+        || requestGeneration !== ownerGenerationRef.current
+        || requestOwnerKey !== activeOwnerKeyRef.current
+      ) return
       const controller = new AbortController()
       const abortFromExternal = () => controller.abort()
       if (externalSignal?.aborted) {
@@ -278,6 +353,11 @@ export function BackgroundCommerceProvider({
       if (controller.signal.aborted) return
 
       commerceRevisionRef.current += 1
+      mutationStartedOwnerRef.current = requestOwnerKey
+      // A write makes any pre-write snapshot provisional until a later
+      // authoritative read succeeds. Queued demand must therefore survive a
+      // failed mutation follow-up refresh instead of trusting stale hydration.
+      hydratedOwnerRef.current = null
       readControllerRef.current?.abort()
       mutationActiveRef.current = true
       mutationControllersRef.current.add(controller)
@@ -287,19 +367,37 @@ export function BackgroundCommerceProvider({
         try {
           await operation(controller.signal)
         } catch (error) {
-          if (controller.signal.aborted) return
+          if (
+            controller.signal.aborted
+            || requestGeneration !== ownerGenerationRef.current
+            || requestOwnerKey !== activeOwnerKeyRef.current
+          ) return
           const safeError = asClientError(error)
           dispatch({ type: "mutation-failure", requestId: id, error: safeError })
           throw new BackgroundCommerceClientError(safeError)
         }
 
-        if (controller.signal.aborted) return
+        if (
+          controller.signal.aborted
+          || requestGeneration !== ownerGenerationRef.current
+          || requestOwnerKey !== activeOwnerKeyRef.current
+        ) return
         try {
           const snapshot = await fetchSnapshot(controller.signal)
+          if (
+            controller.signal.aborted
+            || requestGeneration !== ownerGenerationRef.current
+            || requestOwnerKey !== activeOwnerKeyRef.current
+          ) return
           commerceRevisionRef.current += 1
+          hydratedOwnerRef.current = requestOwnerKey
           dispatch({ type: "mutation-success", requestId: id, snapshot })
         } catch (error) {
-          if (controller.signal.aborted) return
+          if (
+            controller.signal.aborted
+            || requestGeneration !== ownerGenerationRef.current
+            || requestOwnerKey !== activeOwnerKeyRef.current
+          ) return
           // The authoritative write succeeded. Preserve caller success and the
           // last snapshot while exposing only the follow-up refresh problem.
           dispatch({
@@ -314,10 +412,10 @@ export function BackgroundCommerceProvider({
         mutationControllersRef.current.delete(controller)
       }
     })
-  ), [enqueueSerializedOperation])
+  }, [enqueueSerializedOperation, ownerKey])
 
   const addToCart = useCallback(async (backgroundId: string) => {
-    if (!enabled) {
+    if (!signedIn) {
       const item = resolveGuestBackgroundCartItem(backgroundId)
       if (!item) {
         throw new BackgroundCommerceClientError({
@@ -338,10 +436,10 @@ export function BackgroundCommerceProvider({
         signal,
       )
     })
-  }, [enabled, enqueueMutation, updateGuestCart])
+  }, [signedIn, enqueueMutation, updateGuestCart])
 
   const removeFromCart = useCallback(async (backgroundId: string) => {
-    if (!enabled) {
+    if (!signedIn) {
       updateGuestCart((current) => {
         const matchIndex = current.indexOf(backgroundId)
         if (matchIndex < 0) return current
@@ -357,10 +455,10 @@ export function BackgroundCommerceProvider({
         signal,
       )
     })
-  }, [enabled, enqueueMutation, updateGuestCart])
+  }, [signedIn, enqueueMutation, updateGuestCart])
 
   const redeemCredit = useCallback(async (backgroundId: string, idempotencyKey: string) => {
-    if (!enabled) {
+    if (!signedIn) {
       throw new BackgroundCommerceClientError({ code: "AUTH_REQUIRED", message: PUBLIC_ERROR_MESSAGES.AUTH_REQUIRED })
     }
     await enqueueMutation("redeem-credit", async (signal) => {
@@ -371,10 +469,10 @@ export function BackgroundCommerceProvider({
         signal,
       )
     })
-  }, [enabled, enqueueMutation])
+  }, [signedIn, enqueueMutation])
 
   const cancelReservation = useCallback(async (orderId: string) => {
-    if (!enabled) {
+    if (!signedIn) {
       throw new BackgroundCommerceClientError({
         code: "AUTH_REQUIRED",
         message: PUBLIC_ERROR_MESSAGES.AUTH_REQUIRED,
@@ -388,17 +486,28 @@ export function BackgroundCommerceProvider({
         signal,
       )
     })
-  }, [enabled, enqueueMutation])
+  }, [signedIn, enqueueMutation])
 
   const startCheckout = useCallback(async (consent: PurchaseConsentInput) => {
-    if (!enabled) {
+    if (!signedIn) {
       throw new BackgroundCommerceClientError({
         code: "AUTH_REQUIRED",
         message: PUBLIC_ERROR_MESSAGES.AUTH_REQUIRED,
       })
     }
+    const requestGeneration = ownerGenerationRef.current
+    const requestOwnerKey = ownerKey
+    // Checkout completion guards keep stale work from writing, dispatching, or
+    // redirecting after the keyed owner boundary has moved to another account.
     await enqueueSerializedOperation(async () => {
+      if (
+        !requestOwnerKey
+        || requestGeneration !== ownerGenerationRef.current
+        || requestOwnerKey !== activeOwnerKeyRef.current
+      ) return
       commerceRevisionRef.current += 1
+      mutationStartedOwnerRef.current = requestOwnerKey
+      hydratedOwnerRef.current = null
       readControllerRef.current?.abort()
       mutationActiveRef.current = true
       const id = requestId("checkout")
@@ -412,6 +521,11 @@ export function BackgroundCommerceProvider({
           consent,
           controller.signal,
         )
+        if (
+          controller.signal.aborted
+          || requestGeneration !== ownerGenerationRef.current
+          || requestOwnerKey !== activeOwnerKeyRef.current
+        ) return
         const record = response && typeof response === "object" && !Array.isArray(response)
           ? response as Record<string, unknown>
           : {}
@@ -424,7 +538,11 @@ export function BackgroundCommerceProvider({
         }
         window.location.assign(url)
       } catch (error) {
-        if (controller.signal.aborted) return
+        if (
+          controller.signal.aborted
+          || requestGeneration !== ownerGenerationRef.current
+          || requestOwnerKey !== activeOwnerKeyRef.current
+        ) return
         const safeError = asClientError(error)
         dispatch({ type: "checkout-redirect-failure", requestId: id, error: safeError })
         throw new BackgroundCommerceClientError(safeError)
@@ -433,18 +551,15 @@ export function BackgroundCommerceProvider({
         mutationControllersRef.current.delete(controller)
       }
     })
-  }, [enabled, enqueueSerializedOperation])
+  }, [signedIn, enqueueSerializedOperation, ownerKey])
 
   useEffect(() => {
-    if (!enabled) {
+    if (!signedIn) {
       setGuestCartIds(readGuestBackgroundCartIds(window.localStorage))
       return
     }
     const mergeController = new AbortController()
     const pendingIds = readGuestBackgroundCartIds(window.localStorage)
-    // Account state must load even when there is no guest intent to merge or a
-    // queued merge is aborted during navigation.
-    void refresh()
     if (pendingIds.length > 0) {
       void enqueueMutation("merge-guest-cart", async (signal) => {
         const remainingIds: string[] = []
@@ -470,28 +585,64 @@ export function BackgroundCommerceProvider({
         setGuestCartIds(writeGuestBackgroundCartIds(window.localStorage, remainingIds))
       }, mergeController.signal).catch(() => undefined)
     }
-    const handleRefresh = () => { void refresh() }
+    return () => mergeController.abort()
+  }, [enqueueMutation, signedIn])
+
+  useEffect(() => {
+    if (!signedIn) return
+    const handleRefresh = () => {
+      if (
+        (
+          demandedOwnerRef.current !== ownerKey
+          && hydratedOwnerRef.current !== ownerKey
+          && mutationStartedOwnerRef.current !== ownerKey
+        )
+        || readControllerRef.current
+        || mutationActiveRef.current
+      ) return
+      // Failed-demand retries share the consumer flight; established owners still refresh fresh.
+      if (
+        demandedOwnerRef.current === ownerKey
+        && hydratedOwnerRef.current !== ownerKey
+        && mutationStartedOwnerRef.current !== ownerKey
+      ) {
+        void ensureSnapshot()
+        return
+      }
+      void refresh()
+    }
     window.addEventListener("focus", handleRefresh)
     window.addEventListener("online", handleRefresh)
     return () => {
       window.removeEventListener("focus", handleRefresh)
       window.removeEventListener("online", handleRefresh)
-      mergeController.abort()
-      readControllerRef.current?.abort()
     }
-  }, [enabled, enqueueMutation, refresh])
+  }, [ensureSnapshot, ownerKey, refresh, signedIn])
 
-  useEffect(() => () => {
-    readControllerRef.current?.abort()
-    for (const controller of mutationControllersRef.current) controller.abort()
-  }, [])
+  useLayoutEffect(() => {
+    // React Strict Mode replays layout-effect cleanup without discarding refs.
+    // Re-adopt the keyed owner during setup so the rehearsal cannot disable it.
+    activeOwnerKeyRef.current = ownerKey
+    const mutationControllers = mutationControllersRef.current
+    return () => {
+      ownerGenerationRef.current += 1
+      activeOwnerKeyRef.current = null
+      readControllerRef.current?.abort()
+      snapshotPromiseRef.current = null
+      for (const controller of mutationControllers) controller.abort()
+    }
+  }, [ownerKey])
 
-  const openCart = useCallback(() => setCartOpen(true), [])
+  const openCart = useCallback(() => {
+    void ensureSnapshot()
+    setCartOpen(true)
+  }, [ensureSnapshot])
   const closeCart = useCallback(() => setCartOpen(false), [])
 
   const value = useMemo<BackgroundCommerceContextValue>(() => ({
     state: exposedState,
-    signedIn: enabled,
+    signedIn,
+    ensureSnapshot,
     refresh,
     captureOwnershipReconciliationRevision,
     reconcileOwnedBackgroundIds,
@@ -505,7 +656,8 @@ export function BackgroundCommerceProvider({
     closeCart,
   }), [
     exposedState,
-    enabled,
+    signedIn,
+    ensureSnapshot,
     refresh,
     captureOwnershipReconciliationRevision,
     reconcileOwnedBackgroundIds,

@@ -4,6 +4,7 @@ import {
   checkCredentialRateLimit,
   clearCredentialAccountFailures,
   recordCredentialFailure,
+  type AuthRateLimitDecision,
 } from "@/lib/auth-rate-limit"
 import {
   decryptSecret,
@@ -19,9 +20,9 @@ import {
 import { prisma } from "@/lib/prisma"
 import { resolveNormalizedUserId } from "@/lib/normalized-user-email"
 
-type PasswordMethodProofFailure = {
-  status: "EMAIL_UNVERIFIED" | "INVALID" | "TWO_FACTOR_REQUIRED" | "TWO_FACTOR_INVALID" | "RATE_LIMITED"
-}
+type PasswordMethodProofFailure =
+  | { status: "EMAIL_UNVERIFIED" | "INVALID" | "TWO_FACTOR_REQUIRED" | "TWO_FACTOR_INVALID" }
+  | { status: "RATE_LIMITED"; retryAfterSeconds: number }
 
 export type PasswordMethodProofResult =
   | { status: "VERIFIED"; userId: string; backupCodeConsumed: boolean; authSessionVersion: number }
@@ -151,8 +152,11 @@ async function verifyPasswordMethodProofInternal(
     secret,
     now,
   }
-  if (!input.userId && !await credentialProofAllowed(deps, submittedLimiterInput)) {
-    return { status: "RATE_LIMITED" }
+  const submittedDecision = !input.userId
+    ? await credentialProofDecision(deps, submittedLimiterInput)
+    : { allowed: true } as const
+  if (!submittedDecision.allowed) {
+    return { status: "RATE_LIMITED", retryAfterSeconds: submittedDecision.retryAfterSeconds }
   }
   const resolvedUserId = input.userId ?? await deps.resolveNormalizedUserId({
     prismaClient,
@@ -176,8 +180,11 @@ async function verifyPasswordMethodProofInternal(
     secret,
     now,
   }
-  if (input.userId && !await credentialProofAllowed(deps, limiterInput)) {
-    return { status: "RATE_LIMITED" }
+  const accountDecision = input.userId
+    ? await credentialProofDecision(deps, limiterInput)
+    : { allowed: true } as const
+  if (!accountDecision.allowed) {
+    return { status: "RATE_LIMITED", retryAfterSeconds: accountDecision.retryAfterSeconds }
   }
 
   const passwordMatches = await deps.verifyPassword(
@@ -211,7 +218,6 @@ async function verifyPasswordMethodProofInternal(
         await deps.recordCredentialFailure({ ...limiterInput, purpose: "TWO_FACTOR" })
       }
       if (factorResult.status === "TWO_FACTOR_REQUIRED") return { status: "TWO_FACTOR_REQUIRED" }
-      if (factorResult.status === "RATE_LIMITED") return { status: "RATE_LIMITED" }
       return { status: "TWO_FACTOR_INVALID" }
     }
 
@@ -245,13 +251,22 @@ async function verifyPasswordMethodProofInternal(
     : verified
 }
 
-async function credentialProofAllowed(
+/**
+ * Denies credential proof when either the LOGIN or TWO_FACTOR limiter is
+ * blocked, returning the longest retry delay among the blocked decisions.
+ */
+async function credentialProofDecision(
   deps: ProofDependencies,
   input: Omit<Parameters<typeof checkCredentialRateLimit>[0], "purpose">,
-) {
+): Promise<AuthRateLimitDecision> {
+  let allowed = true
+  let retryAfterSeconds = 0
   for (const purpose of ["LOGIN", "TWO_FACTOR"] as const) {
     const decision = await deps.checkCredentialRateLimit({ ...input, purpose })
-    if (!decision.allowed) return false
+    if (!decision.allowed) {
+      allowed = false
+      retryAfterSeconds = Math.max(retryAfterSeconds, decision.retryAfterSeconds)
+    }
   }
-  return true
+  return allowed ? { allowed: true } : { allowed: false, retryAfterSeconds }
 }

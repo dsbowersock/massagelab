@@ -56,7 +56,29 @@ describe("shared password method proof with the real limiter", () => {
       await limiter.recordCredentialFailure(rateInput(scenario.database, "LOGIN"))
     }
 
-    assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), { status: "RATE_LIMITED" })
+    assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), {
+      status: "RATE_LIMITED",
+      retryAfterSeconds: 900,
+    })
+    assert.equal(scenario.calls.includes("password"), false)
+  })
+
+  it("checks both credential limiters and returns the greatest retry duration", async () => {
+    const scenario = proofInput()
+    const checkedPurposes = []
+    scenario.input.dependencies.checkCredentialRateLimit = async ({ purpose }) => {
+      checkedPurposes.push(purpose)
+      return {
+        allowed: false,
+        retryAfterSeconds: purpose === "LOGIN" ? 90 : 30,
+      }
+    }
+
+    assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), {
+      status: "RATE_LIMITED",
+      retryAfterSeconds: 90,
+    })
+    assert.deepEqual(checkedPurposes, ["LOGIN", "TWO_FACTOR"])
     assert.equal(scenario.calls.includes("password"), false)
   })
 
@@ -66,7 +88,10 @@ describe("shared password method proof with the real limiter", () => {
       await limiter.recordCredentialFailure(rateInput(scenario.database, "LOGIN"))
     }
 
-    assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), { status: "RATE_LIMITED" })
+    assert.deepEqual(await proof.verifyPasswordMethodProof(scenario.input), {
+      status: "RATE_LIMITED",
+      retryAfterSeconds: 900,
+    })
     assert.equal(scenario.calls.includes("password"), false)
   })
 

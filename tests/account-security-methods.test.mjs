@@ -78,6 +78,20 @@ describe("transaction-safe account method mutations", () => {
     }
   })
 
+  it("rechecks ownership of the exact proven Google account before adding or removing a password", async () => {
+    const addDb = createMethodDatabase({ accounts: [googleAccount()] })
+    const addIntent = addDb.addGoogleReauthIntent("ADD_PASSWORD", { providerAccountId: "other-google-subject" })
+    assert.deepEqual(await setPasswordMethod(passwordAddInput(addDb, addIntent.id)), { status: "REJECTED", code: "CONFLICT" })
+    assert.equal(addDb.passwordFor("user-1"), null)
+    assert.equal(addDb.state.intents[0].providerProvenAt.getTime(), NOW.getTime())
+
+    const removeDb = createMethodDatabase({ accounts: [googleAccount()], passwordCredentials: [{ id: "password-1", userId: "user-1", passwordHash: "old-hash" }] })
+    const removeIntent = removeDb.addGoogleReauthIntent("REMOVE_PASSWORD", { providerAccountId: "other-google-subject" })
+    assert.deepEqual(await removePasswordMethod(passwordDisableInput(removeDb, removeIntent.id)), { status: "REJECTED", code: "CONFLICT" })
+    assert.equal(removeDb.passwordFor("user-1").passwordHash, "old-hash")
+    assert.equal(removeDb.state.intents[0].providerProvenAt.getTime(), NOW.getTime())
+  })
+
   it("proves the current password outside the transaction and rejects a changed session version", async () => {
     const db = createMethodDatabase({ accounts: [googleAccount()], passwordCredentials: [{ id: "password-1", userId: "user-1", passwordHash: "old-hash" }] })
     const proofCalls = []

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
 import { describe, it } from "node:test"
+import ts from "typescript"
 
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
@@ -21,7 +22,144 @@ const linkFormSource = await readFile(new URL("../app/account/link-google/link-g
 const linkPageSource = await readFile(new URL("../app/account/link-google/page.tsx", import.meta.url), "utf8")
 const methodsPanelSource = await readFile(new URL("../app/account/security/sign-in-methods-panel.tsx", import.meta.url), "utf8")
 const securityPanelSource = await readFile(new URL("../app/account/security/security-panel.tsx", import.meta.url), "utf8")
+const twoFactorPanelUrl = new URL("../app/account/security/two-factor-management-panel.tsx", import.meta.url)
+assert.equal(
+  existsSync(fileURLToPath(twoFactorPanelUrl)),
+  true,
+  "the account security 2FA panel source must exist",
+)
+const twoFactorPanelSource = await readFile(twoFactorPanelUrl, "utf8")
 const linkRecoveryUrl = new URL("../lib/google-link-confirmation-recovery.ts", import.meta.url)
+
+/** Extracts the exact string members from the account-method action-state union. */
+function methodActionStateTokens(source) {
+  const match = /type MethodActionState\s*=\s*(?:\|\s*)?((?:"[^"]+"\s*(?:\|\s*)?)+)/.exec(source)
+  assert.ok(match, "MethodActionState string-literal union must exist")
+  return [...match[1].matchAll(/"([^"]+)"/g)].map((token) => token[1]).sort()
+}
+
+/** Bounds one nested action handler by the declaration of its next sibling. */
+function actionHandlerSource(source, functionName, nextFunctionName) {
+  const startMarker = `  async function ${functionName}(`
+  const endMarker = `\n  async function ${nextFunctionName}(`
+  const start = source.indexOf(startMarker)
+  assert.notEqual(start, -1, `missing ${functionName} action handler`)
+  const end = source.indexOf(endMarker, start + startMarker.length)
+  assert.notEqual(end, -1, `missing ${nextFunctionName} boundary after ${functionName}`)
+  return source.slice(start, end)
+}
+
+/** Finds direct, optional, indexed, destructured, or whole-object copies of `result.message`. */
+function resultMessageReads(source) {
+  const sourceFile = ts.createSourceFile(
+    "result-message-privacy.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  const reads = []
+  const unwrapExpression = (node) => {
+    let value = node
+    while (
+      value
+      && (ts.isParenthesizedExpression(value)
+        || ts.isAsExpression(value)
+        || ts.isTypeAssertionExpression(value)
+        || ts.isNonNullExpression(value)
+        || ts.isSatisfiesExpression(value))
+    ) {
+      value = value.expression
+    }
+    return value
+  }
+  const isResult = (node) => {
+    const value = unwrapExpression(node)
+    return Boolean(value && ts.isIdentifier(value) && value.text === "result")
+  }
+  const isMessage = (node) => {
+    const value = unwrapExpression(node)
+    return Boolean(
+      value
+      && ((ts.isIdentifier(value) && value.text === "message")
+        || (ts.isStringLiteralLike(value) && value.text === "message")),
+    )
+  }
+  const objectLiteralReadsMessage = (node) => {
+    const value = ts.isParenthesizedExpression(node) ? node.expression : node
+    return ts.isObjectLiteralExpression(value) && value.properties.some((property) => (
+      ts.isSpreadAssignment(property)
+      || (ts.isShorthandPropertyAssignment(property) && property.name.text === "message")
+      || (ts.isPropertyAssignment(property) && isMessage(property.name))
+    ))
+  }
+  const isNamedObjectMethod = (node, objectName, methodName) => {
+    const value = unwrapExpression(node)
+    return Boolean(
+      value
+      && ts.isPropertyAccessExpression(value)
+      && ts.isIdentifier(value.expression)
+      && value.expression.text === objectName
+      && value.name.text === methodName
+    )
+  }
+  const callCopiesResult = (node) => {
+    if (!ts.isCallExpression(node)) return false
+    const callee = unwrapExpression(node.expression)
+    if (ts.isIdentifier(callee) && callee.text === "structuredClone") {
+      return isResult(node.arguments[0])
+    }
+    if (isNamedObjectMethod(callee, "JSON", "stringify")) {
+      return isResult(node.arguments[0])
+    }
+    if (isNamedObjectMethod(callee, "Object", "assign")) {
+      return node.arguments.slice(1).some((argument) => isResult(argument))
+    }
+    return false
+  }
+
+  function visit(node) {
+    if (
+      ts.isPropertyAccessExpression(node)
+      && isResult(node.expression)
+      && node.name.text === "message"
+    ) {
+      reads.push(node)
+    } else if (
+      ts.isElementAccessExpression(node)
+      && isResult(node.expression)
+      && isMessage(node.argumentExpression)
+    ) {
+      reads.push(node)
+    } else if (
+      ts.isVariableDeclaration(node)
+      && isResult(node.initializer)
+      && ts.isObjectBindingPattern(node.name)
+      && node.name.elements.some((element) => (
+        element.dotDotDotToken || isMessage(element.propertyName ?? element.name)
+      ))
+    ) {
+      reads.push(node)
+    } else if (
+      ts.isBinaryExpression(node)
+      && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      && isResult(node.right)
+      && objectLiteralReadsMessage(node.left)
+    ) {
+      reads.push(node)
+    } else if (
+      ts.isSpreadAssignment(node)
+      && isResult(node.expression)
+    ) {
+      reads.push(node)
+    } else if (callCopiesResult(node)) {
+      reads.push(node)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  return reads
+}
 
 const UPDATED = {
   status: "UPDATED",
@@ -174,6 +312,50 @@ describe("account security route adapters", () => {
 })
 
 describe("recoverable account-method UI contracts", () => {
+  it("recognizes every direct result-message access form at the privacy boundary", () => {
+    for (const source of [
+      "consume(result.message)",
+      "consume(result?.message)",
+      "consume((result).message)",
+      "consume(result!.message)",
+      "consume((result as { message: string }).message)",
+      'consume(result["message"])',
+      'consume(result[("message")])',
+      'consume(result["message" as const])',
+      'consume(result?.["message"])',
+      "const { message } = result",
+      "const { message } = (result satisfies { message: string })",
+      "const { message: feedback } = result",
+      "({ message } = result)",
+      "const { ...rest } = result",
+      "const { code, ...rest } = result",
+      "({ ...rest } = result)",
+      "consume({ ...result })",
+      "consume({ code: 'safe', ...result })",
+      "Object.assign({}, result)",
+      "Object.assign({}, safe, (result as MethodResult))",
+      "JSON.stringify(result)",
+      "JSON.stringify((result satisfies MethodResult))",
+      "structuredClone(result)",
+      "structuredClone(result!)",
+    ]) {
+      assert.equal(resultMessageReads(source).length, 1, source)
+    }
+    for (const source of [
+      "consume(result.code); const { code } = result",
+      "const { ...rest } = other; consume({ ...other })",
+      "consume({ message: safeMessage })",
+      "Object.assign(result, { code: 'safe' })",
+      "Object.assign({}, { code: result.code })",
+      "JSON.stringify(result.code)",
+      "JSON.stringify(other)",
+      "structuredClone(result.code)",
+      "structuredClone(other)",
+    ]) {
+      assert.equal(resultMessageReads(source).length, 0, source)
+    }
+  })
+
   it("allowlists actionable matching-account recovery without rendering arbitrary response text", async () => {
     assert.equal(
       existsSync(fileURLToPath(linkRecoveryUrl)),
@@ -256,15 +438,45 @@ describe("recoverable account-method UI contracts", () => {
     assert.match(linkPageSource, /validIntent/)
   })
 
-  it("splits method controls from TOTP and uses explicit recoverable states", () => {
+  it("keeps the security shell composition-only and gives two-factor recovery one owner", () => {
     assert.match(securityPanelSource, /<SignInMethodsPanel/)
-    assert.doesNotMatch(securityPanelSource, /\/api\/account\/security\/(?:password|google\/unlink)/)
-    assert.match(securityPanelSource, /Authenticator-app 2FA/)
-    assert.match(methodsPanelSource, /type MethodActionState\s*=\s*"idle"\s*\|\s*"proving"\s*\|\s*"saving"\s*\|\s*"redirecting"\s*\|\s*"success"\s*\|\s*"error"/)
-    assert.match(methodsPanelSource, /try\s*\{[\s\S]*catch[\s\S]*finally/)
+    assert.match(securityPanelSource, /<TwoFactorManagementPanel/)
+    assert.doesNotMatch(securityPanelSource, /\/api\/account\/security\//)
+    assert.doesNotMatch(securityPanelSource, /qrCode|manualCode|backupCodes|verificationCode/)
+    assert.match(twoFactorPanelSource, /data-two-factor-action/)
+    const expectedActionStates = ["error", "idle", "proving", "redirecting", "saving", "success"]
+    assert.deepEqual(methodActionStateTokens(methodsPanelSource), expectedActionStates)
+    assert.deepEqual(methodActionStateTokens(`
+      type MethodActionState =
+        | "idle"
+        | "proving"
+        | "saving"
+        | "redirecting"
+        | "success"
+        | "error"
+    `), expectedActionStates)
+    const savePasswordHandler = actionHandlerSource(methodsPanelSource, "savePassword", "unlinkGoogle")
+    let previousMarkerIndex = -1
+    for (const marker of [
+      "try {",
+      'const response = await fetch("/api/account/security/password"',
+      "} catch {",
+      "} finally {",
+    ]) {
+      const markerIndex = savePasswordHandler.indexOf(marker, previousMarkerIndex + 1)
+      assert.notEqual(markerIndex, -1, `savePassword must contain ordered ${marker}`)
+      previousMarkerIndex = markerIndex
+    }
     assert.match(methodsPanelSource, /aria-busy/)
-    assert.match(methodsPanelSource, /role=\{[^}]*"alert"[^}]*"status"/)
-    assert.match(methodsPanelSource, /aria-live=\{[^}]*"assertive"[^}]*"polite"/)
+    assert.match(methodsPanelSource, /role=\{(?=[^}]*"alert")(?=[^}]*"status")(?=[^}]*\?)(?=[^}]*:)[^}]*\}/)
+    assert.match(methodsPanelSource, /aria-live=\{(?=[^}]*"assertive")(?=[^}]*"polite")(?=[^}]*\?)(?=[^}]*:)[^}]*\}/)
+    assert.match(twoFactorPanelSource, /resolveTwoFactorManagementRecovery/)
+    assert.equal(
+      resultMessageReads(twoFactorPanelSource).length,
+      0,
+      "two-factor recovery must not render arbitrary response message fields",
+    )
+    assert.doesNotMatch(twoFactorPanelSource, /localStorage|sessionStorage|useRouter|router\.refresh|console\s*\.|logger\s*\./)
   })
 
   it("keeps every sign-in method action's proof and confirmation state isolated", () => {

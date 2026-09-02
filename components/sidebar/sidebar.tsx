@@ -1,12 +1,26 @@
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { AppSidebarClient } from "@/components/sidebar/app-sidebar-client"
 import type { SidebarNavigation, SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { canSyncAccountPreferences } from "@/lib/account-preferences"
+import { projectAccountShellAppSettings } from "@/lib/account-shell-bootstrap"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { resolveNavigation } from "@/lib/navigation"
 import { prisma } from "@/lib/prisma"
 
 type SidebarDatabase = Pick<typeof prisma, "practiceMembership">
+
+/** PHI-free server projection shared by the root account-shell providers. */
+export type AccountShellBootstrap = {
+  /** Stable account owner used to reject stale client work; null for guests. */
+  ownerKey: string | null
+  /** Whether this owner may synchronize account-backed preferences. */
+  syncEnabled: boolean
+  /** Server-known preference hydration state for the current owner. */
+  preferenceStatus: "anonymous" | "ready" | "failed"
+  /** Sanitized JSON data that is safe to hydrate across the server-client boundary. */
+  appSettings: ReturnType<typeof projectAccountShellAppSettings>
+  hasPracticeMembership: boolean
+}
 
 export async function getAppSidebarData() {
   const session = await getCurrentSession()
@@ -23,22 +37,36 @@ export async function getAppSidebarData() {
       featureKeys?: string[] | null
     }
     | undefined
-  const [quickActionOnboarding, navigationContext] = await Promise.all([
-    loadSidebarQuickActionOnboarding(sessionUser?.id),
-    getSidebarNavigationContext(sessionUser),
+  const ownerId = canonicalSidebarOwnerId(sessionUser?.id)
+  const authenticatedUser = canSyncAccountPreferences(sessionUser) && ownerId
+    ? { ...sessionUser, id: ownerId }
+    : undefined
+  const [preferenceContext, navigationContext] = await Promise.all([
+    loadSidebarAccountPreference(authenticatedUser?.id),
+    getSidebarNavigationContext(authenticatedUser),
   ])
-  const user: SidebarUser = sessionUser
+  const user: SidebarUser = authenticatedUser
     ? {
-      name: sessionUser.name ?? "MassageLab user",
-      email: sessionUser.email ?? "",
-      image: sessionUser.image ?? "",
-      quickActionOnboarding,
+      name: authenticatedUser.name ?? "MassageLab user",
+      email: authenticatedUser.email ?? "",
+      image: authenticatedUser.image ?? "",
+      quickActionOnboarding: preferenceContext.quickActionOnboarding,
     }
     : null
-  const canSyncAccountSettings = canSyncAccountPreferences(sessionUser)
+  const canSyncAccountSettings = Boolean(authenticatedUser)
   const navigation = resolveNavigation(navigationContext) as SidebarNavigation
+  const accountBootstrap: AccountShellBootstrap = {
+    ownerKey: authenticatedUser?.id ?? null,
+    syncEnabled: canSyncAccountSettings,
+    preferenceStatus: preferenceContext.preferenceStatus,
+    appSettings: preferenceContext.appSettings,
+    hasPracticeMembership: (
+      navigationContext.authState === "signed-in"
+      && navigationContext.practiceRoles.length > 0
+    ),
+  }
 
-  return { user, canSyncAccountSettings, navigation }
+  return { user, canSyncAccountSettings, navigation, accountBootstrap }
 }
 
 export async function AppSidebar() {
@@ -48,13 +76,16 @@ export async function AppSidebar() {
 }
 
 /**
- * Loads signed-in quick-action onboarding preferences for shell hydration.
- * Returns undefined for anonymous users, empty onboarding payloads, or read
- * failures so navigation can fall back to catalog defaults.
+ * Loads the root-owned account preference once, keeping onboarding separate
+ * from the allowlisted app settings that may hydrate every shell consumer.
  */
-async function loadSidebarQuickActionOnboarding(userId?: string) {
+async function loadSidebarAccountPreference(userId?: string) {
   if (!userId) {
-    return undefined
+    return {
+      quickActionOnboarding: undefined,
+      preferenceStatus: "anonymous" as const,
+      appSettings: projectAccountShellAppSettings(undefined),
+    }
   }
 
   try {
@@ -63,21 +94,27 @@ async function loadSidebarQuickActionOnboarding(userId?: string) {
       select: { appSettings: true },
     })
     const appSettings = objectRecord(preference?.appSettings)
-    // Preference JSON may be absent or malformed; normalize before projection.
     const onboarding = objectRecord(appSettings.onboarding)
-
-    if (Object.keys(onboarding).length === 0) {
-      return undefined
-    }
+    const quickActionOnboarding = Object.keys(onboarding).length === 0
+      ? undefined
+      : {
+        primaryRole: onboarding.primaryRole,
+        useCases: onboarding.useCases,
+        quickActions: onboarding.quickActions,
+      }
 
     return {
-      primaryRole: onboarding.primaryRole,
-      useCases: onboarding.useCases,
-      quickActions: onboarding.quickActions,
+      quickActionOnboarding,
+      preferenceStatus: "ready" as const,
+      appSettings: projectAccountShellAppSettings(appSettings),
     }
   } catch (error) {
     logSidebarContextLoadError("Failed to load sidebar quick-action preferences", error)
-    return undefined
+    return {
+      quickActionOnboarding: undefined,
+      preferenceStatus: "failed" as const,
+      appSettings: projectAccountShellAppSettings(undefined),
+    }
   }
 }
 
@@ -89,12 +126,13 @@ export async function getSidebarNavigationContext(sessionUser?: {
   capabilities?: Record<string, boolean> | null
   featureKeys?: string[] | null
 }, database: SidebarDatabase = prisma) {
-  if (!sessionUser?.id) {
+  const ownerId = canonicalSidebarOwnerId(sessionUser?.id)
+  if (!sessionUser || !ownerId) {
     return { authState: "anonymous" as const }
   }
 
   const featureKeys = sidebarFeatureKeys(sessionUser)
-  const practiceRoles = await loadSidebarPracticeRoles(sessionUser.id, database)
+  const practiceRoles = await loadSidebarPracticeRoles(ownerId, database)
 
   return {
     authState: "signed-in" as const,
@@ -104,6 +142,13 @@ export async function getSidebarNavigationContext(sessionUser?: {
     capabilities: sessionUser.capabilities ?? {},
     practiceRoles,
   }
+}
+
+/** Account ids are opaque; reject surrounding whitespace instead of remapping it. */
+function canonicalSidebarOwnerId(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 && value === value.trim()
+    ? value
+    : null
 }
 
 /** Coerces JSON-ish values into object records; arrays and primitives become empty objects. */

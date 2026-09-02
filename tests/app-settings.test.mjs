@@ -1,11 +1,13 @@
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
+import ts from "typescript"
 import {
   defaultAppSettings,
   getAudioPlayerToolbarPlacement,
   normalizeAppSettings,
 } from "../lib/app-settings.js"
+import * as appSettingsModule from "../lib/app-settings.js"
 import {
   getMusicPlayerPlacement,
   resolveMainBarLayout,
@@ -15,6 +17,44 @@ import {
   shouldCollapseSidebarFromOutsidePointer,
   shouldExpandSidebarFromRail,
 } from "../lib/sidebar-layout.js"
+import { settlesWithin } from "./helpers/async-control.mjs"
+import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+
+const settingsProviderSource = readFileSync(
+  new URL("../components/providers/settings-provider.tsx", import.meta.url),
+  "utf8",
+)
+const rootLayoutSource = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8")
+
+/** Returns the sole parser-bounded JSX tag and rejects missing or ambiguous owners. */
+function componentOpeningTag(source, componentName) {
+  const sourceFile = ts.createSourceFile(
+    "component-opening-tag.test.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  const openingTags = []
+  function visit(node) {
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
+      && node.tagName.getText(sourceFile) === componentName
+    ) {
+      openingTags.push(source.slice(node.getStart(sourceFile), node.end))
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  assert.equal(
+    openingTags.length,
+    1,
+    `expected exactly one ${componentName} JSX opening or self-closing tag; found ${openingTags.length}`,
+  )
+  return openingTags[0]
+}
 
 /** Returns the exact link-props declaration and fails clearly if its owners move. */
 function sliceLinkProps(toolLink) {
@@ -25,7 +65,376 @@ function sliceLinkProps(toolLink) {
   return toolLink.slice(start, end)
 }
 
+/** Applies one mocked state update, replaying functional callbacks exactly as configured. */
+function applyHarnessStateUpdate(current, update, replayFunctionalStateUpdaters) {
+  if (typeof update !== "function") return update
+  if (replayFunctionalStateUpdaters) update(current)
+  return update(current)
+}
+
+/** Runs the real provider through owner/sync rerenders with React-like effect cleanup. */
+function createSettingsOwnerTransitionHarness({
+  replayFunctionalStateUpdaters = false,
+  writeOutcomes = {
+    "owner-a": [false],
+    "owner-b": [false, true],
+  },
+} = {}) {
+  let ownerKey = "owner-a"
+  let syncEnabled = true
+  let stateCursor = 0
+  let refCursor = 0
+  let callbackCursor = 0
+  let effectCursor = 0
+  const stateSlots = []
+  const refSlots = []
+  const callbackSlots = []
+  const effectSlots = []
+  const pendingEffects = new Map()
+  const windowListeners = new Map()
+  const accountWrites = []
+  const accountWriteSettlements = []
+  const storageWrites = []
+  const writeResults = new Map(
+    Object.entries(writeOutcomes).map(([writeOwnerKey, outcomes]) => [writeOwnerKey, [...outcomes]]),
+  )
+  const sameDependencies = (left, right) => (
+    Array.isArray(left)
+    && Array.isArray(right)
+    && left.length === right.length
+    && left.every((value, index) => Object.is(value, right[index]))
+  )
+  const memoizedHook = (slots, cursor, valueFactory, dependencies) => {
+    const slot = slots[cursor]
+    if (!slot || !sameDependencies(slot.dependencies, dependencies)) {
+      slots[cursor] = { dependencies, value: valueFactory() }
+    }
+    return slots[cursor].value
+  }
+  const provider = loadCompiledModule(
+    settingsProviderSource,
+    "components/providers/settings-provider-owner-transition.test.tsx",
+    {
+      react: {
+        createContext: () => ({ Provider: "SettingsContextProvider" }),
+        useCallback: (callback, dependencies) => {
+          const cursor = callbackCursor
+          callbackCursor += 1
+          return memoizedHook(callbackSlots, cursor, () => callback, dependencies)
+        },
+        useContext: () => null,
+        useEffect: (effect, dependencies) => {
+          const cursor = effectCursor
+          effectCursor += 1
+          const slot = effectSlots[cursor]
+          if (!slot || !sameDependencies(slot.dependencies, dependencies)) {
+            pendingEffects.set(cursor, { dependencies, effect })
+          } else {
+            pendingEffects.delete(cursor)
+          }
+        },
+        useRef: (value) => {
+          const cursor = refCursor
+          refCursor += 1
+          if (!refSlots[cursor]) refSlots[cursor] = { current: value }
+          return refSlots[cursor]
+        },
+        useState: (initial) => {
+          const cursor = stateCursor
+          stateCursor += 1
+          if (!stateSlots[cursor]) {
+            stateSlots[cursor] = { value: typeof initial === "function" ? initial() : initial }
+          }
+          return [stateSlots[cursor].value, (update) => {
+            const current = stateSlots[cursor].value
+            stateSlots[cursor].value = applyHarnessStateUpdate(
+              current,
+              update,
+              replayFunctionalStateUpdaters,
+            )
+          }]
+        },
+      },
+      "@/components/providers/account-shell-bootstrap-provider": {
+        useAccountShellBootstrap: () => {
+          const requestOwnerKey = ownerKey
+          return {
+            ownerKey,
+            syncEnabled,
+            status: syncEnabled ? "ready" : "anonymous",
+            appSettings: { app: defaultAppSettings },
+            writeAppSettingsPatch: (patch) => {
+              accountWrites.push({ ownerKey: requestOwnerKey, patch })
+              const result = Promise.resolve(
+                writeResults.get(requestOwnerKey)?.shift() ?? true,
+              )
+              // The provider attaches its completion handler after this mock
+              // returns. The immediate turn makes the tracked signal settle
+              // only after that handler has consumed the write result.
+              accountWriteSettlements.push(result.then(() => new Promise((resolve) => {
+                setImmediate(resolve)
+              })))
+              return result
+            },
+          }
+        },
+      },
+      "@/lib/app-settings": appSettingsModule,
+    },
+  )
+  const previousDocument = globalThis.document
+  const previousLocalStorage = globalThis.localStorage
+  const previousWindow = globalThis.window
+  globalThis.document = {
+    documentElement: {
+      classList: { toggle: () => undefined },
+      dataset: {},
+      style: {},
+    },
+  }
+  globalThis.localStorage = {
+    getItem: () => null,
+    removeItem: () => undefined,
+    setItem: (...args) => storageWrites.push(args),
+  }
+  globalThis.window = {
+    addEventListener(type, listener) {
+      const listeners = windowListeners.get(type) ?? new Set()
+      listeners.add(listener)
+      windowListeners.set(type, listeners)
+    },
+    removeEventListener(type, listener) {
+      windowListeners.get(type)?.delete(listener)
+    },
+    matchMedia: () => ({
+      matches: true,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }),
+  }
+
+  return {
+    accountWrites,
+    storageWrites,
+    dispatchOnline() {
+      for (const listener of [...(windowListeners.get("online") ?? [])]) listener()
+    },
+    flushEffects() {
+      const effects = [...pendingEffects]
+      pendingEffects.clear()
+      for (const [cursor, { dependencies, effect }] of effects) {
+        effectSlots[cursor]?.cleanup?.()
+        effectSlots[cursor] = { dependencies, cleanup: effect() }
+      }
+    },
+    onlineListenerCount() {
+      return windowListeners.get("online")?.size ?? 0
+    },
+    render() {
+      stateCursor = 0
+      refCursor = 0
+      callbackCursor = 0
+      effectCursor = 0
+      return provider.SettingsProvider({ children: null }).props.value
+    },
+    async settleAccountWrites(label) {
+      await settlesWithin(
+        Promise.all(accountWriteSettlements),
+        1_000,
+        `${label} did not settle`,
+      )
+    },
+    restore() {
+      for (const slot of effectSlots) slot?.cleanup?.()
+      globalThis.document = previousDocument
+      globalThis.localStorage = previousLocalStorage
+      globalThis.window = previousWindow
+    },
+    setOwner(nextOwnerKey) {
+      ownerKey = nextOwnerKey
+    },
+    setSyncEnabled(nextSyncEnabled) {
+      syncEnabled = nextSyncEnabled
+    },
+  }
+}
+
 describe("App settings helpers", () => {
+  it("invokes mocked functional state updaters once normally and twice during replay", () => {
+    for (const [replayFunctionalStateUpdaters, expectedCalls] of [[false, 1], [true, 2]]) {
+      let calls = 0
+      const next = applyHarnessStateUpdate(3, (current) => {
+        calls += 1
+        return current + 1
+      }, replayFunctionalStateUpdaters)
+
+      assert.equal(calls, expectedCalls, String(replayFunctionalStateUpdaters))
+      assert.equal(next, 4, String(replayFunctionalStateUpdaters))
+    }
+  })
+
+  it("extracts one complete JSX tag and diagnoses missing or duplicate owners", () => {
+    const source = "const fixture = <Fixture visible={count > 0} syncEnabled={false}>child</Fixture>"
+
+    assert.equal(
+      componentOpeningTag(source, "Fixture"),
+      '<Fixture visible={count > 0} syncEnabled={false}>',
+    )
+    assert.throws(
+      () => componentOpeningTag(source, "MissingFixture"),
+      /expected exactly one MissingFixture JSX opening or self-closing tag; found 0/,
+    )
+    assert.throws(
+      () => componentOpeningTag("const fixtures = <><Fixture /><Fixture>child</Fixture></>", "Fixture"),
+      /expected exactly one Fixture JSX opening or self-closing tag; found 2/,
+    )
+  })
+
+  it("hydrates and writes through the shared owner-scoped app-settings writer", () => {
+    assert.match(settingsProviderSource, /useAccountShellBootstrap/)
+    assert.equal((settingsProviderSource.match(/\/api\/account\/preferences/g) ?? []).length, 0)
+    assert.match(settingsProviderSource, /appSettings\.app/)
+    assert.doesNotMatch(settingsProviderSource, /syncEnabled\?: boolean/)
+    assert.match(settingsProviderSource, /localStorage\.getItem\("massage-lab-settings"\)/)
+    assert.match(settingsProviderSource, /writeAppSettingsPatch\(updated\)/)
+  })
+
+  it("performs replay-safe effects once and retries the latest failed write online", async () => {
+    const harness = createSettingsOwnerTransitionHarness({
+      replayFunctionalStateUpdaters: true,
+      writeOutcomes: { "owner-a": [false, true] },
+    })
+
+    try {
+      harness.render()
+      harness.flushEffects()
+      const replayView = harness.render()
+      harness.flushEffects()
+      harness.storageWrites.length = 0
+      replayView.updateSettings({ themeMode: "light" })
+      await harness.settleAccountWrites("initial replay-safe settings write")
+
+      assert.equal(harness.storageWrites.length, 1)
+      assert.equal(harness.accountWrites.length, 1)
+      assert.equal(harness.accountWrites[0].patch.themeMode, "light")
+      harness.dispatchOnline()
+      await harness.settleAccountWrites("online replay-safe settings retry")
+      assert.equal(harness.accountWrites.length, 2)
+      assert.deepEqual(harness.accountWrites[1].patch, harness.accountWrites[0].patch)
+    } finally {
+      harness.restore()
+    }
+  })
+
+  it("retries only the failed payload for the currently sync-enabled owner", async () => {
+    const harness = createSettingsOwnerTransitionHarness()
+    try {
+      harness.render()
+      harness.flushEffects()
+      const ownerAView = harness.render()
+      harness.flushEffects()
+      ownerAView.updateSettings({ themeMode: "light" })
+      await harness.settleAccountWrites("owner A settings write")
+      assert.deepEqual(harness.accountWrites.map(({ ownerKey }) => ownerKey), ["owner-a"])
+
+      harness.setSyncEnabled(false)
+      harness.render()
+      harness.flushEffects()
+      assert.equal(harness.onlineListenerCount(), 0)
+      harness.dispatchOnline()
+      assert.equal(harness.accountWrites.length, 1)
+
+      harness.setOwner("owner-b")
+      harness.setSyncEnabled(true)
+      const ownerBView = harness.render()
+      harness.flushEffects()
+      assert.equal(harness.onlineListenerCount(), 1)
+      harness.dispatchOnline()
+      assert.equal(
+        harness.accountWrites.length,
+        1,
+        "owner B must not retry owner A's retained failure",
+      )
+
+      ownerBView.updateSettings({ themeMode: "dark" })
+      await harness.settleAccountWrites("owner B settings write")
+      harness.dispatchOnline()
+      await harness.settleAccountWrites("owner B settings retry")
+
+      assert.deepEqual(harness.accountWrites.map(({ ownerKey }) => ownerKey), [
+        "owner-a",
+        "owner-b",
+        "owner-b",
+      ])
+      assert.deepEqual(harness.accountWrites[2].patch, harness.accountWrites[1].patch)
+    } finally {
+      harness.restore()
+    }
+  })
+
+  it("reconciles edits made before the shared bootstrap becomes ready", () => {
+    assert.equal(
+      typeof appSettingsModule.reconcileAppSettingsAfterBootstrap,
+      "function",
+      "app settings must expose one bootstrap reconciliation rule",
+    )
+    const reconciled = appSettingsModule.reconcileAppSettingsAfterBootstrap(
+      {
+        ...defaultAppSettings,
+        appBarPosition: "top",
+        themeMode: "dark",
+      },
+      { themeMode: "light" },
+    )
+
+    assert.equal(reconciled.appBarPosition, "top")
+    assert.equal(reconciled.themeMode, "light")
+    assert.match(settingsProviderSource, /pendingPreReadySettingsRef/)
+    assert.match(settingsProviderSource, /reconcileAppSettingsAfterBootstrap/)
+  })
+
+  it("ignores undefined pending edits instead of replacing nondefault server settings", () => {
+    const reconciled = appSettingsModule.reconcileAppSettingsAfterBootstrap(
+      {
+        ...defaultAppSettings,
+        appBarPosition: "top",
+        sidebarPosition: "right",
+        themeMode: "light",
+      },
+      {
+        appBarPosition: undefined,
+        sidebarPosition: undefined,
+        themeMode: undefined,
+      },
+    )
+
+    assert.equal(reconciled.appBarPosition, "top")
+    assert.equal(reconciled.sidebarPosition, "right")
+    assert.equal(reconciled.themeMode, "light")
+  })
+
+  it("applies concrete and false pending edits over the server snapshot", () => {
+    const reconciled = appSettingsModule.reconcileAppSettingsAfterBootstrap(
+      {
+        ...defaultAppSettings,
+        appBarPosition: "top",
+        hapticFeedbackEnabled: true,
+      },
+      {
+        appBarPosition: "bottom",
+        hapticFeedbackEnabled: false,
+      },
+    )
+
+    assert.equal(reconciled.appBarPosition, "bottom")
+    assert.equal(reconciled.hapticFeedbackEnabled, false)
+  })
+
+  it("lets the shared bootstrap own Settings and Music account enablement", () => {
+    assert.doesNotMatch(componentOpeningTag(rootLayoutSource, "SettingsProvider"), /\bsyncEnabled\s*=/)
+    assert.doesNotMatch(componentOpeningTag(rootLayoutSource, "MusicProvider"), /\baccountSyncEnabled\s*=/)
+  })
+
   it("uses a single theme toggle across app bar layouts", () => {
     const source = readFileSync(new URL("../components/theme-switcher-multi-button.tsx", import.meta.url), "utf8")
 

@@ -27,6 +27,51 @@ async function blockLiveGoogleProviderRequests(page: Page) {
   return blockedRequests
 }
 
+/** Intercepts only local 2FA endpoints so UI acceptance never mutates fixture security state. */
+async function mockTwoFactorEnrollment(page: Page, backupCodes = ["browser-backup-one", "browser-backup-two"]) {
+  const requests: Array<{ path: string; body: unknown }> = []
+  await page.route("**/api/account/security/totp/setup", async (route) => {
+    requests.push({ path: "setup", body: route.request().postDataJSON() })
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        code: "TWO_FACTOR_SETUP_READY",
+        qrCode: "data:image/png;base64,aW50ZXJjZXB0ZWQtYnJvd3Nlci1xcg==",
+        manualCode: "BROWSER-MANUAL-CODE",
+      }),
+    })
+  })
+  await page.route("**/api/account/security/totp/enable", async (route) => {
+    requests.push({ path: "enable", body: route.request().postDataJSON() })
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ code: "TWO_FACTOR_ENABLED", backupCodes }),
+    })
+  })
+  return requests
+}
+
+/**
+ * Completes password-proven authenticator enrollment through the enable response.
+ * Callers retain backup-code acknowledgement and its distinct security assertions.
+ */
+async function completePasswordTwoFactorEnrollment(
+  page: Page,
+  password: string,
+  backupCodes?: string[],
+) {
+  await mockTwoFactorEnrollment(page, backupCodes)
+  await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
+  await page.getByLabel("Password for two-factor setup").fill(password)
+  await page.getByLabel("Confirm two-factor setup").check()
+  await page.getByRole("button", { name: "Start two-factor setup" }).click()
+  await page.getByLabel("New authenticator code").fill("123456")
+  await page.getByLabel("Confirm enable two-factor authentication").check()
+  await page.getByRole("button", { name: "Verify and enable" }).click()
+}
+
 test.describe("public account-entry recovery", () => {
   test("login prevents duplicate Credentials submission and recovers from a thrown request", async ({ page }) => {
     const providerRequests = await blockLiveGoogleProviderRequests(page)
@@ -274,6 +319,8 @@ test.describe("private identity-method journeys", () => {
     await save.dblclick()
     await expect(page.getByRole("status")).toContainText(/enabled|saved/i)
     await expect(page.getByText("Enabled", { exact: true })).toBeVisible()
+    await expect(page.getByText(/Add a password first/i)).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "Start two-factor setup" })).toBeVisible()
   })
 
   test("disables password only after completed Google proof and keeps Google available", async ({ context, page }, testInfo) => {
@@ -321,6 +368,102 @@ test.describe("private identity-method journeys", () => {
     await page.getByLabel("Password").fill(installed.password)
     await page.getByRole("button", { name: "Confirm same MassageLab account" }).click()
     await expect(page).toHaveURL(/\/account\?tab=security/)
+  })
+
+  test("password-only setup requires password proof and explicit confirmation", async ({ context, page }, testInfo) => {
+    const fixture = await import("./identity-method-safety-fixture")
+    const baseURL = String(testInfo.project.use.baseURL)
+    const installed = await fixture.installIdentityMethodSafetyFixture({
+      context,
+      baseURL,
+      projectName: testInfo.project.name,
+      scenario: "MATCHING_LINK",
+    })
+    const requests = await mockTwoFactorEnrollment(page)
+    await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
+    await page.getByLabel("Password for two-factor setup").fill(installed.password)
+    const start = page.getByRole("button", { name: "Start two-factor setup" })
+    await expect(start).toBeDisabled()
+    await page.getByLabel("Confirm two-factor setup").check()
+    await start.click()
+    await expect(page.getByText("BROWSER-MANUAL-CODE")).toBeVisible()
+    expect(requests).toEqual([{
+      path: "setup",
+      body: { proofMethod: "PASSWORD", password: installed.password, confirmed: true },
+    }])
+  })
+
+  test("linked Google return is display-only and still sends exact confirmed Google setup", async ({ context, page }, testInfo) => {
+    const fixture = await import("./identity-method-safety-fixture")
+    const baseURL = String(testInfo.project.use.baseURL)
+    await fixture.installIdentityMethodSafetyFixture({
+      context,
+      baseURL,
+      projectName: testInfo.project.name,
+      scenario: "BOTH_METHODS",
+    })
+    const requests = await mockTwoFactorEnrollment(page)
+    await page.goto("/account?tab=security&reauth=two-factor-enroll", { waitUntil: "domcontentloaded" })
+    await expect(page.getByText(/Google confirmation return detected for authenticator setup/i)).toBeVisible()
+    await page.getByLabel("Confirm two-factor setup").check()
+    await page.getByRole("button", { name: "Start two-factor setup" }).click()
+    await expect(page.getByText("BROWSER-MANUAL-CODE")).toBeVisible()
+    expect(requests).toEqual([{
+      path: "setup",
+      body: { proofMethod: "GOOGLE", confirmed: true },
+    }])
+  })
+
+  test("Google-only accounts hide initial setup and keep add-password guidance", async ({ context, page }, testInfo) => {
+    const fixture = await import("./identity-method-safety-fixture")
+    const baseURL = String(testInfo.project.use.baseURL)
+    await fixture.installIdentityMethodSafetyFixture({
+      context,
+      baseURL,
+      projectName: testInfo.project.name,
+      scenario: "GOOGLE_ONLY",
+    })
+    await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
+    await expect(page.getByText(/Add a password first/i)).toBeVisible()
+    await expect(page.getByRole("button", { name: "Start two-factor setup" })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "Add password" })).toBeVisible()
+  })
+
+  test("backup codes remain visible until the user acknowledges saving them", async ({ context, page }, testInfo) => {
+    const fixture = await import("./identity-method-safety-fixture")
+    const baseURL = String(testInfo.project.use.baseURL)
+    const installed = await fixture.installIdentityMethodSafetyFixture({
+      context,
+      baseURL,
+      projectName: testInfo.project.name,
+      scenario: "MATCHING_LINK",
+    })
+    await completePasswordTwoFactorEnrollment(page, installed.password)
+    await expect(page.getByText("browser-backup-one")).toBeVisible()
+    const acknowledge = page.getByRole("button", { name: "I saved these codes; sign in again" })
+    await expect(acknowledge).toBeDisabled()
+    await page.getByLabel("I saved these backup codes").check()
+    await expect(page.getByText("browser-backup-one")).toBeVisible()
+    await expect(acknowledge).toBeEnabled()
+  })
+
+  test("acknowledging changed security signs the current browser out", async ({ context, page }, testInfo) => {
+    const fixture = await import("./identity-method-safety-fixture")
+    const baseURL = String(testInfo.project.use.baseURL)
+    const installed = await fixture.installIdentityMethodSafetyFixture({
+      context,
+      baseURL,
+      projectName: testInfo.project.name,
+      scenario: "MATCHING_LINK",
+    })
+    await completePasswordTwoFactorEnrollment(page, installed.password, ["browser-final-backup"])
+    await page.getByLabel("I saved these backup codes").check()
+    await page.getByRole("button", { name: "I saved these codes; sign in again" }).click()
+    await expect(page).toHaveURL(/\/login\?security=two-factor-changed$/)
+    await expect(page.getByText("browser-final-backup")).toHaveCount(0)
+    await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
+    await expect(page).toHaveURL(/\/login(?:\?|$)/)
+    await expect(page).not.toHaveURL(/\/account\?tab=security/)
   })
 
   test("security surface remains usable with keyboard, enlarged text, landscape, and reduced motion", async ({ context, page }, testInfo) => {

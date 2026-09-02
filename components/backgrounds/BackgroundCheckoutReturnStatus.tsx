@@ -62,7 +62,7 @@ export function BackgroundCheckoutReturnStatus() {
   const pathname = usePathname() ?? ""
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { state, refresh } = useBackgroundCommerce()
+  const { state, ensureSnapshot, refresh } = useBackgroundCommerce()
   const result = searchParams.get("backgroundPurchase")
   const orderId = searchParams.get("orderId")
   const [storedReturn, setStoredReturn] = useState<StoredCheckoutReturn | null>(null)
@@ -73,7 +73,8 @@ export function BackgroundCheckoutReturnStatus() {
   useEffect(() => {
     if (result !== "success" && result !== "cancelled") return
     setStoredReturn(readStoredReturn())
-  }, [result])
+    void ensureSnapshot()
+  }, [ensureSnapshot, result])
 
   const expectedIds = storedReturn?.backgroundIds ?? []
   const returnedOrder = orderId

@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { ArrowLeft, CalendarClock, CheckCircle2, RefreshCw, Settings2, Unplug } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { CalendarOperatorShell } from "@/app/calendar/calendar-operator-shell"
 import { AppInset, AppSurface, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Badge } from "@/components/ui/badge"
