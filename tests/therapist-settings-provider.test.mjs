@@ -154,6 +154,10 @@ function loadProviderUpdaterHarness({ profile = {}, storageWriteThrows = false }
   }
 }
 
+/**
+ * Simulates owner-keyed renders and dependency-aware effect commits; callers
+ * must call restore() to run cleanup and restore the prior browser globals.
+ */
 function loadProviderOwnerTransitionHarness({
   moduleSource = providerSource,
   storageGetThrows = false,

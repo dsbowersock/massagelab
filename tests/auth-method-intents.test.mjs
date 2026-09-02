@@ -13,7 +13,7 @@ import { buildRegistrationLegalProviderRedirectPath } from "../lib/legal-accepta
 import { isGoogleIdentityUniqueConstraint } from "../lib/prisma-identity-unique-constraint.ts"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
-const SESSION_BOUND_PURPOSES = [
+const EXPECTED_SESSION_BOUND_PURPOSES = [
   "LINK_GOOGLE",
   "ADD_PASSWORD",
   "REMOVE_PASSWORD",
@@ -45,6 +45,8 @@ async function loadService({
   })
 }
 
+const { SESSION_BOUND_PURPOSES } = await loadService()
+
 async function loadAccountSecurityMethods() {
   const source = await readFile(new URL("../lib/account-security-methods.ts", import.meta.url), "utf8")
   return loadCompiledModule(source, "account-security-methods.integration.test.ts", {
@@ -68,6 +70,11 @@ async function loadAccountSecurityMethods() {
 }
 
 describe("private Google auth-method intents", () => {
+  it("publishes the exact frozen ordered session-bound purpose list", () => {
+    assert.equal(Object.isFrozen(SESSION_BOUND_PURPOSES), true)
+    assert.deepEqual(SESSION_BOUND_PURPOSES, EXPECTED_SESSION_BOUND_PURPOSES)
+  })
+
   it("rejects hostile prototype property names as Google intent purposes", async () => {
     const service = await loadService()
 

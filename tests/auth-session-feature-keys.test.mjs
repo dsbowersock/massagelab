@@ -254,7 +254,9 @@ describe("auth session feature-key reuse", () => {
     const shell = await getAppSidebarData()
 
     assert.equal(shell.user?.email, "session@example.test")
+    assert.equal(shell.canSyncAccountSettings, true)
     assert.equal(shell.accountBootstrap.ownerKey, "user-1")
+    assert.equal(shell.accountBootstrap.syncEnabled, true)
   })
 
   it("keeps a whitespace-only session owner out of the complete account shell", async () => {

@@ -64,6 +64,7 @@ function loadCoordinator(loadContext, options = {}) {
   })
 }
 
+/** Replays Provider effects with stable hook slots for owner-change and unmount assertions. */
 function createSidebarProviderEffectHarness(fetchJsonWithTimeout) {
   const stateSlots = []
   const effectSlots = []

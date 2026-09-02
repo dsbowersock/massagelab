@@ -1,7 +1,13 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
-import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import {
+  createCompiledModuleLoader,
+  createElement,
+  findElement,
+  passThroughElement,
+  renderFunctionComponents,
+} from "./helpers/compiled-module.mjs"
 import {
   buildVerificationEmailUrl,
   buildVerificationLoginPath,
@@ -168,13 +174,29 @@ describe("registration email delivery policy", () => {
     assert.match(registerForm, /pendingLabel="Creating account…"/)
     assert.match(registerForm, /pendingLabel="Connecting to Google…"/)
     assert.match(registerForm, /matching email[\s\S]*same account[\s\S]*inbox/i)
-    const emailLoginHandler = sourceBetween(
-      loginForm,
-      "  async function handleEmailLogin",
-      "  async function handleGoogleLogin",
-      "email login handler",
-    )
-    assert.match(emailLoginHandler, /let navigationStarted = false[\s\S]*router\.push\(callbackUrl\)[\s\S]*router\.refresh\(\)[\s\S]*navigationStarted = true[\s\S]*finally \{[\s\S]*if \(!navigationStarted\)/)
+  })
+
+  it("retains email entry ownership only after push and refresh both start", async () => {
+    const completed = await loadLoginFormScenario()
+    await completed.submit()
+    assert.deepEqual(completed.flow, [
+      "prevent-default",
+      "begin:email",
+      "sign-in:credentials",
+      "push:/account",
+      "refresh",
+    ])
+
+    const interrupted = await loadLoginFormScenario({ refreshError: new Error("navigation interrupted") })
+    await interrupted.submit()
+    assert.deepEqual(interrupted.flow, [
+      "prevent-default",
+      "begin:email",
+      "sign-in:credentials",
+      "push:/account",
+      "refresh",
+      "finish",
+    ])
   })
 
   it("preserves one sanitized legal-accept callback in the login registration handoff", async () => {
@@ -311,13 +333,71 @@ describe("registration email delivery policy", () => {
   })
 })
 
-/** Isolates one source-owned region so ordering assertions cannot cross handlers. */
-function sourceBetween(source, startMarker, endMarker, label) {
-  const start = source.indexOf(startMarker)
-  const end = source.indexOf(endMarker, start + startMarker.length)
-  assert.notEqual(start, -1, `${label} start marker missing`)
-  assert.ok(end > start, `${label} end marker missing`)
-  return source.slice(start, end)
+/** Executes the real email-login handler with deterministic entry and router owners. */
+async function loadLoginFormScenario({ refreshError } = {}) {
+  const loginSource = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
+  const flow = []
+  const router = {
+    push(path) {
+      flow.push(`push:${path}`)
+    },
+    refresh() {
+      flow.push("refresh")
+      if (refreshError) throw refreshError
+    },
+  }
+  const Div = passThroughElement("div")
+  const login = loadCompiledModule(loginSource, "app/login/login-form.behavior.test.tsx", {
+    react: { useState: (value) => [value, () => {}] },
+    "react/jsx-runtime": {
+      Fragment: Symbol.for("auth-registration-test.fragment"),
+      jsx: createElement,
+      jsxs: createElement,
+    },
+    "next/link": { __esModule: true, default: passThroughElement("a") },
+    "next/navigation": {
+      useRouter: () => router,
+      useSearchParams: () => new URLSearchParams(),
+    },
+    "next-auth/react": {
+      signIn: async (provider) => {
+        flow.push(`sign-in:${provider}`)
+        return { error: null }
+      },
+    },
+    "lucide-react": { Mail: Div, ShieldCheck: Div },
+    "@/components/forms/async-action-button": { AsyncActionButton: passThroughElement("button") },
+    "@/components/ui/app-surface": { AppInset: Div, AppSurface: Div },
+    "@/components/ui/input": { Input: passThroughElement("input") },
+    "@/components/ui/label": { Label: passThroughElement("label") },
+    "@/lib/auth-entry-actions": {
+      startGoogleAuthMethodIntent: async () => "navigating",
+      useEntryAction: () => ({
+        entryAction: "idle",
+        beginEntryAction(action) {
+          flow.push(`begin:${action}`)
+          return true
+        },
+        finishEntryAction() {
+          flow.push("finish")
+        },
+      }),
+    },
+    "@/lib/auth-registration": { buildVerificationRequestPath: () => "/verify-email" },
+    "@/lib/legal-acceptance-gate": {
+      buildRegistrationLegalProviderRedirectPath: (value) => value,
+      isRegistrationLegalAcceptancePath: () => false,
+      safePostLegalAcceptanceCallback: () => "/account",
+    },
+  })
+  const tree = renderFunctionComponents(login.LoginForm({ googleEnabled: true }))
+  const form = findElement(tree, (element) => element.type === "form")
+  assert.ok(form, "LoginForm must render its email form")
+
+  return {
+    flow,
+    submit: () => form.props.onSubmit({ preventDefault: () => flow.push("prevent-default") }),
+  }
 }
 
 async function loadRegistrationRoute({ afterCallbacks, registerWork, registrationOpen = true }) {

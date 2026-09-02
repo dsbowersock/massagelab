@@ -79,6 +79,10 @@ function loadProvider(loadPreferences) {
   })
 }
 
+/**
+ * Models Strict Mode effect cleanup and replay while retaining the provider's
+ * hook state and ref slots across the simulated remount.
+ */
 function loadStrictModeProviderHarness(loadPreferences) {
   const effects = []
   const refs = []

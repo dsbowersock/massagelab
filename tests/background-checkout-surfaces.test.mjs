@@ -1,6 +1,16 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import {
+  createCompiledModuleLoader,
+  createElement,
+  elementText,
+  findElement,
+  passThroughElement,
+  renderFunctionComponents,
+} from "./helpers/compiled-module.mjs"
+
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 const reviewPath = new URL("../components/backgrounds/BackgroundCheckoutReview.tsx", import.meta.url)
 const cartPath = new URL("../components/backgrounds/BackgroundCommerceCart.tsx", import.meta.url)
@@ -26,12 +36,43 @@ describe("background checkout review", () => {
   })
 
   it("requires one unchecked combined consent and locks duplicate submission", async () => {
-    const source = await readFile(reviewPath, "utf8")
-    assert.match(source, /useState\(false\)/)
-    assert.match(source, /type="checkbox"/)
-    assert.match(source, /combinedConsentAccepted:\s*consentAccepted/)
-    assert.match(source, /disabled=\{!consentAccepted \|\| submitting/)
-    assert.match(source, /if \(submitting\) return/)
+    const harness = await loadCheckoutReviewHarness()
+    try {
+      const initial = harness.render()
+      const initialConsent = checkoutConsent(initial)
+      const initialSubmit = checkoutSubmit(initial)
+      assert.equal(initialConsent.props.checked, false)
+      assert.equal(initialSubmit.props.disabled, true)
+
+      initialConsent.props.onChange({ target: { checked: true } })
+      const accepted = harness.render()
+      assert.equal(checkoutConsent(accepted).props.checked, true)
+      assert.equal(checkoutSubmit(accepted).props.disabled, false)
+
+      checkoutSubmit(accepted).props.onClick()
+      const pending = harness.render()
+      assert.equal(checkoutSubmit(pending).props.disabled, true)
+      assert.equal(elementText(checkoutSubmit(pending)), "Opening secure Checkout...")
+
+      checkoutSubmit(pending).props.onClick()
+      assert.deepEqual(harness.checkoutCalls, [{
+        acceptedLegalDocuments: ["digital-purchases-refunds:2026-08-29"],
+        combinedConsentAccepted: true,
+        purchaseCountry: "US",
+        returnPath: "/clock?panel=background",
+      }])
+      assert.deepEqual(harness.storageWrites, [[
+        "massagelab-background-checkout-return-v1",
+        JSON.stringify({
+          returnPath: "/clock?panel=background",
+          backgroundIds: ["background-one"],
+        }),
+      ]])
+    } finally {
+      harness.resolveCheckout()
+      await Promise.resolve()
+      harness.cleanup()
+    }
   })
 
   it("keeps lawful exceptions and account cart recovery visible", async () => {
@@ -49,6 +90,150 @@ describe("background checkout review", () => {
     assert.match(cart, /setReviewOpen\(true\)/)
   })
 })
+
+function checkoutConsent(tree) {
+  const consent = findElement(tree, (element) => element.type === "input" && element.props.type === "checkbox")
+  assert.ok(consent, "checkout review must render its consent checkbox")
+  return consent
+}
+
+function checkoutSubmit(tree) {
+  const submit = findElement(tree, (element) => (
+    element.type === "button"
+    && /(?:Continue to Checkout|Opening secure Checkout)/.test(elementText(element))
+  ))
+  assert.ok(submit, "checkout review must render its submit button")
+  return submit
+}
+
+/** Renders the real checkout review with stateful hooks and deterministic commerce dependencies. */
+async function loadCheckoutReviewHarness() {
+  const source = await readFile(reviewPath, "utf8")
+  const checkoutCalls = []
+  const storageWrites = []
+  let resolveCheckout
+  const pendingCheckout = new Promise((resolve) => { resolveCheckout = resolve })
+  const hooks = createHookHarness()
+  const Div = passThroughElement("div")
+  const review = loadCompiledModule(source, "BackgroundCheckoutReview.behavior.test.tsx", {
+    react: hooks.react,
+    "react/jsx-runtime": {
+      Fragment: Symbol.for("background-checkout-test.fragment"),
+      jsx: createElement,
+      jsxs: createElement,
+    },
+    "next/link": { __esModule: true, default: passThroughElement("a") },
+    "next/navigation": {
+      usePathname: () => "/clock",
+      useSearchParams: () => new URLSearchParams(),
+    },
+    "@/components/backgrounds/BackgroundCommerceProvider": {
+      useBackgroundCommerce: () => ({
+        state: {
+          snapshot: {
+            cart: {
+              currency: "usd",
+              items: [{
+                currency: "usd",
+                displayName: "Background One",
+                productKey: "background-one",
+                unitAmount: 100,
+              }],
+              subtotalAmount: 100,
+            },
+          },
+        },
+        startCheckout: (input) => {
+          checkoutCalls.push(input)
+          return pendingCheckout
+        },
+      }),
+    },
+    "@/components/ui/button": { Button: passThroughElement("button") },
+    "@/components/ui/dialog": {
+      Dialog: Div,
+      DialogContent: Div,
+      DialogDescription: Div,
+      DialogFooter: Div,
+      DialogHeader: Div,
+      DialogTitle: Div,
+    },
+    "@/lib/background-commerce-client.js": {
+      formatCommerceAmount: (amount) => `$${amount / 100}`,
+    },
+    "@/lib/legal-documents.js": {
+      legalDocumentAcceptanceId: (document) => `${document.key}:${document.version}`,
+      requiredLegalDocumentsForEvent: () => [{
+        key: "digital-purchases-refunds",
+        route: "/legal/digital-purchases-refunds",
+        shortLabel: "Digital purchases",
+        version: "2026-08-29",
+      }],
+    },
+  })
+  const previousStorage = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage")
+  Object.defineProperty(globalThis, "sessionStorage", {
+    configurable: true,
+    value: { setItem: (...args) => storageWrites.push(args) },
+  })
+
+  return {
+    checkoutCalls,
+    storageWrites,
+    resolveCheckout,
+    render: () => hooks.render(review.BackgroundCheckoutReview, { open: true, onOpenChange: () => {} }),
+    cleanup() {
+      if (previousStorage) Object.defineProperty(globalThis, "sessionStorage", previousStorage)
+      else delete globalThis.sessionStorage
+    },
+  }
+}
+
+/** Supplies enough React hook lifecycle to observe event-driven rerenders. */
+function createHookHarness() {
+  const states = []
+  const effectDependencies = []
+  let stateCursor = 0
+  let effectCursor = 0
+  let pendingEffects = []
+  const react = {
+    useState(initialValue) {
+      const index = stateCursor
+      stateCursor += 1
+      if (!Object.hasOwn(states, index)) {
+        states[index] = typeof initialValue === "function" ? initialValue() : initialValue
+      }
+      return [states[index], (value) => {
+        states[index] = typeof value === "function" ? value(states[index]) : value
+      }]
+    },
+    useMemo(factory) {
+      return factory()
+    },
+    useEffect(effect, dependencies) {
+      const index = effectCursor
+      effectCursor += 1
+      const previous = effectDependencies[index]
+      const changed = !previous
+        || previous.length !== dependencies.length
+        || dependencies.some((value, dependencyIndex) => !Object.is(value, previous[dependencyIndex]))
+      effectDependencies[index] = [...dependencies]
+      if (changed) pendingEffects.push(effect)
+    },
+  }
+
+  return {
+    react,
+    render(Component, props) {
+      stateCursor = 0
+      effectCursor = 0
+      pendingEffects = []
+      const tree = renderFunctionComponents(Component(props))
+      for (const effect of pendingEffects) effect()
+      return tree
+    },
+  }
+}
 
 describe("checkout return recovery", () => {
   it("polls server snapshots and never grants ownership from URL state", async () => {

@@ -422,8 +422,12 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(augustSubscriptionReview, /2026-09-01 correction above is the sole current migration inventory/i)
     assert.match(augustIdentityReview, /two identity migrations plus `20260828130000_membership_subscription_convergence` formed the three-migration pre-runtime set/i)
     assert.match(augustIdentityReview, /2026-09-01 correction above for the sole current migration inventory/i)
-    assert.equal(callCount(projectLogSource, /20260901100000_auth_method_intent_two_factor_purposes/g), 1)
-    assert.equal(callCount(projectLogSource, /20260901101000_auth_method_intent_registration_callback/g), 1)
+    assert.equal(callCount(septemberMigrationCorrection, /20260901100000_auth_method_intent_two_factor_purposes/g), 1)
+    assert.equal(callCount(septemberMigrationCorrection, /20260901101000_auth_method_intent_registration_callback/g), 1)
+    assert.match(
+      septemberMigrationCorrection,
+      /20260901100000_auth_method_intent_two_factor_purposes[\s\S]*20260901101000_auth_method_intent_registration_callback/,
+    )
 
     assert.match(deploymentSource, /public display catalog only/i)
     assert.match(deploymentCostControls, /owner is process-local and\s+single-flight/i)

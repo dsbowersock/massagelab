@@ -52,6 +52,11 @@ const SECURITY_PURPOSES = {
   REGENERATE_TWO_FACTOR_BACKUP_CODES: true,
 } satisfies Readonly<Record<SessionBoundGoogleIntentPurpose, true>>
 
+/** Ordered public values derived from the exhaustive session-bound purpose record. */
+export const SESSION_BOUND_PURPOSES = Object.freeze(
+  Object.keys(SECURITY_PURPOSES) as SessionBoundGoogleIntentPurpose[],
+)
+
 /** Creates an opaque browser proof; only its domain-separated HMAC is persisted. */
 export async function startAuthMethodIntent({
   prismaClient = prisma,

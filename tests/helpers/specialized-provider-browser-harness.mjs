@@ -156,7 +156,7 @@ const specializedProviderBundle = createSpecializedProviderBundleLoader(async ()
             if (resolveProfile) {
               const message = "Duplicate synthetic profile request started before the pending request settled.";
               harness.errors.push(message);
-              throw new Error(message);
+              return Promise.reject(new Error(message));
             }
             return new Promise((resolve) => {
               resolveProfile = () => resolve(jsonResponse({

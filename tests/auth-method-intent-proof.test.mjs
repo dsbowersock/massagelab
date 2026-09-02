@@ -1,23 +1,38 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const proofModule = await import("../lib/auth-method-intent-proof.ts")
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const authMethodIntentsSource = await readFile(
+  new URL("../lib/auth-method-intents.ts", import.meta.url),
+  "utf8",
+)
+const { SESSION_BOUND_PURPOSES } = loadCompiledModule(
+  authMethodIntentsSource,
+  "auth-method-intent-purposes.test.ts",
+  {
+    "@/lib/auth-env": {},
+    "@/lib/auth-security": {},
+    "@/lib/auth-users": {},
+    "@/lib/commerce/credit-service": {},
+    "@/lib/commerce/transactions": {},
+    "@/lib/legal-acceptance-gate": {},
+    "@/lib/normalized-user-email": {},
+    "@/lib/prisma-identity-unique-constraint": {},
+    "@/lib/prisma": {},
+    "@/lib/public-launch-controls": {},
+  },
+)
 
 const NOW = new Date("2026-08-29T12:00:00.000Z")
-const PURPOSES = [
-  "LINK_GOOGLE",
-  "ADD_PASSWORD",
-  "REMOVE_PASSWORD",
-  "ENROLL_TWO_FACTOR",
-  "DISABLE_TWO_FACTOR",
-  "REGENERATE_TWO_FACTOR_BACKUP_CODES",
-]
 
 describe("fresh consumed Google security reauthentication", () => {
   it("accepts every security purpose at the exact five-minute boundary", () => {
     assert.equal(typeof proofModule.isFreshConsumedGoogleReauth, "function")
 
-    for (const purpose of PURPOSES) {
+    for (const purpose of SESSION_BOUND_PURPOSES) {
       assert.equal(
         proofModule.isFreshConsumedGoogleReauth(
           freshIntent({ purpose, providerProvenAt: new Date(NOW.getTime() - 5 * 60_000) }),
@@ -81,6 +96,10 @@ describe("fresh consumed Google security reauthentication", () => {
     assert.equal(second, false)
     assert.equal(db.intent.providerProvenAt, null)
     assert.equal(db.updateCount, 1)
+    assert.deepEqual(
+      db.updateWheres.map((where) => where.expiresAt.gt),
+      [NOW, NOW],
+    )
   })
 
   it("does not consume a fresh proof for a different caller-expected purpose", async () => {
@@ -147,9 +166,6 @@ describe("fresh consumed Google security reauthentication", () => {
     assert.equal(db.intent.providerProvenAt, null)
   })
 
-  it("fails closed when the transaction matcher receives no expiry predicate", () => {
-    assert.equal(matchesIntent(freshIntent(), { id: "intent-1" }), false)
-  })
 })
 
 function freshIntent(overrides = {}) {
@@ -169,16 +185,19 @@ function freshIntent(overrides = {}) {
 function createProofDatabase(seedIntent) {
   let intent = structuredClone(seedIntent)
   let updateCount = 0
+  const updateWheres = []
 
   return {
     get intent() { return structuredClone(intent) },
     get updateCount() { return updateCount },
+    get updateWheres() { return structuredClone(updateWheres) },
     async transaction(callback) {
       const before = structuredClone(intent)
       const beforeUpdateCount = updateCount
       const tx = {
         authMethodIntent: {
           async updateMany({ where, data }) {
+            updateWheres.push(structuredClone(where))
             if (!matchesIntent(intent, where)) return { count: 0 }
             Object.assign(intent, structuredClone(data))
             updateCount += 1
