@@ -6,6 +6,7 @@ import {
   createCompiledModuleLoader,
   createElement,
 } from "./helpers/compiled-module.mjs"
+import { deferred } from "./helpers/async-control.mjs"
 import { drainEffectCleanups } from "./helpers/effect-cleanups.mjs"
 
 const { emptySidebarCalendarContext } = sidebarCalendarContextModule
@@ -20,16 +21,6 @@ const routeSource = readFileSync(
   new URL("../app/api/calendar/sidebar-context/route.ts", import.meta.url),
   "utf8",
 )
-
-function deferred() {
-  let resolve
-  let reject
-  const promise = new Promise((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise
-    reject = rejectPromise
-  })
-  return { promise, reject, resolve }
-}
 
 const sidebarEffectCleanupOptions = Object.freeze({
   label: "Sidebar calendar Provider",
@@ -137,6 +128,9 @@ function createSidebarProviderEffectHarness(fetchJsonWithTimeout) {
     unmount() {
       drainEffectCleanups(effectSlots, sidebarEffectCleanupOptions)
     },
+    get effectSlotCount() {
+      return effectSlots.length
+    },
   }
 }
 
@@ -161,33 +155,6 @@ function loadRoute(session, contextLoads, ownerCalls = []) {
 }
 
 describe("sidebar calendar context route gating", () => {
-  it("drains and clears every Provider cleanup before surfacing failures", () => {
-    const events = []
-    const singleFailure = new Error("single cleanup failed")
-    const singleFailureSlots = [
-      { cleanup: () => { events.push("first"); throw singleFailure } },
-      { cleanup: () => { events.push("second") } },
-    ]
-
-    assert.throws(
-      () => drainEffectCleanups(singleFailureSlots, sidebarEffectCleanupOptions),
-      (error) => error === singleFailure,
-    )
-    assert.deepEqual(events, ["second", "first"])
-    assert.equal(singleFailureSlots.length, 0)
-    assert.doesNotThrow(() => drainEffectCleanups(singleFailureSlots, sidebarEffectCleanupOptions))
-
-    const multipleFailures = [new Error("first cleanup failed"), new Error("second cleanup failed")]
-    const multipleFailureSlots = multipleFailures.map((error) => ({ cleanup: () => { throw error } }))
-    assert.throws(
-      () => drainEffectCleanups(multipleFailureSlots, sidebarEffectCleanupOptions),
-      (error) => error instanceof AggregateError
-        && error.errors[0] === multipleFailures[1]
-        && error.errors[1] === multipleFailures[0],
-    )
-    assert.equal(multipleFailureSlots.length, 0)
-  })
-
   it("makes zero endpoint requests for an owner without a practice membership", async () => {
     let requests = 0
     const coordinator = loadCoordinator(async () => {
@@ -415,6 +382,7 @@ describe("sidebar calendar context route gating", () => {
     }
 
     assert.equal(ownerBCall[1].signal.aborted, true)
+    assert.equal(harness.effectSlotCount, 0, "Provider unmount must clear committed effect slots")
   })
 
   it("exposes safe zero counts in the empty context", () => {

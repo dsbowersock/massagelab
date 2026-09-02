@@ -27,17 +27,22 @@ describe("MembershipPricingCards configured price rendering", () => {
       }),
     ])
 
-    for (const cards of [checkoutCards, portalCards, authCards]) {
+    for (const [mode, cards] of [
+      ["checkout", checkoutCards],
+      ["portal", portalCards],
+      ["auth", authCards],
+    ]) {
       // Keep the expected copy independent so a rendered-message drift fails this UI contract.
       assert.ok(elementText(cards).includes(
         "New Supporter checkout is temporarily paused. Existing memberships and the billing portal remain available.",
-      ))
+      ), `${mode} mode must show the Checkout pause`)
       assert.equal(
         findElements(
           cards,
           (element) => element.type === "form" && element.props.action === "/api/billing/checkout",
         ).length,
         0,
+        `${mode} mode must hide Checkout forms while paused`,
       )
     }
     assert.equal(
@@ -366,14 +371,19 @@ describe("MembershipPricingCards configured price rendering", () => {
       yearAmountCents: 1000,
       prices: { year: yearlyPrice },
     }]
+    const modes = ["checkout", "auth", "portal"]
     const cardsByMode = await Promise.all(
-      ["checkout", "auth", "portal"].map((mode) => (
+      modes.map((mode) => (
         renderMembershipPricingCards({ mode, interval: "year", amountChoices })
       )),
     )
 
-    for (const cards of cardsByMode) {
-      assert.match(elementText(cards), /Save \$2 per year vs monthly/)
+    for (const [index, cards] of cardsByMode.entries()) {
+      assert.match(
+        elementText(cards),
+        /Save \$2 per year vs monthly/,
+        `${modes[index]} mode must show annual savings`,
+      )
     }
   })
 

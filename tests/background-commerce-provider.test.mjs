@@ -771,7 +771,8 @@ describe("BackgroundCommerceProvider contract", () => {
 
   it("keeps guest snapshots and focus or reconnect listener wiring", async () => {
     const value = await source(providerPath)
-    assert.match(value, /if \(!ownerKey\) \{[\s\S]*readGuestBackgroundCartIds/)
+    const refreshBody = callbackArrowBody(value, "refresh")
+    assert.match(refreshBody, /if \(!ownerKey\) \{[\s\S]*readGuestBackgroundCartIds/)
     assert.match(value, /createGuestBackgroundCommerceSnapshot/)
     assert.match(value, /addEventListener\("focus"/)
     assert.match(value, /addEventListener\("online"/)

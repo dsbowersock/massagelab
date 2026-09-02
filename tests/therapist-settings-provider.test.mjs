@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { settlesWithin } from "./helpers/async-control.mjs"
 import { drainEffectCleanups } from "./helpers/effect-cleanups.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -192,6 +193,10 @@ function loadProviderOwnerTransitionHarness({
   const profileWriteSettlements = []
   const windowListeners = new Map()
   let profileRequests = 0
+  let announceProfileRequestStarted
+  const profileRequestStarted = new Promise((resolve) => {
+    announceProfileRequestStarted = resolve
+  })
   const profileResponse = deferred()
   let stateCursor = 0
   let refCursor = 0
@@ -298,6 +303,7 @@ function loadProviderOwnerTransitionHarness({
       "@/lib/client-fetch": {
         fetchJsonWithTimeout: async () => {
           profileRequests += 1
+          announceProfileRequestStarted()
           return {
             response: { ok: true },
             json: await profileResponse.promise,
@@ -368,6 +374,7 @@ function loadProviderOwnerTransitionHarness({
     get profileRequests() {
       return profileRequests
     },
+    profileRequestStarted,
     /** Waits for every write started by the serialized writer, including batches queued while waiting. */
     async settleProfileWrites() {
       let settled = 0
@@ -840,33 +847,6 @@ describe("therapist settings cloud hydration", () => {
     }
   })
 
-  it("drains every effect cleanup and preserves cleanup failure identity", () => {
-    const events = []
-    const cleanupFailures = [new Error("first cleanup failure"), new Error("third cleanup failure")]
-    const effectSlots = [
-      { cleanup: () => { events.push("first"); throw cleanupFailures[0] } },
-      { cleanup: () => { events.push("second") } },
-      { cleanup: () => { events.push("third"); throw cleanupFailures[1] } },
-    ]
-
-    assert.throws(
-      () => drainEffectCleanups(effectSlots, providerEffectCleanupOptions),
-      (error) => error instanceof AggregateError
-        && error.errors[0] === cleanupFailures[0]
-        && error.errors[1] === cleanupFailures[1],
-    )
-    assert.deepEqual(events, ["first", "second", "third"])
-    assert.equal(effectSlots.length, 0)
-
-    const singleFailure = new Error("single cleanup failure")
-    const singleFailureSlots = [{ cleanup: () => { throw singleFailure } }]
-    assert.throws(
-      () => drainEffectCleanups(singleFailureSlots, providerEffectCleanupOptions),
-      (error) => error === singleFailure,
-    )
-    assert.equal(singleFailureSlots.length, 0)
-  })
-
   it("never renders owner A fields while owner B storage and cloud settings hydrate", async () => {
     const harness = loadProviderOwnerTransitionHarness()
     try {
@@ -970,7 +950,11 @@ describe("therapist settings cloud hydration", () => {
 
       const hydration = enabledView.ensureCloudHydrated()
       harness.flushEffects()
-      await Promise.resolve()
+      await settlesWithin(
+        harness.profileRequestStarted,
+        1_000,
+        "sync-enabled therapist profile request did not start",
+      )
       assert.equal(harness.profileRequests, 1)
 
       harness.resolveProfileResponse({ therapistName: "Owner A cloud profile" })

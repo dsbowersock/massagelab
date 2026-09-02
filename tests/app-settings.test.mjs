@@ -17,6 +17,7 @@ import {
   shouldCollapseSidebarFromOutsidePointer,
   shouldExpandSidebarFromRail,
 } from "../lib/sidebar-layout.js"
+import { settlesWithin } from "./helpers/async-control.mjs"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -83,6 +84,7 @@ function createSettingsOwnerTransitionHarness({
   const pendingEffects = new Map()
   const windowListeners = new Map()
   const accountWrites = []
+  const accountWriteSettlements = []
   const storageWrites = []
   const writeResults = new Map(
     Object.entries(writeOutcomes).map(([writeOwnerKey, outcomes]) => [writeOwnerKey, [...outcomes]]),
@@ -155,9 +157,18 @@ function createSettingsOwnerTransitionHarness({
             syncEnabled,
             status: syncEnabled ? "ready" : "anonymous",
             appSettings: { app: defaultAppSettings },
-            writeAppSettingsPatch: async (patch) => {
+            writeAppSettingsPatch: (patch) => {
               accountWrites.push({ ownerKey: requestOwnerKey, patch })
-              return writeResults.get(requestOwnerKey)?.shift() ?? true
+              const result = Promise.resolve(
+                writeResults.get(requestOwnerKey)?.shift() ?? true,
+              )
+              // The provider attaches its completion handler after this mock
+              // returns. The immediate turn makes the tracked signal settle
+              // only after that handler has consumed the write result.
+              accountWriteSettlements.push(result.then(() => new Promise((resolve) => {
+                setImmediate(resolve)
+              })))
+              return result
             },
           }
         },
@@ -220,6 +231,13 @@ function createSettingsOwnerTransitionHarness({
       effectCursor = 0
       return provider.SettingsProvider({ children: null }).props.value
     },
+    async settleAccountWrites(label) {
+      await settlesWithin(
+        Promise.all(accountWriteSettlements),
+        1_000,
+        `${label} did not settle`,
+      )
+    },
     restore() {
       for (const slot of effectSlots) slot?.cleanup?.()
       globalThis.document = previousDocument
@@ -272,14 +290,13 @@ describe("App settings helpers", () => {
       harness.flushEffects()
       harness.storageWrites.length = 0
       replayView.updateSettings({ themeMode: "light" })
-      await Promise.resolve()
+      await harness.settleAccountWrites("initial replay-safe settings write")
 
       assert.equal(harness.storageWrites.length, 1)
       assert.equal(harness.accountWrites.length, 1)
       assert.equal(harness.accountWrites[0].patch.themeMode, "light")
       harness.dispatchOnline()
-      await Promise.resolve()
-      await Promise.resolve()
+      await harness.settleAccountWrites("online replay-safe settings retry")
       assert.equal(harness.accountWrites.length, 2)
       assert.deepEqual(harness.accountWrites[1].patch, harness.accountWrites[0].patch)
     } finally {
@@ -295,8 +312,7 @@ describe("App settings helpers", () => {
       const ownerAView = harness.render()
       harness.flushEffects()
       ownerAView.updateSettings({ themeMode: "light" })
-      await Promise.resolve()
-      await Promise.resolve()
+      await harness.settleAccountWrites("owner A settings write")
       assert.deepEqual(harness.accountWrites.map(({ ownerKey }) => ownerKey), ["owner-a"])
 
       harness.setSyncEnabled(false)
@@ -304,7 +320,6 @@ describe("App settings helpers", () => {
       harness.flushEffects()
       assert.equal(harness.onlineListenerCount(), 0)
       harness.dispatchOnline()
-      await Promise.resolve()
       assert.equal(harness.accountWrites.length, 1)
 
       harness.setOwner("owner-b")
@@ -313,7 +328,6 @@ describe("App settings helpers", () => {
       harness.flushEffects()
       assert.equal(harness.onlineListenerCount(), 1)
       harness.dispatchOnline()
-      await Promise.resolve()
       assert.equal(
         harness.accountWrites.length,
         1,
@@ -321,11 +335,9 @@ describe("App settings helpers", () => {
       )
 
       ownerBView.updateSettings({ themeMode: "dark" })
-      await Promise.resolve()
-      await Promise.resolve()
+      await harness.settleAccountWrites("owner B settings write")
       harness.dispatchOnline()
-      await Promise.resolve()
-      await Promise.resolve()
+      await harness.settleAccountWrites("owner B settings retry")
 
       assert.deepEqual(harness.accountWrites.map(({ ownerKey }) => ownerKey), [
         "owner-a",

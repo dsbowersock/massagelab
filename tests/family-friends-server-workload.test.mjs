@@ -388,7 +388,7 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(normalizedProjectStateSource, /public display catalog only/i)
     assert.match(normalizedProjectStateSource, /local timing `first` is not platform cold/i)
     assert.match(normalizedProjectStateSource, /Live Stripe verification is `NOT RUN`/i)
-    const verifiedDateMatch = /^Verified: (\d{4}-\d{2}-\d{2})$/m.exec(projectStateSource)
+    const verifiedDateMatch = /^Verified: (\d{4}-\d{2}-\d{2})\r?$/m.exec(projectStateSource)
     assert.ok(verifiedDateMatch, "project state must include one ISO-formatted Verified date")
     const verifiedDate = new Date(`${verifiedDateMatch[1]}T00:00:00.000Z`)
     assert.equal(
@@ -562,7 +562,7 @@ describe("family-and-friends server workload baseline", () => {
       /^\| (?:\*\*BLOCKED HISTORICAL CONTEXT\*\* \| )?Dirty Task 9 snapshot measured \|/m,
     )
     assert.doesNotMatch(costHardeningReportSource, /^\| Candidate measured \|/m)
-    assert.doesNotMatch(costHardeningReportSource, /^\| Claim \| Evidence \| Exact SHA \| Limits \|$/m)
+    assert.doesNotMatch(costHardeningReportSource, /^\| Claim \| Evidence \| Exact SHA \| Limits \|\r?$/m)
     assert.doesNotMatch(
       costHardeningReportSource,
       /\|[^|\n]*at candidate `706c52167466f984f3e405986af11ff3d2343a02`[^|\n]*\|/,

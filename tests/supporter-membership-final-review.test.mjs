@@ -424,6 +424,18 @@ describe("Supporter membership final-review contracts", () => {
     assert.equal(result.supporterCheckoutOpen, false)
   })
 
+  it("keeps supporter Checkout open when only public registration is paused", async () => {
+    const result = await renderPublicPricing({
+      registrationOpen: false,
+      session: null,
+      supporterCheckoutOpen: true,
+      subscriptions: [],
+    })
+
+    assert.equal(result.mode, "auth")
+    assert.equal(result.supporterCheckoutOpen, true)
+  })
+
   it("keeps Portal mode unavailable after a successful lookup without a Stripe Customer", async () => {
     const result = await renderPublicPricing({
       session: { user: { id: "user_member_without_customer" } },

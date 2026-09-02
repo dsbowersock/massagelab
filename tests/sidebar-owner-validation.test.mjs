@@ -13,7 +13,6 @@ const sidebarSource = await readFile(
 
 function loadSidebar(database) {
   return loadCompiledModule(sidebarSource, "components/sidebar/sidebar.owner-validation.test.tsx", {
-    "@/auth": { getCurrentSession: async () => null },
     "@/components/sidebar/app-sidebar-client": { AppSidebarClient: () => null },
     "@/lib/account-preferences": { canSyncAccountPreferences },
     "@/lib/account-shell-bootstrap": { projectAccountShellAppSettings: () => ({}) },

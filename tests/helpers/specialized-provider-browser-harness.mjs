@@ -179,8 +179,9 @@ const specializedProviderBundle = createSpecializedProviderBundleLoader(async ()
               openWaitlistEntryCount: 0,
             }));
           }
-          harness.errors.push(\`Unexpected synthetic request: \${method} \${pathname}\`);
-          return Promise.resolve(jsonResponse({ ok: true }));
+          const message = \`Unexpected synthetic request: \${method} \${pathname}\`;
+          harness.errors.push(message);
+          return Promise.reject(new Error(message));
         };
 
         function TherapistConsumer({ index }) {
@@ -296,45 +297,58 @@ export async function exerciseSpecializedProviderHarness(page) {
     await page.unroute(fixtureUrl, fulfillFixture)
   }
   await page.addScriptTag({ content: await specializedProviderBundle() })
-  await page.waitForFunction(() => (
-    window.__specializedProviderHarness?.read().passiveConsumerCount === 0
-  ))
+  await page.waitForFunction(() => {
+    const state = window.__specializedProviderHarness?.read()
+    return state && (state.errors.length > 0 || state.passiveConsumerCount === 0)
+  })
 
   const read = () => page.evaluate(() => window.__specializedProviderHarness.read())
-  const mounted = await read()
+  const readHealthySnapshot = async (phase) => {
+    const snapshot = await read()
+    if (snapshot.errors.length > 0) {
+      throw new Error(
+        `Specialized provider harness captured browser errors during ${phase}: ${snapshot.errors.join(" | ")}`,
+      )
+    }
+    return snapshot
+  }
+  const mounted = await readHealthySnapshot("mount")
 
   await page.evaluate(() => window.__specializedProviderHarness.setConsumerCount(1))
   await page.waitForFunction(() => {
     const state = window.__specializedProviderHarness.read()
-    return state.passiveConsumerCount === 1 && state.profileGets === 1
+    return state.errors.length > 0 || (state.passiveConsumerCount === 1 && state.profileGets === 1)
   })
-  const firstConsumer = await read()
+  const firstConsumer = await readHealthySnapshot("first consumer")
 
   await page.evaluate(() => window.__specializedProviderHarness.setConsumerCount(2))
   await page.waitForFunction(() => {
     const state = window.__specializedProviderHarness.read()
-    return state.passiveConsumerCount === 2 && state.consumerNames.length === 2
+    return state.errors.length > 0 || (
+      state.passiveConsumerCount === 2 && state.consumerNames.length === 2
+    )
   })
-  const concurrentConsumer = await read()
+  const concurrentConsumer = await readHealthySnapshot("concurrent consumer")
 
   await page.evaluate(() => window.__specializedProviderHarness.resolveProfile())
   await page.waitForFunction(() => {
-    const names = window.__specializedProviderHarness.read().consumerNames
-    return names.length === 2 && names.every((name) => name === "Synthetic Therapist")
+    const state = window.__specializedProviderHarness.read()
+    return state.errors.length > 0 || (
+      state.consumerNames.length === 2
+      && state.consumerNames.every((name) => name === "Synthetic Therapist")
+    )
   })
-  const hydrated = await read()
+  const hydrated = await readHealthySnapshot("profile hydration")
 
   await page.evaluate(() => window.__specializedProviderHarness.setPracticeEnabled(true))
   await page.waitForFunction(() => {
     const state = window.__specializedProviderHarness.read()
-    return state.calendarGets === 1 && state.practiceId === "practice-inert"
+    return state.errors.length > 0 || (
+      state.calendarGets === 1 && state.practiceId === "practice-inert"
+    )
   })
-  const practiceEnabled = await read()
+  const practiceEnabled = await readHealthySnapshot("practice hydration")
   const snapshots = { mounted, firstConsumer, concurrentConsumer, hydrated, practiceEnabled }
-
-  if (practiceEnabled.errors.length > 0) {
-    throw new Error(`Specialized provider harness captured browser errors: ${JSON.stringify(snapshots)}`)
-  }
 
   return snapshots
 }

@@ -6,6 +6,7 @@ import {
   createCompiledModuleLoader,
   findElement,
 } from "./helpers/compiled-module.mjs"
+import { drainEffectCleanups } from "./helpers/effect-cleanups.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const preferenceSyncSource = await readFile(
@@ -44,6 +45,10 @@ const PREFERENCE_SYNC_STATE_SLOT = Object.freeze({
   STATUS: 0,
   IS_SYNCING: 1,
   DID_AUTO_SYNC: 2,
+})
+const preferenceSyncEffectCleanupOptions = Object.freeze({
+  label: "PreferenceSync",
+  reverse: true,
 })
 
 function deferred() {
@@ -84,7 +89,7 @@ async function loadPreferenceSync(ownerKey, {
   ]),
 } = {}) {
   const effects = []
-  const effectCleanups = []
+  const effectCleanupSlots = []
   const initiatedRequests = []
   const requests = []
   const storageReads = []
@@ -175,7 +180,7 @@ async function loadPreferenceSync(ownerKey, {
   function invokeEffectCleanups() {
     if (effectsCleanedUp) return
     effectsCleanedUp = true
-    for (const cleanup of effectCleanups.toReversed()) cleanup()
+    drainEffectCleanups(effectCleanupSlots, preferenceSyncEffectCleanupOptions)
   }
 
   function restoreGlobals() {
@@ -208,7 +213,7 @@ async function loadPreferenceSync(ownerKey, {
     )
     for (const effect of effects) {
       const cleanup = effect()
-      if (typeof cleanup === "function") effectCleanups.push(cleanup)
+      if (typeof cleanup === "function") effectCleanupSlots.push({ cleanup })
     }
     const syncButton = findElement(element, ({ type }) => type === "Button")
     assert.ok(syncButton, "preference sync must render its manual sync button")

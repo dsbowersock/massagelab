@@ -9,6 +9,7 @@ import {
   passThroughElement,
   renderFunctionComponents,
 } from "./helpers/compiled-module.mjs"
+import { settlesWithin } from "./helpers/async-control.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
@@ -205,10 +206,13 @@ async function loadCheckoutReturnHarness() {
   let nextTimerId = 1
   let ensureSnapshotCalls = 0
   let refreshCalls = 0
+  const refreshSettlements = []
   const ensureSnapshot = async () => { ensureSnapshotCalls += 1 }
-  const refresh = async () => {
+  const refresh = () => {
     refreshCalls += 1
-    throw new Error("synthetic refresh rejection")
+    const settlement = Promise.reject(new Error("synthetic refresh rejection"))
+    refreshSettlements.push(settlement)
+    return settlement
   }
   const sessionStorage = {
     getItem: () => JSON.stringify({
@@ -279,6 +283,15 @@ async function loadCheckoutReturnHarness() {
   return {
     get ensureSnapshotCalls() { return ensureSnapshotCalls },
     get refreshCalls() { return refreshCalls },
+    async waitForRefreshSettlement(callNumber) {
+      const settlement = refreshSettlements[callNumber - 1]
+      assert.ok(settlement, `refresh call ${callNumber} must start before settlement wait`)
+      await settlesWithin(
+        Promise.allSettled([settlement]),
+        1_000,
+        `refresh call ${callNumber} did not settle`,
+      )
+    },
     render: () => hooks.render(returnStatus.BackgroundCheckoutReturnStatus),
     cleanup() {
       try {
@@ -439,7 +452,7 @@ describe("checkout return recovery", () => {
         ))
         assert.ok(checkAgain, `retry button missing before check ${expectedChecks}`)
         checkAgain.props.onClick()
-        await new Promise((resolve) => setImmediate(resolve))
+        await harness.waitForRefreshSettlement(expectedChecks)
         tree = harness.render()
         assert.equal(harness.refreshCalls, expectedChecks)
       }

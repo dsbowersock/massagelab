@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 
 import { projectAccountShellAppSettings } from "../lib/account-shell-bootstrap.js"
 import * as accountPreferences from "../lib/account-preferences.js"
+import { deferred } from "./helpers/async-control.mjs"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -12,14 +13,6 @@ const providerSource = await readFile(
   "utf8",
 )
 const layoutSource = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8")
-
-function deferred() {
-  let resolve
-  const promise = new Promise((resolvePromise) => {
-    resolve = resolvePromise
-  })
-  return { promise, resolve }
-}
 
 function projectedSettings(backgroundId = "aurora") {
   return projectAccountShellAppSettings({

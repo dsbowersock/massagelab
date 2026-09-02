@@ -8,6 +8,7 @@ import {
 } from "../lib/membership-pricing.js"
 import * as membershipPricing from "../lib/membership-pricing.js"
 import { TARGET_PRICE_SPECS } from "../lib/stripe-supporter-membership-migration-contract.js"
+import { boundedLatch } from "./helpers/async-control.mjs"
 
 const SIX_PRICE_ENVIRONMENT = Object.freeze({
   STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_month",
@@ -60,20 +61,6 @@ const TEST_SETTLE_TIMEOUT_MS = (() => {
     ? configuredTimeout
     : 5_000
 })()
-
-async function boundedLatch(promise, label, timeoutMs = TEST_SETTLE_TIMEOUT_MS) {
-  let timeout
-  try {
-    return await Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timeout = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs)
-      }),
-    ])
-  } finally {
-    clearTimeout(timeout)
-  }
-}
 
 describe("Membership pricing catalog", () => {
   it("leads with premium backgrounds while retaining every current Supporter benefit", () => {
@@ -486,7 +473,11 @@ describe("Membership pricing catalog", () => {
     let originalFailure
     let staleBuildFailure
     try {
-      await boundedLatch(oldReadsStarted, "old membership Price reads")
+      await boundedLatch(
+        oldReadsStarted,
+        "old membership Price reads",
+        TEST_SETTLE_TIMEOUT_MS,
+      )
       assert.equal(calls.length, 6)
       loader.clear()
       useOldPrices = false
@@ -498,7 +489,11 @@ describe("Membership pricing catalog", () => {
     } finally {
       releaseOldPrices()
       try {
-        staleCatalog = await boundedLatch(staleBuild, "stale membership catalog build cleanup")
+        staleCatalog = await boundedLatch(
+          staleBuild,
+          "stale membership catalog build cleanup",
+          TEST_SETTLE_TIMEOUT_MS,
+        )
       } catch (error) {
         staleBuildFailure = error
       }

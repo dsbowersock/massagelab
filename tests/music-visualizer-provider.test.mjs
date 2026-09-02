@@ -11,16 +11,24 @@ const miniPlayerSource = await readFile(new URL("../components/providers/music-m
 const musicWorkspaceSource = await readFile(new URL("../app/browse/workspace.tsx", import.meta.url), "utf8")
 const stationCardSource = await readFile(new URL("../components/atmosphere/station-carousel-card.tsx", import.meta.url), "utf8")
 
+/** Extracts one provider body between exact owner-specific start and dependency markers. */
+function providerBody({ startMarker, endMarker, startError, boundaryError }) {
+  const startMatch = startMarker.exec(providerSource)
+  assert.ok(startMatch, startError)
+  const bodyStart = providerSource.indexOf("{", startMatch.index) + 1
+  const endMatch = endMarker.exec(providerSource.slice(bodyStart))
+  assert.ok(endMatch, boundaryError)
+  return providerSource.slice(bodyStart, bodyStart + endMatch.index)
+}
+
 /** Executes the provider's exact account-ownership effect body in an isolated scope. */
 function loadProviderAccountOwnershipEffect() {
-  const startMarker = /useEffect\s*\(\s*\(\s*\)\s*=>\s*\{\s*if\s*\(\s*!storageHydrated\s*\)\s*\{/
-  const startMatch = startMarker.exec(providerSource)
-  assert.ok(startMatch, "Music provider account effect start marker missing")
-  const bodyStart = providerSource.indexOf("{", startMatch.index) + 1
-  const endMarker = /\}\s*,\s*\[\s*(?=[^\]]*\baccountIntentTracker\b)(?=[^\]]*\bbootstrapAppSettings\.musicVisualizer\b)(?=[^\]]*\bbootstrapStatus\b)(?=[^\]]*\bownerKey\b)(?=[^\]]*\bpersistVisualizerAccountPreferences\b)(?=[^\]]*\bstorageHydrated\b)(?=[^\]]*\bsyncEnabled\b)[^\]]*\]\s*\)/
-  const endMatch = endMarker.exec(providerSource.slice(bodyStart))
-  assert.ok(endMatch, "Music provider account effect dependency boundary missing")
-  const effectBody = providerSource.slice(bodyStart, bodyStart + endMatch.index)
+  const effectBody = providerBody({
+    startMarker: /useEffect\s*\(\s*\(\s*\)\s*=>\s*\{\s*if\s*\(\s*!storageHydrated\s*\)\s*\{/,
+    endMarker: /\}\s*,\s*\[\s*(?=[^\]]*\baccountIntentTracker\b)(?=[^\]]*\bbootstrapAppSettings\.musicVisualizer\b)(?=[^\]]*\bbootstrapStatus\b)(?=[^\]]*\bownerKey\b)(?=[^\]]*\bpersistVisualizerAccountPreferences\b)(?=[^\]]*\bstorageHydrated\b)(?=[^\]]*\bsyncEnabled\b)[^\]]*\]\s*\)/,
+    startError: "Music provider account effect start marker missing",
+    boundaryError: "Music provider account effect dependency boundary missing",
+  })
 
   return loadCompiledModule(`
     export function runProviderAccountOwnershipEffect(scope) {
@@ -53,14 +61,12 @@ ${effectBody}
 
 /** Executes the provider's exact account-sync retry callback in an isolated scope. */
 function loadProviderRetryVisualizerAccountSync() {
-  const startMarker = /const retryVisualizerAccountSync = useCallback\s*\(\s*async\s*\(\s*\)\s*=>\s*\{/
-  const startMatch = startMarker.exec(providerSource)
-  assert.ok(startMatch, "Music provider account-sync retry callback start marker missing")
-  const bodyStart = providerSource.indexOf("{", startMatch.index) + 1
-  const endMarker = /\}\s*,\s*\[\s*(?=[^\]]*\bbootstrapStatus\b)(?=[^\]]*\bpersistVisualizerAccountPreferences\b)(?=[^\]]*\bretryFallback\b)[^\]]*\]\s*\)/
-  const endMatch = endMarker.exec(providerSource.slice(bodyStart))
-  assert.ok(endMatch, "Music provider account-sync retry callback dependency boundary missing")
-  const callbackBody = providerSource.slice(bodyStart, bodyStart + endMatch.index)
+  const callbackBody = providerBody({
+    startMarker: /const retryVisualizerAccountSync = useCallback\s*\(\s*async\s*\(\s*\)\s*=>\s*\{/,
+    endMarker: /\}\s*,\s*\[\s*(?=[^\]]*\bbootstrapStatus\b)(?=[^\]]*\bpersistVisualizerAccountPreferences\b)(?=[^\]]*\bretryFallback\b)[^\]]*\]\s*\)/,
+    startError: "Music provider account-sync retry callback start marker missing",
+    boundaryError: "Music provider account-sync retry callback dependency boundary missing",
+  })
 
   return loadCompiledModule(`
     export async function runProviderRetryVisualizerAccountSync(scope) {
@@ -77,14 +83,12 @@ ${callbackBody}
 
 /** Returns only the provider callback that owns account preference persistence. */
 function providerPersistVisualizerAccountPreferencesBody() {
-  const startMarker = /const persistVisualizerAccountPreferences = useCallback\s*\(\s*async\s*\(\s*preferences:\s*MusicVisualizerAccountPreferences,?\s*\)\s*=>\s*\{/
-  const startMatch = startMarker.exec(providerSource)
-  assert.ok(startMatch, "Music provider account-persistence callback start marker missing")
-  const bodyStart = providerSource.indexOf("{", startMatch.index) + 1
-  const endMarker = /\}\s*,\s*\[\s*(?=[^\]]*\baccountIntentTracker\b)(?=[^\]]*\bownerKey\b)(?=[^\]]*\bsyncEnabled\b)(?=[^\]]*\bwriteAppSettingsPatch\b)[^\]]*\]\s*\)/
-  const endMatch = endMarker.exec(providerSource.slice(bodyStart))
-  assert.ok(endMatch, "Music provider account-persistence callback dependency boundary missing")
-  return providerSource.slice(bodyStart, bodyStart + endMatch.index)
+  return providerBody({
+    startMarker: /const persistVisualizerAccountPreferences = useCallback\s*\(\s*async\s*\(\s*preferences:\s*MusicVisualizerAccountPreferences,?\s*\)\s*=>\s*\{/,
+    endMarker: /\}\s*,\s*\[\s*(?=[^\]]*\baccountIntentTracker\b)(?=[^\]]*\bownerKey\b)(?=[^\]]*\bsyncEnabled\b)(?=[^\]]*\bwriteAppSettingsPatch\b)[^\]]*\]\s*\)/,
+    startError: "Music provider account-persistence callback start marker missing",
+    boundaryError: "Music provider account-persistence callback dependency boundary missing",
+  })
 }
 
 describe("Music visualizer provider contract", () => {

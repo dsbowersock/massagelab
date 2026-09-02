@@ -4,6 +4,7 @@ import { withPlayerViewportCollisionPadding } from "../../components/ui/use-play
 import { exerciseSpecializedProviderHarness } from "../helpers/specialized-provider-browser-harness.mjs"
 import { centerCarouselItem, waitForStableSlideGeometry } from "./carousel-test-helpers"
 import { isDevelopmentReviewUnavailable } from "./development-review-test-helpers"
+import { isHeldRouteTeardownCancellation } from "./held-route-teardown"
 
 const desktopProject = "desktop-chromium"
 const mobileProject = "mobile-chromium"
@@ -94,17 +95,8 @@ async function abortHeldFixtureRequest(route: Route) {
   try {
     await route.abort("aborted")
   } catch (error) {
-    if (!(error instanceof Error) || !error.message.includes("Route is already handled!")) {
-      throw error
-    }
+    if (!isHeldRouteTeardownCancellation(error)) throw error
   }
-}
-
-/** Recognizes only Playwright route cancellations that cleanup itself can cause. */
-function isHeldRouteTeardownCancellation(error: unknown) {
-  if (!(error instanceof Error)) return false
-  return /^route\.(?:abort|fetch|fulfill):/.test(error.message)
-    && /(?:Route is already handled!|Target page, context or browser has been closed|Request context disposed)/.test(error.message)
 }
 
 /** Holds one real App Router response so a route-owned readiness barrier can be proven. */
@@ -112,7 +104,6 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
   const matchesPathname = (url: URL) => url.pathname === pathname
   let releaseHold: () => void = () => undefined
   let markRequestStarted: () => void = () => undefined
-  let requestStarted = false
   let suppressTeardownCancellations = false
   const activeRequests = new Set<Promise<void>>()
   const hold = new Promise<void>((resolve) => {
@@ -121,6 +112,12 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
   const started = new Promise<void>((resolve) => {
     markRequestStarted = resolve
   })
+  /** Waits until every currently or transitively registered held request has settled. */
+  const drainActiveRequests = async () => {
+    while (activeRequests.size > 0) {
+      await Promise.all([...activeRequests])
+    }
+  }
   const handler = async (route: Route) => {
     try {
       const request = route.request()
@@ -130,7 +127,6 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
         return
       }
       if (headers.rsc || request.isNavigationRequest()) {
-        requestStarted = true
         markRequestStarted()
         let markRequestFinished: () => void = () => undefined
         const requestFinished = new Promise<void>((resolve) => {
@@ -173,9 +169,9 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
     async releaseAndCleanup({ teardown = false }: { teardown?: boolean } = {}) {
       suppressTeardownCancellations = teardown
       releaseHold()
-      if (requestStarted) await Promise.all([...activeRequests])
+      await drainActiveRequests()
       await page.unroute(matchesPathname, handler)
-      if (requestStarted) await Promise.all([...activeRequests])
+      await drainActiveRequests()
     },
   }
 }

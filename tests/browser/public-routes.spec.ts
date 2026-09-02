@@ -1,6 +1,7 @@
 import { expect, test as base, type Locator, type Page, type Request, type Response, type Route } from "@playwright/test"
 import { readFile } from "node:fs/promises"
 import { centerCarouselItem } from "./carousel-test-helpers"
+import { isHeldRouteTeardownCancellation } from "./held-route-teardown"
 import { installSignedInSessionCookie } from "./signed-in-session-cookie"
 
 type PublicNetworkGuardState = {
@@ -51,13 +52,6 @@ function getPublicNetworkGuard(page: Page) {
   const state = publicNetworkGuardByPage.get(page)
   if (!state) throw new Error("Public network guard is unavailable for this page")
   return state
-}
-
-/** Recognizes only Playwright route cancellations that held-fixture teardown can cause. */
-function isHeldRouteTeardownCancellation(error: unknown) {
-  if (!(error instanceof Error)) return false
-  return /^route\.(?:abort|fetch|fulfill):/.test(error.message)
-    && /(?:Route is already handled!|Target page, context or browser has been closed|Request context disposed)/.test(error.message)
 }
 
 const publicRoutes = [
