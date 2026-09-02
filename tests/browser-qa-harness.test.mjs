@@ -153,12 +153,13 @@ test("mobile Background carousel fixtures include the default preview", async ()
   const fixtureStart = publicRoutesSpec.indexOf(
     'test(`Background default navigation and Background drag keep',
   )
+  assert.notEqual(fixtureStart, -1, "Expected to locate the mobile Background fixture start")
+
   const fixtureEnd = publicRoutesSpec.indexOf(
     '\ntest("Atmosphere lists the Generative.fm catalog',
     fixtureStart,
   )
 
-  assert.notEqual(fixtureStart, -1, "Expected to locate the mobile Background fixture start")
   assert.notEqual(fixtureEnd, -1, "Expected to locate the mobile Background fixture end")
   assert.match(
     publicRoutesSpec.slice(fixtureStart, fixtureEnd),

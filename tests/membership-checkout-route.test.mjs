@@ -27,6 +27,8 @@ describe("Membership Checkout POST route", () => {
   it("recognizes every supported display-catalog import form", () => {
     for (const source of [
       'import catalog from "@/lib/membership-pricing"',
+      'import { getMembershipPricingCatalog } from"@/lib/membership-pricing"',
+      'export { getMembershipPricingCatalog } from "@/lib/membership-pricing"',
       'import "@/lib/membership-pricing"',
       'await import("@/lib/membership-pricing")',
       'require("@/lib/membership-pricing")',
@@ -1028,10 +1030,29 @@ describe("Membership Checkout POST route", () => {
     })
   }
 
-  for (const [label, errorOption] of [
-    ["membership subscription lookup", "membershipLookupError"],
-    ["legal acceptance lookup", "acceptedDocumentsError"],
-    ["user lookup", "userLookupError"],
+  for (const [label, errorOption, expectedCalls] of [
+    ["membership subscription lookup", "membershipLookupError", {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 1,
+      sessionReads: 1,
+    }],
+    ["legal acceptance lookup", "acceptedDocumentsError", {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 1,
+      sessionReads: 1,
+      requiredLegalEvents: ["checkout"],
+      acceptedLegalDocumentInputs: [["membership-billing-refunds:current"]],
+    }],
+    ["user lookup", "userLookupError", {
+      ensureCustomer: 0,
+      createCheckout: 0,
+      membershipLookup: 1,
+      sessionReads: 1,
+      requiredLegalEvents: ["checkout"],
+      acceptedLegalDocumentInputs: [["membership-billing-refunds:current"]],
+    }],
   ]) {
     it(`routes a rejected ${label} through the form-safe Checkout error response`, async (context) => {
       const calls = checkoutCallCounts()
@@ -1053,8 +1074,7 @@ describe("Membership Checkout POST route", () => {
         url: "https://massagelab.app/account?billing=checkout-error",
         status: 303,
       })
-      assert.equal(calls.ensureCustomer, 0)
-      assert.equal(calls.createCheckout, 0)
+      assert.deepEqual(calls, expectedCalls)
       assert.deepEqual(logged, [[
         "Unable to start membership checkout",
         { code: "unexpected_error" },

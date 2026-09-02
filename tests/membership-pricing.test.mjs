@@ -458,6 +458,8 @@ describe("Membership pricing catalog", () => {
             calls.push(priceId)
             const priceSet = useOldPrices ? oldPrices : newPrices
             if (useOldPrices) {
+              // The sixth invocation proves all six old-price reads started
+              // concurrently before their shared release gate can resolve.
               if (calls.length === 6) resolveOldReadsStarted()
               await oldPriceGate
             }

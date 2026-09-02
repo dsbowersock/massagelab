@@ -290,8 +290,14 @@ describe("background acquisition and shared account cart", () => {
       readFile(cartPath, "utf8"),
       readFile(triggerPath, "utf8"),
     ])
-    assert.match(carousel, /const \{[\s\S]*ensureSnapshot[\s\S]*\} = useBackgroundCommerce\(\)/)
-    assert.match(carousel, /useEffect\(\(\) => \{[\s\S]*void ensureSnapshot\(\)/)
+    assert.match(
+      carousel,
+      /const \{[^}]*\bensureSnapshot\b[^}]*\} = useBackgroundCommerce\(\)/,
+    )
+    assert.match(
+      carousel,
+      /useEffect\(\(\) => \{\s*void ensureSnapshot\(\)\s*\}, \[ensureSnapshot\]\)/,
+    )
     assert.match(chimer, /ensureSnapshot:\s*ensureBackgroundCommerceSnapshot/)
     assert.match(chimer, /void ensureBackgroundCommerceSnapshot\(\)/)
     assert.match(panel, /ensureSnapshot/)

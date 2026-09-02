@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
+import { isHeldRouteTeardownCancellation } from "./held-route-teardown"
 import { installNativeSubmitSnapshotRecorder } from "./native-submission-snapshot"
 
 const PRIVATE_QA_SKIP_REASON = "Membership return database-backed browser QA requires an explicitly approved disposable target/fingerprint and applied 20260828130000_membership_subscription_convergence migration."
@@ -168,7 +169,11 @@ test.describe("private persisted membership returns", () => {
       portalRouteStarted = true
       try {
         await portalRouteRelease
-        await route.fulfill({ status: 204, body: "" })
+        try {
+          await route.fulfill({ status: 204, body: "" })
+        } catch (error) {
+          if (!isHeldRouteTeardownCancellation(error)) throw error
+        }
       } finally {
         markPortalRouteFinished()
       }

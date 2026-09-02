@@ -423,6 +423,8 @@ test("an exact allowlisted preview canceled by its media lifecycle is not an ext
   await expect.poll(() => fixtureFinished, "exact preview fixture completion").toBe(true)
   expect(canceledRequest.failure()?.errorText, "browser media cancellation").toBe("net::ERR_ABORTED")
 
+  await page.goto("/about", { waitUntil: "domcontentloaded" })
+
   const nonOwnedRequestPromise = page.waitForEvent("requestfailed", {
     predicate: (request) => request.url() === nonOwnedAbortUrl,
   })
@@ -446,11 +448,10 @@ test("an exact allowlisted preview canceled by its media lifecycle is not an ext
 })
 
 function requireAllowedExternalFixture(
-  page: Page,
   allowedExternalUrls: ReadonlySet<string>,
   url: string,
 ) {
-  if (!allowedExternalUrls.has(url) || !getPublicNetworkGuard(page).allowedExternalUrls.has(url)) {
+  if (!allowedExternalUrls.has(url)) {
     throw new Error(`External fixture URL is missing from this journey's allowlist: ${url}`)
   }
 }
@@ -458,7 +459,7 @@ function requireAllowedExternalFixture(
 /** Serves the one externally hosted display font from a deterministic repository-owned fixture. */
 async function installExternalFontFixture(page: Page, allowedExternalUrls: ReadonlySet<string>) {
   registerAllowedExternalUrls(page, allowedExternalUrls)
-  requireAllowedExternalFixture(page, allowedExternalUrls, externalFontUrl)
+  requireAllowedExternalFixture(allowedExternalUrls, externalFontUrl)
   await page.route(externalFontUrl, async (route) => {
     await route.fulfill({
       status: 200,
@@ -489,7 +490,7 @@ async function installChimerPreviewFixtures(
   registerAllowedExternalUrls(page, allowedExternalUrls)
   for (const name of names) {
     const url = chimerPreviewUrl(name)
-    requireAllowedExternalFixture(page, allowedExternalUrls, url)
+    requireAllowedExternalFixture(allowedExternalUrls, url)
     await installChimerPreviewRoute(page, url, async (route) => {
       await route.fulfill({ status: 204, contentType: "video/webm", body: "" })
     })
@@ -539,7 +540,7 @@ async function installAtmosphereFixtures(
   }
 
   for (const url of sampleIndexUrls) {
-    requireAllowedExternalFixture(page, allowedExternalUrls, url)
+    requireAllowedExternalFixture(allowedExternalUrls, url)
     const pieceId = playbackPieceIds.find((candidate) => atmosphereSampleIndexUrl(candidate) === url)
     await page.route(url, async (route) => {
       recordHit(url)
@@ -562,7 +563,7 @@ async function installAtmosphereFixtures(
       new URL("../../public/audio/atmosphere/media-session-carrier.mp3", import.meta.url),
     )
     for (const url of externalPlaybackPayloadUrls) {
-      requireAllowedExternalFixture(page, allowedExternalUrls, url)
+      requireAllowedExternalFixture(allowedExternalUrls, url)
       await page.route(url, async (route) => {
         recordHit(url)
         await route.fulfill({

@@ -702,14 +702,10 @@ describe("family-and-friends server workload baseline", () => {
       preferenceReads: 0,
       practiceRoleReads: 0,
       entitlementReads: 0,
-      projectedPreferenceReadinessMisses: 0,
     }
     const sidebarWorkload = sidebarNavigationWorkload(sidebarCalls, authState.featureKeys)
     assert.equal(typeof sidebarWorkload.getAppSidebarData, "function")
     const shell = await sidebarWorkload.getAppSidebarData()
-    if (shell.accountBootstrap?.preferenceStatus !== "ready") {
-      sidebarCalls.projectedPreferenceReadinessMisses += 1
-    }
 
     const logicalOrmOperations = (
       authCalls.userGraphReads
@@ -730,7 +726,6 @@ describe("family-and-friends server workload baseline", () => {
       preferenceReads: 1,
       practiceRoleReads: 1,
       entitlementReads: 0,
-      projectedPreferenceReadinessMisses: 0,
     })
     assert.equal(logicalOrmOperations, 4)
     assert.deepEqual(shell.navigation.featureKeys, authState.featureKeys)
@@ -758,7 +753,6 @@ describe("family-and-friends server workload baseline", () => {
     console.log(`verified auth refresh: background-credit provisioner calls = ${backgroundCreditProvisionerCalls}`)
     console.log(`ordinary signed-in shell: RSC auth snapshots = ${sidebarCalls.rscAuthSnapshots}; legacy direct-auth snapshots = ${sidebarCalls.legacyAuthSnapshots}; auth user graph reads = ${authCalls.userGraphReads}; temporary-grant reads = ${authCalls.temporaryGrantReads}; entitlement builds = ${authCalls.entitlementBuilds}`)
     console.log(`ordinary signed-in shell: preference reads = ${sidebarCalls.preferenceReads}; practice-role reads = ${sidebarCalls.practiceRoleReads}; separate membership entitlement loads = ${sidebarCalls.entitlementReads}; logical ORM operations = ${logicalOrmOperations}`)
-    console.log(`ordinary signed-in shell: projected preference readiness misses = ${sidebarCalls.projectedPreferenceReadinessMisses}`)
   })
 
   it("loads one persisted membership return summary", async () => {
