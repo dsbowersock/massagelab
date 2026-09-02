@@ -53,6 +53,13 @@ function getPublicNetworkGuard(page: Page) {
   return state
 }
 
+/** Recognizes only Playwright route cancellations that held-fixture teardown can cause. */
+function isHeldRouteTeardownCancellation(error: unknown) {
+  if (!(error instanceof Error)) return false
+  return /^route\.(?:abort|fetch|fulfill):/.test(error.message)
+    && /(?:Route is already handled!|Target page, context or browser has been closed|Request context disposed)/.test(error.message)
+}
+
 const publicRoutes = [
   { path: "/", expectedText: /MassageLab/i },
   { path: "/about", expectedText: /Built from inside the massage profession/i },
@@ -389,8 +396,13 @@ test("an exact allowlisted preview canceled by its media lifecycle is not an ext
   await installChimerPreviewRoute(page, canceledPreviewUrl, async (route) => {
     announceFixtureStarted()
     await fixtureGate
-    await route.fulfill({ status: 204, contentType: "video/webm", body: "" })
-    fixtureFinished = true
+    try {
+      await route.fulfill({ status: 204, contentType: "video/webm", body: "" })
+    } catch (error) {
+      if (!isHeldRouteTeardownCancellation(error)) throw error
+    } finally {
+      fixtureFinished = true
+    }
   })
   await page.route(nonOwnedAbortUrl, async (route) => {
     await route.abort("aborted")

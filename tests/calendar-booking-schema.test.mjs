@@ -101,9 +101,13 @@ describe("calendar booking settings schema and route surface", () => {
     }
     for (const unsafeCallback of [
       "https://evil.example/calendar",
+      " https://evil.example/calendar",
+      "\u0001/calendar/booking",
       "HTTP://evil.example/calendar",
       "javascript:alert(1)",
+      "JaVaScRiPt:alert(1)",
       "//evil.example/calendar",
+      "///evil.example/calendar",
       "/\\evil.example/calendar",
       "\\/evil.example/calendar",
       "/calendar\\booking",

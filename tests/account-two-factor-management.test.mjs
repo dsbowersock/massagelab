@@ -8,6 +8,7 @@ import {
   isFreshConsumedGoogleReauth,
 } from "../lib/auth-method-intent-proof.ts"
 import { safeErrorCode } from "../lib/safe-error-code.js"
+import { boundedLatch, deferred } from "./helpers/async-control.mjs"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const NOW = new Date("2026-08-29T12:00:00.000Z")
@@ -1454,25 +1455,5 @@ async function captureConsoleErrors(callback) {
     return await callback(calls)
   } finally {
     console.error = original
-  }
-}
-
-function deferred() {
-  let resolve
-  const promise = new Promise((resolver) => { resolve = resolver })
-  return { promise, resolve }
-}
-
-async function boundedLatch(promise, label, timeoutMs = 1_000) {
-  let timeout
-  try {
-    return await Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timeout = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs)
-      }),
-    ])
-  } finally {
-    clearTimeout(timeout)
   }
 }

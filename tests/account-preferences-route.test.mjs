@@ -12,6 +12,7 @@ import {
 import { DEFAULT_CHIMER_SETTINGS } from "../lib/chimer-timer.js"
 import { sanitizeAccessibleChimerSettings } from "../lib/chimer-accessible-settings.ts"
 import { objectRecord } from "../lib/onboarding-preferences.js"
+import { boundedLatch, deferred } from "./helpers/async-control.mjs"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -47,29 +48,6 @@ function ownedOnlySettings() {
         ],
       },
     },
-  }
-}
-
-function deferred() {
-  let resolve
-  const promise = new Promise((settle) => {
-    resolve = settle
-  })
-  return { promise, resolve }
-}
-
-/** Bounds manual transaction gates so an ordering regression fails instead of hanging the test process. */
-async function boundedLatch(promise, label, timeoutMs = 1_000) {
-  let timeout
-  try {
-    return await Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timeout = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs)
-      }),
-    ])
-  } finally {
-    clearTimeout(timeout)
   }
 }
 

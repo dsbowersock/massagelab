@@ -6,6 +6,7 @@ import {
   createCompiledModuleLoader,
   createElement,
 } from "./helpers/compiled-module.mjs"
+import { drainEffectCleanups } from "./helpers/effect-cleanups.mjs"
 
 const { emptySidebarCalendarContext } = sidebarCalendarContextModule
 
@@ -30,22 +31,10 @@ function deferred() {
   return { promise, reject, resolve }
 }
 
-/** Clears and runs every Provider effect cleanup before surfacing any failures. */
-function cleanupSidebarEffectSlots(effectSlots) {
-  const cleanupErrors = []
-  const mountedSlots = effectSlots.splice(0)
-  for (const slot of mountedSlots.toReversed()) {
-    try {
-      slot.cleanup?.()
-    } catch (error) {
-      cleanupErrors.push(error)
-    }
-  }
-  if (cleanupErrors.length === 1) throw cleanupErrors[0]
-  if (cleanupErrors.length > 1) {
-    throw new AggregateError(cleanupErrors, "Sidebar calendar Provider effect cleanups failed")
-  }
-}
+const sidebarEffectCleanupOptions = Object.freeze({
+  label: "Sidebar calendar Provider",
+  reverse: true,
+})
 
 function loadCoordinator(loadContext, options = {}) {
   const {
@@ -146,7 +135,7 @@ function createSidebarProviderEffectHarness(fetchJsonWithTimeout) {
       }
     },
     unmount() {
-      cleanupSidebarEffectSlots(effectSlots)
+      drainEffectCleanups(effectSlots, sidebarEffectCleanupOptions)
     },
   }
 }
@@ -181,17 +170,17 @@ describe("sidebar calendar context route gating", () => {
     ]
 
     assert.throws(
-      () => cleanupSidebarEffectSlots(singleFailureSlots),
+      () => drainEffectCleanups(singleFailureSlots, sidebarEffectCleanupOptions),
       (error) => error === singleFailure,
     )
     assert.deepEqual(events, ["second", "first"])
     assert.equal(singleFailureSlots.length, 0)
-    assert.doesNotThrow(() => cleanupSidebarEffectSlots(singleFailureSlots))
+    assert.doesNotThrow(() => drainEffectCleanups(singleFailureSlots, sidebarEffectCleanupOptions))
 
     const multipleFailures = [new Error("first cleanup failed"), new Error("second cleanup failed")]
     const multipleFailureSlots = multipleFailures.map((error) => ({ cleanup: () => { throw error } }))
     assert.throws(
-      () => cleanupSidebarEffectSlots(multipleFailureSlots),
+      () => drainEffectCleanups(multipleFailureSlots, sidebarEffectCleanupOptions),
       (error) => error instanceof AggregateError
         && error.errors[0] === multipleFailures[1]
         && error.errors[1] === multipleFailures[0],

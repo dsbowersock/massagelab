@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { drainEffectCleanups } from "./helpers/effect-cleanups.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const providerSource = await readFile(
@@ -21,22 +22,9 @@ function deferred() {
   return { promise, reject, resolve }
 }
 
-/** Clears and runs every committed effect cleanup before surfacing failures. */
-function cleanupProviderEffectSlots(effectSlots) {
-  const cleanupErrors = []
-  const mountedEffectSlots = effectSlots.splice(0)
-  for (const slot of mountedEffectSlots) {
-    try {
-      slot?.cleanup?.()
-    } catch (error) {
-      cleanupErrors.push(error)
-    }
-  }
-  if (cleanupErrors.length === 1) throw cleanupErrors[0]
-  if (cleanupErrors.length > 1) {
-    throw new AggregateError(cleanupErrors, "Therapist settings Provider effect cleanups failed")
-  }
-}
+const providerEffectCleanupOptions = Object.freeze({
+  label: "Therapist settings Provider",
+})
 
 /** Returns fresh inert provider dependencies so compiled harnesses cannot share hook state. */
 function inertProviderMocks({
@@ -362,7 +350,7 @@ function loadProviderOwnerTransitionHarness({
     restore() {
       pendingEffects.clear()
       try {
-        cleanupProviderEffectSlots(effectSlots)
+        drainEffectCleanups(effectSlots, providerEffectCleanupOptions)
       } finally {
         globalThis.localStorage = previousLocalStorage
         globalThis.window = previousWindow
@@ -862,7 +850,7 @@ describe("therapist settings cloud hydration", () => {
     ]
 
     assert.throws(
-      () => cleanupProviderEffectSlots(effectSlots),
+      () => drainEffectCleanups(effectSlots, providerEffectCleanupOptions),
       (error) => error instanceof AggregateError
         && error.errors[0] === cleanupFailures[0]
         && error.errors[1] === cleanupFailures[1],
@@ -873,7 +861,7 @@ describe("therapist settings cloud hydration", () => {
     const singleFailure = new Error("single cleanup failure")
     const singleFailureSlots = [{ cleanup: () => { throw singleFailure } }]
     assert.throws(
-      () => cleanupProviderEffectSlots(singleFailureSlots),
+      () => drainEffectCleanups(singleFailureSlots, providerEffectCleanupOptions),
       (error) => error === singleFailure,
     )
     assert.equal(singleFailureSlots.length, 0)

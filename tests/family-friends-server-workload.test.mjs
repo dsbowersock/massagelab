@@ -61,6 +61,16 @@ const [
   readFile(new URL("../docs/superpowers/reports/2026-08-29-bootstrap-pricing-cost-hardening.md", import.meta.url), "utf8"),
 ])
 
+/** Collapses Markdown wrapping so exact prose claims do not depend on line layout. */
+function normalizeDocumentationWhitespace(source) {
+  return source.replace(/\s+/g, " ").trim()
+}
+
+const normalizedProjectStateSource = normalizeDocumentationWhitespace(projectStateSource)
+const normalizedProjectLogSource = normalizeDocumentationWhitespace(projectLogSource)
+const normalizedDeploymentSource = normalizeDocumentationWhitespace(deploymentSource)
+const normalizedReleaseChecklistSource = normalizeDocumentationWhitespace(releaseChecklistSource)
+
 /** Returns one named function body bounded by the next named owner. */
 function namedFunctionSlice(source, startMarker, endMarker) {
   const start = source.indexOf(startMarker)
@@ -371,13 +381,13 @@ function portalPost(calls) {
 
 describe("family-and-friends server workload baseline", () => {
   it("keeps project-state launch-cost claims current and dated", () => {
-    assert.match(projectStateSource, /ordinary non-practice shell/i)
-    assert.match(projectStateSource, /four logical ORM operations/i)
-    assert.match(projectStateSource, /zero client bootstrap endpoints/i)
-    assert.match(projectStateSource, /zero ordinary commerce snapshots/i)
-    assert.match(projectStateSource, /public display catalog only/i)
-    assert.match(projectStateSource, /local timing `first` is not platform cold/i)
-    assert.match(projectStateSource, /live Stripe[^\n]*`NOT RUN`/i)
+    assert.match(normalizedProjectStateSource, /ordinary non-practice shell/i)
+    assert.match(normalizedProjectStateSource, /four logical ORM operations/i)
+    assert.match(normalizedProjectStateSource, /zero client bootstrap endpoints/i)
+    assert.match(normalizedProjectStateSource, /zero ordinary commerce snapshots/i)
+    assert.match(normalizedProjectStateSource, /public display catalog only/i)
+    assert.match(normalizedProjectStateSource, /local timing `first` is not platform cold/i)
+    assert.match(normalizedProjectStateSource, /Live Stripe verification is `NOT RUN`/i)
     const verifiedDateMatch = /^Verified: (\d{4}-\d{2}-\d{2})$/m.exec(projectStateSource)
     assert.ok(verifiedDateMatch, "project state must include one ISO-formatted Verified date")
     const verifiedDate = new Date(`${verifiedDateMatch[1]}T00:00:00.000Z`)
@@ -394,26 +404,26 @@ describe("family-and-friends server workload baseline", () => {
 
   it("keeps project-log migration and historical workload claims ordered", () => {
     const septemberMigrationCorrection = namedFunctionSlice(
-      projectLogSource,
+      normalizedProjectLogSource,
       "## 2026-09-01 — Combined migration-order correction",
       "## 2026-08-29 — Bootstrap and public-pricing cost hardening evidence",
     )
     const augustSubscriptionReview = namedFunctionSlice(
-      projectLogSource,
+      normalizedProjectLogSource,
       "## 2026-08-29 — Final membership convergence review fixes",
       "## 2026-08-29 — Initial subscription entitlement convergence implementation and Task 5 evidence",
     )
     const augustIdentityReview = namedFunctionSlice(
-      projectLogSource,
+      normalizedProjectLogSource,
       "## 2026-08-29 — Final identity safety review remediation",
       "## 2026-08-28 — Local identity and account-method safety verification",
     )
 
-    assert.match(projectLogSource, /ordinary non-practice shell/i)
-    assert.match(projectLogSource, /five-minute complete[^\n]*fifteen-second incomplete/i)
-    assert.match(projectLogSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
-    assert.match(projectLogSource, HISTORICAL_BROWSER_QA_RECEIPT_PATTERN)
-    assert.match(projectLogSource, /documented authorization-gated skips.{0,80}zero failures/i)
+    assert.match(normalizedProjectLogSource, /ordinary non-practice shell/i)
+    assert.match(normalizedProjectLogSource, /five-minute complete TTL and fifteen-second incomplete\/fallback TTL/i)
+    assert.match(normalizedProjectLogSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
+    assert.match(normalizedProjectLogSource, HISTORICAL_BROWSER_QA_RECEIPT_PATTERN)
+    assert.match(normalizedProjectLogSource, /documented authorization-gated skips.{0,80}zero failures/i)
     assert.match(septemberMigrationCorrection, /one exact five-migration pre-runtime order/i)
     assert.match(augustSubscriptionReview, /then-current three-migration order/i)
     assert.match(augustSubscriptionReview, /2026-09-01 correction above is the sole current migration inventory/i)
@@ -429,24 +439,24 @@ describe("family-and-friends server workload baseline", () => {
 
   it("keeps deployment guidance explicit about timing and launch controls", () => {
     const deploymentCostControls = namedFunctionSlice(
-      deploymentSource,
+      normalizedDeploymentSource,
       "## Family-And-Friends Launch Cost Controls",
       "## Identity, Membership Schema, And Writer Rollout",
     )
     const deploymentTimingContext = namedFunctionSlice(
-      deploymentSource,
+      normalizedDeploymentSource,
       "**BLOCKED HISTORICAL CONTEXT:**",
       "Before a sharing window",
     )
 
-    assert.match(deploymentSource, /public display catalog only/i)
+    assert.match(normalizedDeploymentSource, /public display catalog only/i)
     assert.match(deploymentCostControls, /owner is process-local and\s+single-flight/i)
     assert.match(
-      deploymentSource,
-      /stable results use a five-minute TTL[\s\S]{0,180}configured lookup or\s+malformed projection failures use a fifteen-second retry TTL/i,
+      normalizedDeploymentSource,
+      /stable results use a five-minute TTL.{0,180}configured lookup or malformed projection failures use a fifteen-second retry TTL/i,
     )
-    assert.match(deploymentSource, /2\.5-second timeout[^\n]*one SDK network retry/i)
-    assert.match(deploymentSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
+    assert.match(normalizedDeploymentSource, /Each read-only Stripe Price request has a 2\.5-second timeout and one SDK network retry/i)
+    assert.match(normalizedDeploymentSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
     assert.match(deploymentTimingContext, /^\*\*BLOCKED HISTORICAL CONTEXT:\*\*/)
     assert.match(deploymentTimingContext, /HTTP `200` observation for 21\/21 samples\s+across seven fixed routes with three samples per route/)
     assert.match(
@@ -468,26 +478,29 @@ describe("family-and-friends server workload baseline", () => {
 
   it("keeps release-checklist gates aligned with launch controls", () => {
     const releaseCostControls = namedFunctionSlice(
-      releaseChecklistSource,
+      normalizedReleaseChecklistSource,
       "## Family-And-Friends Cost And Pause Gate",
       "## Navigation And Action Feedback Gate",
     )
 
-    assert.match(releaseChecklistSource, /four logical ORM operations/i)
+    assert.match(normalizedReleaseChecklistSource, /four logical ORM operations/i)
     assert.match(releaseCostControls, /public display catalog only is process-local and single-flight/i)
     assert.match(
       releaseCostControls,
       /stable configured or exactly unconfigured results have a five-minute TTL[\s\S]{0,160}configured lookup\/malformed projection failures have a fifteen-second retry\s+TTL/i,
     )
     assert.match(releaseCostControls, /every required slot is configured before release/i)
-    assert.match(releaseChecklistSource, /zero client bootstrap\s+endpoints/i)
-    assert.match(releaseChecklistSource, /zero ordinary commerce snapshots/i)
-    assert.match(releaseChecklistSource, HISTORICAL_BROWSER_QA_RECEIPT_PATTERN)
+    assert.match(normalizedReleaseChecklistSource, /zero client bootstrap endpoints/i)
+    assert.match(normalizedReleaseChecklistSource, /zero ordinary commerce snapshots/i)
+    assert.match(normalizedReleaseChecklistSource, HISTORICAL_BROWSER_QA_RECEIPT_PATTERN)
     assert.match(
-      releaseChecklistSource,
-      /zero failures and no skips except the documented\s+authorization-gated private rows; skips are never passes/i,
+      normalizedReleaseChecklistSource,
+      /zero failures and no skips except the documented authorization-gated private rows; skips are never passes/i,
     )
-    assert.match(releaseChecklistSource, /live Stripe[^\n]*`NOT RUN`/i)
+    assert.match(
+      normalizedReleaseChecklistSource,
+      /Keep live Stripe payment\/catalog\/webhook\/Portal behavior, private database rows, provider settings, OAuth\/mail delivery, deployment, push, merge, and Production actions recorded as `NOT RUN` until each receives its separate authorization/i,
+    )
     assert.match(releaseCostControls, /MASSAGELAB_PUBLIC_REGISTRATION_PAUSED/)
     assert.match(releaseCostControls, /MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED/)
     assert.match(releaseCostControls, /switches independently/i)

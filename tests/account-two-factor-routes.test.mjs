@@ -7,6 +7,7 @@ import {
   parseTrustedAccountSecurityJson,
 } from "../lib/account-security-request.ts"
 import { authRequestNetworkIdentifier } from "../lib/auth-request.ts"
+import { settlesWithin } from "./helpers/async-control.mjs"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -626,18 +627,4 @@ function assertEnrollmentCookieCleared(response) {
     secure: false,
     path: "/api/account/security/totp",
   })
-}
-
-async function settlesWithin(promise, timeoutMs, message) {
-  let timeoutId
-  try {
-    return await Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs)
-      }),
-    ])
-  } finally {
-    clearTimeout(timeoutId)
-  }
 }

@@ -42,6 +42,18 @@ const [
 ])
 const packageJson = JSON.parse(packageJsonSource)
 
+/** Returns one exact checklist step bounded by the next checked or unchecked step heading. */
+function releasePlanStepSection(source, stepHeading, nextStepNumber) {
+  const startMarker = `**${stepHeading}**`
+  const start = source.indexOf(startMarker)
+  if (start === -1) return ""
+
+  const remaining = source.slice(start)
+  const nextHeading = new RegExp(`^- \\[[ xX]\\] \\*\\*Step ${nextStepNumber}:`, "m").exec(remaining)
+  if (!nextHeading) return ""
+  return remaining.slice(0, nextHeading.index)
+}
+
 describe("identity method safety persistence", () => {
   it("keeps the deployed limiter intact while adding privacy-safe active storage", () => {
     assert.match(schema, /enum AuthAttemptScope[\s\S]*ACCOUNT[\s\S]*NETWORK/)
@@ -117,9 +129,11 @@ describe("identity method safety persistence", () => {
     // Bound the first slice to Step 5 before Step 6 and the second to the complete
     // identity-writer drain interval before the bounded-pause paragraph. These
     // anchors prevent unrelated prose from satisfying the deployment-SHA drain gate.
-    const pausedBridgeDrain = releasePlan.match(
-      /\*\*Step 5: Prove the paused bridge and drain every pre-bridge writer\*\*[\s\S]*?(?=- \[[ xX]\] \*\*Step 6:)/,
-    )?.[0] ?? ""
+    const pausedBridgeDrain = releasePlanStepSection(
+      releasePlan,
+      "Step 5: Prove the paused bridge and drain every pre-bridge writer",
+      6,
+    )
     const identityWriterDrain = pausedBridgeDrain.match(
       /Use that same complete drain interval[\s\S]*?(?=\r?\n\r?\nDuring this bounded pause)/,
     )?.[0] ?? ""
@@ -141,12 +155,16 @@ describe("identity method safety persistence", () => {
   })
 
   it("requires complete migration integrity on both paused and unpaused deployment readbacks", () => {
-    const pausedReadback = releasePlan.match(
-      /\*\*Step 5: Prove the paused bridge[\s\S]*?(?=- \[[ xX]\] \*\*Step 6:)/,
-    )?.[0] ?? ""
-    const unpausedReadback = releasePlan.match(
-      /\*\*Step 6: Deploy the unpaused bridge[\s\S]*?(?=- \[[ xX]\] \*\*Step 7:)/,
-    )?.[0] ?? ""
+    const pausedReadback = releasePlanStepSection(
+      releasePlan,
+      "Step 5: Prove the paused bridge and drain every pre-bridge writer",
+      6,
+    )
+    const unpausedReadback = releasePlanStepSection(
+      releasePlan,
+      "Step 6: Deploy the unpaused bridge only after drain proof",
+      7,
+    )
 
     assert.notEqual(pausedReadback, "", "release plan must contain the paused deployment readback")
     assert.notEqual(unpausedReadback, "", "release plan must contain the unpaused deployment readback")
@@ -155,6 +173,24 @@ describe("identity method safety persistence", () => {
       assert.match(readback, /every committed migration current/)
       assert.match(readback, /zero unexpected or failed migrations/)
     }
+  })
+
+  it("bounds release-plan steps across checked and unchecked next headings", () => {
+    for (const checkbox of [" ", "x", "X"]) {
+      assert.equal(
+        releasePlanStepSection(
+          `- [ ] **Step 5: Current gate**\nrequired claim\n- [${checkbox}] **Step 6: Next gate**`,
+          "Step 5: Current gate",
+          6,
+        ),
+        "**Step 5: Current gate**\nrequired claim\n",
+      )
+    }
+    assert.equal(releasePlanStepSection("missing current step", "Step 5: Current gate", 6), "")
+    assert.equal(
+      releasePlanStepSection("- [ ] **Step 5: Current gate**", "Step 5: Current gate", 6),
+      "",
+    )
   })
 
   it("registers privacy-safe preflight and dormant cleanup commands", () => {

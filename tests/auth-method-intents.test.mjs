@@ -11,6 +11,7 @@ import {
 import { runCommerceTransaction } from "../lib/commerce/transactions.ts"
 import { buildRegistrationLegalProviderRedirectPath } from "../lib/legal-acceptance-gate.js"
 import { isGoogleIdentityUniqueConstraint } from "../lib/prisma-identity-unique-constraint.ts"
+import { settlesWithin } from "./helpers/async-control.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const ACCOUNT_SECURITY_JSON_HARD_LIMIT_BYTES = 4_096
@@ -1038,20 +1039,6 @@ function oversizedStreamingIntentRequest(purpose = "LINK_GOOGLE") {
     body,
     duplex: "half",
   })
-}
-
-async function settlesWithin(promise, timeoutMs, message) {
-  let timeoutId
-  try {
-    return await Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs)
-      }),
-    ])
-  } finally {
-    clearTimeout(timeoutId)
-  }
 }
 
 async function start(service, db, purpose = "SIGN_IN_OR_LINK", targetUserId, callbackPath) {
