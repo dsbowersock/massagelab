@@ -75,6 +75,18 @@ ${callbackBody}
   `, "components/providers/music-provider-account-sync-retry.test.ts")
 }
 
+/** Returns only the provider callback that owns account preference persistence. */
+function providerPersistVisualizerAccountPreferencesBody() {
+  const startMarker = /const persistVisualizerAccountPreferences = useCallback\s*\(\s*async\s*\(\s*preferences:\s*MusicVisualizerAccountPreferences,?\s*\)\s*=>\s*\{/
+  const startMatch = startMarker.exec(providerSource)
+  assert.ok(startMatch, "Music provider account-persistence callback start marker missing")
+  const bodyStart = providerSource.indexOf("{", startMatch.index) + 1
+  const endMarker = /\}\s*,\s*\[\s*(?=[^\]]*\baccountIntentTracker\b)(?=[^\]]*\bownerKey\b)(?=[^\]]*\bsyncEnabled\b)(?=[^\]]*\bwriteAppSettingsPatch\b)[^\]]*\]\s*\)/
+  const endMatch = endMarker.exec(providerSource.slice(bodyStart))
+  assert.ok(endMatch, "Music provider account-persistence callback dependency boundary missing")
+  return providerSource.slice(bodyStart, bodyStart + endMatch.index)
+}
+
 describe("Music visualizer provider contract", () => {
   it("exposes visualizer state and actions through MusicContext", () => {
     for (const contract of [
@@ -348,11 +360,13 @@ describe("Music visualizer provider contract", () => {
     assert.equal(tracker.hasIntent("owner-a"), false)
   })
 
-  it("retries the exact failed write before delegating a failed bootstrap retry", async () => {
+  it("retries the exact failed write before delegating a failed bootstrap retry", { timeout: 2_000 }, async () => {
     const { runProviderRetryVisualizerAccountSync } = loadProviderRetryVisualizerAccountSync()
     const failedPayload = { defaultBackgroundId: "failed-background", showClock: true }
     const failedAccountPayloadRef = { current: failedPayload }
     const calls = []
+    let markPersistStarted
+    const persistStarted = new Promise((resolve) => { markPersistStarted = resolve })
     let releasePersist
     const persistGate = new Promise((resolve) => { releasePersist = resolve })
     let firstRetrySettled = false
@@ -362,13 +376,14 @@ describe("Music visualizer provider contract", () => {
       failedAccountPayloadRef,
       persistVisualizerAccountPreferences: async (payload) => {
         calls.push(["persist", payload])
+        markPersistStarted()
         await persistGate
       },
       retryFallback: async () => calls.push(["fallback"]),
     })
     void firstRetry.then(() => { firstRetrySettled = true }, () => undefined)
     try {
-      await Promise.resolve()
+      await persistStarted
       assert.deepEqual(calls, [["persist", failedPayload]])
       assert.equal(firstRetrySettled, false, "retry must await the failed write")
     } finally {
@@ -561,9 +576,10 @@ describe("Persistent player visualizer boundary", () => {
 
 describe("Music visualizer account timeout boundary", () => {
   it("surfaces failed writes as retryable account errors", () => {
-    assert.match(providerSource, /const succeeded = await writeAppSettingsPatch/)
+    const persistenceBody = providerPersistVisualizerAccountPreferencesBody()
+    assert.match(persistenceBody, /await writeAppSettingsPatch\(\{ musicVisualizer: payload \}\)/)
     assert.match(
-      providerSource,
+      persistenceBody,
       /failedAccountPayloadRef\.current = payload[\s\S]*setAccountStatus\("error"\)[\s\S]*Try again/,
     )
   })

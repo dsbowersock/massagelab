@@ -1170,7 +1170,7 @@ function checkoutDependencies(calls, {
     },
     getCurrentSession: async () => {
       if (captureGuardCalls) calls.guardCallOrder.push("session")
-      calls.sessionReads += 1
+      calls.sessionReads = (calls.sessionReads ?? 0) + 1
       if (sessionError) throw sessionError
       return session
     },

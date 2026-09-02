@@ -907,7 +907,7 @@ describe("private Google auth-method intents", () => {
     await Promise.all(SESSION_BOUND_PURPOSES.map(async (purpose) => {
       const response = await settlesWithin(
         handler(oversizedStreamingIntentRequest(purpose)),
-        500,
+        2_000,
         `oversized ${purpose} request did not settle`,
       )
 

@@ -419,6 +419,8 @@ describe("Membership pricing catalog", () => {
         prices: {
           async retrieve(priceId) {
             calls.push(priceId)
+            // Each catalog build retrieves the six configured slots; fail the
+            // second build at its support-5 monthly slot, after five reads.
             const buildNumber = Math.ceil(calls.length / 6)
             if (buildNumber === 2 && priceId === "price_supporter_5_month") {
               throw new Error("temporary provider failure with private diagnostics")
@@ -529,10 +531,18 @@ describe("Membership pricing catalog", () => {
     })
 
     const catalog = await loader.get()
-    const monthPrice = catalog.plans[0].amountChoices[0].prices.month
+    const firstPlan = catalog.plans[0]
+    const amountChoices = firstPlan.amountChoices
+    const firstChoice = amountChoices[0]
+    const prices = firstChoice.prices
+    const monthPrice = prices.month
 
     assert.equal(Object.isFrozen(catalog), true)
     assert.equal(Object.isFrozen(catalog.plans), true)
+    assert.equal(Object.isFrozen(firstPlan), true)
+    assert.equal(Object.isFrozen(amountChoices), true)
+    assert.equal(Object.isFrozen(firstChoice), true)
+    assert.equal(Object.isFrozen(prices), true)
     assert.equal(Object.isFrozen(monthPrice), true)
     assert.throws(() => {
       monthPrice.displayPrice = "$999"

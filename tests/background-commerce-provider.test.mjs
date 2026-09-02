@@ -35,10 +35,21 @@ function callbackArrowBody(sourceText, callbackName) {
       ts.isVariableDeclaration(node)
       && ts.isIdentifier(node.name)
       && node.name.text === callbackName
-      && ts.isCallExpression(node.initializer)
-      && ts.isArrowFunction(node.initializer.arguments[0])
     ) {
-      matches.push(node.initializer.arguments[0].body)
+      const initializer = node.initializer
+      const firstArgument = initializer && ts.isCallExpression(initializer)
+        ? initializer.arguments[0]
+        : undefined
+      if (
+        initializer
+        && ts.isCallExpression(initializer)
+        && ts.isIdentifier(initializer.expression)
+        && initializer.expression.text === "useCallback"
+        && firstArgument
+        && ts.isArrowFunction(firstArgument)
+      ) {
+        matches.push(firstArgument.body)
+      }
     }
     ts.forEachChild(node, visit)
   }

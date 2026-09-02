@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, it } from "node:test"
+import ts from "typescript"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
@@ -67,14 +68,46 @@ function discoverSourceFiles(relativeRoot) {
   return discovered
 }
 
-/** Reports the exact forbidden data class while retaining identifier variants. */
+/** Reprints parser-recognized TypeScript without comments while preserving executable and literal text. */
+function sourceWithoutComments(sourceText) {
+  const sourceFile = ts.createSourceFile(
+    "rsc-session-leak-scan.tsx",
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  return ts.createPrinter({ removeComments: true }).printFile(sourceFile)
+}
+
+/** Reports the exact forbidden executable data class while retaining identifier variants. */
 function assertNoLeakPatterns(sourceText, relativePath, forbiddenPatterns) {
+  const executableSource = sourceWithoutComments(sourceText)
   for (const { label, pattern } of forbiddenPatterns) {
-    assert.doesNotMatch(sourceText, pattern, `${relativePath} must not contain ${label}`)
+    assert.doesNotMatch(executableSource, pattern, `${relativePath} must not contain ${label}`)
   }
 }
 
 describe("RSC session snapshot proof boundary", () => {
+  it("ignores comments in leak scans without stripping comment-like literals", () => {
+    const scanned = sourceWithoutComments(`
+      const url = "https://example.test/sessionValue"
+      const marker = "/* cookieValue retained in a string */"
+      const template = \`value \${marker} // tokenValue retained in an interpolated template\`
+      const emptyArray = [/* forbiddenUserId */]
+      consume(/* forbiddenEmail */)
+      const emptyObject = {/* forbiddenToken */}
+      // userId in a comment
+      /* emailValue in a block comment */
+    `)
+
+    assert.doesNotMatch(scanned, /userId|emailValue/)
+    assert.doesNotMatch(scanned, /forbidden(?:UserId|Email|Token)/)
+    assert.match(scanned, /https:\/\/example\.test\/sessionValue/)
+    assert.match(scanned, /cookieValue retained in a string/)
+    assert.match(scanned, /tokenValue retained in an interpolated template/)
+  })
+
   it("skips request headers when proof mode is disabled but still returns the real session", async () => {
     let headersCalls = 0
     let authCalls = 0

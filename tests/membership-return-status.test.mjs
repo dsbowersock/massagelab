@@ -339,6 +339,7 @@ describe("membership return component safety", () => {
     // Render-order useState values: persisted billing attention, busy, exhausted, retry epoch.
     const states = [persistedStatus({ state: "billing-attention" }), false, false, 0]
     let stateIndex = 0
+    let pendingFormCount = 0
     let pendingFormProps = null
     let pendingButtonProps = null
     const compiled = loadCompiledModule(
@@ -361,6 +362,7 @@ describe("membership return component safety", () => {
         },
         "@/components/forms/pending-submission-form": {
           PendingSubmissionForm(props) {
+            pendingFormCount += 1
             pendingFormProps = props
             return createElement("form", props)
           },
@@ -381,6 +383,7 @@ describe("membership return component safety", () => {
 
     const tree = renderFunctionComponents(compiled.MembershipReturnStatus({ kind: "portal" }))
     assert.equal(stateIndex, states.length, "MembershipReturnStatus must consume every render-order state fixture")
+    assert.equal(pendingFormCount, 1, "billing management must render exactly one native pending form owner")
     assert.ok(pendingFormProps, "billing management must reuse the native pending form owner")
     assert.equal(pendingFormProps.action, "/api/billing/portal")
     assert.equal(pendingFormProps.method, "post")

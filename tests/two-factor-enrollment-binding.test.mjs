@@ -130,14 +130,16 @@ describe("same-browser two-factor enrollment binding", () => {
     assert.equal(bindingModule.verifyTwoFactorEnrollmentBinding({ ...BASE_INPUT, value: longLived }), null)
   })
 
+  const validBinding = bindingModule.signTwoFactorEnrollmentBinding(BASE_INPUT)
+  const [validPayloadSegment] = validBinding.split(".")
   for (const [label, value] of [
     ["empty value", ""],
-    ["missing signature", "eyJ2ZXJzaW9uIjoxfQ"],
-    ["extra segment", "a.b.c"],
-    ["non-base64url payload", "not+base64url.signature"],
-    ["padded encoding", "e30=.signature"],
+    ["missing signature", validPayloadSegment],
+    ["extra segment", `${validBinding}.extra`],
+    ["non-base64url payload", signedPayloadSegment("not+base64url")],
+    ["padded encoding", signedPayloadSegment("e30=")],
     ["malformed JSON", signedSerializedPayload("{")],
-    ["oversized encoding", `${"a".repeat(2049)}.signature`],
+    ["oversized encoding", signedPayloadSegment("a".repeat(2049))],
   ]) {
     it(`rejects ${label}`, () => {
       assert.equal(typeof bindingModule.verifyTwoFactorEnrollmentBinding, "function")
@@ -218,6 +220,10 @@ function signedPayload(payload) {
 
 function signedSerializedPayload(serializedPayload) {
   const payloadSegment = Buffer.from(serializedPayload, "utf8").toString("base64url")
+  return signedPayloadSegment(payloadSegment)
+}
+
+function signedPayloadSegment(payloadSegment) {
   const signature = createHmac("sha256", AUTH_SECRET)
     .update(`two-factor-enrollment-binding\0${payloadSegment}`)
     .digest("base64url")

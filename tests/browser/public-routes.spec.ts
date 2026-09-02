@@ -1571,12 +1571,16 @@ test("Music visualizer background selection and account default actions preserve
 test("Music account preference owner switch ignores a delayed old-owner PUT", async ({ context, page }, testInfo) => {
   let releaseOwnerAWrite!: () => void
   let markOwnerAWriteStarted!: () => void
+  let markOwnerAWriteResponseProcessed!: () => void
   let ownerAWriteHeld = false
   const ownerAWriteGate = new Promise<void>((resolve) => {
     releaseOwnerAWrite = resolve
   })
   const ownerAWriteStarted = new Promise<void>((resolve) => {
     markOwnerAWriteStarted = resolve
+  })
+  const ownerAWriteResponseProcessed = new Promise<void>((resolve) => {
+    markOwnerAWriteResponseProcessed = resolve
   })
 
   await installSignedInSessionCookie(context, String(testInfo.project.use.baseURL), {
@@ -1608,16 +1612,23 @@ test("Music account preference owner switch ignores a delayed old-owner PUT", as
     const payload = route.request().postDataJSON() as {
       appSettings?: { musicVisualizer?: { defaultBackgroundId?: string | null; showClock?: boolean } }
     }
-    if (!ownerAWriteHeld) {
+    const isHeldOwnerAWrite = !ownerAWriteHeld
+    if (isHeldOwnerAWrite) {
       ownerAWriteHeld = true
       markOwnerAWriteStarted()
       await ownerAWriteGate
     }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ appSettings: { musicVisualizer: payload.appSettings?.musicVisualizer } }),
-    }).catch(() => undefined)
+    try {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ appSettings: { musicVisualizer: payload.appSettings?.musicVisualizer } }),
+      })
+    } catch {
+      // Reload may cancel owner A's document before its held response is released.
+    } finally {
+      if (isHeldOwnerAWrite) markOwnerAWriteResponseProcessed()
+    }
   })
 
   await page.goto("/clock?source=music&returnTo=%2Fmusic", { waitUntil: "domcontentloaded" })
@@ -1641,6 +1652,7 @@ test("Music account preference owner switch ignores a delayed old-owner PUT", as
   await expect(page.getByRole("button", { name: "Set as visualizer default", exact: true })).toBeVisible()
 
   releaseOwnerAWrite()
+  await ownerAWriteResponseProcessed
   await expect(page.getByRole("button", { name: "Set as visualizer default", exact: true })).toBeVisible()
   await expect(page.getByText("Saving visualizer default…")).toHaveCount(0)
   await expect(page.getByText(/visualizer preferences could not be saved/i)).toHaveCount(0)

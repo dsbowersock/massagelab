@@ -283,12 +283,18 @@ const specializedProviderBundle = createSpecializedProviderBundleLoader(async ()
 
 /** Opens the isolated provider fixture and returns snapshots for each demand boundary. */
 export async function exerciseSpecializedProviderHarness(page) {
-  await page.route("https://massagelab-specialized.test/fixture", (route) => route.fulfill({
+  const fixtureUrl = "https://massagelab-specialized.test/fixture"
+  const fulfillFixture = (route) => route.fulfill({
     status: 200,
     contentType: "text/html",
     body: '<main id="root"></main>',
-  }))
-  await page.goto("https://massagelab-specialized.test/fixture")
+  })
+  await page.route(fixtureUrl, fulfillFixture)
+  try {
+    await page.goto(fixtureUrl)
+  } finally {
+    await page.unroute(fixtureUrl, fulfillFixture)
+  }
   await page.addScriptTag({ content: await specializedProviderBundle() })
   await page.waitForFunction(() => (
     window.__specializedProviderHarness?.read().passiveConsumerCount === 0
