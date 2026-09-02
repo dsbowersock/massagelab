@@ -65,6 +65,13 @@ function sliceLinkProps(toolLink) {
   return toolLink.slice(start, end)
 }
 
+/** Applies one mocked state update, replaying functional callbacks exactly as configured. */
+function applyHarnessStateUpdate(current, update, replayFunctionalStateUpdaters) {
+  if (typeof update !== "function") return update
+  if (replayFunctionalStateUpdaters) update(current)
+  return update(current)
+}
+
 /** Runs the real provider through owner/sync rerenders with React-like effect cleanup. */
 function createSettingsOwnerTransitionHarness({
   replayFunctionalStateUpdaters = false,
@@ -139,16 +146,12 @@ function createSettingsOwnerTransitionHarness({
             stateSlots[cursor] = { value: typeof initial === "function" ? initial() : initial }
           }
           return [stateSlots[cursor].value, (update) => {
-            if (typeof update !== "function") {
-              stateSlots[cursor].value = update
-              return
-            }
             const current = stateSlots[cursor].value
-            const next = update(current)
-            // React Strict Mode may replay an updater, discarding its first result and committing the second.
-            stateSlots[cursor].value = replayFunctionalStateUpdaters
-              ? update(current)
-              : next
+            stateSlots[cursor].value = applyHarnessStateUpdate(
+              current,
+              update,
+              replayFunctionalStateUpdaters,
+            )
           }]
         },
       },
@@ -257,6 +260,19 @@ function createSettingsOwnerTransitionHarness({
 }
 
 describe("App settings helpers", () => {
+  it("invokes mocked functional state updaters once normally and twice during replay", () => {
+    for (const [replayFunctionalStateUpdaters, expectedCalls] of [[false, 1], [true, 2]]) {
+      let calls = 0
+      const next = applyHarnessStateUpdate(3, (current) => {
+        calls += 1
+        return current + 1
+      }, replayFunctionalStateUpdaters)
+
+      assert.equal(calls, expectedCalls, String(replayFunctionalStateUpdaters))
+      assert.equal(next, 4, String(replayFunctionalStateUpdaters))
+    }
+  })
+
   it("extracts one complete JSX tag and diagnoses missing or duplicate owners", () => {
     const source = "const fixture = <Fixture visible={count > 0} syncEnabled={false}>child</Fixture>"
 
@@ -281,7 +297,6 @@ describe("App settings helpers", () => {
     assert.doesNotMatch(settingsProviderSource, /syncEnabled\?: boolean/)
     assert.match(settingsProviderSource, /localStorage\.getItem\("massage-lab-settings"\)/)
     assert.match(settingsProviderSource, /writeAppSettingsPatch\(updated\)/)
-    assert.doesNotMatch(settingsProviderSource, /setSettings\s*\(\s*(?:\([^)]*\)|\w+)\s*=>/)
   })
 
   it("performs replay-safe effects once and retries the latest failed write online", async () => {

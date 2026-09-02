@@ -155,9 +155,6 @@ describe("registration email delivery policy", () => {
     assert.match(registerPage, /callbackUrl\?: string \| string\[\]/)
     assert.match(registerPage, /firstQueryValue\(\(await searchParams\)\.callbackUrl\)/)
     assert.match(registerForm, /Continue with Google/)
-    assert.match(registerForm, /REGISTRATION_PAUSED_MESSAGE/)
-    assert.match(registerForm, /role="status"/)
-    assert.match(registerForm, /disabled=\{!registrationOpen \|\| entryAction !== "idle"\}/)
     assert.match(registerForm, /startGoogleAuthMethodIntent\(googleRedirectTo\)/)
     assert.match(registerForm, /Create account with email/)
     assert.match(registerForm, /callbackUrl: initialCallbackUrl/)
@@ -179,6 +176,16 @@ describe("registration email delivery policy", () => {
     assert.match(registerForm, /pendingLabel="Creating account…"/)
     assert.match(registerForm, /pendingLabel="Connecting to Google…"/)
     assert.match(registerForm, /matching email[\s\S]*same account[\s\S]*inbox/i)
+  })
+
+  it("renders the registration pause and disables only the paused email submit", async () => {
+    const paused = await loadRegisterFormScenario(false)
+    assert.equal(paused.status?.props.children, REGISTRATION_PAUSED_MESSAGE)
+    assert.equal(paused.submit.props.disabled, true)
+
+    const open = await loadRegisterFormScenario(true)
+    assert.equal(open.status, null)
+    assert.equal(open.submit.props.disabled, false)
   })
 
   it("retains email entry ownership only after push and refresh both start", async () => {
@@ -420,6 +427,52 @@ async function loadLoginFormScenario({ callbackUrl, refreshError } = {}) {
     flow,
     registerHref: registerLink.props.href,
     submit: () => form.props.onSubmit({ preventDefault: () => flow.push("prevent-default") }),
+  }
+}
+
+/** Renders the real RegisterForm with inert UI owners so launch-control props remain observable. */
+async function loadRegisterFormScenario(registrationOpen) {
+  const registerSource = await readFile(new URL("../app/register/register-form.tsx", import.meta.url), "utf8")
+  const Div = passThroughElement("div")
+  const register = loadCompiledModule(registerSource, "app/register/register-form.behavior.test.tsx", {
+    react: { useState: (value) => [value, () => {}] },
+    "react/jsx-runtime": {
+      Fragment: Symbol.for("auth-registration-test.fragment"),
+      jsx: createElement,
+      jsxs: createElement,
+    },
+    "next/link": { __esModule: true, default: passThroughElement("a") },
+    "lucide-react": { Mail: Div, ShieldCheck: Div },
+    "@/components/forms/async-action-button": { AsyncActionButton: passThroughElement("button") },
+    "@/components/ui/app-surface": { AppInset: Div, AppSurface: Div },
+    "@/components/ui/input": { Input: passThroughElement("input") },
+    "@/components/ui/label": { Label: passThroughElement("label") },
+    "@/lib/auth-entry-actions": {
+      startGoogleAuthMethodIntent: async () => "navigating",
+      useEntryAction: () => ({
+        entryAction: "idle",
+        beginEntryAction: () => true,
+        finishEntryAction: () => undefined,
+      }),
+    },
+    "@/lib/auth-entry-messages": { PUBLIC_ACCOUNT_ENTRY_MESSAGE: "Check your email." },
+    "@/lib/legal-acceptance-gate": { buildRegistrationLegalProviderRedirectPath },
+    "@/lib/legal-documents": {
+      legalDocumentAcceptanceId: (document) => document.key,
+      requiredLegalDocumentsForEvent: () => [],
+    },
+    "@/lib/public-launch-controls": { REGISTRATION_PAUSED_MESSAGE },
+  })
+  const tree = renderFunctionComponents(register.RegisterForm({
+    googleEnabled: true,
+    initialCallbackUrl: "/onboarding",
+    registrationOpen,
+  }))
+  const submit = findElement(tree, (element) => element.type === "button" && element.props.type === "submit")
+  assert.ok(submit, "RegisterForm must render its email submit")
+  return {
+    status: findElement(tree, (element) => element.type === "p" && element.props.role === "status"),
+    submit,
   }
 }
 

@@ -123,18 +123,18 @@ describe("RSC session snapshot proof boundary", () => {
     let headersCalls = 0
     let authCalls = 0
     const expectedSession = { user: { id: "user-1" } }
-    const proof = loadRscProofBoundary({
-      async headers() {
-        headersCalls += 1
-        throw new Error("headers must stay unavailable outside proof mode")
-      },
-      async getCurrentSession() {
-        authCalls += 1
-        return expectedSession
-      },
-    })
 
     await withRscProofMode(undefined, async () => {
+      const proof = loadRscProofBoundary({
+        async headers() {
+          headersCalls += 1
+          throw new Error("headers must stay unavailable outside proof mode")
+        },
+        async getCurrentSession() {
+          authCalls += 1
+          return expectedSession
+        },
+      })
       assert.equal(await proof.getCurrentSession(), expectedSession)
     })
     assert.equal(headersCalls, 0)

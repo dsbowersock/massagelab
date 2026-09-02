@@ -5,7 +5,7 @@ import ts from "typescript"
 
 import { projectAccountShellAppSettings } from "../lib/account-shell-bootstrap.js"
 import * as accountPreferences from "../lib/account-preferences.js"
-import { deferred } from "./helpers/async-control.mjs"
+import { boundedLatch, deferred } from "./helpers/async-control.mjs"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -170,7 +170,7 @@ function loadStrictModeProviderHarness(loadPreferences) {
 }
 
 describe("account shell bootstrap provider", () => {
-  it("serializes and coalesces Settings and Music app-settings subpatches", async () => {
+  it("serializes and coalesces Settings and Music app-settings subpatches", { timeout: 5_000 }, async () => {
     const firstWrite = deferred()
     const sent = []
     let serverSettings = {}
@@ -198,7 +198,13 @@ describe("account shell bootstrap provider", () => {
 
     assert.equal(sent.length, 1)
     firstWrite.resolve()
-    assert.deepEqual(await Promise.all([firstSettings, music, latestSettings]), [true, true, true])
+    assert.deepEqual(
+      await boundedLatch(
+        Promise.all([firstSettings, music, latestSettings]),
+        "coalesced serialized app-settings patches",
+      ),
+      [true, true, true],
+    )
     assert.equal(sent.length, 2)
     assert.deepEqual(sent[1].patch, {
       musicVisualizer: { defaultBackgroundId: "linen", showClock: true },
@@ -213,7 +219,7 @@ describe("account shell bootstrap provider", () => {
     })
   })
 
-  it("does not let a late old-owner patch evict queued work for the current owner", async () => {
+  it("does not let a late old-owner patch evict queued work for the current owner", { timeout: 5_000 }, async () => {
     const firstWrite = deferred()
     const sent = []
     const writer = accountPreferences.createSerializedAppSettingsPatchWriter({
@@ -229,7 +235,13 @@ describe("account shell bootstrap provider", () => {
     const lateOwnerA = writer.enqueue({ ownerKey: "owner-a", patch: { appBarPosition: "top" } })
 
     firstWrite.resolve()
-    assert.deepEqual(await Promise.all([activeOwnerA, currentOwnerB, lateOwnerA]), [true, true, true])
+    assert.deepEqual(
+      await boundedLatch(
+        Promise.all([activeOwnerA, currentOwnerB, lateOwnerA]),
+        "cross-owner serialized app-settings patches",
+      ),
+      [true, true, true],
+    )
     assert.deepEqual(sent, [
       { ownerKey: "owner-a", patch: { themeMode: "light" } },
       { ownerKey: "owner-b", patch: { themeMode: "dark" } },
@@ -237,7 +249,7 @@ describe("account shell bootstrap provider", () => {
     ])
   })
 
-  it("lets the active write finish while dispose rejects queued and future writes", async () => {
+  it("lets the active write finish while dispose rejects queued and future writes", { timeout: 5_000 }, async () => {
     const activeWrite = deferred()
     const sent = []
     const writer = accountPreferences.createSerializedAppSettingsPatchWriter({
@@ -253,12 +265,20 @@ describe("account shell bootstrap provider", () => {
     writer.dispose()
     const future = writer.enqueue({ ownerKey: "owner-c", patch: { appBarPosition: "top" } })
 
-    assert.equal(await queued, false)
-    assert.equal(await future, false)
+    assert.deepEqual(
+      await boundedLatch(
+        Promise.all([queued, future]),
+        "disposed queued app-settings patches",
+      ),
+      [false, false],
+    )
     assert.deepEqual(sent, [{ ownerKey: "owner-a", patch: { themeMode: "light" } }])
 
     activeWrite.resolve()
-    assert.equal(await active, true)
+    assert.equal(
+      await boundedLatch(active, "active serialized app-settings patch after disposal"),
+      true,
+    )
     assert.equal(sent.length, 1)
   })
 

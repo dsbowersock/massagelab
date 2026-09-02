@@ -164,16 +164,28 @@ describe("trusted account-security JSON requests", () => {
 
   it("rejects malformed UTF-8 rather than parsing a replacement character", async () => {
     assert.equal(typeof requestModule.parseTrustedAccountSecurityJson, "function")
-    const request = trustedRequest({ body: new Uint8Array([0xc3, 0x28]) })
-
+    const malformedJson = new Uint8Array([0xc3, 0x28])
+    const lenientlyValidJson = new Uint8Array([
+      ...new TextEncoder().encode('{"proofMethod":"'),
+      0xc3,
+      ...new TextEncoder().encode('","confirmed":true}'),
+    ])
     assert.deepEqual(
-      await requestModule.parseTrustedAccountSecurityJson({
-        request,
-        expectedSiteUrl: SITE_URL,
-        allowedKeys: ALLOWED_KEYS,
-      }),
-      { ok: false, code: "INVALID_REQUEST" },
+      JSON.parse(new TextDecoder().decode(lenientlyValidJson)),
+      { proofMethod: "�", confirmed: true },
+      "the positive control must remain valid JSON under lenient replacement decoding",
     )
+
+    for (const body of [malformedJson, lenientlyValidJson]) {
+      assert.deepEqual(
+        await requestModule.parseTrustedAccountSecurityJson({
+          request: trustedRequest({ body }),
+          expectedSiteUrl: SITE_URL,
+          allowedKeys: ALLOWED_KEYS,
+        }),
+        { ok: false, code: "INVALID_REQUEST" },
+      )
+    }
   })
 
   it("returns the exact private no-store JSON headers", () => {

@@ -683,7 +683,7 @@ describe("private Google auth-method intents", () => {
     })
   }
 
-  it("returns exact private cookie options in development and production", async () => {
+  it("returns exact private cookie options in development and production", { concurrency: false }, async () => {
     const routeSource = await readFile(new URL("../app/api/auth/google/intent/route.ts", import.meta.url), "utf8")
     assert.match(routeSource, /"Retry-After"/)
     assert.doesNotMatch(routeSource, /access_token|refresh_token|id_token/)
@@ -907,16 +907,21 @@ describe("private Google auth-method intents", () => {
     })
 
     await Promise.all(SESSION_BOUND_PURPOSES.map(async (purpose) => {
-      const response = await settlesWithin(
-        handler(oversizedStreamingIntentRequest(purpose)),
-        2_000,
-        `oversized ${purpose} request did not settle`,
-      )
+      const request = oversizedStreamingIntentRequest(purpose)
+      try {
+        const response = await settlesWithin(
+          handler(request),
+          2_000,
+          `oversized ${purpose} request did not settle`,
+        )
 
-      assert.equal(response.status, 400, purpose)
-      assert.equal(response.headers.get("Cache-Control"), "private, no-store", purpose)
-      assert.equal(response.headers.get("Pragma"), "no-cache", purpose)
-      assert.deepEqual(await response.json(), { ok: false }, purpose)
+        assert.equal(response.status, 400, purpose)
+        assert.equal(response.headers.get("Cache-Control"), "private, no-store", purpose)
+        assert.equal(response.headers.get("Pragma"), "no-cache", purpose)
+        assert.deepEqual(await response.json(), { ok: false }, purpose)
+      } finally {
+        await request.body?.cancel().catch(() => undefined)
+      }
     }))
     assert.deepEqual(calls, { limit: 0, session: 0, intent: 0 })
   })

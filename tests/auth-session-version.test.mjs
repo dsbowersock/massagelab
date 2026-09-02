@@ -72,6 +72,58 @@ describe("JWT session-version integration contract", () => {
     resetLegalRedirectInvocations()
   })
 
+  it("routes paused Google registration through the legal acceptance gate", async () => {
+    const authSource = await read("auth.ts")
+    let capturedConfig
+    class CredentialsSignin extends Error {}
+    const NextAuth = (config) => {
+      capturedConfig = config
+      return { handlers: {}, auth: async () => null, signIn() {}, signOut() {} }
+    }
+    NextAuth.CredentialsSignin = CredentialsSignin
+
+    loadCompiledModule(authSource, "auth-legal-redirect.test.ts", {
+      "next-auth": NextAuth,
+      "next-auth/providers/credentials": (config) => config,
+      "next-auth/providers/google": (config) => config,
+      "next/headers": { cookies: async () => ({ get: () => undefined }) },
+      "@auth/prisma-adapter": { PrismaAdapter: () => ({}) },
+      "@/lib/prisma": { prisma: {} },
+      "@/lib/auth-account-linking": { googleProfileEmail: () => "", isVerifiedGoogleProfile: () => true },
+      "@/lib/auth-env": {
+        getAuthSecret: () => "test-secret",
+        getGoogleAuthConfig: () => null,
+        getSiteUrl: () => "http://localhost:3000",
+      },
+      "@/lib/auth-method-proof": { verifyPasswordMethodProof: async () => ({ status: "INVALID" }) },
+      "@/lib/auth-request": { authRequestNetworkIdentifier: () => "network" },
+      "@/lib/auth-method-intents": {
+        AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
+        parseAuthMethodIntentBinding: () => null,
+        prepareGoogleAuthentication: async () => ({
+          kind: "REGISTRATION_PAUSED",
+          callbackPath: "/legal/accept?callbackUrl=%2Fwellness",
+        }),
+      },
+      "@/lib/legal-acceptance-gate": strictLegalAcceptanceGate,
+      "@/lib/auth-users": {
+        ensureGoogleUserState: async () => {},
+        ensureUserRole: async () => {},
+        getUserAuthState: async () => null,
+      },
+      "@/lib/auth-session-version": { decideAuthSessionVersion },
+      "@/lib/auth-security": { normalizeEmail: () => "" },
+    })
+
+    const redirect = await capturedConfig.callbacks.signIn({
+      account: { provider: "google" },
+      profile: {},
+    })
+
+    assert.equal(redirect, "/register?callbackUrl=%2Fregister%3FcallbackUrl%3D%252F")
+    assert.deepEqual(legalRedirectInvocations, [["/legal/accept?callbackUrl=%2Fwellness"]])
+  })
+
   it("rejects a pre-reset JWT version after reset consumption advances the account version", async () => {
     const [resetSource] = await Promise.all([
       read("lib/password-reset-confirmation.ts"),

@@ -9,6 +9,7 @@ import { after, before, describe, it } from "node:test"
 import ts from "typescript"
 
 const providerPath = new URL("../components/backgrounds/BackgroundCommerceProvider.tsx", import.meta.url)
+const commerceClientPath = new URL("../lib/background-commerce-client.js", import.meta.url)
 const layoutPath = new URL("../components/layout-wrapper.tsx", import.meta.url)
 const carouselPath = new URL("../components/backgrounds/background-carousel.tsx", import.meta.url)
 const chimerPath = new URL("../app/chimer/page.tsx", import.meta.url)
@@ -61,7 +62,7 @@ function callbackArrowBody(sourceText, callbackName) {
 
 let providerHarnessBundlePromise
 
-/** Bundles the real provider with only its data-shape dependencies replaced by deterministic doubles. */
+/** Bundles the real provider and commerce reducer, replacing only guest-cart storage with deterministic doubles. */
 function providerHarnessBundle() {
   if (providerHarnessBundlePromise) return providerHarnessBundlePromise
 
@@ -72,7 +73,11 @@ function providerHarnessBundle() {
       const providerModulePath = path.join(fixtureRoot, "background-commerce-provider.js")
       const supportModulePath = path.join(fixtureRoot, "commerce-support.js")
       const entryPath = path.join(fixtureRoot, "entry.js")
-      const transpiledProvider = ts.transpileModule(await source(providerPath), {
+      const [providerSource, commerceClientSource] = await Promise.all([
+        source(providerPath),
+        source(commerceClientPath),
+      ])
+      const transpiledProvider = ts.transpileModule(providerSource, {
         compilerOptions: {
           jsx: ts.JsxEmit.ReactJSX,
           module: ts.ModuleKind.ESNext,
@@ -80,24 +85,7 @@ function providerHarnessBundle() {
         },
       }).outputText
       writeFileSync(providerModulePath, transpiledProvider)
-      writeFileSync(supportModulePath, `
-        export const EMPTY_BACKGROUND_COMMERCE_STATE = {
-          status: "idle", snapshot: null, pendingAction: null, error: null,
-        };
-        export function normalizeBackgroundCommerceSnapshot(value) { return value; }
-        export function shouldApplyPreferenceOwnershipProof(left, right) { return left === right; }
-        export function backgroundCommerceReducer(state, action) {
-          if (action.type === "fetch-begin") return { ...state, status: "loading", pendingAction: action };
-          if (action.type === "fetch-success") return { status: "ready", snapshot: action.snapshot, pendingAction: null, error: null };
-          if (action.type === "fetch-failure") return { ...state, status: "error", pendingAction: null, error: action.error };
-          if (action.type === "mutation-begin") return { ...state, status: "mutating", pendingAction: action, error: null };
-          if (action.type === "mutation-failure") return { ...state, status: "error", pendingAction: null, error: action.error };
-          if (action.type === "mutation-success") return { status: "ready", snapshot: action.snapshot, pendingAction: null, error: null };
-          if (action.type === "mutation-refresh-failure") return { ...state, status: "ready", pendingAction: null, error: action.error };
-          if (action.type === "checkout-redirect-begin") return { ...state, status: "redirecting", pendingAction: action, error: null };
-          if (action.type === "checkout-redirect-failure") return { ...state, status: "error", pendingAction: null, error: action.error };
-          return state;
-        }
+      writeFileSync(supportModulePath, `${commerceClientSource}
         export function createGuestBackgroundCommerceSnapshot() { return { creditBalance: 0, ownedBackgroundIds: [], cart: { items: [] } }; }
         export function readGuestBackgroundCartIds() { return []; }
         export function resolveGuestBackgroundCartItem() { return null; }
