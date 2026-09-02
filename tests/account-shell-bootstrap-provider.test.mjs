@@ -10,7 +10,10 @@ const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const providerSource = await readFile(
   new URL("../components/providers/account-shell-bootstrap-provider.tsx", import.meta.url),
   "utf8",
-).catch(() => "")
+).catch((error) => {
+  if (error?.code === "ENOENT") return ""
+  throw error
+})
 const layoutSource = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8")
 
 function deferred() {

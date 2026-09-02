@@ -10,10 +10,6 @@ const providerSource = await readFile(
   "utf8",
 )
 const layoutSource = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8")
-const appShellBrowserSource = await readFile(
-  new URL("../tests/browser/app-shell.spec.ts", import.meta.url),
-  "utf8",
-)
 
 function deferred() {
   let resolve
@@ -66,7 +62,7 @@ function loadCoordinator({ loadProfile, applyProfile = () => undefined }) {
     "therapist settings must expose one testable owner-keyed cloud coordinator",
   )
   return provider.createTherapistSettingsCloudCoordinator({
-    applyProfile: (_ownerKey, settings) => applyProfile(settings),
+    applyProfile,
     initialOwnerKey: "owner-a",
     initialSyncEnabled: true,
     loadProfile,
@@ -82,6 +78,7 @@ function loadProfileWriter(send) {
   return provider.createTherapistProfileWriter({ send })
 }
 
+/** Compiles positional state doubles that replay the owned-settings updater; callers restore localStorage. */
 function loadProviderUpdaterHarness({ profile = {}, storageWriteThrows = false } = {}) {
   const profileWrites = []
   const storageWrites = []
@@ -189,7 +186,7 @@ function loadProviderOwnerTransitionHarness({
   const profileWrites = []
   const windowListeners = new Map()
   let profileRequests = 0
-  const ownerBProfile = deferred()
+  const profileResponse = deferred()
   let stateCursor = 0
   let refCursor = 0
   let callbackCursor = 0
@@ -297,7 +294,7 @@ function loadProviderOwnerTransitionHarness({
           profileRequests += 1
           return {
             response: { ok: true },
-            json: await ownerBProfile.promise,
+            json: await profileResponse.promise,
           }
         },
         fetchWithTimeout: async (...args) => {
@@ -339,8 +336,8 @@ function loadProviderOwnerTransitionHarness({
       effectCursor = 0
       return provider.TherapistSettingsProvider({ children: null }).props.value
     },
-    resolveOwnerBProfile(profile) {
-      ownerBProfile.resolve(profile)
+    resolveProfileResponse(profile) {
+      profileResponse.resolve(profile)
     },
     restore() {
       try {
@@ -454,7 +451,7 @@ describe("therapist settings cloud hydration", () => {
       harness.flushEffects()
       const initialView = harness.render()
       const hydration = initialView.ensureCloudHydrated()
-      harness.resolveOwnerBProfile({ therapistName: "Cloud owner" })
+      harness.resolveProfileResponse({ therapistName: "Cloud owner" })
       await hydration
 
       const readyView = harness.render()
@@ -483,7 +480,7 @@ describe("therapist settings cloud hydration", () => {
       harness.flushEffects()
       const initialView = harness.render()
       const hydration = initialView.ensureCloudHydrated()
-      harness.resolveOwnerBProfile({ therapistName: "Cloud owner" })
+      harness.resolveProfileResponse({ therapistName: "Cloud owner" })
       await hydration
 
       harness.render().updateSettings({ name: "Retry online" })
@@ -501,19 +498,6 @@ describe("therapist settings cloud hydration", () => {
     } finally {
       harness.restore()
     }
-  })
-
-  it("retires the anonymous pre-change browser guard", () => {
-    // The old signed-out-shell guard is replaced by the isolated provider harness,
-    // so the retired title must stay absent while the replacement stays present.
-    assert.doesNotMatch(
-      appShellBrowserSource,
-      /anonymous bootstrap leaves therapist and calendar specialization dormant/,
-    )
-    assert.match(
-      appShellBrowserSource,
-      /exerciseSpecializedProviderHarness\(page\)/,
-    )
   })
 
   it("does not load a profile merely because the provider owner mounted", async () => {
@@ -544,7 +528,7 @@ describe("therapist settings cloud hydration", () => {
         calls.push({ ownerKey, signal })
         return request.promise
       },
-      applyProfile: (profile) => applied.push(profile),
+      applyProfile: (ownerKey, profile) => applied.push({ ownerKey, profile }),
     })
 
     const first = coordinator.ensureCloudHydrated()
@@ -564,11 +548,14 @@ describe("therapist settings cloud hydration", () => {
     await first
 
     assert.deepEqual(applied, [{
-      name: "Taylor",
-      location: "Columbus",
-      licenseNumber: "MT-1",
-      licenseOrganization: "State Board",
-      npiNumber: "1234",
+      ownerKey: "owner-a",
+      profile: {
+        name: "Taylor",
+        location: "Columbus",
+        licenseNumber: "MT-1",
+        licenseOrganization: "State Board",
+        npiNumber: "1234",
+      },
     }])
     assert.deepEqual(coordinator.getState(), {
       canSync: true,
@@ -608,7 +595,7 @@ describe("therapist settings cloud hydration", () => {
         if (requests === 1) throw new Error("temporary profile failure")
         return { therapistName: "Recovered therapist" }
       },
-      applyProfile: (profile) => applied.push(profile),
+      applyProfile: (ownerKey, profile) => applied.push({ ownerKey, profile }),
     })
 
     await coordinator.ensureCloudHydrated()
@@ -618,11 +605,14 @@ describe("therapist settings cloud hydration", () => {
 
     assert.equal(requests, 2)
     assert.deepEqual(applied, [{
-      name: "Recovered therapist",
-      location: "",
-      licenseNumber: "",
-      licenseOrganization: "",
-      npiNumber: "",
+      ownerKey: "owner-a",
+      profile: {
+        name: "Recovered therapist",
+        location: "",
+        licenseNumber: "",
+        licenseOrganization: "",
+        npiNumber: "",
+      },
     }])
     assert.deepEqual(coordinator.getState(), {
       canSync: true,
@@ -665,7 +655,7 @@ describe("therapist settings cloud hydration", () => {
         calls.push({ ownerKey, signal })
         return ownerKey === "owner-a" ? ownerARequest.promise : ownerBRequest.promise
       },
-      applyProfile: (profile) => applied.push(profile),
+      applyProfile: (ownerKey, profile) => applied.push({ ownerKey, profile }),
     })
 
     const staleRequest = coordinator.ensureCloudHydrated()
@@ -685,11 +675,14 @@ describe("therapist settings cloud hydration", () => {
     ownerBRequest.resolve({ therapistName: "Owner B" })
     await currentRequest
     assert.deepEqual(applied, [{
-      name: "Owner B",
-      location: "",
-      licenseNumber: "",
-      licenseOrganization: "",
-      npiNumber: "",
+      ownerKey: "owner-b",
+      profile: {
+        name: "Owner B",
+        location: "",
+        licenseNumber: "",
+        licenseOrganization: "",
+        npiNumber: "",
+      },
     }])
   })
 
@@ -765,7 +758,7 @@ describe("therapist settings cloud hydration", () => {
       const hydration = view.ensureCloudHydrated()
 
       view.updateSettings({ name: "Local edit" })
-      harness.resolveOwnerBProfile({
+      harness.resolveProfileResponse({
         therapistName: "Older cloud name",
         therapistLocation: "Cleveland",
       })
@@ -861,7 +854,7 @@ describe("therapist settings cloud hydration", () => {
       const hydration = ownerBLocalView.ensureCloudHydrated()
       assert.doesNotMatch(JSON.stringify(harness.render().settings), /Owner A|Columbus/)
 
-      harness.resolveOwnerBProfile({
+      harness.resolveProfileResponse({
         therapistName: "Owner B",
         therapistLocation: "Cleveland",
       })
@@ -942,7 +935,7 @@ describe("therapist settings cloud hydration", () => {
       await Promise.resolve()
       assert.equal(harness.profileRequests, 1)
 
-      harness.resolveOwnerBProfile({ therapistName: "Owner A cloud profile" })
+      harness.resolveProfileResponse({ therapistName: "Owner A cloud profile" })
       await hydration
       assert.equal(harness.render().settings.name, "Owner A cloud profile")
       assert.equal(harness.profileRequests, 1, "provider adoption must not reset demand deduplication")

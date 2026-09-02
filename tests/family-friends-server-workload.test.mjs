@@ -32,8 +32,6 @@ const [
   membershipSource,
   membershipPricingSource,
   stripeBillingSource,
-  backgroundCommerceProviderSource,
-  layoutWrapperSource,
   nextConfigSource,
   rscSessionSource,
   projectStateSource,
@@ -51,8 +49,6 @@ const [
   readFile(new URL("../lib/membership.js", import.meta.url), "utf8"),
   readFile(new URL("../lib/membership-pricing.js", import.meta.url), "utf8"),
   readFile(new URL("../lib/stripe-billing.js", import.meta.url), "utf8"),
-  readFile(new URL("../components/backgrounds/BackgroundCommerceProvider.tsx", import.meta.url), "utf8"),
-  readFile(new URL("../components/layout-wrapper.tsx", import.meta.url), "utf8"),
   readFile(new URL("../next.config.mjs", import.meta.url), "utf8"),
   readFile(new URL("../lib/rsc-session.ts", import.meta.url), "utf8"),
   readFile(new URL("../docs/project-state.md", import.meta.url), "utf8"),
@@ -155,7 +151,7 @@ function authSnapshotWorkload(calls) {
     "@/lib/membership": {
       buildEntitlements: () => {
         calls.entitlementBuilds += 1
-        return { features: ["calendar_basic"] }
+        return { features: ["premium_backgrounds"] }
       },
       loadActiveTemporaryGrants: loadTemporaryGrants,
     },
@@ -165,7 +161,7 @@ function authSnapshotWorkload(calls) {
   return { database, getUserAuthState, loadTemporaryGrants }
 }
 
-function sidebarNavigationWorkload(calls) {
+function sidebarNavigationWorkload(calls, authoritativeFeatureKeys) {
   const database = {
     userPreference: {
       async findUnique() {
@@ -226,7 +222,7 @@ function sidebarNavigationWorkload(calls) {
             id: "workload-user",
             name: "Workload Test",
             email: "workload@example.test",
-            featureKeys: ["calendar_basic"],
+            featureKeys: ["legacy_direct_auth_must_not_be_used"],
           },
         }
       },
@@ -245,7 +241,7 @@ function sidebarNavigationWorkload(calls) {
             id: "workload-user",
             name: "Workload Test",
             email: "workload@example.test",
-            featureKeys: ["calendar_basic"],
+            featureKeys: [...authoritativeFeatureKeys],
           },
         }
       },
@@ -674,7 +670,7 @@ describe("family-and-friends server workload baseline", () => {
       entitlementReads: 0,
       clientBootstrapEndpointRequests: 0,
     }
-    const sidebarWorkload = sidebarNavigationWorkload(sidebarCalls)
+    const sidebarWorkload = sidebarNavigationWorkload(sidebarCalls, authState.featureKeys)
     assert.equal(typeof sidebarWorkload.getAppSidebarData, "function")
     const shell = await sidebarWorkload.getAppSidebarData()
     if (shell.accountBootstrap?.preferenceStatus !== "ready") {
@@ -703,13 +699,8 @@ describe("family-and-friends server workload baseline", () => {
       clientBootstrapEndpointRequests: 0,
     })
     assert.equal(logicalOrmOperations, 4)
-    assert.match(backgroundCommerceProviderSource, /const ensureSnapshot/)
-    assert.doesNotMatch(
-      backgroundCommerceProviderSource,
-      /Account state must load even when there is no guest intent/,
-    )
-    assert.match(layoutWrapperSource, /ownerKey=\{ownerKey\}/)
     assert.deepEqual(shell.navigation.featureKeys, authState.featureKeys)
+    assert.deepEqual(shell.navigation.featureKeys, ["premium_backgrounds"])
     assert.deepEqual(shell.accountBootstrap, {
       ownerKey: "workload-user",
       syncEnabled: true,

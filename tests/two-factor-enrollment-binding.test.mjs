@@ -63,8 +63,12 @@ describe("same-browser two-factor enrollment binding", () => {
     assert.equal(typeof bindingModule.verifyTwoFactorEnrollmentBinding, "function")
     const value = bindingModule.signTwoFactorEnrollmentBinding(BASE_INPUT)
     const [payload, signature] = value.split(".")
-    const tamperedPayload = `${payload.slice(0, -1)}${payload.endsWith("A") ? "B" : "A"}.${signature}`
-    const tamperedSignature = `${payload}.${signature.slice(0, -1)}${signature.endsWith("A") ? "B" : "A"}`
+    const payloadBytes = Buffer.from(payload, "base64url")
+    payloadBytes[0] ^= 1
+    const signatureBytes = Buffer.from(signature, "base64url")
+    signatureBytes[0] ^= 1
+    const tamperedPayload = `${payloadBytes.toString("base64url")}.${signature}`
+    const tamperedSignature = `${payload}.${signatureBytes.toString("base64url")}`
 
     assert.equal(bindingModule.verifyTwoFactorEnrollmentBinding({ ...BASE_INPUT, value: tamperedPayload }), null)
     assert.equal(bindingModule.verifyTwoFactorEnrollmentBinding({ ...BASE_INPUT, value: tamperedSignature }), null)

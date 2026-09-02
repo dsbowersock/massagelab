@@ -48,7 +48,13 @@ async function renderPricingPage() {
         getUserMembershipPricingStatus: async () => null,
         resolveMembershipPricingMode: () => "auth",
       },
-      "@/lib/membership-pricing": { getMembershipPricingCatalog: async () => ({}) },
+      "@/lib/membership-pricing": {
+        getMembershipPricingCatalog: async () => ({
+          defaultInterval: "year",
+          intervals: [],
+          plans: [],
+        }),
+      },
       "@/lib/public-launch-controls": {
         getPublicLaunchControls: () => ({ registrationOpen: true, supporterCheckoutOpen: true }),
       },

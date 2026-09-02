@@ -24,11 +24,14 @@ describe("specialized account-shell provider browser harness", () => {
     )
   })
 
-  it("shares and caches a successful bundle build", async () => {
+  it("shares and caches a successful bundle build", { timeout: 1_000 }, async () => {
     let builds = 0
     let resolveBuild
+    let markBuildStarted
+    const buildStarted = new Promise((resolve) => { markBuildStarted = resolve })
     const loadBundle = createSpecializedProviderBundleLoader(() => {
       builds += 1
+      markBuildStarted()
       return new Promise((resolve) => {
         resolveBuild = resolve
       })
@@ -39,7 +42,7 @@ describe("specialized account-shell provider browser harness", () => {
     assert.equal(concurrent, first)
     assert.equal(builds, 0)
 
-    await Promise.resolve()
+    await buildStarted
     assert.equal(builds, 1)
     resolveBuild("compiled bundle")
     assert.equal(await first, "compiled bundle")

@@ -324,12 +324,20 @@ describe("checkout return recovery", () => {
     )?.groups?.members ?? ""
     assert.match(source, /Confirming purchase/)
     assert.notEqual(commerceMembers, "", "checkout return must consume the commerce context")
-    for (const member of ["state", "ensureSnapshot", "refresh"]) {
+    for (const member of ["state", "refresh"]) {
       assert.match(commerceMembers, new RegExp(`\\b${member}\\b`), member)
     }
-    assert.match(source, /result !== "success" && result !== "cancelled"[\s\S]*void ensureSnapshot\(\)/)
-    assert.match(source, /await refresh\(\)/)
-    assert.match(source, /catch \{[\s\S]*finally \{[\s\S]*setChecks/)
+    const initialHydrationSource = source.match(
+      /useEffect\(\(\) => \{\s*if \(result !== "success" && result !== "cancelled"\)[\s\S]*?\}, \[ensureSnapshot, result\]\)/,
+    )?.[0] ?? ""
+    assert.notEqual(initialHydrationSource, "", "checkout return initial hydration effect missing")
+    assert.match(initialHydrationSource, /void ensureSnapshot\(\)/)
+    const checkAgainSource = source.match(
+      /const checkAgain = useCallback\(async \(\) => \{[\s\S]*?\}, \[refresh\]\)/,
+    )?.[0] ?? ""
+    assert.notEqual(checkAgainSource, "", "checkout return retry callback missing")
+    assert.match(checkAgainSource, /await refresh\(\)/)
+    assert.match(checkAgainSource, /catch \{[\s\S]*finally \{[\s\S]*setChecks/)
     assert.match(source, /ownedBackgroundIds/)
     assert.match(source, /Check again/)
     assert.doesNotMatch(source, /session_id|ownedBackgroundIds\.push|grantOwnership/)

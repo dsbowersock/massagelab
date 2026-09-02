@@ -32,6 +32,7 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
 
 const initialAtmosphereFixturePattern =
   /installAtmosphereFixtures\(\s*page,\s*allowedExternalUrls,\s*\[\],\s*initialAtmosphereSampleIndexUrls,?\s*\)/g
+const musicPathGuardPattern = /if\s*\(\s*path\s*===\s*["']\/music["']\s*\)\s*\{/
 
 /** Finds the closing brace for a known block opener without depending on source indentation. */
 function findMatchingBraceIndex(source, openingBraceIndex) {
@@ -48,7 +49,9 @@ function findMatchingBraceIndex(source, openingBraceIndex) {
 
 test("Atmosphere fixture matching survives wrapped calls and reindented nested guards", () => {
   const source = [
-    'if (path === "/music") {',
+    "if (",
+    "\tpath === '/music'",
+    ") {",
     "\tif (shouldPrewarm) {",
     "\t\tinstallAtmosphereFixtures(",
     "\t\t\tpage,",
@@ -60,8 +63,10 @@ test("Atmosphere fixture matching survives wrapped calls and reindented nested g
     "}",
     "await page.goto(path)",
   ].join("\n")
-  const guardIndex = source.indexOf('if (path === "/music")')
-  const openingBraceIndex = source.indexOf("{", guardIndex)
+  const guardMatch = musicPathGuardPattern.exec(source)
+  assert.ok(guardMatch)
+  const guardIndex = guardMatch.index
+  const openingBraceIndex = guardIndex + guardMatch[0].lastIndexOf("{")
   const closingBraceIndex = findMatchingBraceIndex(source, openingBraceIndex)
 
   assert.equal((source.match(initialAtmosphereFixturePattern) ?? []).length, 1)
@@ -246,10 +251,10 @@ test("public media journeys fixture opportunistic atmosphere prewarms", async ()
   assert.ok(coreRouteLoop, "the multi-route core journey keeps an explicit route list")
   const coreRoutePaths = [...coreRouteLoop[1].matchAll(/"([^"]+)"/g)].map((match) => match[1])
   assert.equal(coreRoutePaths.at(-1), "/music", "the multi-route core journey visits Music last")
-  const coreMusicGuardIndex = coreToolsSource.indexOf('if (path === "/music") {')
-  assert.notEqual(coreMusicGuardIndex, -1, "the multi-route core journey has a Music-only fixture guard")
-  const coreMusicGuardOpeningBraceIndex = coreToolsSource.indexOf("{", coreMusicGuardIndex)
-  assert.notEqual(coreMusicGuardOpeningBraceIndex, -1, "the Music-only fixture guard has an opening brace")
+  const coreMusicGuardMatch = musicPathGuardPattern.exec(coreToolsSource)
+  assert.ok(coreMusicGuardMatch, "the multi-route core journey has a Music-only fixture guard")
+  const coreMusicGuardIndex = coreMusicGuardMatch.index
+  const coreMusicGuardOpeningBraceIndex = coreMusicGuardIndex + coreMusicGuardMatch[0].lastIndexOf("{")
   const coreFixtureIndex = coreToolsSource.search(initialAtmosphereFixturePattern)
   const coreMusicGuardEndIndex = findMatchingBraceIndex(coreToolsSource, coreMusicGuardOpeningBraceIndex)
   assert.notEqual(coreMusicGuardEndIndex, -1, "the Music-only fixture guard has an explicit boundary")

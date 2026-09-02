@@ -100,12 +100,20 @@ async function abortHeldFixtureRequest(route: Route) {
   }
 }
 
+/** Recognizes only Playwright route cancellations that cleanup itself can cause. */
+function isHeldRouteTeardownCancellation(error: unknown) {
+  if (!(error instanceof Error)) return false
+  return /^route\.(?:abort|fetch|fulfill):/.test(error.message)
+    && /(?:Route is already handled!|Target page, context or browser has been closed|Request context disposed)/.test(error.message)
+}
+
 /** Holds one real App Router response so a route-owned readiness barrier can be proven. */
 async function holdRscNavigationResponse(page: Page, pathname: string) {
   const matchesPathname = (url: URL) => url.pathname === pathname
   let releaseHold: () => void = () => undefined
   let markRequestStarted: () => void = () => undefined
   let requestStarted = false
+  let suppressTeardownCancellations = false
   const activeRequests = new Set<Promise<void>>()
   const hold = new Promise<void>((resolve) => {
     releaseHold = resolve
@@ -114,31 +122,36 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
     markRequestStarted = resolve
   })
   const handler = async (route: Route) => {
-    const request = route.request()
-    const headers = request.headers()
-    if (headers["next-router-prefetch"] || headers.purpose === "prefetch") {
-      await route.abort()
-      return
-    }
-    if (headers.rsc || request.isNavigationRequest()) {
-      requestStarted = true
-      markRequestStarted()
-      let markRequestFinished: () => void = () => undefined
-      const requestFinished = new Promise<void>((resolve) => {
-        markRequestFinished = resolve
-      })
-      activeRequests.add(requestFinished)
-      try {
-        const response = await route.fetch()
-        await hold
-        await route.fulfill({ response })
-      } finally {
-        activeRequests.delete(requestFinished)
-        markRequestFinished()
+    try {
+      const request = route.request()
+      const headers = request.headers()
+      if (headers["next-router-prefetch"] || headers.purpose === "prefetch") {
+        await route.abort()
+        return
       }
-      return
+      if (headers.rsc || request.isNavigationRequest()) {
+        requestStarted = true
+        markRequestStarted()
+        let markRequestFinished: () => void = () => undefined
+        const requestFinished = new Promise<void>((resolve) => {
+          markRequestFinished = resolve
+        })
+        activeRequests.add(requestFinished)
+        try {
+          const response = await route.fetch()
+          await hold
+          await route.fulfill({ response })
+        } finally {
+          activeRequests.delete(requestFinished)
+          markRequestFinished()
+        }
+        return
+      }
+      await route.continue()
+    } catch (error) {
+      if (suppressTeardownCancellations && isHeldRouteTeardownCancellation(error)) return
+      throw error
     }
-    await route.continue()
   }
   await page.route(matchesPathname, handler)
   return {
@@ -157,7 +170,8 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
         if (timeoutId !== undefined) clearTimeout(timeoutId)
       }
     },
-    async releaseAndCleanup() {
+    async releaseAndCleanup({ teardown = false }: { teardown?: boolean } = {}) {
+      suppressTeardownCancellations = teardown
       releaseHold()
       if (requestStarted) await Promise.all([...activeRequests])
       await page.unroute(matchesPathname, handler)
@@ -1883,9 +1897,9 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
   })
   } finally {
     try {
-      if (homeHoldActive) await homeHold.releaseAndCleanup()
+      if (homeHoldActive) await homeHold.releaseAndCleanup({ teardown: true })
     } finally {
-      if (wellnessHoldActive && wellnessHold) await wellnessHold.releaseAndCleanup()
+      if (wellnessHoldActive && wellnessHold) await wellnessHold.releaseAndCleanup({ teardown: true })
     }
   }
 })

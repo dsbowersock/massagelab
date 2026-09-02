@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { readFileSync, existsSync } from "node:fs"
 import { describe, it } from "node:test"
+import { safePostLegalAcceptanceCallback } from "../lib/legal-acceptance-gate.js"
 
 const schema = readFileSync(new URL("../prisma/schema.prisma", import.meta.url), "utf8")
 const actions = readFileSync(new URL("../app/calendar/actions.ts", import.meta.url), "utf8")
@@ -15,7 +16,6 @@ const publicBookingSequences = readFileSync(new URL("../lib/public-booking-seque
 const calendarActionServiceCatalog = readFileSync(new URL("../app/calendar/actions/service-catalog.ts", import.meta.url), "utf8")
 const calendarActionPublicBooking = readFileSync(new URL("../app/calendar/actions/public-booking.ts", import.meta.url), "utf8")
 const loginForm = readFileSync(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
-const legalAcceptanceGate = readFileSync(new URL("../lib/legal-acceptance-gate.js", import.meta.url), "utf8")
 const authEntryActions = readFileSync(new URL("../lib/auth-entry-actions.ts", import.meta.url), "utf8")
 const registerPage = readFileSync(new URL("../app/register/page.tsx", import.meta.url), "utf8")
 const authRoute = readFileSync(new URL("../app/api/auth/[...nextauth]/route.ts", import.meta.url), "utf8")
@@ -96,13 +96,22 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(loginForm, /isRegistrationLegalAcceptancePath\(requestedCallbackUrl\)/)
     assert.match(loginForm, /buildRegistrationLegalProviderRedirectPath\(requestedCallbackUrl\)/)
     assert.match(loginForm, /safePostLegalAcceptanceCallback\(requestedCallbackUrl, "\/account"\)/)
-    assert.match(legalAcceptanceGate, /export function safePostLegalAcceptanceCallback/)
-    assert.match(legalAcceptanceGate, /!path\.startsWith\("\/"\)/)
-    assert.match(legalAcceptanceGate, /path\.startsWith\("\/\/"\)/)
-    assert.match(legalAcceptanceGate, /path\.includes\("\\\\"\)/)
-    assert.match(legalAcceptanceGate, /parsed\.origin !== "https:\/\/massagelab\.invalid"/)
-    assert.match(legalAcceptanceGate, /normalizedPathname === "\/api"[\s\S]*normalizedPathname\.startsWith\("\/api\/"\)/)
-    assert.match(legalAcceptanceGate, /normalizedPathname === "\/legal"[\s\S]*normalizedPathname\.startsWith\("\/legal\/"\)/)
+    for (const callback of ["/calendar/booking", "/book/ohio/example-practice?step=time"]) {
+      assert.equal(safePostLegalAcceptanceCallback(callback, "/account"), callback)
+    }
+    for (const unsafeCallback of [
+      "https://evil.example/calendar",
+      "//evil.example/calendar",
+      "/calendar\\booking",
+      "/api/calendar/sidebar-context",
+      "/legal/accept?callbackUrl=%2Fcalendar",
+    ]) {
+      assert.equal(
+        safePostLegalAcceptanceCallback(unsafeCallback, "/account"),
+        "/account",
+        unsafeCallback,
+      )
+    }
     assert.match(loginForm, /router\.push\(callbackUrl\)/)
     assert.match(loginForm, /buildRegistrationLegalProviderRedirectPath/)
     assert.match(loginForm, /const googleCallbackUrl = hasCallbackUrl \? callbackUrl : "\/onboarding"/)

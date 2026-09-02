@@ -1004,9 +1004,14 @@ test("global account cart appears after explicit cart intent and stays hidden on
     }),
   })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
   const trigger = page.locator("[data-commerce-cart-trigger]:visible")
   await expect(trigger).toHaveCount(0)
-  expect(fixture.getSnapshotReads()).toBe(0)
+  for (const settleDelayMs of [0, 100, 250]) {
+    if (settleDelayMs > 0) await page.waitForTimeout(settleDelayMs)
+    expect(fixture.getSnapshotReads()).toBe(0)
+  }
 
   await page.goto("/music?commerceCart=open", { waitUntil: "domcontentloaded" })
   const cartDialog = page.getByRole("dialog", { name: "Account cart" })

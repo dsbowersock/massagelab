@@ -140,6 +140,7 @@ describe("two-factor management route boundaries", () => {
         assert.equal(response.status, expectedStatus, `${name}: ${label}`)
         assert.deepEqual(body, { code: expectedCode }, `${name}: ${label}`)
         assert.deepEqual(scenario.counts(), {
+          moduleSession: 0,
           session: 0,
           intent: 0,
           service: 0,
@@ -186,6 +187,7 @@ describe("two-factor management route boundaries", () => {
       assert.equal(response.status, 400, name)
       assert.deepEqual(await response.json(), { code: "INVALID_REQUEST" }, name)
       assert.deepEqual(scenario.counts(), {
+        moduleSession: 0,
         session: 0,
         intent: 0,
         service: 0,
@@ -451,6 +453,7 @@ function loadRoute(name, {
   resolvedIntent = { id: "intent-1", targetUserId: "user-1" },
   secureCookies = false,
 } = {}) {
+  const moduleSessionCalls = []
   const sessionCalls = []
   const intentCalls = []
   const serviceCalls = []
@@ -469,7 +472,12 @@ function loadRoute(name, {
       default: { toDataURL: async () => "data:image/png;base64,cXI=" },
       toDataURL: async () => "data:image/png;base64,cXI=",
     },
-    "@/auth": { getCurrentSession: async () => session },
+    "@/auth": {
+      getCurrentSession: async () => {
+        moduleSessionCalls.push(true)
+        return session
+      },
+    },
     "@/lib/account-security-request": { noStoreJsonHeaders, parseTrustedAccountSecurityJson },
     "@/lib/account-surface-data": { clearAccountSurfaceDataCache: () => {} },
     "@/lib/auth-env": { getAuthSecret: () => "route-secret", getSiteUrl: () => SITE_URL },
@@ -537,6 +545,7 @@ function loadRoute(name, {
     cacheCalls,
     get clockCalls() { return clockCalls },
     counts: () => ({
+      moduleSession: moduleSessionCalls.length,
       session: sessionCalls.length,
       intent: intentCalls.length,
       service: serviceCalls.length,

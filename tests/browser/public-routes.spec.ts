@@ -545,19 +545,11 @@ async function installAtmosphereFixtures(
     })
   }
 
-  const playbackPayloadUrls = playbackPieceIds.flatMap((pieceId) => {
-    if (pieceId === "observable-streams") {
-      return [
-        deterministicAtmospherePayloadUrls.observableCorAnglais,
-        deterministicAtmospherePayloadUrls.observablePiano,
-        deterministicAtmospherePayloadUrls.observableViolin,
-      ]
-    }
-    if (pieceId === "last-transit") return [deterministicAtmospherePayloadUrls.lastTransitTruck]
-    return pieceId === "peace"
-      ? [deterministicAtmospherePayloadUrls.peaceFlute]
-      : [deterministicAtmospherePayloadUrls.treesPiano]
-  })
+  const playbackPayloadUrls = [...new Set(playbackPieceIds.flatMap((pieceId) => (
+    Object.values(playbackIndexes[pieceId]).flatMap((payloads) => (
+      Array.isArray(payloads) ? payloads : Object.values(payloads)
+    ))
+  )))]
   const externalPlaybackPayloadUrls = playbackPayloadUrls.filter((url) => !url.startsWith("/"))
   if (externalPlaybackPayloadUrls.length > 0) {
     const playbackPayloadBody = await readFile(
