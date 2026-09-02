@@ -8,6 +8,7 @@ import {
 } from "./compiled-module.mjs"
 import { BILLING_PORTAL_DESTINATIONS } from "../../lib/billing-portal-destinations.js"
 import { resolveMembershipPriceForInterval } from "../../lib/membership-pricing.js"
+import { SUPPORTER_CHECKOUT_PAUSED_MESSAGE } from "../../lib/public-launch-controls.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const pricingCardsSource = await readFile(
@@ -19,6 +20,7 @@ function TestComponent() {}
 const Div = passThroughElement("div")
 const Button = passThroughElement("button")
 const Link = passThroughElement("a")
+const Form = passThroughElement("form")
 const pricingCards = loadCompiledModule(
   pricingCardsSource,
   "components/membership/pricing-cards.tsx",
@@ -55,6 +57,10 @@ const pricingCards = loadCompiledModule(
     "@/components/ui/metal-attention-button": {
       MetalAttentionButton: Button,
     },
+    "@/components/forms/pending-submission-form": {
+      PendingSubmissionForm: Form,
+      PendingSubmitButton: Button,
+    },
     "@/components/ui/tabs": {
       Tabs: Div,
       TabsContent: Div,
@@ -73,6 +79,9 @@ const pricingCards = loadCompiledModule(
     },
     "@/lib/membership-pricing": {
       resolveMembershipPriceForInterval,
+    },
+    "@/lib/public-launch-controls": {
+      SUPPORTER_CHECKOUT_PAUSED_MESSAGE,
     },
     "@/lib/utils": {
       cn: (...classes) => classes.filter(Boolean).join(" "),
@@ -141,6 +150,7 @@ export function renderMembershipPricingCards({
   activeMembershipLevel = mode === "portal" ? "SUPPORTER" : null,
   amountChoices = defaultAmountChoices(),
   portalActionAvailable = true,
+  supporterCheckoutOpen = true,
   interval = "month",
 }) {
   const catalog = {
@@ -166,5 +176,6 @@ export function renderMembershipPricingCards({
     catalog,
     mode,
     portalActionAvailable,
+    supporterCheckoutOpen,
   }))
 }

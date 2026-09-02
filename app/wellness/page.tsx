@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { HeartPulse, Radio, Wind } from "lucide-react"
 import type { Prisma } from "@prisma/client"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { WellnessHubClient, type WellnessTimelineEntry } from "@/components/wellness/wellness-hub-client"
 import type {
   ClientWellnessReminderSchedule,

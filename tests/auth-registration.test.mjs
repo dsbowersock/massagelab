@@ -1,7 +1,13 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
-import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import {
+  createCompiledModuleLoader,
+  createElement,
+  findElement,
+  passThroughElement,
+  renderFunctionComponents,
+} from "./helpers/compiled-module.mjs"
 import {
   buildVerificationEmailUrl,
   buildVerificationLoginPath,
@@ -11,10 +17,46 @@ import {
   registrationVerificationResponse,
   sendRegistrationVerification,
 } from "../lib/auth-registration.js"
+import {
+  buildRegistrationLegalProviderRedirectPath,
+  isRegistrationLegalAcceptancePath,
+  safePostLegalAcceptanceCallback,
+} from "../lib/legal-acceptance-gate.js"
+import { REGISTRATION_PAUSED_MESSAGE } from "../lib/public-launch-controls.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
 describe("registration email delivery policy", () => {
+  it("returns the registration pause before parsing or account work", async () => {
+    const afterCallbacks = []
+    let jsonCalls = 0
+    let registrationCalls = 0
+    const { POST } = await loadRegistrationRoute({
+      afterCallbacks,
+      registrationOpen: false,
+      registerWork: async () => {
+        registrationCalls += 1
+        return { status: "ACCEPTED" }
+      },
+    })
+
+    const response = await POST({
+      headers: new Headers(),
+      json: async () => {
+        jsonCalls += 1
+        throw new Error("paused registration must not parse a body")
+      },
+    })
+
+    assert.equal(response.status, 503)
+    assert.deepEqual(await response.json(), {
+      message: REGISTRATION_PAUSED_MESSAGE,
+    })
+    assert.equal(jsonCalls, 0)
+    assert.equal(registrationCalls, 0)
+    assert.deepEqual(afterCallbacks, [])
+  })
+
   it("returns success only when verification has a deliverable path", () => {
     assert.deepEqual(registrationVerificationResponse({ delivered: true }), {
       status: 200,
@@ -38,6 +80,7 @@ describe("registration email delivery policy", () => {
 
   it("delegates every valid account state to the enumeration-safe registration owner", async () => {
     const registerRoute = await readFile(new URL("../app/api/account/register/route.ts", import.meta.url), "utf8")
+    const authMail = await readFile(new URL("../lib/auth-mail.ts", import.meta.url), "utf8")
 
     assert.match(registerRoute, /registerPasswordAccount\(\{/)
     assert.match(registerRoute, /verifyPassword,/)
@@ -48,6 +91,13 @@ describe("registration email delivery policy", () => {
     assert.match(registerRoute, /PUBLIC_ACCOUNT_ENTRY_MESSAGE[\s\S]*status: 202/)
     assert.doesNotMatch(registerRoute, /prisma\.(?:user|emailVerificationToken|passwordResetToken)\./)
     assert.doesNotMatch(registerRoute, /account already exists/i)
+    assert.match(registerRoute, /sendPasswordSetup: sendPasswordSetupEmail/)
+    assert.doesNotMatch(registerRoute, /sendPasswordReset: sendPasswordResetEmail/)
+    assert.match(authMail, /export async function sendPasswordSetupEmail/)
+    assert.match(authMail, /same MassageLab account/i)
+    assert.match(authMail, /does not create a duplicate account/i)
+    assert.match(authMail, /does not disconnect Google sign-in/i)
+    assert.match(authMail, /ignore this email and nothing will change/i)
   })
 
   it("validates before delegating quota-first work and maps exact rate-limit metadata", async () => {
@@ -98,6 +148,8 @@ describe("registration email delivery policy", () => {
     const loginForm = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
 
     assert.match(registerPage, /hasGoogleAuthConfig/)
+    assert.match(registerPage, /getPublicLaunchControls/)
+    assert.match(registerPage, /registrationOpen=\{getPublicLaunchControls\(\)\.registrationOpen\}/)
     assert.match(registerPage, /initialCallbackUrl=\{callbackUrl\}/)
     assert.match(registerPage, /Only allow same-origin, root-relative post-registration redirects/)
     assert.match(registerPage, /callbackUrl\?: string \| string\[\]/)
@@ -109,6 +161,7 @@ describe("registration email delivery policy", () => {
     assert.match(registerForm, /buildRegistrationLegalProviderRedirectPath/)
     assert.match(registerForm, /REGISTRATION_REQUEST_FAILED_MESSAGE/)
     assert.match(registerForm, /if \(!beginEntryAction\("email"\)\) return/)
+    assert.match(registerForm, /finally \{\s*finishEntryAction\(\)/)
     assert.match(registerForm, /if \(!navigating\) finishEntryAction\(\)/)
     assert.match(registerForm, /role=\{statusIsError \? "alert" : "status"\}/)
     assert.match(registerForm, /aria-live=\{statusIsError \? "assertive" : "polite"\}/)
@@ -116,12 +169,98 @@ describe("registration email delivery policy", () => {
       assert.match(source, /useEntryAction\(\)/, name)
       assert.match(source, /startGoogleAuthMethodIntent\(googleRedirectTo\)/, name)
       assert.doesNotMatch(source, /emailSubmissionLock|googleSubmissionLock|registrationSubmissionLock/, name)
-      assert.match(source, /disabled=\{entryAction !== "idle"\}/, name)
     }
-    assert.match(loginForm, /entryAction === "email" \? "Signing in…" : "Sign in with email"/)
-    assert.match(loginForm, /entryAction === "google" \? "Starting Google sign-in…" : "Continue with Google"/)
-    assert.match(registerForm, /entryAction === "email" \? "Creating account…" : "Create account with email"/)
-    assert.match(registerForm, /entryAction === "google" \? "Starting Google registration…" : "Continue with Google"/)
+    assert.match(loginForm, /disabled=\{entryAction !== "idle"\}/)
+    assert.match(loginForm, /pendingLabel="Signing in…"/)
+    assert.match(loginForm, /pendingLabel="Connecting to Google…"/)
+    assert.match(registerForm, /pendingLabel="Creating account…"/)
+    assert.match(registerForm, /pendingLabel="Connecting to Google…"/)
+    assert.match(registerForm, /matching email[\s\S]*same account[\s\S]*inbox/i)
+  })
+
+  it("renders the registration pause and disables only the paused email submit", async () => {
+    const paused = await loadRegisterFormScenario(false)
+    assert.equal(paused.status?.props.children, REGISTRATION_PAUSED_MESSAGE)
+    assert.equal(paused.submit.props.disabled, true)
+
+    const open = await loadRegisterFormScenario(true)
+    assert.equal(open.status, null)
+    assert.equal(open.submit.props.disabled, false)
+  })
+
+  it("retains email entry ownership only after push and refresh both start", async () => {
+    const completed = await loadLoginFormScenario()
+    await completed.submit()
+    assert.deepEqual(completed.flow, [
+      "prevent-default",
+      "begin:email",
+      "sign-in:credentials",
+      "push:/account",
+      "refresh",
+    ])
+
+    const interrupted = await loadLoginFormScenario({ refreshError: new Error("navigation interrupted") })
+    await interrupted.submit()
+    assert.deepEqual(interrupted.flow, [
+      "prevent-default",
+      "begin:email",
+      "sign-in:credentials",
+      "push:/account",
+      "refresh",
+      "finish",
+    ])
+  })
+
+  it("preserves one sanitized legal-accept callback in the login registration handoff", async () => {
+    const loginForm = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
+
+    assert.match(loginForm, /const requestedCallbackUrl = searchParams\.get\("callbackUrl"\)/)
+    assert.match(
+      loginForm,
+      /isRegistrationLegalAcceptancePath\(requestedCallbackUrl\)[\s\S]*buildRegistrationLegalProviderRedirectPath\(requestedCallbackUrl\)[\s\S]*safePostLegalAcceptanceCallback\(requestedCallbackUrl, "\/account"\)/,
+    )
+    assert.match(
+      loginForm,
+      /href=\{`\/register\?callbackUrl=\$\{encodeURIComponent\(callbackUrl\)\}`\}/,
+    )
+  })
+
+  it("rebuilds one legal-acceptance callback in the register link", async () => {
+    const scenario = await loadLoginFormScenario({
+      callbackUrl: "/legal/accept?callbackUrl=%2Fclock%3Fpanel%3Dbackground&callbackUrl=%2Fother&ignored=1",
+    })
+
+    assert.equal(
+      scenario.registerHref,
+      "/register?callbackUrl=%2Flegal%2Faccept%3FcallbackUrl%3D%252Fclock%253Fpanel%253Dbackground",
+    )
+  })
+
+  it("uses fixed truthful setup copy for Google-linked and other passwordless accounts", async () => {
+    const authMail = await import("../lib/auth-mail.ts")
+    assert.equal(typeof authMail.passwordSetupEmailCopy, "function")
+
+    const google = authMail.passwordSetupEmailCopy("https://massagelab.app/reset-password?token=safe", true)
+    const other = authMail.passwordSetupEmailCopy("https://massagelab.app/reset-password?token=safe", false)
+
+    assert.match(google.text, /same MassageLab account/i)
+    assert.match(google.text, /does not create a duplicate account/i)
+    assert.match(google.text, /does not disconnect Google sign-in/i)
+    assert.match(other.text, /existing MassageLab account/i)
+    assert.match(other.text, /existing sign-in methods remain connected/i)
+    assert.doesNotMatch(other.text, /Google/i)
+  })
+
+  it("offers privacy-neutral verification resend from login and every unresolved verification state", async () => {
+    const loginForm = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
+    const verifyPage = await readFile(new URL("../app/verify-email/page.tsx", import.meta.url), "utf8")
+    const resendForm = await readFile(new URL("../app/verify-email/resend-verification-form.tsx", import.meta.url), "utf8")
+
+    assert.match(loginForm, /href=\{verificationRequestHref\}[\s\S]*Resend verification email/)
+    assert.match(verifyPage, /import \{ ResendVerificationForm \}/)
+    assert.match(verifyPage, /!verified[\s\S]*<ResendVerificationForm callbackUrl=\{callbackUrl\}/)
+    assert.match(resendForm, /JSON\.stringify\(\{ email, callbackUrl \}\)/)
+    assert.doesNotMatch(resendForm, /[?&]email=|searchParams\.set\("email"/)
   })
 
   it("preserves an app-local callback through email verification and sign-in", async () => {
@@ -217,7 +356,127 @@ describe("registration email delivery policy", () => {
   })
 })
 
-async function loadRegistrationRoute({ afterCallbacks, registerWork }) {
+/** Executes the real email-login handler with deterministic entry and router owners. */
+async function loadLoginFormScenario({ callbackUrl, refreshError } = {}) {
+  const loginSource = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
+  const flow = []
+  const searchParams = new URLSearchParams()
+  if (callbackUrl !== undefined) searchParams.set("callbackUrl", callbackUrl)
+  const router = {
+    push(path) {
+      flow.push(`push:${path}`)
+    },
+    refresh() {
+      flow.push("refresh")
+      if (refreshError) throw refreshError
+    },
+  }
+  const Div = passThroughElement("div")
+  const login = loadCompiledModule(loginSource, "app/login/login-form.behavior.test.tsx", {
+    react: { useState: (value) => [value, () => {}] },
+    "react/jsx-runtime": {
+      Fragment: Symbol.for("auth-registration-test.fragment"),
+      jsx: createElement,
+      jsxs: createElement,
+    },
+    "next/link": { __esModule: true, default: passThroughElement("a") },
+    "next/navigation": {
+      useRouter: () => router,
+      useSearchParams: () => searchParams,
+    },
+    "next-auth/react": {
+      signIn: async (provider) => {
+        flow.push(`sign-in:${provider}`)
+        return { error: null }
+      },
+    },
+    "lucide-react": { Mail: Div, ShieldCheck: Div },
+    "@/components/forms/async-action-button": { AsyncActionButton: passThroughElement("button") },
+    "@/components/ui/app-surface": { AppInset: Div, AppSurface: Div },
+    "@/components/ui/input": { Input: passThroughElement("input") },
+    "@/components/ui/label": { Label: passThroughElement("label") },
+    "@/lib/auth-entry-actions": {
+      startGoogleAuthMethodIntent: async () => "navigating",
+      useEntryAction: () => ({
+        entryAction: "idle",
+        beginEntryAction(action) {
+          flow.push(`begin:${action}`)
+          return true
+        },
+        finishEntryAction() {
+          flow.push("finish")
+        },
+      }),
+    },
+    "@/lib/auth-registration": { buildVerificationRequestPath: () => "/verify-email" },
+    "@/lib/legal-acceptance-gate": {
+      buildRegistrationLegalProviderRedirectPath,
+      isRegistrationLegalAcceptancePath,
+      safePostLegalAcceptanceCallback,
+    },
+  })
+  const tree = renderFunctionComponents(login.LoginForm({ googleEnabled: true }))
+  const form = findElement(tree, (element) => element.type === "form")
+  assert.ok(form, "LoginForm must render its email form")
+  const registerLink = findElement(tree, (element) => (
+    element.type === "a" && element.props.children === "Create an account"
+  ))
+  assert.ok(registerLink, "LoginForm must render its registration link")
+
+  return {
+    flow,
+    registerHref: registerLink.props.href,
+    submit: () => form.props.onSubmit({ preventDefault: () => flow.push("prevent-default") }),
+  }
+}
+
+/** Renders the real RegisterForm with inert UI owners so launch-control props remain observable. */
+async function loadRegisterFormScenario(registrationOpen) {
+  const registerSource = await readFile(new URL("../app/register/register-form.tsx", import.meta.url), "utf8")
+  const Div = passThroughElement("div")
+  const register = loadCompiledModule(registerSource, "app/register/register-form.behavior.test.tsx", {
+    react: { useState: (value) => [value, () => {}] },
+    "react/jsx-runtime": {
+      Fragment: Symbol.for("auth-registration-test.fragment"),
+      jsx: createElement,
+      jsxs: createElement,
+    },
+    "next/link": { __esModule: true, default: passThroughElement("a") },
+    "lucide-react": { Mail: Div, ShieldCheck: Div },
+    "@/components/forms/async-action-button": { AsyncActionButton: passThroughElement("button") },
+    "@/components/ui/app-surface": { AppInset: Div, AppSurface: Div },
+    "@/components/ui/input": { Input: passThroughElement("input") },
+    "@/components/ui/label": { Label: passThroughElement("label") },
+    "@/lib/auth-entry-actions": {
+      startGoogleAuthMethodIntent: async () => "navigating",
+      useEntryAction: () => ({
+        entryAction: "idle",
+        beginEntryAction: () => true,
+        finishEntryAction: () => undefined,
+      }),
+    },
+    "@/lib/auth-entry-messages": { PUBLIC_ACCOUNT_ENTRY_MESSAGE: "Check your email." },
+    "@/lib/legal-acceptance-gate": { buildRegistrationLegalProviderRedirectPath },
+    "@/lib/legal-documents": {
+      legalDocumentAcceptanceId: (document) => document.key,
+      requiredLegalDocumentsForEvent: () => [],
+    },
+    "@/lib/public-launch-controls": { REGISTRATION_PAUSED_MESSAGE },
+  })
+  const tree = renderFunctionComponents(register.RegisterForm({
+    googleEnabled: true,
+    initialCallbackUrl: "/onboarding",
+    registrationOpen,
+  }))
+  const submit = findElement(tree, (element) => element.type === "button" && element.props.type === "submit")
+  assert.ok(submit, "RegisterForm must render its email submit")
+  return {
+    status: findElement(tree, (element) => element.type === "p" && element.props.role === "status"),
+    submit,
+  }
+}
+
+async function loadRegistrationRoute({ afterCallbacks, registerWork, registrationOpen = true }) {
   const source = await readFile(new URL("../app/api/account/register/route.ts", import.meta.url), "utf8")
   return loadCompiledModule(source, "account-register-route.review-test.ts", {
     "next/server": {
@@ -227,10 +486,18 @@ async function loadRegistrationRoute({ afterCallbacks, registerWork }) {
     "@/lib/auth-env": { getAuthSecret: () => "secret" },
     "@/lib/auth-mail": {
       sendAccountChangeEmail: async () => ({ delivered: true }),
+      sendPasswordSetupEmail: async () => ({ delivered: true }),
       sendPasswordResetEmail: async () => ({ delivered: true }),
       sendVerificationEmail: async () => ({ delivered: true }),
     },
     "@/lib/auth-rate-limit": { consumeEmailWorkRateLimit: async () => ({ allowed: true }) },
+    "@/lib/public-launch-controls": {
+      getPublicLaunchControls: () => ({
+        registrationOpen,
+        supporterCheckoutOpen: true,
+      }),
+      REGISTRATION_PAUSED_MESSAGE,
+    },
     "@/lib/auth-entry-messages": {
       PUBLIC_ACCOUNT_ENTRY_MESSAGE: "Check that email address for the appropriate sign-in, verification, or recovery next step.",
     },

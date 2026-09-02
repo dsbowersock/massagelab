@@ -209,7 +209,7 @@ npm run build:browser-qa
 npm run test:browser
 ```
 
-Expected: PASS across every ordinary project/spec pair, including desktop/mobile public, app shell, music, Chimer-related, local-first, background commerce, identity, membership, and interaction coverage. The focused identity/membership database-backed rows also require the documented disposable local QA database opt-in and exact fixture cleanup; never point that fixture at Production.
+Expected: PASS across every ordinary project/spec pair, including desktop/mobile public, app shell, music, Chimer-related, local-first, background commerce, identity, membership, and interaction coverage. The focused identity/membership database-backed rows also require the documented disposable local QA database opt-in, exact fixture cleanup, and all five reviewed migrations applied in this order: `20260828120000_identity_method_safety`, `20260828121000_identity_normalized_email_index`, `20260828130000_membership_subscription_convergence`, `20260901100000_auth_method_intent_two_factor_purposes`, then `20260901101000_auth_method_intent_registration_callback`; never point that fixture at Production.
 
 - [ ] **Step 7: Record workload and pause evidence**
 
@@ -311,7 +311,7 @@ if ($collisionExit -ne 0) { exit $collisionExit }
 Write-Output "migration_status_exit=$migrationStatusExit"
 ```
 
-Record only `normalized_collision_count=0`, `migration_status_exit`, and applied/pending migration names/counts. A nonzero migration status is expected only when the output names exactly the two reviewed pending additive migrations; an unknown status failure or an additional migration is a stop. Never echo the source environment variable.
+Record only `normalized_collision_count=0`, `migration_status_exit`, and applied/pending migration names/counts. A nonzero migration status is expected only when the output names exactly these five reviewed pending migrations in order: `20260828120000_identity_method_safety`, `20260828121000_identity_normalized_email_index`, `20260828130000_membership_subscription_convergence`, `20260901100000_auth_method_intent_two_factor_purposes`, and `20260901101000_auth_method_intent_registration_callback`. An unknown status failure, failed migration, omitted migration, reordered migration, or additional migration is a stop. Never echo the source environment variable.
 
 Do not run `prisma migrate deploy` in this task.
 
@@ -372,8 +372,9 @@ Record the production-prerequisite receipt head separately from the earlier host
 
 **Interfaces:**
 - Migration authorization is separate from deployment authorization.
-- Deployment authorization names one exact commit and target environment.
-- Old application remains schema-compatible with additive tables/nullable columns.
+- Each of the two runtime deployment authorizations names one exact bridge-capable commit, target environment, and exact membership-write pause state.
+- The additive tables/nullable columns remain forward- and bridge-compatible, but a pre-bridge legacy writer is never an eligible rollback target after bridge cutover.
+- The bridge remains in the runtime through held-delivery/backlog proof and the rollout window; removing it is a separately reviewed retirement.
 
 - [ ] **Step 1: Request exact migration authorization**
 
@@ -381,20 +382,25 @@ Present the zero-collision result, current production migration status, exact mi
 
 ```text
 20260828120000_identity_method_safety
+20260828121000_identity_normalized_email_index
 20260828130000_membership_subscription_convergence
+20260901100000_auth_method_intent_two_factor_purposes
+20260901101000_auth_method_intent_registration_callback
 ```
 
-Include additive/limiter-row-deletion behavior, rollback compatibility, database target, and verification command. Request authorization only for applying these reviewed migrations.
+Include additive/limiter-row-deletion behavior, rollback compatibility, database target, verification command, and the concurrent-index monitoring/recovery boundary. Request authorization only for applying these five reviewed migrations in the displayed order after the zero-collision preflight.
 
 - [ ] **Step 2: Apply and verify only after approval**
 
-Use the documented direct Neon maintenance path to run `npm run prisma:migrate:deploy`, then read migration status again. Expected: both exact migrations applied and all committed migrations current. Stop on any unexpected migration or failure; do not resolve/baseline/repair automatically.
+Use the documented direct Neon maintenance path to run `npm run prisma:migrate:deploy`, then read migration status again. Expected: all five exact migrations applied in the reviewed order and all committed migrations current. Monitor the `20260828121000_identity_normalized_email_index` `CREATE UNIQUE INDEX CONCURRENTLY` build and use only its separately reviewed stop/recovery path if it fails. Stop on any omitted, reordered, additional, unexpected, or failed migration; do not resolve/baseline/repair automatically.
 
-- [ ] **Step 3: Construct and request authorization for one exact atomic main update/Production deploy**
+- [ ] **Step 3: Construct and request authorization for the first paused bridge deployment**
+
+Begin only after all five reviewed migrations are current in the required order. The exact release head must contain the `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` bridge. The first Production deployment must receive exact value `1`; missing, `0`, whitespace variants, and every other value are not the paused state. The environment mutation, repository update, and automatic Production deployment remain separately named external effects even when one authorization intentionally couples them.
 
 Proceed only if Task 4 proved the current Vercel mechanism is automatic Production deployment from `main`. The local release-proof branch must first be clean and contain the separate local, hosted, and production-prerequisite receipt commits from Tasks 2–4. If the remote PR head does not equal that exact clean local head, stop and request authorization specifically for a non-force push/PR update of those named docs-only commits. After any authorized update, wait for required hosted checks on the resulting exact PR head and require the PR to be clean/current; older hosted results remain tied to their recorded code head and are not relabeled. This receipt synchronization authorizes no merge or deployment.
 
-Fetch without modifying external state, then identify the exact release PR number, final exact PR head, current `origin/main` hash, green PR checks, current migrations, provider receipt, and rollback deployment. Require the release branch to already contain that exact `origin/main`.
+Fetch without modifying external state, then identify the exact release PR number, final exact PR head, current `origin/main` hash, green PR checks, current migrations, provider receipt, and current deployment. Require the release branch to already contain that exact `origin/main`. Classify every current pre-bridge deployment as ineligible for rollback after bridge cutover; once the Production alias first serves the paused bridge, only that bridge-capable deployment with exact flag `1` may be the rollback target.
 
 Create a local candidate merge commit without pushing: its tree is exactly the reviewed release head, first parent is the current approved `origin/main`, and second parent is the reviewed release head. Retain it on local branch `codex/family-friends-release-merge-candidate`, verify both parents/tree, and record its exact SHA. This local object creation does not merge GitHub or deploy Vercel.
 
@@ -443,11 +449,13 @@ $candidateMerge
 
 If the candidate branch exists, present its exact SHA, worktree attachment, and provenance and stop. Reuse or removal requires separate explicit confirmation that it is task-owned and disposable; never use `git branch -f` or overwrite an unknown local branch.
 
-Read current branch rules. If an exact-OID leased fast-forward push of that preconstructed commit is not permitted, stop and amend the plan; do not fall back to an unpinned `gh pr merge`, queue, plain force push, admin bypass, or temporary rule change. Otherwise request one explicit authorization naming three coupled effects: atomically fast-forward `main` from the exact approved base to the exact preconstructed merge SHA under an exact ref lease, allow that update to incorporate the exact reviewed PR head, and allow Vercel to deploy that exact merge SHA. If the user authorizes the repository update but not Production deployment, do not push. If either head/base changes, reconstruct, re-prove, and reauthorize.
+Read current branch rules. If an exact-OID leased fast-forward push of that preconstructed commit is not permitted, stop and amend the plan; do not fall back to an unpinned `gh pr merge`, queue, plain force push, admin bypass, or temporary rule change. Otherwise request one explicit authorization naming four coupled effects executed with readback in this order: set Production `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` to exact `1`; atomically fast-forward `main` from the exact approved base to the exact preconstructed merge SHA under an exact ref lease; allow that update to incorporate the exact reviewed PR head; and allow Vercel to deploy that exact merge SHA with the exact paused flag. If the user authorizes the repository update but not the environment mutation or Production deployment, do not mutate or push. If either head/base or the intended flag state changes, reconstruct, re-prove, and reauthorize.
 
-- [ ] **Step 4: Atomically fast-forward only the approved preconstructed merge commit**
+- [ ] **Step 4: Set exact pause state, then atomically fast-forward only the approved merge**
 
-After authorization, place the three approved 40-character hashes in `MASSAGELAB_APPROVED_RELEASE_HEAD`, `MASSAGELAB_APPROVED_MAIN_BASE`, and `MASSAGELAB_APPROVED_MERGE_COMMIT` for this shell only. Recheck the PR, candidate parents/tree, and remote base, then push that one already-reviewed object as an ordinary fast-forward:
+After authorization, set Production `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` to exact `1` and read back only that allowlisted exact state. The setting change does not affect the already-running pre-bridge deployment; do not call the pause active until the new bridge deployment is READY and the Production alias serves it. Stop before the repository update if the readback is missing, `0`, whitespace-padded, or any other value.
+
+Then place the three approved 40-character hashes in `MASSAGELAB_APPROVED_RELEASE_HEAD`, `MASSAGELAB_APPROVED_MAIN_BASE`, and `MASSAGELAB_APPROVED_MERGE_COMMIT` for this shell only. Recheck the PR, candidate parents/tree, remote base, and exact paused environment state, then push that one already-reviewed object as an ordinary fast-forward:
 
 ```powershell
 $approvedHead = $env:MASSAGELAB_APPROVED_RELEASE_HEAD
@@ -480,19 +488,33 @@ $mergedMain
 
 The fully specified `--force-with-lease="refs/heads/main:$approvedBase"` is the compare-and-swap guard: Git updates `main` only when its remote old OID is exactly the authorized base. The parent checks separately prove the proposed update is a fast-forward from that base. Never use plain `--force`, an implicit/stale lease, an admin bypass, or an unpinned PR merge as a fallback. If the exact lease or branch policy rejects the update, stop with no deployment and amend/reauthorize a policy-compatible exact-base mechanism. After success, record `origin/main`; a tree/parent mismatch pauses rollout before any invitation.
 
-- [ ] **Step 5: Re-prove and read back the automatically deployed merge SHA**
+- [ ] **Step 5: Prove the paused bridge and drain every pre-bridge writer**
 
-Wait for hosted CI on the resulting `main` SHA and rerun Task 2 Steps 1–7—the read-only commands, not its receipt edit/commit—in a clean worktree checked out at that SHA. For this post-deploy rerun only, Task 2 Step 1 may report detached HEAD when `git rev-parse HEAD` exactly equals the deployed `origin/main` SHA; otherwise create a temporary local branch at that exact SHA before proceeding, and never accept another branch tip. Read Vercel back until it is READY or failed; require the full deployed Git SHA to equal `origin/main`, the Production migration gate to pass, canonical `massagelab.app`/`www` alias behavior to be healthy, and public launch-route HTTP health to pass. Do not run a second manual deployment, change provider settings, or create a payment/Portal session.
+Wait for hosted CI on the resulting `main` SHA and rerun Task 2 Steps 1–7—the read-only commands, not its receipt edit/commit—in a clean worktree checked out at that SHA. For this post-deploy rerun only, Task 2 Step 1 may report detached HEAD when `git rev-parse HEAD` exactly equals the deployed `origin/main` SHA; otherwise create a temporary local branch at that exact SHA before proceeding, and never accept another branch tip. Read Vercel back until it is READY or failed; require the full deployed Git SHA to equal `origin/main`, the Production migration gate to report all five reviewed migrations current in the required order, every committed migration current, and zero unexpected or failed migrations; require `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` to read back as exact `1`, canonical `massagelab.app`/`www` alias behavior to be healthy, and public launch-route HTTP health to pass. Do not run a second manual deployment, change provider settings, or create a payment, Checkout Session, synthetic event, or Portal Session.
 
-- [ ] **Step 6: Exercise each pause only through its own exact reversible gate**
+Read the current configured maximum invocation lifetime from the deployment platform without changing it and record only its non-sensitive duration. Start the drain clock only after the Production alias is proven to serve the paused bridge SHA. Wait at least that full configured maximum lifetime, then use deployment/SHA-scoped read-only request and execution evidence to prove no pre-bridge SHA is still receiving or executing `/api/billing/webhook` requests. Ambiguous logs, an unknown lifetime, a pre-bridge request/execution, or an alias mismatch stops the rollout with the exact-`1` bridge still paused.
+
+Use that same complete drain interval and deployment/SHA-scoped read-only evidence to cover every route that can write legacy limiter state: `POST /api/account/register`, `POST /api/auth/callback/credentials`, and `POST /api/account/password-reset/request`. Scope the readback by immutable deployment ID mapped to its full Git SHA and by normalized method/path, from proven alias cutover through drain completion. Require zero pre-bridge receives or starts after alias cutover and zero pre-bridge executions still running at the drain boundary; any identity request after that boundary must be attributed to the paused bridge SHA. Record only per-route counts and SHA classifications. Do not issue a synthetic probe or record bodies, query strings, email addresses, IP addresses, cookies, tokens, or response content. Missing route coverage, an unmapped deployment, an ambiguous SHA, or a pre-bridge receive/execution keeps `AuthAttempt` cleanup forbidden and stops the rollout with the first bridge deployment still paused. This read-only check authorizes neither cleanup nor a second deployment.
+
+During this bounded pause, signed membership-purpose Checkout completion and all five membership subscription events return private retryable `503` before membership provider, database, or cache work. Stripe retains and retries those deliveries, and Account may truthfully remain on processing guidance. Do not manually replay, acknowledge, synthesize, or mark any held delivery successful. Background commerce and non-membership Checkout continue through their existing owners. After bridge cutover, rollback is allowed only to this or another bridge-capable deployment with the flag exactly `1`; never promote or restore a pre-bridge legacy writer. Keep all additive schema objects and do not attempt a destructive migration rollback.
+
+- [ ] **Step 6: Deploy the unpaused bridge only after drain proof**
+
+After Step 5 passes, request a second explicit authorization naming the exact same bridge-capable commit and Production target, removal of `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED` or change to exact `0`, and an explicit redeployment of that commit with the new environment snapshot. If the flag becomes absent/`0` without an authorized READY deployment, the running paused deployment is still authoritative; do not infer convergence resumed.
+
+Read the new deployment back until READY or failed. Require the Production alias to serve the same exact bridge-capable Git SHA, all five reviewed migrations current in the required order, every committed migration current, zero unexpected or failed migrations, and the flag absent or exactly `0`. Then use privacy-bounded provider delivery status plus aggregate receipt/access evidence to prove the deliveries held during Step 5 reach `2xx`, their membership receipts become terminal, and persisted access converges. No manual replay, acknowledgement, synthetic event, receipt edit, or access grant is permitted. Any ambiguity returns to the paused bridge with exact `1` through a separately authorized deployment; never roll back to pre-bridge code and never roll back the additive schema.
+
+Retain the bridge code through complete held-delivery/backlog proof and the rollout window even after the flag is absent/`0`. Its later removal requires a new reviewed retirement with fresh exact-head gates and evidence that no rollback or backlog path still needs it.
+
+- [ ] **Step 7: Exercise each ordinary pause only through its own exact reversible gate**
 
 Production pause proof is optional and is not bundled into merge/deploy authorization. A Vercel environment edit affects only a new deployment, so no pause or restoration is claimed active until its own explicit Production redeploy is READY and read back. For registration, separately present and request approval for four named mutations: set the exact flag from its recorded current value to temporary `true`; explicitly redeploy the exact current Production commit with that new environment snapshot; restore the flag to its recorded original value; and explicitly redeploy the same commit with the restored snapshot. The gate also names the Production target, expected deployment IDs/aliases, read-only login/recovery checks after the pause deployment, and final value/behavior readback after restoration. Do not begin unless all four actions and restoration are authorized, but execute and verify them one at a time, stopping on any mismatch. Repeat as a separate gate for the Checkout flag, checking existing account/entitlements/Portal instead. Never set both simultaneously for proof.
 
 If either sequence is not authorized, keep only that row `NOT RUN — authorization required`; source/browser proof remains valid but Production pause behavior is not claimed.
 
-- [ ] **Step 7: Record migration/deployment evidence**
+- [ ] **Step 8: Record migration/deployment evidence**
 
-The reviewed release head is now incorporated into the exact deployed merge commit, so do not add post-deploy commits to the release-proof branch. Using `superpowers:using-git-worktrees`, create `codex/family-friends-launch-receipt` from the exact deployed `origin/main` SHA in a separate worktree. Perform Tasks 6 and 7 there. Update receipt/state/log with exact commits, deployment ID/URL, migration names/status, alias health, authorized scope, and no-adjacent-action statement. Never include connection strings, env values, provider payloads, or rows. This documentation-only branch is not pushed or merged without a later exact authorization.
+The reviewed release head is now incorporated into both authorized runtime deployments of the exact merge commit, so do not add post-deploy commits to the release-proof branch. Using `superpowers:using-git-worktrees`, create `codex/family-friends-launch-receipt` from the exact deployed `origin/main` SHA in a separate worktree. Perform Tasks 6 and 7 there. Update receipt/state/log with exact commits, both deployment IDs/URLs, the allowlisted paused/unpaused flag states, migration names/status, alias health, configured invocation lifetime and completed drain interval, no-pre-bridge-SHA webhook proof, the three identity-writer route/SHA count classifications and cleanup-eligibility result, held-delivery `2xx`/terminal-receipt/access convergence, retained bridge/rollback boundary, authorized scope, and no-adjacent-action statement. Never include connection strings, other env values, provider payloads, delivery/event identifiers, request content, database rows, or customer data. This documentation-only branch is not pushed or merged without a later exact authorization.
 
 ---
 

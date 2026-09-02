@@ -1,11 +1,95 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import * as accountPreferences from "../lib/account-preferences.js"
+import * as musicVisualizer from "../lib/music-visualizer.js"
+import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const providerSource = await readFile(new URL("../components/providers/music-provider.tsx", import.meta.url), "utf8")
 const miniPlayerSource = await readFile(new URL("../components/providers/music-mini-player.tsx", import.meta.url), "utf8")
 const musicWorkspaceSource = await readFile(new URL("../app/browse/workspace.tsx", import.meta.url), "utf8")
 const stationCardSource = await readFile(new URL("../components/atmosphere/station-carousel-card.tsx", import.meta.url), "utf8")
+
+/** Extracts one provider body between exact owner-specific start and dependency markers. */
+function providerBody({ startMarker, endMarker, startError, boundaryError }) {
+  const startMatch = startMarker.exec(providerSource)
+  assert.ok(startMatch, startError)
+  const bodyStart = startMatch.index + startMatch[0].length
+  const endMatch = endMarker.exec(providerSource.slice(bodyStart))
+  assert.ok(endMatch, boundaryError)
+  return providerSource.slice(bodyStart, bodyStart + endMatch.index)
+}
+
+/** Executes the provider's exact account-ownership effect body in an isolated scope. */
+function loadProviderAccountOwnershipEffect() {
+  const effectBody = providerBody({
+    startMarker: /useEffect\s*\(\s*\(\s*\)\s*=>\s*\{(?=\s*if\s*\(\s*!storageHydrated\s*\)\s*\{)/,
+    endMarker: /\}\s*,\s*\[\s*(?=[^\]]*\baccountIntentTracker\b)(?=[^\]]*\bbootstrapAppSettings\.musicVisualizer\b)(?=[^\]]*\bbootstrapStatus\b)(?=[^\]]*\bownerKey\b)(?=[^\]]*\bpersistVisualizerAccountPreferences\b)(?=[^\]]*\bstorageHydrated\b)(?=[^\]]*\bsyncEnabled\b)[^\]]*\]\s*\)/,
+    startError: "Music provider account effect start marker missing",
+    boundaryError: "Music provider account effect dependency boundary missing",
+  })
+
+  return loadCompiledModule(`
+    export function runProviderAccountOwnershipEffect(scope) {
+      const {
+        accountDefaultBackgroundIdRef,
+        accountIntentTracker,
+        accountPreferencesHydratedRef,
+        accountRequestIdRef,
+        accountSyncVerifiedRef,
+        accountWritePendingRef,
+        adoptedAccountOwnerRef,
+        bootstrapAppSettings,
+        bootstrapStatus,
+        failedAccountPayloadRef,
+        ownerKey,
+        pendingAccountDefaultBackgroundIdRef,
+        persistVisualizerAccountPreferences,
+        setAccountDefaultBackgroundId,
+        setAccountError,
+        setAccountSignedIn,
+        setAccountStatus,
+        setStorageState,
+        storageHydrated,
+        syncEnabled,
+      } = scope
+${effectBody}
+    }
+  `, "components/providers/music-provider-account-ownership.test.ts")
+}
+
+/** Executes the provider's exact account-sync retry callback in an isolated scope. */
+function loadProviderRetryVisualizerAccountSync() {
+  const callbackBody = providerBody({
+    startMarker: /const retryVisualizerAccountSync = useCallback\s*\(\s*async\s*\(\s*\)\s*=>\s*\{/,
+    endMarker: /\}\s*,\s*\[\s*(?=[^\]]*\bbootstrapStatus\b)(?=[^\]]*\bpersistVisualizerAccountPreferences\b)(?=[^\]]*\bretryFallback\b)[^\]]*\]\s*\)/,
+    startError: "Music provider account-sync retry callback start marker missing",
+    boundaryError: "Music provider account-sync retry callback dependency boundary missing",
+  })
+
+  return loadCompiledModule(`
+    export async function runProviderRetryVisualizerAccountSync(scope) {
+      const {
+        bootstrapStatus,
+        failedAccountPayloadRef,
+        persistVisualizerAccountPreferences,
+        retryFallback,
+      } = scope
+${callbackBody}
+    }
+  `, "components/providers/music-provider-account-sync-retry.test.ts")
+}
+
+/** Returns only the provider callback that owns account preference persistence. */
+function providerPersistVisualizerAccountPreferencesBody() {
+  return providerBody({
+    startMarker: /const persistVisualizerAccountPreferences = useCallback\s*\(\s*async\s*\(\s*preferences:\s*MusicVisualizerAccountPreferences,?\s*\)\s*=>\s*\{/,
+    endMarker: /\}\s*,\s*\[\s*(?=[^\]]*\baccountIntentTracker\b)(?=[^\]]*\bownerKey\b)(?=[^\]]*\bsyncEnabled\b)(?=[^\]]*\bwriteAppSettingsPatch\b)[^\]]*\]\s*\)/,
+    startError: "Music provider account-persistence callback start marker missing",
+    boundaryError: "Music provider account-persistence callback dependency boundary missing",
+  })
+}
 
 describe("Music visualizer provider contract", () => {
   it("exposes visualizer state and actions through MusicContext", () => {
@@ -38,19 +122,295 @@ describe("Music visualizer provider contract", () => {
     ]) assert.match(providerSource, contract)
   })
 
-  it("verifies the session before account sync and guards stale responses", () => {
-    const syncStart = providerSource.indexOf("const syncVisualizerAccountPreferences")
-    const syncSource = providerSource.slice(syncStart, providerSource.indexOf("// Keep the provider mounted", syncStart))
-    const sessionRequest = syncSource.indexOf('"/api/auth/session"')
-    const preferencesRequest = syncSource.indexOf('"/api/account/preferences"')
-    assert.notEqual(syncStart, -1)
-    assert.notEqual(sessionRequest, -1)
-    assert.notEqual(preferencesRequest, -1)
-    assert.ok(sessionRequest < preferencesRequest)
-    assert.match(providerSource, /canSyncAccountPreferencesFromSession/)
+  it("consumes one owner-keyed shell bootstrap and its shared patch writer", () => {
+    assert.doesNotMatch(providerSource, /\/api\/auth\/session/)
+    assert.doesNotMatch(providerSource, /\/api\/account\/preferences/)
+    assert.match(providerSource, /useAccountShellBootstrap/)
     assert.match(providerSource, /normalizeMusicVisualizerAccountPreferences/)
     assert.match(providerSource, /accountRequestIdRef/)
-    assert.match(providerSource, /appSettings:\s*{[\s\S]*musicVisualizer/)
+    assert.match(providerSource, /writeAppSettingsPatch\(\{ musicVisualizer: payload \}\)/)
+  })
+
+  it("adopts owner B only after clearing owner A transport and account state", () => {
+    const { runProviderAccountOwnershipEffect } = loadProviderAccountOwnershipEffect()
+    const accountIntentTracker = musicVisualizer.createMusicVisualizerAccountIntentTracker()
+    accountIntentTracker.record({
+      ownerKey: "owner-a",
+      changes: { showClock: false },
+      basePreferences: { defaultBackgroundId: "owner-a-default", showClock: true },
+    })
+    const state = {
+      accountDefaultBackgroundIdRef: { current: "owner-a-default" },
+      accountPreferencesHydratedRef: { current: true },
+      accountRequestIdRef: { current: 7 },
+      accountSyncVerifiedRef: { current: true },
+      accountWritePendingRef: { current: { ownerKey: "owner-a", requestId: 7 } },
+      adoptedAccountOwnerRef: { current: { ownerKey: "owner-a", syncEnabled: true } },
+      failedAccountPayloadRef: {
+        current: { defaultBackgroundId: "owner-a-failed", showClock: false },
+      },
+      pendingAccountDefaultBackgroundIdRef: { current: "owner-a-pending" },
+      storageState: { visualizer: { backgroundId: null, showClock: false } },
+    }
+    const observed = {
+      accountDefaultBackgroundIds: [],
+      accountErrors: [],
+      accountSignedIn: [],
+      accountStatuses: [],
+      persisted: [],
+    }
+
+    runProviderAccountOwnershipEffect({
+      ...state,
+      accountIntentTracker,
+      bootstrapAppSettings: {
+        musicVisualizer: { defaultBackgroundId: "owner-b-default", showClock: true },
+      },
+      bootstrapStatus: "ready",
+      ownerKey: "owner-b",
+      persistVisualizerAccountPreferences: async (preferences) => observed.persisted.push(preferences),
+      setAccountDefaultBackgroundId: (value) => observed.accountDefaultBackgroundIds.push(value),
+      setAccountError: (value) => observed.accountErrors.push(value),
+      setAccountSignedIn: (value) => observed.accountSignedIn.push(value),
+      setAccountStatus: (value) => observed.accountStatuses.push(value),
+      setStorageState: (update) => {
+        state.storageState = typeof update === "function" ? update(state.storageState) : update
+      },
+      storageHydrated: true,
+      syncEnabled: true,
+    })
+
+    assert.deepEqual(state.adoptedAccountOwnerRef.current, { ownerKey: "owner-b", syncEnabled: true })
+    assert.equal(state.accountRequestIdRef.current, 8)
+    assert.equal(state.accountWritePendingRef.current, null)
+    assert.equal(state.failedAccountPayloadRef.current, null)
+    assert.equal(state.pendingAccountDefaultBackgroundIdRef.current, null)
+    assert.equal(state.accountDefaultBackgroundIdRef.current, "owner-b-default")
+    assert.equal(state.accountSyncVerifiedRef.current, true)
+    assert.equal(state.accountPreferencesHydratedRef.current, true)
+    assert.equal(accountIntentTracker.hasIntent("owner-a"), false)
+    assert.deepEqual(observed.accountDefaultBackgroundIds, [null, "owner-b-default"])
+    assert.deepEqual(observed.accountSignedIn, [false, true])
+    assert.deepEqual(observed.accountStatuses, ["synced"])
+    assert.deepEqual(observed.persisted, [])
+    assert.equal(state.storageState.visualizer.showClock, true)
+    assert.equal(musicVisualizer.shouldApplyMusicVisualizerAccountWriteCompletion({
+      currentOwner: state.adoptedAccountOwnerRef.current,
+      currentRequestId: state.accountRequestIdRef.current,
+      isMounted: true,
+      requestId: 7,
+      requestOwnerKey: "owner-a",
+    }), false)
+
+    // Keep only the provider-to-tested-helper anchors; reset semantics are behavioral above.
+    assert.match(providerSource, /accountIntentTracker\.reconcile/)
+    assert.match(providerSource, /shouldApplyMusicVisualizerAccountWriteCompletion\(\{/)
+  })
+
+  it("admits only the exact mounted, sync-enabled owner and request generation", () => {
+    const current = {
+      currentOwner: { ownerKey: "owner-a", syncEnabled: true },
+      currentRequestId: 7,
+      isMounted: true,
+      requestId: 7,
+      requestOwnerKey: "owner-a",
+    }
+    const cases = [
+      { label: "exact current write", input: {}, expected: true },
+      {
+        label: "owner mismatch",
+        input: { currentOwner: { ownerKey: "owner-b", syncEnabled: true } },
+        expected: false,
+      },
+      { label: "request generation mismatch", input: { currentRequestId: 8 }, expected: false },
+      { label: "unmounted provider", input: { isMounted: false }, expected: false },
+      {
+        label: "sync-disabled owner",
+        input: { currentOwner: { ownerKey: "owner-a", syncEnabled: false } },
+        expected: false,
+      },
+      {
+        label: "ownerless completion",
+        input: { currentOwner: null, requestOwnerKey: undefined },
+        expected: false,
+      },
+    ]
+
+    for (const { label, input, expected } of cases) {
+      assert.equal(
+        musicVisualizer.shouldApplyMusicVisualizerAccountWriteCompletion({ ...current, ...input }),
+        expected,
+        label,
+      )
+    }
+  })
+
+  it("serializes active saves and collapses queued work to the latest snapshot", { timeout: 2_000 }, async () => {
+    assert.equal(
+      typeof accountPreferences.createSerializedPreferenceWriter,
+      "function",
+      "account preferences must expose a provider-neutral serialized writer",
+    )
+    const deferred = []
+    const sentRequestIds = []
+    let markSecondSendStarted
+    const secondSendStarted = new Promise((resolve) => { markSecondSendStarted = resolve })
+    const writer = accountPreferences.createSerializedPreferenceWriter({
+      send: (request) => {
+        sentRequestIds.push(request.requestId)
+        if (sentRequestIds.length === 2) markSecondSendStarted()
+        return new Promise((resolve) => deferred.push(resolve))
+      },
+    })
+
+    writer.enqueue({ requestBody: "first", requestId: 1 })
+    writer.enqueue({ requestBody: "superseded", requestId: 2 })
+    writer.enqueue({ requestBody: "latest", requestId: 3 })
+    assert.deepEqual(sentRequestIds, [1])
+
+    deferred.shift()(true)
+    await secondSendStarted
+    assert.deepEqual(sentRequestIds, [1, 3])
+    deferred.shift()(true)
+    await writer.whenIdle()
+  })
+
+  it("reconciles pre-ready local intent into a delayed bootstrap projection", () => {
+    assert.equal(
+      typeof musicVisualizer.createMusicVisualizerAccountIntentTracker,
+      "function",
+      "Music account sync must expose one owner-scoped intent lifecycle",
+    )
+    assert.match(providerSource, /accountIntentTracker\.record/)
+    assert.match(providerSource, /accountIntentTracker\.reconcile/)
+    assert.match(providerSource, /accountIntentTracker\.confirm/)
+    const tracker = musicVisualizer.createMusicVisualizerAccountIntentTracker()
+
+    const intent = tracker.record({
+      ownerKey: "owner-a",
+      changes: { showClock: true },
+    })
+    const resolution = tracker.reconcile({
+      ownerKey: "owner-a",
+      projection: { defaultBackgroundId: "server-background", showClock: false },
+    })
+
+    assert.equal(intent.revision, 1)
+    assert.equal(intent.preferences, null)
+    assert.deepEqual(resolution, {
+      status: "repersist",
+      revision: 1,
+      preferences: { defaultBackgroundId: "server-background", showClock: true },
+    })
+  })
+
+  it("projects an owned default background without reading inherited unrelated fields", () => {
+    for (const [defaultBackgroundId, expectedBackgroundId] of [
+      ["  trimmed-background  ", "trimmed-background"],
+      ["   ", null],
+    ]) {
+      const changes = Object.create(Object.defineProperty({}, "showClock", {
+        get() {
+          throw new Error("unrelated inherited showClock must not be read")
+        },
+      }))
+      Object.defineProperty(changes, "defaultBackgroundId", {
+        value: defaultBackgroundId,
+        enumerable: true,
+      })
+      const tracker = musicVisualizer.createMusicVisualizerAccountIntentTracker()
+
+      const intent = tracker.record({
+        ownerKey: "owner-a",
+        changes,
+        basePreferences: { defaultBackgroundId: "server-background", showClock: true },
+      })
+
+      assert.deepEqual(intent.preferences, {
+        defaultBackgroundId: expectedBackgroundId,
+        showClock: true,
+      })
+    }
+  })
+
+  it("keeps completed local intent over stale same-owner bootstrap until acknowledgement", () => {
+    const tracker = musicVisualizer.createMusicVisualizerAccountIntentTracker()
+    const intent = tracker.record({
+      ownerKey: "owner-a",
+      changes: { showClock: true },
+      basePreferences: { defaultBackgroundId: "server-background", showClock: false },
+    })
+    tracker.confirm({
+      ownerKey: "owner-a",
+      preferences: intent.preferences,
+    })
+
+    assert.deepEqual(tracker.reconcile({
+      ownerKey: "owner-a",
+      projection: { defaultBackgroundId: "server-background", showClock: false },
+    }), {
+      status: "repersist",
+      revision: 1,
+      preferences: { defaultBackgroundId: "server-background", showClock: true },
+    })
+    assert.deepEqual(tracker.reconcile({
+      ownerKey: "owner-a",
+      projection: { defaultBackgroundId: "server-background", showClock: true },
+    }), {
+      status: "adopt",
+      revision: 1,
+      preferences: { defaultBackgroundId: "server-background", showClock: true },
+    })
+    assert.equal(tracker.hasIntent("owner-a"), false)
+  })
+
+  it("retries the exact failed write before delegating a failed bootstrap retry", { timeout: 2_000 }, async () => {
+    const { runProviderRetryVisualizerAccountSync } = loadProviderRetryVisualizerAccountSync()
+    const failedPayload = { defaultBackgroundId: "failed-background", showClock: true }
+    const failedAccountPayloadRef = { current: failedPayload }
+    const calls = []
+    let markPersistStarted
+    const persistStarted = new Promise((resolve) => { markPersistStarted = resolve })
+    let releasePersist
+    const persistGate = new Promise((resolve) => { releasePersist = resolve })
+    let firstRetrySettled = false
+
+    const firstRetry = runProviderRetryVisualizerAccountSync({
+      bootstrapStatus: "failed",
+      failedAccountPayloadRef,
+      persistVisualizerAccountPreferences: async (payload) => {
+        calls.push(["persist", payload])
+        markPersistStarted()
+        await persistGate
+      },
+      retryFallback: async () => calls.push(["fallback"]),
+    })
+    void firstRetry.then(() => { firstRetrySettled = true }, () => undefined)
+    try {
+      await persistStarted
+      assert.deepEqual(calls, [["persist", failedPayload]])
+      assert.equal(firstRetrySettled, false, "retry must await the failed write")
+    } finally {
+      releasePersist()
+    }
+    await firstRetry
+
+    failedAccountPayloadRef.current = null
+    await runProviderRetryVisualizerAccountSync({
+      bootstrapStatus: "failed",
+      failedAccountPayloadRef,
+      persistVisualizerAccountPreferences: async (payload) => calls.push(["persist", payload]),
+      retryFallback: async () => calls.push(["fallback"]),
+    })
+    assert.deepEqual(calls, [["persist", failedPayload], ["fallback"]])
+
+    await runProviderRetryVisualizerAccountSync({
+      bootstrapStatus: "ready",
+      failedAccountPayloadRef,
+      persistVisualizerAccountPreferences: async (payload) => calls.push(["persist", payload]),
+      retryFallback: async () => calls.push(["fallback"]),
+    })
+    assert.deepEqual(calls, [["persist", failedPayload], ["fallback"]])
   })
 
   it("carries a pending default through a newer show-clock save", () => {
@@ -219,15 +579,12 @@ describe("Persistent player visualizer boundary", () => {
 })
 
 describe("Music visualizer account timeout boundary", () => {
-  it("surfaces timeout failures as retryable account errors", () => {
-    assert.match(providerSource, /function isAbortError[\s\S]*error\.name === "AbortError"/)
+  it("surfaces failed writes as retryable account errors", () => {
+    const persistenceBody = providerPersistVisualizerAccountPreferencesBody()
+    assert.match(persistenceBody, /await writeAppSettingsPatch\(\{ musicVisualizer: payload \}\)/)
     assert.match(
-      providerSource,
+      persistenceBody,
       /failedAccountPayloadRef\.current = payload[\s\S]*setAccountStatus\("error"\)[\s\S]*Try again/,
-    )
-    assert.match(
-      providerSource,
-      /setAccountStatus\("error"\)[\s\S]*preferences could not be loaded\. Try again/,
     )
   })
 })

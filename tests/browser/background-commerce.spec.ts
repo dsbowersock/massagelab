@@ -317,8 +317,20 @@ async function openClockBackground(page: Page, href = "/clock") {
   // The router opens a URL-requested panel; clicking its toggle again would
   // close or otherwise change the state the caller is trying to exercise.
   if (!panelRequested) {
-    await expect(page.getByLabel("Chimer clock")).toBeVisible()
-    await page.getByRole("button", { name: "Background", exact: true }).click()
+    const clockOwner = page
+      .getByRole("region", { name: "Chimer clock", includeHidden: true })
+      .filter({ visible: true })
+    await expect(clockOwner).toHaveCount(1)
+    await expect(clockOwner).toBeVisible()
+    // The clock owns a body-portal shell, so scope controls to that sole visible
+    // shell after proving the visible clock owner instead of using DOM ancestry.
+    const immersiveShell = page.locator("[data-immersive-shell]").filter({ visible: true })
+    await expect(immersiveShell).toHaveCount(1)
+    const controls = immersiveShell.getByRole("group", { name: "Immersive display controls" })
+    await expect(controls).toHaveCount(1)
+    const backgroundButton = controls.getByRole("button", { name: "Background", exact: true })
+    await expect(backgroundButton).toHaveCount(1)
+    await backgroundButton.click()
   }
   await expect(backgroundPanel).toBeVisible()
 }
@@ -439,6 +451,94 @@ test("guest cart persists locally and requires an account only at checkout", asy
 
   await page.evaluate(() => window.history.pushState({}, "", "/calendar"))
   await expect(trigger).toHaveCount(0)
+})
+
+test("ordinary signed-in shell defers commerce until a real background consumer mounts", async ({ context, page }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL)
+  await page.addInitScript(() => {
+    const originalFetch = window.fetch
+    window.fetch = ((input, init) => {
+      const request = input instanceof Request ? input : null
+      const url = new URL(request?.url ?? String(input), window.location.href)
+      const method = (init?.method ?? request?.method ?? "GET").toUpperCase()
+      if (
+        method === "GET"
+        && (url.pathname === "/api/background-commerce" || url.pathname === "/api/background-commerce/state")
+      ) {
+        const current = Number(document.documentElement.dataset.backgroundCommerceStateFetches ?? "0")
+        document.documentElement.dataset.backgroundCommerceStateFetches = String(current + 1)
+      }
+      return originalFetch.call(window, input, init)
+    }) as typeof window.fetch
+
+    const focusListeners = new Set<EventListenerOrEventListenerObject>()
+    const onlineListeners = new Set<EventListenerOrEventListenerObject>()
+    const updateRefreshPairReadiness = () => {
+      // The provider registers one handler reference for both refresh events.
+      const hasActivePair = [...focusListeners].some((listener) => onlineListeners.has(listener))
+      document.documentElement.dataset.backgroundCommerceRefreshPairReady = String(hasActivePair)
+    }
+    window.addEventListener = ((
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | AddEventListenerOptions,
+    ) => {
+      EventTarget.prototype.addEventListener.call(window, type, listener, options)
+      if (type === "focus" || type === "online") {
+        document.documentElement.dataset.backgroundCommerceStateFetches ??= "0"
+        const listeners = type === "focus" ? focusListeners : onlineListeners
+        listeners.add(listener)
+        updateRefreshPairReadiness()
+      }
+    }) as typeof window.addEventListener
+    window.removeEventListener = ((
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | EventListenerOptions,
+    ) => {
+      EventTarget.prototype.removeEventListener.call(window, type, listener, options)
+      if (type === "focus" || type === "online") {
+        const listeners = type === "focus" ? focusListeners : onlineListeners
+        listeners.delete(listener)
+        updateRefreshPairReadiness()
+      }
+    }) as typeof window.removeEventListener
+  })
+  const fixture = await installCommerceFixture({ context, page, baseURL })
+
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true }))
+    .toBeAttached()
+  await page.waitForFunction(() => (
+    document.documentElement.dataset.backgroundCommerceRefreshPairReady === "true"
+  ), undefined, { timeout: 45_000 }).catch((error) => {
+    throw new Error(
+      "Background commerce focus/online same-listener pair did not become ready within 45 seconds",
+      { cause: error },
+    )
+  })
+  await page.evaluate(() => {
+    if (document.documentElement.dataset.backgroundCommerceRefreshPairReady !== "true") {
+      throw new Error("Background commerce refresh listener pair was removed before dispatch")
+    }
+    window.dispatchEvent(new Event("focus"))
+    window.dispatchEvent(new Event("online"))
+  })
+  const cartTrigger = page.locator("[data-commerce-cart-trigger]:visible")
+  for (const settleDelayMs of [0, 100, 250]) {
+    if (settleDelayMs > 0) await page.waitForTimeout(settleDelayMs)
+    expect(await cartTrigger.count()).toBe(0)
+    const browserStateReads = await page.evaluate(() => (
+      Number(document.documentElement.dataset.backgroundCommerceStateFetches)
+    ))
+    expect(
+      fixture.getSnapshotReads(),
+      `fixture transport reads after ${settleDelayMs}ms; browser fetch counter observed ${browserStateReads}`,
+    ).toBe(0)
+  }
+
+  await openClockBackground(page, "/clock?panel=background")
+  await expect.poll(fixture.getSnapshotReads).toBeGreaterThan(0)
 })
 
 test("signed-in cart return marker opens once and is consumed", async ({ context, page }, testInfo) => {
@@ -612,7 +712,19 @@ test("zero-credit cart persists across refresh and checkout failure keeps one su
     baseURL,
     initialSnapshot: emptySnapshot({ creditBalance: 0 }),
   })
+  await page.addInitScript(() => {
+    // Insert a hidden same-name clock region at DOMContentLoaded so
+    // openClockBackground proves it selects the visible clock fixture.
+    document.addEventListener("DOMContentLoaded", () => {
+      const duplicateStage = document.createElement("section")
+      duplicateStage.setAttribute("aria-label", "Chimer clock")
+      duplicateStage.setAttribute("data-browser-qa-hidden-clock-stage", "true")
+      duplicateStage.hidden = true
+      document.body.append(duplicateStage)
+    }, { once: true })
+  })
   await openClockBackground(page)
+  await expect(page.getByRole("region", { name: "Chimer clock", includeHidden: true })).toHaveCount(2)
   const panel = page.getByRole("dialog", { name: "Background" })
   await centerPremium(page, DOTTED_GLOW_ID)
   await panel.getByRole("button", { name: `Unlock ${DOTTED_GLOW_NAME} background` }).click()
@@ -889,9 +1001,9 @@ test("Music visualizer keeps the shared account cart through minimize and restor
   await expect(restoredPanel.getByRole("region", { name: "Account cart" })).toContainText(AURORA_NAME)
 })
 
-test("global account cart is discoverable off Calendar and opens the shared cart", async ({ context, page }, testInfo) => {
+test("global account cart appears after explicit cart intent and stays hidden on Calendar", async ({ context, page }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL)
-  await installCommerceFixture({
+  const fixture = await installCommerceFixture({
     context,
     page,
     baseURL,
@@ -906,14 +1018,22 @@ test("global account cart is discoverable off Calendar and opens the shared cart
     }),
   })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
+    .toHaveAttribute("data-music-storage-status", "available")
   const trigger = page.locator("[data-commerce-cart-trigger]:visible")
-  await expect(trigger).toBeVisible()
-  await expect(trigger).toHaveAccessibleName("Open account cart with 1 item")
-  await trigger.click()
+  await expect(trigger).toHaveCount(0)
+  for (const settleDelayMs of [0, 100, 250]) {
+    if (settleDelayMs > 0) await page.waitForTimeout(settleDelayMs)
+    expect(fixture.getSnapshotReads()).toBe(0)
+  }
+
+  await page.goto("/music?commerceCart=open", { waitUntil: "domcontentloaded" })
   const cartDialog = page.getByRole("dialog", { name: "Account cart" })
   await expect(cartDialog).toContainText(AURORA_NAME)
+  await expect(page).toHaveURL(/\/music$/)
   await page.keyboard.press("Escape")
   await expect(cartDialog).toHaveCount(0)
+  await expect(trigger).toHaveAccessibleName("Open account cart with 1 item")
 
   await page.evaluate(() => {
     window.history.pushState({}, "", "/calendar")

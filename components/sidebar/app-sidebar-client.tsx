@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import {
   BadgeDollarSign,
@@ -49,6 +49,7 @@ import {
   Wrench,
 } from "lucide-react"
 import { InstallMassageLabDialog } from "@/components/pwa/install-massagelab-dialog"
+import { LinkPendingIndicator } from "@/components/shell/link-pending-indicator"
 import { usePwaInstall } from "@/components/providers/pwa-install-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -250,7 +251,6 @@ function initials(name: string, email: string) {
 
 function useSidebarNavigation() {
   const { isMobile, setOpenMobile } = useSidebar()
-  const router = useRouter()
 
   const closeMobileSidebar = React.useCallback(() => {
     if (isMobile) {
@@ -258,26 +258,31 @@ function useSidebarNavigation() {
     }
   }, [isMobile, setOpenMobile])
 
-  const navigateFromSidebar = React.useCallback((event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (
-      !isMobile
-      || event.defaultPrevented
-      || event.button !== 0
-      || event.metaKey
-      || event.ctrlKey
-      || event.altKey
-      || event.shiftKey
-      || event.currentTarget.target
-    ) {
-      return
-    }
+  return { closeMobileSidebar }
+}
 
-    event.preventDefault()
-    router.push(href)
-    setOpenMobile(false)
-  }, [isMobile, router, setOpenMobile])
-
-  return { closeMobileSidebar, navigateFromSidebar }
+/**
+ * Keeps the existing sidebar icon footprint stable while its owning Link shows
+ * a decorative local-pending loader.
+ */
+function SidebarPendingLinkContent({
+  icon: Icon,
+  children,
+  className,
+}: {
+  icon: LucideIcon
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <>
+      <span className={cn("relative flex size-4 shrink-0 items-center justify-center", className)}>
+        <Icon aria-hidden="true" className="size-4 group-data-[navigation-pending=true]:opacity-0" />
+        <LinkPendingIndicator />
+      </span>
+      {children}
+    </>
+  )
 }
 
 function SidebarRoute({
@@ -292,7 +297,7 @@ function SidebarRoute({
   tooltipSide: "left" | "right"
 }) {
   const Icon = routeIcons[route.icon] ?? Home
-  const { navigateFromSidebar } = useSidebarNavigation()
+  const { closeMobileSidebar } = useSidebarNavigation()
 
   return (
     <SidebarMenuItem>
@@ -302,9 +307,10 @@ function SidebarRoute({
         tooltip={{ children: route.label, side: tooltipSide }}
         className={cn("ml-sidebar-route", nested && primaryChildRouteButtonClass)}
       >
-        <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
-          <Icon />
-          <span>{route.label}</span>
+        <Link href={route.href} onNavigate={closeMobileSidebar} className="group relative">
+          <SidebarPendingLinkContent icon={Icon}>
+            <span>{route.label}</span>
+          </SidebarPendingLinkContent>
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -465,7 +471,7 @@ function CalendarSidebarRoute({
   const { isMobile } = useSidebar()
   const { settings } = useSettings()
   const { calendarContext } = useSidebarCalendarContext()
-  const { navigateFromSidebar } = useSidebarNavigation()
+  const { closeMobileSidebar } = useSidebarNavigation()
   const menuSide = isMobile ? "bottom" : settings.sidebarPosition === "right" ? "left" : "right"
   const menuAlign = isMobile ? "end" : "start"
   const pendingAppointmentRequestCount = calendarContext.pendingAppointmentRequestCount ?? 0
@@ -479,9 +485,10 @@ function CalendarSidebarRoute({
         tooltip={{ children: "Calendar", side: tooltipSide }}
         className={cn("ml-sidebar-route max-w-full group-has-[[data-sidebar=menu-action]]/menu-item:pr-9 md:group-has-[[data-sidebar=menu-action]]/menu-item:pr-[5.75rem]", nested && primaryChildRouteButtonClass)}
       >
-        <Link href="/calendar" onClick={(event) => navigateFromSidebar(event, "/calendar")}>
-          <CalendarDays />
-          <span>Calendar</span>
+        <Link href="/calendar" onNavigate={closeMobileSidebar} className="group relative">
+          <SidebarPendingLinkContent icon={CalendarDays}>
+            <span>Calendar</span>
+          </SidebarPendingLinkContent>
         </Link>
       </SidebarMenuButton>
       <CalendarRequestBadges
@@ -509,9 +516,10 @@ function CalendarSidebarRoute({
 
               return (
                 <DropdownMenuItem key={route.id} asChild>
-                  <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
-                    <Icon className="mr-2 h-4 w-4" />
-                    {route.label}
+                  <Link href={route.href} onNavigate={closeMobileSidebar} className="group relative">
+                    <SidebarPendingLinkContent icon={Icon} className="mr-2">
+                      {route.label}
+                    </SidebarPendingLinkContent>
                   </Link>
                 </DropdownMenuItem>
               )
@@ -532,7 +540,7 @@ function NavSecondary({
   pathname: string
   secondaryRoutes: NavigationRoute[]
 }) {
-  const { navigateFromSidebar } = useSidebarNavigation()
+  const { closeMobileSidebar } = useSidebarNavigation()
 
   if (secondaryRoutes.length === 0) {
     return null
@@ -553,9 +561,10 @@ function NavSecondary({
                   isActive={isNavigationRouteActive(pathname, route.href)}
                   className={cn("ml-sidebar-route", compact && "h-8 px-2 text-xs")}
                 >
-                  <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
-                    <Icon />
-                    <span>{route.label}</span>
+                  <Link href={route.href} onNavigate={closeMobileSidebar} className="group relative">
+                    <SidebarPendingLinkContent icon={Icon}>
+                      <span>{route.label}</span>
+                    </SidebarPendingLinkContent>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -581,7 +590,7 @@ function AccountMenu({
   const { isMobile } = useSidebar()
   const { status, requestInstall } = usePwaInstall()
   const { settings } = useSettings()
-  const { closeMobileSidebar, navigateFromSidebar } = useSidebarNavigation()
+  const { closeMobileSidebar } = useSidebarNavigation()
   const [installInstructionsOpen, setInstallInstructionsOpen] = React.useState(false)
   const name = user?.name || "Guest"
   const email = user?.email || "Sign in to sync"
@@ -656,9 +665,10 @@ function AccountMenu({
 
                     return (
                       <DropdownMenuItem key={route.id} asChild>
-                        <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
-                          <Icon className="mr-2 h-4 w-4" />
-                          {route.label}
+                        <Link href={route.href} onNavigate={closeMobileSidebar} className="group relative">
+                          <SidebarPendingLinkContent icon={Icon} className="mr-2">
+                            {route.label}
+                          </SidebarPendingLinkContent>
                         </Link>
                       </DropdownMenuItem>
                     )
@@ -676,15 +686,17 @@ function AccountMenu({
             ) : (
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link href="/login" onClick={(event) => navigateFromSidebar(event, "/login")}>
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Login
+                  <Link href="/login" onNavigate={closeMobileSidebar} className="group relative">
+                    <SidebarPendingLinkContent icon={LogIn} className="mr-2">
+                      Login
+                    </SidebarPendingLinkContent>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/register" onClick={(event) => navigateFromSidebar(event, "/register")}>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Create Account
+                  <Link href="/register" onNavigate={closeMobileSidebar} className="group relative">
+                    <SidebarPendingLinkContent icon={UserPlus} className="mr-2">
+                      Create Account
+                    </SidebarPendingLinkContent>
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
@@ -695,10 +707,12 @@ function AccountMenu({
                 <DropdownMenuItem asChild>
                   <Link
                     href={siteSettingsRoute.href}
-                    onClick={(event) => navigateFromSidebar(event, siteSettingsRoute.href)}
+                    onNavigate={closeMobileSidebar}
+                    className="group relative"
                   >
-                    <Settings2 className="mr-2 h-4 w-4" />
-                    Site Settings
+                    <SidebarPendingLinkContent icon={Settings2} className="mr-2">
+                      Site Settings
+                    </SidebarPendingLinkContent>
                   </Link>
                 </DropdownMenuItem>
               ) : null}
@@ -713,9 +727,10 @@ function AccountMenu({
 
                 return (
                   <DropdownMenuItem key={route.id} asChild>
-                    <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
-                      <Icon className="mr-2 h-4 w-4" />
-                      {route.label}
+                    <Link href={route.href} onNavigate={closeMobileSidebar} className="group relative">
+                      <SidebarPendingLinkContent icon={Icon} className="mr-2">
+                        {route.label}
+                      </SidebarPendingLinkContent>
                     </Link>
                   </DropdownMenuItem>
                 )

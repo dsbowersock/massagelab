@@ -1,12 +1,19 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
-import { describe, it } from "node:test"
+import { beforeEach, describe, it } from "node:test"
 import { decideAuthSessionVersion } from "../lib/auth-session-version.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { createStrictLegalAcceptanceGateDouble } from "./helpers/legal-acceptance-gate-double.mjs"
 import { queueAccountSecurityEmail } from "../lib/account-security-email-intents.ts"
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+
+const {
+  legalRedirectInvocations,
+  resetLegalRedirectInvocations,
+  strictLegalAcceptanceGate,
+} = createStrictLegalAcceptanceGateDouble()
 
 describe("JWT session-version decisions", () => {
   it("adopts the current non-negative database version on sign-in", () => {
@@ -61,6 +68,62 @@ describe("JWT session-version decisions", () => {
 })
 
 describe("JWT session-version integration contract", () => {
+  beforeEach(() => {
+    resetLegalRedirectInvocations()
+  })
+
+  it("routes paused Google registration through the legal acceptance gate", async () => {
+    const authSource = await read("auth.ts")
+    let capturedConfig
+    class CredentialsSignin extends Error {}
+    const NextAuth = (config) => {
+      capturedConfig = config
+      return { handlers: {}, auth: async () => null, signIn() {}, signOut() {} }
+    }
+    NextAuth.CredentialsSignin = CredentialsSignin
+
+    loadCompiledModule(authSource, "auth-legal-redirect.test.ts", {
+      "next-auth": NextAuth,
+      "next-auth/providers/credentials": (config) => config,
+      "next-auth/providers/google": (config) => config,
+      "next/headers": { cookies: async () => ({ get: () => undefined }) },
+      "@auth/prisma-adapter": { PrismaAdapter: () => ({}) },
+      "@/lib/prisma": { prisma: {} },
+      "@/lib/auth-account-linking": { googleProfileEmail: () => "", isVerifiedGoogleProfile: () => true },
+      "@/lib/auth-env": {
+        getAuthSecret: () => "test-secret",
+        getGoogleAuthConfig: () => null,
+        getSiteUrl: () => "http://localhost:3000",
+      },
+      "@/lib/auth-method-proof": { verifyPasswordMethodProof: async () => ({ status: "INVALID" }) },
+      "@/lib/auth-request": { authRequestNetworkIdentifier: () => "network" },
+      "@/lib/auth-method-intents": {
+        AUTH_METHOD_INTENT_COOKIE: "ml-auth-method-binding",
+        parseAuthMethodIntentBinding: () => null,
+        prepareGoogleAuthentication: async () => ({
+          kind: "REGISTRATION_PAUSED",
+          callbackPath: "/legal/accept?callbackUrl=%2Fwellness",
+        }),
+      },
+      "@/lib/legal-acceptance-gate": strictLegalAcceptanceGate,
+      "@/lib/auth-users": {
+        ensureGoogleUserState: async () => {},
+        ensureUserRole: async () => {},
+        getUserAuthState: async () => null,
+      },
+      "@/lib/auth-session-version": { decideAuthSessionVersion },
+      "@/lib/auth-security": { normalizeEmail: () => "" },
+    })
+
+    const redirect = await capturedConfig.callbacks.signIn({
+      account: { provider: "google" },
+      profile: {},
+    })
+
+    assert.equal(redirect, "/register?callbackUrl=%2Fregister%3FcallbackUrl%3D%252F")
+    assert.deepEqual(legalRedirectInvocations, [["/legal/accept?callbackUrl=%2Fwellness"]])
+  })
+
   it("rejects a pre-reset JWT version after reset consumption advances the account version", async () => {
     const [resetSource] = await Promise.all([
       read("lib/password-reset-confirmation.ts"),
@@ -148,6 +211,7 @@ describe("JWT session-version integration contract", () => {
         parseAuthMethodIntentBinding: () => null,
         prepareGoogleAuthentication: async () => ({ kind: "REJECTED", recoveryPath: "/login?auth=google-retry" }),
       },
+      "@/lib/legal-acceptance-gate": strictLegalAcceptanceGate,
       "@/lib/auth-users": {
         ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
         async getUserAuthState(userId) {
@@ -183,6 +247,7 @@ describe("JWT session-version integration contract", () => {
     assert.match(authSource, /account\?\.provider === "credentials" && Number\.isFinite\(user\?\.passwordAuthenticatedAt\)/)
     assert.match(authSource, /token\.lastPasswordAuthenticatedAt = user\.passwordAuthenticatedAt/)
     assert.match(authSource, /session\.lastPasswordAuthenticatedAt = Number\.isFinite\(token\.lastPasswordAuthenticatedAt\)/)
+    assert.deepEqual(legalRedirectInvocations, [])
   })
 
   it("mints and exposes password freshness only for a successful Credentials sign-in", async () => {
@@ -210,6 +275,7 @@ describe("JWT session-version integration contract", () => {
         parseAuthMethodIntentBinding: () => null,
         prepareGoogleAuthentication: async () => ({ kind: "REJECTED", recoveryPath: "/login?auth=google-retry" }),
       },
+      "@/lib/legal-acceptance-gate": strictLegalAcceptanceGate,
       "@/lib/auth-users": {
         ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
         getUserAuthState: async () => ({
@@ -238,6 +304,7 @@ describe("JWT session-version integration contract", () => {
       account: { provider: "google" },
     })
     assert.equal(Object.hasOwn(googleToken, "lastPasswordAuthenticatedAt"), false)
+    assert.deepEqual(legalRedirectInvocations, [])
   })
 
   it("Credentials authorization loads the normalized proof owner by ID instead of raw email equality", async () => {
@@ -282,6 +349,7 @@ describe("JWT session-version integration contract", () => {
         parseAuthMethodIntentBinding: () => null,
         prepareGoogleAuthentication: async () => ({ kind: "REJECTED", recoveryPath: "/login?auth=google-retry" }),
       },
+      "@/lib/legal-acceptance-gate": strictLegalAcceptanceGate,
       "@/lib/auth-users": {
         ensureGoogleUserState: async () => {}, ensureUserRole: async () => {},
         getUserAuthState: async () => ({
@@ -302,6 +370,7 @@ describe("JWT session-version integration contract", () => {
     assert.equal(authorized.id, "user-1")
     assert.equal(authorized.email, " Person@Example.com ")
     assert.deepEqual(userLookups, [{ id: "user-1" }])
+    assert.deepEqual(legalRedirectInvocations, [])
   })
 })
 

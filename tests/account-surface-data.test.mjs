@@ -1,9 +1,15 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
   createAccountSurfaceDataLoader,
   sessionHasActiveMembershipBenefits,
 } from "../lib/account-surface-data.js"
+
+const accountSurfaceDataSource = await readFile(
+  new URL("../lib/account-surface-data.js", import.meta.url),
+  "utf8",
+)
 
 function createMockPrisma(calls) {
   return {
@@ -93,6 +99,15 @@ const sessionUser = {
 }
 
 describe("account surface data loader", () => {
+  it("delegates public display pricing to the shared catalog owner without a private cache", () => {
+    assert.match(
+      accountSurfaceDataSource,
+      /import\s*\{[^}]*\bgetMembershipPricingCatalog\b[^}]*\}\s*from\s*["']\.\/membership-pricing\.js["']/,
+    )
+    assert.doesNotMatch(accountSurfaceDataSource, /ACCOUNT_PRICING_CATALOG_CACHE_TTL_MS/)
+    assert.doesNotMatch(accountSurfaceDataSource, /pricingCatalogCache/)
+  })
+
   it("uses the legacy premium-background claim only when the aggregate membership claim is absent", () => {
     assert.equal(sessionHasActiveMembershipBenefits({
       capabilities: { canUsePremiumBackgrounds: true },
@@ -184,6 +199,27 @@ describe("account surface data loader", () => {
     assert.deepEqual(calls, ["passwordCredential.findUnique", "account.findFirst"])
   })
 
+  it("projects every two-factor UI method state from booleans without exposing account rows", async () => {
+    for (const [passwordCredential, googleAccount, expected] of [
+      [{ id: "password-private" }, null, { hasPasswordCredential: true, googleLinked: false }],
+      [{ id: "password-private" }, { id: "google-private" }, { hasPasswordCredential: true, googleLinked: true }],
+      [null, { id: "google-private" }, { hasPasswordCredential: false, googleLinked: true }],
+      [null, null, { hasPasswordCredential: false, googleLinked: false }],
+    ]) {
+      const loader = createAccountSurfaceDataLoader({
+        prismaClient: {
+          passwordCredential: { async findUnique() { return passwordCredential } },
+          account: { async findFirst() { return googleAccount } },
+        },
+      })
+
+      const data = await loader.getAccountSurfaceData("security", "user-1", sessionUser)
+
+      assert.deepEqual(data, { surface: "security", ...expected })
+      assert.doesNotMatch(JSON.stringify(data), /password-private|google-private|user-1/)
+    }
+  })
+
   it("loads only the signed-in user's newest fifty safe activity rows", async () => {
     const calls = []
     let rows = [{
@@ -258,7 +294,7 @@ describe("account surface data loader", () => {
     ])
   })
 
-  it("reloads request-time membership access while reusing only the short-lived pricing catalog cache", async () => {
+  it("reloads request-time membership access and delegates every display read to the shared pricing owner", async () => {
     const calls = []
     const loader = createLoader(calls)
 
@@ -267,7 +303,12 @@ describe("account surface data loader", () => {
 
     assert.equal(first.surface, "membership")
     assert.equal(second.surface, "membership")
-    assert.deepEqual(calls, ["getMembershipSummary", "getPricingCatalog", "getMembershipSummary"])
+    assert.deepEqual(calls, [
+      "getMembershipSummary",
+      "getPricingCatalog",
+      "getMembershipSummary",
+      "getPricingCatalog",
+    ])
   })
 
   it("passes one captured request time to the membership summary and exposes only safe feature expiration evidence", async () => {

@@ -96,14 +96,29 @@ export async function clearCredentialAccountFailures({ prismaClient = prisma, em
   email: string
   secret?: string
 }) {
+  await Promise.all((["LOGIN", "TWO_FACTOR"] as const).map((purpose) => clearCredentialAccountFailure({
+    prismaClient,
+    purpose,
+    email,
+    secret,
+  })))
+}
+
+/** Clears one purpose-scoped account bucket without changing shared network pressure. */
+export async function clearCredentialAccountFailure({ prismaClient = prisma, purpose, email, secret }: {
+  prismaClient?: Pick<PrismaClient, "authRateLimitBucket">
+  purpose: CredentialPurpose
+  email: string
+  secret?: string
+}) {
   const resolvedSecret = resolveSecret(secret)
-  await Promise.all((["LOGIN", "TWO_FACTOR"] as const).map((purpose) => prismaClient.authRateLimitBucket.deleteMany({
+  await prismaClient.authRateLimitBucket.deleteMany({
     where: {
       purpose,
       scope: "ACCOUNT",
       keyHash: authRateLimitKeyHash({ purpose, scope: "ACCOUNT", identifier: email, secret: resolvedSecret }),
     },
-  })))
+  })
 }
 
 /** Deletes only a bounded, preselected set of inactive stale bucket IDs. */

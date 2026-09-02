@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Settings2 } from "lucide-react"
-import { getCurrentSession } from "@/auth"
+import { getCurrentRscSession as getCurrentSession } from "@/lib/rsc-session"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { AppInset, AppSurface, appSurfaceClassName } from "@/components/ui/app-surface"

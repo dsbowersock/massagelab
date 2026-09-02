@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
     const portalSession = await createStripeCustomerPortalSession({
       customerId: stripeCustomer.stripeCustomerId,
-      returnUrl: `${getSiteUrl()}/account?portal=returned`,
+      returnUrl: `${getSiteUrl()}/account?tab=membership&portal=returned`,
       subscriptionId: subscription?.stripeSubscriptionId,
     })
 

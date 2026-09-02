@@ -8,7 +8,6 @@ import {
   MEMBERSHIP_CHECKOUT_SUBSCRIPTION_AUTHORITY_READ_BUDGET,
   normalizeStripeSubscription,
   stripeTimestampToDate,
-  upsertMembershipSubscriptionFromStripe,
   verifyStripeWebhookSignature,
 } from "../lib/stripe-billing.js"
 import * as stripeBilling from "../lib/stripe-billing.js"
@@ -18,6 +17,7 @@ import {
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
+import { STRIPE_API_VERSION as CENTRAL_STRIPE_API_VERSION } from "../lib/stripe-webhook-contract.js"
 import { safeErrorCode } from "../lib/safe-error-code.js"
 
 const DEFAULT_SUPPORTER_PRICE_ID = "price_supporter_1_monthly"
@@ -66,6 +66,47 @@ function captureTimersWithDelay(delayMs) {
 }
 
 describe("Stripe billing helpers", () => {
+  it("constructs the default Stripe client with the centralized API version", () => {
+    const stripeClient = stripeBilling.getStripeClient("sk_test_api_version_contract")
+
+    assert.equal(stripeClient.getApiField("version"), CENTRAL_STRIPE_API_VERSION)
+  })
+
+  it("passes optional per-request options through the read-only Price lookup", async () => {
+    const calls = []
+    const requestOptions = { timeout: 2_500, maxNetworkRetries: 1 }
+    const price = {
+      id: "price_public_display",
+      object: "price",
+      currency: "usd",
+      recurring: { interval: "month" },
+      unit_amount: 500,
+    }
+    const stripeClient = {
+      prices: {
+        async retrieve(...args) {
+          calls.push(args)
+          return price
+        },
+      },
+    }
+
+    const result = await stripeBilling.retrieveStripePrice("price_public_display", {
+      stripeClient,
+      requestOptions,
+    })
+
+    assert.equal(result, price)
+    assert.deepEqual(calls, [["price_public_display", {}, requestOptions]])
+
+    calls.length = 0
+    assert.equal(
+      await stripeBilling.retrieveStripePrice("price_public_display", { stripeClient }),
+      price,
+    )
+    assert.deepEqual(calls, [["price_public_display", {}, undefined]])
+  })
+
   it("keeps authority failures catchable, distinct, and private", () => {
     const {
       deadline,
@@ -154,6 +195,12 @@ describe("Stripe billing helpers", () => {
     assert.equal(stripeTimestampToDate(null), null)
   })
 
+  it("keeps normalization public after retiring the legacy membership writers", () => {
+    assert.equal(typeof stripeBilling.normalizeStripeSubscription, "function")
+    assert.equal("recordCheckoutSessionCompleted" in stripeBilling, false)
+    assert.equal("upsertMembershipSubscriptionFromStripe" in stripeBilling, false)
+  })
+
   it("uses subscription item billing periods when Stripe omits top-level periods", () => {
     const env = {
       STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
@@ -210,35 +257,6 @@ describe("Stripe billing helpers", () => {
       }, { env }),
       null,
     )
-  })
-
-  it("does not write a membership subscription for unmapped Stripe prices", async () => {
-    const writes = []
-    const prismaClient = {
-      stripeCustomer: {
-        upsert: async (args) => {
-          writes.push(["customer", args])
-          return args.create
-        },
-      },
-      membershipSubscription: {
-        upsert: async (args) => {
-          writes.push(["subscription", args])
-          return args.create
-        },
-      },
-    }
-
-    const result = await upsertMembershipSubscriptionFromStripe(prismaClient, {
-      id: "sub_123",
-      customer: "cus_123",
-      status: "active",
-      metadata: { userId: "user_123", membershipLevel: "THERAPIST" },
-      items: { data: [{ price: { id: "price_unknown", product: "prod_unknown" } }] },
-    }, { env: { STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist" } })
-
-    assert.equal(result, null)
-    assert.deepEqual(writes, [])
   })
 
   it("creates Stripe Customer Portal sessions with the stored customer and return URL", async () => {
@@ -3460,22 +3478,7 @@ describe("Stripe billing helpers", () => {
     }
   })
 
-  it("ignores donation Checkout Sessions during membership reconciliation", async () => {
-    const writes = []
-    const prismaClient = {
-      stripeCustomer: {
-        upsert: async (args) => {
-          writes.push(["customer", args])
-          return args.create
-        },
-      },
-      membershipSubscription: {
-        upsert: async (args) => {
-          writes.push(["subscription", args])
-          return args.create
-        },
-      },
-    }
+  it("identifies donation Checkout Sessions without treating their metadata as membership", () => {
     const donationSession = {
       client_reference_id: "user_123",
       customer: "cus_123",
@@ -3483,105 +3486,6 @@ describe("Stripe billing helpers", () => {
     }
 
     assert.equal(isDonationCheckoutSession(donationSession), true)
-    assert.equal(await stripeBilling.recordCheckoutSessionCompleted(prismaClient, donationSession), null)
-    assert.deepEqual(writes, [])
-  })
-
-  it("reconciles membership level from the Price mapping instead of subscription metadata", async () => {
-    const writes = []
-    const prismaClient = {
-      stripeCustomer: {
-        upsert: async (args) => {
-          writes.push(["customer", args])
-          return args.create
-        },
-      },
-      membershipSubscription: {
-        upsert: async (args) => {
-          writes.push(["subscription", args])
-          return args.create
-        },
-      },
-    }
-
-    const result = await stripeBilling.recordCheckoutSessionCompleted(prismaClient, {
-      client_reference_id: "user_123",
-      customer: "cus_123",
-      subscription: "sub_123",
-    }, {
-      env: { STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist" },
-      retrieveSubscription: async (subscriptionId) => ({
-        id: subscriptionId,
-        customer: "cus_123",
-        status: "active",
-        current_period_start: 1778791200,
-        current_period_end: 1781383200,
-        metadata: { userId: "user_123", membershipLevel: "SUPPORTER" },
-        items: { data: [{ price: { id: "price_therapist", product: "prod_therapist" } }] },
-      }),
-    })
-
-    assert.equal(result.customer.stripeCustomerId, "cus_123")
-    assert.equal(result.subscription.membershipLevel, "THERAPIST")
-    assert.equal(writes.some(([kind]) => kind === "subscription"), true)
-  })
-
-  it("reconciles every current Supporter Price through Checkout completion", async () => {
-    const currentPrices = {
-      STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: DEFAULT_SUPPORTER_PRICE_ID,
-      STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: SUPPORTER_1_YEARLY_PRICE_ID,
-      STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: SUPPORTER_2_MONTHLY_PRICE_ID,
-      STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: SUPPORTER_2_YEARLY_PRICE_ID,
-      STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: SUPPORTER_5_MONTHLY_PRICE_ID,
-      STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: SUPPORTER_5_YEARLY_PRICE_ID,
-    }
-
-    for (const [index, priceId] of Object.values(currentPrices).entries()) {
-      const writes = []
-      const result = await stripeBilling.recordCheckoutSessionCompleted({
-        stripeCustomer: {
-          upsert: async (args) => {
-            writes.push(["customer", args])
-            return args.create
-          },
-        },
-        membershipSubscription: {
-          upsert: async (args) => {
-            writes.push(["subscription", args])
-            return args.create
-          },
-        },
-      }, {
-        client_reference_id: "user_123",
-        customer: "cus_123",
-        subscription: `sub_supporter_${index}`,
-      }, {
-        env: currentPrices,
-        retrieveSubscription: async (subscriptionId) => ({
-          id: subscriptionId,
-          customer: "cus_123",
-          status: "active",
-          current_period_start: 1778791200,
-          current_period_end: 1781383200,
-          metadata: { userId: "user_123", membershipLevel: "SUPPORTER" },
-          items: {
-            data: [{
-              price: {
-                id: priceId,
-                product: "prod_supporter",
-              },
-            }],
-          },
-        }),
-      })
-
-      assert.equal(result.subscription.membershipLevel, "SUPPORTER", priceId)
-      assert.equal(
-        writes.some(([kind]) => kind === "subscription"),
-        true,
-        priceId,
-      )
-    }
   })
 
   it("classifies explicit Checkout purposes without treating unknown flows as memberships", () => {

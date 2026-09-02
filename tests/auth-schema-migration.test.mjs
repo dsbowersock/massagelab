@@ -13,7 +13,17 @@ const {
 const directUrl = "postgresql://operator:secret@ep-example.us-east-2.aws.neon.tech:5432/massagelab?sslmode=require"
 const pooledUrl = "postgresql://operator:secret@ep-example-pooler.us-east-2.aws.neon.tech/massagelab?sslmode=require"
 
-const [schema, migration, normalizedIndexMigration, preflight, cleanup, packageJsonSource, deployment, releaseChecklist] = await Promise.all([
+const [
+  schema,
+  migration,
+  normalizedIndexMigration,
+  preflight,
+  cleanup,
+  packageJsonSource,
+  deployment,
+  releaseChecklist,
+  releasePlan,
+] = await Promise.all([
   readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8"),
   readFile(
     new URL("../prisma/migrations/20260828120000_identity_method_safety/migration.sql", import.meta.url),
@@ -28,8 +38,29 @@ const [schema, migration, normalizedIndexMigration, preflight, cleanup, packageJ
   readFile(new URL("../package.json", import.meta.url), "utf8"),
   readFile(new URL("../docs/wiki/deployment.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/wiki/release-checklist.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/superpowers/plans/2026-08-28-release-soft-launch.md", import.meta.url), "utf8"),
 ])
 const packageJson = JSON.parse(packageJsonSource)
+
+/**
+ * Returns one checklist step bounded by the next checked or unchecked heading.
+ * A missing or duplicate current heading throws; a missing next heading returns
+ * an empty string so callers cannot mistake an unbounded tail for the step.
+ */
+function releasePlanStepSection(source, stepHeading, nextStepNumber) {
+  const startMarker = `**${stepHeading}**`
+  const headingCount = source.split(startMarker).length - 1
+  assert.equal(
+    headingCount,
+    1,
+    `expected exactly one ${startMarker}; found ${headingCount}`,
+  )
+  const start = source.indexOf(startMarker)
+  const remaining = source.slice(start)
+  const nextHeading = new RegExp(`^- \\[[ xX]\\] \\*\\*Step ${nextStepNumber}:`, "m").exec(remaining)
+  if (!nextHeading) return ""
+  return remaining.slice(0, nextHeading.index)
+}
 
 describe("identity method safety persistence", () => {
   it("keeps the deployed limiter intact while adding privacy-safe active storage", () => {
@@ -100,6 +131,85 @@ describe("identity method safety persistence", () => {
     assert.match(releaseChecklist, /PASSWORD_RECOVERED/)
     assert.match(releaseChecklist, /account-security[^.]*deliver(?:y|ed)|deliver(?:y|ed)[^.]*account-security/i)
     assert.doesNotMatch(releaseChecklist, /must not create[^\n]*account-change email intent/i)
+  })
+
+  it("blocks legacy limiter cleanup until every identity writer is drained by deployment SHA", () => {
+    // Bound the first slice to Step 5 before Step 6 and the second to the complete
+    // identity-writer drain interval before the bounded-pause paragraph. These
+    // anchors prevent unrelated prose from satisfying the deployment-SHA drain gate.
+    const pausedBridgeDrain = releasePlanStepSection(
+      releasePlan,
+      "Step 5: Prove the paused bridge and drain every pre-bridge writer",
+      6,
+    )
+    const identityWriterDrain = pausedBridgeDrain.match(
+      /Use that same complete drain interval[\s\S]*?(?=\r?\n\r?\nDuring this bounded pause)/,
+    )?.[0] ?? ""
+
+    assert.notEqual(pausedBridgeDrain, "", "release plan must contain the bounded paused-bridge drain section")
+    assert.notEqual(identityWriterDrain, "", "paused-bridge section must contain the identity-writer drain interval")
+    assert.match(identityWriterDrain, /deployment\/SHA-scoped/)
+    assert.match(identityWriterDrain, /immutable deployment ID mapped to its full Git SHA/)
+    assert.match(identityWriterDrain, /normalized method\/path/)
+    assert.match(identityWriterDrain, /POST \/api\/account\/register/)
+    assert.match(identityWriterDrain, /POST \/api\/auth\/callback\/credentials/)
+    assert.match(identityWriterDrain, /POST \/api\/account\/password-reset\/request/)
+    assert.match(
+      identityWriterDrain,
+      /zero pre-bridge receives or starts after alias cutover and zero pre-bridge executions still running at the drain boundary/i,
+    )
+    assert.match(identityWriterDrain, /AuthAttempt[^.]*cleanup[^.]*forbidden/i)
+    assert.match(identityWriterDrain, /read-only/i)
+  })
+
+  it("requires complete migration integrity on both paused and unpaused deployment readbacks", () => {
+    const pausedReadback = releasePlanStepSection(
+      releasePlan,
+      "Step 5: Prove the paused bridge and drain every pre-bridge writer",
+      6,
+    )
+    const unpausedReadback = releasePlanStepSection(
+      releasePlan,
+      "Step 6: Deploy the unpaused bridge only after drain proof",
+      7,
+    )
+
+    assert.notEqual(pausedReadback, "", "release plan must contain the paused deployment readback")
+    assert.notEqual(unpausedReadback, "", "release plan must contain the unpaused deployment readback")
+    for (const readback of [pausedReadback, unpausedReadback]) {
+      assert.match(readback, /all five reviewed migrations current in the required order/)
+      assert.match(readback, /every committed migration current/)
+      assert.match(readback, /zero unexpected or failed migrations/)
+    }
+  })
+
+  it("bounds release-plan steps across checked and unchecked next headings", () => {
+    for (const checkbox of [" ", "x", "X"]) {
+      assert.equal(
+        releasePlanStepSection(
+          `- [ ] **Step 5: Current gate**\nrequired claim\n- [${checkbox}] **Step 6: Next gate**`,
+          "Step 5: Current gate",
+          6,
+        ),
+        "**Step 5: Current gate**\nrequired claim\n",
+      )
+    }
+    assert.throws(
+      () => releasePlanStepSection("missing current step", "Step 5: Current gate", 6),
+      /expected exactly one \*\*Step 5: Current gate\*\*; found 0/,
+    )
+    assert.throws(
+      () => releasePlanStepSection(
+        "- [ ] **Step 5: Current gate**\nfirst\n- [ ] **Step 5: Current gate**\nsecond\n- [ ] **Step 6: Next gate**",
+        "Step 5: Current gate",
+        6,
+      ),
+      /expected exactly one \*\*Step 5: Current gate\*\*; found 2/,
+    )
+    assert.equal(
+      releasePlanStepSection("- [ ] **Step 5: Current gate**", "Step 5: Current gate", 6),
+      "",
+    )
   })
 
   it("registers privacy-safe preflight and dormant cleanup commands", () => {

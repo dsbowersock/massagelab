@@ -6,6 +6,7 @@ describe("user-facing copy", () => {
   it("keeps account and billing notices focused on user actions instead of implementation details", async () => {
     const [
       accountPage,
+      membershipReturnStatus,
       pricingCards,
       pricingPage,
       roadmapPage,
@@ -18,6 +19,7 @@ describe("user-facing copy", () => {
       registerForm,
     ] = await Promise.all([
       readFile(new URL("../app/account/page.tsx", import.meta.url), "utf8"),
+      readFile(new URL("../app/account/membership-return-status.tsx", import.meta.url), "utf8"),
       readFile(new URL("../components/membership/pricing-cards.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/pricing/page.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/roadmap/page.tsx", import.meta.url), "utf8"),
@@ -30,11 +32,27 @@ describe("user-facing copy", () => {
       readFile(new URL("../app/register/register-form.tsx", import.meta.url), "utf8"),
     ])
 
-    assert.match(accountPage, /Your membership is being updated/)
     assert.match(accountPage, /billing management right now/)
-    assert.doesNotMatch(accountPage, /webhook (finishes|syncs)/)
     assert.doesNotMatch(accountPage, /secret key configuration/)
     assert.doesNotMatch(accountPage, /Stripe customer/)
+
+    assert.match(membershipReturnStatus, /Finalizing your membership…/)
+    assert.match(membershipReturnStatus, /Checking your latest membership status…/)
+    assert.match(
+      membershipReturnStatus,
+      /Your membership update is still processing\. You can safely check the status again\./,
+    )
+    assert.match(membershipReturnStatus, /Your membership access is active\./)
+    assert.match(
+      membershipReturnStatus,
+      /Your membership needs billing attention\. Review billing management for the next available action\./,
+    )
+    assert.match(membershipReturnStatus, /No active membership is currently recorded for this account\./)
+    assert.match(membershipReturnStatus, />Check status again<\/Button>/)
+
+    for (const surface of [accountPage, membershipReturnStatus]) {
+      assert.doesNotMatch(surface, /\b(?:webhook|Stripe|provider)\b/i)
+    }
 
     assert.match(pricingCards, /Pricing temporarily unavailable/)
     assert.doesNotMatch(pricingCards, /Stripe Price ID/)

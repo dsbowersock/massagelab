@@ -3,14 +3,26 @@ import type { Prisma, PrismaClient } from "@prisma/client"
 import { getAuthSecret } from "@/lib/auth-env"
 import { normalizeEmail } from "@/lib/auth-security"
 import { ensureUserRole } from "@/lib/auth-users"
+import { ensureVerifiedUserBackgroundCredits } from "@/lib/commerce/credit-service"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
+import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
 import { resolveNormalizedUserId } from "@/lib/normalized-user-email"
 import { isGoogleIdentityUniqueConstraint } from "@/lib/prisma-identity-unique-constraint"
 import { prisma } from "@/lib/prisma"
+import { getPublicLaunchControls } from "@/lib/public-launch-controls"
+import { safeErrorCode } from "@/lib/safe-error-code"
 
 export const AUTH_METHOD_INTENT_COOKIE = "ml-auth-method-binding"
 
-export type GoogleIntentPurpose = "SIGN_IN_OR_LINK" | "LINK_GOOGLE" | "ADD_PASSWORD" | "REMOVE_PASSWORD"
+export type GoogleIntentPurpose =
+  | "SIGN_IN_OR_LINK"
+  | "LINK_GOOGLE"
+  | "ADD_PASSWORD"
+  | "REMOVE_PASSWORD"
+  | "ENROLL_TWO_FACTOR"
+  | "DISABLE_TWO_FACTOR"
+  | "REGENERATE_TWO_FACTOR_BACKUP_CODES"
+export type SessionBoundGoogleIntentPurpose = Exclude<GoogleIntentPurpose, "SIGN_IN_OR_LINK">
 type AuthIntentClient = Pick<PrismaClient, "$transaction" | "$queryRaw" | "authMethodIntent" | "user" | "account">
 type SessionIdentity = { id?: string | null; email?: string | null } | null | undefined
 type GoogleAccountProof = { type: string; provider: "google"; providerAccountId: string }
@@ -20,7 +32,8 @@ type EnsureRole = (userId: string, email: string | null, database: Prisma.Transa
 export type GoogleAuthenticationDecision =
   | { kind: "CONTINUE"; userId: string; created?: boolean }
   | { kind: "LINK_REQUIRED"; userId: string }
-  | { kind: "REAUTH_COMPLETE"; purpose: Exclude<GoogleIntentPurpose, "SIGN_IN_OR_LINK">; userId: string }
+  | { kind: "REGISTRATION_PAUSED"; callbackPath: string }
+  | { kind: "REAUTH_COMPLETE"; purpose: SessionBoundGoogleIntentPurpose; userId: string }
   | { kind: "REJECTED"; recoveryPath: GoogleRecoveryPath }
 
 type GoogleRecoveryPath =
@@ -30,13 +43,27 @@ type GoogleRecoveryPath =
 
 const INTENT_LIFETIME_MS = 10 * 60 * 1000
 const MAX_PRUNE_ROWS = 100
-const SECURITY_PURPOSES = new Set<GoogleIntentPurpose>(["LINK_GOOGLE", "ADD_PASSWORD", "REMOVE_PASSWORD"])
+const MAX_REGISTRATION_CALLBACK_PATH_LENGTH = 2048
+const SECURITY_PURPOSES = {
+  LINK_GOOGLE: true,
+  ADD_PASSWORD: true,
+  REMOVE_PASSWORD: true,
+  ENROLL_TWO_FACTOR: true,
+  DISABLE_TWO_FACTOR: true,
+  REGENERATE_TWO_FACTOR_BACKUP_CODES: true,
+} satisfies Readonly<Record<SessionBoundGoogleIntentPurpose, true>>
+
+/** Ordered public values derived from the exhaustive session-bound purpose record. */
+export const SESSION_BOUND_PURPOSES = Object.freeze(
+  Object.keys(SECURITY_PURPOSES) as SessionBoundGoogleIntentPurpose[],
+)
 
 /** Creates an opaque browser proof; only its domain-separated HMAC is persisted. */
 export async function startAuthMethodIntent({
   prismaClient = prisma,
   purpose,
   targetUserId,
+  callbackPath,
   secret = getAuthSecret(),
   now = new Date(),
   randomBytesFn = randomBytes,
@@ -44,24 +71,29 @@ export async function startAuthMethodIntent({
   prismaClient?: AuthIntentClient
   purpose: GoogleIntentPurpose
   targetUserId?: string | null
+  callbackPath?: string | null
   secret?: string
   now?: Date
   randomBytesFn?: (size: number) => Buffer
 }) {
   if (!isGoogleIntentPurpose(purpose)) throw new Error("Unsupported Google intent purpose.")
-  if (SECURITY_PURPOSES.has(purpose) && !targetUserId) {
+  if (isSessionBoundGoogleIntentPurpose(purpose) && !targetUserId) {
     throw new Error("This Google intent purpose requires a target user.")
   }
   const resolvedSecret = requireSecret(secret)
   const browserBindingToken = randomBytesFn(32).toString("base64url")
   const browserBindingHash = bindingHash(browserBindingToken, resolvedSecret)
   const expiresAt = new Date(now.getTime() + INTENT_LIFETIME_MS)
+  const persistedCallbackPath = purpose === "SIGN_IN_OR_LINK"
+    ? boundedRegistrationCallbackPath(callbackPath)
+    : null
 
   const intent = await runCommerceTransaction(prismaClient as PrismaClient, async (tx) => (
     tx.authMethodIntent.create({
       data: {
         purpose,
         targetUserId: targetUserId ?? null,
+        callbackPath: persistedCallbackPath,
         provider: "google",
         browserBindingHash,
         expiresAt,
@@ -150,6 +182,7 @@ export async function resolveBoundAuthMethodIntent({
 /**
  * Decides Google authentication before Auth.js adapter mutation. Serializable
  * retries plus exact predicate updates make one intent single-use under races.
+ * Initial credits are provisioned only after a new identity commits durably.
  */
 export async function prepareGoogleAuthentication({
   prismaClient = prisma,
@@ -162,7 +195,7 @@ export async function prepareGoogleAuthentication({
   now = new Date(),
   ensureRole = ensureUserRole,
 }: {
-  prismaClient?: AuthIntentClient
+  prismaClient?: PrismaClient
   intentId: string
   browserBindingToken: string
   profile: unknown
@@ -208,11 +241,11 @@ export async function prepareGoogleAuthentication({
       }
     }
 
-    if (SECURITY_PURPOSES.has(purpose)) {
+    if (isSessionBoundGoogleIntentPurpose(purpose)) {
       return prepareSecurityReauthentication({
         tx,
         intent,
-        purpose: purpose as Exclude<GoogleIntentPurpose, "SIGN_IN_OR_LINK">,
+        purpose,
         profileProof,
         accountProof,
         currentSessionUser,
@@ -253,6 +286,16 @@ export async function prepareGoogleAuthentication({
         : rejected(purpose, currentSessionUser)
     }
 
+    // Existing provider and same-email owners resolve above. Only the new
+    // identity branch observes the server-owned public registration pause.
+    if (!getPublicLaunchControls().registrationOpen) {
+      if (!await consumePendingIntent(tx, intent.id, now)) return rejected(purpose, currentSessionUser)
+      return {
+        kind: "REGISTRATION_PAUSED" as const,
+        callbackPath: boundedRegistrationCallbackPath(intent.callbackPath),
+      }
+    }
+
     const user = await tx.user.create({
       data: {
         email: profileProof.email,
@@ -268,14 +311,31 @@ export async function prepareGoogleAuthentication({
     return { kind: "CONTINUE" as const, userId: user.id, created: true }
   })
 
+  let decision: GoogleAuthenticationDecision
   try {
-    return await operation()
+    decision = await operation()
   } catch (error) {
     // A different browser may win the normalized User or Google Account unique
     // constraint after our initial read. Restart once to resolve its committed owner.
     if (!isGoogleIdentityUniqueConstraint(error)) throw error
-    return operation()
+    decision = await operation()
   }
+
+  if (decision.kind === "CONTINUE" && decision.created === true) {
+    const userId = decision.userId
+    try {
+      await ensureVerifiedUserBackgroundCredits(prismaClient, userId)
+    } catch (error) {
+      // Identity creation is already durable; the idempotent commerce backfill
+      // remains the bounded repair path for a deferred initial grant.
+      console.error(
+        "Background credit provisioning deferred after Google account creation.",
+        { code: safeErrorCode(error) },
+      )
+    }
+  }
+
+  return decision
 }
 
 async function prepareSecurityReauthentication({
@@ -289,7 +349,7 @@ async function prepareSecurityReauthentication({
 }: {
   tx: Prisma.TransactionClient
   intent: { id: string; targetUserId: string | null }
-  purpose: Exclude<GoogleIntentPurpose, "SIGN_IN_OR_LINK">
+  purpose: SessionBoundGoogleIntentPurpose
   profileProof: GoogleProfileProof
   accountProof: GoogleAccountProof
   currentSessionUser: SessionIdentity
@@ -345,7 +405,7 @@ function allowlistedGoogleAccount(account: unknown): GoogleAccountProof | null {
 }
 
 function rejected(purpose: GoogleIntentPurpose, session: SessionIdentity, unavailable = false): GoogleAuthenticationDecision {
-  if (SECURITY_PURPOSES.has(purpose) || session) {
+  if (isSessionBoundGoogleIntentPurpose(purpose) || session) {
     return { kind: "REJECTED", recoveryPath: "/account?tab=security&auth=google-retry" }
   }
   return {
@@ -354,8 +414,20 @@ function rejected(purpose: GoogleIntentPurpose, session: SessionIdentity, unavai
   }
 }
 
-function isGoogleIntentPurpose(value: unknown): value is GoogleIntentPurpose {
-  return value === "SIGN_IN_OR_LINK" || value === "LINK_GOOGLE" || value === "ADD_PASSWORD" || value === "REMOVE_PASSWORD"
+export function isSessionBoundGoogleIntentPurpose(value: unknown): value is SessionBoundGoogleIntentPurpose {
+  return typeof value === "string" && Object.hasOwn(SECURITY_PURPOSES, value)
+}
+
+export function isGoogleIntentPurpose(value: unknown): value is GoogleIntentPurpose {
+  return value === "SIGN_IN_OR_LINK" || isSessionBoundGoogleIntentPurpose(value)
+}
+
+/** Rebuilds and bounds the only callback path persisted for a public sign-in intent. */
+function boundedRegistrationCallbackPath(value: unknown) {
+  const callbackPath = buildRegistrationLegalProviderRedirectPath(value)
+  return callbackPath.length <= MAX_REGISTRATION_CALLBACK_PATH_LENGTH
+    ? callbackPath
+    : buildRegistrationLegalProviderRedirectPath(null)
 }
 
 function bindingHash(token: string, secret: string) {
