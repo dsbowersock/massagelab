@@ -138,6 +138,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
                 setEmail(event.target.value)
                 clearStaleTwoFactorChallenge()
               }}
+              disabled={entryAction === "email"}
               placeholder="you@example.com"
               required
             />
@@ -153,6 +154,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
                 setPassword(event.target.value)
                 clearStaleTwoFactorChallenge()
               }}
+              disabled={entryAction === "email"}
               required
             />
           </div>

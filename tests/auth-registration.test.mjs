@@ -244,6 +244,23 @@ describe("registration email delivery policy", () => {
     }
   })
 
+  it("locks primary credentials while their email sign-in response is pending", async () => {
+    let resolveSignIn
+    const pendingSignIn = new Promise((resolve) => { resolveSignIn = resolve })
+    const scenario = await loadStatefulLoginFormScenario([pendingSignIn])
+    scenario.change("email", "first@example.test")
+    scenario.change("password", "first-password")
+
+    const submission = scenario.submit()
+    assert.equal(loginField(scenario.render(), "email").props.disabled, true)
+    assert.equal(loginField(scenario.render(), "password").props.disabled, true)
+
+    resolveSignIn({ error: "CredentialsSignin" })
+    await submission
+    assert.equal(loginField(scenario.render(), "email").props.disabled, false)
+    assert.equal(loginField(scenario.render(), "password").props.disabled, false)
+  })
+
   it("preserves one sanitized legal-accept callback in the login registration handoff", async () => {
     const loginForm = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
 
@@ -470,6 +487,7 @@ async function loadStatefulLoginFormScenario(signInResults) {
   const loginSource = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
   const hooks = createLoginHookRuntime()
   const signInCalls = []
+  let entryAction = "idle"
   const router = { push() {}, refresh() {} }
   const Div = passThroughElement("div")
   const login = loadCompiledModule(loginSource, "app/login/login-form.stateful-test.tsx", {
@@ -493,7 +511,15 @@ async function loadStatefulLoginFormScenario(signInResults) {
     "@/components/ui/label": { Label: passThroughElement("label") },
     "@/lib/auth-entry-actions": {
       startGoogleAuthMethodIntent: async () => "navigating",
-      useEntryAction: () => ({ entryAction: "idle", beginEntryAction: () => true, finishEntryAction: () => undefined }),
+      useEntryAction: () => ({
+        entryAction,
+        beginEntryAction(nextAction) {
+          if (entryAction !== "idle") return false
+          entryAction = nextAction
+          return true
+        },
+        finishEntryAction() { entryAction = "idle" },
+      }),
     },
     "@/lib/auth-registration": { buildVerificationRequestPath: () => "/verify-email" },
     "@/lib/legal-acceptance-gate": {
@@ -523,6 +549,7 @@ async function loadStatefulLoginFormScenario(signInResults) {
   return { change, render, signInCalls, submit }
 }
 
+/** Stores hook state by call position; every simulated rerender must begin with startRender(). */
 function createLoginHookRuntime() {
   const state = []
   let cursor = 0

@@ -807,7 +807,7 @@ function createMethodsPanelHarness({
 
 function createMethodsPanelHookRuntime() {
   const state = []
-  const mountedEffects = new Set()
+  const effectDependencies = new Map()
   let cursor = 0
   return {
     startRender() { cursor = 0 },
@@ -820,11 +820,17 @@ function createMethodsPanelHookRuntime() {
           state[index] = typeof value === "function" ? value(state[index]) : value
         }]
       },
-      useEffect(effect) {
+      useEffect(effect, dependencies) {
         const index = cursor
         cursor += 1
-        if (mountedEffects.has(index)) return
-        mountedEffects.add(index)
+        const previous = effectDependencies.get(index)
+        const unchanged = effectDependencies.has(index)
+          && dependencies !== undefined
+          && previous !== undefined
+          && previous.length === dependencies.length
+          && previous.every((value, position) => value === dependencies[position])
+        if (unchanged) return
+        effectDependencies.set(index, dependencies === undefined ? undefined : [...dependencies])
         effect()
       },
     },

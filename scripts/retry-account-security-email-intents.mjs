@@ -35,7 +35,7 @@ export function fingerprintAccountSecurityEmailRetryTarget(connectionString) {
   const { identity } = parseDirectTarget(connectionString)
   return fingerprintPostgresTargetIdentities(
     [identity],
-    "massagelab-direct-neon-operational-target",
+    "massagelab-account-security-email-retry-target",
   )
 }
 

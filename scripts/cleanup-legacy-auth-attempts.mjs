@@ -37,7 +37,7 @@ export function fingerprintLegacyAuthAttemptTarget(connectionString) {
   const { identity } = parseDirectTarget(connectionString)
   return fingerprintPostgresTargetIdentities(
     [identity],
-    "massagelab-direct-neon-operational-target",
+    "massagelab-legacy-auth-attempt-cleanup-target",
   )
 }
 
