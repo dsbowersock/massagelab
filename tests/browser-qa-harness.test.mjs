@@ -16,6 +16,7 @@ import {
   assertBrowserQaLaneCoverage,
   resolveCiBrowserQaLaneProjects,
 } from "./browser/ci-lanes.mjs"
+import { isHeldRouteTeardownCancellation } from "./browser/held-route-teardown.ts"
 
 async function readProjectFile(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
@@ -29,6 +30,31 @@ function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
   assert.notEqual(secondIndex, -1, `Expected workflow to include ${secondStep}`)
   assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
 }
+
+test("held-route teardown recognizes only its exact Playwright cancellation shapes", () => {
+  for (const message of [
+    "Route is already handled!",
+    "route.abort: Route is already handled!",
+    "route.continue: Target page, context or browser has been closed",
+    "route.fallback: Request context disposed",
+    "route.fetch: Route is already handled!",
+    "route.fulfill: Target page, context or browser has been closed",
+  ]) {
+    assert.equal(isHeldRouteTeardownCancellation(new Error(message)), true, message)
+  }
+
+  for (const value of [
+    new Error(" Route is already handled!"),
+    new Error("Route is already handled! after retry"),
+    new Error("Target page, context or browser has been closed"),
+    new Error("Request context disposed"),
+    new Error("page.close: Request context disposed"),
+    new Error("route.abort: unrelated failure"),
+    "Route is already handled!",
+  ]) {
+    assert.equal(isHeldRouteTeardownCancellation(value), false, String(value))
+  }
+})
 
 /**
  * Returns the exact source between ordered markers after validating both bounds.

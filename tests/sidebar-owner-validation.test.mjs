@@ -11,7 +11,8 @@ const sidebarSource = await readFile(
   "utf8",
 )
 
-function loadSidebar(database) {
+/** Loads a module whose fallback Prisma owner records and rejects every practice access. */
+function loadSidebar(implicitPracticeMembershipAccesses) {
   return loadCompiledModule(sidebarSource, "components/sidebar/sidebar.owner-validation.test.tsx", {
     "@/components/sidebar/app-sidebar-client": { AppSidebarClient: () => null },
     "@/lib/account-preferences": { canSyncAccountPreferences },
@@ -21,12 +22,20 @@ function loadSidebar(database) {
       FEATURE_KEYS: { therapistDocumentationTools: "therapist_documentation_tools" },
     },
     "@/lib/navigation": { resolveNavigation: (context) => context },
-    "@/lib/prisma": { prisma: database },
+    "@/lib/prisma": {
+      prisma: {
+        get practiceMembership() {
+          implicitPracticeMembershipAccesses.count += 1
+          throw new Error("getSidebarNavigationContext must use its explicit database dependency")
+        },
+      },
+    },
   })
 }
 
 it("loads practice roles for an exact authenticated sidebar owner id", async () => {
   let practiceRoleQuery
+  const implicitPracticeMembershipAccesses = { count: 0 }
   const database = {
     practiceMembership: {
       async findMany(query) {
@@ -35,10 +44,12 @@ it("loads practice roles for an exact authenticated sidebar owner id", async () 
       },
     },
   }
-  const { getSidebarNavigationContext } = loadSidebar(database)
+  const { getSidebarNavigationContext } = loadSidebar(implicitPracticeMembershipAccesses)
+  assert.equal(implicitPracticeMembershipAccesses.count, 0, "module import must not read fallback practice membership")
 
   const context = await getSidebarNavigationContext({ id: "user-1", featureKeys: [] }, database)
 
+  assert.equal(implicitPracticeMembershipAccesses.count, 0, "valid owner must use the explicit database")
   assert.deepEqual(context, {
     authState: "signed-in",
     accountRoles: ["USER"],
@@ -56,6 +67,7 @@ it("loads practice roles for an exact authenticated sidebar owner id", async () 
 
 it("fails closed for every rejected sidebar owner id shape", async () => {
   const calls = { practiceRoleReads: 0 }
+  const implicitPracticeMembershipAccesses = { count: 0 }
   const database = {
     practiceMembership: {
       async findMany() {
@@ -64,7 +76,8 @@ it("fails closed for every rejected sidebar owner id shape", async () => {
       },
     },
   }
-  const { getSidebarNavigationContext } = loadSidebar(database)
+  const { getSidebarNavigationContext } = loadSidebar(implicitPracticeMembershipAccesses)
+  assert.equal(implicitPracticeMembershipAccesses.count, 0, "module import must not read fallback practice membership")
 
   const rejectedOwnerIds = [
     { label: "empty", value: "" },
@@ -78,5 +91,6 @@ it("fails closed for every rejected sidebar owner id shape", async () => {
     const context = await getSidebarNavigationContext({ id: value, featureKeys: [] }, database)
     assert.deepEqual(context, { authState: "anonymous" }, label)
   }
+  assert.equal(implicitPracticeMembershipAccesses.count, 0, "invalid owners must not read fallback practice membership")
   assert.equal(calls.practiceRoleReads, 0)
 })

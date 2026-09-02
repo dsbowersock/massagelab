@@ -21,6 +21,8 @@ const routeSource = readFileSync(
   new URL("../app/api/calendar/sidebar-context/route.ts", import.meta.url),
   "utf8",
 )
+const PHI_BEARING_ROUTE_PATTERN =
+  /\b(?:practiceClient|clinical|soap|intake|patientNote|patient|medical|diagnosis|note|journal)\b/i
 
 const sidebarEffectCleanupOptions = Object.freeze({
   label: "Sidebar calendar Provider",
@@ -417,6 +419,23 @@ describe("sidebar calendar context route gating", () => {
   })
 
   it("keeps the endpoint response PHI-minimized", () => {
-    assert.doesNotMatch(routeSource, /practiceClient|clinical|soap|intake/i)
+    for (const phiTerm of [
+      "practiceClient",
+      "CLINICAL",
+      "SOAP",
+      "intake",
+      "Patient",
+      "medical",
+      "Diagnosis",
+      "note",
+      "journal",
+      "patientNote",
+    ]) {
+      assert.match(phiTerm, PHI_BEARING_ROUTE_PATTERN, phiTerm)
+    }
+    for (const unrelatedTerm of ["impatient", "journalist", "noteworthy", "denote"]) {
+      assert.doesNotMatch(unrelatedTerm, PHI_BEARING_ROUTE_PATTERN, unrelatedTerm)
+    }
+    assert.doesNotMatch(routeSource, PHI_BEARING_ROUTE_PATTERN)
   })
 })

@@ -61,6 +61,55 @@ function callStringOption(call, optionName) {
     : null
 }
 
+/** Finds effects whose callback invokes one identifier inside one exact top-level export. */
+function exportedFunctionEffectsInvoking(source, functionName, invokedName) {
+  const sourceFile = ts.createSourceFile(
+    "therapist-settings-provider.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  const functions = sourceFile.statements.filter((statement) => (
+    ts.isFunctionDeclaration(statement)
+    && statement.name?.text === functionName
+    && statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
+  ))
+  assert.equal(functions.length, 1, `expected one exported ${functionName} function`)
+  assert.ok(functions[0].body, `exported ${functionName} function must have a body`)
+  const matchingEffects = []
+
+  const callbackInvokes = (callback) => {
+    let invokes = false
+    const visit = (node) => {
+      if (
+        ts.isCallExpression(node)
+        && ts.isIdentifier(node.expression)
+        && node.expression.text === invokedName
+      ) {
+        invokes = true
+      }
+      if (!invokes) ts.forEachChild(node, visit)
+    }
+    visit(callback)
+    return invokes
+  }
+  const visitFunction = (node) => {
+    if (
+      ts.isCallExpression(node)
+      && ts.isIdentifier(node.expression)
+      && node.expression.text === "useEffect"
+      && node.arguments[0]
+      && callbackInvokes(node.arguments[0])
+    ) {
+      matchingEffects.push(node)
+    }
+    ts.forEachChild(node, visitFunction)
+  }
+  visitFunction(functions[0].body)
+  return matchingEffects
+}
+
 /** Returns fresh inert provider dependencies so compiled harnesses cannot share hook state. */
 function inertProviderMocks({
   bootstrap = () => ({ ownerKey: null, syncEnabled: false }),
@@ -1175,9 +1224,14 @@ describe("therapist settings cloud hydration", () => {
     assert.equal(Number(profileWrite.arguments[2]?.text), 10_000)
     assert.equal(profileFetches.directFetchCalls.length, 0, "provider must not call raw fetch directly")
     assert.match(providerSource, /massage-lab-therapist-settings/)
-    assert.match(
-      providerSource,
-      /export function useTherapistSettings[\s\S]*useEffect\([\s\S]*ensureCloudHydrated/,
+    assert.equal(
+      exportedFunctionEffectsInvoking(
+        providerSource,
+        "useTherapistSettings",
+        "ensureCloudHydrated",
+      ).length,
+      1,
+      "useTherapistSettings must demand cloud hydration from its own effect",
     )
     assert.match(providerSource, /body:\s*JSON\.stringify\(\{ therapistSettings: nextSettings \}\)/)
     assert.match(layoutSource, /<TherapistSettingsProvider>/)

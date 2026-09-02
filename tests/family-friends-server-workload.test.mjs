@@ -90,7 +90,7 @@ function assertBoundedEitherOrder(source, left, right, maxCharacters = 120) {
   assert.match(
     source,
     new RegExp(
-      `(?:${left.source}.{0,${maxCharacters}}${right.source}|${right.source}.{0,${maxCharacters}}${left.source})`,
+      `(?:(?:${left.source}).{0,${maxCharacters}}(?:${right.source})|(?:${right.source}).{0,${maxCharacters}}(?:${left.source}))`,
       "i",
     ),
   )
@@ -396,6 +396,16 @@ function portalPost(calls) {
 }
 
 describe("family-and-friends server workload baseline", () => {
+  it("keeps fragment alternatives inside the bounded either-order matcher", () => {
+    const left = /left-one|left-two/
+    const right = /right-one|right-two/
+
+    assert.doesNotThrow(() => assertBoundedEitherOrder("left-two--right-one", left, right, 2))
+    assert.doesNotThrow(() => assertBoundedEitherOrder("right-two--left-one", left, right, 2))
+    assert.throws(() => assertBoundedEitherOrder("left-one", left, right, 2), assert.AssertionError)
+    assert.throws(() => assertBoundedEitherOrder("right-two", left, right, 2), assert.AssertionError)
+  })
+
   it("keeps project-state launch-cost claims current and dated", () => {
     assert.match(normalizedProjectStateSource, /ordinary non-practice shell/i)
     assert.match(normalizedProjectStateSource, /four logical ORM operations/i)
