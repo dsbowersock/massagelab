@@ -45,9 +45,24 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
   const [password, setPassword] = useState("")
   const [twoFactorCode, setTwoFactorCode] = useState("")
   const [needsTwoFactor, setNeedsTwoFactor] = useState(false)
-  const [status, setStatus] = useState(searchParams.get("verified") ? "Email verified. You can sign in now." : "")
+  const [status, setStatus] = useState(
+    searchParams.get("verified")
+      ? "Email verified. You can sign in now."
+      : searchParams.get("security") === "sign-in-methods-changed"
+        ? "Your sign-in methods changed. Sign in again to continue."
+        : "",
+  )
   const [statusIsError, setStatusIsError] = useState(false)
   const { entryAction, beginEntryAction, finishEntryAction } = useEntryAction()
+
+  /** A two-factor challenge belongs only to the exact primary credentials that produced it. */
+  function clearStaleTwoFactorChallenge() {
+    if (!needsTwoFactor) return
+    setNeedsTwoFactor(false)
+    setTwoFactorCode("")
+    setStatus("")
+    setStatusIsError(false)
+  }
 
   async function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -119,7 +134,10 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value)
+                clearStaleTwoFactorChallenge()
+              }}
               placeholder="you@example.com"
               required
             />
@@ -131,7 +149,10 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
               type="password"
               autoComplete="current-password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(event) => {
+                setPassword(event.target.value)
+                clearStaleTwoFactorChallenge()
+              }}
               required
             />
           </div>

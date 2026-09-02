@@ -388,7 +388,7 @@ Present the zero-collision result, current production migration status, exact mi
 20260901101000_auth_method_intent_registration_callback
 ```
 
-Include additive/limiter-row-deletion behavior, rollback compatibility, database target, verification command, and the concurrent-index monitoring/recovery boundary. Request authorization only for applying these five reviewed migrations in the displayed order after the zero-collision preflight.
+Include additive schema behavior, legacy-limiter preservation with cleanup kept as a separate later operation, rollback compatibility, database target, verification command, and the concurrent-index monitoring/recovery boundary. Request authorization only for applying these five reviewed migrations in the displayed order after the zero-collision preflight.
 
 - [ ] **Step 2: Apply and verify only after approval**
 

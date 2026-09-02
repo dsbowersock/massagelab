@@ -82,7 +82,9 @@ export function createPasswordMethodHandler({
       now,
       hashPasswordFn: hash,
     })
-    if (result.status === "REJECTED") return rejectedResponse(result.code)
+    if (result.status === "REJECTED") {
+      return rejectedResponse(result.code, result.code === "RATE_LIMITED" ? result.retryAfterSeconds : undefined)
+    }
 
     scheduleAfter(() => deliver({ prismaClient, intentId: result.emailIntentId }).then(() => undefined).catch(() => undefined))
     clearCache(userId, "security")
@@ -111,7 +113,12 @@ function validPasswordBody(value: unknown): value is PasswordBody {
   return body.twoFactorCode === undefined || (typeof body.twoFactorCode === "string" && body.twoFactorCode.length <= 128)
 }
 
-function rejectedResponse(code: string) {
+function rejectedResponse(code: string, retryAfterSeconds?: number) {
+  if (code === "RATE_LIMITED") {
+    return safeResponse(code, "Too many attempts. Wait a little, then try again.", 429, {
+      "Retry-After": retryAfterHeader(retryAfterSeconds),
+    })
+  }
   if (code === "CONFLICT" || code === "ALREADY_LINKED" || code === "LAST_METHOD") {
     return safeResponse(code, "Your sign-in methods changed. Refresh and try again.", 409)
   }
@@ -133,8 +140,12 @@ function proofRecoveryMessage() {
   return "This Google confirmation expired or belongs to another session. Start again."
 }
 
-function safeResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ code, message }, { status })
+function safeResponse(code: string, message: string, status: number, headers?: Record<string, string>) {
+  return NextResponse.json({ code, message }, { status, headers })
+}
+
+function retryAfterHeader(value?: number) {
+  return String(Number.isSafeInteger(value) && (value ?? 0) > 0 ? Math.min(value ?? 1, 900) : 1)
 }
 
 function clearBindingCookie(response: ReturnType<typeof NextResponse.json>) {

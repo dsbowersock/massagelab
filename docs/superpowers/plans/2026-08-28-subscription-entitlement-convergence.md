@@ -194,8 +194,8 @@ same event ID                                      -> duplicate
 no stored snapshot                                -> apply
 stored snapshot with no event/authoritative mark  -> reconcile
 incoming newer than event, no authoritative mark  -> apply
-incoming older than last event                    -> ignore-stale
-different event after authoritative provider read -> reconcile
+incoming older than last event, including after an authoritative read -> ignore-stale
+different event after authoritative provider read, not already proven stale -> reconcile
 equal event timestamp with a different event ID   -> reconcile
 ```
 
@@ -211,7 +211,8 @@ Required cases:
 - newer resumed event restores access;
 - equal-time different IDs reconcile;
 - legacy null watermark reconciles;
-- any different event after an authoritative snapshot reconciles instead of trusting cross-system clocks;
+- any different event after an authoritative snapshot that is not already proven stale by the provider-event watermark reconciles instead of trusting cross-system clocks;
+- an event older than the provider-event watermark remains `ignore-stale` even when an authoritative snapshot marker also exists;
 - same-second events and simulated positive/negative local clock skew never produce `ignore-stale` solely from `lastStripeAuthoritativeAt`;
 - provider failure leaves receipt RECEIVED with safe failure code and throws retryable error;
 - current provider retrieval occurs outside `$transaction`;

@@ -21,6 +21,22 @@ describe("requestPasswordReset", () => {
     assert.deepEqual(db.events.slice(0, 5), ["limit:ACCOUNT", "limit:NETWORK", "delivery.schedule", "normalized-email.query", "user.findUnique"])
   })
 
+  it("makes the token-persistence privacy probe observe raw identifier fields", async () => {
+    const db = createResetRequestDatabase()
+
+    await db.passwordResetToken.create({
+      data: {
+        userId: "known-user",
+        tokenHash: "hash:raw-reset-token",
+        expiresAt: NOW,
+        email: "known@example.com",
+        rawToken: "raw-reset-token",
+      },
+    })
+
+    assert.deepEqual(db.persistedRawIdentifiers, ["email", "rawToken"])
+  })
+
   it("returns the exact retry delay before lookup, token, cleanup, transaction, or email work", async () => {
     const db = createResetRequestDatabase({ rateLimited: true })
 
@@ -157,6 +173,7 @@ function createResetRequestDatabase({
   const sentResetMessages = []
   const rawQueries = []
   const scheduledDeliveries = []
+  const persistedRawIdentifiers = []
   let transactionCount = 0
 
   function client(snapshot, transaction = false) {
@@ -172,6 +189,9 @@ function createResetRequestDatabase({
       passwordResetToken: {
         async create({ data }) {
           events.push("token.create")
+          for (const field of ["email", "recipientEmail", "identifier", "token", "rawToken"]) {
+            if (typeof data[field] === "string") persistedRawIdentifiers.push(field)
+          }
           const row = { id: `created-${snapshot.length + 1}`, consumedAt: null, ...data }
           snapshot.push(row)
           return structuredClone(row)
@@ -194,7 +214,7 @@ function createResetRequestDatabase({
     sentResetMessages,
     rawQueries,
     scheduledDeliveries,
-    persistedRawIdentifiers: [],
+    persistedRawIdentifiers,
     rateBucket(purpose, scope, identifier) {
       return { count: buckets.get(`${purpose}:${scope}:${identifier}`) ?? 0 }
     },

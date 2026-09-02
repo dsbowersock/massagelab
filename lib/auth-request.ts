@@ -1,13 +1,17 @@
 const UNKNOWN_NETWORK_IDENTIFIER = "unknown"
 
 /**
- * Returns one stable network bucket from Vercel-owned request headers.
- * Vercel overwrites these headers at its edge; deployments behind another
- * proxy must preserve that trust boundary rather than forwarding client input.
+ * Returns one stable network bucket from the Vercel-owned address header.
+ * Production fails closed when that header is absent; local and test servers
+ * retain conventional proxy fallbacks because no Vercel edge owns the request.
  */
 export function authRequestNetworkIdentifier(request: Pick<Request, "headers">): string {
-  return firstForwardedAddress(request.headers.get("x-vercel-forwarded-for"))
-    || firstForwardedAddress(request.headers.get("x-forwarded-for"))
+  const vercelAddress = firstForwardedAddress(request.headers.get("x-vercel-forwarded-for"))
+  if (process.env.VERCEL === "1") {
+    return vercelAddress || UNKNOWN_NETWORK_IDENTIFIER
+  }
+  if (process.env.NODE_ENV === "production") return UNKNOWN_NETWORK_IDENTIFIER
+  return firstForwardedAddress(request.headers.get("x-forwarded-for"))
     || firstForwardedAddress(request.headers.get("x-real-ip"))
     || UNKNOWN_NETWORK_IDENTIFIER
 }

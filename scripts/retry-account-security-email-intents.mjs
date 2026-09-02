@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto"
 import { resolve } from "node:path"
 import process from "node:process"
 import { pathToFileURL } from "node:url"
@@ -11,6 +10,8 @@ import { config as loadDotenv } from "dotenv"
 import ws from "ws"
 
 import { deliverAccountSecurityEmailIntent } from "../lib/account-security-email-intents.ts"
+import { formatOperationalError } from "./operational-error-redaction.mjs"
+import { fingerprintPostgresTargetIdentities, parsePostgresTargetIdentity } from "./postgres-target-identity.mjs"
 
 const FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/
 
@@ -18,30 +19,24 @@ function parseDirectTarget(connectionString) {
   if (!connectionString?.trim()) {
     throw new Error("AUTH_SECURITY_NOTICE_RETRY_DATABASE_URL is required.")
   }
-  let parsed
-  try {
-    parsed = new URL(connectionString)
-  } catch {
-    throw new Error("AUTH_SECURITY_NOTICE_RETRY_DATABASE_URL must be a valid direct Neon connection.")
-  }
-  const database = decodeURIComponent(parsed.pathname).replace(/^\/+|\/+$/g, "")
-  if (
-    !["postgres:", "postgresql:"].includes(parsed.protocol)
-    || !parsed.hostname.endsWith(".neon.tech")
-    || parsed.hostname.includes("-pooler.")
-    || database.length === 0
-  ) {
-    throw new Error("AUTH_SECURITY_NOTICE_RETRY_DATABASE_URL must be a direct non-pooler Neon connection.")
-  }
+  const normalizedConnectionString = connectionString.trim()
+  const identity = parsePostgresTargetIdentity(normalizedConnectionString, {
+    label: "AUTH_SECURITY_NOTICE_RETRY_DATABASE_URL",
+    requireDirectNeon: true,
+  })
   return {
-    connectionString: connectionString.trim(),
-    normalizedTuple: `${parsed.hostname.toLowerCase()}:${parsed.port || "5432"}/${database}`,
+    connectionString: normalizedConnectionString,
+    identity,
   }
 }
 
-/** Returns only a SHA-256 binding for the direct host/port/database tuple. */
+/** Returns only a SHA-256 binding for the direct role/host/port/database tuple. */
 export function fingerprintAccountSecurityEmailRetryTarget(connectionString) {
-  return createHash("sha256").update(parseDirectTarget(connectionString).normalizedTuple).digest("hex")
+  const { identity } = parseDirectTarget(connectionString)
+  return fingerprintPostgresTargetIdentities(
+    [identity],
+    "massagelab-direct-neon-operational-target",
+  )
 }
 
 function parseArgs(args) {
@@ -143,16 +138,7 @@ function createAccountSecurityEmailRetryPrismaClient(connectionString) {
 
 /** Returns bounded operator context without exposing recipients, URLs, or secret-bearing tokens. */
 export function formatAccountSecurityEmailRetryError(error) {
-  const message = error instanceof Error ? error.message : String(error ?? "Unknown error.")
-  return message
-    .split(/\s+/)
-    .map((token) => (
-      token.includes("@") || token.includes("://") || /\b(?:password|passwd|pwd|token|secret)=/i.test(token)
-        ? "[redacted]"
-        : token
-    ))
-    .join(" ")
-    .slice(0, 500)
+  return formatOperationalError(error)
 }
 
 async function main() {

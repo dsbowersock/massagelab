@@ -20,7 +20,7 @@ describe("account-security email operational retry", () => {
   })
 
   it("fingerprints a direct target without connecting", async () => {
-    const { runAccountSecurityEmailRetryCli } = await loadRetryModule()
+    const { fingerprintAccountSecurityEmailRetryTarget, runAccountSecurityEmailRetryCli } = await loadRetryModule()
     const output = []
     let clients = 0
     await runAccountSecurityEmailRetryCli({
@@ -33,6 +33,41 @@ describe("account-security email operational retry", () => {
     assert.equal(clients, 0)
     assert.equal(output.length, 1)
     assert.match(output[0], /^[0-9a-f]{64}$/)
+    assert.notEqual(
+      fingerprintAccountSecurityEmailRetryTarget(directUrl.replace("operator", "other-role")),
+      fingerprintAccountSecurityEmailRetryTarget(directUrl),
+    )
+  })
+
+  it("rejects ambiguous or target-altering parameters before connecting or sending", async () => {
+    const { fingerprintAccountSecurityEmailRetryTarget, runAccountSecurityEmailRetryCli } = await loadRetryModule()
+    const expectedFingerprint = fingerprintAccountSecurityEmailRetryTarget(directUrl)
+    let clients = 0
+    let deliveries = 0
+    for (const suffix of [
+      "&sslmode=verify-full",
+      "&application_name=retry",
+      "&schema=private",
+      "&options=-csearch_path%3Dprivate",
+      "&search_path=private",
+    ]) {
+      await assert.rejects(
+        runAccountSecurityEmailRetryCli({
+          args: [`--expected-fingerprint=${expectedFingerprint}`, "--max-rows=1"],
+          env: {
+            AUTH_SECURITY_NOTICE_RETRY_DATABASE: "1",
+            AUTH_SECURITY_NOTICE_RETRY_SEND: "1",
+            AUTH_SECURITY_NOTICE_RETRY_DATABASE_URL: `${directUrl}${suffix}`,
+          },
+          createPrismaClient: () => { clients += 1; throw new Error("must not connect") },
+          deliverIntent: async () => { deliveries += 1; return { status: "DELIVERED" } },
+          writeLine: () => assert.fail("invalid target must not report retry success"),
+        }),
+        /parameter|duplicate|allowed/i,
+      )
+    }
+    assert.equal(clients, 0)
+    assert.equal(deliveries, 0)
   })
 
   it("fails closed before connecting unless direct-target, database, send, fingerprint, and bound gates are exact", async () => {

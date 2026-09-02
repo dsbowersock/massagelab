@@ -18,24 +18,48 @@ const consumerPaths = [
 const consumerSources = await Promise.all(consumerPaths.map((path) => readFile(new URL(path, import.meta.url), "utf8")))
 
 describe("shared authentication request boundaries", () => {
-  it("uses Vercel's trusted address before forwarded fallbacks and one unknown bucket", () => {
+  it("trusts only Vercel's address in production and keeps local forwarded fallbacks", () => {
     assert.match(source, /export function authRequestNetworkIdentifier/)
     const { authRequestNetworkIdentifier } = loadCompiledModule(source, "auth-request.test.ts")
 
-    assert.equal(authRequestNetworkIdentifier(request({
-      "x-vercel-forwarded-for": "198.51.100.7",
-      "x-forwarded-for": "203.0.113.9, 10.0.0.4",
-      "x-real-ip": "192.0.2.5",
-    })), "198.51.100.7")
-    assert.equal(authRequestNetworkIdentifier(request({
-      "x-vercel-forwarded-for": "",
-      "x-forwarded-for": "203.0.113.9, 10.0.0.4",
-    })), "203.0.113.9")
-    assert.equal(authRequestNetworkIdentifier(request({
-      "x-forwarded-for": "",
-      "x-real-ip": " 192.0.2.5 ",
-    })), "192.0.2.5")
-    assert.equal(authRequestNetworkIdentifier(request({})), "unknown")
+    withEnvironment({ NODE_ENV: "production", VERCEL: "1" }, () => {
+      assert.equal(authRequestNetworkIdentifier(request({
+        "x-vercel-forwarded-for": "198.51.100.7",
+        "x-forwarded-for": "203.0.113.9, 10.0.0.4",
+        "x-real-ip": "192.0.2.5",
+      })), "198.51.100.7")
+      assert.equal(authRequestNetworkIdentifier(request({
+        "x-forwarded-for": "203.0.113.9, 10.0.0.4",
+        "x-real-ip": "192.0.2.5",
+      })), "unknown")
+      assert.equal(authRequestNetworkIdentifier(request({
+        "x-vercel-forwarded-for": "",
+        "x-forwarded-for": "198.51.100.8",
+      })), "unknown")
+    })
+
+    withEnvironment({ NODE_ENV: "production", VERCEL: undefined }, () => {
+      assert.equal(authRequestNetworkIdentifier(request({
+        "x-vercel-forwarded-for": "198.51.100.7",
+        "x-forwarded-for": "203.0.113.9",
+      })), "unknown")
+    })
+
+    withEnvironment({ NODE_ENV: "test", VERCEL: undefined }, () => {
+      assert.equal(authRequestNetworkIdentifier(request({
+        "x-vercel-forwarded-for": "198.51.100.7",
+        "x-forwarded-for": "203.0.113.9, 10.0.0.4",
+      })), "203.0.113.9")
+      assert.equal(authRequestNetworkIdentifier(request({
+        "x-vercel-forwarded-for": "",
+        "x-forwarded-for": "203.0.113.9, 10.0.0.4",
+      })), "203.0.113.9")
+      assert.equal(authRequestNetworkIdentifier(request({
+        "x-forwarded-for": "",
+        "x-real-ip": " 192.0.2.5 ",
+      })), "192.0.2.5")
+      assert.equal(authRequestNetworkIdentifier(request({})), "unknown")
+    })
   })
 
   it("accepts only normalized public account emails within the shared bound", () => {
@@ -73,4 +97,20 @@ describe("shared authentication request boundaries", () => {
 
 function request(headers) {
   return new Request("https://massagelab.app/login", { headers })
+}
+
+function withEnvironment(values, callback) {
+  const previous = new Map(Object.keys(values).map((key) => [key, process.env[key]]))
+  for (const [key, value] of Object.entries(values)) {
+    if (value === undefined) delete process.env[key]
+    else process.env[key] = value
+  }
+  try {
+    callback()
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  }
 }

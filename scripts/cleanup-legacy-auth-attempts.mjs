@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto"
 import process from "node:process"
 import { pathToFileURL } from "node:url"
 import { resolve } from "node:path"
@@ -10,6 +9,9 @@ import { neonConfig } from "@neondatabase/serverless"
 import { config as loadDotenv } from "dotenv"
 import ws from "ws"
 
+import { formatOperationalError } from "./operational-error-redaction.mjs"
+import { fingerprintPostgresTargetIdentities, parsePostgresTargetIdentity } from "./postgres-target-identity.mjs"
+
 const FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/
 
 /** Parses only direct Neon targets and returns the non-secret tuple used for target binding. */
@@ -18,32 +20,25 @@ function parseDirectTarget(connectionString) {
     throw new Error("AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL is required.")
   }
 
-  let parsed
-  try {
-    parsed = new URL(connectionString)
-  } catch {
-    throw new Error("AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL must be a valid direct Neon connection.")
-  }
-  const database = decodeURIComponent(parsed.pathname).replace(/^\/+|\/+$/g, "")
-  if (
-    !["postgres:", "postgresql:"].includes(parsed.protocol)
-    || !parsed.hostname.endsWith(".neon.tech")
-    || parsed.hostname.includes("-pooler.")
-    || database.length === 0
-  ) {
-    throw new Error("AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL must be a direct non-pooler Neon connection.")
-  }
+  const normalizedConnectionString = connectionString.trim()
+  const identity = parsePostgresTargetIdentity(normalizedConnectionString, {
+    label: "AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL",
+    requireDirectNeon: true,
+  })
 
   return {
-    connectionString: connectionString.trim(),
-    normalizedTuple: `${parsed.hostname.toLowerCase()}:${parsed.port || "5432"}/${database}`,
+    connectionString: normalizedConnectionString,
+    identity,
   }
 }
 
 /** Produces a secret-free stable binding for an explicitly approved database target. */
 export function fingerprintLegacyAuthAttemptTarget(connectionString) {
-  const { normalizedTuple } = parseDirectTarget(connectionString)
-  return createHash("sha256").update(normalizedTuple).digest("hex")
+  const { identity } = parseDirectTarget(connectionString)
+  return fingerprintPostgresTargetIdentities(
+    [identity],
+    "massagelab-direct-neon-operational-target",
+  )
 }
 
 function parseCleanupArgs(args) {
@@ -153,17 +148,8 @@ export async function runLegacyAuthAttemptCleanupCli({
   return deletedCount
 }
 
-function formatCleanupError(error) {
-  const message = error instanceof Error ? error.message : String(error ?? "Unknown error.")
-  return message
-    .split(/\s+/)
-    .map((token) => (
-      token.includes("://") || /\b(?:password|passwd|pwd|token|secret)=/i.test(token)
-        ? "[redacted]"
-        : token
-    ))
-    .join(" ")
-    .slice(0, 500)
+export function formatCleanupError(error) {
+  return formatOperationalError(error)
 }
 
 async function main() {

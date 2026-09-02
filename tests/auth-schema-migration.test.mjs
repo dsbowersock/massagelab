@@ -23,6 +23,8 @@ const [
   deployment,
   releaseChecklist,
   releasePlan,
+  identityPlan,
+  subscriptionPlan,
 ] = await Promise.all([
   readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8"),
   readFile(
@@ -39,6 +41,8 @@ const [
   readFile(new URL("../docs/wiki/deployment.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/wiki/release-checklist.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/superpowers/plans/2026-08-28-release-soft-launch.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/superpowers/plans/2026-08-28-identity-account-method-safety.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/superpowers/plans/2026-08-28-subscription-entitlement-convergence.md", import.meta.url), "utf8"),
 ])
 const packageJson = JSON.parse(packageJsonSource)
 
@@ -131,6 +135,19 @@ describe("identity method safety persistence", () => {
     assert.match(releaseChecklist, /PASSWORD_RECOVERED/)
     assert.match(releaseChecklist, /account-security[^.]*deliver(?:y|ed)|deliver(?:y|ed)[^.]*account-security/i)
     assert.doesNotMatch(releaseChecklist, /must not create[^\n]*account-change email intent/i)
+  })
+
+  it("keeps the implementation plans aligned with the shipped migration and event-order owners", () => {
+    const expansionStep = identityPlan.slice(
+      identityPlan.indexOf("**Step 5: Add the zero-downtime expansion migration**"),
+      identityPlan.indexOf("**Step 6: Add a count-only collision preflight**"),
+    )
+    assert.doesNotMatch(expansionStep, /CREATE UNIQUE INDEX "User_normalized_email_key"/)
+    assert.match(identityPlan, /20260828121000_identity_normalized_email_index/)
+    assert.match(identityPlan, /404598c0/)
+    assert.doesNotMatch(releasePlan, /limiter-row-deletion behavior/)
+    assert.match(subscriptionPlan, /different event[^\n]*not already proven stale[^\n]*reconcile/i)
+    assert.match(subscriptionPlan, /older[^\n]*authoritative[^\n]*ignore-stale/i)
   })
 
   it("blocks legacy limiter cleanup until every identity writer is drained by deployment SHA", () => {

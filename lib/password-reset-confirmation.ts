@@ -20,7 +20,7 @@ export type ConfirmPasswordResetInput = {
 }
 
 export type ConfirmPasswordResetResult =
-  | { status: "UPDATED"; emailIntentId: string }
+  | { status: "UPDATED"; emailIntentId?: string }
   | { status: "INVALID" }
 
 export type PasswordResetTokenEligibilityInput = {
@@ -112,7 +112,7 @@ export async function confirmPasswordReset(
       data: { authSessionVersion: { increment: 1 } },
     })
     await tx.session.deleteMany({ where: { userId: token.userId } })
-    if (!updatedUser.email) throw new Error("Password recovery requires an account email.")
+    if (!updatedUser.email) return { status: "UPDATED" }
     // The reset-token owner is stable across transaction retries. Reusing it
     // lets the queue upsert return the same notice instead of adding another.
     const emailIntent = await queueAccountSecurityEmail(tx, {

@@ -16,7 +16,7 @@ async function loadCleanupModule() {
 
 describe("legacy auth-attempt cleanup", () => {
   it("fingerprints a direct target without connecting or exposing the target", async () => {
-    const { runLegacyAuthAttemptCleanupCli } = await loadCleanupModule()
+    const { fingerprintLegacyAuthAttemptTarget, runLegacyAuthAttemptCleanupCli } = await loadCleanupModule()
     const output = []
 
     await runLegacyAuthAttemptCleanupCli({
@@ -28,6 +28,37 @@ describe("legacy auth-attempt cleanup", () => {
     assert.equal(output.length, 1)
     assert.match(output[0], /^[0-9a-f]{64}$/)
     assert.doesNotMatch(output[0], /operator|secret|neon|massagelab|postgres|:\/\//i)
+    assert.notEqual(
+      fingerprintLegacyAuthAttemptTarget(directUrl.replace("operator", "other-role")),
+      fingerprintLegacyAuthAttemptTarget(directUrl),
+    )
+  })
+
+  it("rejects ambiguous or target-altering parameters before connecting", async () => {
+    const { fingerprintLegacyAuthAttemptTarget, runLegacyAuthAttemptCleanupCli } = await loadCleanupModule()
+    const expectedFingerprint = fingerprintLegacyAuthAttemptTarget(directUrl)
+    let clientsCreated = 0
+    for (const suffix of [
+      "&sslmode=verify-full",
+      "&application_name=cleanup",
+      "&schema=private",
+      "&options=-csearch_path%3Dprivate",
+      "&search_path=private",
+    ]) {
+      await assert.rejects(
+        runLegacyAuthAttemptCleanupCli({
+          args: [`--expected-fingerprint=${expectedFingerprint}`, "--max-rows=1"],
+          env: {
+            AUTH_LEGACY_ATTEMPT_CLEANUP: "1",
+            AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL: `${directUrl}${suffix}`,
+          },
+          createPrismaClient: () => { clientsCreated += 1; throw new Error("must not connect") },
+          writeLine: () => assert.fail("invalid target must not report cleanup success"),
+        }),
+        /parameter|duplicate|allowed/i,
+      )
+    }
+    assert.equal(clientsCreated, 0)
   })
 
   it("requires an explicit correctly named client factory before mutation", async () => {

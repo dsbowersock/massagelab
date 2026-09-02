@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { signIn } from "next-auth/react"
+import { signIn, signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 import { AsyncActionButton } from "@/components/forms/async-action-button"
 import { AppInset, AppSurface } from "@/components/ui/app-surface"
@@ -11,6 +12,8 @@ import type { PendingSecurityAction, SignInMethodAvailability } from "@/app/acco
 
 type MethodActionState = "idle" | "proving" | "saving" | "redirecting" | "success" | "error"
 type MethodResponse = { code?: string; message?: string; googleLinked?: boolean; hasPasswordCredential?: boolean }
+
+const SIGN_IN_METHODS_CHANGED_CALLBACK = "/login?security=sign-in-methods-changed"
 
 /** Uses only the current route's parsed response copy; transport failures keep a generic message. */
 function safeMethodResponseMessage(result: MethodResponse, fallback: string) {
@@ -35,6 +38,7 @@ export function SignInMethodsPanel({
   finishAction: (action: Exclude<PendingSecurityAction, null>) => void
   onMethodAvailabilityChange: (update: Partial<SignInMethodAvailability>) => void
 }) {
+  const router = useRouter()
   const passwordAvailable = hasPasswordCredential
   const googleAccountLinked = googleLinked
   const [addPassword, setAddPassword] = useState("")
@@ -77,6 +81,32 @@ export function SignInMethodsPanel({
     })
   }
 
+  /** Removes only the one-use Google proof hint while retaining the rest of the Account URL. */
+  function clearReauthMarker() {
+    setReauthComplete(false)
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has("reauth")) return
+    url.searchParams.delete("reauth")
+    router.replace(`${url.pathname}${url.search}${url.hash}`, { scroll: false })
+  }
+
+  /** Keeps the action pending while Auth.js or a same-origin fallback leaves the invalid session. */
+  async function signOutAfterMethodChange(message: string) {
+    setActionState("redirecting")
+    setMessage(`${message} Sign in again to continue.`)
+    const initialHref = window.location.href
+    try {
+      await signOut({ redirectTo: SIGN_IN_METHODS_CHANGED_CALLBACK })
+    } catch {
+      // The server mutation already revoked this session; the login route is
+      // the only safe recovery surface even when the client sign-out fails.
+    }
+    if (window.location.href === initialHref) {
+      window.location.href = SIGN_IN_METHODS_CHANGED_CALLBACK
+    }
+    return true
+  }
+
   async function startGoogleProof(purpose: "SIGN_IN_OR_LINK" | "ADD_PASSWORD" | "REMOVE_PASSWORD") {
     if (!begin("google-proof", "proving", "Preparing secure Google confirmation…")) return
     let documentNavigationStarted = false
@@ -108,6 +138,7 @@ export function SignInMethodsPanel({
     event.preventDefault()
     if (!begin("password", "saving", passwordAvailable ? "Changing password…" : "Adding password sign-in…")) return
     const mode = passwordAvailable ? "CHANGE" : "ADD"
+    let documentNavigationStarted = false
     try {
       const response = await fetch("/api/account/security/password", {
         method: "POST",
@@ -118,21 +149,26 @@ export function SignInMethodsPanel({
       })
       const result = await response.json().catch(() => ({})) as MethodResponse
       if (!response.ok) {
+        if (mode === "ADD" && result.code === "PROOF_EXPIRED") clearReauthMarker()
         setActionState("error")
         setMessage(safeMethodResponseMessage(result, "The password change could not be saved. Try again."))
         return
       }
-      applyMethodResponse(result)
-      setActionState("success")
-      setMessage(result.message ?? "Password sign-in was saved.")
-      if (mode === "CHANGE") setChangePasswordConfirmed(false)
-      else setAddPasswordConfirmed(false)
-      setReauthComplete(false)
+      if (mode === "CHANGE") {
+        setChangePasswordConfirmed(false)
+        documentNavigationStarted = await signOutAfterMethodChange(result.message ?? "Password sign-in was saved.")
+      } else {
+        applyMethodResponse(result)
+        setActionState("success")
+        setMessage(result.message ?? "Password sign-in was saved.")
+        setAddPasswordConfirmed(false)
+        clearReauthMarker()
+      }
     } catch {
       setActionState("error")
       setMessage("Something went wrong. Please try again.")
     } finally {
-      finishAction("password")
+      if (!documentNavigationStarted) finishAction("password")
       if (mode === "CHANGE") {
         setChangeCurrentPassword("")
         setChangeNewPassword("")
@@ -146,6 +182,7 @@ export function SignInMethodsPanel({
   async function unlinkGoogle(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!begin("unlink-google", "saving", "Removing Google sign-in…")) return
+    let documentNavigationStarted = false
     try {
       const response = await fetch("/api/account/security/google/unlink", {
         method: "POST",
@@ -158,15 +195,13 @@ export function SignInMethodsPanel({
         setMessage(safeMethodResponseMessage(result, "Google sign-in could not be removed. Try again."))
         return
       }
-      applyMethodResponse(result)
-      setActionState("success")
-      setMessage(result.message ?? "Google sign-in was removed.")
       setUnlinkGoogleConfirmed(false)
+      documentNavigationStarted = await signOutAfterMethodChange(result.message ?? "Google sign-in was removed.")
     } catch {
       setActionState("error")
       setMessage("Something went wrong. Please try again.")
     } finally {
-      finishAction("unlink-google")
+      if (!documentNavigationStarted) finishAction("unlink-google")
       setUnlinkPassword("")
       setUnlinkTwoFactorCode("")
     }
@@ -174,6 +209,7 @@ export function SignInMethodsPanel({
 
   async function disablePassword() {
     if (!begin("disable-password", "saving", "Disabling password sign-in…")) return
+    let documentNavigationStarted = false
     try {
       const response = await fetch("/api/account/security/password/disable", {
         method: "POST",
@@ -182,20 +218,18 @@ export function SignInMethodsPanel({
       })
       const result = await response.json().catch(() => ({})) as MethodResponse
       if (!response.ok) {
+        if (result.code === "PROOF_EXPIRED") clearReauthMarker()
         setActionState("error")
         setMessage(safeMethodResponseMessage(result, "Password sign-in could not be disabled. Try again."))
         return
       }
-      applyMethodResponse(result)
-      setActionState("success")
-      setMessage(result.message ?? "Password sign-in was disabled.")
       setDisablePasswordConfirmed(false)
-      setReauthComplete(false)
+      documentNavigationStarted = await signOutAfterMethodChange(result.message ?? "Password sign-in was disabled.")
     } catch {
       setActionState("error")
       setMessage("Something went wrong. Please try again.")
     } finally {
-      finishAction("disable-password")
+      if (!documentNavigationStarted) finishAction("disable-password")
     }
   }
 

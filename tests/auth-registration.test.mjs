@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 import {
   createCompiledModuleLoader,
   createElement,
+  elementText,
   findElement,
   passThroughElement,
   renderFunctionComponents,
@@ -211,6 +212,38 @@ describe("registration email delivery policy", () => {
     ])
   })
 
+  it("explains only the allowlisted sign-in-method security return", async () => {
+    const changed = await loadLoginFormScenario({ security: "sign-in-methods-changed" })
+    assert.equal(changed.statusText, "Your sign-in methods changed. Sign in again to continue.")
+
+    const unknown = await loadLoginFormScenario({ security: "private-provider-detail" })
+    assert.equal(unknown.statusText, "")
+  })
+
+  it("clears a stale two-factor challenge when either primary credential changes", async () => {
+    for (const changedField of ["email", "password"]) {
+      const scenario = await loadStatefulLoginFormScenario([
+        { error: "CredentialsSignin", code: "TWO_FACTOR_REQUIRED" },
+        { error: null },
+      ])
+      scenario.change("email", "first@example.test")
+      scenario.change("password", "first-password")
+      await scenario.submit()
+
+      let tree = scenario.render()
+      assert.ok(loginField(tree, "twoFactorCode"), changedField)
+      assert.match(elementText(tree), /Enter your authenticator app code or a backup code\./)
+      scenario.change("twoFactorCode", "123456")
+      scenario.change(changedField, changedField === "email" ? "second@example.test" : "second-password")
+
+      tree = scenario.render()
+      assert.equal(loginField(tree, "twoFactorCode"), null, changedField)
+      assert.doesNotMatch(elementText(tree), /Enter your authenticator app code or a backup code\./)
+      await scenario.submit()
+      assert.equal(scenario.signInCalls[1][1].twoFactorCode, "", changedField)
+    }
+  })
+
   it("preserves one sanitized legal-accept callback in the login registration handoff", async () => {
     const loginForm = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
 
@@ -357,11 +390,12 @@ describe("registration email delivery policy", () => {
 })
 
 /** Executes the real email-login handler with deterministic entry and router owners. */
-async function loadLoginFormScenario({ callbackUrl, refreshError } = {}) {
+async function loadLoginFormScenario({ callbackUrl, refreshError, security } = {}) {
   const loginSource = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
   const flow = []
   const searchParams = new URLSearchParams()
   if (callbackUrl !== undefined) searchParams.set("callbackUrl", callbackUrl)
+  if (security !== undefined) searchParams.set("security", security)
   const router = {
     push(path) {
       flow.push(`push:${path}`)
@@ -426,8 +460,89 @@ async function loadLoginFormScenario({ callbackUrl, refreshError } = {}) {
   return {
     flow,
     registerHref: registerLink.props.href,
+    statusText: elementText(findElement(tree, (element) => element.props.role === "status")),
     submit: () => form.props.onSubmit({ preventDefault: () => flow.push("prevent-default") }),
   }
+}
+
+/** Runs LoginForm through stateful rerenders so challenge recovery remains user-observable. */
+async function loadStatefulLoginFormScenario(signInResults) {
+  const loginSource = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
+  const hooks = createLoginHookRuntime()
+  const signInCalls = []
+  const router = { push() {}, refresh() {} }
+  const Div = passThroughElement("div")
+  const login = loadCompiledModule(loginSource, "app/login/login-form.stateful-test.tsx", {
+    react: hooks.react,
+    "react/jsx-runtime": { Fragment: Symbol.for("auth-registration-test.fragment"), jsx: createElement, jsxs: createElement },
+    "next/link": { __esModule: true, default: passThroughElement("a") },
+    "next/navigation": {
+      useRouter: () => router,
+      useSearchParams: () => new URLSearchParams(),
+    },
+    "next-auth/react": {
+      async signIn(...args) {
+        signInCalls.push(args)
+        return signInResults[signInCalls.length - 1]
+      },
+    },
+    "lucide-react": { Mail: Div, ShieldCheck: Div },
+    "@/components/forms/async-action-button": { AsyncActionButton: passThroughElement("button") },
+    "@/components/ui/app-surface": { AppInset: Div, AppSurface: Div },
+    "@/components/ui/input": { Input: passThroughElement("input") },
+    "@/components/ui/label": { Label: passThroughElement("label") },
+    "@/lib/auth-entry-actions": {
+      startGoogleAuthMethodIntent: async () => "navigating",
+      useEntryAction: () => ({ entryAction: "idle", beginEntryAction: () => true, finishEntryAction: () => undefined }),
+    },
+    "@/lib/auth-registration": { buildVerificationRequestPath: () => "/verify-email" },
+    "@/lib/legal-acceptance-gate": {
+      buildRegistrationLegalProviderRedirectPath,
+      isRegistrationLegalAcceptancePath,
+      safePostLegalAcceptanceCallback,
+    },
+  })
+
+  function render() {
+    hooks.startRender()
+    return renderFunctionComponents(login.LoginForm({ googleEnabled: true }))
+  }
+
+  function change(id, value) {
+    const field = loginField(render(), id)
+    assert.ok(field, id)
+    field.props.onChange({ target: { value } })
+  }
+
+  async function submit() {
+    const form = findElement(render(), (element) => element.type === "form")
+    assert.ok(form)
+    await form.props.onSubmit({ preventDefault() {} })
+  }
+
+  return { change, render, signInCalls, submit }
+}
+
+function createLoginHookRuntime() {
+  const state = []
+  let cursor = 0
+  return {
+    startRender() { cursor = 0 },
+    react: {
+      useState(initialValue) {
+        const index = cursor
+        cursor += 1
+        if (!(index in state)) state[index] = typeof initialValue === "function" ? initialValue() : initialValue
+        return [state[index], (value) => {
+          state[index] = typeof value === "function" ? value(state[index]) : value
+        }]
+      },
+    },
+  }
+}
+
+function loginField(tree, id) {
+  return findElement(tree, (element) => element.props.id === id)
 }
 
 /** Renders the real RegisterForm with inert UI owners so launch-control props remain observable. */

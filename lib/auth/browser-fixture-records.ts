@@ -12,7 +12,7 @@ export const BROWSER_IDENTITY_METHOD_PASSWORD = "Browser-QA-only-password-2026!"
 
 type FixtureClient = Pick<
   PrismaClient,
-  "backgroundCreditEntry" | "backgroundCreditWallet" | "commerceEvent" | "user"
+  "$transaction" | "backgroundCreditEntry" | "backgroundCreditWallet" | "commerceEvent" | "user"
 >
 type QaEnvironment = Record<string, string | undefined>
 
@@ -108,11 +108,25 @@ export async function removeBrowserIdentityMethodFixtureRecords(input: {
 }) {
   requireBrowserIdentityMethodFixtureAuthorization(input.environment)
   assertExampleIdentity(input.identity)
-  await input.prismaClient.commerceEvent.deleteMany({ where: { userId: input.identity.user.id } })
-  await input.prismaClient.backgroundCreditEntry.deleteMany({ where: { userId: input.identity.user.id } })
-  await input.prismaClient.backgroundCreditWallet.deleteMany({ where: { userId: input.identity.user.id } })
-  await input.prismaClient.user.deleteMany({
-    where: { id: input.identity.user.id, email: input.identity.user.email },
+  await input.prismaClient.$transaction(async (transaction) => {
+    const existing = await transaction.user.findUnique({
+      where: { id: input.identity.user.id },
+      select: { email: true },
+    })
+    if (!existing) return
+    if (existing.email !== input.identity.user.email) {
+      throw new Error("Identity method browser fixture user/email ownership mismatch.")
+    }
+
+    await transaction.commerceEvent.deleteMany({ where: { userId: input.identity.user.id } })
+    await transaction.backgroundCreditEntry.deleteMany({ where: { userId: input.identity.user.id } })
+    await transaction.backgroundCreditWallet.deleteMany({ where: { userId: input.identity.user.id } })
+    const removed = await transaction.user.deleteMany({
+      where: { id: input.identity.user.id, email: input.identity.user.email },
+    })
+    if (removed.count !== 1) {
+      throw new Error("Identity method browser fixture cleanup did not remove exactly one verified user.")
+    }
   })
 }
 

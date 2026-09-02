@@ -44,10 +44,13 @@ export async function POST(request: Request) {
 
   // The transaction has committed before this delivery is scheduled, so a
   // transport failure cannot roll back password recovery or token consumption.
-  after(() => deliverAccountSecurityEmailIntent({
-    prismaClient: prisma,
-    intentId: result.emailIntentId,
-  }).then(() => undefined).catch(() => undefined))
+  const emailIntentId = result.emailIntentId
+  if (emailIntentId) {
+    after(() => deliverAccountSecurityEmailIntent({
+      prismaClient: prisma,
+      intentId: emailIntentId,
+    }).then(() => undefined).catch(() => undefined))
+  }
 
   return NextResponse.json({ message: "Password updated. You can sign in now." })
 }

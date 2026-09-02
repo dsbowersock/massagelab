@@ -33,7 +33,8 @@
 | File | Responsibility |
 | --- | --- |
 | `prisma/schema.prisma` | Adds a separate privacy-safe limiter bucket model, method intents, leased security-email intents, and relations while retaining the legacy limiter model through the rollout window. |
-| `prisma/migrations/20260828120000_identity_method_safety/migration.sql` | Additively creates privacy-safe limiter and identity tables/indexes and enforces normalized-email uniqueness without changing the deployed legacy limiter table. |
+| `prisma/migrations/20260828120000_identity_method_safety/migration.sql` | Additively creates privacy-safe limiter and identity tables/indexes without changing the deployed legacy limiter table or building the normalized-email index. |
+| `prisma/migrations/20260828121000_identity_normalized_email_index/migration.sql` | Builds `User_normalized_email_key` as the separate, single-statement concurrent index migration after the count-only collision preflight. |
 | `scripts/check-normalized-email-collisions.mjs` | Read-only count-only preflight for the functional normalized-email index. |
 | `scripts/cleanup-legacy-auth-attempts.mjs` | Separately gated, bounded deletion of inactive legacy raw limiter rows after the new runtime is deployed and verified. |
 | `tests/auth-schema-migration.test.mjs` | Guards the additive limiter expansion, legacy-runtime compatibility, functional index, and no token/payload columns. |
@@ -97,7 +98,7 @@
 - Produces models: `AuthRateLimitBucket`, `AuthMethodIntent`, `AccountSecurityEmailIntent`.
 - Preserves the deployed `AuthAttempt` model, its `key` column, and unique `(purpose, key)` contract unchanged so the pre-existing runtime remains functional after this migration.
 - Produces privacy-safe `AuthRateLimitBucket` storage with unique `(purpose, scope, keyHash)` for the Task 2 runtime cutover.
-- Produces database-only unique index `User_normalized_email_key` on `lower(btrim(email))` for non-null email.
+- Produces database-only unique index `User_normalized_email_key` on `lower(btrim(email))` for non-null email through the dedicated concurrent migration, not the expansion migration.
 - Produces command: `npm run auth:check-normalized-emails`.
 - Produces separately gated commands: read-only target fingerprinting with `npm run auth:cleanup-legacy-attempts -- --print-fingerprint`, then bounded cleanup with `npm run auth:cleanup-legacy-attempts -- --expected-fingerprint=<64 lowercase hex> --max-rows=<1..100>`; creating either command does not authorize connecting to or mutating production.
 
@@ -335,11 +336,11 @@ CREATE UNIQUE INDEX "AuthRateLimitBucket_purpose_scope_keyHash_key"
   ON "AuthRateLimitBucket"("purpose", "scope", "keyHash");
 CREATE INDEX "AuthRateLimitBucket_updatedAt_idx" ON "AuthRateLimitBucket"("updatedAt");
 CREATE INDEX "AuthRateLimitBucket_blockedUntil_idx" ON "AuthRateLimitBucket"("blockedUntil");
-CREATE UNIQUE INDEX "User_normalized_email_key"
-  ON "User" (lower(btrim("email"))) WHERE "email" IS NOT NULL;
 ```
 
 Add `GOOGLE_INTENT` to the existing purpose enum, then create the new enums/tables/indexes and foreign keys before their use. This is expansion only: `AuthAttempt`, `AuthAttempt_purpose_key_key`, and all of their rows remain untouched, so a pre-bridge application instance can continue reading and writing its original contract while Task 1 is deployed and until the later bridge drain proves it gone. It is not an eligible rollback target after bridge cutover. Do not rewrite existing User, Account, PasswordCredential, subscription, purchase, entitlement, or legacy limiter rows.
+
+The normalized-email index is deliberately excluded from this expansion SQL. Final remediation commit `404598c0` owns the already-existing `20260828121000_identity_normalized_email_index` migration as one `CREATE UNIQUE INDEX CONCURRENTLY "User_normalized_email_key"` statement. Apply it only after the count-only collision result is zero, as a separate migration/commit boundary after `20260828120000_identity_method_safety`. Monitor the concurrent build; on failure, stop the release, inspect PostgreSQL for an invalid index left by the failed build, and use only the reviewed invalid-index recovery in the deployment runbook before retrying. Never edit either already-applied migration SQL to recover it.
 
 - [ ] **Step 6: Add a count-only collision preflight**
 
@@ -360,7 +361,7 @@ Print only `normalized_collision_count=<number>`. Exit nonzero when the count is
 
 - [ ] **Step 7: Add the separately gated legacy cleanup command**
 
-Create `scripts/cleanup-legacy-auth-attempts.mjs` as an import-safe CLI with injectable database execution. `--print-fingerprint` parses a direct non-pooler `AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL`, makes no connection, and prints only the SHA-256 hash of its normalized host/port/database tuple. Mutation mode must require exact `AUTH_LEGACY_ATTEMPT_CLEANUP=1`, the same direct URL, a matching `--expected-fingerprint=<64 lowercase hex>`, and `--max-rows=<1..100>`. One invocation runs one bounded transaction using the equivalent of:
+Create `scripts/cleanup-legacy-auth-attempts.mjs` as an import-safe CLI with injectable database execution. `--print-fingerprint` parses a direct non-pooler `AUTH_LEGACY_ATTEMPT_CLEANUP_DATABASE_URL`, makes no connection, and prints only the SHA-256 hash of its normalized username/host/port/database tuple. Passwords and the allowlisted `sslmode`/`channel_binding` transport parameters are excluded; duplicate, unknown, and target-altering parameters are rejected before connection. Mutation mode must require exact `AUTH_LEGACY_ATTEMPT_CLEANUP=1`, the same direct URL, a matching `--expected-fingerprint=<64 lowercase hex>`, and `--max-rows=<1..100>`. One invocation runs one bounded transaction using the equivalent of:
 
 ```sql
 WITH doomed AS (
@@ -885,13 +886,13 @@ Every action uses `try/catch/finally`, prevents a second submission, keeps label
 
 - [ ] **Step 6: Implement the disposable-target guard and prepare only through its own mutation gate**
 
-Create `scripts/assert-browser-qa-database-target.mjs` with pure URL parsing/fingerprint exports plus a CLI. It requires both dedicated QA URL variables and `MASSAGELAB_BROWSER_QA_DATABASE=1`, rejects `VERCEL_ENV=production`, hashes the two parsed host/port/database tuples, and supports only `--print-fingerprint` or `--expected-fingerprint=<64 lowercase hex>`. It never connects, mutates, or prints a URL. Add this exact package script:
+Create `scripts/assert-browser-qa-database-target.mjs` with pure URL parsing/fingerprint exports plus a CLI. It requires both dedicated QA URL variables, `MASSAGELAB_BROWSER_QA_DATABASE=1`, and explicit `VERCEL_ENV=preview` or `VERCEL_ENV=development`; every other Vercel environment value is rejected. It hashes the two parsed username/host/port/database tuples while excluding passwords and the allowlisted `sslmode`/`channel_binding` transport parameters. Duplicate, unknown, and target-altering parameters are rejected before any fixture mutation. It supports only `--print-fingerprint` or `--expected-fingerprint=<64 lowercase hex>` and never connects, mutates, or prints a URL. Add this exact package script:
 
 ```json
 "browser-qa:db:target": "node scripts/assert-browser-qa-database-target.mjs"
 ```
 
-Ordinary public browser rows skip this step. For the private matching-link rows, first put the disposable runtime and direct URLs only in `MASSAGELAB_BROWSER_QA_DATABASE_URL` and `MASSAGELAB_BROWSER_QA_DIRECT_URL` in a fresh PowerShell process. Run the read-only target command with `--print-fingerprint`; it outputs only a SHA-256 fingerprint of the parsed host/port/database tuple and refuses `VERCEL_ENV=production`. Present that fingerprint, the Neon/local branch/database identity, and the exact committed migration list to the user. Request authorization specifically to apply those migrations to that disposable target—never Production.
+Ordinary public browser rows skip this step. For the private matching-link rows, first put the disposable runtime and direct URLs only in `MASSAGELAB_BROWSER_QA_DATABASE_URL` and `MASSAGELAB_BROWSER_QA_DIRECT_URL` in a fresh PowerShell process and set `VERCEL_ENV=preview` (or `development` for an explicitly local run). Run the read-only target command with `--print-fingerprint`; it outputs only a SHA-256 fingerprint of the parsed username/host/port/database tuple and refuses every other environment. Present that fingerprint, the Neon/local branch/database identity, and the exact committed migration list to the user. Request authorization specifically to apply those migrations to that disposable target—never Production.
 
 After that exact target is approved, set `MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT` to the approved fingerprint and run:
 
@@ -899,6 +900,7 @@ After that exact target is approved, set `MASSAGELAB_BROWSER_QA_DATABASE_FINGERP
 $setupExit = 0
 try {
   $env:MASSAGELAB_BROWSER_QA_DATABASE = "1"
+  $env:VERCEL_ENV = "preview"
   $env:DATABASE_URL = $env:MASSAGELAB_BROWSER_QA_DATABASE_URL
   $env:DIRECT_URL = $env:MASSAGELAB_BROWSER_QA_DIRECT_URL
   npm run browser-qa:db:target -- --expected-fingerprint=$env:MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT
@@ -911,6 +913,7 @@ try {
   Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
   Remove-Item Env:DIRECT_URL -ErrorAction SilentlyContinue
   Remove-Item Env:MASSAGELAB_BROWSER_QA_DATABASE -ErrorAction SilentlyContinue
+  Remove-Item Env:VERCEL_ENV -ErrorAction SilentlyContinue
 }
 if ($setupExit -ne 0) { exit $setupExit }
 ```
@@ -939,6 +942,7 @@ If Task 6's exact disposable target and migrations were approved, run the privat
 $browserExit = 0
 try {
   $env:MASSAGELAB_BROWSER_QA_DATABASE = "1"
+  $env:VERCEL_ENV = "preview"
   $env:DATABASE_URL = $env:MASSAGELAB_BROWSER_QA_DATABASE_URL
   $env:DIRECT_URL = $env:MASSAGELAB_BROWSER_QA_DIRECT_URL
   npm run browser-qa:db:target -- --expected-fingerprint=$env:MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT
@@ -959,6 +963,7 @@ try {
   Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
   Remove-Item Env:DIRECT_URL -ErrorAction SilentlyContinue
   Remove-Item Env:MASSAGELAB_BROWSER_QA_DATABASE -ErrorAction SilentlyContinue
+  Remove-Item Env:VERCEL_ENV -ErrorAction SilentlyContinue
 }
 if ($browserExit -ne 0) { exit $browserExit }
 ```

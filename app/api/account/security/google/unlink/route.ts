@@ -45,7 +45,9 @@ export function createGoogleUnlinkHandler({
       confirmed: true,
       now: clock(),
     })
-    if (result.status === "REJECTED") return rejectedResponse(result.code)
+    if (result.status === "REJECTED") {
+      return rejectedResponse(result.code, result.code === "RATE_LIMITED" ? result.retryAfterSeconds : undefined)
+    }
 
     scheduleAfter(() => deliver({ prismaClient, intentId: result.emailIntentId }).then(() => undefined).catch(() => undefined))
     clearCache(userId, "security")
@@ -72,7 +74,12 @@ function validUnlinkBody(value: unknown): value is { password: string; twoFactor
     && body.confirmed === true
 }
 
-function rejectedResponse(code: string) {
+function rejectedResponse(code: string, retryAfterSeconds?: number) {
+  if (code === "RATE_LIMITED") {
+    return safeResponse(code, "Too many attempts. Wait a little, then try again.", 429, {
+      "Retry-After": retryAfterHeader(retryAfterSeconds),
+    })
+  }
   if (code === "LAST_METHOD") {
     return safeResponse("LAST_METHOD", "Add a password before removing Google so you keep a way to sign in.", 409)
   }
@@ -87,8 +94,12 @@ function rejectedResponse(code: string) {
   return safeResponse(code, message, 403)
 }
 
-function safeResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ code, message }, { status })
+function safeResponse(code: string, message: string, status: number, headers?: Record<string, string>) {
+  return NextResponse.json({ code, message }, { status, headers })
+}
+
+function retryAfterHeader(value?: number) {
+  return String(Number.isSafeInteger(value) && (value ?? 0) > 0 ? Math.min(value ?? 1, 900) : 1)
 }
 
 export const POST = createGoogleUnlinkHandler({

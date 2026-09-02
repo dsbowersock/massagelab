@@ -12,6 +12,7 @@ const FRESH_PROOF_MS = 5 * 60 * 1000
 
 export type AuthMethodMutationRejectionCode =
   | "INVALID_PROOF"
+  | "RATE_LIMITED"
   | "TWO_FACTOR_REQUIRED"
   | "TWO_FACTOR_INVALID"
   | "INTENT_EXPIRED"
@@ -21,7 +22,8 @@ export type AuthMethodMutationRejectionCode =
 
 export type AuthMethodMutationResult =
   | { status: "UPDATED"; emailIntentId: string; googleLinked: boolean; passwordEnabled: boolean }
-  | { status: "REJECTED"; code: AuthMethodMutationRejectionCode }
+  | { status: "REJECTED"; code: Exclude<AuthMethodMutationRejectionCode, "RATE_LIMITED"> }
+  | { status: "REJECTED"; code: "RATE_LIMITED"; retryAfterSeconds: number }
 
 type MethodClient = Pick<PrismaClient, "$transaction" | "$queryRaw" | "user" | "backupCode" | "authRateLimitBucket">
 type ProofFunction = typeof import("./auth-method-proof.ts").verifyPasswordMethodProof
@@ -242,7 +244,7 @@ export async function removePasswordMethod(input: {
 }
 
 async function directProof(input: DirectProofInput & { prismaClient: MethodClient; now: Date }): Promise<
-  { status: "VERIFIED"; authSessionVersion: number } | { status: "REJECTED"; code: AuthMethodMutationRejectionCode }
+  { status: "VERIFIED"; authSessionVersion: number } | Extract<AuthMethodMutationResult, { status: "REJECTED" }>
 > {
   if (!input.password || !input.networkIdentifier) return proofRejected("INVALID_PROOF")
   try {
@@ -256,6 +258,7 @@ async function directProof(input: DirectProofInput & { prismaClient: MethodClien
       now: input.now,
     })
     if (result.status === "VERIFIED") return { status: "VERIFIED", authSessionVersion: result.authSessionVersion }
+    if (result.status === "RATE_LIMITED") return rateLimited(result.retryAfterSeconds)
     if (result.status === "TWO_FACTOR_REQUIRED") return proofRejected("TWO_FACTOR_REQUIRED")
     if (result.status === "TWO_FACTOR_INVALID") return proofRejected("TWO_FACTOR_INVALID")
     return proofRejected("INVALID_PROOF")
@@ -330,12 +333,19 @@ function validNewPassword(value: unknown): value is string {
   return typeof value === "string" && value.length >= 12 && value.length <= 1024
 }
 
-function rejected(code: AuthMethodMutationRejectionCode): AuthMethodMutationResult {
+function rejected(code: Exclude<AuthMethodMutationRejectionCode, "RATE_LIMITED">): AuthMethodMutationResult {
   return { status: "REJECTED", code }
 }
 
-function proofRejected(code: AuthMethodMutationRejectionCode): { status: "REJECTED"; code: AuthMethodMutationRejectionCode } {
+function proofRejected(code: Exclude<AuthMethodMutationRejectionCode, "RATE_LIMITED">): Extract<AuthMethodMutationResult, { status: "REJECTED" }> {
   return { status: "REJECTED", code }
+}
+
+function rateLimited(retryAfterSeconds: number): Extract<AuthMethodMutationResult, { code: "RATE_LIMITED" }> {
+  const boundedRetryAfter = Number.isSafeInteger(retryAfterSeconds) && retryAfterSeconds > 0
+    ? Math.min(retryAfterSeconds, 900)
+    : 1
+  return { status: "REJECTED", code: "RATE_LIMITED", retryAfterSeconds: boundedRetryAfter }
 }
 
 function updated(emailIntentId: string, googleLinked: boolean, passwordEnabled: boolean): AuthMethodMutationResult {

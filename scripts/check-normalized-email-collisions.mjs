@@ -9,6 +9,8 @@ import { neonConfig } from "@neondatabase/serverless"
 import { config as loadDotenv } from "dotenv"
 import ws from "ws"
 
+import { formatOperationalError } from "./operational-error-redaction.mjs"
+
 const COLLISION_QUERY = `
 SELECT COUNT(*)::int AS normalized_collision_count
 FROM (
@@ -46,16 +48,7 @@ export function requireDirectNormalizedEmailCheckUrl(env) {
 
 /** Replaces connection URLs and secret-bearing tokens before terminal output. */
 export function formatNormalizedEmailCheckError(error) {
-  const message = error instanceof Error ? error.message : String(error ?? "Unknown error.")
-  return message
-    .split(/\s+/)
-    .map((token) => (
-      token.includes("://") || /\b(?:password|passwd|pwd|token|secret)=/i.test(token)
-        ? "[redacted]"
-        : token
-    ))
-    .join(" ")
-    .slice(0, 500)
+  return formatOperationalError(error)
 }
 
 export async function countNormalizedEmailCollisions(prismaClient) {

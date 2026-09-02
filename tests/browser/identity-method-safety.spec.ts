@@ -298,8 +298,28 @@ test.describe("private identity-method journeys", () => {
     await expect(unlink).toBeDisabled()
     await page.getByRole("checkbox", { name: /confirm.*remove Google/i }).check()
     await unlink.click()
-    await expect(page.getByRole("status")).toContainText(/removed/i)
-    await expect(page.getByText(/keep at least one/i)).toBeVisible()
+    await expect(page).toHaveURL(/\/login\?security=sign-in-methods-changed$/)
+    await expect(page.getByRole("status")).toContainText(/sign-in methods changed.*sign in again/i)
+    await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
+    await expect(page).toHaveURL(/\/login(?:\?|$)/)
+  })
+
+  test("changing a password signs the current browser out", async ({ context, page }, testInfo) => {
+    const fixture = await import("./identity-method-safety-fixture")
+    const baseURL = String(testInfo.project.use.baseURL)
+    const installed = await fixture.installIdentityMethodSafetyFixture({
+      context,
+      baseURL,
+      projectName: testInfo.project.name,
+      scenario: "BOTH_METHODS",
+    })
+    await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
+    await page.getByLabel("Current password").fill(installed.password)
+    await page.getByLabel("New password").fill("browser-updated-password-123!")
+    await page.getByText("Confirm this password sign-in change.").click()
+    await page.getByRole("button", { name: "Update password" }).click()
+    await expect(page).toHaveURL(/\/login\?security=sign-in-methods-changed$/)
+    await expect(page.getByRole("status")).toContainText(/sign-in methods changed.*sign in again/i)
   })
 
   test("adds a password after a mocked completed Google reauthentication", async ({ context, page }, testInfo) => {
@@ -331,10 +351,11 @@ test.describe("private identity-method journeys", () => {
     const disable = page.getByRole("button", { name: "Disable password sign-in" })
     await expect(disable).toBeDisabled()
     await page.getByLabel("Confirm disable password sign-in").check()
-    await disable.dblclick()
-    await expect(page.getByRole("status")).toContainText(/disabled/i)
-    await expect(page.getByText("Not enabled", { exact: true })).toBeVisible()
-    await expect(page.getByText("Linked", { exact: true })).toBeVisible()
+    await disable.click()
+    await expect(page).toHaveURL(/\/login\?security=sign-in-methods-changed$/)
+    await expect(page.getByRole("status")).toContainText(/sign-in methods changed.*sign in again/i)
+    await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
+    await expect(page).toHaveURL(/\/login(?:\?|$)/)
   })
 
   test("announces an expired matching intent and allows an explicit retry", async ({ context, page }, testInfo) => {

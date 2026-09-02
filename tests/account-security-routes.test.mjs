@@ -5,7 +5,14 @@ import { fileURLToPath } from "node:url"
 import { describe, it } from "node:test"
 import ts from "typescript"
 
-import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import {
+  createCompiledModuleLoader,
+  createElement,
+  elementText,
+  findElement,
+  passThroughElement,
+  renderFunctionComponents,
+} from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const routeFiles = {
@@ -263,6 +270,32 @@ describe("account security route adapters", () => {
     }
   })
 
+  it("maps direct-proof throttling to bounded Retry-After responses without mutation follow-up", async () => {
+    for (const routeName of ["unlink", "password"]) {
+      for (const [retryAfterSeconds, expectedHeader] of [
+        [47, "47"],
+        [901, "900"],
+        [0, "1"],
+        [1.5, "1"],
+      ]) {
+        const scenario = loadRoute(routeName, {
+          result: { status: "REJECTED", code: "RATE_LIMITED", retryAfterSeconds },
+        })
+        const response = await scenario.POST(requestFor(routeName, validBody(routeName)))
+
+        assert.equal(response.status, 429, `${routeName}:${retryAfterSeconds}`)
+        assert.equal(response.headers.get("Retry-After"), expectedHeader, `${routeName}:${retryAfterSeconds}`)
+        assert.deepEqual(response.body, {
+          code: "RATE_LIMITED",
+          message: "Too many attempts. Wait a little, then try again.",
+        })
+        assert.equal(scenario.serviceCalls.length, 1)
+        assert.equal(scenario.scheduled.length, 0)
+        assert.equal(response.cookieSets.length, 0)
+      }
+    }
+  })
+
   it("delegates unlink, password add/change, and password disable once, then schedules notice and clears consumed bindings", async () => {
     const cases = [
       ["unlink", { ...UPDATED, googleLinked: false }, false],
@@ -499,7 +532,308 @@ describe("recoverable account-method UI contracts", () => {
     assert.match(methodsPanelSource, /password:\s*unlinkPassword,\s*twoFactorCode:\s*unlinkTwoFactorCode,\s*confirmed:\s*unlinkGoogleConfirmed/)
     assert.match(methodsPanelSource, /JSON\.stringify\(\{\s*confirmed:\s*disablePasswordConfirmed\s*\}\)/)
   })
+
+  it("signs out after destructive method changes while add and rejected changes stay on the page", async () => {
+    for (const action of ["change", "unlink", "disable"]) {
+      const harness = createMethodsPanelHarness({
+        action,
+        response: jsonResponse(200, methodSuccess(action)),
+      })
+      try {
+        await harness.invoke(action)
+        assert.deepEqual(harness.signOutCalls, [[{
+          redirectTo: "/login?security=sign-in-methods-changed",
+        }]], action)
+        assert.equal(harness.pendingDuringSignOut.length, 1, action)
+        assert.equal(harness.pendingDuringSignOut[0].props.disabled, true, action)
+        assert.equal(harness.pendingDuringSignOut[0].props["aria-busy"], true, action)
+        assert.notEqual(harness.pendingAction(), null, action)
+      } finally {
+        harness.restore()
+      }
+    }
+
+    const addHarness = createMethodsPanelHarness({
+      action: "add",
+      response: jsonResponse(200, methodSuccess("add")),
+      href: "https://massagelab.test/account?tab=security&reauth=complete&return=%2Fclock#methods",
+    })
+    try {
+      await addHarness.invoke("add")
+      assert.deepEqual(addHarness.signOutCalls, [])
+      assert.equal(addHarness.pendingAction(), null)
+    } finally {
+      addHarness.restore()
+    }
+
+    for (const action of ["change", "unlink", "disable"]) {
+      const harness = createMethodsPanelHarness({
+        action,
+        response: jsonResponse(403, { code: "INVALID_PROOF", message: "Try again." }),
+      })
+      try {
+        await harness.invoke(action)
+        assert.deepEqual(harness.signOutCalls, [], action)
+        assert.equal(harness.pendingAction(), null, action)
+      } finally {
+        harness.restore()
+      }
+    }
+  })
+
+  it("forces login navigation when post-mutation sign-out rejects or returns without navigating", async () => {
+    for (const signOutBehavior of ["reject", "no-navigation"]) {
+      const harness = createMethodsPanelHarness({
+        action: "change",
+        response: jsonResponse(200, methodSuccess("change")),
+        signOutBehavior,
+      })
+      try {
+        await harness.invoke("change")
+        assert.equal(harness.href(), "https://massagelab.test/login?security=sign-in-methods-changed", signOutBehavior)
+        assert.equal(harness.pendingAction(), "password", signOutBehavior)
+        assert.deepEqual(harness.signOutCalls, [[{
+          redirectTo: "/login?security=sign-in-methods-changed",
+        }]], signOutBehavior)
+      } finally {
+        harness.restore()
+      }
+    }
+  })
+
+  it("removes only the consumed or expired reauth marker and restores Google proof actions", async () => {
+    const successfulAdd = createMethodsPanelHarness({
+      action: "add",
+      response: jsonResponse(200, methodSuccess("add")),
+      href: "https://massagelab.test/account?tab=security&reauth=complete&return=%2Fclock#methods",
+    })
+    try {
+      await successfulAdd.invoke("add")
+      assert.deepEqual(successfulAdd.routerReplaceCalls, [[
+        "/account?tab=security&return=%2Fclock#methods",
+        { scroll: false },
+      ]])
+    } finally {
+      successfulAdd.restore()
+    }
+
+    for (const action of ["add", "disable"]) {
+      const harness = createMethodsPanelHarness({
+        action,
+        response: jsonResponse(403, {
+          code: "PROOF_EXPIRED",
+          message: "This confirmation expired. Confirm with Google again.",
+        }),
+        href: "https://massagelab.test/account?tab=security&reauth=complete&return=%2Fclock#methods",
+      })
+      try {
+        await harness.invoke(action)
+        assert.deepEqual(harness.routerReplaceCalls, [[
+          "/account?tab=security&return=%2Fclock#methods",
+          { scroll: false },
+        ]], action)
+        assert.equal(harness.href(), "https://massagelab.test/account?tab=security&return=%2Fclock#methods", action)
+        const retryLabel = action === "add" ? "Add password" : "Confirm Google to disable password"
+        assert.ok(findButton(harness.render(), retryLabel), action)
+        assert.deepEqual(harness.signOutCalls, [], action)
+      } finally {
+        harness.restore()
+      }
+    }
+  })
 })
+
+function methodSuccess(action) {
+  if (action === "unlink") {
+    return { code: "GOOGLE_UNLINKED", message: "Google sign-in was removed.", googleLinked: false, hasPasswordCredential: true }
+  }
+  if (action === "disable") {
+    return { code: "PASSWORD_DISABLED", message: "Password sign-in was disabled.", googleLinked: true, hasPasswordCredential: false }
+  }
+  return { code: "PASSWORD_UPDATED", message: "Password sign-in was saved.", googleLinked: true, hasPasswordCredential: true }
+}
+
+function jsonResponse(status, body) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    async json() { return body },
+  }
+}
+
+/** Executes the real sign-in-method panel with deterministic hook, navigation, and request owners. */
+function createMethodsPanelHarness({
+  action,
+  response,
+  signOutBehavior = "navigate",
+  href = action === "disable"
+    ? "https://massagelab.test/account?tab=security&reauth=complete"
+    : "https://massagelab.test/account?tab=security",
+}) {
+  const hooks = createMethodsPanelHookRuntime()
+  const signOutCalls = []
+  const routerReplaceCalls = []
+  const pendingDuringSignOut = []
+  let currentUrl = new URL(href)
+  let actionLock = null
+  const props = {
+    hasPasswordCredential: action !== "add",
+    googleLinked: true,
+    pendingAction: null,
+    beginAction(nextAction) {
+      if (actionLock !== null) return false
+      actionLock = nextAction
+      props.pendingAction = nextAction
+      return true
+    },
+    finishAction(expectedAction) {
+      if (actionLock !== expectedAction) return
+      actionLock = null
+      props.pendingAction = null
+    },
+    onMethodAvailabilityChange(update) {
+      Object.assign(props, update)
+    },
+  }
+  const location = {}
+  Object.defineProperties(location, {
+    href: {
+      get: () => currentUrl.href,
+      set: (value) => { currentUrl = new URL(String(value), currentUrl) },
+    },
+    pathname: { get: () => currentUrl.pathname },
+    search: { get: () => currentUrl.search },
+    hash: { get: () => currentUrl.hash },
+  })
+
+  const previousFetch = globalThis.fetch
+  const previousWindow = globalThis.window
+  globalThis.fetch = async () => response
+  globalThis.window = { location }
+  let restored = false
+
+  const router = {
+    replace(path, options) {
+      routerReplaceCalls.push([path, options])
+      currentUrl = new URL(path, currentUrl)
+    },
+  }
+  let compiled
+  try {
+    compiled = loadCompiledModule(methodsPanelSource, "app/account/security/sign-in-methods-panel.ui-test.tsx", {
+      react: hooks.react,
+      "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
+      "next-auth/react": {
+        async signIn(_provider, options) {
+          currentUrl = new URL(String(options?.redirectTo ?? currentUrl.href), currentUrl)
+        },
+        async signOut(...args) {
+          signOutCalls.push(args)
+          pendingDuringSignOut.push(findButton(render(), "Saving sign-in method…"))
+          if (signOutBehavior === "reject") throw new Error("sign-out failed")
+          if (signOutBehavior === "navigate") {
+            currentUrl = new URL(String(args[0]?.redirectTo ?? currentUrl.href), currentUrl)
+          }
+        },
+      },
+      "next/navigation": { useRouter: () => router },
+      "@/components/forms/async-action-button": {
+        AsyncActionButton(buttonProps) {
+          return createElement("button", {
+            ...buttonProps,
+            "aria-busy": buttonProps.pending,
+            disabled: buttonProps.pending || buttonProps.disabled,
+            children: buttonProps.pending ? buttonProps.pendingLabel : buttonProps.idleLabel,
+          })
+        },
+      },
+      "@/components/ui/app-surface": {
+        AppInset: passThroughElement("div"),
+        AppSurface({ title, description, children, ...surfaceProps }) {
+          return createElement("section", { ...surfaceProps, children: [title, description, children] })
+        },
+      },
+      "@/components/ui/input": { Input: passThroughElement("input") },
+      "@/components/ui/label": { Label: passThroughElement("label") },
+    })
+  } catch (error) {
+    restore()
+    throw error
+  }
+
+  function render() {
+    hooks.startRender()
+    return renderFunctionComponents(compiled.SignInMethodsPanel(props))
+  }
+
+  async function invoke(nextAction) {
+    const tree = render()
+    if (nextAction === "disable") {
+      const control = findButton(tree, "Disable password sign-in")
+      assert.ok(control, nextAction)
+      await control.props.onClick()
+      return
+    }
+    const label = nextAction === "change"
+      ? "Update password"
+      : nextAction === "unlink"
+        ? "Unlink Google"
+        : "Add password sign-in"
+    const form = findElement(tree, (element) => element.type === "form" && elementText(element).includes(label))
+    assert.ok(form, nextAction)
+    await form.props.onSubmit({ preventDefault() {} })
+  }
+
+  function restore() {
+    if (restored) return
+    restored = true
+    globalThis.fetch = previousFetch
+    if (previousWindow === undefined) delete globalThis.window
+    else globalThis.window = previousWindow
+  }
+
+  render()
+  return {
+    href: () => currentUrl.href,
+    invoke,
+    pendingAction: () => props.pendingAction,
+    pendingDuringSignOut,
+    render,
+    restore,
+    routerReplaceCalls,
+    signOutCalls,
+  }
+}
+
+function createMethodsPanelHookRuntime() {
+  const state = []
+  const mountedEffects = new Set()
+  let cursor = 0
+  return {
+    startRender() { cursor = 0 },
+    react: {
+      useState(initialValue) {
+        const index = cursor
+        cursor += 1
+        if (!(index in state)) state[index] = typeof initialValue === "function" ? initialValue() : initialValue
+        return [state[index], (value) => {
+          state[index] = typeof value === "function" ? value(state[index]) : value
+        }]
+      },
+      useEffect(effect) {
+        const index = cursor
+        cursor += 1
+        if (mountedEffects.has(index)) return
+        mountedEffects.add(index)
+        effect()
+      },
+    },
+  }
+}
+
+function findButton(tree, label) {
+  return findElement(tree, (element) => element.type === "button" && elementText(element) === label)
+}
 
 function loadRoute(routeName, {
   session = {
@@ -597,6 +931,7 @@ function responseAdapter() {
       const response = {
         body,
         status: init.status ?? 200,
+        headers: new Headers(init.headers),
         cookieSets: [],
       }
       response.cookies = { set: (...args) => response.cookieSets.push(args) }

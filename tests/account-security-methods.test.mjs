@@ -193,11 +193,11 @@ describe("transaction-safe account method mutations", () => {
   })
 
   it("maps invalid direct proof results to safe rejection codes without starting mutation transactions", async () => {
-    for (const [proofStatus, code] of [
-      ["INVALID", "INVALID_PROOF"],
-      ["RATE_LIMITED", "INVALID_PROOF"],
-      ["TWO_FACTOR_REQUIRED", "TWO_FACTOR_REQUIRED"],
-      ["TWO_FACTOR_INVALID", "TWO_FACTOR_INVALID"],
+    for (const [proofResult, expected] of [
+      [{ status: "INVALID" }, { status: "REJECTED", code: "INVALID_PROOF" }],
+      [{ status: "RATE_LIMITED", retryAfterSeconds: 137 }, { status: "REJECTED", code: "RATE_LIMITED", retryAfterSeconds: 137 }],
+      [{ status: "TWO_FACTOR_REQUIRED" }, { status: "REJECTED", code: "TWO_FACTOR_REQUIRED" }],
+      [{ status: "TWO_FACTOR_INVALID" }, { status: "REJECTED", code: "TWO_FACTOR_INVALID" }],
     ]) {
       const db = createMethodDatabase({ accounts: [googleAccount()], passwordCredentials: [{ id: "password-1", userId: "user-1", passwordHash: "old-hash" }] })
       const result = await removeGoogleMethod({
@@ -207,10 +207,33 @@ describe("transaction-safe account method mutations", () => {
         networkIdentifier: "network",
         confirmed: true,
         now: NOW,
-        verifyPasswordMethodProofFn: async () => ({ status: proofStatus }),
+        verifyPasswordMethodProofFn: async () => proofResult,
       })
-      assert.deepEqual(result, { status: "REJECTED", code })
+      assert.deepEqual(result, expected)
       assert.equal(db.transactionCount, 0)
+    }
+  })
+
+  it("bounds rate-limited CHANGE proof without hashing or starting a mutation", async () => {
+    for (const [retryAfterSeconds, expected] of [
+      [47, 47],
+      [901, 900],
+      [0, 1],
+      [-1, 1],
+      [1.5, 1],
+    ]) {
+      const db = createMethodDatabase({ passwordCredentials: [{ id: "password-1", userId: "user-1", passwordHash: "old-hash" }] })
+      let hashes = 0
+      const result = await setPasswordMethod({
+        ...passwordChangeInput(db),
+        verifyPasswordMethodProofFn: async () => ({ status: "RATE_LIMITED", retryAfterSeconds }),
+        hashPasswordFn: async () => { hashes += 1; return "new-hash" },
+      })
+
+      assert.deepEqual(result, { status: "REJECTED", code: "RATE_LIMITED", retryAfterSeconds: expected })
+      assert.equal(hashes, 0)
+      assert.equal(db.transactionCount, 0)
+      assert.equal(db.passwordFor("user-1").passwordHash, "old-hash")
     }
   })
 

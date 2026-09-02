@@ -157,6 +157,81 @@ describe("JWT session-version integration contract", () => {
     assert.deepEqual(decision, { accepted: false })
   })
 
+  it("completes reset state atomically without queuing a notice when the account email is null", async () => {
+    const resetSource = await read("lib/password-reset-confirmation.ts")
+    const database = createResetConsumptionDatabase({ email: null })
+    const { confirmPasswordReset } = loadCompiledModule(resetSource, "password-reset-confirmation-null-email.test.ts", {
+      "./commerce/transactions.ts": {
+        runCommerceTransaction: (prismaClient, callback) => prismaClient.$transaction(callback),
+      },
+      "./account-security-email-intents.ts": { queueAccountSecurityEmail },
+      "./auth-security.js": { normalizeEmail: (value) => String(value ?? "").trim().toLowerCase() },
+    })
+
+    assert.deepEqual(await confirmPasswordReset({
+      prismaClient: database,
+      tokenHash: "active-reset-token",
+      passwordHash: "new-password-hash",
+      clock: () => new Date("2026-08-11T12:00:00.000Z"),
+    }), { status: "UPDATED" })
+    assert.equal(database.state.passwordCredential.passwordHash, "new-password-hash")
+    assert.equal(database.state.passwordResetTokens.every((token) => token.consumedAt instanceof Date), true)
+    assert.equal(database.state.user.authSessionVersion, 5)
+    assert.deepEqual(database.state.sessions, [])
+    assert.deepEqual(database.state.emailIntents, [])
+  })
+
+  it("schedules reset-notice delivery only when confirmation returns an intent", async () => {
+    const routeSource = await read("app/api/account/password-reset/confirm/route.ts")
+    const scheduled = []
+    const delivered = []
+    const route = loadCompiledModule(routeSource, "password-reset-confirm-route.test.ts", {
+      "next/server": {
+        after: (callback) => scheduled.push(callback),
+        NextResponse: { json: (body, init = {}) => ({ body, status: init.status ?? 200 }) },
+      },
+      "@/lib/account-security-email-intents": {
+        deliverAccountSecurityEmailIntent: async ({ intentId }) => { delivered.push(intentId) },
+      },
+      "@/lib/auth-security": {
+        hashPassword: async () => "new-password-hash",
+        hashToken: () => "active-reset-token",
+      },
+      "@/lib/password-reset-confirmation": {
+        isPasswordResetTokenEligible: async () => true,
+        confirmPasswordReset: async () => ({ status: "UPDATED" }),
+      },
+      "@/lib/prisma": { prisma: {} },
+    })
+
+    const response = await route.POST(new Request("https://massagelab.test/api/account/password-reset/confirm", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: "raw-reset-token", password: "a-long-new-password" }),
+    }))
+
+    assert.equal(response.status, 200)
+    assert.equal(scheduled.length, 0)
+    assert.deepEqual(delivered, [])
+  })
+
+  it("keeps repeated security-email upserts idempotent in the reset transaction double", async () => {
+    const database = createResetConsumptionDatabase()
+    const input = {
+      userId: "user-1",
+      kind: "PASSWORD_RECOVERED",
+      recipientEmail: "person@example.com",
+      idempotencyKey: "password-recovered:reset-1",
+    }
+    const [first, replay] = await database.$transaction(async (tx) => [
+      await queueAccountSecurityEmail(tx, input),
+      await queueAccountSecurityEmail(tx, input),
+    ])
+
+    assert.deepEqual(first, replay)
+    assert.equal(database.state.emailIntents.length, 1)
+  })
+
   it("declares the additive schema, migration, and server-only JWT field", async () => {
     const [schema, migration, authTypes] = await Promise.all([
       read("prisma/schema.prisma"),
@@ -378,9 +453,9 @@ describe("JWT session-version integration contract", () => {
  * Provides the smallest successful-reset transaction double needed to connect
  * reset consumption to JWT invalidation without duplicating race coverage.
  */
-function createResetConsumptionDatabase() {
+function createResetConsumptionDatabase({ email = "person@example.com" } = {}) {
   const state = {
-    user: { id: "user-1", email: "person@example.com", authSessionVersion: 4 },
+    user: { id: "user-1", email, authSessionVersion: 4 },
     passwordCredential: { userId: "user-1", passwordHash: "old-password-hash" },
     passwordResetTokens: [{
       id: "reset-1",
@@ -436,7 +511,9 @@ function createResetConsumptionDatabase() {
           },
         },
         accountSecurityEmailIntent: {
-          async upsert({ create }) {
+          async upsert({ where, create }) {
+            const existing = state.emailIntents.find((intent) => intent.idempotencyKey === where.idempotencyKey)
+            if (existing) return { id: existing.id }
             const intent = { id: `intent-${state.emailIntents.length + 1}`, ...create }
             state.emailIntents.push(intent)
             return { id: intent.id }

@@ -1,41 +1,26 @@
-import { createHash, timingSafeEqual } from "node:crypto"
+import { timingSafeEqual } from "node:crypto"
 import { resolve } from "node:path"
 import { pathToFileURL } from "node:url"
+
+import {
+  fingerprintPostgresTargetIdentities,
+  parsePostgresTargetIdentity,
+} from "./postgres-target-identity.mjs"
 
 const FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/
 
 /** Parses only the non-secret database identity tuple used by the fingerprint. */
 export function parseBrowserQaDatabaseTuple(value) {
-  let parsed
-  try {
-    parsed = new URL(value)
-  } catch {
-    throw new Error("Browser QA target requires a valid PostgreSQL URL.")
-  }
-  if (parsed.protocol !== "postgresql:" && parsed.protocol !== "postgres:") {
-    throw new Error("Browser QA target requires a PostgreSQL URL.")
-  }
-  const database = decodeURIComponent(parsed.pathname.replace(/^\/+/, ""))
-  if (!parsed.hostname || !database || database.includes("/")) {
-    throw new Error("Browser QA target requires a host and one database name.")
-  }
-  return {
-    host: parsed.hostname.toLowerCase(),
-    port: parsed.port || "5432",
-    database,
-  }
+  return parsePostgresTargetIdentity(value, { label: "Browser QA target" })
 }
 
-/** Hashes runtime and direct identities without credentials, query strings, or URL output. */
+/** Hashes runtime and direct identities without passwords, parameters, or URL output. */
 export function fingerprintBrowserQaDatabaseTarget(runtimeUrl, directUrl) {
   const identity = [
     parseBrowserQaDatabaseTuple(runtimeUrl),
     parseBrowserQaDatabaseTuple(directUrl),
   ]
-  return createHash("sha256")
-    .update("massagelab-browser-qa-database-target\0")
-    .update(JSON.stringify(identity))
-    .digest("hex")
+  return fingerprintPostgresTargetIdentities(identity, "massagelab-browser-qa-database-target")
 }
 
 /**
@@ -51,8 +36,12 @@ export function assertBrowserQaDatabaseTarget({ environment = process.env, mode,
   if (environment.MASSAGELAB_BROWSER_QA_DATABASE !== "1") {
     throw new Error("Browser QA database target requires MASSAGELAB_BROWSER_QA_DATABASE=1.")
   }
-  if (String(environment.VERCEL_ENV ?? "").trim().toLowerCase() === "production") {
+  const vercelEnvironment = String(environment.VERCEL_ENV ?? "").trim().toLowerCase()
+  if (vercelEnvironment === "production") {
     throw new Error("Browser QA database target refuses the Production environment.")
+  }
+  if (vercelEnvironment !== "preview" && vercelEnvironment !== "development") {
+    throw new Error("Browser QA database target requires VERCEL_ENV=preview or VERCEL_ENV=development.")
   }
   const runtimeUrl = environment.MASSAGELAB_BROWSER_QA_DATABASE_URL?.trim()
   const directUrl = environment.MASSAGELAB_BROWSER_QA_DIRECT_URL?.trim()

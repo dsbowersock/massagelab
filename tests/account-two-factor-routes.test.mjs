@@ -223,12 +223,11 @@ describe("two-factor management route boundaries", () => {
       const scenario = loadRoute(name)
       await scenario.POST(routeRequest(name, ROUTES[name].body, {
         forwardedFor: "203.0.113.71, 10.0.0.2",
-        vercelForwardedFor: "198.51.100.71, 10.0.0.3",
       }))
       const input = scenario.serviceCalls[0]
       assert.equal(input.userId, "user-1", name)
       assert.equal(Object.hasOwn(input, "email"), false, name)
-      assert.equal(input.networkIdentifier, "198.51.100.71", name)
+      assert.equal(input.networkIdentifier, "203.0.113.71", name)
       assert.equal(input.confirmed, true, name)
       assert.equal(input.now, NOW, name)
       assert.equal(scenario.clockCalls, 1, name)
