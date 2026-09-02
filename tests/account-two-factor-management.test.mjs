@@ -1023,6 +1023,7 @@ function manageInput(database, overrides = {}) {
   }
 }
 
+/** Builds deterministic service doubles and lets focused cases replace only the dependency under test. */
 function dependencies(overrides = {}) {
   const {
     database,
@@ -1046,22 +1047,22 @@ function dependencies(overrides = {}) {
     },
     isFreshConsumedGoogleReauth,
     consumeFreshGoogleReauth: consumeGoogleProofWithFailureHooks,
-    generateTotpSecret: overrides.generateTotpSecret ?? (() => {
+    generateTotpSecret: () => {
       database?.events.push("generate-secret")
       if (throwAt === "generate-secret") throw new Error("generation failed")
       return { secret: MANUAL_CODE, otpauthUrl: OTPAUTH_URL }
-    }),
-    encryptSecret: overrides.encryptSecret ?? (() => {
+    },
+    encryptSecret: () => {
       database?.events.push("encrypt-secret")
       if (throwAt === "encrypt-secret") throw new Error("encryption failed")
       return ENCRYPTED_SECRET
-    }),
+    },
     renderQrCode: async () => {
       database?.events.push("render-qr")
       if (throwAt === "render-qr") throw new Error("QR failed")
       return QR_CODE
     },
-    decryptSecret: overrides.decryptSecret ?? (() => MANUAL_CODE),
+    decryptSecret: () => MANUAL_CODE,
     verifyTotpCode: (_secret, code) => code === (validTotpCode ?? "123456"),
     generateBackupCodes: () => backupCodes(),
     async hashBackupCode(code) {
@@ -1192,6 +1193,7 @@ async function consumeGoogleProofWithFailureHooks(tx, intent, purpose, userId, n
   return consumed
 }
 
+/** Creates the mutable Prisma double whose transactions restore their full snapshot on rollback. */
 function createDatabase({
   passwordEnabled = true,
   googleLinked = false,
@@ -1295,6 +1297,7 @@ function createDatabase({
   return database
 }
 
+/** Builds transaction delegates while preserving the root database's deliberate user-row/delegate alias. */
 function transactionClient(database) {
   const userRecord = () => {
     return {
@@ -1423,6 +1426,7 @@ function userData(user) {
   }
 }
 
+/** Matches scalar, Date, `gt`, and `in` filters; unsupported nested filters fail closed. */
 function matches(row, where = {}) {
   return Object.entries(where).every(([key, expected]) => {
     const actual = row[key]

@@ -58,6 +58,7 @@ function deferred() {
   return { promise, resolve }
 }
 
+/** Bounds manual transaction gates so an ordering regression fails instead of hanging the test process. */
 async function boundedLatch(promise, label, timeoutMs = 1_000) {
   let timeout
   try {

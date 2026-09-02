@@ -88,6 +88,7 @@ describe("development Clock review route", () => {
     )
     const ownerAdoptionSource = musicProviderSource.slice(ownerAdoptionStart, ownerAdoptionEnd)
     const ownerResetStart = ownerAdoptionSource.indexOf("if (ownerChanged) {")
+    assert.notEqual(ownerResetStart, -1, "Music provider owner-reset block start missing")
     const ownerResetEnd = ownerAdoptionSource.indexOf(
       'if (bootstrapStatus === "anonymous"',
       ownerResetStart,

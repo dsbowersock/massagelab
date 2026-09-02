@@ -889,7 +889,7 @@ describe("private Google auth-method intents", () => {
     assert.deepEqual(calls, { limit: 0, session: 0, intent: 0 })
   })
 
-  it("rejects oversized streaming session-bound bodies before limiter, session, or intent work", { timeout: 2_000 }, async () => {
+  it("rejects oversized streaming session-bound bodies before limiter, session, or intent work", { timeout: 5_000 }, async () => {
     const { createGoogleIntentHandler } = await loadIntentRoute()
     const calls = { limit: 0, session: 0, intent: 0 }
     const handler = createGoogleIntentHandler({

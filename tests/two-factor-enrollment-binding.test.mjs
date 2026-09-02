@@ -63,6 +63,7 @@ describe("same-browser two-factor enrollment binding", () => {
     assert.equal(typeof bindingModule.verifyTwoFactorEnrollmentBinding, "function")
     const value = bindingModule.signTwoFactorEnrollmentBinding(BASE_INPUT)
     const [payload, signature] = value.split(".")
+    assert.notEqual(bindingModule.verifyTwoFactorEnrollmentBinding({ ...BASE_INPUT, value }), null)
     const payloadBytes = Buffer.from(payload, "base64url")
     payloadBytes[0] ^= 1
     const signatureBytes = Buffer.from(signature, "base64url")

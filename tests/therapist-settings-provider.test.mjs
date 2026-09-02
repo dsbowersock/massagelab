@@ -184,6 +184,7 @@ function loadProviderOwnerTransitionHarness({
   const storageWrites = []
   const storageRemovals = []
   const profileWrites = []
+  const profileWriteSettlements = []
   const windowListeners = new Map()
   let profileRequests = 0
   const profileResponse = deferred()
@@ -297,9 +298,11 @@ function loadProviderOwnerTransitionHarness({
             json: await profileResponse.promise,
           }
         },
-        fetchWithTimeout: async (...args) => {
+        fetchWithTimeout: (...args) => {
           profileWrites.push(args)
-          return writeProfile(...args)
+          const settlement = Promise.resolve().then(() => writeProfile(...args))
+          profileWriteSettlements.push(settlement)
+          return settlement
         },
       },
     },
@@ -358,6 +361,15 @@ function loadProviderOwnerTransitionHarness({
     },
     get profileRequests() {
       return profileRequests
+    },
+    /** Waits for every write started by the serialized writer, including batches queued while waiting. */
+    async settleProfileWrites() {
+      let settled = 0
+      while (settled < profileWriteSettlements.length) {
+        const batch = profileWriteSettlements.slice(settled)
+        settled += batch.length
+        await Promise.allSettled(batch)
+      }
     },
     profileWrites,
     storageReads,
@@ -456,7 +468,7 @@ describe("therapist settings cloud hydration", () => {
 
       const readyView = harness.render()
       readyView.updateSettings({ name: "Retry on demand" })
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await harness.settleProfileWrites()
       assert.equal(harness.profileWrites.length, 1)
 
       await readyView.ensureCloudHydrated()
@@ -484,16 +496,16 @@ describe("therapist settings cloud hydration", () => {
       await hydration
 
       harness.render().updateSettings({ name: "Retry online" })
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await harness.settleProfileWrites()
       assert.equal(harness.profileWrites.length, 1)
 
       harness.dispatchOnline()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await harness.settleProfileWrites()
       assert.equal(harness.profileWrites.length, 2)
       assert.equal(harness.profileWrites[0][1].body, harness.profileWrites[1][1].body)
 
       harness.dispatchOnline()
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      await harness.settleProfileWrites()
       assert.equal(harness.profileWrites.length, 2, "online recovery must not create a retry loop")
     } finally {
       harness.restore()

@@ -386,6 +386,10 @@ describe("family-and-friends server workload baseline", () => {
       verifiedDateMatch[1],
       "project-state Verified must be a real ISO calendar date",
     )
+    assert.ok(
+      verifiedDateMatch[1] <= new Date().toISOString().slice(0, 10),
+      "project-state Verified date must not be in the future",
+    )
   })
 
   it("keeps project-log migration and historical workload claims ordered", () => {

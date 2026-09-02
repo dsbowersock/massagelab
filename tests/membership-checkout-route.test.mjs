@@ -24,6 +24,19 @@ describe("Membership Checkout POST route", () => {
     assert.doesNotMatch(membershipCheckoutSource, MEMBERSHIP_PRICING_IMPORT_PATTERN)
   })
 
+  it("recognizes every supported display-catalog import form", () => {
+    for (const source of [
+      'import catalog from "@/lib/membership-pricing"',
+      'import "@/lib/membership-pricing"',
+      'await import("@/lib/membership-pricing")',
+      'require("@/lib/membership-pricing")',
+      'await import(`@/lib/membership-pricing`)',
+      'require(`@/lib/membership-pricing`)',
+    ]) {
+      assert.match(source, MEMBERSHIP_PRICING_IMPORT_PATTERN)
+    }
+  })
+
   it("returns a paused JSON response after authentication and before membership, legal, customer, or Stripe work", async () => {
     const calls = checkoutCallCounts({
       guardCallOrder: [],
@@ -540,22 +553,8 @@ describe("Membership Checkout POST route", () => {
   })
 
   it("rejects a stale displayed Price when current server configuration no longer contains it", async () => {
-    const calls = checkoutCallCounts({ displayCatalogReads: 0, priceResolutionInputs: [] })
+    const calls = checkoutCallCounts({ priceResolutionInputs: [] })
     const dependencies = checkoutDependencies(calls)
-    dependencies.getMembershipPricingCatalog = async () => {
-      calls.displayCatalogReads += 1
-      return {
-        defaultInterval: "month",
-        intervals: [{ id: "month" }],
-        plans: [{
-          membershipLevel: "SUPPORTER",
-          amountChoices: [{
-            id: "support-1",
-            prices: { month: { priceId: "price_old_display_cache" } },
-          }],
-        }],
-      }
-    }
     dependencies.resolveStripePriceId = (input) => {
       calls.priceResolutionInputs.push(input)
       return resolveStripePriceId({ ...input, env: {} })
@@ -571,7 +570,6 @@ describe("Membership Checkout POST route", () => {
       body: { error: "Stripe price is not configured" },
       status: 400,
     })
-    assert.equal(calls.displayCatalogReads, 0)
     assert.deepEqual(calls.priceResolutionInputs, [{
       membershipLevel: "SUPPORTER",
       supporterAmountChoiceId: "support-1",

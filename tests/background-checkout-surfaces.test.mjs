@@ -70,7 +70,7 @@ describe("background checkout review", () => {
       ]])
     } finally {
       harness.resolveCheckout()
-      await Promise.resolve()
+      await new Promise((resolve) => setImmediate(resolve))
       harness.cleanup()
     }
   })
