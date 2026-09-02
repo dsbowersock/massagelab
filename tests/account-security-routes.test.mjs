@@ -820,6 +820,8 @@ function createMethodsPanelHookRuntime() {
           state[index] = typeof value === "function" ? value(state[index]) : value
         }]
       },
+      // Hook position identifies an effect across rerenders; omitted dependencies
+      // rerun, while copied arrays are compared against the persistent map.
       useEffect(effect, dependencies) {
         const index = cursor
         cursor += 1
