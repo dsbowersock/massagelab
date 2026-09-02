@@ -171,6 +171,7 @@ function providerHarnessBundle() {
 
         harness.setOwner = (owner) => updateOwner(owner);
         harness.ensureSnapshot = () => latestCommerce.ensureSnapshot();
+        harness.refresh = () => latestCommerce.refresh();
         harness.failAddToCart = () => latestCommerce.addToCart("static-gradient").catch(() => undefined);
         harness.startAddToCart = () => {
           harness.mutationSettled = false;
@@ -264,7 +265,16 @@ describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, ()
 
   before(async () => {
     const { chromium } = require("playwright")
-    browser = await chromium.launch({ headless: true })
+    const bundle = providerHarnessBundle()
+    try {
+      browser = await chromium.launch({ headless: true })
+      await bundle
+    } catch (error) {
+      await bundle.catch(() => undefined)
+      if (browser) await browser.close().catch(() => undefined)
+      browser = null
+      throw error
+    }
   })
 
   after(async () => {
@@ -495,6 +505,50 @@ describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, ()
     }
   })
 
+  it("refreshes a successfully hydrated current owner once on focus or reconnect", { timeout: 45_000 }, async () => {
+    let page = null
+    try {
+      page = await openProviderHarness(browser)
+      await page.evaluate(() => window.__commerceProviderHarness.refresh())
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.read().state.status === "ready"
+        && window.__commerceProviderHarness.read().calls
+          .filter((call) => call === "GET /api/background-commerce/state").length === 1
+        && window.__commerceProviderHarness.refreshListenersReady("owner-a")
+      ))
+
+      await page.evaluate(() => {
+        window.__commerceProviderHarness.stateFetchMode = "pending"
+        window.__commerceProviderHarness.dispatchFocus()
+        window.__commerceProviderHarness.dispatchOnline()
+      })
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.pendingStateFetches === 1
+        && window.__commerceProviderHarness.read().state.status === "loading"
+        && window.__commerceProviderHarness.read().calls
+          .filter((call) => call === "GET /api/background-commerce/state").length === 2
+      ))
+      await page.evaluate(() => window.__commerceProviderHarness.resolveStateFetches())
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.pendingStateFetches === 0
+        && window.__commerceProviderHarness.read().state.status === "ready"
+      ))
+
+      const hydrated = await page.evaluate(() => ({
+        current: window.__commerceProviderHarness.read(),
+        errors: window.__commerceProviderHarness.errors,
+      }))
+      assert.equal(
+        hydrated.current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
+        2,
+        JSON.stringify(hydrated),
+      )
+      assert.deepEqual(hydrated.errors, [])
+    } finally {
+      await page?.close()
+    }
+  })
+
   it("keeps mutation-started owners eligible for a single focus or reconnect refresh", { timeout: 45_000 }, async () => {
     let page = null
     try {
@@ -566,13 +620,10 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /controller\.abort\(\)/)
   })
 
-  it("refreshes only demanded, successfully hydrated, or mutation-started owners on focus", async () => {
+  it("keeps guest snapshots and focus or reconnect listener wiring", async () => {
     const value = await source(providerPath)
     assert.match(value, /if \(!ownerKey\) \{[\s\S]*readGuestBackgroundCartIds/)
     assert.match(value, /createGuestBackgroundCommerceSnapshot/)
-    assert.match(value, /demandedOwnerRef\.current !== ownerKey/)
-    assert.match(value, /hydratedOwnerRef\.current !== ownerKey/)
-    assert.match(value, /mutationStartedOwnerRef\.current !== ownerKey/)
     assert.match(value, /addEventListener\("focus"/)
     assert.match(value, /addEventListener\("online"/)
   })

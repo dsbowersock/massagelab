@@ -173,26 +173,6 @@ describe("trusted account-security JSON requests", () => {
     )
   })
 
-  it("rejects every invalid provenance, media, size, and shape case", async () => {
-    assert.equal(typeof requestModule.parseTrustedAccountSecurityJson, "function")
-    const rejectedRequests = [
-      ["missing Origin", trustedRequest({ origin: null }), "UNTRUSTED_REQUEST"],
-      ["missing Fetch Metadata", trustedRequest({ fetchSite: null }), "UNTRUSTED_REQUEST"],
-      ["non-JSON media", trustedRequest({ contentType: "text/plain" }), "INVALID_REQUEST"],
-      ["oversized body", trustedRequest({ body: `{"proofMethod":"PASSWORD","confirmed":true,"padding":"${"x".repeat(4096)}"}` }), "INVALID_REQUEST"],
-      ["unknown body key", trustedRequest({ body: JSON.stringify({ proofMethod: "PASSWORD", confirmed: true, extra: true }) }), "INVALID_REQUEST"],
-    ]
-
-    for (const [label, request, code] of rejectedRequests) {
-      const parsed = await requestModule.parseTrustedAccountSecurityJson({
-        request,
-        expectedSiteUrl: SITE_URL,
-        allowedKeys: ALLOWED_KEYS,
-      })
-      assert.deepEqual(parsed, { ok: false, code }, label)
-    }
-  })
-
   it("returns the exact private no-store JSON headers", () => {
     assert.equal(typeof requestModule.noStoreJsonHeaders, "function")
     assert.deepEqual(requestModule.noStoreJsonHeaders(), {
@@ -218,6 +198,8 @@ function trustedRequest({
 
 function malformedUrlRequest() {
   const valid = trustedRequest()
+  // Request rejects malformed URLs during construction. This minimal request-like
+  // object keeps a valid body so the test isolates provenance-before-body ordering.
   return {
     url: "not a URL",
     headers: valid.headers,

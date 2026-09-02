@@ -226,6 +226,42 @@ describe("account two-factor UI hook harness", () => {
     ])
   })
 
+  it("runs every unmount cleanup before rethrowing one error identity and clearing effect slots", () => {
+    const hooks = createHookRuntime()
+    const cleanupError = new Error("first cleanup failed")
+    const events = []
+
+    hooks.startRender()
+    hooks.react.useEffect(() => () => {
+      events.push("first")
+      throw cleanupError
+    }, [])
+    hooks.react.useEffect(() => () => events.push("second"), [])
+    hooks.finishRender()
+
+    assert.throws(() => hooks.unmount(), (error) => error === cleanupError)
+    assert.deepEqual(events, ["first", "second"])
+    assert.doesNotThrow(() => hooks.unmount(), "effect slots must be empty after a failed cleanup")
+  })
+
+  it("aggregates multiple unmount cleanup failures after running every cleanup", () => {
+    const hooks = createHookRuntime()
+    const cleanupErrors = [new Error("first cleanup failed"), new Error("second cleanup failed")]
+
+    hooks.startRender()
+    for (const cleanupError of cleanupErrors) {
+      hooks.react.useEffect(() => () => { throw cleanupError }, [])
+    }
+    hooks.finishRender()
+
+    assert.throws(
+      () => hooks.unmount(),
+      (error) => error instanceof AggregateError && error.errors.length === 2
+        && error.errors[0] === cleanupErrors[0] && error.errors[1] === cleanupErrors[1],
+    )
+    assert.doesNotThrow(() => hooks.unmount(), "effect slots must be empty after aggregate cleanup failure")
+  })
+
   it("restores browser globals when an effect cleanup throws", async () => {
     const previousFetch = globalThis.fetch
     const previousWindow = globalThis.window
@@ -841,9 +877,23 @@ function createHookRuntime() {
       }
     },
     unmount() {
-      for (const effect of effects) effect?.cleanup?.()
-      effects.length = 0
-      pendingEffects.length = 0
+      const cleanupErrors = []
+      try {
+        for (const effect of effects) {
+          try {
+            effect?.cleanup?.()
+          } catch (error) {
+            cleanupErrors.push(error)
+          }
+        }
+      } finally {
+        effects.length = 0
+        pendingEffects.length = 0
+      }
+      if (cleanupErrors.length === 1) throw cleanupErrors[0]
+      if (cleanupErrors.length > 1) {
+        throw new AggregateError(cleanupErrors, "Account two-factor UI effect cleanups failed")
+      }
     },
     react: {
       useEffect(effect, dependencies) {

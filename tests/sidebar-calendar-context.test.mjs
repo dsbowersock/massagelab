@@ -135,7 +135,7 @@ function createSidebarProviderEffectHarness(fetchJsonWithTimeout) {
   }
 }
 
-function loadRoute(session, downstreamReads, ownerCalls = []) {
+function loadRoute(session, contextLoads, ownerCalls = []) {
   return loadCompiledModule(routeSource, "app/api/calendar/sidebar-context/route.test.ts", {
     "next/server": {
       NextResponse: {
@@ -148,9 +148,7 @@ function loadRoute(session, downstreamReads, ownerCalls = []) {
         sidebarCalendarContextModule.isCanonicalSidebarCalendarOwnerId,
       getSidebarCalendarContext: async (ownerId) => {
         ownerCalls.push(ownerId)
-        downstreamReads.readiness += 1
-        downstreamReads.preferences += 1
-        downstreamReads.memberships += 1
+        contextLoads.count += 1
         return emptySidebarCalendarContext
       },
     },
@@ -222,14 +220,14 @@ describe("sidebar calendar context route gating", () => {
     assert.deepEqual(coordinator.getValue(), expected)
   })
 
-  it("rejects a padded route owner before readiness, preference, or membership reads", async () => {
-    const downstreamReads = { readiness: 0, preferences: 0, memberships: 0 }
-    const route = loadRoute({ user: { id: " owner-a " } }, downstreamReads)
+  it("rejects a padded route owner before loading sidebar context", async () => {
+    const contextLoads = { count: 0 }
+    const route = loadRoute({ user: { id: " owner-a " } }, contextLoads)
 
     const response = await route.GET()
 
     assert.equal(response.status, 401)
-    assert.deepEqual(downstreamReads, { readiness: 0, preferences: 0, memberships: 0 })
+    assert.equal(contextLoads.count, 0)
     assert.equal(
       await sidebarCalendarContextModule.getSidebarCalendarContext(" owner-a "),
       emptySidebarCalendarContext,
@@ -237,15 +235,15 @@ describe("sidebar calendar context route gating", () => {
   })
 
   it("loads the canonical session owner once through the route boundary", async () => {
-    const downstreamReads = { readiness: 0, preferences: 0, memberships: 0 }
+    const contextLoads = { count: 0 }
     const ownerCalls = []
-    const route = loadRoute({ user: { id: "owner-a" } }, downstreamReads, ownerCalls)
+    const route = loadRoute({ user: { id: "owner-a" } }, contextLoads, ownerCalls)
 
     const response = await route.GET()
 
     assert.deepEqual(response, { body: emptySidebarCalendarContext, status: 200 })
     assert.deepEqual(ownerCalls, ["owner-a"])
-    assert.deepEqual(downstreamReads, { readiness: 1, preferences: 1, memberships: 1 })
+    assert.equal(contextLoads.count, 1)
   })
 
   it("fails closed when the sidebar endpoint returns a malformed payload", async () => {

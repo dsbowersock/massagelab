@@ -138,6 +138,8 @@ async function loadPreferenceSync(ownerKey, {
 
   // The compiled client component reads browser APIs directly. Keep the doubles
   // installed through every request continuation, then restore them in cleanup.
+  const hadOwnWindow = Object.hasOwn(globalThis, "window")
+  const hadOwnFetch = Object.hasOwn(globalThis, "fetch")
   const previousWindow = globalThis.window
   const previousFetch = globalThis.fetch
   const testWindow = {
@@ -179,8 +181,10 @@ async function loadPreferenceSync(ownerKey, {
   function restoreGlobals() {
     if (restored) return
     restored = true
-    globalThis.window = previousWindow
-    globalThis.fetch = previousFetch
+    if (hadOwnWindow) globalThis.window = previousWindow
+    else delete globalThis.window
+    if (hadOwnFetch) globalThis.fetch = previousFetch
+    else delete globalThis.fetch
   }
 
   async function finalize() {
@@ -239,6 +243,29 @@ async function loadPreferenceSync(ownerKey, {
 }
 
 describe("Account preference sync therapist ownership", () => {
+  it("restores browser globals that were absent before the harness", async () => {
+    const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window")
+    const fetchDescriptor = Object.getOwnPropertyDescriptor(globalThis, "fetch")
+    let sync
+
+    try {
+      delete globalThis.window
+      delete globalThis.fetch
+      sync = await loadPreferenceSync(null)
+      await sync.cleanup()
+      sync = undefined
+
+      assert.equal(Object.hasOwn(globalThis, "window"), false)
+      assert.equal(Object.hasOwn(globalThis, "fetch"), false)
+    } finally {
+      await sync?.cleanup()
+      if (windowDescriptor) Object.defineProperty(globalThis, "window", windowDescriptor)
+      else delete globalThis.window
+      if (fetchDescriptor) Object.defineProperty(globalThis, "fetch", fetchDescriptor)
+      else delete globalThis.fetch
+    }
+  })
+
   it("uploads only the current owner's scoped therapist settings and ignores legacy data", async () => {
     const ownerA = await loadPreferenceSync("owner-a")
     try {

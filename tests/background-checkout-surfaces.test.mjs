@@ -193,6 +193,109 @@ async function loadCheckoutReviewHarness() {
   }
 }
 
+/** Executes the real checkout-return component with inert browser timers and rejected refreshes. */
+async function loadCheckoutReturnHarness() {
+  const source = await readFile(returnPath, "utf8")
+  const hooks = createHookHarness()
+  const Div = passThroughElement("div")
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
+  const previousStorage = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage")
+  const timers = new Map()
+  const router = { replace() {} }
+  let nextTimerId = 1
+  let ensureSnapshotCalls = 0
+  let refreshCalls = 0
+  const ensureSnapshot = async () => { ensureSnapshotCalls += 1 }
+  const refresh = async () => {
+    refreshCalls += 1
+    throw new Error("synthetic refresh rejection")
+  }
+  const sessionStorage = {
+    getItem: () => JSON.stringify({
+      backgroundIds: ["background-one"],
+      returnPath: "/clock?panel=background",
+    }),
+    removeItem() {},
+  }
+  const returnStatus = loadCompiledModule(source, "BackgroundCheckoutReturnStatus.behavior.test.tsx", {
+    react: hooks.react,
+    "react/jsx-runtime": {
+      Fragment: Symbol.for("background-checkout-return-test.fragment"),
+      jsx: createElement,
+      jsxs: createElement,
+    },
+    "next/link": { __esModule: true, default: passThroughElement("a") },
+    "next/navigation": {
+      usePathname: () => "/clock",
+      useRouter: () => router,
+      useSearchParams: () => new URLSearchParams("backgroundPurchase=success"),
+    },
+    "@/components/backgrounds/BackgroundCheckoutReview": {
+      BACKGROUND_CHECKOUT_RETURN_STORAGE_KEY: "massagelab-background-checkout-return-v1",
+    },
+    "@/components/backgrounds/BackgroundCommerceProvider": {
+      useBackgroundCommerce: () => ({
+        ensureSnapshot,
+        refresh,
+        state: {
+          snapshot: {
+            ownedBackgroundIds: [],
+            ownerships: [],
+            recentOrders: [],
+          },
+        },
+      }),
+    },
+    "@/components/ui/button": { Button: passThroughElement("button") },
+    "@/components/ui/dialog": {
+      Dialog: Div,
+      DialogContent: Div,
+      DialogDescription: Div,
+      DialogFooter: Div,
+      DialogHeader: Div,
+      DialogTitle: Div,
+    },
+  })
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      clearTimeout(timerId) {
+        timers.delete(timerId)
+      },
+      location: { origin: "https://massagelab.test" },
+      setTimeout(callback, delay) {
+        const timerId = nextTimerId
+        nextTimerId += 1
+        timers.set(timerId, { callback, delay })
+        return timerId
+      },
+    },
+  })
+  Object.defineProperty(globalThis, "sessionStorage", {
+    configurable: true,
+    value: sessionStorage,
+  })
+
+  return {
+    get ensureSnapshotCalls() { return ensureSnapshotCalls },
+    get refreshCalls() { return refreshCalls },
+    render: () => hooks.render(returnStatus.BackgroundCheckoutReturnStatus),
+    cleanup() {
+      try {
+        hooks.unmount()
+      } finally {
+        try {
+          if (previousStorage) Object.defineProperty(globalThis, "sessionStorage", previousStorage)
+          else delete globalThis.sessionStorage
+        } finally {
+          if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow)
+          else delete globalThis.window
+        }
+      }
+    },
+  }
+}
+
 describe("checkout review hook harness", () => {
   it("memoizes by dependency and cleans changed, removed, and unmounted effects by hook index", () => {
     const hooks = createHookHarness()
@@ -265,6 +368,9 @@ function createHookHarness() {
       }
       return memos[index].value
     },
+    useCallback(callback, dependencies) {
+      return react.useMemo(() => callback, dependencies)
+    },
     useEffect(effect, dependencies) {
       const index = effectCursor
       effectCursor += 1
@@ -317,27 +423,37 @@ function dependenciesChanged(previous, next) {
 }
 
 describe("checkout return recovery", () => {
-  it("polls server snapshots and never grants ownership from URL state", async () => {
-    const source = await readFile(returnPath, "utf8")
-    const commerceMembers = source.match(
-      /const\s*\{(?<members>[^}]*)\}\s*=\s*useBackgroundCommerce\(\)/,
-    )?.groups?.members ?? ""
-    assert.match(source, /Confirming purchase/)
-    assert.notEqual(commerceMembers, "", "checkout return must consume the commerce context")
-    for (const member of ["state", "refresh"]) {
-      assert.match(commerceMembers, new RegExp(`\\b${member}\\b`), member)
+  it("hydrates on mount and advances retry state when refresh rejects", async () => {
+    const harness = await loadCheckoutReturnHarness()
+    try {
+      let tree = harness.render()
+      assert.equal(harness.ensureSnapshotCalls, 1)
+      assert.equal(elementText(tree).includes("Confirming purchase"), true)
+
+      tree = harness.render()
+      assert.equal(harness.ensureSnapshotCalls, 1, "stable mount dependencies must not hydrate twice")
+
+      for (let expectedChecks = 1; expectedChecks <= 6; expectedChecks += 1) {
+        const checkAgain = findElement(tree, (element) => (
+          element.type === "button" && elementText(element) === "Check again"
+        ))
+        assert.ok(checkAgain, `retry button missing before check ${expectedChecks}`)
+        checkAgain.props.onClick()
+        await new Promise((resolve) => setImmediate(resolve))
+        tree = harness.render()
+        assert.equal(harness.refreshCalls, expectedChecks)
+      }
+
+      assert.match(elementText(tree), /taking longer than expected/i)
+      assert.match(elementText(tree), /Contact support/i)
+    } finally {
+      harness.cleanup()
     }
-    const initialHydrationSource = source.match(
-      /useEffect\(\(\) => \{\s*if \(result !== "success" && result !== "cancelled"\)[\s\S]*?\}, \[ensureSnapshot, result\]\)/,
-    )?.[0] ?? ""
-    assert.notEqual(initialHydrationSource, "", "checkout return initial hydration effect missing")
-    assert.match(initialHydrationSource, /void ensureSnapshot\(\)/)
-    const checkAgainSource = source.match(
-      /const checkAgain = useCallback\(async \(\) => \{[\s\S]*?\}, \[refresh\]\)/,
-    )?.[0] ?? ""
-    assert.notEqual(checkAgainSource, "", "checkout return retry callback missing")
-    assert.match(checkAgainSource, /await refresh\(\)/)
-    assert.match(checkAgainSource, /catch \{[\s\S]*finally \{[\s\S]*setChecks/)
+  })
+
+  it("never grants ownership from URL state", async () => {
+    const source = await readFile(returnPath, "utf8")
+    assert.match(source, /Confirming purchase/)
     assert.match(source, /ownedBackgroundIds/)
     assert.match(source, /Check again/)
     assert.doesNotMatch(source, /session_id|ownedBackgroundIds\.push|grantOwnership/)

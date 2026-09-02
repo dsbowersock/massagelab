@@ -6,6 +6,7 @@ import {
   hasSubscriptionBlockingNewCheckout,
   resolveStripePriceId,
 } from "../lib/membership.js"
+import { MEMBERSHIP_PRICING_IMPORT_PATTERN } from "./helpers/membership-pricing-import-guard.mjs"
 
 const [checkoutRouteSource, membershipCheckoutSource] = await Promise.all([
   readFile(new URL("../app/api/billing/checkout/route.ts", import.meta.url), "utf8"),
@@ -19,9 +20,8 @@ const MEMBERSHIP_BILLING_DOCUMENT = Object.freeze({
 
 describe("Membership Checkout POST route", () => {
   it("keeps the cached display catalog outside current Checkout price authority", () => {
-    const membershipPricingImport = /(?:\bfrom\s+|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)["'][^"'\r\n]*membership-pricing[^"'\r\n]*["']/
-    assert.doesNotMatch(checkoutRouteSource, membershipPricingImport)
-    assert.doesNotMatch(membershipCheckoutSource, membershipPricingImport)
+    assert.doesNotMatch(checkoutRouteSource, MEMBERSHIP_PRICING_IMPORT_PATTERN)
+    assert.doesNotMatch(membershipCheckoutSource, MEMBERSHIP_PRICING_IMPORT_PATTERN)
   })
 
   it("returns a paused JSON response after authentication and before membership, legal, customer, or Stripe work", async () => {

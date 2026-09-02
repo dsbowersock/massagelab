@@ -26,6 +26,13 @@ const settingsProviderSource = readFileSync(
 )
 const rootLayoutSource = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8")
 
+/** Returns one JSX opening tag so negative prop checks cannot match another owner. */
+function componentOpeningTag(source, componentName) {
+  const openingTag = source.match(new RegExp(`<${componentName}\\b[^>]*>`))?.[0]
+  assert.ok(openingTag, `missing ${componentName} opening tag`)
+  return openingTag
+}
+
 /** Returns the exact link-props declaration and fails clearly if its owners move. */
 function sliceLinkProps(toolLink) {
   const start = toolLink.indexOf("  const linkProps = {")
@@ -357,10 +364,8 @@ describe("App settings helpers", () => {
   })
 
   it("lets the shared bootstrap own Settings and Music account enablement", () => {
-    assert.match(rootLayoutSource, /<SettingsProvider>/)
-    assert.match(rootLayoutSource, /<MusicProvider>/)
-    assert.doesNotMatch(rootLayoutSource, /<SettingsProvider syncEnabled=/)
-    assert.doesNotMatch(rootLayoutSource, /<MusicProvider accountSyncEnabled=/)
+    assert.doesNotMatch(componentOpeningTag(rootLayoutSource, "SettingsProvider"), /\bsyncEnabled\s*=/)
+    assert.doesNotMatch(componentOpeningTag(rootLayoutSource, "MusicProvider"), /\baccountSyncEnabled\s*=/)
   })
 
   it("uses a single theme toggle across app bar layouts", () => {

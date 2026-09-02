@@ -13,6 +13,7 @@ import { buildRegistrationLegalProviderRedirectPath } from "../lib/legal-accepta
 import { isGoogleIdentityUniqueConstraint } from "../lib/prisma-identity-unique-constraint.ts"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const ACCOUNT_SECURITY_JSON_HARD_LIMIT_BYTES = 4_096
 const EXPECTED_SESSION_BOUND_PURPOSES = [
   "LINK_GOOGLE",
   "ADD_PASSWORD",
@@ -1013,12 +1014,17 @@ function intentRequest(body, {
 }
 
 function oversizedStreamingIntentRequest(purpose = "LINK_GOOGLE") {
+  const serializedBody = JSON.stringify({
+    purpose,
+    padding: "x".repeat(5_000),
+  })
+  assert.ok(
+    Buffer.byteLength(serializedBody) > ACCOUNT_SECURITY_JSON_HARD_LIMIT_BYTES,
+    "streaming fixture must exceed the account-security JSON hard limit",
+  )
   const body = new ReadableStream({
     start(controller) {
-      controller.enqueue(new TextEncoder().encode(JSON.stringify({
-        purpose,
-        padding: "x".repeat(5_000),
-      })))
+      controller.enqueue(new TextEncoder().encode(serializedBody))
       // Intentionally omit close: the bounded parser must reject by size before EOF.
     },
   })
