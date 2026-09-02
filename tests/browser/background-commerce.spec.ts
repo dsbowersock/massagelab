@@ -474,6 +474,7 @@ test("ordinary signed-in shell defers commerce until a real background consumer 
     const focusListeners = new Set<EventListenerOrEventListenerObject>()
     const onlineListeners = new Set<EventListenerOrEventListenerObject>()
     const updateRefreshPairReadiness = () => {
+      // The provider registers one handler reference for both refresh events.
       const hasActivePair = [...focusListeners].some((listener) => onlineListeners.has(listener))
       document.documentElement.dataset.backgroundCommerceRefreshPairReady = String(hasActivePair)
     }

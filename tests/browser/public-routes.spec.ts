@@ -272,11 +272,25 @@ async function waitForCarouselMotionToSettle(
   })
 }
 
-const loopbackHostnames = new Set(["127.0.0.1", "localhost", "0.0.0.0", "[::1]"])
+const loopbackHostnames = new Set(["localhost", "0.0.0.0", "[::1]"])
+
+/** Matches only a complete dotted-decimal IPv4 address inside 127.0.0.0/8. */
+function isIpv4LoopbackHostname(hostname: string) {
+  const octets = hostname.split(".")
+  return octets.length === 4
+    && octets[0] === "127"
+    && octets.every((octet) => /^(?:0|[1-9]\d{0,2})$/.test(octet) && Number(octet) <= 255)
+}
 
 function isLocalHttpUrl(urlString: string, configuredHostname: string) {
-  const url = new URL(urlString)
-  return loopbackHostnames.has(url.hostname) || url.hostname === configuredHostname
+  try {
+    const url = new URL(urlString)
+    return isIpv4LoopbackHostname(url.hostname)
+      || loopbackHostnames.has(url.hostname)
+      || url.hostname === configuredHostname
+  } catch {
+    return false
+  }
 }
 
 function isExternalHttpUrl(urlString: string, configuredHostname: string) {
@@ -359,7 +373,10 @@ test("public network classification keeps locality exact to loopback and the con
 
   for (const localUrl of [
     "http://localhost:3010/local",
+    "http://127.0.0.0:3010/local",
     "http://127.0.0.1:3010/local",
+    "http://127.0.0.2:3010/local",
+    "http://127.255.255.255:3010/local",
     "http://0.0.0.0:3010/local",
     "http://[::1]:3010/local",
     configuredUrl,
@@ -367,6 +384,19 @@ test("public network classification keeps locality exact to loopback and the con
     expect(isLocalHttpUrl(localUrl, configuredHostname), localUrl).toBe(true)
     expect(isExternalHttpUrl(localUrl, configuredHostname), localUrl).toBe(false)
   }
+
+  for (const externalUrl of [
+    "http://126.255.255.255:3010/not-loopback",
+    "http://128.0.0.0:3010/not-loopback",
+    "http://127.0.0.1.evil.invalid/not-loopback",
+  ]) {
+    expect(isLocalHttpUrl(externalUrl, configuredHostname), externalUrl).toBe(false)
+    expect(isExternalHttpUrl(externalUrl, configuredHostname), externalUrl).toBe(true)
+  }
+
+  const invalidLoopbackUrl = "http://127.0.0.999/invalid"
+  expect(isLocalHttpUrl(invalidLoopbackUrl, configuredHostname), invalidLoopbackUrl).toBe(false)
+  expect(isExternalHttpUrl(invalidLoopbackUrl, configuredHostname), invalidLoopbackUrl).toBe(false)
 
   const configuredLanHostname = "192.168.50.20"
   expect(isLocalHttpUrl(`http://${configuredLanHostname}:3010/local`, configuredLanHostname)).toBe(true)

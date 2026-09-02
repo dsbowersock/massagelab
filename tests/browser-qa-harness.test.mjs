@@ -73,7 +73,11 @@ const initialAtmosphereFixturePattern =
   /installAtmosphereFixtures\(\s*page,\s*allowedExternalUrls,\s*\[\],\s*initialAtmosphereSampleIndexUrls,?\s*\)/g
 const musicPathGuardPattern = /if\s*\(\s*path\s*===\s*["']\/music["']\s*\)\s*\{/
 
-/** Finds the closing brace for a known block opener without depending on source indentation. */
+/**
+ * Finds a closing brace without depending on indentation. This raw scanner also
+ * counts braces inside strings, templates, regexes, and comments, so fixtures
+ * using it must keep those constructs brace-free within the scanned boundary.
+ */
 function findMatchingBraceIndex(source, openingBraceIndex) {
   if (source[openingBraceIndex] !== "{") return -1
 
