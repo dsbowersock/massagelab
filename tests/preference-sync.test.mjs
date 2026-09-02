@@ -412,10 +412,14 @@ describe("Account preference sync therapist ownership", () => {
       await assert.doesNotReject(result)
       assert.equal(sync.isSyncing, false)
       assert.equal(sync.status, "Preference sync failed. Sign in again and retry.")
+      await new Promise((resolve) => setImmediate(resolve))
       assert.deepEqual(unhandledRejections, [])
     } finally {
-      await sync?.cleanup()
-      process.off("unhandledRejection", onUnhandledRejection)
+      try {
+        await sync?.cleanup()
+      } finally {
+        process.off("unhandledRejection", onUnhandledRejection)
+      }
     }
   })
 
