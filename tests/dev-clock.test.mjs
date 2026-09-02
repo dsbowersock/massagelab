@@ -3,6 +3,22 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import ts from "typescript"
 
+/** Collects one JSX tag beneath only the caller-provided roots. */
+function collectJsxElementsByTag(sourceFile, roots, expectedTagName) {
+  const matches = []
+  function visit(node) {
+    const tagName = ts.isJsxElement(node)
+      ? node.openingElement.tagName.getText(sourceFile)
+      : ts.isJsxSelfClosingElement(node)
+        ? node.tagName.getText(sourceFile)
+        : null
+    if (tagName === expectedTagName) matches.push(node)
+    ts.forEachChild(node, visit)
+  }
+  for (const root of roots) visit(root)
+  return matches
+}
+
 /** Requires the keyed account bootstrap JSX owner to structurally contain Music. */
 function assertAccountBootstrapOwnsMusic(layoutSource) {
   const sourceFile = ts.createSourceFile(
@@ -12,17 +28,11 @@ function assertAccountBootstrapOwnsMusic(layoutSource) {
     true,
     ts.ScriptKind.TSX,
   )
-  const accountProviders = []
-  function collectAccountProviders(node) {
-    const tagName = ts.isJsxElement(node)
-      ? node.openingElement.tagName.getText(sourceFile)
-      : ts.isJsxSelfClosingElement(node)
-        ? node.tagName.getText(sourceFile)
-        : null
-    if (tagName === "AccountShellBootstrapProvider") accountProviders.push(node)
-    ts.forEachChild(node, collectAccountProviders)
-  }
-  collectAccountProviders(sourceFile)
+  const accountProviders = collectJsxElementsByTag(
+    sourceFile,
+    [sourceFile],
+    "AccountShellBootstrapProvider",
+  )
 
   assert.equal(accountProviders.length, 1, "layout must have exactly one AccountShellBootstrapProvider")
   const accountProvider = accountProviders[0]
@@ -43,17 +53,11 @@ function assertAccountBootstrapOwnsMusic(layoutSource) {
     'accountBootstrap.ownerKey ?? "anonymous"',
   )
 
-  const musicProviders = []
-  function collectNestedMusic(node) {
-    const tagName = ts.isJsxElement(node)
-      ? node.openingElement.tagName.getText(sourceFile)
-      : ts.isJsxSelfClosingElement(node)
-        ? node.tagName.getText(sourceFile)
-        : null
-    if (tagName === "MusicProvider") musicProviders.push(node)
-    ts.forEachChild(node, collectNestedMusic)
-  }
-  for (const child of accountProvider.children) collectNestedMusic(child)
+  const musicProviders = collectJsxElementsByTag(
+    sourceFile,
+    accountProvider.children,
+    "MusicProvider",
+  )
   assert.equal(musicProviders.length, 1, "AccountShellBootstrapProvider must contain one MusicProvider")
 }
 

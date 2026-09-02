@@ -201,6 +201,10 @@ function decodePayload(value) {
   return JSON.parse(Buffer.from(value.split(".")[0], "base64url").toString("utf8"))
 }
 
+/**
+ * Mirrors production's exact canonical JSON field order. The test signer and
+ * production verifier must stay synchronized because they authenticate these bytes.
+ */
 function canonicalSerializedPayload(payload) {
   return JSON.stringify({
     version: payload.version,

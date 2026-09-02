@@ -14,6 +14,7 @@ import {
 } from "../lib/membership.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 import { SIX_PRICE_ENVIRONMENT } from "./helpers/membership-pricing-environment.mjs"
+import { MEMBERSHIP_PRICING_IMPORT_PATTERN } from "./helpers/membership-pricing-import-guard.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const HISTORICAL_BROWSER_QA_RECEIPT_PATTERN =
@@ -654,8 +655,8 @@ describe("family-and-friends server workload baseline", () => {
   it("keeps the shared display catalog out of membership, entitlement, and customer authority", () => {
     assert.match(pricingPageSource, /import\s*\{\s*getMembershipPricingCatalog\s*\}\s*from\s*["']@\/lib\/membership-pricing["']/)
     assert.match(accountSurfaceDataSource, /import\s*\{\s*getMembershipPricingCatalog\s*\}\s*from\s*["']\.\/membership-pricing\.js["']/)
-    assert.doesNotMatch(membershipSource, /membership-pricing(?:\.js)?["']/)
-    assert.doesNotMatch(stripeBillingSource, /membership-pricing(?:\.js)?["']/)
+    assert.doesNotMatch(membershipSource, MEMBERSHIP_PRICING_IMPORT_PATTERN)
+    assert.doesNotMatch(stripeBillingSource, MEMBERSHIP_PRICING_IMPORT_PATTERN)
   })
 
   it("limits the Browser-QA auth-entry proof to the explicit RSC session wrapper", () => {
