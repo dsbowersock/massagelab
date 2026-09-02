@@ -112,6 +112,7 @@ function loadProviderUpdaterHarness({ profile = {}, storageWriteThrows = false }
           if (stateCall === OWNED_SETTINGS_STATE_SLOT) {
             return [value, (update) => {
               if (typeof update === "function") {
+                // Replay functional updaters so side effects moved inside one fail this harness.
                 update(value)
                 update(value)
               }

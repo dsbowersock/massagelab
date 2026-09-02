@@ -300,6 +300,22 @@ async function openProviderHarness(browser, {
   return page
 }
 
+/** Dispatches one refresh signal and samples request count across two browser turns. */
+async function dispatchRefreshAndObserveStateFetches(page, dispatchMethod) {
+  return page.evaluate(async (method) => {
+    const harness = window.__commerceProviderHarness
+    const stateFetchCount = () => harness.read().calls
+      .filter((call) => call === "GET /api/background-commerce/state").length
+    harness[method]()
+    const stateFetchCounts = []
+    for (let poll = 0; poll < 2; poll += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+      stateFetchCounts.push(stateFetchCount())
+    }
+    return { current: harness.read(), stateFetchCounts }
+  }, dispatchMethod)
+}
+
 describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, () => {
   let browser = null
 
@@ -560,22 +576,24 @@ describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, ()
       ))
       await page.evaluate(() => {
         window.__commerceProviderHarness.stateFetchMode = "success"
-        window.__commerceProviderHarness.dispatchFocus()
       })
-      let current = await page.evaluate(() => window.__commerceProviderHarness.read())
-      assert.equal(
-        current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
-        1,
+      const afterFocus = await dispatchRefreshAndObserveStateFetches(page, "dispatchFocus")
+      assert.deepEqual(
+        afterFocus.stateFetchCounts,
+        [1, 1],
         "focus must not retry owner A's retained hydration failure for owner B",
       )
+      assert.equal(afterFocus.current.owner, "owner-b")
+      assert.equal(afterFocus.current.state.status, "idle", JSON.stringify(afterFocus))
 
-      await page.evaluate(() => window.__commerceProviderHarness.dispatchOnline())
-      current = await page.evaluate(() => window.__commerceProviderHarness.read())
-      assert.equal(
-        current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
-        1,
+      const afterOnline = await dispatchRefreshAndObserveStateFetches(page, "dispatchOnline")
+      assert.deepEqual(
+        afterOnline.stateFetchCounts,
+        [1, 1],
         "online must not retry owner A's retained hydration failure for owner B",
       )
+      assert.equal(afterOnline.current.owner, "owner-b")
+      assert.equal(afterOnline.current.state.status, "idle", JSON.stringify(afterOnline))
 
       await page.evaluate(async () => {
         window.__commerceProviderHarness.stateFetchMode = "fail"
@@ -589,7 +607,7 @@ describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, ()
         && window.__commerceProviderHarness.read().calls
           .filter((call) => call === "GET /api/background-commerce/state").length === 3
       ))
-      current = await page.evaluate(() => window.__commerceProviderHarness.read())
+      const current = await page.evaluate(() => window.__commerceProviderHarness.read())
       assert.equal(current.owner, "owner-b")
       assert.equal(current.state.status, "ready", JSON.stringify(current))
       assert.equal(
