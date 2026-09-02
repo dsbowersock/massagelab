@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import ts from "typescript"
 
 import { projectAccountShellAppSettings } from "../lib/account-shell-bootstrap.js"
 import * as accountPreferences from "../lib/account-preferences.js"
@@ -13,6 +14,33 @@ const providerSource = await readFile(
   "utf8",
 )
 const layoutSource = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8")
+
+/** Returns every direct preferences fetch call without crossing its AST boundary. */
+function accountPreferencesFetchCalls(source) {
+  const sourceFile = ts.createSourceFile(
+    "account-shell-bootstrap-provider.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  const calls = []
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node)
+      && ts.isIdentifier(node.expression)
+      && node.expression.text === "fetchJsonWithTimeout"
+      && node.arguments.length > 0
+      && ts.isStringLiteral(node.arguments[0])
+      && node.arguments[0].text === "/api/account/preferences"
+    ) {
+      calls.push(node)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  return { calls, sourceFile }
+}
 
 function projectedSettings(backgroundId = "aurora") {
   return projectAccountShellAppSettings({
@@ -430,9 +458,12 @@ describe("account shell bootstrap provider", () => {
 
   it("keeps projection, deadline, and owner-key layout contracts explicit", () => {
     assert.match(providerSource, /projectAccountShellAppSettings/)
-    assert.match(
-      providerSource,
-      /fetchJsonWithTimeout<unknown>\(\s*"\/api\/account\/preferences",[\s\S]*?\b10_000\b[\s,]*\)/,
+    const preferencesFetch = accountPreferencesFetchCalls(providerSource)
+    assert.equal(preferencesFetch.calls.length, 1, "provider must own one preferences fetch")
+    assert.equal(
+      preferencesFetch.calls[0].arguments[2]?.getText(preferencesFetch.sourceFile),
+      "10_000",
+      "preferences fetch must retain its ten-second deadline",
     )
     assert.match(layoutSource, /<AccountShellBootstrapProvider/)
     assert.match(layoutSource, /key=\{accountBootstrap\.ownerKey \?\? "anonymous"\}/)

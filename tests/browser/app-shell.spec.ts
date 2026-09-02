@@ -138,7 +138,7 @@ async function holdRscNavigationResponse(page: Page, pathname: string) {
       const request = route.request()
       const headers = request.headers()
       if (headers["next-router-prefetch"] || headers.purpose === "prefetch") {
-        await route.abort()
+        await abortHeldFixtureRequest(route)
         return
       }
       if (headers.rsc || request.isNavigationRequest()) {

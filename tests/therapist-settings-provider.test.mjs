@@ -116,7 +116,12 @@ function loadProviderUpdaterHarness({ profile = {}, storageWriteThrows = false }
       },
     }),
   )
+  const hadOwnLocalStorage = Object.hasOwn(globalThis, "localStorage")
   const previousLocalStorage = globalThis.localStorage
+  const restoreLocalStorage = () => {
+    if (hadOwnLocalStorage) globalThis.localStorage = previousLocalStorage
+    else delete globalThis.localStorage
+  }
   globalThis.localStorage = {
     getItem: () => null,
     removeItem: () => undefined,
@@ -139,11 +144,11 @@ function loadProviderUpdaterHarness({ profile = {}, storageWriteThrows = false }
       ensureCloudHydrated: element.props.value.ensureCloudHydrated,
       updateSettings: element.props.value.updateSettings,
       restore() {
-        globalThis.localStorage = previousLocalStorage
+        restoreLocalStorage()
       },
     }
   } catch (error) {
-    globalThis.localStorage = previousLocalStorage
+    restoreLocalStorage()
     throw error
   }
 }
@@ -209,8 +214,16 @@ function loadProviderOwnerTransitionHarness({
     return slots[cursor].value
   }
 
+  const hadOwnLocalStorage = Object.hasOwn(globalThis, "localStorage")
   const previousLocalStorage = globalThis.localStorage
+  const hadOwnWindow = Object.hasOwn(globalThis, "window")
   const previousWindow = globalThis.window
+  const restoreBrowserGlobals = () => {
+    if (hadOwnLocalStorage) globalThis.localStorage = previousLocalStorage
+    else delete globalThis.localStorage
+    if (hadOwnWindow) globalThis.window = previousWindow
+    else delete globalThis.window
+  }
   globalThis.localStorage = {
     getItem: (key) => {
       storageReads.push(key)
@@ -314,8 +327,7 @@ function loadProviderOwnerTransitionHarness({
   try {
     provider = loadOwnerTransitionProvider()
   } catch (error) {
-    globalThis.localStorage = previousLocalStorage
-    globalThis.window = previousWindow
+    restoreBrowserGlobals()
     throw error
   }
 
@@ -349,8 +361,7 @@ function loadProviderOwnerTransitionHarness({
       try {
         drainEffectCleanups(effectSlots, providerEffectCleanupOptions)
       } finally {
-        globalThis.localStorage = previousLocalStorage
-        globalThis.window = previousWindow
+        restoreBrowserGlobals()
       }
     },
     dispatchOnline() {
@@ -808,7 +819,9 @@ describe("therapist settings cloud hydration", () => {
   })
 
   it("restores the previous browser globals when owner-transition setup throws", () => {
+    const hadOwnLocalStorage = Object.hasOwn(globalThis, "localStorage")
     const previousLocalStorage = globalThis.localStorage
+    const hadOwnWindow = Object.hasOwn(globalThis, "window")
     const previousWindow = globalThis.window
     const sentinelLocalStorage = { sentinel: true }
     const sentinelWindow = { sentinel: true }
@@ -825,13 +838,17 @@ describe("therapist settings cloud hydration", () => {
       assert.equal(globalThis.localStorage, sentinelLocalStorage)
       assert.equal(globalThis.window, sentinelWindow)
     } finally {
-      globalThis.localStorage = previousLocalStorage
-      globalThis.window = previousWindow
+      if (hadOwnLocalStorage) globalThis.localStorage = previousLocalStorage
+      else delete globalThis.localStorage
+      if (hadOwnWindow) globalThis.window = previousWindow
+      else delete globalThis.window
     }
   })
 
   it("restores the previous browser globals when an effect cleanup throws", () => {
+    const hadOwnLocalStorage = Object.hasOwn(globalThis, "localStorage")
     const previousLocalStorage = globalThis.localStorage
+    const hadOwnWindow = Object.hasOwn(globalThis, "window")
     const previousWindow = globalThis.window
     const sentinelLocalStorage = { sentinel: "cleanup-local-storage" }
     const sentinelWindow = { sentinel: "cleanup-window" }
@@ -856,8 +873,35 @@ describe("therapist settings cloud hydration", () => {
       assert.equal(globalThis.localStorage, sentinelLocalStorage)
       assert.equal(globalThis.window, sentinelWindow)
     } finally {
-      globalThis.localStorage = previousLocalStorage
-      globalThis.window = previousWindow
+      if (hadOwnLocalStorage) globalThis.localStorage = previousLocalStorage
+      else delete globalThis.localStorage
+      if (hadOwnWindow) globalThis.window = previousWindow
+      else delete globalThis.window
+    }
+  })
+
+  it("deletes browser globals that were absent before harness setup", () => {
+    const hadOwnLocalStorage = Object.hasOwn(globalThis, "localStorage")
+    const previousLocalStorage = globalThis.localStorage
+    const hadOwnWindow = Object.hasOwn(globalThis, "window")
+    const previousWindow = globalThis.window
+    delete globalThis.localStorage
+    delete globalThis.window
+
+    try {
+      const updaterHarness = loadProviderUpdaterHarness()
+      updaterHarness.restore()
+      assert.equal(Object.hasOwn(globalThis, "localStorage"), false)
+
+      const ownerTransitionHarness = loadProviderOwnerTransitionHarness()
+      ownerTransitionHarness.restore()
+      assert.equal(Object.hasOwn(globalThis, "localStorage"), false)
+      assert.equal(Object.hasOwn(globalThis, "window"), false)
+    } finally {
+      if (hadOwnLocalStorage) globalThis.localStorage = previousLocalStorage
+      else delete globalThis.localStorage
+      if (hadOwnWindow) globalThis.window = previousWindow
+      else delete globalThis.window
     }
   })
 

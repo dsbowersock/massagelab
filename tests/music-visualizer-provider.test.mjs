@@ -15,7 +15,7 @@ const stationCardSource = await readFile(new URL("../components/atmosphere/stati
 function providerBody({ startMarker, endMarker, startError, boundaryError }) {
   const startMatch = startMarker.exec(providerSource)
   assert.ok(startMatch, startError)
-  const bodyStart = providerSource.indexOf("{", startMatch.index) + 1
+  const bodyStart = startMatch.index + startMatch[0].length
   const endMatch = endMarker.exec(providerSource.slice(bodyStart))
   assert.ok(endMatch, boundaryError)
   return providerSource.slice(bodyStart, bodyStart + endMatch.index)
@@ -24,7 +24,7 @@ function providerBody({ startMarker, endMarker, startError, boundaryError }) {
 /** Executes the provider's exact account-ownership effect body in an isolated scope. */
 function loadProviderAccountOwnershipEffect() {
   const effectBody = providerBody({
-    startMarker: /useEffect\s*\(\s*\(\s*\)\s*=>\s*\{\s*if\s*\(\s*!storageHydrated\s*\)\s*\{/,
+    startMarker: /useEffect\s*\(\s*\(\s*\)\s*=>\s*\{(?=\s*if\s*\(\s*!storageHydrated\s*\)\s*\{)/,
     endMarker: /\}\s*,\s*\[\s*(?=[^\]]*\baccountIntentTracker\b)(?=[^\]]*\bbootstrapAppSettings\.musicVisualizer\b)(?=[^\]]*\bbootstrapStatus\b)(?=[^\]]*\bownerKey\b)(?=[^\]]*\bpersistVisualizerAccountPreferences\b)(?=[^\]]*\bstorageHydrated\b)(?=[^\]]*\bsyncEnabled\b)[^\]]*\]\s*\)/,
     startError: "Music provider account effect start marker missing",
     boundaryError: "Music provider account effect dependency boundary missing",
