@@ -42,7 +42,11 @@ const [
 ])
 const packageJson = JSON.parse(packageJsonSource)
 
-/** Returns one exact checklist step bounded by the next checked or unchecked step heading. */
+/**
+ * Returns one checklist step bounded by the next checked or unchecked heading.
+ * A missing or duplicate current heading throws; a missing next heading returns
+ * an empty string so callers cannot mistake an unbounded tail for the step.
+ */
 function releasePlanStepSection(source, stepHeading, nextStepNumber) {
   const startMarker = `**${stepHeading}**`
   const headingCount = source.split(startMarker).length - 1

@@ -13,16 +13,9 @@ import {
   hasSubscriptionBlockingNewCheckout,
 } from "../lib/membership.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { SIX_PRICE_ENVIRONMENT } from "./helpers/membership-pricing-environment.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
-const SIX_PRICE_ENVIRONMENT = Object.freeze({
-  STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: "price_supporter_1_month",
-  STRIPE_SUPPORTER_1_YEARLY_PRICE_ID: "price_supporter_1_year",
-  STRIPE_SUPPORTER_2_MONTHLY_PRICE_ID: "price_supporter_2_month",
-  STRIPE_SUPPORTER_2_YEARLY_PRICE_ID: "price_supporter_2_year",
-  STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_month",
-  STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_year",
-})
 const HISTORICAL_BROWSER_QA_RECEIPT_PATTERN =
   /127 Browser-QA passes(?:,| with)\s+37 documented\s+authorization-gated skips/i
 const [
@@ -84,7 +77,11 @@ function callCount(source, callPattern) {
   return source.match(callPattern)?.length ?? 0
 }
 
-/** Requires two semantic fragments to remain nearby without fixing their prose order. */
+/**
+ * Requires two nearby semantic fragments in either prose order. Fragments must
+ * be anchor-free and must not depend on captures or backreferences because
+ * their sources are embedded into one new case-insensitive expression.
+ */
 function assertBoundedEitherOrder(source, left, right, maxCharacters = 120) {
   assert.match(
     source,

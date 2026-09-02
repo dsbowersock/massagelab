@@ -1,6 +1,61 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import ts from "typescript"
+
+/** Requires the keyed account bootstrap JSX owner to structurally contain Music. */
+function assertAccountBootstrapOwnsMusic(layoutSource) {
+  const sourceFile = ts.createSourceFile(
+    "app/layout.tsx",
+    layoutSource,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  const accountProviders = []
+  function collectAccountProviders(node) {
+    const tagName = ts.isJsxElement(node)
+      ? node.openingElement.tagName.getText(sourceFile)
+      : ts.isJsxSelfClosingElement(node)
+        ? node.tagName.getText(sourceFile)
+        : null
+    if (tagName === "AccountShellBootstrapProvider") accountProviders.push(node)
+    ts.forEachChild(node, collectAccountProviders)
+  }
+  collectAccountProviders(sourceFile)
+
+  assert.equal(accountProviders.length, 1, "layout must have exactly one AccountShellBootstrapProvider")
+  const accountProvider = accountProviders[0]
+  assert.ok(ts.isJsxElement(accountProvider), "AccountShellBootstrapProvider must own nested JSX")
+  const keyAttribute = accountProvider.openingElement.attributes.properties.find((attribute) => (
+    ts.isJsxAttribute(attribute) && attribute.name.getText(sourceFile) === "key"
+  ))
+  assert.ok(
+    keyAttribute
+      && ts.isJsxAttribute(keyAttribute)
+      && keyAttribute.initializer
+      && ts.isJsxExpression(keyAttribute.initializer)
+      && keyAttribute.initializer.expression,
+    "AccountShellBootstrapProvider must retain its owner-key expression",
+  )
+  assert.equal(
+    keyAttribute.initializer.expression.getText(sourceFile),
+    'accountBootstrap.ownerKey ?? "anonymous"',
+  )
+
+  const musicProviders = []
+  function collectNestedMusic(node) {
+    const tagName = ts.isJsxElement(node)
+      ? node.openingElement.tagName.getText(sourceFile)
+      : ts.isJsxSelfClosingElement(node)
+        ? node.tagName.getText(sourceFile)
+        : null
+    if (tagName === "MusicProvider") musicProviders.push(node)
+    ts.forEachChild(node, collectNestedMusic)
+  }
+  for (const child of accountProvider.children) collectNestedMusic(child)
+  assert.equal(musicProviders.length, 1, "AccountShellBootstrapProvider must contain one MusicProvider")
+}
 
 describe("development Clock review route", () => {
   it("is development-only and renders the production Clock implementation", async () => {
@@ -63,9 +118,7 @@ describe("development Clock review route", () => {
       /process\.env\.NODE_ENV !== "production" && !getAuthSecret\(\)[\s\S]*return Promise\.resolve\(null\)/,
     )
     assert.match(authSource, /return auth\(\)/)
-    assert.match(layoutSource, /<AccountShellBootstrapProvider/)
-    assert.match(layoutSource, /key=\{accountBootstrap\.ownerKey \?\? "anonymous"\}/)
-    assert.match(layoutSource, /<MusicProvider>/)
+    assertAccountBootstrapOwnsMusic(layoutSource)
     assert.doesNotMatch(layoutSource, /accountSyncEnabled/)
     assert.match(musicProviderSource, /useAccountShellBootstrap/)
     assert.match(

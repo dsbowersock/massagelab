@@ -354,7 +354,11 @@ describe("checkout review hook harness", () => {
   })
 })
 
-/** Supplies enough React hook lifecycle to observe event-driven rerenders. */
+/**
+ * Supplies enough React hook lifecycle to observe event-driven rerenders.
+ * State setters mutate stored slots without scheduling; callers must invoke
+ * `render` again to observe the updated state and resulting hook lifecycle.
+ */
 function createHookHarness() {
   const states = []
   const effects = []

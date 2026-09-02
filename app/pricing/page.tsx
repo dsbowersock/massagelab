@@ -16,7 +16,10 @@ import { Button } from "@/components/ui/button"
 import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
 import { createPublicPageMetadata } from "@/lib/seo"
 import { safeErrorCode } from "@/lib/safe-error-code"
-import { getPublicLaunchControls } from "@/lib/public-launch-controls"
+import {
+  getPublicLaunchControls,
+  REGISTRATION_PAUSED_MESSAGE,
+} from "@/lib/public-launch-controls"
 
 export const metadata = createPublicPageMetadata("/pricing")
 
@@ -34,6 +37,9 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
   const params = await searchParams
   const oneTimeSupportNotice = pricingOneTimeSupportNotice(params?.donation)
   const signedIn = Boolean(session?.user?.id)
+  // Project both independent launch controls through this render: pausing new
+  // registration must not close Supporter Checkout for existing accounts.
+  const { registrationOpen, supporterCheckoutOpen } = getPublicLaunchControls()
   let membershipStatus: Awaited<ReturnType<typeof getUserMembershipPricingStatus>> | null = null
   let membershipStatusUnavailable = false
   if (session?.user?.id) {
@@ -74,11 +80,17 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
           icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
           contentClassName="flex flex-wrap gap-3"
         >
-              <MetalAttentionButton asChild variant="attention">
-                <Link href={signedIn ? "/account?tab=membership" : "/register?callbackUrl=%2Fpricing"}>
-                  {signedIn ? "Manage membership" : "Create account"}
-                </Link>
-              </MetalAttentionButton>
+              {signedIn || registrationOpen ? (
+                <MetalAttentionButton asChild variant="attention">
+                  <Link href={signedIn ? "/account?tab=membership" : "/register?callbackUrl=%2Fpricing"}>
+                    {signedIn ? "Manage membership" : "Create account"}
+                  </Link>
+                </MetalAttentionButton>
+              ) : (
+                <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-muted-foreground" role="status">
+                  {REGISTRATION_PAUSED_MESSAGE}
+                </p>
+              )}
               <Button asChild variant="outline">
                 <Link href="/roadmap">View roadmap</Link>
               </Button>
@@ -89,7 +101,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
           activeMembershipLevel={membershipStatus?.activeMembershipLevel}
           mode={pricingMode}
           portalActionAvailable={Boolean(membershipStatus?.stripeCustomer)}
-          supporterCheckoutOpen={getPublicLaunchControls().supporterCheckoutOpen}
+          supporterCheckoutOpen={supporterCheckoutOpen}
         />
 
         <AppSurface

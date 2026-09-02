@@ -518,8 +518,10 @@ test("ordinary signed-in shell defers commerce until a real background consumer 
     window.dispatchEvent(new Event("focus"))
     window.dispatchEvent(new Event("online"))
   })
+  const cartTrigger = page.locator("[data-commerce-cart-trigger]:visible")
   for (const settleDelayMs of [0, 100, 250]) {
     if (settleDelayMs > 0) await page.waitForTimeout(settleDelayMs)
+    expect(await cartTrigger.count()).toBe(0)
     const browserStateReads = await page.evaluate(() => (
       Number(document.documentElement.dataset.backgroundCommerceStateFetches)
     ))

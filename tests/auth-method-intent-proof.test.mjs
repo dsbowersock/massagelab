@@ -107,6 +107,9 @@ describe("fresh consumed Google security reauthentication", () => {
       expiresAt: { gt: NOW },
     }
     assert.deepEqual(db.updateWheres, [expectedWhere, expectedWhere])
+    const whereWithoutProviderProof = structuredClone(expectedWhere)
+    delete whereWithoutProviderProof.providerProvenAt
+    assert.equal(matchesIntent(freshIntent(), whereWithoutProviderProof), false)
   })
 
   it("does not consume a fresh proof for a different caller-expected purpose", async () => {
@@ -230,7 +233,13 @@ function createProofDatabase(seedIntent) {
 /** Applies the proof consumer's exact identity, freshness, and expiry CAS predicate. */
 function matchesIntent(intent, where) {
   const expiresAfter = where?.expiresAt?.gt
-  if (!(expiresAfter instanceof Date) || !(intent.expiresAt instanceof Date)) return false
+  const providerProvenAt = where?.providerProvenAt
+  if (
+    !(expiresAfter instanceof Date)
+    || !(providerProvenAt instanceof Date)
+    || !(intent.expiresAt instanceof Date)
+    || !(intent.providerProvenAt instanceof Date)
+  ) return false
 
   return intent.id === where.id
     && intent.targetUserId === where.targetUserId
@@ -238,6 +247,6 @@ function matchesIntent(intent, where) {
     && intent.status === where.status
     && intent.provider === where.provider
     && intent.providerAccountId === where.providerAccountId
-    && intent.providerProvenAt?.getTime() === where.providerProvenAt?.getTime()
+    && intent.providerProvenAt.getTime() === providerProvenAt.getTime()
     && intent.expiresAt > expiresAfter
 }

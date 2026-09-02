@@ -30,6 +30,13 @@ assert.equal(
 const twoFactorPanelSource = await readFile(twoFactorPanelUrl, "utf8")
 const linkRecoveryUrl = new URL("../lib/google-link-confirmation-recovery.ts", import.meta.url)
 
+/** Extracts the exact string members from the account-method action-state union. */
+function methodActionStateTokens(source) {
+  const match = /type MethodActionState\s*=\s*(?:\|\s*)?((?:"[^"]+"\s*(?:\|\s*)?)+)/.exec(source)
+  assert.ok(match, "MethodActionState string-literal union must exist")
+  return [...match[1].matchAll(/"([^"]+)"/g)].map((token) => token[1]).sort()
+}
+
 const UPDATED = {
   status: "UPDATED",
   emailIntentId: "notice-1",
@@ -269,12 +276,17 @@ describe("recoverable account-method UI contracts", () => {
     assert.doesNotMatch(securityPanelSource, /\/api\/account\/security\//)
     assert.doesNotMatch(securityPanelSource, /qrCode|manualCode|backupCodes|verificationCode/)
     assert.match(twoFactorPanelSource, /data-two-factor-action/)
-    const actionStateType = /type MethodActionState\s*=\s*((?:"[^"]+"\s*(?:\|\s*)?)+)/.exec(methodsPanelSource)
-    assert.ok(actionStateType, "MethodActionState string-literal union must exist")
-    assert.deepEqual(
-      [...actionStateType[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]).sort(),
-      ["error", "idle", "proving", "redirecting", "saving", "success"],
-    )
+    const expectedActionStates = ["error", "idle", "proving", "redirecting", "saving", "success"]
+    assert.deepEqual(methodActionStateTokens(methodsPanelSource), expectedActionStates)
+    assert.deepEqual(methodActionStateTokens(`
+      type MethodActionState =
+        | "idle"
+        | "proving"
+        | "saving"
+        | "redirecting"
+        | "success"
+        | "error"
+    `), expectedActionStates)
     assert.match(methodsPanelSource, /try\s*\{[\s\S]*catch[\s\S]*finally/)
     assert.match(methodsPanelSource, /aria-busy/)
     assert.match(methodsPanelSource, /role=\{(?=[^}]*"alert")(?=[^}]*"status")(?=[^}]*\?)(?=[^}]*:)[^}]*\}/)

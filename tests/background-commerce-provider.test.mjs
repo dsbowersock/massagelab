@@ -853,11 +853,12 @@ describe("BackgroundCommerceProvider contract", () => {
 
   it("uses stable public auth errors and validates Stripe redirects", async () => {
     const value = await source(providerPath)
+    const cancelReservationBody = callbackArrowBody(value, "cancelReservation")
     assert.match(value, /AUTH_REQUIRED/)
     assert.match(value, /EMAIL_VERIFICATION_REQUIRED/)
     assert.match(value, /checkout\.stripe\.com/)
     assert.match(value, /window\.location\.assign/)
-    assert.match(value, /const cancelReservation[\s\S]*if \(!signedIn\)[\s\S]*AUTH_REQUIRED/)
+    assert.match(cancelReservationBody, /if \(!signedIn\)[\s\S]*AUTH_REQUIRED/)
   })
 
   it("exposes the shared API and retains caller-provided redemption idempotency keys", async () => {

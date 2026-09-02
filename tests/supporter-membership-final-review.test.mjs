@@ -17,6 +17,7 @@ import {
 } from "../lib/stripe-price-contract.js"
 import { TARGET_PRICE_SPECS } from "../lib/stripe-supporter-membership-migration-contract.js"
 import { safeErrorCode } from "../lib/safe-error-code.js"
+import { REGISTRATION_PAUSED_MESSAGE } from "../lib/public-launch-controls.js"
 import {
   createCompiledModuleLoader,
   createElement,
@@ -53,9 +54,11 @@ function TestPendingSubmitButton(props) {
  * Renders the real public Pricing page with controlled session, Customer,
  * subscription, and lookup-failure inputs. The component double records the
  * mode passed to MembershipPricingCards without rendering its internals.
+ * An optional callback exposes the rendered page tree for boundary assertions.
  * Returns the card's action props plus Customer/subscription query counters.
  */
 async function renderPublicPricing({
+  capturePageTree = () => undefined,
   registrationOpen = true,
   session,
   supporterCheckoutOpen = true,
@@ -115,6 +118,7 @@ async function renderPublicPricing({
           registrationOpen,
           supporterCheckoutOpen,
         }),
+        REGISTRATION_PAUSED_MESSAGE,
       },
       "@/lib/prisma": {
         prisma: {
@@ -166,6 +170,7 @@ async function renderPublicPricing({
   const tree = await pricingPage.default({
     searchParams: Promise.resolve({}),
   })
+  capturePageTree(tree)
   const pricingCards = findElement(
     tree,
     (element) => element.type === MembershipPricingCards,
@@ -425,7 +430,9 @@ describe("Supporter membership final-review contracts", () => {
   })
 
   it("keeps supporter Checkout open when only public registration is paused", async () => {
+    let pricingPageTree = null
     const result = await renderPublicPricing({
+      capturePageTree: (tree) => { pricingPageTree = tree },
       registrationOpen: false,
       session: null,
       supporterCheckoutOpen: true,
@@ -434,6 +441,24 @@ describe("Supporter membership final-review contracts", () => {
 
     assert.equal(result.mode, "auth")
     assert.equal(result.supporterCheckoutOpen, true)
+    assert.ok(pricingPageTree, "PricingPage must expose its rendered registration boundary")
+    assert.match(elementText(pricingPageTree), /New account registration is temporarily paused/i)
+    assert.equal(
+      findElements(
+        pricingPageTree,
+        (element) => element.props.href === "/register?callbackUrl=%2Fpricing",
+      ).length,
+      0,
+      "paused registration must not render an active Create account link",
+    )
+
+    const checkoutCards = await renderMembershipPricingCards({
+      mode: result.mode,
+      activeMembershipLevel: result.activeMembershipLevel,
+      portalActionAvailable: result.portalActionAvailable,
+      supporterCheckoutOpen: result.supporterCheckoutOpen,
+    })
+    assert.match(elementText(checkoutCards), /Choose \$1(?!\d)/)
   })
 
   it("keeps Portal mode unavailable after a successful lookup without a Stripe Customer", async () => {
