@@ -189,6 +189,10 @@ function freshIntent(overrides = {}) {
   }
 }
 
+/**
+ * Models transaction rollback for durable intent/update state while retaining
+ * every attempted CAS `where` clause as an observation log for assertions.
+ */
 function createProofDatabase(seedIntent) {
   let intent = structuredClone(seedIntent)
   let updateCount = 0
@@ -223,6 +227,7 @@ function createProofDatabase(seedIntent) {
   }
 }
 
+/** Applies the proof consumer's exact identity, freshness, and expiry CAS predicate. */
 function matchesIntent(intent, where) {
   const expiresAfter = where?.expiresAt?.gt
   if (!(expiresAfter instanceof Date) || !(intent.expiresAt instanceof Date)) return false

@@ -217,6 +217,9 @@ async function loadPreferenceSync(ownerKey, {
       storageReads,
       async syncLocalPreferences() {
         const componentWork = syncButton.props.onClick()
+        // Observe rejection before the settling loop yields to the event loop;
+        // the final await below still preserves the component promise's result.
+        void componentWork.catch(() => undefined)
         await settleAsyncWork()
         return await componentWork
       },

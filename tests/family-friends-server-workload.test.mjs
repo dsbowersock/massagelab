@@ -23,6 +23,8 @@ const SIX_PRICE_ENVIRONMENT = Object.freeze({
   STRIPE_SUPPORTER_5_MONTHLY_PRICE_ID: "price_supporter_5_month",
   STRIPE_SUPPORTER_5_YEARLY_PRICE_ID: "price_supporter_5_year",
 })
+const HISTORICAL_BROWSER_QA_RECEIPT_PATTERN =
+  /127 Browser-QA passes(?:,| with)\s+37 documented\s+authorization-gated skips/i
 const [
   authUsersSource,
   sidebarSource,
@@ -406,10 +408,8 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(projectLogSource, /ordinary non-practice shell/i)
     assert.match(projectLogSource, /five-minute complete[^\n]*fifteen-second incomplete/i)
     assert.match(projectLogSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
-    assert.match(
-      projectLogSource,
-      /127 Browser-QA passes.{0,160}37 documented authorization-gated skips.{0,80}zero failures/i,
-    )
+    assert.match(projectLogSource, HISTORICAL_BROWSER_QA_RECEIPT_PATTERN)
+    assert.match(projectLogSource, /documented authorization-gated skips.{0,80}zero failures/i)
     assert.match(septemberMigrationCorrection, /one exact five-migration pre-runtime order/i)
     assert.match(augustSubscriptionReview, /then-current three-migration order/i)
     assert.match(augustSubscriptionReview, /2026-09-01 correction above is the sole current migration inventory/i)
@@ -478,10 +478,7 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(releaseCostControls, /every required slot is configured before release/i)
     assert.match(releaseChecklistSource, /zero client bootstrap\s+endpoints/i)
     assert.match(releaseChecklistSource, /zero ordinary commerce snapshots/i)
-    assert.match(
-      releaseChecklistSource,
-      /127 Browser-QA passes with 37 documented\s+authorization-gated skips/i,
-    )
+    assert.match(releaseChecklistSource, HISTORICAL_BROWSER_QA_RECEIPT_PATTERN)
     assert.match(
       releaseChecklistSource,
       /zero failures and no skips except the documented\s+authorization-gated private rows; skips are never passes/i,

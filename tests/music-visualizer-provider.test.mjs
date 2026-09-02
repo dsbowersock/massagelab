@@ -13,14 +13,14 @@ const stationCardSource = await readFile(new URL("../components/atmosphere/stati
 
 /** Executes the provider's exact account-ownership effect body in an isolated scope. */
 function loadProviderAccountOwnershipEffect() {
-  const startMarker = "  useEffect(() => {\n    if (!storageHydrated) {"
-  const endMarker = "\n  }, [\n    accountIntentTracker,"
-  const start = providerSource.indexOf(startMarker)
-  const end = providerSource.indexOf(endMarker, start + startMarker.length)
-  assert.notEqual(start, -1, "Music provider account effect start marker missing")
-  assert.ok(end > start, "Music provider account effect end marker missing")
-  const bodyStart = providerSource.indexOf("\n", start) + 1
-  const effectBody = providerSource.slice(bodyStart, end)
+  const startMarker = /useEffect\s*\(\s*\(\s*\)\s*=>\s*\{\s*if\s*\(\s*!storageHydrated\s*\)\s*\{/
+  const startMatch = startMarker.exec(providerSource)
+  assert.ok(startMatch, "Music provider account effect start marker missing")
+  const bodyStart = providerSource.indexOf("{", startMatch.index) + 1
+  const endMarker = /\}\s*,\s*\[\s*(?=[^\]]*\baccountIntentTracker\b)(?=[^\]]*\bbootstrapAppSettings\.musicVisualizer\b)(?=[^\]]*\bbootstrapStatus\b)(?=[^\]]*\bownerKey\b)(?=[^\]]*\bpersistVisualizerAccountPreferences\b)(?=[^\]]*\bstorageHydrated\b)(?=[^\]]*\bsyncEnabled\b)[^\]]*\]\s*\)/
+  const endMatch = endMarker.exec(providerSource.slice(bodyStart))
+  assert.ok(endMatch, "Music provider account effect dependency boundary missing")
+  const effectBody = providerSource.slice(bodyStart, bodyStart + endMatch.index)
 
   return loadCompiledModule(`
     export function runProviderAccountOwnershipEffect(scope) {

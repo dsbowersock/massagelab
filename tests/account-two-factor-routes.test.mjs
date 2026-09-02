@@ -459,6 +459,7 @@ function loadRoute(name, {
   const serviceCalls = []
   const cacheCalls = []
   let clockCalls = 0
+  const modulePrismaClient = { moduleDatabaseAdapter: true }
   const prismaClient = { privateDatabaseAdapter: true }
   const service = async (input) => {
     assert.equal(input.prismaClient, prismaClient, `${name} must forward the injected Prisma client`)
@@ -504,7 +505,7 @@ function loadRoute(name, {
     "@/lib/two-factor-enrollment-binding": {
       TWO_FACTOR_ENROLLMENT_COOKIE: "ml-two-factor-enrollment",
     },
-    "@/lib/prisma": { prisma: prismaClient },
+    "@/lib/prisma": { prisma: modulePrismaClient },
   }
   const routeModule = loadCompiledModule(routeSources[name], ROUTES[name].filename, dependencies)
   const factory = routeModule[ROUTES[name].factory]

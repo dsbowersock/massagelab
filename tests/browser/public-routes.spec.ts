@@ -1567,6 +1567,7 @@ test("Music visualizer background selection and account default actions preserve
 test("Music account preference owner switch ignores a delayed old-owner PUT", async ({ context, page }, testInfo) => {
   let releaseOwnerAWrite!: () => void
   let markOwnerAWriteStarted!: () => void
+  let ownerAWriteHeld = false
   const ownerAWriteGate = new Promise<void>((resolve) => {
     releaseOwnerAWrite = resolve
   })
@@ -1603,8 +1604,11 @@ test("Music account preference owner switch ignores a delayed old-owner PUT", as
     const payload = route.request().postDataJSON() as {
       appSettings?: { musicVisualizer?: { defaultBackgroundId?: string | null; showClock?: boolean } }
     }
-    markOwnerAWriteStarted()
-    await ownerAWriteGate
+    if (!ownerAWriteHeld) {
+      ownerAWriteHeld = true
+      markOwnerAWriteStarted()
+      await ownerAWriteGate
+    }
     await route.fulfill({
       status: 200,
       contentType: "application/json",

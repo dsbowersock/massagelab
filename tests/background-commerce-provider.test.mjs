@@ -189,7 +189,7 @@ function providerHarnessBundle() {
             purchaseCountry: "US",
           }).catch((error) => { harness.checkoutError = String(error); }).finally(() => { harness.checkoutSettled = true; });
         };
-        harness.resolveCheckout = () => checkoutResolve(jsonResponse({ url: "https://checkout.stripe.com/c/pay/cs_test_stale" }));
+        harness.resolveCheckout = (body = { url: "https://checkout.stripe.com/c/pay/cs_test_stale" }) => checkoutResolve(jsonResponse(body));
         harness.resolveStateFetches = () => {
           for (const request of [...pendingStateRequests]) request.resolve();
         };
@@ -338,6 +338,30 @@ describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, ()
     }
   })
 
+  it("does not enqueue a guest-cart merge when the signed-in owner has no pending IDs", { timeout: 45_000 }, async () => {
+    let page = null
+    try {
+      page = await openProviderHarness(browser)
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.refreshListenersReady("owner-a")
+      ))
+
+      const current = await page.evaluate(() => ({
+        ...window.__commerceProviderHarness.read(),
+        errors: window.__commerceProviderHarness.errors,
+      }))
+      assert.equal(
+        current.calls.filter((call) => call === "POST /api/background-commerce/cart").length,
+        0,
+        JSON.stringify(current),
+      )
+      assert.equal(current.state.status, "idle", JSON.stringify(current))
+      assert.deepEqual(current.errors, [])
+    } finally {
+      await page?.close()
+    }
+  })
+
   it("does not redirect or commit state when an old owner's delayed checkout succeeds", { timeout: 45_000 }, async () => {
     let page = null
     try {
@@ -380,6 +404,91 @@ describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, ()
       assert.equal(current.owner, "owner-b")
       assert.equal(current.state.status, "idle")
       assert.equal(current.state.pendingAction, null)
+    } finally {
+      await page?.close()
+    }
+  })
+
+  it("invalidates pre-checkout hydration so queued demand refreshes after checkout failure", { timeout: 45_000 }, async () => {
+    let page = null
+    try {
+      page = await openProviderHarness(browser)
+      await page.evaluate(() => window.__commerceProviderHarness.refresh())
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.read().state.status === "ready"
+        && window.__commerceProviderHarness.read().calls
+          .filter((call) => call === "GET /api/background-commerce/state").length === 1
+      ))
+
+      await page.evaluate(() => window.__commerceProviderHarness.startCheckout())
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.read().state.status === "redirecting"
+        && window.__commerceProviderHarness.read().calls.includes("POST /api/background-commerce/checkout")
+      ))
+      await page.evaluate(() => {
+        const harness = window.__commerceProviderHarness
+        harness.queuedEnsureSettled = false
+        harness.queuedEnsure = harness.ensureSnapshot()
+          .finally(() => { harness.queuedEnsureSettled = true })
+        harness.resolveCheckout({})
+      })
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.checkoutSettled === true
+        && window.__commerceProviderHarness.queuedEnsureSettled === true
+      ))
+
+      const current = await page.evaluate(() => ({
+        ...window.__commerceProviderHarness.read(),
+        checkoutError: window.__commerceProviderHarness.checkoutError,
+        errors: window.__commerceProviderHarness.errors,
+      }))
+      assert.equal(current.state.status, "ready", JSON.stringify(current))
+      assert.equal(
+        current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
+        2,
+        JSON.stringify(current),
+      )
+      assert.match(current.checkoutError, /BackgroundCommerceClientError/)
+      assert.deepEqual(current.errors, [])
+    } finally {
+      await page?.close()
+    }
+  })
+
+  it("does not commit an old owner's delayed cart mutation after the owner changes", { timeout: 45_000 }, async () => {
+    let page = null
+    try {
+      page = await openProviderHarness(browser)
+      await page.evaluate(() => {
+        window.__commerceProviderHarness.mutationMode = "pending"
+        window.__commerceProviderHarness.startAddToCart()
+      })
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.read().state.status === "mutating"
+        && window.__commerceProviderHarness.read().calls.includes("POST /api/background-commerce/cart")
+      ))
+
+      await page.evaluate(() => window.__commerceProviderHarness.setOwner("owner-b"))
+      await page.waitForFunction(() => {
+        const current = window.__commerceProviderHarness.read()
+        return current.owner === "owner-b" && current.state.status === "idle"
+      })
+      await page.evaluate(() => window.__commerceProviderHarness.resolveMutation())
+      await page.waitForFunction(() => window.__commerceProviderHarness.mutationSettled === true)
+
+      const current = await page.evaluate(() => ({
+        ...window.__commerceProviderHarness.read(),
+        errors: window.__commerceProviderHarness.errors,
+      }))
+      assert.equal(current.owner, "owner-b", JSON.stringify(current))
+      assert.equal(current.state.status, "idle", JSON.stringify(current))
+      assert.equal(current.state.pendingAction, null, JSON.stringify(current))
+      assert.equal(
+        current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
+        0,
+        JSON.stringify(current),
+      )
+      assert.deepEqual(current.errors, [])
     } finally {
       await page?.close()
     }
@@ -630,11 +739,8 @@ describe("BackgroundCommerceProvider contract", () => {
 
   it("merges guest intent through the authenticated cart API and keeps failed IDs local", async () => {
     const value = await source(providerPath)
-    assert.match(value, /pendingIds = readGuestBackgroundCartIds/)
-    assert.match(value, /for \(const backgroundId of pendingIds\)/)
     assert.match(value, /"\/api\/background-commerce\/cart"/)
     assert.match(value, /enqueueMutation\("merge-guest-cart"/)
-    assert.match(value, /pendingIds\.length > 0/)
     assert.match(value, /remainingIds\.push\(backgroundId\)/)
     assert.match(value, /writeGuestBackgroundCartIds\(window\.localStorage, remainingIds\)/)
     assert.match(value, /ITEM_RESERVED/)
@@ -649,14 +755,6 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /normalizeBackgroundCommerceSnapshot/)
     assert.match(value, /if \(controller\.signal\.aborted\) return[\s\S]*dispatch\(\{ type: "mutation-begin"/)
     assert.match(value, /type: "mutation-refresh-failure"/)
-    assert.match(
-      value,
-      /const enqueueMutation[\s\S]*?mutationStartedOwnerRef\.current = requestOwnerKey[\s\S]*?hydratedOwnerRef\.current = null[\s\S]*?\}, \[enqueueSerializedOperation, ownerKey\]\)/,
-    )
-    assert.match(
-      value,
-      /const startCheckout[\s\S]*?mutationStartedOwnerRef\.current = requestOwnerKey[\s\S]*?hydratedOwnerRef\.current = null[\s\S]*?\}, \[signedIn, enqueueSerializedOperation, ownerKey\]\)/,
-    )
     assert.doesNotMatch(value, /creditBalance\s*[+\-]=|ownedBackgroundIds\.push/)
   })
 

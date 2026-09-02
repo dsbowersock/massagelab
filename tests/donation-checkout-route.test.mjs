@@ -51,7 +51,12 @@ async function renderPricingPage() {
       "@/lib/membership-pricing": {
         getMembershipPricingCatalog: async () => ({
           defaultInterval: "year",
-          intervals: [],
+          intervals: [{
+            id: "year",
+            label: "Yearly",
+            nudge: "Best value",
+            displaySuffix: "/year",
+          }],
           plans: [],
         }),
       },

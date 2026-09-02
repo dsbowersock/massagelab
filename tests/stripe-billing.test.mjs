@@ -65,7 +65,7 @@ function captureTimersWithDelay(delayMs) {
 }
 
 describe("Stripe billing helpers", () => {
-  it("passes bounded per-request options through the read-only Price lookup", async () => {
+  it("passes optional per-request options through the read-only Price lookup", async () => {
     const calls = []
     const requestOptions = { timeout: 2_500, maxNetworkRetries: 1 }
     const price = {
@@ -91,6 +91,13 @@ describe("Stripe billing helpers", () => {
 
     assert.equal(result, price)
     assert.deepEqual(calls, [["price_public_display", {}, requestOptions]])
+
+    calls.length = 0
+    assert.equal(
+      await stripeBilling.retrieveStripePrice("price_public_display", { stripeClient }),
+      price,
+    )
+    assert.deepEqual(calls, [["price_public_display", {}, undefined]])
   })
 
   it("keeps authority failures catchable, distinct, and private", () => {

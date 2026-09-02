@@ -20,9 +20,23 @@ const securityPanelUrl = new URL("../app/account/security/security-panel.tsx", i
 const recoveryUrl = new URL("../lib/two-factor-management-recovery.ts", import.meta.url)
 const harnessRestorations = []
 
-afterEach(() => {
-  for (const restore of harnessRestorations.splice(0).reverse()) restore()
-})
+afterEach(restorePanelHarnesses)
+
+/** Runs every pending harness restore in LIFO order before surfacing cleanup failures. */
+function restorePanelHarnesses() {
+  const cleanupErrors = []
+  for (const restore of harnessRestorations.splice(0).reverse()) {
+    try {
+      restore()
+    } catch (error) {
+      cleanupErrors.push(error)
+    }
+  }
+  if (cleanupErrors.length === 1) throw cleanupErrors[0]
+  if (cleanupErrors.length > 1) {
+    throw new AggregateError(cleanupErrors, "Account two-factor UI harness restores failed")
+  }
+}
 
 function jsonResponse(status, body) {
   return {
@@ -187,6 +201,32 @@ async function createPanelHarness({
 }
 
 describe("account two-factor UI hook harness", () => {
+  it("runs every failure-safe harness restore in LIFO order and aggregates cleanup failures", () => {
+    const events = []
+    const cleanupErrors = [new Error("first restore failed"), new Error("third restore failed")]
+    harnessRestorations.push(
+      () => {
+        events.push("first")
+        throw cleanupErrors[0]
+      },
+      () => events.push("second"),
+      () => {
+        events.push("third")
+        throw cleanupErrors[1]
+      },
+    )
+
+    assert.throws(
+      restorePanelHarnesses,
+      (error) => error instanceof AggregateError
+        && error.errors.length === 2
+        && error.errors[0] === cleanupErrors[1]
+        && error.errors[1] === cleanupErrors[0],
+    )
+    assert.deepEqual(events, ["third", "second", "first"])
+    assert.equal(harnessRestorations.length, 0)
+  })
+
   it("cleans changed, removed, and unmounted effects by hook index", () => {
     const hooks = createHookRuntime()
     const events = []

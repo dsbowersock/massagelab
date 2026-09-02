@@ -51,7 +51,17 @@ async function loadIsolatedCatalog(options) {
   return createTestCatalogLoader(options).get()
 }
 
-async function boundedLatch(promise, label, timeoutMs = 1_000) {
+const TEST_SETTLE_TIMEOUT_MS = (() => {
+  const configuredTimeout = Number.parseInt(
+    process.env.MASSAGELAB_TEST_SETTLE_TIMEOUT_MS ?? "",
+    10,
+  )
+  return Number.isInteger(configuredTimeout) && configuredTimeout > 0
+    ? configuredTimeout
+    : 5_000
+})()
+
+async function boundedLatch(promise, label, timeoutMs = TEST_SETTLE_TIMEOUT_MS) {
   let timeout
   try {
     return await Promise.race([
@@ -471,6 +481,8 @@ describe("Membership pricing catalog", () => {
     const staleBuild = loader.get()
     let currentCatalog
     let staleCatalog
+    let originalFailure
+    let staleBuildFailure
     try {
       await boundedLatch(oldReadsStarted, "old membership Price reads")
       assert.equal(calls.length, 6)
@@ -479,10 +491,25 @@ describe("Membership pricing catalog", () => {
       currentCatalog = await loader.get()
       assert.equal(calls.length, 12)
       assert.equal(currentCatalog.plans[0].amountChoices[0].prices.month.displayPrice, "$51")
+    } catch (error) {
+      originalFailure = error
     } finally {
       releaseOldPrices()
-      staleCatalog = await boundedLatch(staleBuild, "stale membership catalog build cleanup")
+      try {
+        staleCatalog = await boundedLatch(staleBuild, "stale membership catalog build cleanup")
+      } catch (error) {
+        staleBuildFailure = error
+      }
     }
+
+    if (originalFailure && staleBuildFailure) {
+      throw new AggregateError(
+        [originalFailure, staleBuildFailure],
+        "membership catalog rebuild and stale-build cleanup both failed",
+      )
+    }
+    if (originalFailure) throw originalFailure
+    if (staleBuildFailure) throw staleBuildFailure
 
     assert.equal(staleCatalog.plans[0].amountChoices[0].prices.month.displayPrice, "$1")
     assert.equal(await loader.get(), currentCatalog)

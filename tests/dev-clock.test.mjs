@@ -109,19 +109,22 @@ describe("development Clock review route", () => {
     const persistPreferencesStart = musicProviderSource.indexOf(
       "const persistVisualizerAccountPreferences = useCallback(",
     )
-    const persistPreferencesEndMarker =
-      "}, [accountIntentTracker, ownerKey, syncEnabled, writeAppSettingsPatch])"
-    const persistPreferencesEndStart = musicProviderSource.indexOf(
-      persistPreferencesEndMarker,
+    const mediaOwnershipAnchor = musicProviderSource.indexOf(
+      "carrierEventBridgeRef.current = bridge",
       persistPreferencesStart,
     )
+    assert.notEqual(mediaOwnershipAnchor, -1, "Music provider media-ownership effect anchor missing")
+    const persistPreferencesEnd = musicProviderSource.lastIndexOf(
+      "useEffect(() => {",
+      mediaOwnershipAnchor,
+    )
     assert.ok(
-      persistPreferencesStart >= 0 && persistPreferencesEndStart > persistPreferencesStart,
+      persistPreferencesStart >= 0 && persistPreferencesEnd > persistPreferencesStart,
       "Music provider visualizer-persistence callback boundaries missing or reordered",
     )
     const persistPreferencesSource = musicProviderSource.slice(
       persistPreferencesStart,
-      persistPreferencesEndStart + persistPreferencesEndMarker.length,
+      persistPreferencesEnd,
     )
     assert.match(
       persistPreferencesSource,
