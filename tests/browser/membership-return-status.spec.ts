@@ -200,11 +200,11 @@ test.describe("private persisted membership returns", () => {
         ;(element as HTMLButtonElement).click()
       })
 
-      const snapshot = await recorder.snapshot
       await expect.poll(
         () => portalRouteStarted,
         { message: "billing portal route must start before pending-state assertions", timeout: 5_000 },
       ).toBe(true)
+      const snapshot = await recorder.snapshot
       await expect(form).toHaveAttribute("data-duplicate-submit-prevented", "true")
       expect(snapshot).toMatchObject({
         buttonAriaBusy: "true",

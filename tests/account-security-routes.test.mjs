@@ -37,6 +37,17 @@ function methodActionStateTokens(source) {
   return [...match[1].matchAll(/"([^"]+)"/g)].map((token) => token[1]).sort()
 }
 
+/** Bounds one nested action handler by the declaration of its next sibling. */
+function actionHandlerSource(source, functionName, nextFunctionName) {
+  const startMarker = `  async function ${functionName}(`
+  const endMarker = `\n  async function ${nextFunctionName}(`
+  const start = source.indexOf(startMarker)
+  assert.notEqual(start, -1, `missing ${functionName} action handler`)
+  const end = source.indexOf(endMarker, start + startMarker.length)
+  assert.notEqual(end, -1, `missing ${nextFunctionName} boundary after ${functionName}`)
+  return source.slice(start, end)
+}
+
 const UPDATED = {
   status: "UPDATED",
   emailIntentId: "notice-1",
@@ -287,7 +298,18 @@ describe("recoverable account-method UI contracts", () => {
         | "success"
         | "error"
     `), expectedActionStates)
-    assert.match(methodsPanelSource, /try\s*\{[\s\S]*catch[\s\S]*finally/)
+    const savePasswordHandler = actionHandlerSource(methodsPanelSource, "savePassword", "unlinkGoogle")
+    let previousMarkerIndex = -1
+    for (const marker of [
+      "try {",
+      'const response = await fetch("/api/account/security/password"',
+      "} catch {",
+      "} finally {",
+    ]) {
+      const markerIndex = savePasswordHandler.indexOf(marker, previousMarkerIndex + 1)
+      assert.notEqual(markerIndex, -1, `savePassword must contain ordered ${marker}`)
+      previousMarkerIndex = markerIndex
+    }
     assert.match(methodsPanelSource, /aria-busy/)
     assert.match(methodsPanelSource, /role=\{(?=[^}]*"alert")(?=[^}]*"status")(?=[^}]*\?)(?=[^}]*:)[^}]*\}/)
     assert.match(methodsPanelSource, /aria-live=\{(?=[^}]*"assertive")(?=[^}]*"polite")(?=[^}]*\?)(?=[^}]*:)[^}]*\}/)

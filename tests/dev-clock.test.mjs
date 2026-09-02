@@ -177,6 +177,11 @@ describe("development Clock review route", () => {
     const persistPreferencesStart = musicProviderSource.indexOf(
       "const persistVisualizerAccountPreferences = useCallback(",
     )
+    assert.notEqual(
+      persistPreferencesStart,
+      -1,
+      "Music provider visualizer-persistence callback start missing",
+    )
     const mediaOwnershipAnchor = musicProviderSource.indexOf(
       "carrierEventBridgeRef.current = bridge",
       persistPreferencesStart,
@@ -187,7 +192,7 @@ describe("development Clock review route", () => {
       mediaOwnershipAnchor,
     )
     assert.ok(
-      persistPreferencesStart >= 0 && persistPreferencesEnd > persistPreferencesStart,
+      persistPreferencesEnd > persistPreferencesStart,
       "Music provider visualizer-persistence callback boundaries missing or reordered",
     )
     const persistPreferencesSource = musicProviderSource.slice(

@@ -221,6 +221,7 @@ test("public media journeys fixture opportunistic atmosphere prewarms", async ()
     'test("Music visualizer background selection and account default actions',
     '\ntest("Music account preference owner switch',
     "music visualizer",
+    topAppBarJourney.end,
   )
 
   const journeys = [

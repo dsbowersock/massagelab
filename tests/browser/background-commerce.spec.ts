@@ -525,8 +525,10 @@ test("ordinary signed-in shell defers commerce until a real background consumer 
     const browserStateReads = await page.evaluate(() => (
       Number(document.documentElement.dataset.backgroundCommerceStateFetches)
     ))
-    expect(browserStateReads).toBe(0)
-    expect(fixture.getSnapshotReads()).toBe(0)
+    expect(
+      fixture.getSnapshotReads(),
+      `fixture transport reads after ${settleDelayMs}ms; browser fetch counter observed ${browserStateReads}`,
+    ).toBe(0)
   }
 
   await openClockBackground(page, "/clock?panel=background")

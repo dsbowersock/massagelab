@@ -6,6 +6,7 @@ import {
   resolveBackgroundCommerceAccessSource,
   resolveAccessibleBackgroundControls,
 } from "../components/backgrounds/backgroundRegistry.ts"
+import { sourceBetween } from "./helpers/source-structure.mjs"
 import {
   backgroundCardCommerceState,
   hasActivePermanentOwnership,
@@ -300,8 +301,16 @@ describe("background acquisition and shared account cart", () => {
     )
     assert.match(chimer, /ensureSnapshot:\s*ensureBackgroundCommerceSnapshot/)
     assert.match(chimer, /void ensureBackgroundCommerceSnapshot\(\)/)
-    assert.match(panel, /ensureSnapshot/)
-    assert.match(panel, /void ensureSnapshot\(\)[\s\S]*openCart\(\)/)
+    const openAccountCartHandler = sourceBetween(
+      panel.replace(/\r\n?/g, "\n"),
+      "  const openAccountCart = () => {",
+      "  }\n\n  return (",
+      "BackgroundCommercePanel openAccountCart handler",
+    )
+    assert.match(
+      openAccountCartHandler,
+      /\bensureSnapshot\(\)[\s\S]*\bopenCart\(\)/,
+    )
     assert.doesNotMatch(cart, /ensureSnapshot/)
     assert.doesNotMatch(trigger, /ensureSnapshot/)
   })
