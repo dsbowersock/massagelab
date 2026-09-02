@@ -62,6 +62,18 @@ describe("shared test control helpers", () => {
     assert.equal(slots.length, 0)
   })
 
+  it("drains in forward order when cleanup options are omitted", () => {
+    const events = []
+    const slots = [
+      { cleanup: () => events.push("first") },
+      { cleanup: () => events.push("second") },
+    ]
+
+    assert.doesNotThrow(() => drainEffectCleanups(slots))
+    assert.deepEqual(events, ["first", "second"])
+    assert.equal(slots.length, 0)
+  })
+
   it("drains reverse slots and aggregates failures in execution order", () => {
     const firstFailure = new Error("first cleanup failure")
     const thirdFailure = new Error("third cleanup failure")

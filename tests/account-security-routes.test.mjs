@@ -269,11 +269,16 @@ describe("recoverable account-method UI contracts", () => {
     assert.doesNotMatch(securityPanelSource, /\/api\/account\/security\//)
     assert.doesNotMatch(securityPanelSource, /qrCode|manualCode|backupCodes|verificationCode/)
     assert.match(twoFactorPanelSource, /data-two-factor-action/)
-    assert.match(methodsPanelSource, /type MethodActionState\s*=\s*"idle"\s*\|\s*"proving"\s*\|\s*"saving"\s*\|\s*"redirecting"\s*\|\s*"success"\s*\|\s*"error"/)
+    const actionStateType = /type MethodActionState\s*=\s*((?:"[^"]+"\s*(?:\|\s*)?)+)/.exec(methodsPanelSource)
+    assert.ok(actionStateType, "MethodActionState string-literal union must exist")
+    assert.deepEqual(
+      [...actionStateType[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]).sort(),
+      ["error", "idle", "proving", "redirecting", "saving", "success"],
+    )
     assert.match(methodsPanelSource, /try\s*\{[\s\S]*catch[\s\S]*finally/)
     assert.match(methodsPanelSource, /aria-busy/)
-    assert.match(methodsPanelSource, /role=\{[^}]*"alert"[^}]*"status"/)
-    assert.match(methodsPanelSource, /aria-live=\{[^}]*"assertive"[^}]*"polite"/)
+    assert.match(methodsPanelSource, /role=\{(?=[^}]*"alert")(?=[^}]*"status")(?=[^}]*\?)(?=[^}]*:)[^}]*\}/)
+    assert.match(methodsPanelSource, /aria-live=\{(?=[^}]*"assertive")(?=[^}]*"polite")(?=[^}]*\?)(?=[^}]*:)[^}]*\}/)
     assert.match(twoFactorPanelSource, /resolveTwoFactorManagementRecovery/)
     assert.doesNotMatch(twoFactorPanelSource, /result\.message/)
     assert.doesNotMatch(twoFactorPanelSource, /localStorage|sessionStorage|useRouter|router\.refresh|console\s*\.|logger\s*\./)

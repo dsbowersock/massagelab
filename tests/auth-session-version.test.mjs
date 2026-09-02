@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
-import { describe, it } from "node:test"
+import { beforeEach, describe, it } from "node:test"
 import { decideAuthSessionVersion } from "../lib/auth-session-version.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 import { queueAccountSecurityEmail } from "../lib/account-security-email-intents.ts"
@@ -8,9 +8,11 @@ import { queueAccountSecurityEmail } from "../lib/account-security-email-intents
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
+const legalRedirectInvocations = []
 const strictLegalAcceptanceGate = {
-  buildRegistrationLegalProviderRedirectPath() {
-    assert.fail("Session-version callback coverage must not enter the registration legal redirect flow")
+  buildRegistrationLegalProviderRedirectPath(...args) {
+    legalRedirectInvocations.push(args)
+    return "/register?callbackUrl=%2F"
   },
 }
 
@@ -67,6 +69,10 @@ describe("JWT session-version decisions", () => {
 })
 
 describe("JWT session-version integration contract", () => {
+  beforeEach(() => {
+    legalRedirectInvocations.length = 0
+  })
+
   it("rejects a pre-reset JWT version after reset consumption advances the account version", async () => {
     const [resetSource] = await Promise.all([
       read("lib/password-reset-confirmation.ts"),
@@ -190,6 +196,7 @@ describe("JWT session-version integration contract", () => {
     assert.match(authSource, /account\?\.provider === "credentials" && Number\.isFinite\(user\?\.passwordAuthenticatedAt\)/)
     assert.match(authSource, /token\.lastPasswordAuthenticatedAt = user\.passwordAuthenticatedAt/)
     assert.match(authSource, /session\.lastPasswordAuthenticatedAt = Number\.isFinite\(token\.lastPasswordAuthenticatedAt\)/)
+    assert.deepEqual(legalRedirectInvocations, [])
   })
 
   it("mints and exposes password freshness only for a successful Credentials sign-in", async () => {
@@ -246,6 +253,7 @@ describe("JWT session-version integration contract", () => {
       account: { provider: "google" },
     })
     assert.equal(Object.hasOwn(googleToken, "lastPasswordAuthenticatedAt"), false)
+    assert.deepEqual(legalRedirectInvocations, [])
   })
 
   it("Credentials authorization loads the normalized proof owner by ID instead of raw email equality", async () => {
@@ -311,6 +319,7 @@ describe("JWT session-version integration contract", () => {
     assert.equal(authorized.id, "user-1")
     assert.equal(authorized.email, " Person@Example.com ")
     assert.deepEqual(userLookups, [{ id: "user-1" }])
+    assert.deepEqual(legalRedirectInvocations, [])
   })
 })
 

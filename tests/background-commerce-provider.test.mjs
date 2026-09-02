@@ -558,15 +558,23 @@ describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, ()
       await page.waitForFunction(() => (
         window.__commerceProviderHarness.refreshListenersReady("owner-b")
       ))
-      let current = await page.evaluate(() => {
+      await page.evaluate(() => {
         window.__commerceProviderHarness.stateFetchMode = "success"
         window.__commerceProviderHarness.dispatchFocus()
-        window.__commerceProviderHarness.dispatchOnline()
-        return window.__commerceProviderHarness.read()
       })
+      let current = await page.evaluate(() => window.__commerceProviderHarness.read())
       assert.equal(
         current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
         1,
+        "focus must not retry owner A's retained hydration failure for owner B",
+      )
+
+      await page.evaluate(() => window.__commerceProviderHarness.dispatchOnline())
+      current = await page.evaluate(() => window.__commerceProviderHarness.read())
+      assert.equal(
+        current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
+        1,
+        "online must not retry owner A's retained hydration failure for owner B",
       )
 
       await page.evaluate(async () => {

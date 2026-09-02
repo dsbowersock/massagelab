@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
-import { describe, it } from "node:test"
+import { beforeEach, describe, it } from "node:test"
 
 import { canSyncAccountPreferences } from "../lib/account-preferences.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
@@ -13,9 +13,11 @@ const [authUsersSource, authSource, sidebarSource] = await Promise.all([
   read("components/sidebar/sidebar.tsx"),
 ])
 
+const legalRedirectInvocations = []
 const strictLegalAcceptanceGate = {
-  buildRegistrationLegalProviderRedirectPath() {
-    assert.fail("Feature-key callback coverage must not enter the registration legal redirect flow")
+  buildRegistrationLegalProviderRedirectPath(...args) {
+    legalRedirectInvocations.push(args)
+    return "/register?callbackUrl=%2F"
   },
 }
 
@@ -134,6 +136,10 @@ function loadSidebar(database, session = null) {
 }
 
 describe("auth session feature-key reuse", () => {
+  beforeEach(() => {
+    legalRedirectInvocations.length = 0
+  })
+
   it("computes feature keys once in auth state and exposes the same array to capabilities", async () => {
     const calls = { userGraphReads: 0, temporaryGrantReads: 0, entitlementBuilds: 0, capabilityFeatureKeys: null }
     const database = accountDatabase(calls)
@@ -170,6 +176,7 @@ describe("auth session feature-key reuse", () => {
     token.featureKeys = ["premium_backgrounds", 7, null]
     const session = await callbacks.session({ session: { user: {} }, token })
     assert.deepEqual(session.user.featureKeys, ["premium_backgrounds"])
+    assert.deepEqual(legalRedirectInvocations, [])
   })
 
   it("fails closed to an empty feature-key array when auth-state refresh fails", async () => {
@@ -185,6 +192,7 @@ describe("auth session feature-key reuse", () => {
       const session = await callbacks.session({ session: { user: {} }, token })
       assert.deepEqual(session.user.featureKeys, [])
       assert.equal(warnings.length, 1)
+      assert.deepEqual(legalRedirectInvocations, [])
     } finally {
       console.warn = originalWarn
     }

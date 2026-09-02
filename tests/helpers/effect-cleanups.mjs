@@ -2,7 +2,7 @@
  * Clears captured effect slots before running every cleanup, optionally in
  * reverse mount order, and surfaces failures only after the full drain.
  */
-export function drainEffectCleanups(effectSlots, { label, reverse = false }) {
+export function drainEffectCleanups(effectSlots, { label, reverse = false } = {}) {
   const cleanupErrors = []
   const mountedSlots = effectSlots.splice(0)
   const orderedSlots = reverse ? mountedSlots.toReversed() : mountedSlots

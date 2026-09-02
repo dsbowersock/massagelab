@@ -28,7 +28,7 @@ const settingsProviderSource = readFileSync(
 )
 const rootLayoutSource = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8")
 
-/** Returns one parser-bounded JSX opening tag so expression operators cannot truncate it. */
+/** Returns the sole parser-bounded JSX tag and rejects missing or ambiguous owners. */
 function componentOpeningTag(source, componentName) {
   const sourceFile = ts.createSourceFile(
     "component-opening-tag.test.tsx",
@@ -37,21 +37,23 @@ function componentOpeningTag(source, componentName) {
     true,
     ts.ScriptKind.TSX,
   )
-  let openingTag
+  const openingTags = []
   function visit(node) {
-    if (openingTag) return
     if (
       (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
       && node.tagName.getText(sourceFile) === componentName
     ) {
-      openingTag = source.slice(node.getStart(sourceFile), node.end)
-      return
+      openingTags.push(source.slice(node.getStart(sourceFile), node.end))
     }
     ts.forEachChild(node, visit)
   }
   visit(sourceFile)
-  assert.ok(openingTag, `missing ${componentName} opening tag`)
-  return openingTag
+  assert.equal(
+    openingTags.length,
+    1,
+    `expected exactly one ${componentName} JSX opening or self-closing tag; found ${openingTags.length}`,
+  )
+  return openingTags[0]
 }
 
 /** Returns the exact link-props declaration and fails clearly if its owners move. */
@@ -254,7 +256,7 @@ function createSettingsOwnerTransitionHarness({
 }
 
 describe("App settings helpers", () => {
-  it("extracts complete JSX tags across expression operators and diagnoses missing owners", () => {
+  it("extracts one complete JSX tag and diagnoses missing or duplicate owners", () => {
     const source = "const fixture = <Fixture visible={count > 0} syncEnabled={false}>child</Fixture>"
 
     assert.equal(
@@ -263,7 +265,11 @@ describe("App settings helpers", () => {
     )
     assert.throws(
       () => componentOpeningTag(source, "MissingFixture"),
-      /missing MissingFixture opening tag/,
+      /expected exactly one MissingFixture JSX opening or self-closing tag; found 0/,
+    )
+    assert.throws(
+      () => componentOpeningTag("const fixtures = <><Fixture /><Fixture>child</Fixture></>", "Fixture"),
+      /expected exactly one Fixture JSX opening or self-closing tag; found 2/,
     )
   })
 

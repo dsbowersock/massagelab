@@ -174,7 +174,7 @@ describe("proved and browser-bound two-factor enrollment", () => {
       { kind: "GOOGLE", intentId: "intent-1" },
     ]) {
       const database = createDatabase({ passwordEnabled: false, googleLinked: true, googleIntent: freshGoogleIntent() })
-      const deps = dependencies()
+      const deps = dependencies({ database })
       const result = await start(database, { primaryProof, dependencies: deps })
       assert.deepEqual(result, { status: "REJECTED", code: "PASSWORD_REQUIRED" })
       assert.deepEqual(database.events, [])

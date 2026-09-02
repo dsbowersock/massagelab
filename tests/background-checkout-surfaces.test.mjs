@@ -175,7 +175,11 @@ async function loadCheckoutReviewHarness() {
   const previousStorage = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage")
   Object.defineProperty(globalThis, "sessionStorage", {
     configurable: true,
-    value: { setItem: (...args) => storageWrites.push(args) },
+    value: {
+      getItem: () => null,
+      removeItem: () => undefined,
+      setItem: (...args) => storageWrites.push(args),
+    },
   })
 
   return {
@@ -211,6 +215,7 @@ async function loadCheckoutReturnHarness() {
   const refresh = () => {
     refreshCalls += 1
     const settlement = Promise.reject(new Error("synthetic refresh rejection"))
+    void settlement.catch(() => undefined)
     refreshSettlements.push(settlement)
     return settlement
   }

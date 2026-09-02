@@ -17,6 +17,11 @@ import {
   registrationVerificationResponse,
   sendRegistrationVerification,
 } from "../lib/auth-registration.js"
+import {
+  buildRegistrationLegalProviderRedirectPath,
+  isRegistrationLegalAcceptancePath,
+  safePostLegalAcceptanceCallback,
+} from "../lib/legal-acceptance-gate.js"
 import { REGISTRATION_PAUSED_MESSAGE } from "../lib/public-launch-controls.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -213,6 +218,17 @@ describe("registration email delivery policy", () => {
     )
   })
 
+  it("rebuilds one legal-acceptance callback in the register link", async () => {
+    const scenario = await loadLoginFormScenario({
+      callbackUrl: "/legal/accept?callbackUrl=%2Fclock%3Fpanel%3Dbackground&callbackUrl=%2Fother&ignored=1",
+    })
+
+    assert.equal(
+      scenario.registerHref,
+      "/register?callbackUrl=%2Flegal%2Faccept%3FcallbackUrl%3D%252Fclock%253Fpanel%253Dbackground",
+    )
+  })
+
   it("uses fixed truthful setup copy for Google-linked and other passwordless accounts", async () => {
     const authMail = await import("../lib/auth-mail.ts")
     assert.equal(typeof authMail.passwordSetupEmailCopy, "function")
@@ -334,9 +350,11 @@ describe("registration email delivery policy", () => {
 })
 
 /** Executes the real email-login handler with deterministic entry and router owners. */
-async function loadLoginFormScenario({ refreshError } = {}) {
+async function loadLoginFormScenario({ callbackUrl, refreshError } = {}) {
   const loginSource = await readFile(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
   const flow = []
+  const searchParams = new URLSearchParams()
+  if (callbackUrl !== undefined) searchParams.set("callbackUrl", callbackUrl)
   const router = {
     push(path) {
       flow.push(`push:${path}`)
@@ -357,7 +375,7 @@ async function loadLoginFormScenario({ refreshError } = {}) {
     "next/link": { __esModule: true, default: passThroughElement("a") },
     "next/navigation": {
       useRouter: () => router,
-      useSearchParams: () => new URLSearchParams(),
+      useSearchParams: () => searchParams,
     },
     "next-auth/react": {
       signIn: async (provider) => {
@@ -385,17 +403,22 @@ async function loadLoginFormScenario({ refreshError } = {}) {
     },
     "@/lib/auth-registration": { buildVerificationRequestPath: () => "/verify-email" },
     "@/lib/legal-acceptance-gate": {
-      buildRegistrationLegalProviderRedirectPath: (value) => value,
-      isRegistrationLegalAcceptancePath: () => false,
-      safePostLegalAcceptanceCallback: () => "/account",
+      buildRegistrationLegalProviderRedirectPath,
+      isRegistrationLegalAcceptancePath,
+      safePostLegalAcceptanceCallback,
     },
   })
   const tree = renderFunctionComponents(login.LoginForm({ googleEnabled: true }))
   const form = findElement(tree, (element) => element.type === "form")
   assert.ok(form, "LoginForm must render its email form")
+  const registerLink = findElement(tree, (element) => (
+    element.type === "a" && element.props.children === "Create an account"
+  ))
+  assert.ok(registerLink, "LoginForm must render its registration link")
 
   return {
     flow,
+    registerHref: registerLink.props.href,
     submit: () => form.props.onSubmit({ preventDefault: () => flow.push("prevent-default") }),
   }
 }
