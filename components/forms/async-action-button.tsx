@@ -12,6 +12,8 @@ export type AsyncActionButtonProps =
     idleLabel: string
     pendingLabel: string
     icon?: React.ReactNode
+    /** Disable when a parent live region owns more specific pending updates. */
+    announcePending?: boolean
   }
 
 /** Keeps one stable button footprint while exposing only the active label. */
@@ -20,6 +22,7 @@ export function AsyncActionButton({
   idleLabel,
   pendingLabel,
   icon,
+  announcePending = true,
   className,
   disabled = false,
   ...buttonProps
@@ -49,9 +52,11 @@ export function AsyncActionButton({
           </span>
         </span>
       </Button>
-      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-        {pending ? pendingLabel : ""}
-      </span>
+      {announcePending ? (
+        <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+          {pending ? pendingLabel : ""}
+        </span>
+      ) : null}
     </>
   )
 }

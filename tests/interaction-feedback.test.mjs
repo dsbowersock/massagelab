@@ -99,6 +99,7 @@ test("shared async action button exposes one stable accessible pending owner", (
   assert.match(asyncButton, /idleLabel: string/)
   assert.match(asyncButton, /pendingLabel: string/)
   assert.match(asyncButton, /icon\?: React\.ReactNode/)
+  assert.match(asyncButton, /announcePending\?: boolean/)
 
   const compiled = loadCompiledModule(asyncButton, "components/forms/async-action-button.test.tsx", {
     react: {},
@@ -107,17 +108,20 @@ test("shared async action button exposes one stable accessible pending owner", (
     "@/components/ui/loader": { Loader: passThroughElement("loader") },
     "@/lib/utils": { cn: (...values) => values.filter(Boolean).join(" ") },
   })
-  const render = (pending) => renderFunctionComponents(compiled.AsyncActionButton({
+  const render = (pending, props = {}) => renderFunctionComponents(compiled.AsyncActionButton({
     pending,
     idleLabel: "Save",
     pendingLabel: "Saving…",
     icon: createElement("icon", {}),
     onClick() {},
+    ...props,
   }))
   const idle = render(false)
   const pending = render(true)
+  const pendingWithoutAnnouncement = render(true, { announcePending: false })
   const idleControl = findElement(idle, ({ type }) => type === "button")
   const pendingControl = findElement(pending, ({ type }) => type === "button")
+  const pendingWithoutAnnouncementControl = findElement(pendingWithoutAnnouncement, ({ type }) => type === "button")
   assert.equal(idleControl.props.disabled, false)
   assert.equal(idleControl.props["aria-busy"], false)
   assert.equal(pendingControl.props.disabled, true)
@@ -136,6 +140,11 @@ test("shared async action button exposes one stable accessible pending owner", (
   assert.ok(pendingStatus)
   assert.equal(elementText(idleStatus), "")
   assert.equal(elementText(pendingStatus), "Saving…")
+  assert.equal(pendingWithoutAnnouncementControl.props.disabled, true)
+  assert.equal(pendingWithoutAnnouncementControl.props["aria-busy"], true)
+  assert.match(elementText(pendingWithoutAnnouncementControl), /Saving…/)
+  assert.equal(Object.hasOwn(pendingWithoutAnnouncementControl.props, "announcePending"), false)
+  assert.equal(findElement(pendingWithoutAnnouncement, ({ props }) => props.role === "status"), null)
 })
 
 test("pending submission form keeps function identity and owns native first-submit claiming", () => {
@@ -531,6 +540,12 @@ test("client response owners pre-mount live regions and keep route copy separate
 
   assert.match(linkGoogle, /<p role="status" aria-live="polite" aria-atomic="true"/)
   assert.match(linkGoogle, /<p role="alert" aria-live="assertive" aria-atomic="true"/)
+  assert.match(linkGoogle, /<AsyncActionButton[\s\S]{0,400}announcePending=\{false\}/)
+  assert.match(linkGoogle, /\{busy \? <p aria-hidden="true">\{message\}<\/p> : null\}/)
+  assert.match(linkGoogle, /className=\{actionState === "error" \|\| busy \? "sr-only" : undefined\}/)
+  assert.match(linkGoogle, /\{actionState !== "error" \? message : ""\}/)
+  assert.doesNotMatch(linkGoogle, /actionState !== "error" && !busy/)
+  assert.match(linkGoogle, /\{actionState === "error" \? message : ""\}/)
   assert.doesNotMatch(linkGoogle, /setActionState\("success"\)/)
   assert.doesNotMatch(linkGoogle, /setMessage\("The sign-in methods now belong/)
 

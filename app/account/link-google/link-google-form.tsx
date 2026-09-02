@@ -119,13 +119,14 @@ export function LinkGoogleForm({ validIntent }: { validIntent: boolean }) {
             pending={busy}
             idleLabel="Confirm same MassageLab account"
             pendingLabel="Connecting Google…"
+            announcePending={false}
           />
         </form>
       )}
       <AppInset className={`p-3 text-sm${message ? "" : " sr-only"}`}>
-        {busy ? <p>{message}</p> : null}
+        {busy ? <p aria-hidden="true">{message}</p> : null}
         <p role="status" aria-live="polite" aria-atomic="true" className={actionState === "error" || busy ? "sr-only" : undefined}>
-          {actionState !== "error" && !busy ? message : ""}
+          {actionState !== "error" ? message : ""}
         </p>
         <p role="alert" aria-live="assertive" aria-atomic="true" className={actionState === "error" ? undefined : "sr-only"}>
           {actionState === "error" ? message : ""}
