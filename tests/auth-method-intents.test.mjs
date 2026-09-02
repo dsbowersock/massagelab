@@ -11,6 +11,7 @@ import {
 import { runCommerceTransaction } from "../lib/commerce/transactions.ts"
 import { buildRegistrationLegalProviderRedirectPath } from "../lib/legal-acceptance-gate.js"
 import { isGoogleIdentityUniqueConstraint } from "../lib/prisma-identity-unique-constraint.ts"
+import { safeErrorCode } from "../lib/safe-error-code.js"
 import { settlesWithin } from "./helpers/async-control.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -44,6 +45,7 @@ async function loadService({
       getPublicLaunchControls: () => ({ registrationOpen, supporterCheckoutOpen: true }),
     },
     "@/lib/prisma": { prisma: {} },
+    "@/lib/safe-error-code": { safeErrorCode },
   })
 }
 
@@ -417,29 +419,36 @@ describe("private Google auth-method intents", () => {
     assert.deepEqual(repeated, { kind: "CONTINUE", userId: "linked-user" })
   })
 
-  it("keeps a newly created Google identity valid when initial credit provisioning is deferred", async () => {
-    const service = await loadService({
-      provisionCredits: async () => {
-        throw new Error("private provider and account details")
-      },
-    })
-    const db = createIntentDatabase()
-    const intent = await start(service, db)
-    const logs = []
-    const originalConsoleError = console.error
-    console.error = (...fields) => logs.push(fields.join(" "))
+  it("keeps a new Google identity valid and logs only safe provisioning failure codes", async () => {
+    for (const [label, error, expectedCode] of [
+      ["known", Object.assign(new Error("private known provider detail for durable@example.com"), { code: "P2024" }), "P2024"],
+      ["unknown", Object.assign(new Error("private unknown provider detail for durable@example.com"), { code: "PRIVATE_ACCOUNT" }), "unexpected_error"],
+    ]) {
+      const service = await loadService({
+        provisionCredits: async () => { throw error },
+      })
+      const db = createIntentDatabase()
+      const intent = await start(service, db)
+      const logs = []
+      const originalConsoleError = console.error
+      console.error = (...fields) => logs.push(fields)
 
-    try {
-      const result = await service.prepareGoogleAuthentication(
-        googleInput(db, "durable@example.com", "google-durable", intent),
-      )
+      try {
+        const result = await service.prepareGoogleAuthentication(
+          googleInput(db, "durable@example.com", "google-durable", intent),
+        )
 
-      assert.equal(result.created, true)
-      assert.equal(db.state.users.some(({ id }) => id === result.userId), true)
-      assert.equal(db.intent(intent.intentId).status, "CONSUMED")
-      assert.deepEqual(logs, ["Background credit provisioning deferred after Google account creation."])
-    } finally {
-      console.error = originalConsoleError
+        assert.equal(result.created, true)
+        assert.equal(db.state.users.some(({ id }) => id === result.userId), true)
+        assert.equal(db.intent(intent.intentId).status, "CONSUMED")
+        assert.deepEqual(logs, [[
+          "Background credit provisioning deferred after Google account creation.",
+          { code: expectedCode },
+        ]], label)
+        assert.doesNotMatch(JSON.stringify(logs), /private|durable@example\.com|PRIVATE_ACCOUNT/, label)
+      } finally {
+        console.error = originalConsoleError
+      }
     }
   })
 

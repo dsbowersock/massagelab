@@ -276,9 +276,13 @@ describe("verified-account background credit provisioning", () => {
       readFile(new URL("../app/api/account/security/password/route.ts", import.meta.url), "utf8"),
     ])
 
-    const authStateLoader = authUsers.slice(authUsers.indexOf("export async function getUserAuthState"))
+    const authStateStart = authUsers.indexOf("export async function getUserAuthState")
+    assert.notEqual(authStateStart, -1, "getUserAuthState must remain present")
+    const authStateLoader = authUsers.slice(authStateStart)
     assert.doesNotMatch(authStateLoader, /ensureVerifiedUserBackgroundCredits/)
-    assert.doesNotMatch(authUsers.match(/export async function ensureGoogleUserState[\s\S]*?\n\}/)?.[0] ?? "", /ensureVerifiedUserBackgroundCredits/)
+    const googleStateLoader = authUsers.match(/export async function ensureGoogleUserState[\s\S]*?\n\}/)?.[0]
+    assert.ok(googleStateLoader, "ensureGoogleUserState must remain present")
+    assert.doesNotMatch(googleStateLoader, /ensureVerifiedUserBackgroundCredits/)
     const prepareStart = authMethodIntents.indexOf("export async function prepareGoogleAuthentication")
     const prepareEnd = authMethodIntents.indexOf("async function prepareSecurityReauthentication", prepareStart)
     assert.ok(prepareStart >= 0 && prepareEnd > prepareStart, "Google authentication intent bounds must resolve")

@@ -288,12 +288,15 @@ function compileGeneralProofContract() {
   `
   const host = ts.createCompilerHost(parsed.options)
   const originalFileExists = host.fileExists.bind(host)
+  const originalGetSourceFile = host.getSourceFile.bind(host)
   const originalReadFile = host.readFile.bind(host)
   host.fileExists = (fileName) => path.resolve(fileName) === virtualPath || originalFileExists(fileName)
   host.readFile = (fileName) => path.resolve(fileName) === virtualPath ? virtualSource : originalReadFile(fileName)
-  host.getSourceFile = (fileName, languageVersion) => {
-    const source = host.readFile(fileName)
-    return source === undefined ? undefined : ts.createSourceFile(fileName, source, languageVersion, true)
+  host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => {
+    if (path.resolve(fileName) === virtualPath) {
+      return ts.createSourceFile(fileName, virtualSource, languageVersion, true)
+    }
+    return originalGetSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile)
   }
   const program = ts.createProgram({
     rootNames: [path.join(projectRoot, "lib/auth-method-proof.ts"), virtualPath],

@@ -61,14 +61,19 @@ function receiptDependencies(events, {
 describe("family-and-friends self-contained timing receipt", () => {
   it("prefers an existing repository-local npm CLI", () => {
     const repositoryCli = "/workspace/node_modules/npm/bin/npm-cli.js"
+    const checkedPaths = []
 
     assert.equal(resolveNpmCli({
       npmExecPath: "",
       nodeExecutable: "/opt/node/bin/node",
       platform: "linux",
       workingDirectory: "/workspace",
-      pathExists: (candidate) => candidate === repositoryCli,
+      pathExists: (candidate) => {
+        checkedPaths.push(candidate)
+        return true
+      },
     }), repositoryCli)
+    assert.deepEqual(checkedPaths, [repositoryCli])
   })
 
   it("falls back to the npm CLI under a non-Windows Node prefix", () => {

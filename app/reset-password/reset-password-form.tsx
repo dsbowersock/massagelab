@@ -56,11 +56,14 @@ export function ResetPasswordForm() {
           />
         </form>
         {!token && <p className="text-sm text-muted-foreground">This reset link is missing a token.</p>}
-        {status && (
-          <AppInset className={`p-3 text-sm ${statusIsError ? "text-amber-100" : "text-muted-foreground"}`}>
-            <p role={statusIsError ? "alert" : "status"}>{status}</p>
-          </AppInset>
-        )}
+        <AppInset className={`p-3 text-sm ${statusIsError ? "text-amber-100" : "text-muted-foreground"}${status ? "" : " sr-only"}`}>
+          <p role="status" aria-live="polite" aria-atomic="true" className={statusIsError ? "sr-only" : undefined}>
+            {statusIsError ? "" : status}
+          </p>
+          <p role="alert" aria-live="assertive" aria-atomic="true" className={statusIsError ? undefined : "sr-only"}>
+            {statusIsError ? status : ""}
+          </p>
+        </AppInset>
         <Link href="/login" className="text-sm text-brand-orange underline-offset-4 hover:underline">
           Back to login
         </Link>

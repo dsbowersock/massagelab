@@ -64,8 +64,8 @@ test("persistent-shell navigation feedback has focused owners and preserves rout
   assert.match(intakePage, /usePendingNavigation/)
   assert.match(intakePage, /Saving intake and opening SOAP editor…/)
   assert.match(intakePage, /role="status"/)
-  assert.doesNotMatch(rootLayout, /key=\{[^}]*pathname|searchParams/)
-  assert.doesNotMatch(layoutWrapper, /key=\{[^}]*pathname|searchParams/)
+  assert.doesNotMatch(rootLayout, /key=\{[^}]*(?:pathname|searchParams)/)
+  assert.doesNotMatch(layoutWrapper, /key=\{[^}]*(?:pathname|searchParams)/)
   assert.match(runningTimer, /router\.replace\(intent\.href\)/)
   assert.match(runningTimer, /router\.push\(intent\.href\)/)
 })
@@ -153,7 +153,7 @@ test("pending submission form keeps function identity and owns native first-subm
 
   let formPending = false
   let flushes = 0
-  let nativePendingState = false
+  let nativePendingState
   let pendingRef
   let pageShowHandler
   let removedPageShowHandler
@@ -168,7 +168,10 @@ test("pending submission form keeps function identity and owns native first-subm
         pendingRef = { current: value }
         return pendingRef
       },
-      useState: (value) => [nativePendingState ?? value, (next) => { nativePendingState = next }],
+      useState: (value) => {
+        nativePendingState ??= value
+        return [nativePendingState, (next) => { nativePendingState = next }]
+      },
     },
     "react-dom": {
       flushSync: (callback) => { flushes += 1; callback() },
@@ -423,6 +426,22 @@ test("function actions recover after real React DOM resolution and rejection", {
     assert.equal(await page.getByRole("alert").textContent(), "Something went wrong. Please try again.")
     await page.getByRole("button", { name: "Save" }).waitFor()
     assert.equal(await page.getByRole("button", { name: "Save" }).isEnabled(), true)
+
+    await button.click()
+    await page.waitForFunction(() => window.calls === 3)
+    await page.getByRole("button", { name: "Saving…" }).waitFor()
+    assert.equal(await page.getByRole("alert").count(), 0)
+    await page.evaluate(() => window.formHarness.resolve())
+    await button.waitFor()
+    assert.equal(await page.getByRole("alert").count(), 0)
+
+    await button.click()
+    await page.waitForFunction(() => window.calls === 4)
+    await page.getByRole("button", { name: "Saving…" }).waitFor()
+    assert.equal(await page.getByRole("alert").count(), 0)
+    await page.evaluate(() => window.formHarness.reject())
+    await page.getByRole("alert").waitFor()
+    assert.equal(await page.getByRole("alert").textContent(), "Something went wrong. Please try again.")
   } finally {
     try {
       if (browser) await browser.close()
@@ -502,4 +521,27 @@ test("Auth.js redirect flows retain their synchronous owner after document navig
   assert.match(methodsPanel, /const initialHref = window\.location\.href/)
   assert.match(methodsPanel, /documentNavigationStarted = window\.location\.href !== initialHref/)
   assert.match(methodsPanel, /if \(!documentNavigationStarted\) finishAction\("google-proof"\)/)
+})
+
+test("client response owners pre-mount live regions and keep route copy separate from transport failures", () => {
+  const linkGoogle = source("app/account/link-google/link-google-form.tsx")
+  const methodsPanel = source("app/account/security/sign-in-methods-panel.tsx")
+  const resetPassword = source("app/reset-password/reset-password-form.tsx")
+  const serverSidebar = source("components/sidebar/sidebar.tsx")
+
+  assert.match(linkGoogle, /<p role="status" aria-live="polite" aria-atomic="true"/)
+  assert.match(linkGoogle, /<p role="alert" aria-live="assertive" aria-atomic="true"/)
+  assert.doesNotMatch(linkGoogle, /setActionState\("success"\)/)
+  assert.doesNotMatch(linkGoogle, /setMessage\("The sign-in methods now belong/)
+
+  assert.equal((methodsPanel.match(/setMessage\(safeMethodResponseMessage\(/g) ?? []).length, 3)
+  assert.doesNotMatch(methodsPanel, /throw new Error\(result\.message/)
+  assert.doesNotMatch(methodsPanel, /catch \(error\)[\s\S]{0,160}error\.message/)
+  assert.match(methodsPanel, /catch \{\s*setActionState\("error"\)\s*setMessage\("Something went wrong\. Please try again\."\)/)
+
+  assert.match(resetPassword, /<p role="status" aria-live="polite" aria-atomic="true"/)
+  assert.match(resetPassword, /<p role="alert" aria-live="assertive" aria-atomic="true"/)
+
+  assert.match(serverSidebar, /\/\*\* Whether the signed-in owner belongs to at least one practice\. \*\/\s*hasPracticeMembership: boolean/)
+  assert.match(serverSidebar, /\/\*\*[\s\S]{0,240}canonical account owner[\s\S]{0,240}\*\/\s*export async function getAppSidebarData/)
 })

@@ -19,9 +19,11 @@ export type AccountShellBootstrap = {
   preferenceStatus: "anonymous" | "ready" | "failed"
   /** Sanitized JSON data that is safe to hydrate across the server-client boundary. */
   appSettings: ReturnType<typeof projectAccountShellAppSettings>
+  /** Whether the signed-in owner belongs to at least one practice. */
   hasPracticeMembership: boolean
 }
 
+/** Resolves one canonical account owner into the PHI-free persistent-shell projections. */
 export async function getAppSidebarData() {
   const session = await getCurrentSession()
   const sessionUser = session?.user as
@@ -118,6 +120,11 @@ async function loadSidebarAccountPreference(userId?: string) {
   }
 }
 
+/**
+ * Builds signed-in navigation authorization without loading clinical data.
+ * A present featureKeys array is authoritative; capabilities are used only for
+ * legacy sessions, and database is an injected practice-role reader.
+ */
 export async function getSidebarNavigationContext(sessionUser?: {
   id?: string
   role?: string | null

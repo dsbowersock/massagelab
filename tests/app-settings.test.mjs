@@ -473,7 +473,7 @@ describe("App settings helpers", () => {
 
     assert.match(toolLink, /forwardRef<HTMLAnchorElement/)
     assert.match(linkProps, /\.\.\.triggerProps/)
-    assert.match(linkProps, /\n    ref,/)
+    assert.match(linkProps, /^\s*ref,\s*$/m)
     assert.match(toolLink, /<Link \{\.\.\.linkProps\}>/)
   })
 

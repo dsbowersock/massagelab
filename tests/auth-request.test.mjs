@@ -57,9 +57,16 @@ describe("shared authentication request boundaries", () => {
       assert.match(consumerSource, /authRequestNetworkIdentifier\(request\)/, consumerPaths[index])
       assert.doesNotMatch(consumerSource, /function requestIp/, consumerPaths[index])
     }
-    for (const index of [3, 4]) {
-      assert.match(consumerSources[index], /isPublicAccountEmail\(email\)/, consumerPaths[index])
-      assert.doesNotMatch(consumerSources[index], /function validPublicEmail/, consumerPaths[index])
+    const emailValidationPaths = [
+      "../app/api/account/email-verification/request/route.ts",
+      "../app/api/account/password-reset/request/route.ts",
+      "../app/api/account/register/route.ts",
+    ]
+    for (const consumerPath of emailValidationPaths) {
+      const index = consumerPaths.indexOf(consumerPath)
+      assert.notEqual(index, -1, `${consumerPath} must remain a registered auth consumer`)
+      assert.match(consumerSources[index], /isPublicAccountEmail\(email\)/, consumerPath)
+      assert.doesNotMatch(consumerSources[index], /function validPublicEmail/, consumerPath)
     }
   })
 })

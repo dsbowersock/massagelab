@@ -2,7 +2,10 @@ import { after, NextResponse } from "next/server"
 import { getAuthSecret } from "@/lib/auth-env"
 import { sendVerificationEmail } from "@/lib/auth-mail"
 import { consumeEmailWorkRateLimit } from "@/lib/auth-rate-limit"
-import { authRequestNetworkIdentifier } from "@/lib/auth-request"
+import {
+  authRequestNetworkIdentifier,
+  isPublicAccountEmail,
+} from "@/lib/auth-request"
 import { sendRegistrationVerification } from "@/lib/auth-registration"
 import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-entry-messages"
 import { generateRandomToken, hashToken, normalizeEmail, tokenExpiresIn } from "@/lib/auth-security"
@@ -34,7 +37,7 @@ export function createEmailVerificationRequestHandler({
       return NextResponse.json({ message: PUBLIC_ACCOUNT_ENTRY_MESSAGE }, { status: 202 })
     }
     const email = normalizeEmail(body.email)
-    if (!validPublicEmail(email)) {
+    if (!isPublicAccountEmail(email)) {
       return NextResponse.json({ message: PUBLIC_ACCOUNT_ENTRY_MESSAGE }, { status: 202 })
     }
 
@@ -69,10 +72,6 @@ export function createEmailVerificationRequestHandler({
 /** Rejects JSON primitives and arrays before reading public request fields. */
 function isRequestBody(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-function validPublicEmail(email: string): boolean {
-  return email.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
 export const POST = createEmailVerificationRequestHandler({

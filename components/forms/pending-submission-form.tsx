@@ -19,8 +19,12 @@ type PendingSubmissionErrorBoundaryState = {
   recoveryKey: number
 }
 
-/** Remounts the unchanged Server Action form after React reports a rejected submission. */
-class PendingSubmissionErrorBoundary extends React.Component<React.PropsWithChildren, PendingSubmissionErrorBoundaryState> {
+type PendingSubmissionErrorBoundaryProps = {
+  children: React.ReactElement<React.ComponentPropsWithoutRef<"form">>
+}
+
+/** Remounts a rejected Server Action form and clears its alert when an explicit retry begins. */
+class PendingSubmissionErrorBoundary extends React.Component<PendingSubmissionErrorBoundaryProps, PendingSubmissionErrorBoundaryState> {
   state: PendingSubmissionErrorBoundaryState = { failed: false, recoveryKey: 0 }
 
   static getDerivedStateFromError(): Pick<PendingSubmissionErrorBoundaryState, "failed"> {
@@ -32,12 +36,24 @@ class PendingSubmissionErrorBoundary extends React.Component<React.PropsWithChil
   }
 
   render() {
-    if (!this.state.failed) return this.props.children
+    const { children } = this.props
+    const originalOnSubmitCapture = children.props.onSubmitCapture
+    const form = React.cloneElement(children, {
+      key: this.state.recoveryKey,
+      onSubmitCapture: (event: React.SubmitEvent<HTMLFormElement>) => {
+        originalOnSubmitCapture?.(event)
+        if (!event.defaultPrevented && this.state.failed) {
+          this.setState({ failed: false })
+        }
+      },
+    })
 
     return (
       <>
-        <p role="alert" aria-live="assertive">Something went wrong. Please try again.</p>
-        <React.Fragment key={this.state.recoveryKey}>{this.props.children}</React.Fragment>
+        {this.state.failed ? (
+          <p role="alert" aria-live="assertive">Something went wrong. Please try again.</p>
+        ) : null}
+        {form}
       </>
     )
   }

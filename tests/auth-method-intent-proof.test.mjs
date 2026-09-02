@@ -23,6 +23,7 @@ const { SESSION_BOUND_PURPOSES } = loadCompiledModule(
     "@/lib/prisma-identity-unique-constraint": {},
     "@/lib/prisma": {},
     "@/lib/public-launch-controls": {},
+    "@/lib/safe-error-code": { safeErrorCode: () => "unexpected_error" },
   },
 )
 

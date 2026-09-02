@@ -13,7 +13,10 @@ const NOW = new Date("2026-08-29T12:00:00.000Z")
 const PUBLIC_MESSAGE = "If that email still needs verification, check its inbox for the next step."
 
 const authRequestSource = await readFile(new URL("../lib/auth-request.ts", import.meta.url), "utf8")
-const { authRequestNetworkIdentifier } = loadCompiledModule(authRequestSource, "auth-request.verification-route-test.ts")
+const { authRequestNetworkIdentifier, isPublicAccountEmail } = loadCompiledModule(
+  authRequestSource,
+  "auth-request.verification-route-test.ts",
+)
 
 const limiterSource = await readFile(new URL("../lib/auth-rate-limit.ts", import.meta.url), "utf8")
 const limiter = loadCompiledModule(limiterSource, "auth-rate-limit.verification-route-test.ts", {
@@ -32,7 +35,7 @@ const route = loadCompiledModule(routeSource, "email-verification-request-route.
   "@/lib/auth-env": { getAuthSecret: () => "secret" },
   "@/lib/auth-mail": { sendVerificationEmail: async () => ({ delivered: true }) },
   "@/lib/auth-rate-limit": limiter,
-  "@/lib/auth-request": { authRequestNetworkIdentifier },
+  "@/lib/auth-request": { authRequestNetworkIdentifier, isPublicAccountEmail },
   "@/lib/auth-registration": { sendRegistrationVerification: (sender, ...args) => sender(...args) },
   "@/lib/auth-entry-messages": { PUBLIC_ACCOUNT_ENTRY_MESSAGE: PUBLIC_MESSAGE },
   "@/lib/auth-security": {
@@ -135,6 +138,31 @@ describe("email verification request route", () => {
     assert.equal(response.status, 202)
     assert.deepEqual(await response.json(), { message: PUBLIC_MESSAGE })
     assert.equal(afterCallbacks.length, 0)
+  })
+
+  it("accepts 254-byte emails but keeps 255-byte emails neutral without account work", async () => {
+    const suffix = "@example.com"
+    const longest = `${"a".repeat(254 - suffix.length)}${suffix}`
+    const tooLong = `${"a".repeat(255 - suffix.length)}${suffix}`
+    assert.equal(longest.length, 254)
+    assert.equal(tooLong.length, 255)
+    const acceptedEmails = []
+    const handler = route.createEmailVerificationRequestHandler({
+      prismaClient: createRouteDatabase(),
+      secret: "secret",
+      verificationWork: async ({ email }) => {
+        acceptedEmails.push(email)
+        return { status: "ACCEPTED" }
+      },
+    })
+
+    const accepted = await handler(request(longest, "/clock"))
+    const rejected = await handler(request(tooLong, "/clock"))
+
+    assert.equal(accepted.status, 202)
+    assert.equal(rejected.status, 202)
+    assert.deepEqual(await rejected.json(), { message: PUBLIC_MESSAGE })
+    assert.deepEqual(acceptedEmails, [longest])
   })
 
   it("treats every non-object JSON body as generic invalid input without account work", async () => {

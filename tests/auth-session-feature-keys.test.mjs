@@ -20,6 +20,7 @@ const {
   strictLegalAcceptanceGate,
 } = createStrictLegalAcceptanceGateDouble()
 
+/** Builds the minimal account graph reader and records each authorization load. */
 function accountDatabase(calls) {
   return {
     user: {
@@ -43,6 +44,11 @@ function accountDatabase(calls) {
   }
 }
 
+/**
+ * Compiles the auth-state service with counted entitlement dependencies.
+ * Callers must pass the returned loadTemporaryGrants into getUserAuthState so
+ * the test observes the exact temporary-grant read count.
+ */
 function loadAuthUsers(database, calls) {
   const loadTemporaryGrants = async (receivedDatabase, userId) => {
     calls.temporaryGrantReads += 1
@@ -75,6 +81,7 @@ function loadAuthUsers(database, calls) {
   }
 }
 
+/** Compiles Auth.js with the supplied state loader and returns its captured callbacks. */
 function captureAuthCallbacks(getUserAuthState) {
   let capturedConfig
   class CredentialsSignin extends Error {}
@@ -119,6 +126,7 @@ function captureAuthCallbacks(getUserAuthState) {
   return capturedConfig.callbacks
 }
 
+/** Compiles the sidebar projection with an injected practice-role database and session. */
 function loadSidebar(database, session = null) {
   return loadCompiledModule(sidebarSource, "components/sidebar/sidebar.feature-keys.test.tsx", {
     "@/auth": { getCurrentSession: async () => session },

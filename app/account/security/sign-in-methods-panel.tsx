@@ -12,6 +12,13 @@ import type { PendingSecurityAction, SignInMethodAvailability } from "@/app/acco
 type MethodActionState = "idle" | "proving" | "saving" | "redirecting" | "success" | "error"
 type MethodResponse = { code?: string; message?: string; googleLinked?: boolean; hasPasswordCredential?: boolean }
 
+/** Uses only the current route's parsed response copy; transport failures keep a generic message. */
+function safeMethodResponseMessage(result: MethodResponse, fallback: string) {
+  return typeof result.message === "string" && result.message.trim().length > 0
+    ? result.message
+    : fallback
+}
+
 /** Owns recoverable client states while server routes retain every proof and mutation rule. */
 export function SignInMethodsPanel({
   hasPasswordCredential,
@@ -110,7 +117,11 @@ export function SignInMethodsPanel({
           : { mode, newPassword: addPassword, confirmed: addPasswordConfirmed }),
       })
       const result = await response.json().catch(() => ({})) as MethodResponse
-      if (!response.ok) throw new Error(result.message ?? "The password change could not be saved. Try again.")
+      if (!response.ok) {
+        setActionState("error")
+        setMessage(safeMethodResponseMessage(result, "The password change could not be saved. Try again."))
+        return
+      }
       applyMethodResponse(result)
       setActionState("success")
       setMessage(result.message ?? "Password sign-in was saved.")
@@ -142,7 +153,11 @@ export function SignInMethodsPanel({
         body: JSON.stringify({ password: unlinkPassword, twoFactorCode: unlinkTwoFactorCode, confirmed: unlinkGoogleConfirmed }),
       })
       const result = await response.json().catch(() => ({})) as MethodResponse
-      if (!response.ok) throw new Error(result.message ?? "Google sign-in could not be removed. Try again.")
+      if (!response.ok) {
+        setActionState("error")
+        setMessage(safeMethodResponseMessage(result, "Google sign-in could not be removed. Try again."))
+        return
+      }
       applyMethodResponse(result)
       setActionState("success")
       setMessage(result.message ?? "Google sign-in was removed.")
@@ -166,7 +181,11 @@ export function SignInMethodsPanel({
         body: JSON.stringify({ confirmed: disablePasswordConfirmed }),
       })
       const result = await response.json().catch(() => ({})) as MethodResponse
-      if (!response.ok) throw new Error(result.message ?? "Password sign-in could not be disabled. Try again.")
+      if (!response.ok) {
+        setActionState("error")
+        setMessage(safeMethodResponseMessage(result, "Password sign-in could not be disabled. Try again."))
+        return
+      }
       applyMethodResponse(result)
       setActionState("success")
       setMessage(result.message ?? "Password sign-in was disabled.")

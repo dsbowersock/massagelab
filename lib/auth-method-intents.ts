@@ -10,6 +10,7 @@ import { resolveNormalizedUserId } from "@/lib/normalized-user-email"
 import { isGoogleIdentityUniqueConstraint } from "@/lib/prisma-identity-unique-constraint"
 import { prisma } from "@/lib/prisma"
 import { getPublicLaunchControls } from "@/lib/public-launch-controls"
+import { safeErrorCode } from "@/lib/safe-error-code"
 
 export const AUTH_METHOD_INTENT_COOKIE = "ml-auth-method-binding"
 
@@ -324,10 +325,13 @@ export async function prepareGoogleAuthentication({
     const userId = decision.userId
     try {
       await ensureVerifiedUserBackgroundCredits(prismaClient, userId)
-    } catch {
+    } catch (error) {
       // Identity creation is already durable; the idempotent commerce backfill
       // remains the bounded repair path for a deferred initial grant.
-      console.error("Background credit provisioning deferred after Google account creation.")
+      console.error(
+        "Background credit provisioning deferred after Google account creation.",
+        { code: safeErrorCode(error) },
+      )
     }
   }
 

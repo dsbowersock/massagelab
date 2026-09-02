@@ -16,7 +16,7 @@ import {
   resolveGoogleLinkConfirmationRecovery,
 } from "@/lib/google-link-confirmation-recovery"
 
-type LinkActionState = "idle" | "proving" | "saving" | "redirecting" | "success" | "error"
+type LinkActionState = "idle" | "proving" | "saving" | "redirecting" | "error"
 
 /** Confirms account ownership through Auth.js before sending a proof-free link request. */
 export function LinkGoogleForm({ validIntent }: { validIntent: boolean }) {
@@ -69,8 +69,6 @@ export function LinkGoogleForm({ validIntent }: { validIntent: boolean }) {
       }
 
       completed = true
-      setActionState("success")
-      setMessage("The sign-in methods now belong to the same MassageLab account.")
       setActionState("redirecting")
       setMessage("Linked. Redirecting to account security…")
       router.push("/account?tab=security")
@@ -124,11 +122,15 @@ export function LinkGoogleForm({ validIntent }: { validIntent: boolean }) {
           />
         </form>
       )}
-      {message ? (
-        <AppInset className="p-3 text-sm">
-          <p role={actionState === "error" ? "alert" : busy ? undefined : "status"} aria-live={actionState === "error" ? "assertive" : busy ? undefined : "polite"}>{message}</p>
-        </AppInset>
-      ) : null}
+      <AppInset className={`p-3 text-sm${message ? "" : " sr-only"}`}>
+        {busy ? <p>{message}</p> : null}
+        <p role="status" aria-live="polite" aria-atomic="true" className={actionState === "error" || busy ? "sr-only" : undefined}>
+          {actionState !== "error" && !busy ? message : ""}
+        </p>
+        <p role="alert" aria-live="assertive" aria-atomic="true" className={actionState === "error" ? undefined : "sr-only"}>
+          {actionState === "error" ? message : ""}
+        </p>
+      </AppInset>
     </AppSurface>
   )
 }
