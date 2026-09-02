@@ -674,27 +674,36 @@ describe("private Google auth-method intents", () => {
     })
   }
 
-  it("rate limits before intent access and returns a private cookie plus callback only", async () => {
+  it("returns exact private cookie options in development and production", async () => {
     const routeSource = await readFile(new URL("../app/api/auth/google/intent/route.ts", import.meta.url), "utf8")
     assert.match(routeSource, /"Retry-After"/)
     assert.doesNotMatch(routeSource, /access_token|refresh_token|id_token/)
 
     const { POST } = await loadIntentRoute()
-    const response = await POST(intentRequest({
-      purpose: "SIGN_IN_OR_LINK",
-      callbackUrl: "/wellness",
-    }))
-    assert.deepEqual(response.cookieSet, {
-      name: "ml-auth-method-binding",
-      value: `default-intent.${"a".repeat(43)}`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        maxAge: 600,
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-      },
-    })
+    const previousNodeEnvironment = process.env.NODE_ENV
+    try {
+      for (const [nodeEnvironment, secure] of [["development", false], ["production", true]]) {
+        process.env.NODE_ENV = nodeEnvironment
+        const response = await POST(intentRequest({
+          purpose: "SIGN_IN_OR_LINK",
+          callbackUrl: "/wellness",
+        }))
+        assert.deepEqual(response.cookieSet, {
+          name: "ml-auth-method-binding",
+          value: `default-intent.${"a".repeat(43)}`,
+          options: {
+            httpOnly: true,
+            sameSite: "lax",
+            maxAge: 600,
+            secure,
+            path: "/",
+          },
+        }, nodeEnvironment)
+      }
+    } finally {
+      if (previousNodeEnvironment === undefined) delete process.env.NODE_ENV
+      else process.env.NODE_ENV = previousNodeEnvironment
+    }
   })
 
   it("accepts network start thirty, blocks thirty-one before creation, and returns exact Retry-After", async () => {
@@ -1003,6 +1012,7 @@ function oversizedStreamingIntentRequest(purpose = "LINK_GOOGLE") {
         purpose,
         padding: "x".repeat(5_000),
       })))
+      // Intentionally omit close: the bounded parser must reject by size before EOF.
     },
   })
   return new Request("https://massagelab.test/api/auth/google/intent", {

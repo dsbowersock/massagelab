@@ -102,7 +102,7 @@ describe("account surface data loader", () => {
   it("delegates public display pricing to the shared catalog owner without a private cache", () => {
     assert.match(
       accountSurfaceDataSource,
-      /import\s*\{\s*getMembershipPricingCatalog\s*\}\s*from\s*["']\.\/membership-pricing\.js["']/,
+      /import\s*\{[^}]*\bgetMembershipPricingCatalog\b[^}]*\}\s*from\s*["']\.\/membership-pricing\.js["']/,
     )
     assert.doesNotMatch(accountSurfaceDataSource, /ACCOUNT_PRICING_CATALOG_CACHE_TTL_MS/)
     assert.doesNotMatch(accountSurfaceDataSource, /pricingCatalogCache/)

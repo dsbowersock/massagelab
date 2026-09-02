@@ -268,7 +268,7 @@ describe("recoverable account-method UI contracts", () => {
     assert.match(securityPanelSource, /<TwoFactorManagementPanel/)
     assert.doesNotMatch(securityPanelSource, /\/api\/account\/security\//)
     assert.doesNotMatch(securityPanelSource, /qrCode|manualCode|backupCodes|verificationCode/)
-    assert.match(twoFactorPanelSource, /Authenticator-app 2FA/)
+    assert.match(twoFactorPanelSource, /data-two-factor-action/)
     assert.match(methodsPanelSource, /type MethodActionState\s*=\s*"idle"\s*\|\s*"proving"\s*\|\s*"saving"\s*\|\s*"redirecting"\s*\|\s*"success"\s*\|\s*"error"/)
     assert.match(methodsPanelSource, /try\s*\{[\s\S]*catch[\s\S]*finally/)
     assert.match(methodsPanelSource, /aria-busy/)

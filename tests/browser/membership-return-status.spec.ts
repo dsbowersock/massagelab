@@ -160,6 +160,10 @@ test.describe("private persisted membership returns", () => {
       releasePortalRoute = resolve
     })
     await page.route("**/api/billing/portal", async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.fallback()
+        return
+      }
       portalPosts += 1
       portalRouteStarted = true
       try {

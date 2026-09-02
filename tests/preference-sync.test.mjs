@@ -197,6 +197,11 @@ async function loadPreferenceSync(ownerKey, {
 
   try {
     const element = provider.PreferenceSync({ hasCloudPreferences })
+    assert.equal(
+      stateCursor,
+      Object.keys(PREFERENCE_SYNC_STATE_SLOT).length,
+      "PreferenceSync harness state-slot map must match rendered useState calls",
+    )
     for (const effect of effects) {
       const cleanup = effect()
       if (typeof cleanup === "function") effectCleanups.push(cleanup)

@@ -170,7 +170,10 @@ describe("RSC session snapshot proof boundary", () => {
     assert.match(wrapper, /from "@\/lib\/rsc-session-proof"/)
     assert.match(wrapper, /NEXT_PUBLIC_RSC_SESSION_PROOF === "1"/)
     assert.match(wrapper, /export const getCurrentRscSession = cache\(loadCurrentRscSession\)/)
-    assert.doesNotMatch(wrapper, /setTimeout|setInterval|new Map|ttl|expires|persist/i)
+    assert.doesNotMatch(
+      wrapper,
+      /\b(?:setTimeout|setInterval)\b|\bnew\s+Map\b|ttl|expires|persist/i,
+    )
 
     for (const relativePath of rscSessionConsumers) {
       const consumer = source(relativePath)

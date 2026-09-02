@@ -1095,12 +1095,17 @@ function verifiedPasswordManagementProof(database, overrides = {}) {
 }
 
 function preparedFactor(database, { kind = "TOTP", authSessionVersion = database.user.authSessionVersion } = {}) {
+  assert.ok(
+    database.secret?.enabledAt instanceof Date,
+    "preparedFactor requires an enabled two-factor secret",
+  )
+  const secret = database.secret
   return {
     userId: database.user.id,
     authSessionVersion,
-    twoFactorSecretId: database.secret.id,
-    enabledAtMs: database.secret.enabledAt.getTime(),
-    updatedAtMs: database.secret.updatedAt.getTime(),
+    twoFactorSecretId: secret.id,
+    enabledAtMs: secret.enabledAt.getTime(),
+    updatedAtMs: secret.updatedAt.getTime(),
     kind,
     backupCodeId: kind === "BACKUP_CODE" ? "backup-current" : null,
   }

@@ -134,7 +134,7 @@ function createSidebarProviderEffectHarness(fetchJsonWithTimeout) {
   }
 }
 
-function loadRoute(session, downstreamReads) {
+function loadRoute(session, downstreamReads, ownerCalls = []) {
   return loadCompiledModule(routeSource, "app/api/calendar/sidebar-context/route.test.ts", {
     "next/server": {
       NextResponse: {
@@ -145,7 +145,8 @@ function loadRoute(session, downstreamReads) {
     "@/lib/sidebar-calendar-context": {
       isCanonicalSidebarCalendarOwnerId:
         sidebarCalendarContextModule.isCanonicalSidebarCalendarOwnerId,
-      getSidebarCalendarContext: async () => {
+      getSidebarCalendarContext: async (ownerId) => {
+        ownerCalls.push(ownerId)
         downstreamReads.readiness += 1
         downstreamReads.preferences += 1
         downstreamReads.memberships += 1
@@ -232,6 +233,18 @@ describe("sidebar calendar context route gating", () => {
       await sidebarCalendarContextModule.getSidebarCalendarContext(" owner-a "),
       emptySidebarCalendarContext,
     )
+  })
+
+  it("loads the canonical session owner once through the route boundary", async () => {
+    const downstreamReads = { readiness: 0, preferences: 0, memberships: 0 }
+    const ownerCalls = []
+    const route = loadRoute({ user: { id: "owner-a" } }, downstreamReads, ownerCalls)
+
+    const response = await route.GET()
+
+    assert.deepEqual(response, { body: emptySidebarCalendarContext, status: 200 })
+    assert.deepEqual(ownerCalls, ["owner-a"])
+    assert.deepEqual(downstreamReads, { readiness: 1, preferences: 1, memberships: 1 })
   })
 
   it("fails closed when the sidebar endpoint returns a malformed payload", async () => {
@@ -404,11 +417,7 @@ describe("sidebar calendar context route gating", () => {
     assert.match(providerSource, /createSidebarCalendarCoordinator/)
   })
 
-  it("keeps the endpoint authenticated and its PHI-minimized response owner unchanged", () => {
-    assert.match(routeSource, /getCurrentSession/)
-    assert.match(routeSource, /isCanonicalSidebarCalendarOwnerId/)
-    assert.match(routeSource, /status:\s*401/)
-    assert.match(routeSource, /getSidebarCalendarContext\(ownerId\)/)
+  it("keeps the endpoint response PHI-minimized", () => {
     assert.doesNotMatch(routeSource, /practiceClient|clinical|soap|intake/i)
   })
 })

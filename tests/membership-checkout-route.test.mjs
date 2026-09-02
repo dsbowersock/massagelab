@@ -26,6 +26,8 @@ describe("Membership Checkout POST route", () => {
 
   it("returns a paused JSON response after authentication and before membership, legal, customer, or Stripe work", async () => {
     const calls = checkoutCallCounts({
+      guardCallOrder: [],
+      launchControlArguments: [],
       legalAcceptanceLookup: 0,
       selectionValidation: 0,
     })
@@ -43,6 +45,8 @@ describe("Membership Checkout POST route", () => {
     assert.deepEqual(calls, {
       ensureCustomer: 0,
       createCheckout: 0,
+      guardCallOrder: ["session", "launch-controls"],
+      launchControlArguments: [[]],
       membershipLookup: 0,
       legalAcceptanceLookup: 0,
       selectionValidation: 0,
@@ -1166,15 +1170,22 @@ function checkoutDependencies(calls, {
       redirect: (url, status) => ({ url, status }),
     },
     getCurrentSession: async () => {
+      if (captureGuardCalls) calls.guardCallOrder.push("session")
       calls.sessionReads += 1
       if (sessionError) throw sessionError
       return session
     },
     getSiteUrl: () => siteUrl,
-    getPublicLaunchControls: () => ({
-      registrationOpen: true,
-      supporterCheckoutOpen,
-    }),
+    getPublicLaunchControls: (...args) => {
+      if (captureGuardCalls) {
+        calls.guardCallOrder.push("launch-controls")
+        calls.launchControlArguments.push(args)
+      }
+      return {
+        registrationOpen: true,
+        supporterCheckoutOpen,
+      }
+    },
     isPublicSupporterCheckoutSelection: (input) => {
       if (captureGuardCalls) calls.selectionValidation = (calls.selectionValidation ?? 0) + 1
       if (selectionError) throw selectionError

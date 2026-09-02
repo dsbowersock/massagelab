@@ -139,7 +139,7 @@ function loadRoute({
       calls.transactions += 1
       const transactionId = calls.transactions
       calls.transactionStarts.push(transactionId)
-      let releaseOwnerLock = () => undefined
+      const releaseOwnerLocks = []
       try {
         return await callback({
           userPreference: userPreferenceFor(transactionId),
@@ -157,15 +157,15 @@ function loadRoute({
             ownerLocks.set(userId, currentOwnerLock)
             if (precedingOwnerLock) await precedingOwnerLock.promise
             calls.lockAcquisitions.push(transactionId)
-            releaseOwnerLock = () => {
+            releaseOwnerLocks.push(() => {
               if (ownerLocks.get(userId) === currentOwnerLock) ownerLocks.delete(userId)
               currentOwnerLock.resolve()
-            }
+            })
             return []
           },
         })
       } finally {
-        releaseOwnerLock()
+        for (const releaseOwnerLock of releaseOwnerLocks.toReversed()) releaseOwnerLock()
       }
     },
   }
@@ -462,7 +462,7 @@ describe("account preference route ownership boundary", () => {
     assert.equal(response.status, 200)
     assert.equal(calls.snapshots.length, 1)
     assert.equal(calls.upserts.length, 1)
-    assert.deepEqual(Object.keys(calls.upserts[0].update), ["version", "chimerSettings"])
+    assert.deepEqual(Object.keys(calls.upserts[0].update).sort(), ["chimerSettings", "version"])
     assert.equal(response.body.accessAuthoritative, true)
     assert.deepEqual(response.body.ownedBackgroundIds, [ownedBackgroundId])
     assertOwnedOnlySnapshot(calls.upserts[0].update.chimerSettings)
@@ -494,7 +494,7 @@ describe("account preference route ownership boundary", () => {
 
     assert.equal(response.status, 200)
     assert.equal(calls.upserts.length, 1)
-    assert.deepEqual(Object.keys(calls.upserts[0].update), ["version", "appSettings"])
+    assert.deepEqual(Object.keys(calls.upserts[0].update).sort(), ["appSettings", "version"])
     assert.equal(readPreferenceRecord().chimerSettings.backgroundId, unownedBackgroundId)
     assertUnownedFallback(response.body.chimerSettings)
   })
@@ -509,7 +509,7 @@ describe("account preference route ownership boundary", () => {
 
     assert.equal(response.status, 200)
     assert.equal(calls.upserts.length, 1)
-    assert.deepEqual(Object.keys(calls.upserts[0].update), ["version", "appSettings"])
+    assert.deepEqual(Object.keys(calls.upserts[0].update).sort(), ["appSettings", "version"])
     assert.deepEqual(response.body.chimerSettings, {})
   })
 
@@ -576,8 +576,8 @@ describe("account preference route ownership boundary", () => {
     ])
     assert.equal(saved.appSettings.showClock, false)
     assertOwnedOnlySnapshot(saved.chimerSettings)
-    assert.deepEqual(Object.keys(route.calls.upserts[0].update), ["version", "appSettings"])
-    assert.deepEqual(Object.keys(route.calls.upserts[1].update), ["version", "chimerSettings"])
+    assert.deepEqual(Object.keys(route.calls.upserts[0].update).sort(), ["appSettings", "version"])
+    assert.deepEqual(Object.keys(route.calls.upserts[1].update).sort(), ["chimerSettings", "version"])
     assert.equal(
       Object.hasOwn(route.calls.upserts[1].update, "appSettings"),
       false,

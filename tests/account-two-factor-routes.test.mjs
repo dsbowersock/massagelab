@@ -79,6 +79,10 @@ const routeSources = Object.fromEntries(await Promise.all(
     await readFile(new URL(route.source, import.meta.url), "utf8"),
   ]),
 ))
+const prismaSchemaSource = await readFile(
+  new URL("../prisma/schema.prisma", import.meta.url),
+  "utf8",
+)
 const routeBoundarySource = await readFile(
   new URL("../lib/account-two-factor-route-boundary.ts", import.meta.url),
   "utf8",
@@ -281,7 +285,9 @@ describe("two-factor management route boundaries", () => {
     for (const secureCookies of [false, true]) {
       const scenario = loadRoute("setup", { secureCookies })
       const response = await scenario.POST(routeRequest("setup", ROUTES.setup.body))
-      const [name, value, options] = cookieSets(response).find(([cookieName]) => cookieName === "ml-two-factor-enrollment")
+      const enrollmentCookie = cookieSets(response).find(([cookieName]) => cookieName === "ml-two-factor-enrollment")
+      assert.ok(enrollmentCookie, "setup must write the enrollment cookie")
+      const [name, value, options] = enrollmentCookie
 
       assert.equal(name, "ml-two-factor-enrollment")
       assert.equal(value, "signed-enrollment-binding")
@@ -406,10 +412,22 @@ describe("two-factor management route boundaries", () => {
   })
 
   it("keeps routes free of email scheduling, direct persistence, and proof logging", () => {
+    const prismaDelegateNames = [...prismaSchemaSource.matchAll(/^\s*model\s+([A-Za-z][A-Za-z0-9_]*)\s*\{/gm)]
+      .map(([, modelName]) => `${modelName[0].toLowerCase()}${modelName.slice(1)}`)
+    assert.ok(prismaDelegateNames.length > 0, "Prisma schema must expose model delegates")
+    const escapedDelegates = prismaDelegateNames
+      .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    const prismaMutation = new RegExp(
+      `\\b[A-Za-z_$][\\w$]*\\s*\\.\\s*(?:${escapedDelegates.join("|")})\\s*\\.\\s*`
+        + "(?:create|createMany|createManyAndReturn|update|updateMany|updateManyAndReturn|upsert|delete|deleteMany)\\s*\\(",
+    )
+    assert.match("db.user.update({})", prismaMutation)
+    assert.doesNotMatch("response.cookies.delete()", prismaMutation)
+    assert.doesNotMatch("ownerLocks.delete(userId)", prismaMutation)
     for (const [name, source] of Object.entries(routeSources)) {
       assert.doesNotMatch(source, /\bafter\s*\(|import\s*\{\s*after\b|deliverAccountSecurityEmail|sendEmail|scheduleEmail/i, name)
       assert.doesNotMatch(source, /console\s*\.|logger\s*\./, name)
-      assert.doesNotMatch(source, /\.(?:create|update|updateMany|upsert|delete|deleteMany)\s*\(/, name)
+      assert.doesNotMatch(source, prismaMutation, name)
     }
   })
 
@@ -438,6 +456,7 @@ function loadRoute(name, {
   let clockCalls = 0
   const prismaClient = { privateDatabaseAdapter: true }
   const service = async (input) => {
+    assert.equal(input.prismaClient, prismaClient, `${name} must forward the injected Prisma client`)
     serviceCalls.push(input)
     return result
   }
@@ -569,7 +588,9 @@ function assertNoStore(response) {
 }
 
 function assertBindingCookieCleared(response) {
-  const [name, value, options] = cookieSets(response).find(([cookieName]) => cookieName === "ml-auth-method-binding")
+  const bindingCookie = cookieSets(response).find(([cookieName]) => cookieName === "ml-auth-method-binding")
+  assert.ok(bindingCookie, "response must clear the Google binding cookie")
+  const [name, value, options] = bindingCookie
   assert.equal(name, "ml-auth-method-binding")
   assert.equal(value, "")
   assert.deepEqual(options, {
@@ -582,7 +603,9 @@ function assertBindingCookieCleared(response) {
 }
 
 function assertEnrollmentCookieCleared(response) {
-  const [name, value, options] = cookieSets(response).find(([cookieName]) => cookieName === "ml-two-factor-enrollment")
+  const enrollmentCookie = cookieSets(response).find(([cookieName]) => cookieName === "ml-two-factor-enrollment")
+  assert.ok(enrollmentCookie, "response must clear the enrollment cookie")
+  const [name, value, options] = enrollmentCookie
   assert.equal(name, "ml-two-factor-enrollment")
   assert.equal(value, "")
   assert.deepEqual(options, {

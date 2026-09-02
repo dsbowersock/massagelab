@@ -73,6 +73,7 @@ describe("development Clock review route", () => {
       /bootstrapStatus === "anonymous"[\s\S]*setAccountStatus\("anonymous"\)/,
     )
     const ownerAdoptionAnchor = musicProviderSource.indexOf("if (!storageHydrated)")
+    assert.notEqual(ownerAdoptionAnchor, -1, "Music provider owner-adoption anchor missing")
     const ownerAdoptionStart = musicProviderSource.lastIndexOf(
       "useEffect(() => {",
       ownerAdoptionAnchor,

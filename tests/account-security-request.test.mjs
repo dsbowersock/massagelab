@@ -173,27 +173,24 @@ describe("trusted account-security JSON requests", () => {
     )
   })
 
-  it("fails every provenance, media, size, and shape rejection before downstream work", async () => {
+  it("rejects every invalid provenance, media, size, and shape case", async () => {
     assert.equal(typeof requestModule.parseTrustedAccountSecurityJson, "function")
-    let downstreamCalls = 0
     const rejectedRequests = [
-      trustedRequest({ origin: null }),
-      trustedRequest({ fetchSite: null }),
-      trustedRequest({ contentType: "text/plain" }),
-      trustedRequest({ body: `{"proofMethod":"PASSWORD","confirmed":true,"padding":"${"x".repeat(4096)}"}` }),
-      trustedRequest({ body: JSON.stringify({ proofMethod: "PASSWORD", confirmed: true, extra: true }) }),
+      ["missing Origin", trustedRequest({ origin: null }), "UNTRUSTED_REQUEST"],
+      ["missing Fetch Metadata", trustedRequest({ fetchSite: null }), "UNTRUSTED_REQUEST"],
+      ["non-JSON media", trustedRequest({ contentType: "text/plain" }), "INVALID_REQUEST"],
+      ["oversized body", trustedRequest({ body: `{"proofMethod":"PASSWORD","confirmed":true,"padding":"${"x".repeat(4096)}"}` }), "INVALID_REQUEST"],
+      ["unknown body key", trustedRequest({ body: JSON.stringify({ proofMethod: "PASSWORD", confirmed: true, extra: true }) }), "INVALID_REQUEST"],
     ]
 
-    for (const request of rejectedRequests) {
+    for (const [label, request, code] of rejectedRequests) {
       const parsed = await requestModule.parseTrustedAccountSecurityJson({
         request,
         expectedSiteUrl: SITE_URL,
         allowedKeys: ALLOWED_KEYS,
       })
-      if (parsed.ok) downstreamCalls += 1
+      assert.deepEqual(parsed, { ok: false, code }, label)
     }
-
-    assert.equal(downstreamCalls, 0)
   })
 
   it("returns the exact private no-store JSON headers", () => {

@@ -426,8 +426,10 @@ describe("account shell bootstrap provider", () => {
 
   it("keeps projection, deadline, and owner-key layout contracts explicit", () => {
     assert.match(providerSource, /projectAccountShellAppSettings/)
-    assert.match(providerSource, /fetchJsonWithTimeout[\s\S]*10_000/)
-    assert.match(providerSource, /\/api\/account\/preferences/)
+    assert.match(
+      providerSource,
+      /fetchJsonWithTimeout<unknown>\(\s*"\/api\/account\/preferences",[\s\S]*?\n\s*10_000,\s*\)/,
+    )
     assert.match(layoutSource, /<AccountShellBootstrapProvider/)
     assert.match(layoutSource, /key=\{accountBootstrap\.ownerKey \?\? "anonymous"\}/)
     assert.match(layoutSource, /initialBootstrap=\{accountBootstrap\}/)

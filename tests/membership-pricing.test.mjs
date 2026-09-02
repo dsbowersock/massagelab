@@ -263,7 +263,7 @@ describe("Membership pricing catalog", () => {
     assert.equal(new Set(concurrent).size, 1)
     assert.equal(calls.every(({ params }) => JSON.stringify(params) === "{}"), true)
     assert.equal(calls.every(({ options }) => (
-      options.timeout === 2_500 && options.maxNetworkRetries === 1
+      options?.timeout === 2_500 && options?.maxNetworkRetries === 1
     )), true)
 
     await loader.get()

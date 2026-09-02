@@ -20,6 +20,13 @@ describe("public launch controls", () => {
       registrationOpen: true,
       supporterCheckoutOpen: false,
     })
+    assert.deepEqual(getPublicLaunchControls({
+      MASSAGELAB_PUBLIC_REGISTRATION_PAUSED: "true",
+      MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED: "true",
+    }), {
+      registrationOpen: false,
+      supporterCheckoutOpen: false,
+    })
   })
 
   it("intentionally fails open for non-exact operator values instead of trimming or case-normalizing them", () => {

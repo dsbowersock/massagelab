@@ -25,7 +25,7 @@ let providerHarnessBundlePromise
 function providerHarnessBundle() {
   if (providerHarnessBundlePromise) return providerHarnessBundlePromise
 
-  providerHarnessBundlePromise = (async () => {
+  const buildPromise = (async () => {
     const fixtureRoot = mkdtempSync(path.join(tmpdir(), "massagelab-commerce-provider-"))
     try {
       const outputRoot = path.join(fixtureRoot, "dist")
@@ -77,6 +77,7 @@ function providerHarnessBundle() {
           pendingStateFetches: 0,
           mutationMode: "success",
           mutationSettled: true,
+          checkoutError: null,
           checkoutSettled: false,
           errors: [],
         };
@@ -179,12 +180,13 @@ function providerHarnessBundle() {
         };
         harness.resolveMutation = () => mutationResolve(jsonResponse({ ok: true }));
         harness.startCheckout = () => {
+          harness.checkoutError = null;
           harness.checkoutSettled = false;
           latestCommerce.startCheckout({
             acceptedLegalDocuments: ["terms"],
             combinedConsentAccepted: true,
             purchaseCountry: "US",
-          }).finally(() => { harness.checkoutSettled = true; });
+          }).catch((error) => { harness.checkoutError = String(error); }).finally(() => { harness.checkoutSettled = true; });
         };
         harness.resolveCheckout = () => checkoutResolve(jsonResponse({ url: "https://checkout.stripe.com/c/pay/cs_test_stale" }));
         harness.resolveStateFetches = () => {
@@ -229,6 +231,10 @@ function providerHarnessBundle() {
       rmSync(fixtureRoot, { recursive: true, force: true })
     }
   })()
+  providerHarnessBundlePromise = buildPromise
+  void buildPromise.catch(() => {
+    if (providerHarnessBundlePromise === buildPromise) providerHarnessBundlePromise = undefined
+  })
 
   return providerHarnessBundlePromise
 }
@@ -356,7 +362,11 @@ describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, ()
       await page.waitForFunction(() => window.__commerceProviderHarness.checkoutSettled === true)
 
       assert.equal(page.url(), fixtureUrl)
-      const current = await page.evaluate(() => window.__commerceProviderHarness.read())
+      const { current, checkoutError } = await page.evaluate(() => ({
+        current: window.__commerceProviderHarness.read(),
+        checkoutError: window.__commerceProviderHarness.checkoutError,
+      }))
+      assert.equal(checkoutError, null)
       assert.equal(current.owner, "owner-b")
       assert.equal(current.state.status, "idle")
       assert.equal(current.state.pendingAction, null)

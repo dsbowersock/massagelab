@@ -29,8 +29,9 @@ const MEMBERSHIP_WRITES_PAUSED_ENV = "MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSE
 
 describe("signed membership webhook route", () => {
   it("keeps the cached display catalog outside webhook convergence authority", () => {
-    assert.doesNotMatch(routeSource, /membership-pricing(?:\.js)?["']/)
-    assert.doesNotMatch(membershipWebhookServiceSource, /membership-pricing(?:\.js)?["']/)
+    const membershipPricingImport = /(?:\bfrom\s+|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)["'][^"'\r\n]*membership-pricing[^"'\r\n]*["']/
+    assert.doesNotMatch(routeSource, membershipPricingImport)
+    assert.doesNotMatch(membershipWebhookServiceSource, membershipPricingImport)
   })
 
   it("verifies the exact raw body and signature before parsing or writing", async () => {
