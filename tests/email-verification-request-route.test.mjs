@@ -90,11 +90,18 @@ describe("email verification request route", () => {
       },
     })
 
-    await handler(requestPayload({ email: "person@example.com", callbackUrl: "/clock" }, {
-      "x-vercel-forwarded-for": "198.51.100.7",
-      "x-forwarded-for": "203.0.113.29, 10.0.0.4",
-      "x-real-ip": "192.0.2.5",
-    }))
+    const previousVercel = process.env.VERCEL
+    process.env.VERCEL = "1"
+    try {
+      await handler(requestPayload({ email: "person@example.com", callbackUrl: "/clock" }, {
+        "x-vercel-forwarded-for": "198.51.100.7",
+        "x-forwarded-for": "203.0.113.29, 10.0.0.4",
+        "x-real-ip": "192.0.2.5",
+      }))
+    } finally {
+      if (previousVercel === undefined) delete process.env.VERCEL
+      else process.env.VERCEL = previousVercel
+    }
 
     assert.equal(captured.networkIdentifier, "198.51.100.7")
   })
