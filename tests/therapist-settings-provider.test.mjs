@@ -28,6 +28,7 @@ function therapistProfileFetchCalls(source) {
     ts.ScriptKind.TSX,
   )
   const jsonFetchCalls = []
+  const timedFetchCalls = []
   const directFetchCalls = []
   const visit = (node) => {
     if (ts.isCallExpression(node)) {
@@ -35,12 +36,29 @@ function therapistProfileFetchCalls(source) {
       if (ts.isIdentifier(node.expression)) calleeName = node.expression.text
       else if (ts.isPropertyAccessExpression(node.expression)) calleeName = node.expression.name.text
       if (calleeName === "fetchJsonWithTimeout") jsonFetchCalls.push(node)
+      if (calleeName === "fetchWithTimeout") timedFetchCalls.push(node)
       if (calleeName === "fetch") directFetchCalls.push(node)
     }
     ts.forEachChild(node, visit)
   }
   visit(sourceFile)
-  return { directFetchCalls, jsonFetchCalls, sourceFile }
+  return { directFetchCalls, jsonFetchCalls, sourceFile, timedFetchCalls }
+}
+
+/** Reads one direct string property from a call's object-literal options. */
+function callStringOption(call, optionName) {
+  const options = call.arguments[1]
+  if (!options || !ts.isObjectLiteralExpression(options)) return null
+  const property = options.properties.find((candidate) => (
+    ts.isPropertyAssignment(candidate)
+    && ((ts.isIdentifier(candidate.name) && candidate.name.text === optionName)
+      || (ts.isStringLiteralLike(candidate.name) && candidate.name.text === optionName))
+  ))
+  return property
+    && ts.isPropertyAssignment(property)
+    && ts.isStringLiteralLike(property.initializer)
+    ? property.initializer.text
+    : null
 }
 
 /** Returns fresh inert provider dependencies so compiled harnesses cannot share hook state. */
@@ -1147,16 +1165,20 @@ describe("therapist settings cloud hydration", () => {
     const profileFetches = therapistProfileFetchCalls(providerSource)
     assert.equal(profileFetches.jsonFetchCalls.length, 1, "provider must own one JSON profile fetch")
     const [profileFetch] = profileFetches.jsonFetchCalls
-    assert.equal(profileFetch.arguments[0]?.getText(profileFetches.sourceFile), '"/api/account/profile"')
-    assert.match(profileFetch.arguments[1]?.getText(profileFetches.sourceFile) ?? "", /method:\s*"GET"/)
-    assert.equal(profileFetch.arguments[2]?.getText(profileFetches.sourceFile), "10_000")
+    assert.equal(profileFetch.arguments[0]?.text, "/api/account/profile")
+    assert.equal(callStringOption(profileFetch, "method"), "GET")
+    assert.equal(Number(profileFetch.arguments[2]?.text), 10_000)
+    assert.equal(profileFetches.timedFetchCalls.length, 1, "provider must own one timed profile write")
+    const [profileWrite] = profileFetches.timedFetchCalls
+    assert.equal(profileWrite.arguments[0]?.text, "/api/account/profile")
+    assert.equal(callStringOption(profileWrite, "method"), "PUT")
+    assert.equal(Number(profileWrite.arguments[2]?.text), 10_000)
     assert.equal(profileFetches.directFetchCalls.length, 0, "provider must not call raw fetch directly")
     assert.match(providerSource, /massage-lab-therapist-settings/)
     assert.match(
       providerSource,
       /export function useTherapistSettings[\s\S]*useEffect\([\s\S]*ensureCloudHydrated/,
     )
-    assert.match(providerSource, /method:\s*"PUT"/)
     assert.match(providerSource, /body:\s*JSON\.stringify\(\{ therapistSettings: nextSettings \}\)/)
     assert.match(layoutSource, /<TherapistSettingsProvider>/)
     assert.doesNotMatch(layoutSource, /<TherapistSettingsProvider\s+syncEnabled=/)

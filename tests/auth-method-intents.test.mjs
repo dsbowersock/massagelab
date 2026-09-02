@@ -697,7 +697,8 @@ describe("private Google auth-method intents", () => {
           purpose: "SIGN_IN_OR_LINK",
           callbackUrl: "/wellness",
         }))
-        assert.deepEqual(response.cookieSet, {
+        assert.equal(response.cookieSets.length, 1, nodeEnvironment)
+        assert.deepEqual(response.cookieSets[0], {
           name: "ml-auth-method-binding",
           value: `default-intent.${"a".repeat(43)}`,
           options: {
@@ -980,9 +981,10 @@ function testNextResponse() {
       })
       response.cookies = {
         set: (...args) => {
-          response.cookieSet = normalizeCookieSetArguments(args)
+          response.cookieSets.push(normalizeCookieSetArguments(args))
         },
       }
+      response.cookieSets = []
       return response
     },
   }

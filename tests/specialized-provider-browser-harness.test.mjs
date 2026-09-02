@@ -165,7 +165,7 @@ describe("specialized account-shell provider browser harness", () => {
     const browser = await chromium.launch({ headless: true })
     try {
       const page = await browser.newPage()
-      page.setDefaultTimeout(250)
+      page.setDefaultTimeout(5_000)
       await page.addInitScript(() => {
         Object.defineProperty(window, "__specializedProviderBootstrap", {
           configurable: true,

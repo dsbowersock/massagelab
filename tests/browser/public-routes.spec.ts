@@ -322,7 +322,7 @@ async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<st
   })
 
   page.on("requestfailed", (request) => {
-    if (isLocalHttpUrl(request.url(), networkGuard.localHostname)) return
+    if (!isExternalHttpUrl(request.url(), networkGuard.localHostname)) return
     const failureText = request.failure()?.errorText ?? "unknown failure"
     if (failureText === "net::ERR_ABORTED" && networkGuard.ownedPreviewFixtureRequests.has(request)) {
       networkGuard.ownedPreviewCancellations.push(`${request.method()} ${request.url()}`)
@@ -368,6 +368,13 @@ test("public network classification keeps locality exact to loopback and the con
   expect(isLocalHttpUrl(`http://${configuredLanHostname}:3010/local`, configuredLanHostname)).toBe(true)
   expect(isLocalHttpUrl("http://192.168.50.21:3010/private", configuredLanHostname)).toBe(false)
   expect(isExternalHttpUrl("http://192.168.50.21:3010/private", configuredLanHostname)).toBe(true)
+
+  for (const nonHttpUrl of [
+    "blob:https://external.browser-qa.invalid/non-http",
+    "data:text/plain,non-http",
+  ]) {
+    expect(isExternalHttpUrl(nonHttpUrl, configuredHostname), nonHttpUrl).toBe(false)
+  }
 })
 
 test("every public journey blocks and records an unexpected successful external resource", async ({ context, page }) => {

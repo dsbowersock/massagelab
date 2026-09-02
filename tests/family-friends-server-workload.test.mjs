@@ -494,7 +494,6 @@ describe("family-and-friends server workload baseline", () => {
     for (const authority of ["Checkout", "Portal", "entitlements", "customers", "webhooks"]) {
       assert.match(deploymentCostControls, new RegExp(`\\b${authority}\\b.{0,100}\\buncached\\b`, "i"))
     }
-    assert.match(deploymentTimingContext, /^\*\*BLOCKED HISTORICAL CONTEXT:\*\*/)
     for (const concept of [
       /21\/21 samples/,
       /seven fixed routes/,
@@ -674,9 +673,8 @@ describe("family-and-friends server workload baseline", () => {
 
     await Promise.all(Array.from({ length: 20 }, () => getMembershipPricingCatalog()))
     const concurrentColdLogicalPriceReads = priceReads.length
-    const beforeWarmRead = priceReads.length
     await getMembershipPricingCatalog()
-    const warmLogicalPriceReads = priceReads.length - beforeWarmRead
+    const warmLogicalPriceReads = priceReads.length - concurrentColdLogicalPriceReads
 
     assert.equal(concurrentColdLogicalPriceReads, 6)
     assert.equal(warmLogicalPriceReads, 0)

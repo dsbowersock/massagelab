@@ -49,7 +49,7 @@ function actionHandlerSource(source, functionName, nextFunctionName) {
   return source.slice(start, end)
 }
 
-/** Finds direct, optional, indexed, or destructured `result.message` reads. */
+/** Finds direct, optional, indexed, destructured, or whole-object copies of `result.message`. */
 function resultMessageReads(source) {
   const sourceFile = ts.createSourceFile(
     "result-message-privacy.tsx",
@@ -88,7 +88,8 @@ function resultMessageReads(source) {
   const objectLiteralReadsMessage = (node) => {
     const value = ts.isParenthesizedExpression(node) ? node.expression : node
     return ts.isObjectLiteralExpression(value) && value.properties.some((property) => (
-      (ts.isShorthandPropertyAssignment(property) && property.name.text === "message")
+      ts.isSpreadAssignment(property)
+      || (ts.isShorthandPropertyAssignment(property) && property.name.text === "message")
       || (ts.isPropertyAssignment(property) && isMessage(property.name))
     ))
   }
@@ -111,7 +112,7 @@ function resultMessageReads(source) {
       && isResult(node.initializer)
       && ts.isObjectBindingPattern(node.name)
       && node.name.elements.some((element) => (
-        !element.dotDotDotToken && isMessage(element.propertyName ?? element.name)
+        element.dotDotDotToken || isMessage(element.propertyName ?? element.name)
       ))
     ) {
       reads.push(node)
@@ -120,6 +121,11 @@ function resultMessageReads(source) {
       && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
       && isResult(node.right)
       && objectLiteralReadsMessage(node.left)
+    ) {
+      reads.push(node)
+    } else if (
+      ts.isSpreadAssignment(node)
+      && isResult(node.expression)
     ) {
       reads.push(node)
     }
@@ -295,10 +301,21 @@ describe("recoverable account-method UI contracts", () => {
       "const { message } = (result satisfies { message: string })",
       "const { message: feedback } = result",
       "({ message } = result)",
+      "const { ...rest } = result",
+      "const { code, ...rest } = result",
+      "({ ...rest } = result)",
+      "consume({ ...result })",
+      "consume({ code: 'safe', ...result })",
     ]) {
       assert.equal(resultMessageReads(source).length, 1, source)
     }
-    assert.equal(resultMessageReads("consume(result.code); const { code } = result").length, 0)
+    for (const source of [
+      "consume(result.code); const { code } = result",
+      "const { ...rest } = other; consume({ ...other })",
+      "consume({ message: safeMessage })",
+    ]) {
+      assert.equal(resultMessageReads(source).length, 0, source)
+    }
   })
 
   it("allowlists actionable matching-account recovery without rendering arbitrary response text", async () => {

@@ -156,10 +156,11 @@ describe("same-browser two-factor enrollment binding", () => {
     const mismatchedFingerprint = signedPayload({ ...payload, secretRowFingerprint: "f".repeat(43) })
     const wrongLengthFingerprint = signedPayload({ ...payload, secretRowFingerprint: "f".repeat(42) })
     const nonBase64UrlFingerprint = signedPayload({ ...payload, secretRowFingerprint: `${"f".repeat(42)}+` })
-    const duplicate = signedSerializedPayload(canonicalSerializedPayload(payload).replace(
-      '"userId":"user-1"',
-      '"userId":"user-1","userId":"user-1"',
-    ))
+    const canonicalPayload = canonicalSerializedPayload(payload)
+    const userIdField = `"userId":${JSON.stringify(payload.userId)}`
+    const duplicatePayload = canonicalPayload.replace(userIdField, `${userIdField},${userIdField}`)
+    assert.notEqual(duplicatePayload, canonicalPayload, "duplicate userId fixture must change the payload")
+    const duplicate = signedSerializedPayload(duplicatePayload)
 
     for (const value of [
       reordered,

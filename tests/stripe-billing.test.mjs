@@ -17,6 +17,7 @@ import {
   SUPPORTER_RECURRING_TAX_BEHAVIOR,
   SUPPORTER_RECURRING_TAX_CODE,
 } from "../lib/stripe-price-contract.js"
+import { STRIPE_API_VERSION as CENTRAL_STRIPE_API_VERSION } from "../lib/stripe-webhook-contract.js"
 import { safeErrorCode } from "../lib/safe-error-code.js"
 
 const DEFAULT_SUPPORTER_PRICE_ID = "price_supporter_1_monthly"
@@ -65,6 +66,12 @@ function captureTimersWithDelay(delayMs) {
 }
 
 describe("Stripe billing helpers", () => {
+  it("constructs the default Stripe client with the centralized API version", () => {
+    const stripeClient = stripeBilling.getStripeClient("sk_test_api_version_contract")
+
+    assert.equal(stripeClient.getApiField("version"), CENTRAL_STRIPE_API_VERSION)
+  })
+
   it("passes optional per-request options through the read-only Price lookup", async () => {
     const calls = []
     const requestOptions = { timeout: 2_500, maxNetworkRetries: 1 }

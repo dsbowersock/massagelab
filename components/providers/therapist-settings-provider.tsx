@@ -403,7 +403,7 @@ export function TherapistSettingsProvider({ children }: { children: ReactNode })
         headers: { "content-type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({ therapistSettings: nextSettings }),
-      })
+      }, 10_000)
       return response.ok
         && !controller.signal.aborted
         && profileWriteOwnerRef.current.ownerKey === requestOwnerKey
