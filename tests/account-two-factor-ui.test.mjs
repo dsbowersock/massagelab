@@ -38,6 +38,7 @@ async function createPanelHarness({
   googleLinked = false,
   googleReauthReturnHint = null,
   fetchImpl = async () => jsonResponse(500, {}),
+  cleanupEffect = null,
   signInImpl = async (_provider, options) => {
     globalThis.window.location.href = String(options?.redirectTo ?? globalThis.window.location.href)
   },
@@ -134,9 +135,13 @@ async function createPanelHarness({
   function restore() {
     if (restored) return
     restored = true
-    globalThis.fetch = previousFetch
-    if (previousWindow === undefined) delete globalThis.window
-    else globalThis.window = previousWindow
+    try {
+      hooks.unmount()
+    } finally {
+      globalThis.fetch = previousFetch
+      if (previousWindow === undefined) delete globalThis.window
+      else globalThis.window = previousWindow
+    }
   }
   harnessRestorations.push(restore)
 
@@ -160,6 +165,7 @@ async function createPanelHarness({
       if (!nextMountedRefs.has(ref)) ref.current = null
     }
     mountedRefs = nextMountedRefs
+    if (cleanupEffect) hooks.react.useEffect(() => cleanupEffect, [cleanupEffect])
     hooks.finishRender()
     return tree
   }
@@ -174,6 +180,60 @@ async function createPanelHarness({
     restore,
   }
 }
+
+describe("account two-factor UI hook harness", () => {
+  it("cleans changed, removed, and unmounted effects by hook index", () => {
+    const hooks = createHookRuntime()
+    const events = []
+
+    function render(dependency, includeChild) {
+      hooks.startRender()
+      hooks.react.useEffect(() => {
+        events.push(`setup:${dependency}`)
+        return () => events.push(`cleanup:${dependency}`)
+      }, [dependency])
+      hooks.react.useEffect(() => {
+        events.push("setup:stable")
+        return () => events.push("cleanup:stable")
+      }, [])
+      if (includeChild) {
+        hooks.react.useEffect(() => {
+          events.push("setup:tail")
+          return () => events.push("cleanup:tail")
+        }, [])
+      }
+      hooks.finishRender()
+    }
+
+    render("first", true)
+    render("second", false)
+    hooks.unmount()
+
+    assert.deepEqual(events, [
+      "setup:first",
+      "setup:stable",
+      "setup:tail",
+      "cleanup:first",
+      "cleanup:tail",
+      "setup:second",
+      "cleanup:second",
+      "cleanup:stable",
+    ])
+  })
+
+  it("restores browser globals when an effect cleanup throws", async () => {
+    const previousFetch = globalThis.fetch
+    const previousWindow = globalThis.window
+    const harness = await createPanelHarness({
+      cleanupEffect: () => { throw new Error("forced effect cleanup failure") },
+    })
+    harness.render()
+
+    assert.throws(() => harness.restore(), /forced effect cleanup failure/)
+    assert.equal(globalThis.fetch, previousFetch)
+    assert.equal(globalThis.window, previousWindow)
+  })
+})
 
 describe("security method coordination", () => {
   it("publishes successful method changes to the sibling 2FA panel without weakening the shared action lock", async () => {
@@ -742,7 +802,7 @@ describe("recoverable two-factor management UI", () => {
 function createHookRuntime() {
   const states = []
   const refs = []
-  const effectDependencies = []
+  const effects = []
   const pendingEffects = []
   let stateCursor = 0
   let refCursor = 0
@@ -755,19 +815,44 @@ function createHookRuntime() {
       pendingEffects.length = 0
     },
     finishRender() {
-      for (const effect of pendingEffects.splice(0)) effect()
+      const pending = pendingEffects.splice(0)
+      const changedIndexes = new Set(pending.map(({ index }) => index))
+      const cleanups = []
+      for (let index = 0; index < effects.length; index += 1) {
+        if (index < effectCursor && !changedIndexes.has(index)) continue
+        const cleanup = effects[index]?.cleanup
+        if (cleanup) cleanups.push(cleanup)
+      }
+      for (const cleanup of cleanups) cleanup()
+      effects.length = effectCursor
+      for (const { dependencies, effect, index } of pending) {
+        const cleanup = effect()
+        effects[index] = {
+          cleanup: typeof cleanup === "function" ? cleanup : undefined,
+          dependencies,
+        }
+      }
+    },
+    unmount() {
+      for (const effect of effects) effect?.cleanup?.()
+      effects.length = 0
+      pendingEffects.length = 0
     },
     react: {
       useEffect(effect, dependencies) {
         const index = effectCursor
         effectCursor += 1
-        const previous = effectDependencies[index]
-        const changed = !previous
+        const previous = effects[index]?.dependencies
+        const changed = dependencies === undefined
+          || previous === undefined
           || previous.length !== dependencies.length
           || previous.some((value, dependencyIndex) => !Object.is(value, dependencies[dependencyIndex]))
         if (changed) {
-          effectDependencies[index] = dependencies
-          pendingEffects.push(effect)
+          pendingEffects.push({
+            dependencies: dependencies === undefined ? undefined : [...dependencies],
+            effect,
+            index,
+          })
         }
       },
       useState(initialValue) {

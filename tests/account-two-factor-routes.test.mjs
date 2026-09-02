@@ -167,9 +167,10 @@ describe("two-factor management route boundaries", () => {
     })
   }
 
-  it("rejects oversized union bodies promptly before session, proof, service, or cache work", { timeout: 2_000 }, async () => {
+  it("rejects oversized union bodies promptly before session, proof, service, cache, or terminal cookie work", { timeout: 2_000 }, async () => {
     const oversizedBodies = {
       setup: { ...ROUTES.setup.body, password: "x".repeat(5_000) },
+      enable: { ...ROUTES.enable.body, code: "x".repeat(5_000) },
       disable: { ...ROUTES.disable.body, password: "x".repeat(5_000) },
       regenerate: { ...ROUTES.regenerate.body, password: "x".repeat(5_000) },
     }
@@ -190,6 +191,7 @@ describe("two-factor management route boundaries", () => {
         service: 0,
         cache: 0,
       }, name)
+      assert.equal(cookieSets(response).length, 0, `${name}: oversized rejection must not enter terminal cookie handling`)
       assertNoStore(response)
     }
   })

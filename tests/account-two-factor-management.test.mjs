@@ -971,6 +971,15 @@ describe("dual-proof destructive two-factor management", () => {
   })
 })
 
+describe("two-factor management database double", () => {
+  it("fails loudly for unsupported nested filters instead of treating them as a mismatch", () => {
+    assert.throws(
+      () => matches({ createdAt: NOW }, { createdAt: { lt: NOW } }),
+      /Unsupported nested database filter for createdAt/,
+    )
+  })
+})
+
 function start(database, overrides = {}) {
   return service.startTwoFactorEnrollment({
     prismaClient: database,
@@ -1407,6 +1416,7 @@ function matches(row, where = {}) {
     if (expected && typeof expected === "object" && !(expected instanceof Date)) {
       if (Object.hasOwn(expected, "gt")) return actual > expected.gt
       if (Object.hasOwn(expected, "in")) return expected.in.includes(actual)
+      throw new Error(`Unsupported nested database filter for ${key}`)
     }
     if (actual instanceof Date || expected instanceof Date) {
       return actual instanceof Date && expected instanceof Date && actual.getTime() === expected.getTime()

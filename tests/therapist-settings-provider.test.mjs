@@ -343,9 +343,12 @@ function loadProviderOwnerTransitionHarness({
       ownerBProfile.resolve(profile)
     },
     restore() {
-      for (const slot of effectSlots) slot?.cleanup?.()
-      globalThis.localStorage = previousLocalStorage
-      globalThis.window = previousWindow
+      try {
+        for (const slot of effectSlots) slot?.cleanup?.()
+      } finally {
+        globalThis.localStorage = previousLocalStorage
+        globalThis.window = previousWindow
+      }
     },
     dispatchOnline() {
       for (const listener of [...(windowListeners.get("online") ?? [])]) listener()
@@ -797,6 +800,36 @@ describe("therapist settings cloud hydration", () => {
         }),
         /forced provider setup failure/,
       )
+      assert.equal(globalThis.localStorage, sentinelLocalStorage)
+      assert.equal(globalThis.window, sentinelWindow)
+    } finally {
+      globalThis.localStorage = previousLocalStorage
+      globalThis.window = previousWindow
+    }
+  })
+
+  it("restores the previous browser globals when an effect cleanup throws", () => {
+    const previousLocalStorage = globalThis.localStorage
+    const previousWindow = globalThis.window
+    const sentinelLocalStorage = { sentinel: "cleanup-local-storage" }
+    const sentinelWindow = { sentinel: "cleanup-window" }
+    globalThis.localStorage = sentinelLocalStorage
+    globalThis.window = sentinelWindow
+
+    try {
+      const harness = loadProviderOwnerTransitionHarness({
+        moduleSource: `
+          import { useEffect } from "react"
+          export function TherapistSettingsProvider() {
+            useEffect(() => () => { throw new Error("forced cleanup failure") }, [])
+            return { props: { value: {} } }
+          }
+        `,
+      })
+      harness.render()
+      harness.flushEffects()
+
+      assert.throws(() => harness.restore(), /forced cleanup failure/)
       assert.equal(globalThis.localStorage, sentinelLocalStorage)
       assert.equal(globalThis.window, sentinelWindow)
     } finally {
