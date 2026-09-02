@@ -134,6 +134,11 @@ function loadProviderUpdaterHarness({ profile = {}, storageWriteThrows = false }
 
   try {
     const element = provider.TherapistSettingsProvider({ children: null })
+    assert.equal(
+      stateCall,
+      CLOUD_STATE_SLOT,
+      "provider updater harness must observe exactly owned settings, coordinator, and cloud state",
+    )
     return {
       profileWrites,
       storageWrites,
@@ -773,10 +778,13 @@ describe("therapist settings cloud hydration", () => {
     }
   })
 
-  it("restores the previous local storage when owner-transition setup throws", () => {
+  it("restores the previous browser globals when owner-transition setup throws", () => {
     const previousLocalStorage = globalThis.localStorage
+    const previousWindow = globalThis.window
     const sentinelLocalStorage = { sentinel: true }
+    const sentinelWindow = { sentinel: true }
     globalThis.localStorage = sentinelLocalStorage
+    globalThis.window = sentinelWindow
 
     try {
       assert.throws(
@@ -786,8 +794,10 @@ describe("therapist settings cloud hydration", () => {
         /forced provider setup failure/,
       )
       assert.equal(globalThis.localStorage, sentinelLocalStorage)
+      assert.equal(globalThis.window, sentinelWindow)
     } finally {
       globalThis.localStorage = previousLocalStorage
+      globalThis.window = previousWindow
     }
   })
 

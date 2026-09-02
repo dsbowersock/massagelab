@@ -36,7 +36,13 @@ function sliceLinkProps(toolLink) {
 }
 
 /** Runs the real provider through owner/sync rerenders with React-like effect cleanup. */
-function createSettingsOwnerTransitionHarness() {
+function createSettingsOwnerTransitionHarness({
+  replayFunctionalStateUpdaters = false,
+  writeOutcomes = {
+    "owner-a": [false],
+    "owner-b": [false, true],
+  },
+} = {}) {
   let ownerKey = "owner-a"
   let syncEnabled = true
   let stateCursor = 0
@@ -50,10 +56,10 @@ function createSettingsOwnerTransitionHarness() {
   const pendingEffects = new Map()
   const windowListeners = new Map()
   const accountWrites = []
-  const writeResults = new Map([
-    ["owner-a", [false]],
-    ["owner-b", [false, true]],
-  ])
+  const storageWrites = []
+  const writeResults = new Map(
+    Object.entries(writeOutcomes).map(([writeOwnerKey, outcomes]) => [writeOwnerKey, [...outcomes]]),
+  )
   const sameDependencies = (left, right) => (
     Array.isArray(left)
     && Array.isArray(right)
@@ -102,9 +108,15 @@ function createSettingsOwnerTransitionHarness() {
             stateSlots[cursor] = { value: typeof initial === "function" ? initial() : initial }
           }
           return [stateSlots[cursor].value, (update) => {
-            stateSlots[cursor].value = typeof update === "function"
-              ? update(stateSlots[cursor].value)
-              : update
+            if (typeof update !== "function") {
+              stateSlots[cursor].value = update
+              return
+            }
+            const current = stateSlots[cursor].value
+            const next = update(current)
+            stateSlots[cursor].value = replayFunctionalStateUpdaters
+              ? update(current)
+              : next
           }]
         },
       },
@@ -139,7 +151,7 @@ function createSettingsOwnerTransitionHarness() {
   globalThis.localStorage = {
     getItem: () => null,
     removeItem: () => undefined,
-    setItem: () => undefined,
+    setItem: (...args) => storageWrites.push(args),
   }
   globalThis.window = {
     addEventListener(type, listener) {
@@ -159,6 +171,7 @@ function createSettingsOwnerTransitionHarness() {
 
   return {
     accountWrites,
+    storageWrites,
     dispatchOnline() {
       for (const listener of [...(windowListeners.get("online") ?? [])]) listener()
     },
@@ -203,100 +216,34 @@ describe("App settings helpers", () => {
     assert.doesNotMatch(settingsProviderSource, /syncEnabled\?: boolean/)
     assert.match(settingsProviderSource, /localStorage\.getItem\("massage-lab-settings"\)/)
     assert.match(settingsProviderSource, /writeAppSettingsPatch\(updated\)/)
+    assert.doesNotMatch(settingsProviderSource, /setSettings\s*\(\s*(?:\([^)]*\)|\w+)\s*=>/)
   })
 
   it("performs replay-safe effects once and retries the latest failed write online", async () => {
-    const effects = []
-    const storageWrites = []
-    const accountWrites = []
-    const windowListeners = new Map()
-    const writeResults = [false, true]
-    let stateCall = 0
-    const provider = loadCompiledModule(
-      settingsProviderSource,
-      "components/providers/settings-provider-replay.test.tsx",
-      {
-        react: {
-          createContext: () => ({ Provider: "SettingsContextProvider" }),
-          useCallback: (callback) => callback,
-          useContext: () => null,
-          useEffect: (effect) => effects.push(effect),
-          useRef: (value) => ({ current: value }),
-          useState: (initial) => {
-            stateCall += 1
-            const value = stateCall === 2
-              ? true
-              : typeof initial === "function" ? initial() : initial
-            return [value, (update) => {
-              if (typeof update === "function") {
-                update(value)
-                update(value)
-              }
-            }]
-          },
-        },
-        "@/components/providers/account-shell-bootstrap-provider": {
-          useAccountShellBootstrap: () => ({
-            ownerKey: "owner-a",
-            syncEnabled: true,
-            status: "ready",
-            appSettings: { app: defaultAppSettings },
-            writeAppSettingsPatch: async (patch) => {
-              accountWrites.push(patch)
-              return writeResults.shift() ?? true
-            },
-          }),
-        },
-        "@/lib/app-settings": appSettingsModule,
-      },
-    )
-    const previousDocument = globalThis.document
-    const previousLocalStorage = globalThis.localStorage
-    const previousWindow = globalThis.window
-    globalThis.document = {
-      documentElement: {
-        classList: { toggle: () => undefined },
-        dataset: {},
-        style: {},
-      },
-    }
-    globalThis.localStorage = {
-      getItem: () => null,
-      removeItem: () => undefined,
-      setItem: (...args) => storageWrites.push(args),
-    }
-    globalThis.window = {
-      addEventListener: (type, listener) => windowListeners.set(type, listener),
-      removeEventListener: (type, listener) => {
-        if (windowListeners.get(type) === listener) windowListeners.delete(type)
-      },
-      matchMedia: () => ({
-        matches: true,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-      }),
-    }
+    const harness = createSettingsOwnerTransitionHarness({
+      replayFunctionalStateUpdaters: true,
+      writeOutcomes: { "owner-a": [false, true] },
+    })
 
     try {
-      const element = provider.SettingsProvider({ children: null })
-      effects.forEach((effect) => effect())
-      storageWrites.length = 0
-      element.props.value.updateSettings({ themeMode: "light" })
+      harness.render()
+      harness.flushEffects()
+      const replayView = harness.render()
+      harness.flushEffects()
+      harness.storageWrites.length = 0
+      replayView.updateSettings({ themeMode: "light" })
       await Promise.resolve()
 
-      assert.equal(storageWrites.length, 1)
-      assert.equal(accountWrites.length, 1)
-      assert.equal(accountWrites[0].themeMode, "light")
-      windowListeners.get("online")()
+      assert.equal(harness.storageWrites.length, 1)
+      assert.equal(harness.accountWrites.length, 1)
+      assert.equal(harness.accountWrites[0].patch.themeMode, "light")
+      harness.dispatchOnline()
       await Promise.resolve()
       await Promise.resolve()
-      assert.equal(accountWrites.length, 2)
-      assert.deepEqual(accountWrites[1], accountWrites[0])
-      assert.doesNotMatch(settingsProviderSource, /setSettings\s*\(\s*(?:\([^)]*\)|\w+)\s*=>/)
+      assert.equal(harness.accountWrites.length, 2)
+      assert.deepEqual(harness.accountWrites[1].patch, harness.accountWrites[0].patch)
     } finally {
-      globalThis.document = previousDocument
-      globalThis.localStorage = previousLocalStorage
-      globalThis.window = previousWindow
+      harness.restore()
     }
   })
 

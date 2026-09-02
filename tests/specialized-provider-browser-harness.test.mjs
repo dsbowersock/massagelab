@@ -75,14 +75,20 @@ describe("specialized account-shell provider browser harness", () => {
 
       assert.equal(result.mounted.profileGets, 0)
       assert.equal(result.mounted.calendarGets, 0)
+      assert.deepEqual(result.mounted.profileTimeouts, [])
+      assert.deepEqual(result.mounted.calendarTimeouts, [])
       assert.equal(result.firstConsumer.profileGets, 1)
       assert.equal(result.firstConsumer.calendarGets, 0)
+      assert.deepEqual(result.firstConsumer.profileTimeouts, [10_000])
+      assert.deepEqual(result.firstConsumer.calendarTimeouts, [])
       assert.equal(result.concurrentConsumer.profileGets, 1)
+      assert.deepEqual(result.concurrentConsumer.profileTimeouts, [10_000])
       assert.deepEqual(result.hydrated.consumerNames, [
         "Synthetic Therapist",
         "Synthetic Therapist",
       ])
       assert.equal(result.practiceEnabled.calendarGets, 1)
+      assert.deepEqual(result.practiceEnabled.calendarTimeouts, [10_000])
       assert.equal(result.practiceEnabled.practiceId, "practice-inert")
       assert.deepEqual(result.practiceEnabled.errors, [])
     } finally {

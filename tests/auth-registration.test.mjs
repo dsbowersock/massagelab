@@ -168,7 +168,13 @@ describe("registration email delivery policy", () => {
     assert.match(registerForm, /pendingLabel="Creating account…"/)
     assert.match(registerForm, /pendingLabel="Connecting to Google…"/)
     assert.match(registerForm, /matching email[\s\S]*same account[\s\S]*inbox/i)
-    assert.match(loginForm, /let navigationStarted = false[\s\S]*router\.push\(callbackUrl\)[\s\S]*router\.refresh\(\)[\s\S]*navigationStarted = true[\s\S]*finally \{[\s\S]*if \(!navigationStarted\)/)
+    const emailLoginHandler = sourceBetween(
+      loginForm,
+      "  async function handleEmailLogin",
+      "  async function handleGoogleLogin",
+      "email login handler",
+    )
+    assert.match(emailLoginHandler, /let navigationStarted = false[\s\S]*router\.push\(callbackUrl\)[\s\S]*router\.refresh\(\)[\s\S]*navigationStarted = true[\s\S]*finally \{[\s\S]*if \(!navigationStarted\)/)
   })
 
   it("preserves one sanitized legal-accept callback in the login registration handoff", async () => {
@@ -304,6 +310,15 @@ describe("registration email delivery policy", () => {
     assert.match(verifyPage, /buildVerificationLoginPath\(verified, callbackUrl\)/)
   })
 })
+
+/** Isolates one source-owned region so ordering assertions cannot cross handlers. */
+function sourceBetween(source, startMarker, endMarker, label) {
+  const start = source.indexOf(startMarker)
+  const end = source.indexOf(endMarker, start + startMarker.length)
+  assert.notEqual(start, -1, `${label} start marker missing`)
+  assert.ok(end > start, `${label} end marker missing`)
+  return source.slice(start, end)
+}
 
 async function loadRegistrationRoute({ afterCallbacks, registerWork, registrationOpen = true }) {
   const source = await readFile(new URL("../app/api/account/register/route.ts", import.meta.url), "utf8")

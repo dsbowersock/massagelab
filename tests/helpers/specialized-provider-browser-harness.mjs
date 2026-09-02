@@ -94,7 +94,11 @@ const specializedProviderBundle = createSpecializedProviderBundleLoader(async ()
         export function useAccountShellBootstrap() {
           return window.__specializedProviderBootstrap;
         }
-        export async function fetchJsonWithTimeout(input, init) {
+        export async function fetchJsonWithTimeout(input, init, timeoutMs) {
+          const pathname = new URL(String(input), "https://massagelab-specialized.test").pathname;
+          const harness = window.__specializedProviderHarness;
+          if (pathname === "/api/account/profile") harness.profileTimeouts.push(timeoutMs);
+          if (pathname === "/api/calendar/sidebar-context") harness.calendarTimeouts.push(timeoutMs);
           const response = await fetch(input, init);
           return { response, json: response.ok ? await response.json() : undefined };
         }
@@ -117,6 +121,8 @@ const specializedProviderBundle = createSpecializedProviderBundleLoader(async ()
         const harness = window.__specializedProviderHarness = {
           profileGets: 0,
           calendarGets: 0,
+          profileTimeouts: [],
+          calendarTimeouts: [],
           consumerCount: 0,
           passiveConsumerCount: null,
           practiceEnabled: false,
@@ -147,6 +153,11 @@ const specializedProviderBundle = createSpecializedProviderBundleLoader(async ()
           const method = init.method || "GET";
           if (pathname === "/api/account/profile" && method === "GET") {
             harness.profileGets += 1;
+            if (resolveProfile) {
+              const message = "Duplicate synthetic profile request started before the pending request settled.";
+              harness.errors.push(message);
+              throw new Error(message);
+            }
             return new Promise((resolve) => {
               resolveProfile = () => resolve(jsonResponse({
                 therapistName: "Synthetic Therapist",
@@ -217,11 +228,15 @@ const specializedProviderBundle = createSpecializedProviderBundleLoader(async ()
         harness.setPracticeEnabled = (enabled) => setPracticeEnabled(enabled);
         harness.resolveProfile = () => {
           if (!resolveProfile) throw new Error("The synthetic profile request has not started.");
-          resolveProfile();
+          const pendingProfile = resolveProfile;
+          resolveProfile = null;
+          pendingProfile();
         };
         harness.read = () => ({
           profileGets: harness.profileGets,
           calendarGets: harness.calendarGets,
+          profileTimeouts: [...harness.profileTimeouts],
+          calendarTimeouts: [...harness.calendarTimeouts],
           consumerCount: harness.consumerCount,
           passiveConsumerCount: harness.passiveConsumerCount,
           practiceEnabled: harness.practiceEnabled,

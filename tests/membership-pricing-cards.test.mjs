@@ -28,10 +28,9 @@ describe("MembershipPricingCards configured price rendering", () => {
     ])
 
     for (const cards of [checkoutCards, portalCards, authCards]) {
-      assert.match(
-        elementText(cards),
-        /New Supporter checkout is temporarily paused\. Existing memberships and the billing portal remain available\./,
-      )
+      assert.ok(elementText(cards).includes(
+        "New Supporter checkout is temporarily paused. Existing memberships and the billing portal remain available.",
+      ))
       assert.equal(
         findElements(
           cards,

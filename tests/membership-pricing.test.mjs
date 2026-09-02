@@ -51,6 +51,20 @@ async function loadIsolatedCatalog(options) {
   return createTestCatalogLoader(options).get()
 }
 
+async function boundedLatch(promise, label, timeoutMs = 1_000) {
+  let timeout
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs)
+      }),
+    ])
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 describe("Membership pricing catalog", () => {
   it("leads with premium backgrounds while retaining every current Supporter benefit", () => {
     assert.deepEqual(MEMBERSHIP_PLAN_DETAILS.SUPPORTER.currentFeatures, [
@@ -455,16 +469,21 @@ describe("Membership pricing catalog", () => {
     })
 
     const staleBuild = loader.get()
-    await oldReadsStarted
-    assert.equal(calls.length, 6)
-    loader.clear()
-    useOldPrices = false
-    const currentCatalog = await loader.get()
-    assert.equal(calls.length, 12)
-    assert.equal(currentCatalog.plans[0].amountChoices[0].prices.month.displayPrice, "$51")
+    let currentCatalog
+    let staleCatalog
+    try {
+      await boundedLatch(oldReadsStarted, "old membership Price reads")
+      assert.equal(calls.length, 6)
+      loader.clear()
+      useOldPrices = false
+      currentCatalog = await loader.get()
+      assert.equal(calls.length, 12)
+      assert.equal(currentCatalog.plans[0].amountChoices[0].prices.month.displayPrice, "$51")
+    } finally {
+      releaseOldPrices()
+      staleCatalog = await boundedLatch(staleBuild, "stale membership catalog build cleanup")
+    }
 
-    releaseOldPrices()
-    const staleCatalog = await staleBuild
     assert.equal(staleCatalog.plans[0].amountChoices[0].prices.month.displayPrice, "$1")
     assert.equal(await loader.get(), currentCatalog)
     assert.equal(calls.length, 12)

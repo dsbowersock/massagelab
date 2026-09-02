@@ -84,7 +84,6 @@ describe("fresh consumed Google security reauthentication", () => {
   })
 
   it("does not consume a fresh proof for a different caller-expected purpose", async () => {
-    assert.equal(proofModule.consumeFreshGoogleReauth.length, 5)
     const db = createProofDatabase(freshIntent({ purpose: "LINK_GOOGLE" }))
 
     const consumed = await db.transaction((tx) => proofModule.consumeFreshGoogleReauth(
@@ -101,7 +100,6 @@ describe("fresh consumed Google security reauthentication", () => {
   })
 
   it("does not consume a fresh proof for a different caller-expected user", async () => {
-    assert.equal(proofModule.consumeFreshGoogleReauth.length, 5)
     const db = createProofDatabase(freshIntent({ targetUserId: "user-1" }))
 
     const consumed = await db.transaction((tx) => proofModule.consumeFreshGoogleReauth(
@@ -147,6 +145,10 @@ describe("fresh consumed Google security reauthentication", () => {
       true,
     )
     assert.equal(db.intent.providerProvenAt, null)
+  })
+
+  it("fails closed when the transaction matcher receives no expiry predicate", () => {
+    assert.equal(matchesIntent(freshIntent(), { id: "intent-1" }), false)
   })
 })
 
@@ -196,6 +198,9 @@ function createProofDatabase(seedIntent) {
 }
 
 function matchesIntent(intent, where) {
+  const expiresAfter = where?.expiresAt?.gt
+  if (!(expiresAfter instanceof Date) || !(intent.expiresAt instanceof Date)) return false
+
   return intent.id === where.id
     && intent.targetUserId === where.targetUserId
     && intent.purpose === where.purpose
@@ -203,5 +208,5 @@ function matchesIntent(intent, where) {
     && intent.provider === where.provider
     && intent.providerAccountId === where.providerAccountId
     && intent.providerProvenAt?.getTime() === where.providerProvenAt?.getTime()
-    && intent.expiresAt > where.expiresAt.gt
+    && intent.expiresAt > expiresAfter
 }

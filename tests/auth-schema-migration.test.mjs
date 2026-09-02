@@ -124,6 +124,8 @@ describe("identity method safety persistence", () => {
       /Use that same complete drain interval[\s\S]*?(?=\r?\n\r?\nDuring this bounded pause)/,
     )?.[0] ?? ""
 
+    assert.notEqual(pausedBridgeDrain, "", "release plan must contain the bounded paused-bridge drain section")
+    assert.notEqual(identityWriterDrain, "", "paused-bridge section must contain the identity-writer drain interval")
     assert.match(identityWriterDrain, /deployment\/SHA-scoped/)
     assert.match(identityWriterDrain, /immutable deployment ID mapped to its full Git SHA/)
     assert.match(identityWriterDrain, /normalized method\/path/)
@@ -146,6 +148,8 @@ describe("identity method safety persistence", () => {
       /\*\*Step 6: Deploy the unpaused bridge[\s\S]*?(?=Retain the bridge code)/,
     )?.[0] ?? ""
 
+    assert.notEqual(pausedReadback, "", "release plan must contain the paused deployment readback")
+    assert.notEqual(unpausedReadback, "", "release plan must contain the unpaused deployment readback")
     for (const readback of [pausedReadback, unpausedReadback]) {
       assert.match(readback, /all five reviewed migrations current in the required order/)
       assert.match(readback, /every committed migration current/)

@@ -44,32 +44,43 @@ describe("two-factor management recovery guidance", () => {
     }
   })
 
-  it("fails closed for wrong status, unknown code, arbitrary messages, provider detail, and malformed JSON", async () => {
+  it("uses fixed public guidance while rejecting wrong status, unknown code, and malformed bodies", async () => {
     const { resolveTwoFactorManagementRecovery } = await loadRecovery()
     const generic = { message: "Something went wrong. Please try again." }
 
-    for (const [status, result] of [
-      [500, { code: "AUTHENTICATION_REQUIRED" }],
-      [403, { code: "PRIVATE_PROVIDER_DETAIL" }],
-      [409, { code: "CONFLICT", message: "database row account-991 changed" }],
-      [403, { code: "GOOGLE_PROOF_EXPIRED", providerAccountId: "provider-private-991" }],
-      [403, null],
-      [403, []],
-      [403, "not-json"],
-      [403, {}],
+    for (const { label, status, result, expected } of [
+      {
+        label: "known code with wrong status",
+        status: 500,
+        result: { code: "AUTHENTICATION_REQUIRED" },
+        expected: generic,
+      },
+      {
+        label: "unknown code",
+        status: 403,
+        result: { code: "PRIVATE_PROVIDER_DETAIL" },
+        expected: generic,
+      },
+      {
+        label: "known conflict ignores arbitrary message",
+        status: 409,
+        result: { code: "CONFLICT", message: "database row account-991 changed" },
+        expected: { message: "Your security settings changed. Refresh Account Security and try again." },
+      },
+      {
+        label: "known expiry ignores provider detail",
+        status: 403,
+        result: { code: "GOOGLE_PROOF_EXPIRED", providerAccountId: "provider-private-991" },
+        expected: { message: "Your Google confirmation expired. Confirm with Google again." },
+      },
+      { label: "null body", status: 403, result: null, expected: generic },
+      { label: "array body", status: 403, result: [], expected: generic },
+      { label: "string body", status: 403, result: "not-json", expected: generic },
+      { label: "empty object", status: 403, result: {}, expected: generic },
     ]) {
       const actual = resolveTwoFactorManagementRecovery(status, result)
-      if (status === 409 && result?.code === "CONFLICT") {
-        assert.deepEqual(actual, {
-          message: "Your security settings changed. Refresh Account Security and try again.",
-        })
-        assert.doesNotMatch(actual.message, /database|account-991/i)
-      } else if (status === 403 && result?.code === "GOOGLE_PROOF_EXPIRED") {
-        assert.deepEqual(actual, { message: "Your Google confirmation expired. Confirm with Google again." })
-        assert.doesNotMatch(actual.message, /provider-private/i)
-      } else {
-        assert.deepEqual(actual, generic)
-      }
+      assert.deepEqual(actual, expected, label)
+      assert.doesNotMatch(actual.message, /database|account-991|provider-private/i, label)
     }
   })
 })

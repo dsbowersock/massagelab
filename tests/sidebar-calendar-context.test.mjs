@@ -2,7 +2,10 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { readFileSync } from "node:fs"
 import * as sidebarCalendarContextModule from "../lib/sidebar-calendar-context.js"
-import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import {
+  createCompiledModuleLoader,
+  createElement,
+} from "./helpers/compiled-module.mjs"
 
 const { emptySidebarCalendarContext } = sidebarCalendarContextModule
 
@@ -61,6 +64,76 @@ function loadCoordinator(loadContext, options = {}) {
   })
 }
 
+function createSidebarProviderEffectHarness(fetchJsonWithTimeout) {
+  const stateSlots = []
+  const effectSlots = []
+  let stateCursor = 0
+  let effectCursor = 0
+
+  function dependenciesChanged(previous, current) {
+    return !previous
+      || !current
+      || previous.length !== current.length
+      || current.some((value, index) => !Object.is(value, previous[index]))
+  }
+
+  const react = {
+    createContext: () => ({ Provider: "context-provider" }),
+    useCallback: (callback) => callback,
+    useContext: () => null,
+    useEffect: (effect, dependencies) => {
+      const index = effectCursor
+      effectCursor += 1
+      const previous = effectSlots[index]
+      effectSlots[index] = {
+        cleanup: previous?.cleanup,
+        dependencies,
+        effect,
+        pending: dependenciesChanged(previous?.dependencies, dependencies),
+      }
+    },
+    useMemo: (factory) => factory(),
+    useState: (initial) => {
+      const index = stateCursor
+      stateCursor += 1
+      if (!Object.hasOwn(stateSlots, index)) {
+        stateSlots[index] = typeof initial === "function" ? initial() : initial
+      }
+      return [stateSlots[index], (value) => {
+        stateSlots[index] = typeof value === "function" ? value(stateSlots[index]) : value
+      }]
+    },
+  }
+  const provider = loadCompiledModule(
+    providerSource,
+    "components/sidebar/sidebar-calendar-provider.effect-test.tsx",
+    {
+      react,
+      "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
+      "@/lib/client-fetch": { fetchJsonWithTimeout },
+      "@/lib/sidebar-calendar-context": { emptySidebarCalendarContext },
+    },
+  )
+
+  return {
+    render(props) {
+      stateCursor = 0
+      effectCursor = 0
+      provider.SidebarCalendarProvider({ ...props, children: null })
+      for (const slot of effectSlots) {
+        if (!slot.pending) continue
+        slot.cleanup?.()
+        slot.cleanup = slot.effect()
+        slot.pending = false
+      }
+    },
+    unmount() {
+      for (const slot of effectSlots.toReversed()) slot.cleanup?.()
+      effectSlots.length = 0
+    },
+  }
+}
+
 function loadRoute(session, downstreamReads) {
   return loadCompiledModule(routeSource, "app/api/calendar/sidebar-context/route.test.ts", {
     "next/server": {
@@ -113,8 +186,10 @@ describe("sidebar calendar context route gating", () => {
     await coordinator.adopt({ ownerKey: "owner-a", enabled: true })
 
     assert.equal(calls.length, 1)
-    assert.equal(calls[0].ownerKey, "owner-a")
-    assert.equal(calls[0].signal.aborted, false)
+    const [call] = calls
+    assert.ok(call, "practice member adoption must issue one context request")
+    assert.equal(call.ownerKey, "owner-a")
+    assert.equal(call.signal.aborted, false)
     assert.deepEqual(coordinator.getValue(), expected)
   })
 
@@ -136,10 +211,12 @@ describe("sidebar calendar context route gating", () => {
     await coordinator.refresh()
 
     assert.equal(calls.length, 1)
-    assert.equal(calls[0][0], "/api/calendar/sidebar-context")
-    assert.equal(calls[0][1].method, "GET")
-    assert.equal(calls[0][1].signal instanceof AbortSignal, true)
-    assert.equal(calls[0][2], 10_000)
+    const [call] = calls
+    assert.ok(call, "explicit refresh must issue one bounded endpoint request")
+    assert.equal(call[0], "/api/calendar/sidebar-context")
+    assert.equal(call[1].method, "GET")
+    assert.equal(call[1].signal instanceof AbortSignal, true)
+    assert.equal(call[2], 10_000)
     assert.deepEqual(coordinator.getValue(), expected)
   })
 
@@ -238,7 +315,10 @@ describe("sidebar calendar context route gating", () => {
 
     const staleRequest = coordinator.adopt({ ownerKey: "owner-a", enabled: true })
     const currentRequest = coordinator.adopt({ ownerKey: "owner-b", enabled: true })
-    assert.equal(calls[0].signal.aborted, true)
+    assert.equal(calls.length, 2)
+    const [ownerACall] = calls
+    assert.ok(ownerACall, "owner A must begin before owner B is adopted")
+    assert.equal(ownerACall.signal.aborted, true)
     assert.equal(coordinator.getValue(), emptySidebarCalendarContext)
 
     ownerARequest.resolve({
@@ -255,6 +335,42 @@ describe("sidebar calendar context route gating", () => {
     ownerBRequest.resolve(ownerBContext)
     await currentRequest
     assert.deepEqual(coordinator.getValue(), ownerBContext)
+  })
+
+  it("adopts changed Provider ownership and disposes the active request on unmount", async () => {
+    const requests = [deferred(), deferred()]
+    const calls = []
+    const harness = createSidebarProviderEffectHarness((...args) => {
+      const request = requests[calls.length]
+      calls.push(args)
+      assert.ok(request, "Provider must not start an unexpected context request")
+      return request.promise
+    })
+    let ownerACall
+    let ownerBCall
+
+    try {
+      harness.render({ ownerKey: "owner-a", enabled: true })
+      assert.equal(calls.length, 1)
+      ownerACall = calls[0]
+      assert.ok(ownerACall, "Provider mount must adopt owner A")
+      assert.equal(ownerACall[1].signal.aborted, false)
+
+      harness.render({ ownerKey: "owner-b", enabled: true })
+      assert.equal(calls.length, 2)
+      ownerBCall = calls[1]
+      assert.ok(ownerBCall, "Provider prop change must adopt owner B")
+      assert.equal(ownerACall[1].signal.aborted, true)
+      assert.equal(ownerBCall[1].signal.aborted, false)
+    } finally {
+      harness.unmount()
+      for (const request of requests) {
+        request.resolve({ response: { ok: true }, json: emptySidebarCalendarContext })
+      }
+      await Promise.all(requests.map((request) => request.promise))
+    }
+
+    assert.equal(ownerBCall[1].signal.aborted, true)
   })
 
   it("exposes safe zero counts in the empty context", () => {
@@ -286,8 +402,6 @@ describe("sidebar calendar context route gating", () => {
     assert.match(layoutSource, /enabled=\{accountBootstrap\.hasPracticeMembership\}/)
     assert.doesNotMatch(layoutSource, /<SidebarCalendarProvider\s+enabled=\{Boolean\(user\)\}/)
     assert.match(providerSource, /createSidebarCalendarCoordinator/)
-    assert.match(providerSource, /coordinator\.adopt\(\{ ownerKey, enabled \}\)/)
-    assert.match(providerSource, /coordinator\.dispose\(\)/)
   })
 
   it("keeps the endpoint authenticated and its PHI-minimized response owner unchanged", () => {

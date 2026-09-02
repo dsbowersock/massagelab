@@ -677,10 +677,6 @@ describe("private Google auth-method intents", () => {
   it("rate limits before intent access and returns a private cookie plus callback only", async () => {
     const routeSource = await readFile(new URL("../app/api/auth/google/intent/route.ts", import.meta.url), "utf8")
     assert.match(routeSource, /"Retry-After"/)
-    assert.match(routeSource, /httpOnly:\s*true/)
-    assert.match(routeSource, /sameSite:\s*"lax"/)
-    assert.match(routeSource, /maxAge:\s*600/)
-    assert.match(routeSource, /secure:\s*process\.env\.NODE_ENV === "production"/)
     assert.doesNotMatch(routeSource, /access_token|refresh_token|id_token/)
 
     const { POST } = await loadIntentRoute()
@@ -688,8 +684,17 @@ describe("private Google auth-method intents", () => {
       purpose: "SIGN_IN_OR_LINK",
       callbackUrl: "/wellness",
     }))
-    assert.equal(response.cookieSet[0], "ml-auth-method-binding")
-    assert.equal(response.cookieSet[2].path, "/")
+    assert.deepEqual(response.cookieSet, {
+      name: "ml-auth-method-binding",
+      value: `default-intent.${"a".repeat(43)}`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 600,
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+      },
+    })
   })
 
   it("accepts network start thirty, blocks thirty-one before creation, and returns exact Retry-After", async () => {
@@ -830,17 +835,38 @@ describe("private Google auth-method intents", () => {
 
     for (const purpose of SESSION_BOUND_PURPOSES) {
       const rejected = [
-        intentRequest({ purpose }, { origin: null }),
-        intentRequest({ purpose }, { origin: "https://attacker.example" }),
-        intentRequest({ purpose }, { fetchSite: "cross-site" }),
-        intentRequest({ purpose }, { contentType: "text/plain" }),
-        intentRequest({ purpose, callbackUrl: "/account" }),
+        {
+          label: "missing origin",
+          request: intentRequest({ purpose }, { origin: null }),
+          expectedStatus: 403,
+        },
+        {
+          label: "attacker origin",
+          request: intentRequest({ purpose }, { origin: "https://attacker.example" }),
+          expectedStatus: 403,
+        },
+        {
+          label: "cross-site Fetch Metadata",
+          request: intentRequest({ purpose }, { fetchSite: "cross-site" }),
+          expectedStatus: 403,
+        },
+        {
+          label: "non-JSON media",
+          request: intentRequest({ purpose }, { contentType: "text/plain" }),
+          expectedStatus: 400,
+        },
+        {
+          label: "unknown callback key",
+          request: intentRequest({ purpose, callbackUrl: "/account" }),
+          expectedStatus: 400,
+        },
       ]
-      for (const request of rejected) {
+      for (const { label, request, expectedStatus } of rejected) {
         const response = await handler(request)
-        assert.ok(response.status === 400 || response.status === 403, purpose)
-        assert.equal(response.headers.get("Cache-Control"), "private, no-store", purpose)
-        assert.equal(response.headers.get("Pragma"), "no-cache", purpose)
+        assert.equal(response.status, expectedStatus, `${purpose}: ${label}`)
+        assert.deepEqual(await response.json(), { ok: false }, `${purpose}: ${label}`)
+        assert.equal(response.headers.get("Cache-Control"), "private, no-store", `${purpose}: ${label}`)
+        assert.equal(response.headers.get("Pragma"), "no-cache", `${purpose}: ${label}`)
       }
     }
     assert.deepEqual(calls, { limit: 0, session: 0, intent: 0 })
@@ -861,7 +887,7 @@ describe("private Google auth-method intents", () => {
       },
     })
 
-    for (const purpose of SESSION_BOUND_PURPOSES) {
+    await Promise.all(SESSION_BOUND_PURPOSES.map(async (purpose) => {
       const response = await settlesWithin(
         handler(oversizedStreamingIntentRequest(purpose)),
         500,
@@ -872,7 +898,7 @@ describe("private Google auth-method intents", () => {
       assert.equal(response.headers.get("Cache-Control"), "private, no-store", purpose)
       assert.equal(response.headers.get("Pragma"), "no-cache", purpose)
       assert.deepEqual(await response.json(), { ok: false }, purpose)
-    }
+    }))
     assert.deepEqual(calls, { limit: 0, session: 0, intent: 0 })
   })
 
@@ -934,10 +960,24 @@ function testNextResponse() {
         ...init,
         headers: { "content-type": "application/json", ...init.headers },
       })
-      response.cookies = { set: (...args) => { response.cookieSet = args } }
+      response.cookies = {
+        set: (...args) => {
+          response.cookieSet = normalizeCookieSetArguments(args)
+        },
+      }
       return response
     },
   }
+}
+
+/** Normalizes both supported NextResponse cookie-set forms for stable assertions. */
+function normalizeCookieSetArguments(args) {
+  if (args.length === 1 && args[0] && typeof args[0] === "object") {
+    const { name, value, ...options } = args[0]
+    return { name, value, options }
+  }
+  const [name, value, options = {}] = args
+  return { name, value, options }
 }
 
 function intentRequest(body, {

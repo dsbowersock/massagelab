@@ -1372,8 +1372,6 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
     "Constrained-landscape rail geometry is covered in Chromium.",
   )
   await installInterruptionNoticeMediaFakes(page)
-  const wellnessHold = await holdRscNavigationResponse(page, "/wellness")
-  let wellnessHoldActive = true
   const geometryReceipt: Array<Record<string, unknown>> = []
   const measureStageReservations = () => page.locator("[data-immersive-stage]").evaluate((stage) => {
     const measureVariable = (variable: string) => {
@@ -1425,6 +1423,11 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
 
   const homeHold = await holdRscNavigationResponse(page, "/")
   let homeHoldActive = true
+  let wellnessHold: Awaited<ReturnType<typeof holdRscNavigationResponse>> | null = null
+  let wellnessHoldActive = false
+  try {
+  wellnessHold = await holdRscNavigationResponse(page, "/wellness")
+  wellnessHoldActive = true
   await page.setViewportSize({ width: 390, height: 844 })
   const toolbar = await startProofDrone(page)
   await expect(toolbar).toHaveAttribute("data-playback-state", "playing", { timeout: 45_000 })
@@ -1673,7 +1676,7 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
       await page.getByRole("link", { name: "Open wellness", exact: true }).first().click()
       const wellnessLandmark = page.locator("#quick-log")
         .getByRole("heading", { name: "Quick log", exact: true, level: 2 })
-      if (wellnessHoldActive) {
+      if (wellnessHoldActive && wellnessHold) {
         await wellnessHold.waitForRequest()
         await expect(wellnessLandmark).toHaveCount(0)
         await wellnessHold.releaseAndCleanup()
@@ -1862,6 +1865,13 @@ test("global constrained landscape rail keeps route transitions, vinyl geometry,
     body: JSON.stringify(geometryReceipt, null, 2),
     contentType: "application/json",
   })
+  } finally {
+    try {
+      if (homeHoldActive) await homeHold.releaseAndCleanup()
+    } finally {
+      if (wellnessHoldActive && wellnessHold) await wellnessHold.releaseAndCleanup()
+    }
+  }
 })
 
 test("full constrained landscape four-view matrix plus S24 class keeps controls 16px below and category pill glow clear", async ({ page }, testInfo) => {

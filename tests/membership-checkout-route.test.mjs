@@ -19,8 +19,9 @@ const MEMBERSHIP_BILLING_DOCUMENT = Object.freeze({
 
 describe("Membership Checkout POST route", () => {
   it("keeps the cached display catalog outside current Checkout price authority", () => {
-    assert.doesNotMatch(checkoutRouteSource, /membership-pricing(?:\.js)?["']/)
-    assert.doesNotMatch(membershipCheckoutSource, /membership-pricing(?:\.js)?["']/)
+    const membershipPricingImport = /(?:\bfrom\s+|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)["'][^"'\r\n]*membership-pricing[^"'\r\n]*["']/
+    assert.doesNotMatch(checkoutRouteSource, membershipPricingImport)
+    assert.doesNotMatch(membershipCheckoutSource, membershipPricingImport)
   })
 
   it("returns a paused JSON response after authentication and before membership, legal, customer, or Stripe work", async () => {

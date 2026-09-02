@@ -84,6 +84,7 @@ async function loadPreferenceSync(ownerKey, {
   ]),
 } = {}) {
   const effects = []
+  const effectCleanups = []
   const initiatedRequests = []
   const requests = []
   const storageReads = []
@@ -155,16 +156,24 @@ async function loadPreferenceSync(ownerKey, {
     return request
   }
   let restored = false
+  let effectsCleanedUp = false
 
-  async function settleAsyncWork() {
+  async function settleAsyncWork(maxPasses = 50) {
     let observedRequestCount = 0
-    while (true) {
+    for (let pass = 1; pass <= maxPasses; pass += 1) {
       const requestsToSettle = initiatedRequests.slice(observedRequestCount)
       observedRequestCount = initiatedRequests.length
       await Promise.allSettled(requestsToSettle)
       await new Promise((resolve) => setImmediate(resolve))
       if (initiatedRequests.length === observedRequestCount) return
     }
+    throw new Error(`PreferenceSync async work did not settle after ${maxPasses} passes`)
+  }
+
+  function invokeEffectCleanups() {
+    if (effectsCleanedUp) return
+    effectsCleanedUp = true
+    for (const cleanup of effectCleanups.toReversed()) cleanup()
   }
 
   function restoreGlobals() {
@@ -174,12 +183,24 @@ async function loadPreferenceSync(ownerKey, {
     globalThis.fetch = previousFetch
   }
 
+  async function finalize() {
+    try {
+      invokeEffectCleanups()
+      await settleAsyncWork()
+    } finally {
+      restoreGlobals()
+    }
+  }
+
   globalThis.window = testWindow
   globalThis.fetch = testFetch
 
   try {
     const element = provider.PreferenceSync({ hasCloudPreferences })
-    for (const effect of effects) effect()
+    for (const effect of effects) {
+      const cleanup = effect()
+      if (typeof cleanup === "function") effectCleanups.push(cleanup)
+    }
     const syncButton = findElement(element, ({ type }) => type === "Button")
     assert.ok(syncButton, "preference sync must render its manual sync button")
     const harness = {
@@ -191,8 +212,7 @@ async function loadPreferenceSync(ownerKey, {
         return await componentWork
       },
       async cleanup() {
-        await settleAsyncWork()
-        restoreGlobals()
+        await finalize()
       },
       get isSyncing() {
         return stateSlots[PREFERENCE_SYNC_STATE_SLOT.IS_SYNCING].value
@@ -204,8 +224,11 @@ async function loadPreferenceSync(ownerKey, {
     await settleAsyncWork()
     return harness
   } catch (error) {
-    await settleAsyncWork()
-    restoreGlobals()
+    try {
+      await finalize()
+    } catch (cleanupError) {
+      throw new AggregateError([error, cleanupError], "PreferenceSync harness and cleanup both failed")
+    }
     throw error
   }
 }

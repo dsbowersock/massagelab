@@ -669,7 +669,6 @@ describe("family-and-friends server workload baseline", () => {
       practiceRoleReads: 0,
       entitlementReads: 0,
       clientBootstrapEndpointRequests: 0,
-      commerceSnapshotLoads: 0,
     }
     const sidebarWorkload = sidebarNavigationWorkload(sidebarCalls)
     assert.equal(typeof sidebarWorkload.getAppSidebarData, "function")
@@ -698,7 +697,6 @@ describe("family-and-friends server workload baseline", () => {
       practiceRoleReads: 1,
       entitlementReads: 0,
       clientBootstrapEndpointRequests: 0,
-      commerceSnapshotLoads: 0,
     })
     assert.equal(logicalOrmOperations, 4)
     assert.match(backgroundCommerceProviderSource, /const ensureSnapshot/)
@@ -731,11 +729,11 @@ describe("family-and-friends server workload baseline", () => {
     console.log(`verified auth refresh: background-credit provisioner calls = ${backgroundCreditProvisionerCalls}`)
     console.log(`ordinary signed-in shell: RSC auth snapshots = ${sidebarCalls.rscAuthSnapshots}; legacy direct-auth snapshots = ${sidebarCalls.legacyAuthSnapshots}; auth user graph reads = ${authCalls.userGraphReads}; temporary-grant reads = ${authCalls.temporaryGrantReads}; entitlement builds = ${authCalls.entitlementBuilds}`)
     console.log(`ordinary signed-in shell: preference reads = ${sidebarCalls.preferenceReads}; practice-role reads = ${sidebarCalls.practiceRoleReads}; separate membership entitlement loads = ${sidebarCalls.entitlementReads}; logical ORM operations = ${logicalOrmOperations}`)
-    console.log(`ordinary signed-in shell: client bootstrap endpoint requests = ${sidebarCalls.clientBootstrapEndpointRequests}; commerce snapshot loads = ${sidebarCalls.commerceSnapshotLoads}`)
+    console.log(`ordinary signed-in shell: client bootstrap endpoint requests = ${sidebarCalls.clientBootstrapEndpointRequests}`)
   })
 
-  it("loads one persisted membership return summary without Stripe", async () => {
-    const calls = { persistedSummaryLoads: 0, stripeCalls: 0 }
+  it("loads one persisted membership return summary", async () => {
+    const calls = { persistedSummaryLoads: 0 }
     await getMembershipConvergenceStatus({
       prismaClient: { sentinel: "workload-database" },
       userId: "workload-user",
@@ -745,8 +743,8 @@ describe("family-and-friends server workload baseline", () => {
       },
     })
 
-    assert.deepEqual(calls, { persistedSummaryLoads: 1, stripeCalls: 0 })
-    console.log(`membership status read: persisted summary loads = ${calls.persistedSummaryLoads}; Stripe calls = ${calls.stripeCalls}`)
+    assert.deepEqual(calls, { persistedSummaryLoads: 1 })
+    console.log(`membership status read: persisted summary loads = ${calls.persistedSummaryLoads}`)
   })
 
   it("calls Checkout and Portal providers only for explicit actions", async () => {

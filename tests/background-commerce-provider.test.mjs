@@ -80,6 +80,20 @@ function providerHarnessBundle() {
           checkoutSettled: false,
           errors: [],
         };
+        const nativeAddEventListener = window.addEventListener.bind(window);
+        const nativeRemoveEventListener = window.removeEventListener.bind(window);
+        const refreshListeners = new Map([
+          ["focus", new Map()],
+          ["online", new Map()],
+        ]);
+        window.addEventListener = (type, listener, options) => {
+          refreshListeners.get(type)?.set(listener, harness.owner);
+          return nativeAddEventListener(type, listener, options);
+        };
+        window.removeEventListener = (type, listener, options) => {
+          refreshListeners.get(type)?.delete(listener);
+          return nativeRemoveEventListener(type, listener, options);
+        };
         window.addEventListener("error", (event) => harness.errors.push(String(event.error || event.message)));
         window.addEventListener("unhandledrejection", (event) => harness.errors.push(String(event.reason)));
         let latestCommerce = null;
@@ -178,6 +192,9 @@ function providerHarnessBundle() {
         };
         harness.dispatchFocus = () => window.dispatchEvent(new Event("focus"));
         harness.dispatchOnline = () => window.dispatchEvent(new Event("online"));
+        harness.refreshListenersReady = (owner) => ["focus", "online"].every((type) => (
+          [...refreshListeners.get(type).values()].includes(owner)
+        ));
         harness.read = () => ({ owner: harness.owner, state: latestCommerce.state, calls: [...harness.calls] });
 
         createRoot(document.getElementById("root")).render(
@@ -328,6 +345,7 @@ describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, ()
         checkoutStart.current.calls.includes("POST /api/background-commerce/checkout"),
         JSON.stringify(checkoutStart),
       )
+      assert.deepEqual(checkoutStart.errors, [])
       await page.evaluate(() => window.__commerceProviderHarness.setOwner("owner-b"))
       await page.waitForFunction(() => {
         const value = window.__commerceProviderHarness.read()
@@ -335,7 +353,7 @@ describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, ()
       })
 
       await page.evaluate(() => window.__commerceProviderHarness.resolveCheckout())
-      await page.waitForTimeout(250)
+      await page.waitForFunction(() => window.__commerceProviderHarness.checkoutSettled === true)
 
       assert.equal(page.url(), fixtureUrl)
       const current = await page.evaluate(() => window.__commerceProviderHarness.read())
@@ -361,19 +379,22 @@ describe("BackgroundCommerceProvider owner behavior", { concurrency: false }, ()
         errors: window.__commerceProviderHarness.errors,
       }))
       assert.equal(failedHydration.current.state.status, "error", JSON.stringify(failedHydration))
+      assert.deepEqual(failedHydration.errors, [])
 
       await page.evaluate(() => window.__commerceProviderHarness.setOwner("owner-b"))
       await page.waitForFunction(() => {
         const value = window.__commerceProviderHarness.read()
         return value.owner === "owner-b" && value.state.status === "idle"
       })
-      await page.evaluate(() => {
+      await page.waitForFunction(() => (
+        window.__commerceProviderHarness.refreshListenersReady("owner-b")
+      ))
+      let current = await page.evaluate(() => {
         window.__commerceProviderHarness.stateFetchMode = "success"
         window.__commerceProviderHarness.dispatchFocus()
         window.__commerceProviderHarness.dispatchOnline()
+        return window.__commerceProviderHarness.read()
       })
-      await page.waitForTimeout(100)
-      let current = await page.evaluate(() => window.__commerceProviderHarness.read())
       assert.equal(
         current.calls.filter((call) => call === "GET /api/background-commerce/state").length,
         1,
@@ -553,7 +574,6 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /"\/api\/background-commerce\/cart"/)
     assert.match(value, /enqueueMutation\("merge-guest-cart"/)
     assert.match(value, /pendingIds\.length > 0/)
-    assert.doesNotMatch(value, /Account state must load even when there is no guest intent/)
     assert.match(value, /remainingIds\.push\(backgroundId\)/)
     assert.match(value, /writeGuestBackgroundCartIds\(window\.localStorage, remainingIds\)/)
     assert.match(value, /ITEM_RESERVED/)

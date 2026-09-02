@@ -103,19 +103,38 @@ describe("two-factor management route boundaries", () => {
 
   for (const name of Object.keys(ROUTES)) {
     it(`${name} rejects provenance, media, and unknown-key failures before session, proof, service, or cache work`, async () => {
-      for (const request of [
-        routeRequest(name, ROUTES[name].body, { origin: null }),
-        routeRequest(name, ROUTES[name].body, { origin: "https://attacker.example" }),
-        routeRequest(name, ROUTES[name].body, { contentType: "text/plain" }),
-        routeRequest(name, { ...ROUTES[name].body, userId: "attacker-selected" }),
+      for (const { label, request, expectedStatus, expectedCode } of [
+        {
+          label: "missing origin",
+          request: routeRequest(name, ROUTES[name].body, { origin: null }),
+          expectedStatus: 403,
+          expectedCode: "UNTRUSTED_REQUEST",
+        },
+        {
+          label: "attacker origin",
+          request: routeRequest(name, ROUTES[name].body, { origin: "https://attacker.example" }),
+          expectedStatus: 403,
+          expectedCode: "UNTRUSTED_REQUEST",
+        },
+        {
+          label: "non-JSON media",
+          request: routeRequest(name, ROUTES[name].body, { contentType: "text/plain" }),
+          expectedStatus: 400,
+          expectedCode: "INVALID_REQUEST",
+        },
+        {
+          label: "unknown body key",
+          request: routeRequest(name, { ...ROUTES[name].body, userId: "attacker-selected" }),
+          expectedStatus: 400,
+          expectedCode: "INVALID_REQUEST",
+        },
       ]) {
         const scenario = loadRoute(name)
         const response = await scenario.POST(request)
         const body = await response.json()
 
-        assert.deepEqual(body, {
-          code: response.status === 403 ? "UNTRUSTED_REQUEST" : "INVALID_REQUEST",
-        }, name)
+        assert.equal(response.status, expectedStatus, `${name}: ${label}`)
+        assert.deepEqual(body, { code: expectedCode }, `${name}: ${label}`)
         assert.deepEqual(scenario.counts(), {
           session: 0,
           intent: 0,

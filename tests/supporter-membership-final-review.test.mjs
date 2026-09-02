@@ -415,7 +415,7 @@ describe("Supporter membership final-review contracts", () => {
 
   it("forwards a closed supporter Checkout launch control to public pricing cards", async () => {
     const result = await renderPublicPricing({
-      registrationOpen: false,
+      registrationOpen: true,
       session: null,
       supporterCheckoutOpen: false,
       subscriptions: [],

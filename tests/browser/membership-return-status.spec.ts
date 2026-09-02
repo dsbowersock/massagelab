@@ -150,29 +150,65 @@ test.describe("private persisted membership returns", () => {
       status: "past_due",
     })
     let portalPosts = 0
+    let portalRouteStarted = false
+    let markPortalRouteFinished: () => void = () => undefined
+    let releasePortalRoute: () => void = () => undefined
+    const portalRouteFinish = new Promise<void>((resolve) => {
+      markPortalRouteFinished = resolve
+    })
+    const portalRouteRelease = new Promise<void>((resolve) => {
+      releasePortalRoute = resolve
+    })
     await page.route("**/api/billing/portal", async (route) => {
       portalPosts += 1
-      await new Promise((resolve) => setTimeout(resolve, 900))
-      await route.fulfill({ status: 204, body: "" })
+      portalRouteStarted = true
+      try {
+        await portalRouteRelease
+        await route.fulfill({ status: 204, body: "" })
+      } finally {
+        markPortalRouteFinished()
+      }
     })
 
     await page.goto("/account?tab=membership&portal=returned", { waitUntil: "domcontentloaded" })
     const form = page.locator('form[action="/api/billing/portal"]')
     const pendingLabel = "Opening billing portal…"
     const recorder = await installNativeSubmitSnapshotRecorder({ page, form, pendingLabel })
-    await form.getByRole("button", { name: "Manage billing account" }).evaluate((element) => {
-      ;(element as HTMLButtonElement).click()
+    await form.evaluate((element) => {
+      let attempts = 0
+      const recordDuplicatePrevention = (event: SubmitEvent) => {
+        if (event.target !== element) return
+        attempts += 1
+        if (attempts !== 2) return
+        element.dataset.duplicateSubmitPrevented = String(event.defaultPrevented)
+        document.removeEventListener("submit", recordDuplicatePrevention)
+      }
+      document.addEventListener("submit", recordDuplicatePrevention)
     })
 
-    const snapshot = await recorder.snapshot
-    expect(snapshot).toMatchObject({
-      buttonAriaBusy: "true",
-      buttonDisabled: true,
-      formAriaBusy: "true",
-      pendingCopyVisible: true,
-      statusCount: 1,
-      statusText: pendingLabel,
-    })
-    await expect.poll(() => portalPosts).toBe(1)
+    try {
+      await form.getByRole("button", { name: "Manage billing account" }).evaluate((element) => {
+        ;(element as HTMLButtonElement).click()
+      })
+
+      const snapshot = await recorder.snapshot
+      await expect.poll(
+        () => portalRouteStarted,
+        { message: "billing portal route must start before pending-state assertions", timeout: 5_000 },
+      ).toBe(true)
+      await expect(form).toHaveAttribute("data-duplicate-submit-prevented", "true")
+      expect(snapshot).toMatchObject({
+        buttonAriaBusy: "true",
+        buttonDisabled: true,
+        formAriaBusy: "true",
+        pendingCopyVisible: true,
+        statusCount: 1,
+        statusText: pendingLabel,
+      })
+      expect(portalPosts).toBe(1)
+    } finally {
+      releasePortalRoute()
+      if (portalRouteStarted) await portalRouteFinish
+    }
   })
 })

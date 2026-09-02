@@ -3,11 +3,53 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import * as accountPreferences from "../lib/account-preferences.js"
 import * as musicVisualizer from "../lib/music-visualizer.js"
+import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const providerSource = await readFile(new URL("../components/providers/music-provider.tsx", import.meta.url), "utf8")
 const miniPlayerSource = await readFile(new URL("../components/providers/music-mini-player.tsx", import.meta.url), "utf8")
 const musicWorkspaceSource = await readFile(new URL("../app/browse/workspace.tsx", import.meta.url), "utf8")
 const stationCardSource = await readFile(new URL("../components/atmosphere/station-carousel-card.tsx", import.meta.url), "utf8")
+
+/** Executes the provider's exact account-ownership effect body in an isolated scope. */
+function loadProviderAccountOwnershipEffect() {
+  const startMarker = "  useEffect(() => {\n    if (!storageHydrated) {"
+  const endMarker = "\n  }, [\n    accountIntentTracker,"
+  const start = providerSource.indexOf(startMarker)
+  const end = providerSource.indexOf(endMarker, start + startMarker.length)
+  assert.notEqual(start, -1, "Music provider account effect start marker missing")
+  assert.ok(end > start, "Music provider account effect end marker missing")
+  const bodyStart = providerSource.indexOf("\n", start) + 1
+  const effectBody = providerSource.slice(bodyStart, end)
+
+  return loadCompiledModule(`
+    export function runProviderAccountOwnershipEffect(scope) {
+      const {
+        accountDefaultBackgroundIdRef,
+        accountIntentTracker,
+        accountPreferencesHydratedRef,
+        accountRequestIdRef,
+        accountSyncVerifiedRef,
+        accountWritePendingRef,
+        adoptedAccountOwnerRef,
+        bootstrapAppSettings,
+        bootstrapStatus,
+        failedAccountPayloadRef,
+        ownerKey,
+        pendingAccountDefaultBackgroundIdRef,
+        persistVisualizerAccountPreferences,
+        setAccountDefaultBackgroundId,
+        setAccountError,
+        setAccountSignedIn,
+        setAccountStatus,
+        setStorageState,
+        storageHydrated,
+        syncEnabled,
+      } = scope
+${effectBody}
+    }
+  `, "components/providers/music-provider-account-ownership.test.ts")
+}
 
 describe("Music visualizer provider contract", () => {
   it("exposes visualizer state and actions through MusicContext", () => {
@@ -42,19 +84,85 @@ describe("Music visualizer provider contract", () => {
 
   it("consumes one owner-keyed shell bootstrap and its shared patch writer", () => {
     assert.doesNotMatch(providerSource, /\/api\/auth\/session/)
-    assert.equal((providerSource.match(/\/api\/account\/preferences/g) ?? []).length, 0)
+    assert.doesNotMatch(providerSource, /\/api\/account\/preferences/)
     assert.match(providerSource, /useAccountShellBootstrap/)
     assert.match(providerSource, /normalizeMusicVisualizerAccountPreferences/)
     assert.match(providerSource, /accountRequestIdRef/)
     assert.match(providerSource, /writeAppSettingsPatch\(\{ musicVisualizer: payload \}\)/)
   })
 
-  it("retains the provider ownership-transition wiring around the behavioral guard", () => {
-    assert.match(providerSource, /adoptedAccountOwnerRef/)
-    assert.match(providerSource, /accountRequestIdRef\.current \+= 1/)
-    assert.match(providerSource, /accountWritePendingRef\.current = null/)
-    assert.match(providerSource, /failedAccountPayloadRef\.current = null/)
-    assert.match(providerSource, /setAccountDefaultBackgroundId\(null\)/)
+  it("adopts owner B only after clearing owner A transport and account state", () => {
+    const { runProviderAccountOwnershipEffect } = loadProviderAccountOwnershipEffect()
+    const accountIntentTracker = musicVisualizer.createMusicVisualizerAccountIntentTracker()
+    accountIntentTracker.record({
+      ownerKey: "owner-a",
+      changes: { showClock: false },
+      basePreferences: { defaultBackgroundId: "owner-a-default", showClock: true },
+    })
+    const state = {
+      accountDefaultBackgroundIdRef: { current: "owner-a-default" },
+      accountPreferencesHydratedRef: { current: true },
+      accountRequestIdRef: { current: 7 },
+      accountSyncVerifiedRef: { current: true },
+      accountWritePendingRef: { current: { ownerKey: "owner-a", requestId: 7 } },
+      adoptedAccountOwnerRef: { current: { ownerKey: "owner-a", syncEnabled: true } },
+      failedAccountPayloadRef: {
+        current: { defaultBackgroundId: "owner-a-failed", showClock: false },
+      },
+      pendingAccountDefaultBackgroundIdRef: { current: "owner-a-pending" },
+      storageState: { visualizer: { backgroundId: null, showClock: false } },
+    }
+    const observed = {
+      accountDefaultBackgroundIds: [],
+      accountErrors: [],
+      accountSignedIn: [],
+      accountStatuses: [],
+      persisted: [],
+    }
+
+    runProviderAccountOwnershipEffect({
+      ...state,
+      accountIntentTracker,
+      bootstrapAppSettings: {
+        musicVisualizer: { defaultBackgroundId: "owner-b-default", showClock: true },
+      },
+      bootstrapStatus: "ready",
+      ownerKey: "owner-b",
+      persistVisualizerAccountPreferences: async (preferences) => observed.persisted.push(preferences),
+      setAccountDefaultBackgroundId: (value) => observed.accountDefaultBackgroundIds.push(value),
+      setAccountError: (value) => observed.accountErrors.push(value),
+      setAccountSignedIn: (value) => observed.accountSignedIn.push(value),
+      setAccountStatus: (value) => observed.accountStatuses.push(value),
+      setStorageState: (update) => {
+        state.storageState = typeof update === "function" ? update(state.storageState) : update
+      },
+      storageHydrated: true,
+      syncEnabled: true,
+    })
+
+    assert.deepEqual(state.adoptedAccountOwnerRef.current, { ownerKey: "owner-b", syncEnabled: true })
+    assert.equal(state.accountRequestIdRef.current, 8)
+    assert.equal(state.accountWritePendingRef.current, null)
+    assert.equal(state.failedAccountPayloadRef.current, null)
+    assert.equal(state.pendingAccountDefaultBackgroundIdRef.current, null)
+    assert.equal(state.accountDefaultBackgroundIdRef.current, "owner-b-default")
+    assert.equal(state.accountSyncVerifiedRef.current, true)
+    assert.equal(state.accountPreferencesHydratedRef.current, true)
+    assert.equal(accountIntentTracker.hasIntent("owner-a"), false)
+    assert.deepEqual(observed.accountDefaultBackgroundIds, [null, "owner-b-default"])
+    assert.deepEqual(observed.accountSignedIn, [false, true])
+    assert.deepEqual(observed.accountStatuses, ["synced"])
+    assert.deepEqual(observed.persisted, [])
+    assert.equal(state.storageState.visualizer.showClock, true)
+    assert.equal(musicVisualizer.shouldApplyMusicVisualizerAccountWriteCompletion({
+      currentOwner: state.adoptedAccountOwnerRef.current,
+      currentRequestId: state.accountRequestIdRef.current,
+      isMounted: true,
+      requestId: 7,
+      requestOwnerKey: "owner-a",
+    }), false)
+
+    // Keep only the provider-to-tested-helper anchors; reset semantics are behavioral above.
     assert.match(providerSource, /accountIntentTracker\.reconcile/)
     assert.match(providerSource, /shouldApplyMusicVisualizerAccountWriteCompletion\(\{/)
   })

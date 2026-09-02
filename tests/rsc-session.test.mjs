@@ -60,6 +60,13 @@ function discoverSourceFiles(relativeRoot) {
   return discovered
 }
 
+/** Reports the exact forbidden data class while retaining identifier variants. */
+function assertNoLeakPatterns(sourceText, relativePath, forbiddenPatterns) {
+  for (const { label, pattern } of forbiddenPatterns) {
+    assert.doesNotMatch(sourceText, pattern, `${relativePath} must not contain ${label}`)
+  }
+}
+
 describe("RSC session snapshot proof boundary", () => {
   it("skips request headers when proof mode is disabled but still returns the real session", async () => {
     let headersCalls = 0
@@ -127,7 +134,14 @@ describe("RSC session snapshot proof boundary", () => {
     assert.match(proof, /MAX_SESSION_ENTRIES_PER_PROOF\s*=\s*64/)
     assert.match(proof, /proofCounters\.delete\(proofId\)/)
     assert.match(proof, /proofCounters\.keys\(\)\.next\(\)\.value/)
-    assert.doesNotMatch(proof, /setTimeout|setInterval|sessionValue|cookieValue|userId|email|token/)
+    assertNoLeakPatterns(proof, "lib/rsc-session-proof.ts", [
+      { label: "timer retention", pattern: /\bset(?:Timeout|Interval)\b/ },
+      { label: "session-value identifiers", pattern: /\b[\w$]*sessionValue[\w$]*\b/i },
+      { label: "cookie-value identifiers", pattern: /\b[\w$]*cookieValue[\w$]*\b/i },
+      { label: "user-id identifiers", pattern: /\b[\w$]*userId[\w$]*\b/i },
+      { label: "email-bearing identifiers", pattern: /\b[\w$]*email[\w$]*\b/i },
+      { label: "token-bearing identifiers", pattern: /\b[\w$]*token[\w$]*\b/i },
+    ])
   })
 
   it("counts the real auth loader and keeps the ordinary production route unavailable", () => {
@@ -138,7 +152,14 @@ describe("RSC session snapshot proof boundary", () => {
     assert.match(page, /getCurrentSession\(\)/)
     assert.match(page, /consumeRscSessionProofCount/)
     assert.match(page, /data-rsc-session-count/)
-    assert.doesNotMatch(page, /JSON\.stringify|session\.|user\.|email|cookie|token/)
+    assertNoLeakPatterns(page, "app/dev/rsc-session-proof/page.tsx", [
+      { label: "serialized values", pattern: /\bJSON\.stringify\b/ },
+      { label: "session field reads", pattern: /\bsession\s*\./ },
+      { label: "user field reads", pattern: /\buser\s*\./ },
+      { label: "email-bearing identifiers", pattern: /\b[\w$]*email[\w$]*\b/i },
+      { label: "cookie-bearing identifiers", pattern: /\b[\w$]*cookie[\w$]*\b/i },
+      { label: "token-bearing identifiers", pattern: /\b[\w$]*token[\w$]*\b/i },
+    ])
   })
 
   it("dedupes only Server Component callers with React's request-scoped cache", () => {

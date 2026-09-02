@@ -351,7 +351,13 @@ describe("membership return component safety", () => {
           useCallback: (callback) => callback,
           useEffect: () => {},
           useRef: () => ({ current: null }),
-          useState: () => [states[stateIndex++], () => {}],
+          useState: () => {
+            assert.ok(
+              stateIndex < states.length,
+              `MembershipReturnStatus requested unexpected useState slot ${stateIndex + 1}`,
+            )
+            return [states[stateIndex++], () => {}]
+          },
         },
         "@/components/forms/pending-submission-form": {
           PendingSubmissionForm(props) {
@@ -374,6 +380,7 @@ describe("membership return component safety", () => {
     )
 
     const tree = renderFunctionComponents(compiled.MembershipReturnStatus({ kind: "portal" }))
+    assert.equal(stateIndex, states.length, "MembershipReturnStatus must consume every render-order state fixture")
     assert.ok(pendingFormProps, "billing management must reuse the native pending form owner")
     assert.equal(pendingFormProps.action, "/api/billing/portal")
     assert.equal(pendingFormProps.method, "post")

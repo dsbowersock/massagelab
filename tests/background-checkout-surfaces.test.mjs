@@ -53,8 +53,14 @@ describe("background checkout review", () => {
 describe("checkout return recovery", () => {
   it("polls server snapshots and never grants ownership from URL state", async () => {
     const source = await readFile(returnPath, "utf8")
+    const commerceMembers = source.match(
+      /const\s*\{(?<members>[^}]*)\}\s*=\s*useBackgroundCommerce\(\)/,
+    )?.groups?.members ?? ""
     assert.match(source, /Confirming purchase/)
-    assert.match(source, /const \{ state, ensureSnapshot, refresh \} = useBackgroundCommerce\(\)/)
+    assert.notEqual(commerceMembers, "", "checkout return must consume the commerce context")
+    for (const member of ["state", "ensureSnapshot", "refresh"]) {
+      assert.match(commerceMembers, new RegExp(`\\b${member}\\b`), member)
+    }
     assert.match(source, /result !== "success" && result !== "cancelled"[\s\S]*void ensureSnapshot\(\)/)
     assert.match(source, /await refresh\(\)/)
     assert.match(source, /catch \{[\s\S]*finally \{[\s\S]*setChecks/)
