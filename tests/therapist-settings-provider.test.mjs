@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
-import { settlesWithin } from "./helpers/async-control.mjs"
+import { deferred, settlesWithin } from "./helpers/async-control.mjs"
 import { drainEffectCleanups } from "./helpers/effect-cleanups.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -12,16 +12,6 @@ const providerSource = await readFile(
   "utf8",
 )
 const layoutSource = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8")
-
-function deferred() {
-  let resolve
-  let reject
-  const promise = new Promise((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise
-    reject = rejectPromise
-  })
-  return { promise, reject, resolve }
-}
 
 const providerEffectCleanupOptions = Object.freeze({
   label: "Therapist settings Provider",

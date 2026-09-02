@@ -84,6 +84,17 @@ function callCount(source, callPattern) {
   return source.match(callPattern)?.length ?? 0
 }
 
+/** Requires two semantic fragments to remain nearby without fixing their prose order. */
+function assertBoundedEitherOrder(source, left, right, maxCharacters = 120) {
+  assert.match(
+    source,
+    new RegExp(
+      `(?:${left.source}.{0,${maxCharacters}}${right.source}|${right.source}.{0,${maxCharacters}}${left.source})`,
+      "i",
+    ),
+  )
+}
+
 /** Loads a fresh copy of the production module so this test exercises its singleton owner. */
 function sharedMembershipPricingWorkload(priceReads, {
   configuredEnvironment = SIX_PRICE_ENVIRONMENT,
@@ -386,7 +397,10 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(normalizedProjectStateSource, /zero client bootstrap endpoints/i)
     assert.match(normalizedProjectStateSource, /zero ordinary commerce snapshots/i)
     assert.match(normalizedProjectStateSource, /public display catalog only/i)
-    assert.match(normalizedProjectStateSource, /local timing `first` is not platform cold/i)
+    assert.match(
+      normalizedProjectStateSource,
+      /(?:local timing `first`.{0,80}\bnot\b.{0,80}platform cold evidence|platform cold evidence.{0,80}\bnot\b.{0,80}local timing `first`)/i,
+    )
     assert.match(normalizedProjectStateSource, /Live Stripe verification is `NOT RUN`/i)
     const verifiedDateMatch = /^Verified: (\d{4}-\d{2}-\d{2})\r?$/m.exec(projectStateSource)
     assert.ok(verifiedDateMatch, "project state must include one ISO-formatted Verified date")
@@ -418,17 +432,29 @@ describe("family-and-friends server workload baseline", () => {
       "## 2026-08-29 — Final identity safety review remediation",
       "## 2026-08-28 — Local identity and account-method safety verification",
     )
+    const augustBootstrapEvidence = namedFunctionSlice(
+      normalizedProjectLogSource,
+      "## 2026-08-29 — Bootstrap and public-pricing cost hardening evidence",
+      "## 2026-08-29 — Server path and family launch cost controls",
+    )
 
-    assert.match(normalizedProjectLogSource, /ordinary non-practice shell/i)
-    assert.match(normalizedProjectLogSource, /five-minute complete TTL and fifteen-second incomplete\/fallback TTL/i)
-    assert.match(normalizedProjectLogSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
-    assert.match(normalizedProjectLogSource, HISTORICAL_BROWSER_QA_RECEIPT_PATTERN)
-    assert.match(normalizedProjectLogSource, /documented authorization-gated skips.{0,80}zero failures/i)
-    assert.match(septemberMigrationCorrection, /one exact five-migration pre-runtime order/i)
-    assert.match(augustSubscriptionReview, /then-current three-migration order/i)
-    assert.match(augustSubscriptionReview, /2026-09-01 correction above is the sole current migration inventory/i)
-    assert.match(augustIdentityReview, /two identity migrations plus `20260828130000_membership_subscription_convergence` formed the three-migration pre-runtime set/i)
-    assert.match(augustIdentityReview, /2026-09-01 correction above for the sole current migration inventory/i)
+    assert.match(augustBootstrapEvidence, /ordinary non-practice shell/i)
+    assert.match(augustBootstrapEvidence, /five-minute complete TTL/i)
+    assert.match(augustBootstrapEvidence, /fifteen-second incomplete\/fallback TTL/i)
+    for (const authority of ["Checkout", "Portal", "entitlements", "customers", "webhooks"]) {
+      assert.match(augustBootstrapEvidence, new RegExp(`\\b${authority}\\b.{0,100}\\buncached\\b`, "i"))
+    }
+    assert.match(augustBootstrapEvidence, HISTORICAL_BROWSER_QA_RECEIPT_PATTERN)
+    assert.match(augustBootstrapEvidence, /documented authorization-gated skips.{0,80}zero failures/i)
+    assert.match(septemberMigrationCorrection, /five-migration pre-runtime order/i)
+    assert.match(augustSubscriptionReview, /three-migration order/i)
+    assert.match(augustSubscriptionReview, /2026-09-01 correction/i)
+    assert.match(augustSubscriptionReview, /sole current migration inventory/i)
+    assert.match(augustIdentityReview, /two identity migrations/i)
+    assert.match(augustIdentityReview, /`20260828130000_membership_subscription_convergence`/i)
+    assert.match(augustIdentityReview, /three-migration pre-runtime set/i)
+    assert.match(augustIdentityReview, /2026-09-01 correction/i)
+    assert.match(augustIdentityReview, /sole current migration inventory/i)
     assert.equal(callCount(septemberMigrationCorrection, /20260901100000_auth_method_intent_two_factor_purposes/g), 1)
     assert.equal(callCount(septemberMigrationCorrection, /20260901101000_auth_method_intent_registration_callback/g), 1)
     assert.match(
@@ -450,24 +476,45 @@ describe("family-and-friends server workload baseline", () => {
     )
 
     assert.match(normalizedDeploymentSource, /public display catalog only/i)
-    assert.match(deploymentCostControls, /owner is process-local and\s+single-flight/i)
-    assert.match(
-      normalizedDeploymentSource,
-      /stable results use a five-minute TTL.{0,180}configured lookup or malformed projection failures use a fifteen-second retry TTL/i,
-    )
-    assert.match(normalizedDeploymentSource, /Each read-only Stripe Price request has a 2\.5-second timeout and one SDK network retry/i)
-    assert.match(normalizedDeploymentSource, /Checkout, Portal, entitlements, customers, and webhooks remain uncached/i)
+    assert.match(deploymentCostControls, /process-local/i)
+    assert.match(deploymentCostControls, /single-flight/i)
+    for (const stableClass of [/every slot is configured/, /exactly unconfigured/]) {
+      assertBoundedEitherOrder(deploymentCostControls, stableClass, /\bfive-minute TTL\b/)
+    }
+    for (const failureClass of [/\bconfigured lookup\b/, /\bmalformed projection failures\b/]) {
+      assertBoundedEitherOrder(deploymentCostControls, failureClass, /\bfifteen-second retry TTL\b/)
+    }
+    assert.match(deploymentCostControls, /2\.5-second timeout/i)
+    assert.match(deploymentCostControls, /one SDK network retry/i)
+    for (const authority of ["Checkout", "Portal", "entitlements", "customers", "webhooks"]) {
+      assert.match(deploymentCostControls, new RegExp(`\\b${authority}\\b.{0,100}\\buncached\\b`, "i"))
+    }
     assert.match(deploymentTimingContext, /^\*\*BLOCKED HISTORICAL CONTEXT:\*\*/)
-    assert.match(deploymentTimingContext, /HTTP `200` observation for 21\/21 samples\s+across seven fixed routes with three samples per route/)
+    for (const concept of [
+      /21\/21 samples/,
+      /seven fixed routes/,
+      /three samples per route/,
+      /`706c52167466f984f3e405986af11ff3d2343a02`/,
+      /uncommitted dirty Task 9/,
+      /patch identity was not recorded/,
+      /deployed exact commit/,
+      /read-only Vercel aggregate/,
+      /operational gate/,
+      /cold row as `NOT RUN`/,
+    ]) {
+      assert.match(deploymentTimingContext, concept)
+    }
+    assert.match(deploymentTimingContext, /\bunreproducible\b/i)
+    const blockedEvidenceNegation = /\bnot\b[^.]{0,160}\bevidence\b/i
+      .exec(deploymentTimingContext)?.[0] ?? ""
+    assert.notEqual(blockedEvidenceNegation, "", "historical context must retain a bounded not-evidence clause")
+    for (const blockedEvidenceKind of [/\bcompletion\b/i, /\brelease\b/i, /\bexact-candidate\b/i]) {
+      assert.match(blockedEvidenceNegation, blockedEvidenceKind)
+    }
     assert.match(
       deploymentTimingContext,
-      /reported from runtime\s+base `706c52167466f984f3e405986af11ff3d2343a02` plus an uncommitted dirty Task 9\s+working-tree delta whose patch identity was not recorded/,
+      /(?:local timing `first`.{0,80}\bnot\b.{0,80}platform cold evidence|platform cold evidence.{0,80}\bnot\b.{0,80}local timing `first`)/i,
     )
-    assert.match(deploymentTimingContext, /unreproducible\s+and is not completion, release, or exact-candidate evidence/)
-    assert.match(deploymentTimingContext, /local timing\s+`first` label is not platform cold evidence/)
-    assert.match(deploymentTimingContext, /deployed exact commit still\s+requires a separate read-only Vercel aggregate/)
-    assert.match(deploymentTimingContext, /this remains an\s+operational gate/)
-    assert.match(deploymentTimingContext, /record the\s+cold row as `NOT RUN`/)
     assert.doesNotMatch(deploymentSource, /^The final local timing receipt returned/m)
     assert.match(deploymentCostControls, /MASSAGELAB_PUBLIC_REGISTRATION_PAUSED/)
     assert.match(deploymentCostControls, /MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED/)
@@ -482,25 +529,44 @@ describe("family-and-friends server workload baseline", () => {
       "## Family-And-Friends Cost And Pause Gate",
       "## Navigation And Action Feedback Gate",
     )
+    const liveActionGate = namedFunctionSlice(
+      releaseCostControls,
+      "Keep live Stripe",
+      "Historical live payment evidence",
+    )
 
     assert.match(normalizedReleaseChecklistSource, /four logical ORM operations/i)
-    assert.match(releaseCostControls, /public display catalog only is process-local and single-flight/i)
-    assert.match(
-      releaseCostControls,
-      /stable configured or exactly unconfigured results have a five-minute TTL[\s\S]{0,160}configured lookup\/malformed projection failures have a fifteen-second retry\s+TTL/i,
-    )
+    assert.match(releaseCostControls, /public display catalog only/i)
+    assert.match(releaseCostControls, /process-local/i)
+    assert.match(releaseCostControls, /single-flight/i)
+    for (const stableClass of [/\bstable configured\b/, /\bexactly unconfigured\b/]) {
+      assertBoundedEitherOrder(releaseCostControls, stableClass, /\bfive-minute TTL\b/)
+    }
+    for (const failureClass of [/\bconfigured lookup\b/, /\bmalformed projection failures\b/]) {
+      assertBoundedEitherOrder(releaseCostControls, failureClass, /\bfifteen-second retry TTL\b/)
+    }
     assert.match(releaseCostControls, /every required slot is configured before release/i)
     assert.match(normalizedReleaseChecklistSource, /zero client bootstrap endpoints/i)
     assert.match(normalizedReleaseChecklistSource, /zero ordinary commerce snapshots/i)
     assert.match(normalizedReleaseChecklistSource, HISTORICAL_BROWSER_QA_RECEIPT_PATTERN)
-    assert.match(
-      normalizedReleaseChecklistSource,
-      /zero failures and no skips except the documented authorization-gated private rows; skips are never passes/i,
-    )
-    assert.match(
-      normalizedReleaseChecklistSource,
-      /Keep live Stripe payment\/catalog\/webhook\/Portal behavior, private database rows, provider settings, OAuth\/mail delivery, deployment, push, merge, and Production actions recorded as `NOT RUN` until each receives its separate authorization/i,
-    )
+    assert.match(releaseCostControls, /zero failures/i)
+    assert.match(releaseCostControls, /documented authorization-gated private rows/i)
+    assert.match(releaseCostControls, /skips are never passes/i)
+    for (const gatedConcept of [
+      /live Stripe/i,
+      /payment\/catalog\/webhook\/Portal/i,
+      /private database rows/i,
+      /provider settings/i,
+      /OAuth\/mail delivery/i,
+      /deployment/,
+      /push/,
+      /merge/,
+      /Production actions/,
+      /recorded as `NOT RUN`/,
+      /separate authorization/,
+    ]) {
+      assert.match(liveActionGate, gatedConcept)
+    }
     assert.match(releaseCostControls, /MASSAGELAB_PUBLIC_REGISTRATION_PAUSED/)
     assert.match(releaseCostControls, /MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED/)
     assert.match(releaseCostControls, /switches independently/i)

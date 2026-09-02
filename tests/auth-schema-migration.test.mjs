@@ -45,9 +45,13 @@ const packageJson = JSON.parse(packageJsonSource)
 /** Returns one exact checklist step bounded by the next checked or unchecked step heading. */
 function releasePlanStepSection(source, stepHeading, nextStepNumber) {
   const startMarker = `**${stepHeading}**`
+  const headingCount = source.split(startMarker).length - 1
+  assert.equal(
+    headingCount,
+    1,
+    `expected exactly one ${startMarker}; found ${headingCount}`,
+  )
   const start = source.indexOf(startMarker)
-  if (start === -1) return ""
-
   const remaining = source.slice(start)
   const nextHeading = new RegExp(`^- \\[[ xX]\\] \\*\\*Step ${nextStepNumber}:`, "m").exec(remaining)
   if (!nextHeading) return ""
@@ -186,7 +190,18 @@ describe("identity method safety persistence", () => {
         "**Step 5: Current gate**\nrequired claim\n",
       )
     }
-    assert.equal(releasePlanStepSection("missing current step", "Step 5: Current gate", 6), "")
+    assert.throws(
+      () => releasePlanStepSection("missing current step", "Step 5: Current gate", 6),
+      /expected exactly one \*\*Step 5: Current gate\*\*; found 0/,
+    )
+    assert.throws(
+      () => releasePlanStepSection(
+        "- [ ] **Step 5: Current gate**\nfirst\n- [ ] **Step 5: Current gate**\nsecond\n- [ ] **Step 6: Next gate**",
+        "Step 5: Current gate",
+        6,
+      ),
+      /expected exactly one \*\*Step 5: Current gate\*\*; found 2/,
+    )
     assert.equal(
       releasePlanStepSection("- [ ] **Step 5: Current gate**", "Step 5: Current gate", 6),
       "",

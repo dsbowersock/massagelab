@@ -29,14 +29,32 @@ describe("Membership Checkout POST route", () => {
       'import catalog from "@/lib/membership-pricing"',
       'import { getMembershipPricingCatalog } from"@/lib/membership-pricing"',
       'export { getMembershipPricingCatalog } from "@/lib/membership-pricing"',
+      'export { getMembershipPricingCatalog } from "../lib/membership-pricing.js"',
       'import "@/lib/membership-pricing"',
       'await import("@/lib/membership-pricing")',
+      'await import("../lib/membership-pricing.js")',
       'require("@/lib/membership-pricing")',
       'await import(`@/lib/membership-pricing`)',
       'require(`@/lib/membership-pricing`)',
     ]) {
       assert.match(source, MEMBERSHIP_PRICING_IMPORT_PATTERN)
     }
+  })
+
+  it("does not confuse prose, identifiers, or differently named modules with catalog imports", () => {
+    for (const source of [
+      "Membership pricing stays display-only in this explanatory prose.",
+      'const membershipPricingModule = "@/lib/membership-pricing"',
+      'import "@/lib/membership-pricing-preview"',
+      'import "@/lib/not-membership-pricing"',
+    ]) {
+      assert.doesNotMatch(source, MEMBERSHIP_PRICING_IMPORT_PATTERN)
+    }
+  })
+
+  it("intentionally flags commented-out exact catalog imports in the raw-source boundary", () => {
+    // Fail closed so protected payment-authority files cannot park a dormant catalog import.
+    assert.match('// import "@/lib/membership-pricing"', MEMBERSHIP_PRICING_IMPORT_PATTERN)
   })
 
   it("returns a paused JSON response after authentication and before membership, legal, customer, or Stripe work", async () => {

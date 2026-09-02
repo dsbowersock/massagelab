@@ -1631,8 +1631,9 @@ test("Music account preference owner switch ignores a delayed old-owner PUT", as
         contentType: "application/json",
         body: JSON.stringify({ appSettings: { musicVisualizer: payload.appSettings?.musicVisualizer } }),
       })
-    } catch {
+    } catch (error) {
       // Reload may cancel owner A's document before its held response is released.
+      if (!isHeldOwnerAWrite || !isHeldRouteTeardownCancellation(error)) throw error
     } finally {
       if (isHeldOwnerAWrite) markOwnerAWriteResponseProcessed()
     }
