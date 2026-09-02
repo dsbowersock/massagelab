@@ -67,7 +67,7 @@ it("fails closed for a whitespace-padded sidebar owner id", async () => {
   }
   const { getSidebarNavigationContext } = loadSidebar(database)
 
-  const context = await getSidebarNavigationContext({ id: " user-1 " }, database)
+  const context = await getSidebarNavigationContext({ id: " user-1 ", featureKeys: [] }, database)
 
   assert.deepEqual(context, { authState: "anonymous" })
   assert.equal(calls.practiceRoleReads, 0)

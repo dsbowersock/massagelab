@@ -554,7 +554,9 @@ describe("account preference route ownership boundary", () => {
     assert.deepEqual(
       outcomes.map(({ status }) => status),
       ["fulfilled", "fulfilled"],
-      JSON.stringify(outcomes.map((outcome) => outcome.reason)),
+      outcomes
+        .map(({ reason }) => reason instanceof Error ? reason.stack ?? reason.message : String(reason))
+        .join("\n"),
     )
     const [appSettingsResponse, chimerResponse] = outcomes.map(({ value }) => value)
     const saved = route.readPreferenceRecord()

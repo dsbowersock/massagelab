@@ -161,6 +161,16 @@ function authSnapshotWorkload(calls) {
   return { database, getUserAuthState, loadTemporaryGrants }
 }
 
+/**
+ * Loads the sidebar with feature keys produced by `getUserAuthState` and then
+ * projected through the `getCurrentRscSession` double. The legacy `@/auth`
+ * double carries a poison feature key so an accidental direct-auth read cannot
+ * satisfy the authoritative session assertion.
+ *
+ * @param {{ legacyAuthSnapshots: number, rscAuthSnapshots: number, preferenceReads: number, practiceRoleReads: number, entitlementReads: number }} calls Mutable workload counters.
+ * @param {ReadonlyArray<string>} authoritativeFeatureKeys Entitlements from the auth workload.
+ * @returns {{ getAppSidebarData: () => Promise<{ navigation: { featureKeys: string[] }, accountBootstrap: object }> }} Compiled sidebar projection entry point.
+ */
 function sidebarNavigationWorkload(calls, authoritativeFeatureKeys) {
   const database = {
     userPreference: {
@@ -358,38 +368,7 @@ function portalPost(calls) {
 }
 
 describe("family-and-friends server workload baseline", () => {
-  it("keeps canonical launch operations aligned with the measured cost boundaries", () => {
-    const deploymentCostControls = namedFunctionSlice(
-      deploymentSource,
-      "## Family-And-Friends Launch Cost Controls",
-      "## Identity, Membership Schema, And Writer Rollout",
-    )
-    const deploymentTimingContext = namedFunctionSlice(
-      deploymentSource,
-      "**BLOCKED HISTORICAL CONTEXT:**",
-      "Before a sharing window",
-    )
-    const releaseCostControls = namedFunctionSlice(
-      releaseChecklistSource,
-      "## Family-And-Friends Cost And Pause Gate",
-      "## Navigation And Action Feedback Gate",
-    )
-    const septemberMigrationCorrection = namedFunctionSlice(
-      projectLogSource,
-      "## 2026-09-01 — Combined migration-order correction",
-      "## 2026-08-29 — Bootstrap and public-pricing cost hardening evidence",
-    )
-    const augustSubscriptionReview = namedFunctionSlice(
-      projectLogSource,
-      "## 2026-08-29 — Final membership convergence review fixes",
-      "## 2026-08-29 — Initial subscription entitlement convergence implementation and Task 5 evidence",
-    )
-    const augustIdentityReview = namedFunctionSlice(
-      projectLogSource,
-      "## 2026-08-29 — Final identity safety review remediation",
-      "## 2026-08-28 — Local identity and account-method safety verification",
-    )
-
+  it("keeps project-state launch-cost claims current and dated", () => {
     assert.match(projectStateSource, /ordinary non-practice shell/i)
     assert.match(projectStateSource, /four logical ORM operations/i)
     assert.match(projectStateSource, /zero client bootstrap endpoints/i)
@@ -404,6 +383,24 @@ describe("family-and-friends server workload baseline", () => {
       Number.isNaN(verifiedDate.getTime()) ? null : verifiedDate.toISOString().slice(0, 10),
       verifiedDateMatch[1],
       "project-state Verified must be a real ISO calendar date",
+    )
+  })
+
+  it("keeps project-log migration and historical workload claims ordered", () => {
+    const septemberMigrationCorrection = namedFunctionSlice(
+      projectLogSource,
+      "## 2026-09-01 — Combined migration-order correction",
+      "## 2026-08-29 — Bootstrap and public-pricing cost hardening evidence",
+    )
+    const augustSubscriptionReview = namedFunctionSlice(
+      projectLogSource,
+      "## 2026-08-29 — Final membership convergence review fixes",
+      "## 2026-08-29 — Initial subscription entitlement convergence implementation and Task 5 evidence",
+    )
+    const augustIdentityReview = namedFunctionSlice(
+      projectLogSource,
+      "## 2026-08-29 — Final identity safety review remediation",
+      "## 2026-08-28 — Local identity and account-method safety verification",
     )
 
     assert.match(projectLogSource, /ordinary non-practice shell/i)
@@ -423,6 +420,19 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(
       septemberMigrationCorrection,
       /20260901100000_auth_method_intent_two_factor_purposes[\s\S]*20260901101000_auth_method_intent_registration_callback/,
+    )
+  })
+
+  it("keeps deployment guidance explicit about timing and launch controls", () => {
+    const deploymentCostControls = namedFunctionSlice(
+      deploymentSource,
+      "## Family-And-Friends Launch Cost Controls",
+      "## Identity, Membership Schema, And Writer Rollout",
+    )
+    const deploymentTimingContext = namedFunctionSlice(
+      deploymentSource,
+      "**BLOCKED HISTORICAL CONTEXT:**",
+      "Before a sharing window",
     )
 
     assert.match(deploymentSource, /public display catalog only/i)
@@ -450,6 +460,14 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(deploymentCostControls, /exact lowercase value `true` pauses/i)
     assert.match(deploymentCostControls, /An absent flag[\s\S]{0,100}leaves that path open/i)
     assert.match(deploymentCostControls, /changing one flag does not change[\s\S]{0,40}the other/i)
+  })
+
+  it("keeps release-checklist gates aligned with launch controls", () => {
+    const releaseCostControls = namedFunctionSlice(
+      releaseChecklistSource,
+      "## Family-And-Friends Cost And Pause Gate",
+      "## Navigation And Action Feedback Gate",
+    )
 
     assert.match(releaseChecklistSource, /four logical ORM operations/i)
     assert.match(releaseCostControls, /public display catalog only is process-local and single-flight/i)
@@ -474,7 +492,9 @@ describe("family-and-friends server workload baseline", () => {
     assert.match(releaseCostControls, /switches independently/i)
     assert.match(releaseCostControls, /Only lowercase `true` pauses a path/i)
     assert.match(releaseCostControls, /absence defaults open/i)
+  })
 
+  it("keeps cost-hardening plan and report evidence explicitly bounded", () => {
     assert.match(
       costHardeningPlanSource,
       /do not create real Stripe Checkout Session, Portal Session, Customer, subscription, payment, refund, cancellation, webhook, or provider-setting resources/i,
