@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
+import ts from "typescript"
 import {
   defaultAppSettings,
   getAudioPlayerToolbarPlacement,
@@ -26,9 +27,28 @@ const settingsProviderSource = readFileSync(
 )
 const rootLayoutSource = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8")
 
-/** Returns one JSX opening tag so negative prop checks cannot match another owner. */
+/** Returns one parser-bounded JSX opening tag so expression operators cannot truncate it. */
 function componentOpeningTag(source, componentName) {
-  const openingTag = source.match(new RegExp(`<${componentName}\\b[^>]*>`))?.[0]
+  const sourceFile = ts.createSourceFile(
+    "component-opening-tag.test.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  let openingTag
+  function visit(node) {
+    if (openingTag) return
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
+      && node.tagName.getText(sourceFile) === componentName
+    ) {
+      openingTag = source.slice(node.getStart(sourceFile), node.end)
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
   assert.ok(openingTag, `missing ${componentName} opening tag`)
   return openingTag
 }
@@ -216,6 +236,19 @@ function createSettingsOwnerTransitionHarness({
 }
 
 describe("App settings helpers", () => {
+  it("extracts complete JSX tags across expression operators and diagnoses missing owners", () => {
+    const source = "const fixture = <Fixture visible={count > 0} syncEnabled={false}>child</Fixture>"
+
+    assert.equal(
+      componentOpeningTag(source, "Fixture"),
+      '<Fixture visible={count > 0} syncEnabled={false}>',
+    )
+    assert.throws(
+      () => componentOpeningTag(source, "MissingFixture"),
+      /missing MissingFixture opening tag/,
+    )
+  })
+
   it("hydrates and writes through the shared owner-scoped app-settings writer", () => {
     assert.match(settingsProviderSource, /useAccountShellBootstrap/)
     assert.equal((settingsProviderSource.match(/\/api\/account\/preferences/g) ?? []).length, 0)

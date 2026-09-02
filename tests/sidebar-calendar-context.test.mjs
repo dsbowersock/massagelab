@@ -412,7 +412,7 @@ describe("sidebar calendar context route gating", () => {
     assert.match(layoutSource, /<SidebarCalendarProvider/)
     assert.match(layoutSource, /ownerKey=\{accountBootstrap\.ownerKey\}/)
     assert.match(layoutSource, /enabled=\{accountBootstrap\.hasPracticeMembership\}/)
-    assert.doesNotMatch(layoutSource, /<SidebarCalendarProvider\s+enabled=\{Boolean\(user\)\}/)
+    assert.doesNotMatch(layoutSource, /<SidebarCalendarProvider\b[^>]*\benabled=\{Boolean\(user\)\}/)
     assert.match(providerSource, /createSidebarCalendarCoordinator/)
   })
 

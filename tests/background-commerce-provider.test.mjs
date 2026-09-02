@@ -651,11 +651,11 @@ describe("BackgroundCommerceProvider contract", () => {
     assert.match(value, /type: "mutation-refresh-failure"/)
     assert.match(
       value,
-      /const enqueueMutation[\s\S]*mutationStartedOwnerRef\.current = requestOwnerKey[\s\S]*hydratedOwnerRef\.current = null/,
+      /const enqueueMutation[\s\S]*?mutationStartedOwnerRef\.current = requestOwnerKey[\s\S]*?hydratedOwnerRef\.current = null[\s\S]*?\}, \[enqueueSerializedOperation, ownerKey\]\)/,
     )
     assert.match(
       value,
-      /const startCheckout[\s\S]*mutationStartedOwnerRef\.current = requestOwnerKey[\s\S]*hydratedOwnerRef\.current = null/,
+      /const startCheckout[\s\S]*?mutationStartedOwnerRef\.current = requestOwnerKey[\s\S]*?hydratedOwnerRef\.current = null[\s\S]*?\}, \[signedIn, enqueueSerializedOperation, ownerKey\]\)/,
     )
     assert.doesNotMatch(value, /creditBalance\s*[+\-]=|ownedBackgroundIds\.push/)
   })

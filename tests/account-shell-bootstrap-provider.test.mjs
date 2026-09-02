@@ -53,6 +53,7 @@ function bootstrap({
   }
 }
 
+/** Compiles inert React solely to exercise the provider's exported fallback coordinator. */
 function loadProvider(loadPreferences) {
   assert.notEqual(providerSource, "", "account shell bootstrap provider must exist")
 

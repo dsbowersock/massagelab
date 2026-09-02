@@ -70,7 +70,7 @@ describe("shared password method proof with the real limiter", () => {
       checkedPurposes.push(purpose)
       return {
         allowed: false,
-        retryAfterSeconds: purpose === "LOGIN" ? 30 : 90,
+        retryAfterSeconds: purpose === "LOGIN" ? 90 : 30,
       }
     }
 
