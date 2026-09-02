@@ -11,7 +11,11 @@ const sidebarSource = await readFile(
   "utf8",
 )
 
-/** Loads a module whose fallback Prisma owner records and rejects every practice access. */
+/**
+ * Compiles the sidebar with a counted implicit `practiceMembership` getter that
+ * throws on access. Callers must pass a distinct explicit database to
+ * `getSidebarNavigationContext`; the counter proves the fallback stayed unused.
+ */
 function loadSidebar(implicitPracticeMembershipAccesses) {
   return loadCompiledModule(sidebarSource, "components/sidebar/sidebar.owner-validation.test.tsx", {
     "@/components/sidebar/app-sidebar-client": { AppSidebarClient: () => null },

@@ -145,18 +145,18 @@ describe("RSC session snapshot proof boundary", () => {
     const proofId = "123e4567-e89b-42d3-a456-426614174000"
     let headersCalls = 0
     let authCalls = 0
-    const proof = loadRscProofBoundary({
-      async headers() {
-        headersCalls += 1
-        return new Headers({ "x-massagelab-rsc-session-proof": proofId })
-      },
-      async getCurrentSession() {
-        authCalls += 1
-        return null
-      },
-    })
 
     await withRscProofMode("1", async () => {
+      const proof = loadRscProofBoundary({
+        async headers() {
+          headersCalls += 1
+          return new Headers({ "x-massagelab-rsc-session-proof": proofId })
+        },
+        async getCurrentSession() {
+          authCalls += 1
+          return null
+        },
+      })
       assert.equal(await proof.getCurrentSession(), null)
       assert.equal(proof.consumeRscSessionProofCount(proofId), 1)
     })

@@ -23,6 +23,7 @@ import {
 } from "../lib/account-page.js"
 import { BILLING_PORTAL_DESTINATIONS } from "../lib/billing-portal-destinations.js"
 import { resolveMembershipPricingMode } from "../lib/membership.js"
+import { renderMembershipPricingCards } from "./helpers/membership-pricing-cards.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const accountPageSource = await readFile(
@@ -501,6 +502,32 @@ describe("Account page tab model", () => {
     )
   })
 
+  it("passes a closed Supporter Checkout control to the real pricing-card actions", async () => {
+    const membershipTab = await renderMembershipTab({
+      supporterCheckoutOpen: false,
+      subscriptions: [subscription("canceled")],
+      stripeCustomer: null,
+    })
+    const pricingProps = membershipPricingProps(membershipTab)
+    assert.equal(pricingProps.mode, "checkout")
+    assert.equal(pricingProps.supporterCheckoutOpen, false)
+
+    const pricingCards = renderMembershipPricingCards({
+      activeMembershipLevel: pricingProps.activeMembershipLevel,
+      mode: pricingProps.mode,
+      portalActionAvailable: pricingProps.portalActionAvailable,
+      supporterCheckoutOpen: pricingProps.supporterCheckoutOpen,
+    })
+    assert.match(elementText(pricingCards), /New Supporter checkout is temporarily paused/)
+    assert.equal(
+      findElements(
+        pricingCards,
+        (element) => element.type === "form" && element.props.action === "/api/billing/checkout",
+      ).length,
+      0,
+    )
+  })
+
   it("filters account navigation by label, group, and description", () => {
     assert.deepEqual(
       filterAccountPageGroups("billing").flatMap((group) => group.items.map((item) => item.id)),
@@ -601,6 +628,7 @@ function billingPortalForms(tree) {
 async function renderMembershipTab({
   features = [],
   featureAccess = [],
+  supporterCheckoutOpen = true,
   subscriptions,
   stripeCustomer,
 }) {
@@ -677,7 +705,7 @@ async function renderMembershipTab({
           subscriptions,
         },
       }),
-      getPublicLaunchControls: () => ({ supporterCheckoutOpen: true }),
+      getPublicLaunchControls: () => ({ supporterCheckoutOpen }),
       resolveMembershipPricingMode,
       settingsInsetClassName: "settings-inset",
       settingsSurfaceClassName: "settings-surface",

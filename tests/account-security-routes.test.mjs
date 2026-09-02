@@ -93,6 +93,30 @@ function resultMessageReads(source) {
       || (ts.isPropertyAssignment(property) && isMessage(property.name))
     ))
   }
+  const isNamedObjectMethod = (node, objectName, methodName) => {
+    const value = unwrapExpression(node)
+    return Boolean(
+      value
+      && ts.isPropertyAccessExpression(value)
+      && ts.isIdentifier(value.expression)
+      && value.expression.text === objectName
+      && value.name.text === methodName
+    )
+  }
+  const callCopiesResult = (node) => {
+    if (!ts.isCallExpression(node)) return false
+    const callee = unwrapExpression(node.expression)
+    if (ts.isIdentifier(callee) && callee.text === "structuredClone") {
+      return isResult(node.arguments[0])
+    }
+    if (isNamedObjectMethod(callee, "JSON", "stringify")) {
+      return isResult(node.arguments[0])
+    }
+    if (isNamedObjectMethod(callee, "Object", "assign")) {
+      return node.arguments.slice(1).some((argument) => isResult(argument))
+    }
+    return false
+  }
 
   function visit(node) {
     if (
@@ -127,6 +151,8 @@ function resultMessageReads(source) {
       ts.isSpreadAssignment(node)
       && isResult(node.expression)
     ) {
+      reads.push(node)
+    } else if (callCopiesResult(node)) {
       reads.push(node)
     }
     ts.forEachChild(node, visit)
@@ -306,6 +332,12 @@ describe("recoverable account-method UI contracts", () => {
       "({ ...rest } = result)",
       "consume({ ...result })",
       "consume({ code: 'safe', ...result })",
+      "Object.assign({}, result)",
+      "Object.assign({}, safe, (result as MethodResult))",
+      "JSON.stringify(result)",
+      "JSON.stringify((result satisfies MethodResult))",
+      "structuredClone(result)",
+      "structuredClone(result!)",
     ]) {
       assert.equal(resultMessageReads(source).length, 1, source)
     }
@@ -313,6 +345,12 @@ describe("recoverable account-method UI contracts", () => {
       "consume(result.code); const { code } = result",
       "const { ...rest } = other; consume({ ...other })",
       "consume({ message: safeMessage })",
+      "Object.assign(result, { code: 'safe' })",
+      "Object.assign({}, { code: result.code })",
+      "JSON.stringify(result.code)",
+      "JSON.stringify(other)",
+      "structuredClone(result.code)",
+      "structuredClone(other)",
     ]) {
       assert.equal(resultMessageReads(source).length, 0, source)
     }

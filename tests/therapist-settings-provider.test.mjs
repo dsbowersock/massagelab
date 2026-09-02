@@ -193,6 +193,16 @@ function loadProviderUpdaterHarness({ profile = {}, storageWriteThrows = false }
           stateCall += 1
           const value = typeof initial === "function" ? initial() : initial
           if (stateCall === OWNED_SETTINGS_STATE_SLOT) {
+            assert.equal(
+              Boolean(
+                value
+                && typeof value === "object"
+                && Object.hasOwn(value, "ownerKey")
+                && Object.hasOwn(value, "settings"),
+              ),
+              true,
+              "owned-settings state slot must retain its ownerKey and settings shape",
+            )
             return [value, (update) => {
               if (typeof update === "function") {
                 // Replay functional updaters so side effects moved inside one fail this harness.
@@ -202,6 +212,17 @@ function loadProviderUpdaterHarness({ profile = {}, storageWriteThrows = false }
             }]
           }
           if (stateCall === CLOUD_STATE_SLOT) {
+            assert.equal(
+              Boolean(
+                value
+                && typeof value === "object"
+                && Object.hasOwn(value, "ownerKey")
+                && Object.hasOwn(value, "status")
+                && Object.hasOwn(value, "canSync"),
+              ),
+              true,
+              "cloud state slot must retain its ownerKey, status, and canSync shape",
+            )
             return [{ ownerKey: "owner-a", status: "ready", canSync: true }, () => undefined]
           }
           return [value, () => undefined]

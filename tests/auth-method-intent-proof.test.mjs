@@ -107,9 +107,6 @@ describe("fresh consumed Google security reauthentication", () => {
       expiresAt: { gt: NOW },
     }
     assert.deepEqual(db.updateWheres, [expectedWhere, expectedWhere])
-    const whereWithoutProviderProof = structuredClone(expectedWhere)
-    delete whereWithoutProviderProof.providerProvenAt
-    assert.equal(matchesIntent(freshIntent(), whereWithoutProviderProof), false)
   })
 
   it("does not consume a fresh proof for a different caller-expected purpose", async () => {

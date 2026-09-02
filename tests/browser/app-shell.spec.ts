@@ -104,11 +104,7 @@ async function abortHeldFixtureRequest(route: Route) {
   try {
     await route.abort("aborted")
   } catch (error) {
-    const appCancellationAlreadyHandled = (
-      error instanceof Error
-      && error.message === "Route is already handled!"
-    )
-    if (!appCancellationAlreadyHandled && !isHeldRouteTeardownCancellation(error)) throw error
+    if (!isHeldRouteTeardownCancellation(error)) throw error
   }
 }
 

@@ -280,8 +280,12 @@ function isLocalHttpUrl(urlString: string, configuredHostname: string) {
 }
 
 function isExternalHttpUrl(urlString: string, configuredHostname: string) {
-  const url = new URL(urlString)
-  return ["http:", "https:"].includes(url.protocol) && !isLocalHttpUrl(urlString, configuredHostname)
+  try {
+    const url = new URL(urlString)
+    return ["http:", "https:"].includes(url.protocol) && !isLocalHttpUrl(urlString, configuredHostname)
+  } catch {
+    return false
+  }
 }
 
 function registerAllowedExternalUrls(page: Page, allowedExternalUrls: ReadonlySet<string>) {
@@ -348,7 +352,7 @@ async function capturePageHealth(page: Page, allowedExternalUrls: ReadonlySet<st
   }
 }
 
-test("public network classification keeps locality exact to loopback and the configured host", async ({ baseURL }) => {
+test("public network classification keeps locality exact to loopback and the configured host", async ({ baseURL, page }) => {
   if (!baseURL) throw new Error("Public network classification requires the configured Browser-QA base URL")
   const configuredHostname = new URL(baseURL).hostname
   const configuredUrl = new URL("/browser-qa-local-classification", baseURL).toString()
@@ -374,6 +378,13 @@ test("public network classification keeps locality exact to loopback and the con
     "data:text/plain,non-http",
   ]) {
     expect(isExternalHttpUrl(nonHttpUrl, configuredHostname), nonHttpUrl).toBe(false)
+  }
+
+  for (const invalidUrl of ["/relative", "https://["]) {
+    expect(
+      () => registerAllowedExternalUrls(page, new Set([invalidUrl])),
+      invalidUrl,
+    ).toThrow(`Public external allowlist contains a non-external URL: ${invalidUrl}`)
   }
 })
 
