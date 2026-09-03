@@ -176,10 +176,13 @@ test("player polling uses credential-bound tokens and 2s/5s/15s successful caden
 
   await page.goto(`/anatomime/play/${ROOM_CODE}`, { waitUntil: "domcontentloaded" })
   await expect.poll(() => pollCount).toBe(1)
+  const initialLoading = page.getByRole("status").filter({ hasText: "Loading shared game…" })
+  await expect(initialLoading).toBeVisible()
   await pauseClockAtCurrentTime(page)
   expect(pollCount).toBe(1)
   firstPollResponse.release()
   await expect(page.getByText("ACTIVE_TERM", { exact: true })).toBeVisible()
+  await expect(initialLoading).toHaveCount(0)
   await expect.poll(() => tokenHeaders).not.toBeNull()
   expect(tokenHeaders?.["x-anatomime-player-id"]).toBe("player-1")
   expect(tokenHeaders?.["x-anatomime-player-token"]).toBe("player-token")
@@ -238,10 +241,13 @@ test("player polling backs off through 2/4/8/16/30 seconds and resets after succ
 
   await page.goto(`/anatomime/play/${ROOM_CODE}`, { waitUntil: "domcontentloaded" })
   await expect.poll(() => pollCount).toBe(1)
+  const initialLoading = page.getByRole("status").filter({ hasText: "Loading shared game…" })
+  await expect(initialLoading).toBeVisible()
   await pauseClockAtCurrentTime(page)
   expect(pollCount).toBe(1)
   firstPollResponse.release()
   await expect(page.getByText(/Connection interrupted/i)).toBeVisible()
+  await expect(initialLoading).toHaveCount(0)
 
   for (const delay of [2_001, 4_001, 8_001, 16_001, 30_000]) {
     const before = pollCount

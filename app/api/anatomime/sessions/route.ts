@@ -27,7 +27,7 @@ export const POST = apiErrorMapper(async (request: Request) => {
     beforePersist: () => requireAnatomimeOperationalAllowance({
       operation: "ANATOMIME_ROOM_CREATE",
       networkIdentifier: authRequestNetworkIdentifier(request),
-      ...(accountId ? { account: { kind: "ACCOUNT_ID", value: accountId } as const } : {}),
+      ...(accountId == null ? {} : { account: { kind: "ACCOUNT_ID", value: accountId } as const }),
     }),
   })
   const hostPlayerId = created.room.hostPlayerId ?? created.room.players[0]?.id

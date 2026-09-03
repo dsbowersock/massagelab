@@ -419,6 +419,41 @@ describe("Anatomime create and join traffic boundaries", () => {
       if (status === 429) assert.equal(response.headers.get("Retry-After"), "8")
     })
   }
+
+  for (const accountId of [null, undefined]) {
+    it(`keeps ${String(accountId)} create account identity on the anonymous policy boundary`, async () => {
+      const scenario = loadRoute("create", {
+        session: { user: { id: accountId } },
+        rejectInvalidAccount: true,
+      })
+      const response = await withDatabaseUrl(() => scenario.POST(routeRequest("/api/anatomime/sessions", {})))
+
+      assert.equal(response.status, 201)
+      assert.deepEqual(scenario.limitCalls, [{
+        operation: "ANATOMIME_ROOM_CREATE",
+        networkIdentifier: "198.51.100.27",
+      }])
+      assert.deepEqual(scenario.protectedCalls, ["room-create"])
+    })
+  }
+
+  for (const accountId of ["", "   ", "x".repeat(257)]) {
+    it(`fails a present malformed create account identity closed before protected work (${JSON.stringify(accountId.slice(0, 12))})`, async () => {
+      const scenario = loadRoute("create", {
+        session: { user: { id: accountId } },
+        rejectInvalidAccount: true,
+      })
+      const response = await withDatabaseUrl(() => scenario.POST(routeRequest("/api/anatomime/sessions", {})))
+
+      assert.equal(response.status, 503)
+      assert.deepEqual(scenario.limitCalls, [{
+        operation: "ANATOMIME_ROOM_CREATE",
+        networkIdentifier: "198.51.100.27",
+        account: { kind: "ACCOUNT_ID", value: accountId },
+      }])
+      assert.deepEqual(scenario.protectedCalls, [])
+    })
+  }
 })
 
 describe("Anatomime client poll ownership", () => {
@@ -469,9 +504,9 @@ describe("Anatomime realtime token traffic boundary", () => {
     )
     assert.equal(
       sharedSessionClientSource.match(/setLookupCode\(normalizeAnatomimeClientRoomCode\(code\)\)/g)?.length,
-      2,
+      1,
     )
-    assert.equal(sharedSessionClientSource.match(/setLookupCode\(nextLookupCode\)/g)?.length, 1)
+    assert.equal(sharedSessionClientSource.match(/setLookupCode\(nextLookupCode\)/g)?.length, 2)
     assert.equal(sharedSessionClientSource.match(/setLookupCode\(""\)/g)?.length, 1)
     assert.equal(sharedSessionClientSource.match(/setLookupCode\(/g)?.length, 4)
     assert.match(
@@ -653,7 +688,7 @@ describe("Anatomime realtime token traffic boundary", () => {
 
 describe("Anatomime room poll traffic boundary", () => {
   it("fails a non-canonicalizable room selector closed before auth or preflight", async () => {
-    const scenario = loadPollRoute({ ingressDecision: { allowed: false, retryAfterSeconds: 10 } })
+    const scenario = loadPollRoute({ peekDecision: { allowed: false, retryAfterSeconds: 10 } })
     const response = await scenario.GET(
       pollRequest("/api/anatomime/sessions/---"),
       { params: Promise.resolve({ code: " --- " }) },
@@ -661,17 +696,17 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 429)
     assert.equal(response.headers.get("Retry-After"), "10")
-    assert.deepEqual(scenario.ingressCalls, [{
+    assert.deepEqual(scenario.peekCalls, [{
       networkIdentifier: "198.51.100.27",
       roomIdentifier: "",
     }])
-    assert.deepEqual(scenario.events, ["shed:ingress"])
+    assert.deepEqual(scenario.events, ["shed:peek"])
     assert.deepEqual(scenario.preflightCalls, [])
     assert.deepEqual(scenario.hydrateCalls, [])
   })
 
   it("stops a local ingress denial before auth, preflight, durable quota, or hydration", async () => {
-    const scenario = loadPollRoute({ ingressDecision: { allowed: false, retryAfterSeconds: 6 } })
+    const scenario = loadPollRoute({ peekDecision: { allowed: false, retryAfterSeconds: 6 } })
     const response = await scenario.GET(
       pollRequest("/api/anatomime/sessions/a-b12"),
       { params: Promise.resolve({ code: " a-b12 " }) },
@@ -679,8 +714,8 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 429)
     assert.equal(response.headers.get("Retry-After"), "6")
-    assert.deepEqual(scenario.events, ["shed:ingress"])
-    assert.deepEqual(scenario.ingressCalls, [{
+    assert.deepEqual(scenario.events, ["shed:peek"])
+    assert.deepEqual(scenario.peekCalls, [{
       networkIdentifier: "198.51.100.27",
       roomIdentifier: "AB12",
     }])
@@ -701,8 +736,12 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 429)
     assert.equal(response.headers.get("Retry-After"), "4")
-    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight", "shed:joined"])
-    assert.deepEqual(scenario.joinedCalls, [{ playerId: "database-player" }])
+    assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight", "shed:joined"])
+    assert.deepEqual(scenario.joinedCalls, [{
+      networkIdentifier: "198.51.100.27",
+      roomIdentifier: "AB12",
+      playerId: "database-player",
+    }])
     assert.deepEqual(scenario.durableCalls, [])
     assert.deepEqual(scenario.hydrateCalls, [])
   })
@@ -719,7 +758,12 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 200)
     assert.deepEqual(await response.json(), { session: { code: "AB12", playerCount: 1 } })
-    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight", "shed:joined", "hydrate", "summarize"])
+    assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight", "shed:joined", "hydrate", "summarize"])
+    assert.deepEqual(scenario.joinedCalls, [{
+      networkIdentifier: "198.51.100.27",
+      roomIdentifier: "AB12",
+      playerId: "database-player",
+    }])
     assert.deepEqual(scenario.preflightCalls, [{
       code: "AB12",
       viewer: { userId: "account-1", playerId: "stale-selector", playerToken: "stale-token" },
@@ -805,7 +849,7 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 404)
     assert.deepEqual(await response.json(), { error: "Game not found." })
-    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight"])
+    assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight"])
     assert.deepEqual(scenario.durableCalls, [])
     assert.deepEqual(scenario.hydrateCalls, [])
   })
@@ -826,7 +870,7 @@ describe("Anatomime room poll traffic boundary", () => {
 
       assert.equal(response.status, 429)
       assert.equal(response.headers.get("Retry-After"), "7")
-      assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight", "durable"])
+      assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight", "durable"])
       assert.deepEqual(scenario.durableCalls, [{
         operation: "ANATOMIME_UNJOINED_LOOKUP",
         networkIdentifier: "198.51.100.27",
@@ -850,7 +894,7 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 403)
     assert.deepEqual(await response.json(), { error: "Join this room before taking that action." })
-    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight", "durable"])
+    assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight", "durable"])
     assert.deepEqual(scenario.hydrateCalls, [])
   })
 
@@ -864,7 +908,7 @@ describe("Anatomime room poll traffic boundary", () => {
     )
 
     assert.equal(response.status, 200)
-    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "preflight", "durable", "hydrate", "summarize"])
+    assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight", "durable", "hydrate", "summarize"])
     assert.equal(scenario.hydrateCalls.length, 1)
     assert.deepEqual(scenario.hydrateCalls[0], {
       code: "AB12",
@@ -971,7 +1015,7 @@ function loadRoomServer({
   })
 }
 
-function loadRoute(kind, { session = null, limitError } = {}) {
+function loadRoute(kind, { session = null, limitError, rejectInvalidAccount = false } = {}) {
   const limitCalls = []
   const protectedCalls = []
   const roomServer = kind === "create"
@@ -1009,6 +1053,12 @@ function loadRoute(kind, { session = null, limitError } = {}) {
       normalizeAnatomimeRoomIdentifier,
       requireAnatomimeOperationalAllowance: async (input) => {
         limitCalls.push(input)
+        if (rejectInvalidAccount && input.account) {
+          const value = input.account.value
+          if (typeof value !== "string" || !value.trim() || value.length > 256) {
+            throw new AnatomimeTrafficLimitError(503)
+          }
+        }
         if (limitError) throw limitError
       },
     },
@@ -1126,14 +1176,14 @@ function loadPollRoute({
     roomIdentifier: "AB12",
     playerId: "database-player",
   },
-  ingressDecision = { allowed: true },
+  peekDecision = { allowed: true },
   joinedDecision = { allowed: true },
   durableError,
   shedderError,
   roomServer,
 } = {}) {
   const events = []
-  const ingressCalls = []
+  const peekCalls = []
   const joinedCalls = []
   const preflightCalls = []
   const durableCalls = []
@@ -1170,10 +1220,10 @@ function loadPollRoute({
           shedderOptions.push(options)
           if (shedderError) throw shedderError
           return {
-            consumeIngress: (input) => {
-              events.push("shed:ingress")
-              ingressCalls.push(input)
-              return ingressDecision
+            peekIngress: (input) => {
+              events.push("shed:peek")
+              peekCalls.push(input)
+              return peekDecision
             },
             consumeJoined: (input) => {
               events.push("shed:joined")
@@ -1202,7 +1252,7 @@ function loadPollRoute({
       durableCalls,
       events,
       hydrateCalls,
-      ingressCalls,
+      peekCalls,
       joinedCalls,
       preflightCalls,
       shedderOptions,

@@ -33,7 +33,7 @@ export const GET = apiErrorMapper(async (request: Request, { params }: { params:
   const roomIdentifier = normalizeAnatomimeRoomIdentifier(code)
   const networkIdentifier = authRequestNetworkIdentifier(request)
   if (!pollShedder) throw new AnatomimeTrafficLimitError(503)
-  requireLocalPollAllowance(pollShedder.consumeIngress({ networkIdentifier, roomIdentifier }))
+  requireLocalPollAllowance(pollShedder.peekIngress({ networkIdentifier, roomIdentifier }))
 
   const session = await getCurrentSession()
   const viewer = anatomimeViewerFromRequest(request, session?.user?.id)
@@ -44,7 +44,11 @@ export const GET = apiErrorMapper(async (request: Request, { params }: { params:
   }
 
   if (preflight.kind === "JOINED") {
-    requireLocalPollAllowance(pollShedder.consumeJoined({ playerId: preflight.playerId }))
+    requireLocalPollAllowance(pollShedder.consumeJoined({
+      networkIdentifier,
+      roomIdentifier: preflight.roomIdentifier,
+      playerId: preflight.playerId,
+    }))
   } else {
     await requireAnatomimeOperationalAllowance({
       operation: "ANATOMIME_UNJOINED_LOOKUP",

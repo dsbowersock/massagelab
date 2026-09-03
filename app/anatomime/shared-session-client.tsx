@@ -182,6 +182,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   const [session, setSession] = useState<AnatomimeRoomSummary | null>(null)
   const [message, setMessage] = useState("")
   const [pollStatus, setPollStatus] = useState("")
+  const [initialLookupPending, setInitialLookupPending] = useState(Boolean(normalizedInitialCode))
   const [pollTerminal, setPollTerminal] = useState<"ROOM_ENDED" | "REJOIN_REQUIRED" | null>(null)
   const [joiningGame, setJoiningGame] = useState(false)
   const [joinRetryUntil, setJoinRetryUntil] = useState(0)
@@ -238,6 +239,8 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       inFlight = false
       if (cancelled || controller.signal.aborted) return
 
+      // Only the first lookup owns visible loading UI; scheduled background polls stay quiet.
+      setInitialLookupPending(false)
       if (result.kind === "SUCCESS") {
         setSession(result.session)
         setSelectedTeamId((current) => (
@@ -604,9 +607,11 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   }
 
   const findGame = () => {
+    const nextLookupCode = normalizeAnatomimeClientRoomCode(code)
     setPollTerminal(null)
     setPollStatus("")
-    setLookupCode(normalizeAnatomimeClientRoomCode(code))
+    setInitialLookupPending(Boolean(nextLookupCode))
+    setLookupCode(nextLookupCode)
   }
 
   const leaveEndedRoom = () => {
@@ -615,6 +620,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     setSession(null)
     setPollTerminal(null)
     setPollStatus("")
+    setInitialLookupPending(false)
   }
 
   return (
@@ -637,6 +643,14 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
         <div className={pollStatus ? "anatomime-message" : "anatomime-poll-status"} role="status" aria-live="polite">
           {pollStatus}
         </div>
+
+        {lookupCode && initialLookupPending && !session && !pollTerminal ? (
+          <section className="anatomime-panel" aria-busy="true">
+            <div className="anatomime-message" role="status" aria-live="polite">
+              Loading shared game…
+            </div>
+          </section>
+        ) : null}
 
         {lookupCode && pollTerminal ? (
           <section className="anatomime-panel">

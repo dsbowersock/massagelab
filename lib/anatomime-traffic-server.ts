@@ -155,24 +155,20 @@ export function createAnatomimePollShedder(options: {
   }
   const buckets = new Map<string, PollBucket>()
 
+  function peekRules(rules: readonly PollRule[], nowValue?: Date): AnatomimePollShedDecision {
+    const now = validDate(nowValue ?? new Date())
+    if (!now) return { allowed: false, retryAfterSeconds: 10 }
+    pruneExpiredBuckets(buckets, now.getTime())
+    return activeBlockDecision(rules, buckets, now.getTime()) ?? { allowed: true }
+  }
+
   function consumeRules(rules: readonly PollRule[], nowValue?: Date): AnatomimePollShedDecision {
     const now = validDate(nowValue ?? new Date())
     if (!now) return { allowed: false, retryAfterSeconds: 10 }
     pruneExpiredBuckets(buckets, now.getTime())
 
-    const activeBlocks = rules
-      .map((rule) => ({ rule, bucket: buckets.get(rule.key) }))
-      .filter((entry): entry is { rule: PollRule; bucket: PollBucket } => (
-        entry.bucket !== undefined && entry.bucket.count >= entry.rule.limit
-      ))
-    if (activeBlocks.length > 0) {
-      return {
-        allowed: false,
-        retryAfterSeconds: Math.max(...activeBlocks.map(({ bucket }) => (
-          retryAfterWindow(bucket.windowStartMs, now.getTime())
-        ))),
-      }
-    }
+    const blocked = activeBlockDecision(rules, buckets, now.getTime())
+    if (blocked) return blocked
 
     const newEntryCount = rules.reduce((count, rule) => count + (buckets.has(rule.key) ? 0 : 1), 0)
     if (buckets.size + newEntryCount > maxEntries) {
@@ -190,19 +186,30 @@ export function createAnatomimePollShedder(options: {
   }
 
   return {
-    consumeIngress(input: { networkIdentifier: string; roomIdentifier: string; now?: Date }) {
+    peekIngress(input: { networkIdentifier: string; roomIdentifier: string; now?: Date }) {
       const networkIdentifier = localIdentifier(input?.networkIdentifier)
       const roomIdentifier = normalizeAnatomimeRoomIdentifier(input?.roomIdentifier)
       if (!networkIdentifier || !roomIdentifier) return { allowed: false as const, retryAfterSeconds: 10 }
-      return consumeRules([
+      return peekRules([
         { key: pollBucketKey(secret, "network-room", [networkIdentifier, roomIdentifier]), limit: NETWORK_ROOM_LIMIT },
         { key: pollBucketKey(secret, "room", [roomIdentifier]), limit: ROOM_LIMIT },
       ], input.now)
     },
-    consumeJoined(input: { playerId: string; now?: Date }) {
+    consumeJoined(input: {
+      networkIdentifier: string
+      roomIdentifier: string
+      playerId: string
+      now?: Date
+    }) {
+      const networkIdentifier = localIdentifier(input?.networkIdentifier)
+      const roomIdentifier = normalizeAnatomimeRoomIdentifier(input?.roomIdentifier)
       const playerId = localIdentifier(input?.playerId)
-      if (!playerId) return { allowed: false as const, retryAfterSeconds: 10 }
+      if (!networkIdentifier || !roomIdentifier || !playerId) {
+        return { allowed: false as const, retryAfterSeconds: 10 }
+      }
       return consumeRules([
+        { key: pollBucketKey(secret, "network-room", [networkIdentifier, roomIdentifier]), limit: NETWORK_ROOM_LIMIT },
+        { key: pollBucketKey(secret, "room", [roomIdentifier]), limit: ROOM_LIMIT },
         { key: pollBucketKey(secret, "player", [playerId]), limit: PLAYER_LIMIT },
       ], input.now)
     },
@@ -256,6 +263,27 @@ function pruneExpiredBuckets(buckets: Map<string, PollBucket>, nowMs: number) {
   for (const [key, bucket] of buckets) {
     if (bucket.windowStartMs + POLL_WINDOW_MS <= nowMs) buckets.delete(key)
   }
+}
+
+/** Returns the longest active-rule delay without changing any bucket count. */
+function activeBlockDecision(
+  rules: readonly PollRule[],
+  buckets: ReadonlyMap<string, PollBucket>,
+  nowMs: number,
+): AnatomimePollShedDecision | null {
+  const activeBlocks = rules
+    .map((rule) => ({ rule, bucket: buckets.get(rule.key) }))
+    .filter((entry): entry is { rule: PollRule; bucket: PollBucket } => (
+      entry.bucket !== undefined && entry.bucket.count >= entry.rule.limit
+    ))
+  return activeBlocks.length > 0
+    ? {
+        allowed: false,
+        retryAfterSeconds: Math.max(...activeBlocks.map(({ bucket }) => (
+          retryAfterWindow(bucket.windowStartMs, nowMs)
+        ))),
+      }
+    : null
 }
 
 function retryAfterWindow(windowStartMs: number, nowMs: number): number {
