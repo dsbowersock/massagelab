@@ -592,14 +592,18 @@ describe("Anatomime client poll ownership", () => {
       /const refreshRoom = \(\) => \{[\s\S]*?if \(pollWakeRef\.current\(\)\) return[\s\S]*?setPollStatus\(\(current\) => current \|\| "Update already in progress\."\)[\s\S]*?\}/,
     )
     assert.match(hostRoomClientSource, /onClick=\{refreshRoom\}[\s\S]*?<RefreshCw/)
-  })
-
-  it("retries an entered same code through the existing poll owner", () => {
     assert.match(sharedSessionClientSource, /const pollWakeRef = useRef<\(\) => boolean>/)
     assert.match(
       sharedSessionClientSource,
       /if \(nextLookupCode === lookupCode\) \{[\s\S]*?if \(pollWakeRef\.current\(\)\) \{[\s\S]*?setInitialLookupPending\(true\)[\s\S]*?\}[\s\S]*?return[\s\S]*?\}[\s\S]*?setLookupCode\(nextLookupCode\)/,
     )
+    assert.match(
+      sharedSessionClientSource,
+      /const nextLookupCode = normalizeAnatomimeClientRoomCode\(code\)\s+if \(!nextLookupCode\) \{[\s\S]*?setMessage\("Enter a game code\."\)[\s\S]*?return[\s\S]*?\}\s+setMessage\(""\)\s+setPollTerminal\(null\)\s+if \(nextLookupCode === lookupCode\)/,
+    )
+  })
+
+  it("keeps canonical documentation receipts at the validated Layer B count", () => {
     for (const source of [projectStateSource, projectLogSource]) {
       assert.match(source, /exact 143\/143 focused Anatomime matrix/)
       assert.doesNotMatch(source, /exact 142\/142 focused Anatomime matrix/)

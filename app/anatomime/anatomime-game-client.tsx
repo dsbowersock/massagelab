@@ -977,7 +977,7 @@ export function AnatomimeGameClient({
             </div>
             <div className="anatomime-poll-status" role="status" aria-live="polite">
               {createRetrySeconds > 0
-                ? `Shared game creation is paused for ${createRetrySeconds} more second${createRetrySeconds === 1 ? "" : "s"}. You can retry when the countdown ends.`
+                ? "Shared game creation is temporarily paused. You can retry when the countdown ends."
                 : ""}
             </div>
             {message ? (

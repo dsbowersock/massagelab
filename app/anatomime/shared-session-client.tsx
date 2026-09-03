@@ -610,6 +610,11 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
 
   const findGame = () => {
     const nextLookupCode = normalizeAnatomimeClientRoomCode(code)
+    if (!nextLookupCode) {
+      setMessage("Enter a game code.")
+      return
+    }
+    setMessage("")
     setPollTerminal(null)
     if (nextLookupCode === lookupCode) {
       // Reuse the active owner so a manual retry does not depend on a state
