@@ -55,7 +55,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
       onClick={toggleSidebar}
     >
       <Menu aria-hidden="true" data-icon="menu" />
-      <span>More</span>
+      <span className="ml-main-bar-button-label">More</span>
     </Button>
   )
   const itemById = new Map<string, MainBarRenderItem>([
