@@ -248,8 +248,8 @@ transaction to finalize the exact claim. The stored status remains `PENDING` or
 `FAILED` while claimed so existing Activity meaning and retry eligibility do not
 acquire a fourth transient status. Claims use a separate domain-separated
 SHA-256 hash of 32 random bytes and a five-minute lease; raw claim tokens are
-never stored or logged, and retry operation keys never enter active claim state
-or the append-only owner. Exact finalization stores the raw retry key only in
+never stored or logged, and raw retry operation keys never enter active claim
+state or the append-only owner. Exact finalization stores the raw retry key only in
 the existing `AdminAction.idempotencyKey` audit owner. A live claim makes no
 provider attempt. After expiry, the same retry key may recover its claim, or a fresh key
 from a regenerated Activity form may create another permanent owner for the

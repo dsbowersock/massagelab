@@ -553,10 +553,18 @@ describe("operational rate-limit service", () => {
     for (let index = 0; index < 70; index += 1) {
       assert.deepEqual(await consumeOperationalRateLimit({ operation: "EMAIL_PUBLIC_AUTH", ...common }), { allowed: true })
     }
-    assert.equal((await consumeOperationalRateLimit({ operation: "EMAIL_PUBLIC_AUTH", ...common })).allowed, false)
+    assert.deepEqual(await consumeOperationalRateLimit({ operation: "EMAIL_PUBLIC_AUTH", ...common }), {
+      allowed: false,
+      reason: "RATE_LIMITED",
+      retryAfterSeconds: 24 * 60 * 60,
+    })
     for (let index = 0; index < 20; index += 1) {
       assert.deepEqual(await consumeOperationalRateLimit({ operation: "EMAIL_SECURITY", ...common }), { allowed: true })
     }
-    assert.equal((await consumeOperationalRateLimit({ operation: "EMAIL_SECURITY", ...common })).allowed, false)
+    assert.deepEqual(await consumeOperationalRateLimit({ operation: "EMAIL_SECURITY", ...common }), {
+      allowed: false,
+      reason: "RATE_LIMITED",
+      retryAfterSeconds: 24 * 60 * 60,
+    })
   })
 })

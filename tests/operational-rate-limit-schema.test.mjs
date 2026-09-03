@@ -51,6 +51,18 @@ function requiredCapture(source, pattern, label) {
   return match[1]
 }
 
+/** Returns normalized semantic model lines while excluding blank, //, and /// documentation lines. */
+function modelBodyLines(source, modelName) {
+  return requiredCapture(
+    source,
+    new RegExp(`model\\s+${modelName}\\s*\\{([\\s\\S]*?)\\}`),
+    `${modelName} model`,
+  )
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/\s+/g, " "))
+    .filter((line) => line && !line.startsWith("//"))
+}
+
 /** Normalizes layout-only whitespace without weakening SQL token checks. */
 function normalizeSql(value) {
   return value
@@ -62,8 +74,29 @@ function normalizeSql(value) {
     .trim()
 }
 
-/** Produces ordered SQL statements after removing comments. */
+const SQL_QUOTED_TOKEN_PATTERN = /'(?:''|[^'])*'|"(?:""|[^"])*"/g
+
+/** Rejects syntax that this migration-only statement splitter cannot parse safely. */
+function assertMigrationSqlSubset(source) {
+  if (/\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/.test(source)) {
+    throw new Error("sqlStatements only supports migration SQL without dollar-quoted bodies")
+  }
+  const quotedTokens = source.match(SQL_QUOTED_TOKEN_PATTERN) ?? []
+  if (quotedTokens.some((token) => token.includes(";"))) {
+    throw new Error("sqlStatements only supports migration SQL without quoted semicolons")
+  }
+  const structuralSource = source
+    .replace(SQL_QUOTED_TOKEN_PATTERN, "")
+    .replace(/--[^\r\n]*/g, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+  if (/['"]/.test(structuralSource)) {
+    throw new Error("sqlStatements only supports migration SQL with balanced simple quotes")
+  }
+}
+
+/** Produces ordered statements for the current migration's enforced simple-DDL subset. */
 function sqlStatements(source) {
+  assertMigrationSqlSubset(source)
   return source
     .replace(/--[^\r\n]*/g, "")
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -74,6 +107,17 @@ function sqlStatements(source) {
 
 describe("operational rate-limit persistence", () => {
   it("keeps the three active delivery-claim fields and adds one append-only retry-key owner", () => {
+    const documentedModelEntries = modelBodyLines(
+      `model DocumentedModel {
+        // implementation note
+        /// field documentation
+
+        id String
+      }`,
+      "DocumentedModel",
+    )
+    assert.deepEqual(documentedModelEntries, ["id String"])
+
     const entries = requiredCapture(
       schema,
       /model\s+AdminEmailIntent\s*\{([\s\S]*?)\}/,
@@ -87,14 +131,7 @@ describe("operational rate-limit persistence", () => {
     assert.ok(entries.includes("deliveryClaimOperationKeyHash String? @unique"))
     assert.equal(entries.filter((line) => /deliveryClaim/.test(line)).length, 3)
 
-    const retryKeyEntries = requiredCapture(
-      schema,
-      /model\s+AdminEmailRetryOperationKey\s*\{([\s\S]*?)\}/,
-      "AdminEmailRetryOperationKey model",
-    )
-      .split(/\r?\n/)
-      .map((line) => line.trim().replace(/\s+/g, " "))
-      .filter(Boolean)
+    const retryKeyEntries = modelBodyLines(schema, "AdminEmailRetryOperationKey")
     assert.deepEqual(retryKeyEntries, [
       "id String @id @default(cuid())",
       "emailIntentId String",
@@ -113,6 +150,11 @@ describe("operational rate-limit persistence", () => {
       .map((line) => line.trim())
       .filter(Boolean)
     assert.deepEqual(statuses, ["PENDING", "DELIVERED", "FAILED"])
+    assert.match(
+      hardeningDesign,
+      /owner stores only[^.]*retry operation-key hash[\s\S]*raw retry operation keys never enter active claim\s+state or the append-only owner[\s\S]*raw retry key only in[\s\S]*AdminAction\.idempotencyKey/i,
+    )
+    assert.doesNotMatch(hardeningDesign, /and\s+retry operation keys never enter active claim\s+state or the append-only owner/i)
   })
 
   it("declares the exact closed operational scope enum", () => {
@@ -129,14 +171,7 @@ describe("operational rate-limit persistence", () => {
   })
 
   it("declares the exact bucket fields, defaults, unique owner, and cleanup indexes", () => {
-    const entries = requiredCapture(
-      schema,
-      /model\s+OperationalRateLimitBucket\s*\{([\s\S]*?)\}/,
-      "OperationalRateLimitBucket model",
-    )
-      .split(/\r?\n/)
-      .map((line) => line.trim().replace(/\s+/g, " "))
-      .filter(Boolean)
+    const entries = modelBodyLines(schema, "OperationalRateLimitBucket")
 
     assert.deepEqual(entries, [
       "id String @id @default(cuid())",
@@ -154,6 +189,13 @@ describe("operational rate-limit persistence", () => {
   })
 
   it("creates the limiter, active claim fields, and append-only retry-key owner in one migration", () => {
+    for (const [source, message] of [
+      ["INSERT INTO example (value) VALUES ('embedded;terminator');", "sqlStatements only supports migration SQL without quoted semicolons"],
+      ["DO $$ BEGIN PERFORM 1; END $$;", "sqlStatements only supports migration SQL without dollar-quoted bodies"],
+      ["SELECT 'unterminated", "sqlStatements only supports migration SQL with balanced simple quotes"],
+    ]) {
+      assert.throws(() => sqlStatements(source), { message })
+    }
     assert.deepEqual(sqlStatements(migration), [
       "BEGIN",
       'CREATE TYPE "OperationalRateLimitScope" AS ENUM(\'GLOBAL\', \'NETWORK\', \'ACCOUNT\', \'RESOURCE\')',
