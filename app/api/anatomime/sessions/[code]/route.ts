@@ -34,7 +34,7 @@ export const GET = apiErrorMapper(async (request: Request, { params }: { params:
   const roomIdentifier = normalizeAnatomimeRoomIdentifier(code)
   const networkIdentifier = authRequestNetworkIdentifier(request)
   if (!pollShedder) throw new AnatomimeTrafficLimitError(503)
-  requireLocalPollAllowance(pollShedder.peekIngress({ networkIdentifier, roomIdentifier }))
+  requireLocalPollAllowance(pollShedder.consumeIngress({ networkIdentifier, roomIdentifier }))
 
   const session = await getCurrentSession()
   const viewer = anatomimeViewerFromRequest(request, session?.user?.id)

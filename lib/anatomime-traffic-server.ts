@@ -37,6 +37,7 @@ type PollBucket = { count: number; windowStartMs: number }
 type PollRule = { key: string; limit: number }
 
 const POLL_WINDOW_MS = 10_000
+const NETWORK_INGRESS_LIMIT = 300
 const NETWORK_ROOM_LIMIT = 150
 const ROOM_LIMIT = 300
 const PLAYER_LIMIT = 20
@@ -181,13 +182,6 @@ export function createAnatomimePollShedder(options: {
   }
   const buckets = new Map<string, PollBucket>()
 
-  function peekRules(rules: readonly PollRule[], nowValue?: Date): AnatomimePollShedDecision {
-    const now = validDate(nowValue ?? new Date())
-    if (!now) return { allowed: false, retryAfterSeconds: 10 }
-    pruneExpiredBuckets(buckets, now.getTime())
-    return activeBlockDecision(rules, buckets, now.getTime()) ?? { allowed: true }
-  }
-
   function consumeRules(rules: readonly PollRule[], nowValue?: Date): AnatomimePollShedDecision {
     const now = validDate(nowValue ?? new Date())
     if (!now) return { allowed: false, retryAfterSeconds: 10 }
@@ -212,14 +206,40 @@ export function createAnatomimePollShedder(options: {
   }
 
   return {
-    peekIngress(input: { networkIdentifier: string; roomIdentifier: string; now?: Date }) {
+    /**
+     * Charges only the network ingress bucket while peeking any retained
+     * tuple/room buckets, so rotating nonexistent selectors cannot allocate
+     * attacker-controlled keys or evade one warm-runtime ceiling.
+     */
+    consumeIngress(input: { networkIdentifier: string; roomIdentifier: string; now?: Date }) {
       const networkIdentifier = localIdentifier(input?.networkIdentifier)
       const roomIdentifier = normalizeAnatomimeRoomIdentifier(input?.roomIdentifier)
       if (!networkIdentifier || !roomIdentifier) return { allowed: false as const, retryAfterSeconds: 10 }
-      return peekRules([
+
+      const now = validDate(input.now ?? new Date())
+      if (!now) return { allowed: false as const, retryAfterSeconds: 10 }
+      const nowMs = now.getTime()
+      pruneExpiredBuckets(buckets, nowMs)
+      const ingressRule = {
+        key: pollBucketKey(secret, "network-ingress", [networkIdentifier]),
+        limit: NETWORK_INGRESS_LIMIT,
+      }
+      const candidateRules = [
+        ingressRule,
         { key: pollBucketKey(secret, "network-room", [networkIdentifier, roomIdentifier]), limit: NETWORK_ROOM_LIMIT },
         { key: pollBucketKey(secret, "room", [roomIdentifier]), limit: ROOM_LIMIT },
-      ], input.now)
+      ]
+      const blocked = activeBlockDecision(candidateRules, buckets, nowMs)
+      if (blocked) return blocked
+      if (!buckets.has(ingressRule.key) && buckets.size >= maxEntries) {
+        return { allowed: false as const, retryAfterSeconds: capacityRetryAfter(buckets, nowMs, 1) }
+      }
+
+      const current = buckets.get(ingressRule.key)
+      buckets.set(ingressRule.key, current
+        ? { ...current, count: current.count + 1 }
+        : { count: 1, windowStartMs: nowMs })
+      return { allowed: true as const }
     },
     consumeJoined(input: {
       networkIdentifier: string

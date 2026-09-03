@@ -23,7 +23,7 @@ const hostRoomClientSource = await readFile(new URL("../app/anatomime/host-room-
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
 const projectStateSource = await readFile(new URL("../docs/project-state.md", import.meta.url), "utf8")
 const projectLogSource = await readFile(new URL("../docs/project-log.md", import.meta.url), "utf8")
-const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 148
+const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 156
 const verifiedLayerBReceiptPattern = new RegExp(escapeRegExp(
   `exact ${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL}/${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL} focused Anatomime matrix`,
 ))
@@ -525,6 +525,48 @@ describe("Anatomime create and join traffic boundaries", () => {
     assert.equal(scenario.committedPlayer.guestTokenHash, `hash:${winner.token}`)
   })
 
+  it("lets exactly one anonymous same-token re-entry rotate the guest credential", async () => {
+    const scenario = loadConcurrentGuestClaimServer()
+    const reentryInput = {
+      displayName: "Returning Guest",
+      playerId: "player-1",
+      playerToken: "guest-token",
+    }
+
+    const results = await Promise.allSettled([
+      scenario.service.joinAnatomimeRoom("room-1", reentryInput, null),
+      scenario.service.joinAnatomimeRoom("room-1", reentryInput, null),
+    ])
+    const fulfilled = results.filter((result) => result.status === "fulfilled")
+    const rejected = results.filter((result) => result.status === "rejected")
+
+    assert.deepEqual(scenario.transactionReadOwners, [null, null])
+    assert.deepEqual(scenario.transactionReadTokenHashes, ["hash:guest-token", "hash:guest-token"])
+    assert.equal(scenario.playerWriteAttempts, 2)
+    assert.equal(fulfilled.length, 1)
+    assert.equal(rejected.length, 1)
+    assert.ok(isGenericJoinCredentialError(rejected[0].reason))
+    assert.equal(scenario.touchCount, 1)
+    assert.equal(scenario.publications.length, 1)
+
+    const winner = fulfilled[0].value
+    const loserToken = scenario.initialGeneratedTokens.find((token) => token !== winner.token)
+    assert.equal(scenario.committedPlayer.userId, null)
+    assert.equal(scenario.committedPlayer.guestTokenHash, `hash:${winner.token}`)
+
+    for (const staleToken of ["guest-token", loserToken]) {
+      await assert.rejects(
+        () => scenario.service.joinAnatomimeRoom("room-1", {
+          ...reentryInput,
+          playerToken: staleToken,
+        }, null),
+        isGenericJoinCredentialError,
+      )
+    }
+    assert.equal(scenario.touchCount, 1)
+    assert.equal(scenario.publications.length, 1)
+  })
+
   it("revalidates guest-only token ownership after quota before review re-entry", async () => {
     const events = []
     const initialRoom = roomFixture({
@@ -708,25 +750,99 @@ describe("Anatomime create and join traffic boundaries", () => {
       if (status === 429) assert.equal(response.headers.get("Retry-After"), "8")
     })
 
-    it(`maps join quota ${status} with only network and normalized room selector`, async () => {
+    it(`maps join ingress ${status} before auth, body parsing, or room service work`, async () => {
       const scenario = loadRoute("join", {
-        limitError: new AnatomimeTrafficLimitError(status, retryAfterSeconds),
+        ingressError: new AnatomimeTrafficLimitError(status, retryAfterSeconds),
       })
       const response = await scenario.POST(
-        routeRequest("/api/anatomime/sessions/a-b12/join", { displayName: "Guest" }),
+        tracedRouteRequest("/api/anatomime/sessions/a-b12/join", { displayName: "Guest" }, scenario.events),
         { params: Promise.resolve({ code: " a-b12 " }) },
       )
 
       assert.equal(response.status, status)
       assert.deepEqual(scenario.limitCalls, [{
+        operation: "ANATOMIME_ROOM_JOIN_INGRESS",
+        networkIdentifier: "198.51.100.27",
+      }])
+      assert.deepEqual(scenario.events, ["limit:join-ingress"])
+      assert.deepEqual(scenario.protectedCalls, [])
+      if (status === 429) assert.equal(response.headers.get("Retry-After"), "8")
+    })
+
+    it(`maps verified join-resource ${status} after admission but before player writes`, async () => {
+      const scenario = loadRoute("join", {
+        resourceError: new AnatomimeTrafficLimitError(status, retryAfterSeconds),
+      })
+      const response = await scenario.POST(
+        tracedRouteRequest("/api/anatomime/sessions/a-b12/join", { displayName: "Guest" }, scenario.events),
+        { params: Promise.resolve({ code: " a-b12 " }) },
+      )
+
+      assert.equal(response.status, status)
+      assert.deepEqual(scenario.limitCalls, [{
+        operation: "ANATOMIME_ROOM_JOIN_INGRESS",
+        networkIdentifier: "198.51.100.27",
+      }, {
         operation: "ANATOMIME_ROOM_JOIN",
         networkIdentifier: "198.51.100.27",
         roomIdentifier: "AB12",
       }])
+      assert.deepEqual(scenario.events, [
+        "limit:join-ingress",
+        "auth",
+        "body",
+        "join:service",
+        "limit:join-resource",
+      ])
       assert.deepEqual(scenario.protectedCalls, [])
       if (status === 429) assert.equal(response.headers.get("Retry-After"), "8")
     })
   }
+
+  it("charges only join ingress when room admission rejects the request", async () => {
+    const scenario = loadRoute("join", {
+      joinValidationError: new AnatomimeSessionError(404, "room-not-found", "Game not found."),
+    })
+    const response = await scenario.POST(
+      tracedRouteRequest("/api/anatomime/sessions/missing/join", { displayName: "Guest" }, scenario.events),
+      { params: Promise.resolve({ code: "missing" }) },
+    )
+
+    assert.equal(response.status, 404)
+    assert.deepEqual(scenario.limitCalls, [{
+      operation: "ANATOMIME_ROOM_JOIN_INGRESS",
+      networkIdentifier: "198.51.100.27",
+    }])
+    assert.deepEqual(scenario.events, ["limit:join-ingress", "auth", "body", "join:service"])
+    assert.deepEqual(scenario.protectedCalls, [])
+  })
+
+  it("orders allowed join ingress, admission, verified resource quota, and one player write", async () => {
+    const scenario = loadRoute("join")
+    const response = await scenario.POST(
+      tracedRouteRequest("/api/anatomime/sessions/a-b12/join", { displayName: "Guest" }, scenario.events),
+      { params: Promise.resolve({ code: " a-b12 " }) },
+    )
+
+    assert.equal(response.status, 201)
+    assert.deepEqual(scenario.limitCalls, [{
+      operation: "ANATOMIME_ROOM_JOIN_INGRESS",
+      networkIdentifier: "198.51.100.27",
+    }, {
+      operation: "ANATOMIME_ROOM_JOIN",
+      networkIdentifier: "198.51.100.27",
+      roomIdentifier: "AB12",
+    }])
+    assert.deepEqual(scenario.events, [
+      "limit:join-ingress",
+      "auth",
+      "body",
+      "join:service",
+      "limit:join-resource",
+      "player-write",
+    ])
+    assert.deepEqual(scenario.protectedCalls, ["player-write"])
+  })
 
   for (const accountId of [null, undefined]) {
     it(`keeps ${String(accountId)} create account identity on the anonymous policy boundary`, async () => {
@@ -873,9 +989,9 @@ describe("Anatomime realtime token traffic boundary", () => {
   })
 
   for (const [status, retryAfterSeconds] of [[429, 9], [503, undefined]]) {
-    it(`stops realtime token ${status} start denial before auth, preflight, and provider work`, async () => {
+    it(`stops realtime token ${status} ingress denial before auth, preflight, and provider work`, async () => {
       const scenario = loadRealtimeTokenRoute({
-        startError: new AnatomimeTrafficLimitError(status, retryAfterSeconds),
+        ingressError: new AnatomimeTrafficLimitError(status, retryAfterSeconds),
       })
       const response = await scenario.POST(
         routeRequest("/api/anatomime/sessions/a-b12/realtime-token", { clientId: "attacker-chosen" }, {
@@ -887,11 +1003,37 @@ describe("Anatomime realtime token traffic boundary", () => {
 
       assert.equal(response.status, status)
       assert.deepEqual(scenario.limitCalls, [{
+        operation: "ANATOMIME_REALTIME_TOKEN_INGRESS",
+        networkIdentifier: "198.51.100.27",
+      }])
+      assert.deepEqual(scenario.events, ["limit:ingress"])
+      if (status === 429) assert.equal(response.headers.get("Retry-After"), "9")
+    })
+
+    it(`stops found-room realtime token ${status} start denial before rejection or provider work`, async () => {
+      const scenario = loadRealtimeTokenRoute({
+        preflightResult: { kind: "INVALID", roomId: "room-db", roomIdentifier: "AB12" },
+        startError: new AnatomimeTrafficLimitError(status, retryAfterSeconds),
+      })
+      const response = await scenario.POST(
+        routeRequest("/api/anatomime/sessions/a-b12/realtime-token", {}, {
+          "x-anatomime-player-id": "exposed-player",
+          "x-anatomime-player-token": "wrong-token",
+        }),
+        { params: Promise.resolve({ code: " a-b12 " }) },
+      )
+
+      assert.equal(response.status, status)
+      assert.deepEqual(scenario.limitCalls, [{
+        operation: "ANATOMIME_REALTIME_TOKEN_INGRESS",
+        networkIdentifier: "198.51.100.27",
+      }, {
         operation: "ANATOMIME_REALTIME_TOKEN_START",
         networkIdentifier: "198.51.100.27",
         roomIdentifier: "AB12",
       }])
-      assert.deepEqual(scenario.events, ["limit:start"])
+      assert.deepEqual(scenario.events, ["limit:ingress", "auth", "preflight", "limit:start"])
+      assert.deepEqual(scenario.providerCalls, [])
       if (status === 429) assert.equal(response.headers.get("Retry-After"), "9")
     })
   }
@@ -916,10 +1058,13 @@ describe("Anatomime realtime token traffic boundary", () => {
         ? { error: "Game not found." }
         : { error: "Join this room before using realtime." })
       assert.deepEqual(scenario.limitCalls, [{
+        operation: "ANATOMIME_REALTIME_TOKEN_INGRESS",
+        networkIdentifier: "198.51.100.27",
+      }, ...(kind === "ROOM_NOT_FOUND" ? [] : [{
         operation: "ANATOMIME_REALTIME_TOKEN_START",
         networkIdentifier: "198.51.100.27",
         roomIdentifier: "AB12",
-      }])
+      }])])
       assert.deepEqual(scenario.providerCalls, [])
       assert.deepEqual(scenario.preflightCalls, [{
         code: "AB12",
@@ -974,6 +1119,10 @@ describe("Anatomime realtime token traffic boundary", () => {
       })
       assert.deepEqual(scenario.limitCalls, [
         {
+          operation: "ANATOMIME_REALTIME_TOKEN_INGRESS",
+          networkIdentifier: "198.51.100.27",
+        },
+        {
           operation: "ANATOMIME_REALTIME_TOKEN_START",
           networkIdentifier: "198.51.100.27",
           roomIdentifier: "AB12",
@@ -1012,7 +1161,7 @@ describe("Anatomime realtime token traffic boundary", () => {
       )
 
       assert.equal(response.status, status)
-      assert.deepEqual(scenario.events, ["limit:start", "auth", "preflight", "limit:issue"])
+      assert.deepEqual(scenario.events, ["limit:ingress", "auth", "preflight", "limit:start", "limit:issue"])
       assert.deepEqual(scenario.providerCalls, [])
       if (status === 429) assert.equal(response.headers.get("Retry-After"), "11")
     })
@@ -1027,7 +1176,7 @@ describe("Anatomime realtime token traffic boundary", () => {
 
 describe("Anatomime room poll traffic boundary", () => {
   it("fails a non-canonicalizable room selector closed before auth or preflight", async () => {
-    const scenario = loadPollRoute({ peekDecision: { allowed: false, retryAfterSeconds: 10 } })
+    const scenario = loadPollRoute({ ingressDecision: { allowed: false, retryAfterSeconds: 10 } })
     const response = await scenario.GET(
       pollRequest("/api/anatomime/sessions/---"),
       { params: Promise.resolve({ code: " --- " }) },
@@ -1035,17 +1184,17 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 429)
     assert.equal(response.headers.get("Retry-After"), "10")
-    assert.deepEqual(scenario.peekCalls, [{
+    assert.deepEqual(scenario.ingressCalls, [{
       networkIdentifier: "198.51.100.27",
       roomIdentifier: "",
     }])
-    assert.deepEqual(scenario.events, ["shed:peek"])
+    assert.deepEqual(scenario.events, ["shed:ingress"])
     assert.deepEqual(scenario.preflightCalls, [])
     assert.deepEqual(scenario.hydrateCalls, [])
   })
 
   it("stops a local ingress denial before auth, preflight, durable quota, or hydration", async () => {
-    const scenario = loadPollRoute({ peekDecision: { allowed: false, retryAfterSeconds: 6 } })
+    const scenario = loadPollRoute({ ingressDecision: { allowed: false, retryAfterSeconds: 6 } })
     const response = await scenario.GET(
       pollRequest("/api/anatomime/sessions/a-b12"),
       { params: Promise.resolve({ code: " a-b12 " }) },
@@ -1053,8 +1202,8 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 429)
     assert.equal(response.headers.get("Retry-After"), "6")
-    assert.deepEqual(scenario.events, ["shed:peek"])
-    assert.deepEqual(scenario.peekCalls, [{
+    assert.deepEqual(scenario.events, ["shed:ingress"])
+    assert.deepEqual(scenario.ingressCalls, [{
       networkIdentifier: "198.51.100.27",
       roomIdentifier: "AB12",
     }])
@@ -1075,7 +1224,7 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 429)
     assert.equal(response.headers.get("Retry-After"), "4")
-    assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read", "preflight", "shed:joined"])
+    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "room:read", "preflight", "shed:joined"])
     assert.deepEqual(scenario.joinedCalls, [{
       networkIdentifier: "198.51.100.27",
       roomIdentifier: "AB12",
@@ -1097,7 +1246,7 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 200)
     assert.deepEqual(await response.json(), { session: { code: "AB12", playerCount: 1 } })
-    assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read", "preflight", "shed:joined", "room:resolve", "summarize"])
+    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "room:read", "preflight", "shed:joined", "room:resolve", "summarize"])
     assert.deepEqual(scenario.joinedCalls, [{
       networkIdentifier: "198.51.100.27",
       roomIdentifier: "AB12",
@@ -1188,7 +1337,7 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 404)
     assert.deepEqual(await response.json(), { error: "Game not found." })
-    assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read"])
+    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "room:read"])
     assert.deepEqual(scenario.preflightCalls, [])
     assert.deepEqual(scenario.durableCalls, [])
     assert.equal(scenario.hydrateCalls.length, 1)
@@ -1210,7 +1359,7 @@ describe("Anatomime room poll traffic boundary", () => {
 
       assert.equal(response.status, 429)
       assert.equal(response.headers.get("Retry-After"), "7")
-      assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read", "preflight", "durable"])
+      assert.deepEqual(scenario.events, ["shed:ingress", "auth", "room:read", "preflight", "durable"])
       assert.deepEqual(scenario.durableCalls, [{
         operation: "ANATOMIME_UNJOINED_LOOKUP",
         networkIdentifier: "198.51.100.27",
@@ -1234,7 +1383,7 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 403)
     assert.deepEqual(await response.json(), { error: "Join this room before taking that action." })
-    assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read", "preflight", "durable"])
+    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "room:read", "preflight", "durable"])
     assert.equal(scenario.hydrateCalls.length, 1)
   })
 
@@ -1248,7 +1397,7 @@ describe("Anatomime room poll traffic boundary", () => {
     )
 
     assert.equal(response.status, 200)
-    assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read", "preflight", "durable", "room:resolve", "summarize"])
+    assert.deepEqual(scenario.events, ["shed:ingress", "auth", "room:read", "preflight", "durable", "room:resolve", "summarize"])
     assert.equal(scenario.hydrateCalls.length, 1)
     assert.deepEqual(scenario.hydrateCalls[0], {
       code: "AB12",
@@ -1377,6 +1526,7 @@ function loadConcurrentGuestClaimServer() {
   const waitForBothTransactionReads = arrivalBarrier(2)
   const waitForBothPlayerWrites = arrivalBarrier(2)
   const transactionReadOwners = []
+  const transactionReadTokenHashes = []
   const publications = []
   const generatedTokens = ["claim-token-one", "claim-token-two"]
   let generatedTokenIndex = 0
@@ -1394,6 +1544,7 @@ function loadConcurrentGuestClaimServer() {
           findUnique: async () => {
             transactionRoom = structuredClone(committedRoom)
             transactionReadOwners.push(transactionRoom.players[0].userId)
+            transactionReadTokenHashes.push(transactionRoom.players[0].guestTokenHash)
             await waitForBothTransactionReads()
             return transactionRoom
           },
@@ -1434,7 +1585,7 @@ function loadConcurrentGuestClaimServer() {
   const service = loadRoomServer({
     events: [],
     prismaOverride: prisma,
-    generateRandomToken: () => generatedTokens[generatedTokenIndex++],
+    generateRandomToken: () => generatedTokens[generatedTokenIndex++] ?? `retry-token-${generatedTokenIndex}`,
     onPublish: async (...args) => { publications.push(args) },
   })
 
@@ -1442,6 +1593,8 @@ function loadConcurrentGuestClaimServer() {
     service,
     committedPlayer: committedRoom.players[0],
     transactionReadOwners,
+    transactionReadTokenHashes,
+    initialGeneratedTokens: generatedTokens,
     publications,
     get playerWriteAttempts() { return playerWriteAttempts },
     get touchCount() { return touchCount },
@@ -1460,7 +1613,15 @@ function arrivalBarrier(expectedArrivals) {
   }
 }
 
-function loadRoute(kind, { session = null, limitError, rejectInvalidAccount = false } = {}) {
+function loadRoute(kind, {
+  session = null,
+  limitError,
+  ingressError,
+  resourceError,
+  joinValidationError,
+  rejectInvalidAccount = false,
+} = {}) {
+  const events = []
   const limitCalls = []
   const protectedCalls = []
   const roomServer = kind === "create"
@@ -1477,8 +1638,11 @@ function loadRoute(kind, { session = null, limitError, rejectInvalidAccount = fa
       }
     : {
         joinAnatomimeRoom: async (_code, _input, _userId, options) => {
+          events.push("join:service")
+          if (joinValidationError) throw joinValidationError
           await options?.beforePersist?.()
           protectedCalls.push("player-write")
+          events.push("player-write")
           return {
             player: { id: "player-1", teamId: "team-1" },
             room: { code: "AB12" },
@@ -1490,7 +1654,12 @@ function loadRoute(kind, { session = null, limitError, rejectInvalidAccount = fa
   const source = kind === "create" ? createRouteSource : joinRouteSource
   const route = loadCompiledModule(source, `${kind}-anatomime-traffic-route.test.ts`, {
     "next/server": { NextResponse: responseAdapter() },
-    "@/auth": { getCurrentSession: async () => session },
+    "@/auth": {
+      getCurrentSession: async () => {
+        events.push("auth")
+        return session
+      },
+    },
     "@/lib/anatomime-room-server": roomServer,
     "@/lib/anatomime-api": apiBoundary,
     "@/lib/auth-request": { authRequestNetworkIdentifier },
@@ -1498,6 +1667,14 @@ function loadRoute(kind, { session = null, limitError, rejectInvalidAccount = fa
       normalizeAnatomimeRoomIdentifier,
       requireAnatomimeOperationalAllowance: async (input) => {
         limitCalls.push(input)
+        if (input.operation === "ANATOMIME_ROOM_JOIN_INGRESS") {
+          events.push("limit:join-ingress")
+          if (ingressError) throw ingressError
+        }
+        if (input.operation === "ANATOMIME_ROOM_JOIN") {
+          events.push("limit:join-resource")
+          if (resourceError) throw resourceError
+        }
         if (rejectInvalidAccount && input.account) {
           const value = input.account.value
           if (typeof value !== "string" || !value.trim() || value.length > 256) {
@@ -1508,7 +1685,7 @@ function loadRoute(kind, { session = null, limitError, rejectInvalidAccount = fa
       },
     },
   })
-  return { POST: route.POST, limitCalls, protectedCalls }
+  return { POST: route.POST, events, limitCalls, protectedCalls }
 }
 
 function loadRealtimeTokenRoute({
@@ -1519,6 +1696,7 @@ function loadRealtimeTokenRoute({
     roomIdentifier: "AB12",
     playerId: "database-player",
   },
+  ingressError,
   startError,
   issueError,
 } = {}) {
@@ -1551,7 +1729,10 @@ function loadRealtimeTokenRoute({
       },
       requireAnatomimeOperationalAllowance: async (input) => {
         limitCalls.push(input)
-        if (input.operation === "ANATOMIME_REALTIME_TOKEN_START") {
+        if (input.operation === "ANATOMIME_REALTIME_TOKEN_INGRESS") {
+          events.push("limit:ingress")
+          if (ingressError) throw ingressError
+        } else if (input.operation === "ANATOMIME_REALTIME_TOKEN_START") {
           events.push("limit:start")
           if (startError) throw startError
         } else {
@@ -1621,14 +1802,14 @@ function loadPollRoute({
     roomIdentifier: "AB12",
     playerId: "database-player",
   },
-  peekDecision = { allowed: true },
+  ingressDecision = { allowed: true },
   joinedDecision = { allowed: true },
   durableError,
   shedderError,
   roomServer,
 } = {}) {
   const events = []
-  const peekCalls = []
+  const ingressCalls = []
   const joinedCalls = []
   const preflightCalls = []
   const preflightLookupCalls = []
@@ -1671,10 +1852,10 @@ function loadPollRoute({
           shedderOptions.push(options)
           if (shedderError) throw shedderError
           return {
-            peekIngress: (input) => {
-              events.push("shed:peek")
-              peekCalls.push(input)
-              return peekDecision
+            consumeIngress: (input) => {
+              events.push("shed:ingress")
+              ingressCalls.push(input)
+              return ingressDecision
             },
             consumeJoined: (input) => {
               events.push("shed:joined")
@@ -1709,7 +1890,7 @@ function loadPollRoute({
       durableCalls,
       events,
       hydrateCalls,
-      peekCalls,
+      ingressCalls,
       joinedCalls,
       preflightCalls,
       preflightLookupCalls,
@@ -1969,6 +2150,17 @@ function routeRequest(path, body, headers = {}) {
     },
     body: JSON.stringify(body),
   })
+}
+
+/** Adds one observable body-read event without changing the Request transport. */
+function tracedRouteRequest(path, body, events, headers = {}) {
+  const request = routeRequest(path, body, headers)
+  const readBody = request.json.bind(request)
+  request.json = async () => {
+    events.push("body")
+    return readBody()
+  }
+  return request
 }
 
 function pollRequest(path, headers = {}) {

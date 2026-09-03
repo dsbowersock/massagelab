@@ -55,7 +55,9 @@ export type OperationalBookingSubject =
 
 export type OperationalRateLimitRequest =
   | { operation: "ANATOMIME_ROOM_CREATE"; networkIdentifier: string; account?: OperationalAccountSubject }
+  | { operation: "ANATOMIME_ROOM_JOIN_INGRESS"; networkIdentifier: string }
   | { operation: "ANATOMIME_ROOM_JOIN"; networkIdentifier: string; roomIdentifier: string }
+  | { operation: "ANATOMIME_REALTIME_TOKEN_INGRESS"; networkIdentifier: string }
   | { operation: "ANATOMIME_REALTIME_TOKEN_START"; networkIdentifier: string; roomIdentifier: string }
   | { operation: "ANATOMIME_REALTIME_TOKEN_ISSUE"; playerId: string; roomId: string }
   | { operation: "ANATOMIME_UNJOINED_LOOKUP"; networkIdentifier: string; roomIdentifier: string }
@@ -128,8 +130,8 @@ All policy keys end in `.v1` and each window uses a distinct key.
 | Operation | Fixed rules |
 | --- | --- |
 | Room create | account 6/15m and 20/24h; shared network 15/15m and 40/24h; anonymous-only network 5/15m and 15/24h. |
-| Room join | network 30/15m and 100/24h; network+room 20/10m. |
-| Realtime token start/issue | network+room 60/10m; player 6/10m; room 40/10m. |
+| Room join ingress/resource | ingress network 30/15m and 100/24h; verified network+room resource 20/10m. The existing network policy IDs move to the ingress operation rather than being duplicated. |
+| Realtime token ingress/start/issue | ingress network 120/10m; verified network+room start 60/10m; player 6/10m; room 40/10m. |
 | Unjoined lookup | network+room 60/10m. |
 | Availability | account+practice 40/5m; anonymous network+practice 60/5m; authenticated network+practice 120/5m. |
 | Booking create | owner+practice 3/30m and 8/24h; network+practice 12/30m and 30/24h. |
@@ -139,7 +141,7 @@ All policy keys end in `.v1` and each window uses a distinct key.
 | Email public auth | public-auth global 70/24h plus total global 90/24h. |
 | Email security | total global 90/24h, preserving the last 20 attempts from public-auth traffic. |
 
-The implementation uses the exact private names in the approved design, including `anatomime.room-create.account.15m.v1`, `booking.create.owner-practice.30m.v1`, `donation.global.24h.v1`, `problem-report.global.10m.v1`, `email.public-auth.global.24h.v1`, and `email.total.global.24h.v1`.
+The implementation uses the exact private names in the approved design, including `anatomime.room-create.account.15m.v1`, `anatomime.realtime-token.network.10m.v1`, `booking.create.owner-practice.30m.v1`, `donation.global.24h.v1`, `problem-report.global.10m.v1`, `email.public-auth.global.24h.v1`, and `email.total.global.24h.v1`. Moving the two existing room-join network policies does not change the registry count; the one new realtime ingress policy makes the exact registry total 37.
 
 ---
 

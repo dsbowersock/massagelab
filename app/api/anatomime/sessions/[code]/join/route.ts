@@ -12,14 +12,23 @@ import {
 import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 
 export const POST = apiErrorMapper(async (request: Request, { params }: { params: Promise<{ code: string }> }) => {
-  const authSession = await getCurrentSession()
   const { code } = await params
+  const networkIdentifier = authRequestNetworkIdentifier(request)
+  const roomIdentifier = normalizeAnatomimeRoomIdentifier(code)
+  await requireAnatomimeOperationalAllowance({
+    operation: "ANATOMIME_ROOM_JOIN_INGRESS",
+    networkIdentifier,
+  })
+
+  const authSession = await getCurrentSession()
   const body = objectBody(await request.json().catch(() => ({})))
   const joined = await joinAnatomimeRoom(code, body, authSession?.user?.id, {
+    // Charge the room-scoped quota only after the service has verified the room exists
+    // and admitted the request, but before it opens the write transaction.
     beforePersist: () => requireAnatomimeOperationalAllowance({
       operation: "ANATOMIME_ROOM_JOIN",
-      networkIdentifier: authRequestNetworkIdentifier(request),
-      roomIdentifier: normalizeAnatomimeRoomIdentifier(code),
+      networkIdentifier,
+      roomIdentifier,
     }),
   })
 

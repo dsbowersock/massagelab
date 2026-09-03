@@ -420,7 +420,7 @@ COMMIT;
     }
   })
 
-  it("requires non-consuming Anatomime ingress and one-snapshot atomic poll resolution", () => {
+  it("requires bounded consuming Anatomime ingress and one-snapshot atomic poll resolution", () => {
     const consumeJoinedContract = /^(?=[\s\S]*`consumeJoined`)(?=[\s\S]*`networkIdentifier`)(?=[\s\S]*`roomIdentifier`)(?=[\s\S]*`playerId`)(?=[\s\S]*atomically checks)(?=[\s\S]*network\+room)(?=[\s\S]*room)(?=[\s\S]*player)(?=[\s\S]*increments none)[\s\S]*$/i
     assert.throws(
       () => assertParagraphMatches(
@@ -441,7 +441,17 @@ COMMIT;
     ]) {
       assertParagraphMatches(
         source,
-        /non-consuming `peekIngress`[\s\S]*denial makes no credential or room lookup/i,
+        /`consumeIngress`[\s\S]*300[^.]*network[^.]*10s[\s\S]*150[^.]*network\+room[\s\S]*300[^.]*room[\s\S]*(?:peek-only|without incrementing)[\s\S]*(?:increments|mutates)[^.]*only[^.]*network ingress/i,
+        label,
+      )
+      assertParagraphMatches(
+        source,
+        /(?:any|one)[^.]*blocks?[\s\S]*(?:capacity|4,096)[\s\S]*(?:mutates|increments) none|(?:mutates|increments) nothing/i,
+        label,
+      )
+      assertParagraphMatches(
+        source,
+        /best-effort[^.]*warm runtime[^.]*not deployment-wide/i,
         label,
       )
       assertParagraphMatches(
@@ -472,13 +482,13 @@ COMMIT;
     }
     assert.match(
       anatomimeTrafficPlan,
-      /peekIngress\(input:\s*\{\s*networkIdentifier: string; roomIdentifier: string; now\?: Date\s*\}\): AnatomimePollShedDecision/,
+      /consumeIngress\(input:\s*\{\s*networkIdentifier: string; roomIdentifier: string; now\?: Date\s*\}\): AnatomimePollShedDecision/,
     )
     assert.match(
       anatomimeTrafficPlan,
       /consumeJoined\(input:\s*\{\s*networkIdentifier: string; roomIdentifier: string; playerId: string; now\?: Date\s*\}\): AnatomimePollShedDecision/,
     )
-    assert.doesNotMatch(anatomimeTrafficPlan, /consumeIngress\(/)
+    assert.doesNotMatch(anatomimeTrafficPlan, /peekIngress\(/)
     assert.doesNotMatch(
       anatomimeTrafficPlan,
       /consumeJoined\(input:\s*\{\s*playerId: string; now\?: Date\s*\}/,
@@ -494,9 +504,19 @@ COMMIT;
     )
     assertParagraphMatches(
       hardeningDesign,
-      /realtime-token[^.]*narrow preflight[^.]*before[^.]*provider/i,
+      /^(?=[\s\S]*realtime-token)(?=[\s\S]*network ingress)(?=[\s\S]*before session\/auth)(?=[\s\S]*narrow preflight)(?=[\s\S]*missing room)(?=[\s\S]*network\+room token-start)(?=[\s\S]*provider)[\s\S]*$/i,
       "binding design realtime-token proof",
     )
+    for (const [label, source] of [
+      ["binding design", hardeningDesign],
+      ["Anatomime plan", anatomimeTrafficPlan],
+    ]) {
+      assertParagraphMatches(
+        source,
+        /^(?=[\s\S]*join ingress)(?=[\s\S]*before[^.]*(?:auth|session))(?=[\s\S]*body)(?=[\s\S]*(?:room service|room work))(?=[\s\S]*verified[^.]*room)(?=[\s\S]*(?:validation|admission))(?=[\s\S]*before (?:transaction\/write|transaction|write))[\s\S]*$/i,
+        label,
+      )
+    }
   })
 
   it("contains no other existing-table change, data manipulation, or trigger", () => {

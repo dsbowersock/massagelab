@@ -205,48 +205,101 @@ describe("Anatomime traffic server primitives", () => {
     assert.deepEqual(await unavailableResponse.json(), { error: "Anatomime is temporarily unavailable. Please try again." })
   })
 
-  it("keeps ingress peeks non-consuming and atomically consumes every joined rule", () => {
+  it("charges one network-only ingress bucket across rotating room selectors", () => {
     const shedder = createAnatomimePollShedder({ secret: "shedder-secret" })
     const start = new Date("2026-08-31T12:00:00.000Z")
 
-    for (let index = 0; index < 200; index += 1) {
-      assert.deepEqual(shedder.peekIngress({
+    for (let index = 0; index < 300; index += 1) {
+      assert.deepEqual(shedder.consumeIngress({
         networkIdentifier: "network-a",
-        roomIdentifier: "ROOM1",
+        roomIdentifier: `R${index.toString(36).padStart(5, "0")}`,
         now: start,
       }), { allowed: true })
     }
-    assert.equal(shedder.size, 0)
-
-    for (let index = 0; index < 20; index += 1) {
-      assert.deepEqual(shedder.consumeJoined({
-        networkIdentifier: "network-a",
-        roomIdentifier: "ROOM1",
-        playerId: "player-1",
-        now: start,
-      }), { allowed: true })
-    }
-    assert.equal(shedder.size, 3)
-    assert.deepEqual(shedder.consumeJoined({
+    assert.equal(shedder.size, 1)
+    assert.deepEqual(shedder.consumeIngress({
       networkIdentifier: "network-a",
-      roomIdentifier: "ROOM1",
-      playerId: "player-1",
+      roomIdentifier: "ROTATE",
       now: new Date("2026-08-31T12:00:00.500Z"),
     }), { allowed: false, retryAfterSeconds: 10 })
 
-    for (let index = 0; index < 130; index += 1) {
-      assert.deepEqual(shedder.consumeJoined({
-        networkIdentifier: "network-a",
+    assert.deepEqual(shedder.consumeIngress({
+      networkIdentifier: "network-b",
+      roomIdentifier: "ROOM1",
+      now: start,
+    }), { allowed: true })
+    assert.equal(shedder.size, 2)
+
+    assert.deepEqual(shedder.consumeIngress({
+      networkIdentifier: "network-a",
+      roomIdentifier: "ROOM1",
+      now: new Date("2026-08-31T12:00:10.000Z"),
+    }), { allowed: true })
+    assert.equal(shedder.size, 1)
+    assert.match(trafficServerSource, /createHmac\("sha256", secret\)/)
+    assert.doesNotMatch(trafficServerSource, /buckets\.set\([^\n]*(?:networkIdentifier|roomIdentifier)/)
+  })
+
+  it("keeps ingress consumption atomic when an existing tuple or room rule blocks", () => {
+    const start = new Date("2026-08-31T12:00:00.000Z")
+    const networkRoomFull = createAnatomimePollShedder({ secret: "shedder-secret" })
+    for (let index = 0; index < 150; index += 1) {
+      assert.deepEqual(networkRoomFull.consumeJoined({
+        networkIdentifier: "network-full",
         roomIdentifier: "ROOM1",
-        playerId: `other-player-${index}`,
+        playerId: `tuple-player-${index}`,
         now: start,
       }), { allowed: true })
     }
-    assert.deepEqual(shedder.peekIngress({
+    assert.deepEqual(networkRoomFull.consumeIngress({
+      networkIdentifier: "network-full",
+      roomIdentifier: "ROOM1",
+      now: start,
+    }), { allowed: false, retryAfterSeconds: 10 })
+    for (let index = 0; index < 300; index += 1) {
+      assert.deepEqual(networkRoomFull.consumeIngress({
+        networkIdentifier: "network-full",
+        roomIdentifier: `N${index.toString(36).padStart(5, "0")}`,
+        now: start,
+      }), { allowed: true })
+    }
+
+    const roomFull = createAnatomimePollShedder({ secret: "shedder-secret" })
+    for (const networkIdentifier of ["network-a", "network-b"]) {
+      for (let index = 0; index < 150; index += 1) {
+        assert.deepEqual(roomFull.consumeJoined({
+          networkIdentifier,
+          roomIdentifier: "ROOM1",
+          playerId: `${networkIdentifier}-player-${index}`,
+          now: start,
+        }), { allowed: true })
+      }
+    }
+    assert.deepEqual(roomFull.consumeIngress({
+      networkIdentifier: "network-c",
+      roomIdentifier: "ROOM1",
+      now: start,
+    }), { allowed: false, retryAfterSeconds: 10 })
+    for (let index = 0; index < 300; index += 1) {
+      assert.deepEqual(roomFull.consumeIngress({
+        networkIdentifier: "network-c",
+        roomIdentifier: `C${index.toString(36).padStart(5, "0")}`,
+        now: start,
+      }), { allowed: true })
+    }
+
+    const atCapacity = createAnatomimePollShedder({ secret: "shedder-secret", maxEntries: 1 })
+    assert.deepEqual(atCapacity.consumeIngress({
       networkIdentifier: "network-a",
       roomIdentifier: "ROOM1",
-      now: new Date("2026-08-31T12:00:09.001Z"),
-    }), { allowed: false, retryAfterSeconds: 1 })
+      now: start,
+    }), { allowed: true })
+    assert.deepEqual(atCapacity.consumeIngress({
+      networkIdentifier: "network-b",
+      roomIdentifier: "ROOM2",
+      now: start,
+    }), { allowed: false, retryAfterSeconds: 10 })
+    assert.equal(atCapacity.size, 1)
   })
 
   it("mutates no local bucket when any joined rule denies", () => {
