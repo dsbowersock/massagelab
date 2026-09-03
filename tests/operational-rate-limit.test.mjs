@@ -466,6 +466,25 @@ describe("operational rate-limit service", () => {
     assert.ok(client.findManyCalls[0].where.OR.some((clause) => clause?.blockedUntil === null))
     assert.ok(client.findManyCalls[0].where.OR.some((clause) => clause?.blockedUntil?.lt instanceof Date))
 
+    const callerBounded = new InMemoryOperationalRateLimitClient()
+    for (let index = 0; index < 15; index += 1) {
+      callerBounded.seed({
+        ...identity(`caller-bounded.${index}.v1`, "GLOBAL", [{ label: "deployment", value: "massagelab" }]),
+        count: 1,
+        windowStart: staleAt,
+        blockedUntil: null,
+        updatedAt: staleAt,
+      })
+    }
+    assert.equal(await pruneOperationalRateLimits({
+      prismaClient: callerBounded,
+      before,
+      maxRows: 10,
+    }), 10)
+    assert.equal(callerBounded.findManyCalls.length, 1)
+    assert.equal(callerBounded.findManyCalls[0].take, 10)
+    assert.equal(callerBounded.rows.size, 5)
+
     const reactivated = new InMemoryOperationalRateLimitClient()
     reactivated.seed({
       ...identity("reactivated.v1", "GLOBAL", [{ label: "deployment", value: "massagelab" }]),
