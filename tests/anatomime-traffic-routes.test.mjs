@@ -21,6 +21,8 @@ const pollRouteSource = await readFile(new URL("../app/api/anatomime/sessions/[c
 const sharedSessionClientSource = await readFile(new URL("../app/anatomime/shared-session-client.tsx", import.meta.url), "utf8")
 const hostRoomClientSource = await readFile(new URL("../app/anatomime/host-room-client.tsx", import.meta.url), "utf8")
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
+const projectStateSource = await readFile(new URL("../docs/project-state.md", import.meta.url), "utf8")
+const projectLogSource = await readFile(new URL("../docs/project-log.md", import.meta.url), "utf8")
 
 /** Extracts one lexical top-level function without depending on its neighbors. */
 function topLevelFunctionSource(source, functionName, fileName) {
@@ -579,6 +581,17 @@ describe("Anatomime client poll ownership", () => {
         /const wakePoll = \(\) => \{\s+if \(cancelled \|\| stopped \|\| inFlight \|\| timer === null \|\| !latestScheduledResult \|\| latestScheduledResult\.kind === "RATE_LIMITED"\) return/,
       )
     }
+    assert.match(hostRoomClientSource, /const pollWakeRef = useRef<\(\) => boolean>\(\(\) => false\)/)
+    assert.match(
+      hostRoomClientSource,
+      /const wakePoll = \(\) => \{[\s\S]*?kind === "RATE_LIMITED"\) return false[\s\S]*?void poll\(\)[\s\S]*?return true[\s\S]*?\}/,
+    )
+    assert.match(hostRoomClientSource, /pollWakeRef\.current = \(\) => false/)
+    assert.match(
+      hostRoomClientSource,
+      /const refreshRoom = \(\) => \{[\s\S]*?if \(pollWakeRef\.current\(\)\) return[\s\S]*?setPollStatus\(\(current\) => current \|\| "Update already in progress\."\)[\s\S]*?\}/,
+    )
+    assert.match(hostRoomClientSource, /onClick=\{refreshRoom\}[\s\S]*?<RefreshCw/)
   })
 
   it("retries an entered same code through the existing poll owner", () => {
@@ -587,6 +600,10 @@ describe("Anatomime client poll ownership", () => {
       sharedSessionClientSource,
       /if \(nextLookupCode === lookupCode\) \{[\s\S]*?if \(pollWakeRef\.current\(\)\) \{[\s\S]*?setInitialLookupPending\(true\)[\s\S]*?\}[\s\S]*?return[\s\S]*?\}[\s\S]*?setLookupCode\(nextLookupCode\)/,
     )
+    for (const source of [projectStateSource, projectLogSource]) {
+      assert.match(source, /exact 143\/143 focused Anatomime matrix/)
+      assert.doesNotMatch(source, /exact 142\/142 focused Anatomime matrix/)
+    }
   })
 })
 

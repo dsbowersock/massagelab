@@ -71,7 +71,7 @@ export function HostRoomClient({
   const [qrGenerationFailed, setQrGenerationFailed] = useState(false)
   const sessionRef = useRef(initialSession)
   const timeoutKeyRef = useRef("")
-  const pollWakeRef = useRef<() => void>(() => {})
+  const pollWakeRef = useRef<() => boolean>(() => false)
   const joinPath = `/anatomime/join?code=${encodeURIComponent(session.code)}`
 
   useEffect(() => {
@@ -196,10 +196,11 @@ export function HostRoomClient({
     }
 
     const wakePoll = () => {
-      if (cancelled || stopped || inFlight || timer === null || !latestScheduledResult || latestScheduledResult.kind === "RATE_LIMITED") return
+      if (cancelled || stopped || inFlight || timer === null || !latestScheduledResult || latestScheduledResult.kind === "RATE_LIMITED") return false
       window.clearTimeout(timer)
       timer = null
       void poll()
+      return true
     }
     const onVisibilityChange = () => {
       if (cancelled || stopped || inFlight || timer === null) return
@@ -232,7 +233,7 @@ export function HostRoomClient({
       if (timer !== null) window.clearTimeout(timer)
       controller?.abort()
       document.removeEventListener("visibilitychange", onVisibilityChange)
-      if (pollWakeRef.current === wakePoll) pollWakeRef.current = () => {}
+      if (pollWakeRef.current === wakePoll) pollWakeRef.current = () => false
     }
   }, [
     credentials.playerId,
@@ -242,6 +243,11 @@ export function HostRoomClient({
     initialSession.status,
     setSyncedSession,
   ])
+
+  const refreshRoom = () => {
+    if (pollWakeRef.current()) return
+    setPollStatus((current) => current || "Update already in progress.")
+  }
 
   const performAction = useCallback(async (label: string, path: string, body: Record<string, unknown> = {}) => {
     setBusyAction(label)
@@ -337,7 +343,7 @@ export function HostRoomClient({
           <Copy className="h-4 w-4" />
           Copy Join Link
         </AnatomimeActionButton>
-        <AnatomimeActionButton type="button" intent="secondary" onClick={() => pollWakeRef.current()}>
+        <AnatomimeActionButton type="button" intent="secondary" onClick={refreshRoom}>
           <RefreshCw className="h-4 w-4" />
           Refresh
         </AnatomimeActionButton>

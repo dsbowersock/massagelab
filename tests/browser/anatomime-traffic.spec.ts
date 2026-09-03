@@ -461,6 +461,7 @@ test("host refresh wakes failed recovery but cannot bypass Retry-After", async (
   let createCount = 0
   const lobbySession = roomSession({ joined: false, host: true })
   const createResponse = responseGate()
+  const firstHostPollResponse = responseGate()
 
   await page.route((url) => url.pathname === "/api/anatomime/sessions", async (route) => {
     createCount += 1
@@ -473,6 +474,7 @@ test("host refresh wakes failed recovery but cannot bypass Retry-After", async (
   await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
     hostPollCount += 1
     if (hostPollCount === 1) {
+      await firstHostPollResponse.wait
       await fulfillJson(route, 429, { error: "Slow down." }, { "Retry-After": "7" })
       return
     }
@@ -498,8 +500,13 @@ test("host refresh wakes failed recovery but cannot bypass Retry-After", async (
 
   await refresh.click()
   await expect.poll(() => hostPollCount).toBe(1)
+  await refresh.click()
+  await expect(page.getByRole("status").filter({ hasText: "Update already in progress." })).toBeVisible()
+  expect(hostPollCount).toBe(1)
+  firstHostPollResponse.release()
   await expect(page.getByText(/Trying again in 7 seconds/i)).toBeVisible()
   await refresh.click()
+  await expect(page.getByText(/Trying again in 7 seconds/i)).toBeVisible()
   expect(hostPollCount).toBe(1)
   await page.clock.fastForward(6_999)
   expect(hostPollCount).toBe(1)
