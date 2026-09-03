@@ -1087,24 +1087,42 @@ export async function joinAnatomimeRoom(
     })
 
     if (existingPlayer) {
-      await tx.anatomimeRoomPlayer.update({
-        where: {
-          roomId_id: {
+      const playerUpdate = {
+        // A token-proven guest may be claimed by the signed-in account in
+        // this same credential-rotation write. Existing bindings never move.
+        userId: existingPlayer.userId ?? userId ?? null,
+        displayName: existingPlayer.id === currentRoom.hostPlayerId ? existingPlayer.displayName : displayName,
+        teamId: existingPlayer.id === currentRoom.hostPlayerId || currentRoom.status === "PLAYING" ? existingPlayer.teamId : nextTeamId,
+        guestTokenHash: tokenHash,
+        lastSeenAt: transactionNow,
+        lastActionAt: transactionNow,
+      }
+      if (existingPlayer.userId === null) {
+        // Recheck the opaque credential in the write predicate: concurrent
+        // transactions may both have loaded the same still-unclaimed snapshot.
+        const claimedPlayer = await tx.anatomimeRoomPlayer.updateMany({
+          where: {
             roomId: currentRoom.id,
             id: existingPlayer.id,
+            userId: null,
+            guestTokenHash: hashToken(suppliedToken),
           },
-        },
-        data: {
-          // A token-proven guest may be claimed by the signed-in account in
-          // this same credential-rotation write. Existing bindings never move.
-          userId: existingPlayer.userId ?? userId ?? null,
-          displayName: existingPlayer.id === currentRoom.hostPlayerId ? existingPlayer.displayName : displayName,
-          teamId: existingPlayer.id === currentRoom.hostPlayerId || currentRoom.status === "PLAYING" ? existingPlayer.teamId : nextTeamId,
-          guestTokenHash: tokenHash,
-          lastSeenAt: transactionNow,
-          lastActionAt: transactionNow,
-        },
-      })
+          data: playerUpdate,
+        })
+        if (claimedPlayer.count !== 1) {
+          throw roomError(403, "join-required", "Join this room before taking that action.")
+        }
+      } else {
+        await tx.anatomimeRoomPlayer.update({
+          where: {
+            roomId_id: {
+              roomId: currentRoom.id,
+              id: existingPlayer.id,
+            },
+          },
+          data: playerUpdate,
+        })
+      }
     } else {
       if (!nextTeamId) throw roomError(409, "no-teams", "This room has no available teams.")
 

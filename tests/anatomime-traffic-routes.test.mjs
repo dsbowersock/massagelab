@@ -23,6 +23,15 @@ const hostRoomClientSource = await readFile(new URL("../app/anatomime/host-room-
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
 const projectStateSource = await readFile(new URL("../docs/project-state.md", import.meta.url), "utf8")
 const projectLogSource = await readFile(new URL("../docs/project-log.md", import.meta.url), "utf8")
+const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 148
+const verifiedLayerBReceiptPattern = new RegExp(escapeRegExp(
+  `exact ${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL}/${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL} focused Anatomime matrix`,
+))
+
+/** Escapes a literal receipt so one verified count drives both documentation checks. */
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
 
 /** Extracts one lexical top-level function without depending on its neighbors. */
 function topLevelFunctionSource(source, functionName, fileName) {
@@ -268,7 +277,7 @@ describe("Anatomime create and join traffic boundaries", () => {
       userId: null,
       players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
       input: { playerId: "player-1", playerToken: "guest-token" },
-      writeEvent: "player-update",
+      writeEvent: "player-update-many",
     },
     {
       label: "an ordinary new join without credential fields",
@@ -333,7 +342,7 @@ describe("Anatomime create and join traffic boundaries", () => {
       transactionRoom,
       onPlayerWrite: (event, args) => {
         writes.push({ event, args })
-        const player = transactionRoom.players.find((candidate) => candidate.id === args.where.roomId_id.id)
+        const player = transactionRoom.players.find((candidate) => candidate.id === args.where.id)
         assert.ok(player)
         Object.assign(player, args.data)
       },
@@ -352,7 +361,13 @@ describe("Anatomime create and join traffic boundaries", () => {
     assert.equal(result.player.guestTokenHash, "hash:ABC123")
     assert.equal(result.token, "ABC123")
     assert.equal(writes.length, 1)
-    assert.equal(writes[0].event, "player-update")
+    assert.equal(writes[0].event, "player-update-many")
+    assert.deepEqual(writes[0].args.where, {
+      roomId: "room-1",
+      id: "player-1",
+      userId: null,
+      guestTokenHash: "hash:guest-token",
+    })
     assert.equal(writes[0].args.data.userId, "account-1")
   })
 
@@ -478,8 +493,36 @@ describe("Anatomime create and join traffic boundaries", () => {
       "guard",
       "transaction",
       "transaction-read",
-      "player-update",
+      "player-update-many",
     ])
+  })
+
+  it("lets exactly one authenticated transaction claim a token-proven guest", async () => {
+    const scenario = loadConcurrentGuestClaimServer()
+    const claimInput = {
+      displayName: "Claiming Player",
+      playerId: "player-1",
+      playerToken: "guest-token",
+    }
+
+    const results = await Promise.allSettled([
+      scenario.service.joinAnatomimeRoom("room-1", claimInput, "account-one"),
+      scenario.service.joinAnatomimeRoom("room-1", claimInput, "account-two"),
+    ])
+    const fulfilled = results.filter((result) => result.status === "fulfilled")
+    const rejected = results.filter((result) => result.status === "rejected")
+
+    assert.deepEqual(scenario.transactionReadOwners, [null, null])
+    assert.equal(scenario.playerWriteAttempts, 2)
+    assert.equal(fulfilled.length, 1)
+    assert.equal(rejected.length, 1)
+    assert.ok(isGenericJoinCredentialError(rejected[0].reason))
+    assert.equal(scenario.touchCount, 1)
+    assert.equal(scenario.publications.length, 1)
+
+    const winner = fulfilled[0].value
+    assert.equal(scenario.committedPlayer.userId, winner.player.userId)
+    assert.equal(scenario.committedPlayer.guestTokenHash, `hash:${winner.token}`)
   })
 
   it("revalidates guest-only token ownership after quota before review re-entry", async () => {
@@ -769,9 +812,7 @@ describe("Anatomime client poll ownership", () => {
 
   it("keeps canonical documentation receipts at the validated Layer B count", () => {
     for (const source of [projectStateSource, projectLogSource]) {
-      assert.match(source, /exact 147\/147 focused Anatomime matrix/)
-      assert.doesNotMatch(source, /exact 143\/143 focused Anatomime matrix/)
-      assert.doesNotMatch(source, /exact 142\/142 focused Anatomime matrix/)
+      assert.match(source, verifiedLayerBReceiptPattern)
     }
   })
 })
@@ -1238,6 +1279,9 @@ function loadRoomServer({
   transactionError,
   playerWriteError,
   onPlayerWrite,
+  prismaOverride,
+  generateRandomToken = () => "ABC123",
+  onPublish = async () => {},
 }) {
   const prisma = {
     anatomimeRoom: {
@@ -1268,6 +1312,10 @@ function loadRoomServer({
         anatomimeRoomPlayer: {
           create: (args) => playerWrite("player-create", args),
           update: (args) => playerWrite("player-update", args),
+          updateMany: async (args) => {
+            await playerWrite("player-update-many", args)
+            return { count: 1 }
+          },
           upsert: (args) => playerWrite("player-upsert", args),
         },
       })
@@ -1283,12 +1331,12 @@ function loadRoomServer({
 
   return loadCompiledModule(roomServerSource, "lib/anatomime-room-server.route-test.ts", {
     "./auth-security.js": {
-      generateRandomToken: () => "ABC123",
+      generateRandomToken,
       hashToken: (value) => `hash:${value}`,
     },
     "./anatomime-session-server.ts": { AnatomimeSessionError },
     "./anatomime-progress-server.ts": { updateAnatomimeNameRecallProgress: async () => {} },
-    "./anatomime-realtime.ts": { publishAnatomimeRealtimeEvent: async () => {} },
+    "./anatomime-realtime.ts": { publishAnatomimeRealtimeEvent: onPublish },
     "./anatomime-shared.ts": {
       createAnatomimeSessionDeck: () => deck,
       getAnatomimeCandidateCards: () => cardFixtures(),
@@ -1313,8 +1361,103 @@ function loadRoomServer({
       coalesceAnatomimePlayerPresence: async () => null,
       normalizeAnatomimeRoomIdentifier,
     },
-    "./prisma.ts": { prisma },
+    "./prisma.ts": { prisma: prismaOverride ?? prisma },
   })
+}
+
+/**
+ * Models two PostgreSQL transactions that both read the same unclaimed row,
+ * then rechecks conditional-write predicates against one committed row.
+ */
+function loadConcurrentGuestClaimServer() {
+  const committedRoom = roomFixture({
+    players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+  })
+  const preflightRoom = structuredClone(committedRoom)
+  const waitForBothTransactionReads = arrivalBarrier(2)
+  const waitForBothPlayerWrites = arrivalBarrier(2)
+  const transactionReadOwners = []
+  const publications = []
+  const generatedTokens = ["claim-token-one", "claim-token-two"]
+  let generatedTokenIndex = 0
+  let playerWriteAttempts = 0
+  let touchCount = 0
+
+  const prisma = {
+    anatomimeRoom: {
+      findUnique: async () => structuredClone(preflightRoom),
+    },
+    $transaction: async (callback) => {
+      let transactionRoom
+      const tx = {
+        anatomimeRoom: {
+          findUnique: async () => {
+            transactionRoom = structuredClone(committedRoom)
+            transactionReadOwners.push(transactionRoom.players[0].userId)
+            await waitForBothTransactionReads()
+            return transactionRoom
+          },
+          update: async () => {
+            touchCount += 1
+            return structuredClone(transactionRoom)
+          },
+        },
+        anatomimeRoomPlayer: {
+          update: async ({ data }) => {
+            playerWriteAttempts += 1
+            await waitForBothPlayerWrites()
+            Object.assign(transactionRoom.players[0], data)
+            Object.assign(committedRoom.players[0], data)
+            return structuredClone(transactionRoom.players[0])
+          },
+          updateMany: async ({ where, data }) => {
+            playerWriteAttempts += 1
+            await waitForBothPlayerWrites()
+            const committedPlayer = committedRoom.players[0]
+            const predicateMatches = (
+              committedPlayer.roomId === where.roomId
+              && committedPlayer.id === where.id
+              && committedPlayer.userId === where.userId
+              && committedPlayer.guestTokenHash === where.guestTokenHash
+            )
+            if (!predicateMatches) return { count: 0 }
+
+            Object.assign(transactionRoom.players[0], data)
+            Object.assign(committedPlayer, data)
+            return { count: 1 }
+          },
+        },
+      }
+      return callback(tx)
+    },
+  }
+  const service = loadRoomServer({
+    events: [],
+    prismaOverride: prisma,
+    generateRandomToken: () => generatedTokens[generatedTokenIndex++],
+    onPublish: async (...args) => { publications.push(args) },
+  })
+
+  return {
+    service,
+    committedPlayer: committedRoom.players[0],
+    transactionReadOwners,
+    publications,
+    get playerWriteAttempts() { return playerWriteAttempts },
+    get touchCount() { return touchCount },
+  }
+}
+
+/** Releases every participant only after the expected arrivals are waiting. */
+function arrivalBarrier(expectedArrivals) {
+  let arrivals = 0
+  let release
+  const ready = new Promise((resolve) => { release = resolve })
+  return async () => {
+    arrivals += 1
+    if (arrivals === expectedArrivals) release()
+    await ready
+  }
 }
 
 function loadRoute(kind, { session = null, limitError, rejectInvalidAccount = false } = {}) {
