@@ -43,7 +43,9 @@ type DeliveryClaim<TIntent extends DeliveryIntent = DeliveryIntent> = {
   now: Date
 }
 
-type RetryDeliveryClaim = DeliveryClaim<DeliveryIntent & { userId: string }>
+type RetryDeliveryClaim = Omit<DeliveryClaim<DeliveryIntent & { userId: string }>, "beforeStatus"> & {
+  beforeStatus: "FAILED"
+}
 
 const EMAIL_INTENT_LOCK_PREFIX = "massagelab:admin-email-intent:"
 const CLAIM_LEASE_MS = 5 * 60 * 1000
@@ -468,7 +470,7 @@ function retryReplayOrFail(existing: {
   const beforeState = retryStateForIntent(existing.beforeState, intent.id)
   const afterState = retryStateForIntent(existing.afterState, intent.id)
   if (!beforeState || !afterState
-    || !isRetryStartStatus(beforeState.status)
+    || beforeState.status !== "FAILED"
     || !isRetryResultStatus(afterState.status)
     || afterState.attemptCount !== beforeState.attemptCount + 1
     || (existing.outcome === "SUCCEEDED" && (afterState.status !== "DELIVERED" || existing.failureCode !== null))
@@ -504,10 +506,6 @@ function retryStateForIntent(value: Prisma.JsonValue, intentId: string): { statu
   }
 }
 
-function isRetryStartStatus(status: string): boolean {
-  return status === "PENDING" || status === "FAILED"
-}
-
 function isRetryResultStatus(status: string): boolean {
   return status === "DELIVERED" || status === "FAILED"
 }
@@ -525,13 +523,13 @@ function claimIsLive(intent: DeliveryIntent, now: Date): boolean {
     && intent.deliveryClaimExpiresAt.getTime() >= now.getTime()
 }
 
-/** Malformed leases stay BUSY because their provider outcome and expiry are uncertain. */
+/** Only an exact hash with a valid expired lease is safe to recover; malformed claims stay BUSY. */
 function claimIsRecoverable(intent: DeliveryIntent, now: Date): boolean {
   if (intent.deliveryClaimTokenHash === null
     && intent.deliveryClaimExpiresAt === null
     && intent.deliveryClaimOperationKeyHash === null) return true
   return typeof intent.deliveryClaimTokenHash === "string"
-    && intent.deliveryClaimTokenHash.length > 0
+    && /^[0-9a-f]{64}$/.test(intent.deliveryClaimTokenHash)
     && intent.deliveryClaimExpiresAt instanceof Date
     && intent.deliveryClaimExpiresAt.getTime() < now.getTime()
     && (intent.deliveryClaimOperationKeyHash === null

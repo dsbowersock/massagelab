@@ -215,9 +215,14 @@ export async function maybePruneOperationalRateLimits({
   maxRows?: number
   shouldPrune?: () => boolean
 }): Promise<number> {
-  return shouldPrune()
-    ? pruneOperationalRateLimits({ prismaClient, before, maxRows })
-    : 0
+  try {
+    return shouldPrune()
+      ? await pruneOperationalRateLimits({ prismaClient, before, maxRows })
+      : 0
+  } catch {
+    // Sampling and stale cleanup are best effort and never alter the limiter decision.
+    return 0
+  }
 }
 
 function latestActiveBlock(

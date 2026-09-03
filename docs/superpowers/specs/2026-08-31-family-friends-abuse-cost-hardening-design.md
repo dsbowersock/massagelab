@@ -34,7 +34,7 @@ The sequence is:
 6. deploy the same candidate with membership writes enabled; and
 7. run separately authorized real login and soft-launch checks.
 
-The three identity and membership migrations already applied to Production remain unchanged. This design adds one migration; it does not modify or replay those migrations.
+The five identity and membership migrations already applied to Production remain unchanged, and exact current main has all 45 baseline migrations current. This design adds one separately gated Layer A migration as the pending 46th migration; it does not modify or replay the five applied migrations.
 
 ## Goals
 

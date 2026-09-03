@@ -55,10 +55,32 @@ export function normalizePublicRequestId(value: unknown): string | null
 Create the server-only `lib/public-request-owner.ts`:
 
 ```ts
-export function publicRequestOwner(input: {
-  namespace: PublicRequestNamespace
+export type PublicBookingSelectionLabel =
+  | "serviceVariantId"
+  | "addOnVariantId"
+  | "pressure"
+  | "requestedStart"
+  | "preferredProviderId"
+
+export type PublicWaitlistSelectionLabel =
+  | "serviceVariantId"
+  | "addOnVariantId"
+  | "pressure"
+  | "preferredStart"
+  | "preferredProviderId"
+
+type PublicRequestSelection =
+  | {
+      namespace: "public-booking-v1"
+      selectionComponents: readonly { label: PublicBookingSelectionLabel; value: string }[]
+    }
+  | {
+      namespace: "public-waitlist-v1"
+      selectionComponents: readonly { label: PublicWaitlistSelectionLabel; value: string }[]
+    }
+
+export function publicRequestOwner(input: PublicRequestSelection & {
   requestId: string
-  selectionComponents: readonly { label: string; value: string }[]
 }): {
   prefix: string
   selectionDigest: string
@@ -66,14 +88,14 @@ export function publicRequestOwner(input: {
 }
 ```
 
-`normalizePublicRequestId` accepts only `/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/` and has no `server-only` or `node:*` dependency, so PR D may reuse it in the browser. `public-request-owner.ts` imports `server-only` and `node:crypto`, then length-prefixes the domain, namespace, and every allowlisted label/value before SHA-256. The ID is `${namespace}:${requestId}:${selectionDigest}`; the prefix ends after the final colon before the digest.
+`normalizePublicRequestId` accepts only `/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/` and has no `server-only` or `node:*` dependency, so PR D may reuse it in the browser. `public-request-owner.ts` imports `server-only` and `node:crypto`. Before any digest work, it validates the namespace-specific closed label union and canonical component order/multiplicity; an unknown, missing, duplicate, out-of-order, or cross-namespace label fails closed before hashing. Only then does it length-prefix the domain, namespace, and every allowlisted label/value before SHA-256. The ID is `${namespace}:${requestId}:${selectionDigest}`; the prefix ends after the final colon before the digest.
 
 Selection components are exact and canonical:
 
 - booking: sorted service/add-on variant IDs, normalized pressure integer, requested start ISO string, and preferred provider ID or empty string;
 - waitlist: sorted service/add-on variant IDs, normalized pressure integer, preferred start ISO string or empty string, and preferred provider ID or empty string.
 
-No contact or account field enters these components.
+No contact, email, account, user, practice-client, or free-text label or value enters these components. Those labels and aliases are explicitly prohibited rather than accepted as extensible strings. Future Layer C tests must cover every canonical label, reject cross-namespace and prohibited labels, and prove unknown labels fail before the hashing path is invoked. This Layer A reconciliation changes only the plan and does not add the Layer C owner or route runtime.
 
 ## Action state
 

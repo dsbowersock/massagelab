@@ -653,6 +653,74 @@ describe("admin operation service", () => {
     }
   })
 
+  it("keeps malformed expired initial-delivery claim tokens BUSY without sending", async () => {
+    for (const [label, tokenHash] of [
+      ["short token", "a".repeat(63)],
+      ["uppercase token", "A".repeat(64)],
+      ["nonhex token", "g".repeat(64)],
+    ]) {
+      const database = createAdminDatabase()
+      const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
+      database.intents[0].attemptCount = 3
+      database.intents[0].lastAttemptAt = new Date("2026-08-08T13:49:00.000Z")
+      database.intents[0].deliveryClaimTokenHash = tokenHash
+      database.intents[0].deliveryClaimExpiresAt = new Date("2026-08-08T13:55:00.000Z")
+      let sends = 0
+
+      const result = await deliverAdminEmailIntent({
+        prismaClient: database,
+        intentId: emailIntentId,
+        now: new Date("2026-08-08T14:00:00.000Z"),
+        sendEmail: async () => { sends += 1; return { delivered: true } },
+      })
+
+      assert.deepEqual(result, { status: "BUSY", attemptCount: 3, attempted: false }, label)
+      assert.equal(sends, 0, label)
+      assert.equal(database.intents[0].deliveryClaimTokenHash, tokenHash, label)
+      assert.equal(database.intents[0].attemptCount, 3, label)
+    }
+  })
+
+  it("keeps malformed expired retry claim tokens BUSY without sending", async () => {
+    for (const [label, tokenHash] of [
+      ["short token", "a".repeat(63)],
+      ["uppercase token", "A".repeat(64)],
+      ["nonhex token", "g".repeat(64)],
+    ]) {
+      const database = createAdminDatabase()
+      const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
+      await deliverAdminEmailIntent({
+        prismaClient: database,
+        intentId: emailIntentId,
+        sendEmail: async () => ({ delivered: false }),
+      })
+      database.intents[0].deliveryClaimTokenHash = tokenHash
+      database.intents[0].deliveryClaimExpiresAt = new Date("2026-08-08T13:55:00.000Z")
+      let sends = 0
+
+      const result = await retryAdminEmailIntent({
+        prismaClient: database,
+        actorUserId: "user_actor",
+        expectedTargetUserId: "user_target",
+        intentId: emailIntentId,
+        idempotencyKey: `malformed-expired-${label}`,
+        now: new Date("2026-08-08T14:00:00.000Z"),
+        sendEmail: async () => { sends += 1; return { delivered: true } },
+      })
+
+      assert.deepEqual(result, {
+        status: "BUSY",
+        attemptCount: 1,
+        replayed: false,
+        attempted: false,
+      }, label)
+      assert.equal(sends, 0, label)
+      assert.equal(database.intents[0].deliveryClaimTokenHash, tokenHash, label)
+      assert.equal(database.intents[0].attemptCount, 1, label)
+      assert.equal(database.retryOperationKeys.length, 0, label)
+    }
+  })
+
   it("recovers an expired initial claim and clears the replacement lease on completion", async () => {
     const database = createAdminDatabase()
     const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
@@ -989,6 +1057,42 @@ describe("admin operation service", () => {
         /(incomplete|already in use)/,
       )
     }
+  })
+
+  it("rejects a historical retry replay whose before state was PENDING without sending", async () => {
+    const database = createAdminDatabase()
+    const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
+    await deliverAdminEmailIntent({
+      prismaClient: database,
+      intentId: emailIntentId,
+      sendEmail: async () => ({ delivered: false }),
+    })
+    await retryAdminEmailIntent({
+      prismaClient: database,
+      actorUserId: "user_actor",
+      expectedTargetUserId: "user_target",
+      intentId: emailIntentId,
+      idempotencyKey: "pending-before-state-replay",
+      sendEmail: async () => ({ delivered: true }),
+    })
+    const retryAction = database.actions.at(-1)
+    retryAction.beforeState = { ...retryAction.beforeState, status: "PENDING" }
+    let sends = 0
+
+    await assert.rejects(
+      () => retryAdminEmailIntent({
+        prismaClient: database,
+        actorUserId: "user_actor",
+        expectedTargetUserId: "user_target",
+        intentId: emailIntentId,
+        idempotencyKey: "pending-before-state-replay",
+        sendEmail: async () => { sends += 1; return { delivered: true } },
+      }),
+      { message: "The existing retry record is incomplete." },
+    )
+    assert.equal(sends, 0)
+    assert.equal(database.intents[0].status, "DELIVERED")
+    assert.equal(database.actions.length, 2)
   })
 
   it("rejects password-reset intents without a delivery attempt or retry audit", async () => {

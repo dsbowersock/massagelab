@@ -131,6 +131,8 @@ function bucketKey({ policy, scope, keyHash }) {
 
 function matchesCleanupWhere(row, where) {
   const stale = row.updatedAt < where.updatedAt.lt
+  const blockedUntilNullClause = where.OR?.find((clause) => clause?.blockedUntil === null)
+  assert.ok(blockedUntilNullClause, "expected explicit blockedUntil null cleanup OR clause")
   const blockedUntilClause = where.OR?.find((clause) => clause?.blockedUntil?.lt instanceof Date)
   assert.ok(blockedUntilClause, "expected blockedUntil.lt cleanup OR clause")
   const inactive = row.blockedUntil === null || row.blockedUntil < blockedUntilClause.blockedUntil.lt
@@ -425,6 +427,11 @@ describe("operational rate-limit service", () => {
       now: BASE_TIME,
       shouldPrune: () => true,
     }), { allowed: true })
+    assert.equal(await maybePruneOperationalRateLimits({
+      prismaClient: client,
+      before: BASE_TIME,
+      shouldPrune: () => true,
+    }), 0)
     assert.equal(await maybePruneOperationalRateLimits({
       prismaClient: client,
       before: BASE_TIME,
