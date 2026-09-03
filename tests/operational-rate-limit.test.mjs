@@ -109,7 +109,6 @@ class InMemoryOperationalRateLimitClient {
           const firstId = where.id.in[0]
           const row = [...rows.values()].find((candidate) => candidate.id === firstId)
           if (row) {
-            row.updatedAt = BASE_TIME
             row.blockedUntil = new Date(BASE_TIME.getTime() + 60_000)
           }
         }
@@ -534,22 +533,6 @@ describe("operational rate-limit service", () => {
     assert.equal(callerBounded.findManyCalls[0].take, 10)
     assert.equal(callerBounded.rows.size, 5)
 
-    const reactivated = new InMemoryOperationalRateLimitClient()
-    reactivated.seed({
-      ...identity("reactivated.v1", "GLOBAL", [{ label: "deployment", value: "massagelab" }]),
-      count: 1,
-      windowStart: staleAt,
-      blockedUntil: null,
-      updatedAt: staleAt,
-    })
-    reactivated.reactivateBeforeDelete = true
-    assert.equal(await pruneOperationalRateLimits({
-      prismaClient: reactivated,
-      before,
-      maxRows: 100,
-    }), 0)
-    assert.equal(reactivated.rows.size, 1)
-
     const transactional = new InMemoryOperationalRateLimitClient()
     const transactionalIdentity = identity("transactional-delete.v1", "GLOBAL", [
       { label: "deployment", value: "massagelab" },
@@ -566,6 +549,56 @@ describe("operational rate-limit service", () => {
       { isolationLevel: "Serializable" },
     ), 1)
     assert.equal(transactional.rowFor(transactionalIdentity), null)
+  })
+
+  it("deletes a stale row whose block expired before the cleanup cutoff", async () => {
+    const client = new InMemoryOperationalRateLimitClient()
+    const staleAt = new Date(BASE_TIME.getTime() - 48 * 60 * 60_000)
+    const before = new Date(BASE_TIME.getTime() - 24 * 60 * 60_000)
+    const expiredBlockedIdentity = identity("expired-block.v1", "GLOBAL", [
+      { label: "deployment", value: "massagelab" },
+    ])
+    client.seed({
+      ...expiredBlockedIdentity,
+      count: 1,
+      windowStart: staleAt,
+      blockedUntil: new Date(before.getTime() - 1),
+      updatedAt: staleAt,
+    })
+
+    assert.equal(await pruneOperationalRateLimits({
+      prismaClient: client,
+      before,
+      maxRows: 100,
+    }), 1)
+    assert.equal(client.rowFor(expiredBlockedIdentity), null)
+  })
+
+  it("preserves a stale row that becomes actively blocked between selection and deletion", async () => {
+    const client = new InMemoryOperationalRateLimitClient()
+    const staleAt = new Date(BASE_TIME.getTime() - 48 * 60 * 60_000)
+    const before = new Date(BASE_TIME.getTime() - 24 * 60 * 60_000)
+    const reactivatedIdentity = identity("reactivated.v1", "GLOBAL", [
+      { label: "deployment", value: "massagelab" },
+    ])
+    client.seed({
+      ...reactivatedIdentity,
+      count: 1,
+      windowStart: staleAt,
+      blockedUntil: new Date(before.getTime() - 1),
+      updatedAt: staleAt,
+    })
+    client.reactivateBeforeDelete = true
+
+    assert.equal(await pruneOperationalRateLimits({
+      prismaClient: client,
+      before,
+      maxRows: 100,
+    }), 0)
+    const preserved = client.rowFor(reactivatedIdentity)
+    assert.ok(preserved, "expected the newly active row to survive guarded deletion")
+    assert.deepEqual(preserved.updatedAt, staleAt)
+    assert.ok(preserved.blockedUntil > before)
   })
 
   it("keeps sampled cleanup failures best-effort and deletes stale rows on success", async () => {

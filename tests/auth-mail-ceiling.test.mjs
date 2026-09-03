@@ -158,12 +158,16 @@ export const unrelatedBudget = SMTP_CONNECTION_TIMEOUT_MS
     })
 
     const originalConsole = {
+      debug: console.debug,
       error: console.error,
+      info: console.info,
       log: console.log,
       warn: console.warn,
     }
     const consoleCalls = []
+    console.debug = (...args) => consoleCalls.push(["debug", ...args])
     console.error = (...args) => consoleCalls.push(["error", ...args])
+    console.info = (...args) => consoleCalls.push(["info", ...args])
     console.log = (...args) => consoleCalls.push(["log", ...args])
     console.warn = (...args) => consoleCalls.push(["warn", ...args])
     let results
@@ -173,7 +177,9 @@ export const unrelatedBudget = SMTP_CONNECTION_TIMEOUT_MS
         await fixture.module.sendAccountChangeEmail("member@example.com", "Notice", "Message"),
       ])
     } finally {
+      console.debug = originalConsole.debug
       console.error = originalConsole.error
+      console.info = originalConsole.info
       console.log = originalConsole.log
       console.warn = originalConsole.warn
     }
