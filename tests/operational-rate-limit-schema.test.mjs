@@ -235,7 +235,7 @@ describe("operational rate-limit persistence", () => {
     assert.equal(statements.filter((statement) => statement === "COMMIT").length, 1)
   })
 
-  it("requires a fresh zero-row preflight and preserves the completed membership rollout", () => {
+  it("requires the exact-zero AdminEmailIntent rollout preflight", () => {
     assert.match(migration, /intentionally non-concurrent[\s\S]*exactly zero rows[\s\S]*approved single migration/i)
     assert.match(migration, /multiple NULL values[\s\S]*would not collide[\s\S]*exact-zero gate[\s\S]*deliberately stronger[\s\S]*rollout state[\s\S]*lock[\s\S]*re-review/i)
     assert.doesNotMatch(
@@ -259,20 +259,23 @@ describe("operational rate-limit persistence", () => {
       assert.match(source, /multiple\s+`NULL`\s+values[\s\S]*do not collide[\s\S]*exact-zero gate[\s\S]*deliberately stronger[\s\S]*rollout\s+state[\s\S]*lock[\s\S]*re-review/i, label)
     }
 
-    assert.match(hardeningDesign, /five identity and membership migrations[\s\S]*bridge ceremony[\s\S]*complete[\s\S]*writes enabled/i, "binding design")
-    assert.match(hardeningDesign, /one new additive operational-limiter migration[\s\S]*exact candidate[\s\S]*ordinary separately authorized deploy[\s\S]*preserv(?:e|ing) current membership writer authority/i, "binding design")
     assert.match(hardeningDesign, /migration is expansion-only[\s\S]*three nullable `AdminEmailIntent` delivery-claim columns[\s\S]*unique `deliveryClaimOperationKeyHash` index[\s\S]*`AdminEmailRetryOperationKey` table[\s\S]*`RESTRICT` foreign key/i, "binding design")
     assert.match(hardeningDesign, /count-only Production `AdminEmailIntent` row-count preflight[\s\S]*immediately before[\s\S]*exact count is `0`[\s\S]*nonzero[\s\S]*hard stop/i, "binding design")
     assert.doesNotMatch(hardeningDesign, /creates the enum, table, unique key, and cleanup indexes without changing or backfilling existing rows/i, "binding design")
+  })
+
+  it("preserves the completed membership rollout sequence", () => {
+    assert.match(hardeningDesign, /five identity and membership migrations[\s\S]*bridge ceremony[\s\S]*complete[\s\S]*writes enabled/i, "binding design")
+    assert.match(hardeningDesign, /one new additive operational-limiter migration[\s\S]*exact candidate[\s\S]*ordinary separately authorized deploy[\s\S]*preserv(?:e|ing) current membership writer authority/i, "binding design")
+    assert.doesNotMatch(hardeningDesign, /perform the already designed membership writer-pause deployment and drain proof/i, "binding design")
+    assert.doesNotMatch(hardeningDesign, /first deploy[^.]*membership webhook writes paused[^.]*old writers drained[^.]*deploy the same SHA with writes enabled/i, "binding design")
+  })
+
+  it("requires idempotency lock and replay checks before booking quota consumption", () => {
     for (const [label, source] of [["binding design", hardeningDesign], ["public booking plan", publicBookingPlan]]) {
       assert.match(
         source,
         /narrow first (?:request-)?prefix lookup[\s\S]*prefix advisory lock[\s\S]*authoritative second (?:prefix )?lookup[\s\S]*only the (?:still-)?true remaining miss[\s\S]*consume[\s\S]*`BOOKING_CREATE`[\s\S]*heavy/i,
-        label,
-      )
-      assert.match(
-        source,
-        /`consumeOperationalRateLimitInTransaction`[\s\S]*same `Prisma\.TransactionClient`[\s\S]*does not open a nested transaction[\s\S]*persistence errors propagate[\s\S]*outer bounded Serializable transaction/i,
         label,
       )
       assert.match(
@@ -285,15 +288,48 @@ describe("operational rate-limit persistence", () => {
     assert.doesNotMatch(publicBookingPlan, /On miss, consume `BOOKING_CREATE`[\s\S]*In the transaction, acquire the prefix advisory lock/i)
     assert.doesNotMatch(publicBookingPlan, /After quota[\s\S]*acquire the prefix lock\/recheck/i)
     assert.doesNotMatch(hardeningDesign, /A miss consumes quota before expensive booking work[\s\S]*write transaction then acquires/i, "binding design")
-    assert.doesNotMatch(hardeningDesign, /perform the already designed membership writer-pause deployment and drain proof/i, "binding design")
-    assert.doesNotMatch(hardeningDesign, /first deploy[^.]*membership webhook writes paused[^.]*old writers drained[^.]*deploy the same SHA with writes enabled/i, "binding design")
+  })
+
+  it("requires booking quota to use the outer Serializable transaction client", () => {
+    for (const [label, source] of [["binding design", hardeningDesign], ["public booking plan", publicBookingPlan]]) {
+      assert.match(
+        source,
+        /`consumeOperationalRateLimitInTransaction`[\s\S]*same `Prisma\.TransactionClient`[\s\S]*does not open a nested transaction[\s\S]*persistence errors propagate[\s\S]*outer bounded Serializable transaction/i,
+        label,
+      )
+    }
+  })
+
+  it("bounds limiter diagnostics while keeping expected mail denials silent", () => {
     assert.match(
       hardeningDesign,
       /Expected limiter denials are intentionally silent at the shared mail boundary[\s\S]*future aggregate or sampled caller telemetry[\s\S]*only the allowlisted mail class\/policy and reason[\s\S]*never recipient, subject, or decision details/i,
       "binding design",
     )
     assert.doesNotMatch(hardeningDesign, /Expected denial logs contain/i, "binding design")
+    for (const [label, source] of [
+      ["binding design", hardeningDesign],
+      ["operational limiter plan", operationalLimiterPlan],
+    ]) {
+      assert.match(
+        source,
+        /definition\/normalization failures[\s\S]*persistence\/retry failures[\s\S]*same public `UNAVAILABLE`/i,
+        label,
+      )
+      assert.match(
+        source,
+        /at most once per runtime[\s\S]*allowlisted operation[\s\S]*fixed `UNKNOWN`[\s\S]*`DEFINITION`[\s\S]*`PERSISTENCE`/i,
+        label,
+      )
+      assert.match(
+        source,
+        /never[^.]*subject[^.]*hash[^.]*request[^.]*error[^.]*decision/i,
+        label,
+      )
+    }
+  })
 
+  it("requires non-consuming Anatomime preflight and atomic joined consumption signatures", () => {
     for (const [label, source] of [
       ["binding design", hardeningDesign],
       ["Anatomime plan", anatomimeTrafficPlan],

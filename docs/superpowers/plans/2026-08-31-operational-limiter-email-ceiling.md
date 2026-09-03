@@ -19,6 +19,7 @@
 - Do not store or log raw email, account ID, network identifier, room/player identifier, practice ID, or composite subject.
 - Reuse `authRequestNetworkIdentifier`, `normalizeEmail`, and `runCommerceTransaction`; do not create competing trust, normalization, or retry owners.
 - Invalid input, missing secret, and exhausted database retry fail closed as `UNAVAILABLE` before protected work.
+- Definition/normalization failures and persistence/retry failures return the same public `UNAVAILABLE` decision. Emit a privacy-safe diagnostic at most once per runtime for each finite key comprising a known allowlisted operation (or the fixed `UNKNOWN` label) and failure class `DEFINITION` or `PERSISTENCE`. Include only that operation label and failure class; never include a subject, hash, request, error, or decision data.
 - Do not apply the migration, connect to Production, construct a real SMTP transporter, or send email.
 
 ## Planned file structure

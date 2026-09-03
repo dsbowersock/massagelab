@@ -400,6 +400,54 @@ describe("operational rate-limit service", () => {
     ])).count, 2)
   })
 
+  it("emits one bounded privacy-safe diagnostic per operation and failure class", { concurrency: false }, async () => {
+    const originalWarn = console.warn
+    const warnings = []
+    const sensitiveNetwork = "private-network@example.test"
+    const sensitiveUnknownOperation = "recipient@example.test"
+    const unavailable = { allowed: false, reason: "UNAVAILABLE" }
+    console.warn = (...args) => warnings.push(args)
+
+    try {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        assert.deepEqual(await consumeOperationalRateLimit({
+          operation: "PROBLEM_REPORT",
+          networkIdentifier: sensitiveNetwork,
+          secret: "",
+        }), unavailable)
+        assert.deepEqual(await consumeOperationalRateLimit({
+          operation: sensitiveUnknownOperation,
+          networkIdentifier: sensitiveNetwork,
+          secret: SECRET,
+        }), unavailable)
+
+        const persistenceClient = new InMemoryOperationalRateLimitClient()
+        persistenceClient.forceTransactionError = new Error("private persistence detail")
+        assert.deepEqual(await consumeOperationalRateLimit({
+          operation: "PROBLEM_REPORT",
+          networkIdentifier: sensitiveNetwork,
+          prismaClient: persistenceClient,
+          secret: SECRET,
+          now: BASE_TIME,
+          shouldPrune: () => false,
+        }), unavailable)
+      }
+    } finally {
+      console.warn = originalWarn
+    }
+
+    assert.equal(console.warn, originalWarn)
+    assert.deepEqual(warnings, [
+      ["Operational rate limiter unavailable.", { operation: "PROBLEM_REPORT", failureClass: "DEFINITION" }],
+      ["Operational rate limiter unavailable.", { operation: "UNKNOWN", failureClass: "DEFINITION" }],
+      ["Operational rate limiter unavailable.", { operation: "PROBLEM_REPORT", failureClass: "PERSISTENCE" }],
+    ])
+    const serializedWarnings = JSON.stringify(warnings)
+    assert.equal(serializedWarnings.includes(sensitiveNetwork), false)
+    assert.equal(serializedWarnings.includes(sensitiveUnknownOperation), false)
+    assert.equal(serializedWarnings.includes("private persistence detail"), false)
+  })
+
   it("maps invalid input, missing secret, non-retryable errors, and exhausted retries to unavailable", async () => {
     assert.deepEqual(await consumeOperationalRateLimit({
       operation: "PROBLEM_REPORT",

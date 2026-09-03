@@ -39,6 +39,52 @@ const HMAC_DOMAIN = "operational-rate-limit:v1"
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000
 const DEFAULT_PRUNE_ROWS = 100
 const VALID_SCOPES = new Set<OperationalRateLimitScope>(["GLOBAL", "NETWORK", "ACCOUNT", "RESOURCE"])
+const DIAGNOSTIC_OPERATION_ALLOWLIST = {
+  ANATOMIME_ROOM_CREATE: true,
+  ANATOMIME_ROOM_JOIN: true,
+  ANATOMIME_REALTIME_TOKEN_START: true,
+  ANATOMIME_REALTIME_TOKEN_ISSUE: true,
+  ANATOMIME_UNJOINED_LOOKUP: true,
+  BOOKING_AVAILABILITY: true,
+  BOOKING_CREATE: true,
+  WAITLIST_JOIN: true,
+  DONATION_CHECKOUT: true,
+  PROBLEM_REPORT: true,
+  EMAIL_PUBLIC_AUTH: true,
+  EMAIL_SECURITY: true,
+} satisfies Record<OperationalRateLimitRequest["operation"], true>
+const DIAGNOSTIC_OPERATIONS = new Set<string>(Object.keys(DIAGNOSTIC_OPERATION_ALLOWLIST))
+const emittedFailureDiagnostics = new Set<string>()
+
+type OperationalFailureClass = "DEFINITION" | "PERSISTENCE"
+
+/**
+ * Emits at most one privacy-safe warning for each finite operation/failure pair
+ * in this runtime. Unknown caller labels collapse to UNKNOWN, and request or
+ * error data never crosses this diagnostic boundary.
+ */
+function reportOperationalFailureOnce(input: unknown, failureClass: OperationalFailureClass) {
+  let operation = "UNKNOWN"
+  try {
+    if (input && typeof input === "object" && "operation" in input) {
+      const candidate = (input as { operation?: unknown }).operation
+      if (typeof candidate === "string" && DIAGNOSTIC_OPERATIONS.has(candidate)) {
+        operation = candidate
+      }
+    }
+  } catch {
+    // Hostile getters remain the fixed UNKNOWN label.
+  }
+
+  const diagnosticKey = `${operation}:${failureClass}`
+  if (emittedFailureDiagnostics.has(diagnosticKey)) return
+  emittedFailureDiagnostics.add(diagnosticKey)
+  try {
+    console.warn("Operational rate limiter unavailable.", { operation, failureClass })
+  } catch {
+    // Observability must not alter the fail-closed limiter result.
+  }
+}
 
 /**
  * Checks and consumes every fixed rule for one allowlisted operation in a
@@ -76,6 +122,7 @@ export async function consumeOperationalRateLimit(
       }))
       .sort(comparePreparedRules)
   } catch {
+    reportOperationalFailureOnce(input, "DEFINITION")
     return { allowed: false, reason: "UNAVAILABLE" }
   }
 
@@ -128,6 +175,7 @@ export async function consumeOperationalRateLimit(
       return { allowed: true } as const
     })
   } catch {
+    reportOperationalFailureOnce(input, "PERSISTENCE")
     return { allowed: false, reason: "UNAVAILABLE" }
   }
 

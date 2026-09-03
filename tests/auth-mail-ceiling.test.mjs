@@ -5,7 +5,7 @@ import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const authMailSource = await readFile(new URL("../lib/auth-mail.ts", import.meta.url), "utf8")
-const DELIVERY_BUDGET_EXPORT_PATTERN = /export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = SMTP_DNS_TIMEOUT_MS[\s\S]*?\+ SMTP_SOCKET_TIMEOUT_MS/
+const DELIVERY_BUDGET_EXPORT_PATTERN = /export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = SMTP_DNS_TIMEOUT_MS\s*\+\s*SMTP_CONNECTION_TIMEOUT_MS\s*\+\s*SMTP_GREETING_TIMEOUT_MS\s*\+\s*SMTP_SOCKET_TIMEOUT_MS/
 
 /** Loads the private mail boundary with provider and limiter doubles only. */
 function loadAuthMail({
@@ -89,6 +89,17 @@ async function withSmtpConfig(configured, callback) {
 }
 
 describe("global authentication mail ceiling", () => {
+  it("matches only the intended delivery-budget export expression", () => {
+    const splitExpression = `
+export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = SMTP_DNS_TIMEOUT_MS
+export const unrelatedBudget = SMTP_CONNECTION_TIMEOUT_MS
+  + SMTP_GREETING_TIMEOUT_MS
+  + SMTP_SOCKET_TIMEOUT_MS
+`
+
+    assert.doesNotMatch(splitExpression, DELIVERY_BUDGET_EXPORT_PATTERN)
+  })
+
   it("does not consume quota or construct a transporter when SMTP is unconfigured", async () => {
     const fixture = loadAuthMail()
 

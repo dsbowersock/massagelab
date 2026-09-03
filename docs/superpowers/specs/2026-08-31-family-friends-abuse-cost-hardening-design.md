@@ -121,6 +121,8 @@ All rules for one request are checked and consumed in one Serializable transacti
 
 A denied decision returns at least one second of `Retry-After`. Serialization retries are bounded. If the limiter or its database transaction is unavailable after bounded retries, in-scope provider calls and durable writes fail closed with a generic `503` before the expensive action.
 
+Definition/normalization failures and persistence/retry failures return the same public `UNAVAILABLE` decision. A privacy-safe diagnostic is emitted at most once per runtime for each finite key comprising a known allowlisted operation (or the fixed `UNKNOWN` label) and failure class `DEFINITION` or `PERSISTENCE`. The diagnostic includes only that operation label and failure class; it never includes a subject, hash, request, error, or decision data.
+
 Stale buckets older than their active window receive randomized, bounded cleanup of at most 100 rows. Cleanup is best effort and cannot reverse an already committed allow or deny decision. No request-derived value is logged when cleanup fails.
 
 ### Exact policy table
