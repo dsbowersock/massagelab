@@ -99,7 +99,7 @@ describe("operational rate-limit policy registry", () => {
     const network = [{ label: "network", value: "household" }]
     const room = { label: "room", value: "room-code" }
     const practice = { label: "practice", value: "practice-1" }
-    const global = [{ label: "deployment", value: "massagelab" }]
+    const deployment = [{ label: "deployment", value: "massagelab" }]
     const accountId = [{ label: "account-id", value: "member-1" }]
     const accountEmail = [{ label: "email", value: "member@example.com" }]
     const guestEmail = [{ label: "guest-email", value: "guest@example.com" }]
@@ -219,7 +219,7 @@ describe("operational rate-limit policy registry", () => {
           ["donation.account.24h.v1", accountId],
           ["donation.network.15m.v1", network],
           ["donation.network.24h.v1", network],
-          ["donation.global.24h.v1", global],
+          ["donation.global.24h.v1", deployment],
         ]),
       },
       {
@@ -230,7 +230,7 @@ describe("operational rate-limit policy registry", () => {
           ["donation.network-anonymous.24h.v1", network],
           ["donation.network.15m.v1", network],
           ["donation.network.24h.v1", network],
-          ["donation.global.24h.v1", global],
+          ["donation.global.24h.v1", deployment],
         ]),
       },
       {
@@ -238,23 +238,23 @@ describe("operational rate-limit policy registry", () => {
         request: { operation: "PROBLEM_REPORT", networkIdentifier: "household" },
         expected: expectedRules([
           ["problem-report.network.10m.v1", network],
-          ["problem-report.global.10m.v1", global],
-          ["problem-report.global.24h.v1", global],
+          ["problem-report.global.10m.v1", deployment],
+          ["problem-report.global.24h.v1", deployment],
         ]),
       },
       {
         name: "public auth email",
         request: { operation: "EMAIL_PUBLIC_AUTH" },
         expected: expectedRules([
-          ["email.public-auth.global.24h.v1", global],
-          ["email.total.global.24h.v1", global],
+          ["email.public-auth.global.24h.v1", deployment],
+          ["email.total.global.24h.v1", deployment],
         ]),
       },
       {
         name: "security email",
         request: { operation: "EMAIL_SECURITY" },
         expected: expectedRules([
-          ["email.total.global.24h.v1", global],
+          ["email.total.global.24h.v1", deployment],
         ]),
       },
     ]

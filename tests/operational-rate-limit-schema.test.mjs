@@ -84,30 +84,90 @@ function normalizeSql(value) {
 
 const SQL_QUOTED_TOKEN_PATTERN = /'(?:''|[^'])*'|"(?:""|[^"])*"/g
 
-/** Rejects syntax that this migration-only statement splitter cannot parse safely. */
-function assertMigrationSqlSubset(source) {
-  if (/\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/.test(source)) {
-    throw new Error("sqlStatements only supports migration SQL without dollar-quoted bodies")
+/** Removes SQL comments without treating comment markers inside simple quoted tokens as syntax. */
+function sqlWithoutComments(source) {
+  let output = ""
+  let index = 0
+  let quote = null
+
+  while (index < source.length) {
+    const character = source[index]
+    const nextCharacter = source[index + 1]
+
+    if (quote) {
+      output += character
+      index += 1
+      if (character === quote) {
+        if (source[index] === quote) {
+          output += source[index]
+          index += 1
+        } else {
+          quote = null
+        }
+      }
+      continue
+    }
+
+    if (character === "'" || character === '"') {
+      quote = character
+      output += character
+      index += 1
+      continue
+    }
+    if (character === "-" && nextCharacter === "-") {
+      output += " "
+      index += 2
+      while (index < source.length && source[index] !== "\r" && source[index] !== "\n") {
+        index += 1
+      }
+      continue
+    }
+    if (character === "/" && nextCharacter === "*") {
+      output += " "
+      index += 2
+      let closed = false
+      while (index < source.length) {
+        if (source[index] === "*" && source[index + 1] === "/") {
+          index += 2
+          closed = true
+          break
+        }
+        if (source[index] === "\r" || source[index] === "\n") output += source[index]
+        index += 1
+      }
+      if (!closed) {
+        throw new Error("sqlStatements only supports migration SQL with terminated block comments")
+      }
+      continue
+    }
+
+    output += character
+    index += 1
   }
-  const quotedTokens = source.match(SQL_QUOTED_TOKEN_PATTERN) ?? []
+
+  return output
+}
+
+/** Returns comment-free SQL after rejecting syntax outside this migration-only splitter's subset. */
+function assertMigrationSqlSubset(source) {
+  const commentFreeSource = sqlWithoutComments(source)
+  const quotedTokens = commentFreeSource.match(SQL_QUOTED_TOKEN_PATTERN) ?? []
   if (quotedTokens.some((token) => token.includes(";"))) {
     throw new Error("sqlStatements only supports migration SQL without quoted semicolons")
   }
-  const structuralSource = source
-    .replace(SQL_QUOTED_TOKEN_PATTERN, "")
-    .replace(/--[^\r\n]*/g, "")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
+  const structuralSource = commentFreeSource.replace(SQL_QUOTED_TOKEN_PATTERN, "")
+  if (/\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/.test(structuralSource)) {
+    throw new Error("sqlStatements only supports migration SQL without dollar-quoted bodies")
+  }
   if (/['"]/.test(structuralSource)) {
     throw new Error("sqlStatements only supports migration SQL with balanced simple quotes")
   }
+  return commentFreeSource
 }
 
 /** Produces ordered statements for the current migration's enforced simple-DDL subset. */
 function sqlStatements(source) {
-  assertMigrationSqlSubset(source)
-  return source
-    .replace(/--[^\r\n]*/g, "")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
+  return assertMigrationSqlSubset(source)
     .split(";")
     .map(normalizeSql)
     .filter(Boolean)
@@ -188,6 +248,25 @@ describe("operational rate-limit persistence", () => {
       "@@unique([policy, scope, keyHash])",
       "@@index([updatedAt])",
       "@@index([blockedUntil])",
+    ])
+  })
+
+  it("ignores quote, semicolon, and dollar markers inside SQL comments", () => {
+    const source = `
+-- ignored 'quoted; text' and $$ body marker
+BEGIN;
+/* ignored "quoted; text" and $body$ marker */
+COMMIT;
+`
+
+    assert.deepEqual(sqlStatements(source), ["BEGIN", "COMMIT"])
+  })
+
+  it("preserves SQL comment markers inside quoted tokens", () => {
+    const source = `CREATE TABLE "--kept" ("value" TEXT DEFAULT '/* kept */');`
+
+    assert.deepEqual(sqlStatements(source), [
+      `CREATE TABLE "--kept"("value" TEXT DEFAULT '/* kept */')`,
     ])
   })
 

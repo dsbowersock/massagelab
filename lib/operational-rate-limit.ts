@@ -317,6 +317,10 @@ function appendLengthDelimitedField(hmac: ReturnType<typeof createHmac>, value: 
   hmac.update(bytes)
 }
 
+/**
+ * Completes sampled cleanup before returning because serverless hosts may stop unawaited work.
+ * Only the default one-in-64 sample pays cleanup latency, and failure stays neutral to the decision.
+ */
 async function schedulePrune({
   prismaClient,
   now,

@@ -198,7 +198,7 @@ export const unrelatedBudget = SMTP_CONNECTION_TIMEOUT_MS
     )
   })
 
-  it("attempts SMTP exactly once after an allowed decision and does not refund failures", async () => {
+  it("attempts SMTP exactly once after an allowed decision and does not refund failures", { concurrency: false }, async () => {
     const fixture = loadAuthMail({
       decisions: [{ allowed: true }],
       send: async () => { throw new Error("provider detail must stay private") },
@@ -220,7 +220,7 @@ export const unrelatedBudget = SMTP_CONNECTION_TIMEOUT_MS
     assert.equal(fixture.messages.length, 1)
   })
 
-  it("keeps the allowed attempt charged when the SMTP deadline closes a hung provider", async () => {
+  it("keeps the allowed attempt charged when the SMTP deadline closes a hung provider", { concurrency: false }, async () => {
     const fixture = loadAuthMail({
       decisions: [{ allowed: true }],
       deliveryBudgetMs: 1,

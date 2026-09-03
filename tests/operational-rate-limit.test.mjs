@@ -601,6 +601,56 @@ describe("operational rate-limit service", () => {
     assert.ok(preserved.blockedUntil > before)
   })
 
+  it("awaits sampled cleanup while unsampled requests avoid cleanup work", async () => {
+    const sampled = new InMemoryOperationalRateLimitClient()
+    let cleanupStarted
+    let releaseCleanup
+    const started = new Promise((resolve) => { cleanupStarted = resolve })
+    const cleanupGate = new Promise((resolve) => { releaseCleanup = resolve })
+    let sampledSettled = false
+    sampled.operationalRateLimitBucket.findMany = async () => {
+      cleanupStarted()
+      await cleanupGate
+      throw new Error("cleanup unavailable")
+    }
+
+    const sampledDecision = consumeOperationalRateLimit({
+      operation: "PROBLEM_REPORT",
+      networkIdentifier: "net",
+      prismaClient: sampled,
+      secret: SECRET,
+      now: BASE_TIME,
+      shouldPrune: () => true,
+    }).then((decision) => {
+      sampledSettled = true
+      return decision
+    })
+    await started
+    await Promise.resolve()
+    const settledBeforeCleanup = sampledSettled
+    releaseCleanup()
+
+    assert.equal(settledBeforeCleanup, false)
+    assert.deepEqual(await sampledDecision, { allowed: true })
+
+    // This false branch models the 63 ordinary outcomes of the default one-in-64 sample.
+    const unsampled = new InMemoryOperationalRateLimitClient()
+    let unsampledCleanupCalls = 0
+    unsampled.operationalRateLimitBucket.findMany = async () => {
+      unsampledCleanupCalls += 1
+      throw new Error("unsampled cleanup must not run")
+    }
+    assert.deepEqual(await consumeOperationalRateLimit({
+      operation: "PROBLEM_REPORT",
+      networkIdentifier: "net",
+      prismaClient: unsampled,
+      secret: SECRET,
+      now: BASE_TIME,
+      shouldPrune: () => false,
+    }), { allowed: true })
+    assert.equal(unsampledCleanupCalls, 0)
+  })
+
   it("keeps sampled cleanup failures best-effort and deletes stale rows on success", async () => {
     const client = new InMemoryOperationalRateLimitClient()
     client.failPrune = true

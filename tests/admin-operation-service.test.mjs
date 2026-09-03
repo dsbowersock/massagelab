@@ -205,6 +205,7 @@ describe("admin operation service", () => {
 
   it("matches nested in and not Date predicates by timestamp", () => {
     const claimExpiry = "2026-08-08T14:05:00.000Z"
+    const laterExpiry = "2026-08-08T14:06:00.000Z"
     const intent = { deliveryClaimExpiresAt: new Date(claimExpiry) }
 
     assert.equal(matchesIntentWhere(intent, {
@@ -213,6 +214,27 @@ describe("admin operation service", () => {
     assert.equal(matchesIntentWhere(intent, {
       OR: [{ deliveryClaimExpiresAt: { not: new Date(claimExpiry) } }],
     }), false)
+    assert.equal(matchesIntentWhere(intent, {
+      AND: [{ deliveryClaimExpiresAt: { in: [new Date(laterExpiry)] } }],
+    }), false)
+    assert.equal(matchesIntentWhere(intent, {
+      AND: [{ deliveryClaimExpiresAt: { not: new Date(laterExpiry) } }],
+    }), true)
+    assert.equal(matchesIntentWhere(intent, {
+      AND: [{ deliveryClaimExpiresAt: { lt: new Date(laterExpiry) } }],
+    }), true)
+    assert.equal(matchesIntentWhere(intent, {
+      OR: [{ deliveryClaimExpiresAt: { lt: new Date(claimExpiry) } }],
+    }), false)
+  })
+
+  it("preserves scalar in and not match and mismatch semantics", () => {
+    const intent = { status: "PENDING" }
+
+    assert.equal(matchesIntentWhere(intent, { AND: [{ status: { in: ["PENDING", "FAILED"] } }] }), true)
+    assert.equal(matchesIntentWhere(intent, { OR: [{ status: { in: ["FAILED"] } }] }), false)
+    assert.equal(matchesIntentWhere(intent, { AND: [{ status: { not: "FAILED" } }] }), true)
+    assert.equal(matchesIntentWhere(intent, { OR: [{ status: { not: "PENDING" } }] }), false)
   })
 
   it("rejects invalid Date operands in nested in, not, and lt predicates", () => {
