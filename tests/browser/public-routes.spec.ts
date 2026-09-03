@@ -838,6 +838,7 @@ test("main bar exposes brand music clock quick create theme calendar and more co
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => {
+    // Seed the selected app-bar edge before settings hydrate on each route load.
     const appBarPosition = sessionStorage.getItem("qa-app-bar-position") ?? "bottom"
     localStorage.setItem(
       "massage-lab-settings",
@@ -855,6 +856,7 @@ test("main bar exposes brand music clock quick create theme calendar and more co
   await expect(page.getByRole("link", { name: "MassageLab home" })).toHaveAttribute("href", "/")
   await expect(page.getByRole("link", { name: /^Open music$/i })).toHaveAttribute("href", "/music")
   await expect(page.getByRole("link", { name: /^Open clock$/i })).toHaveAttribute("href", "/clock")
+  // Poll through the active-link ring handoff and require a fully painted SVG.
   const expectToolIconsToPaint = async () => {
     for (const label of ["Open music", "Open clock", "Open calendar"]) {
       const icon = page.getByRole("link", { name: label }).locator("svg").first()
@@ -896,6 +898,7 @@ test("main bar exposes brand music clock quick create theme calendar and more co
   await expect(mainBar.locator(".ml-main-bar-drawer-brand .ml-main-bar-button")).toHaveAccessibleName("Open navigation")
   await expect(mainBar.locator(".ml-main-bar-tools").getByRole("group", { name: /^Theme$/i })).toBeVisible()
 
+  // Change the pre-hydration seed so the reload exercises the opposite edge.
   await page.evaluate(() => sessionStorage.setItem("qa-app-bar-position", "top"))
   await page.reload({ waitUntil: "domcontentloaded" })
   await expect(mainBar).toHaveAttribute("data-app-bar-position", "top")
