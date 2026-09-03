@@ -2,7 +2,15 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
-const [schema, migration, deployment, releaseChecklist, hardeningDesign] = await Promise.all([
+const [
+  schema,
+  migration,
+  deployment,
+  releaseChecklist,
+  hardeningDesign,
+  operationalLimiterPlan,
+  publicBookingPlan,
+] = await Promise.all([
   readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8"),
   readFile(
     new URL(
@@ -16,6 +24,20 @@ const [schema, migration, deployment, releaseChecklist, hardeningDesign] = await
   readFile(
     new URL(
       "../docs/superpowers/specs/2026-08-31-family-friends-abuse-cost-hardening-design.md",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+  readFile(
+    new URL(
+      "../docs/superpowers/plans/2026-08-31-operational-limiter-email-ceiling.md",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+  readFile(
+    new URL(
+      "../docs/superpowers/plans/2026-08-31-public-booking-traffic-hardening.md",
       import.meta.url,
     ),
     "utf8",
@@ -147,6 +169,11 @@ describe("operational rate-limit persistence", () => {
       'ALTER TABLE "AdminEmailRetryOperationKey" ADD CONSTRAINT "AdminEmailRetryOperationKey_emailIntentId_fkey" FOREIGN KEY("emailIntentId") REFERENCES "AdminEmailIntent"("id") ON DELETE RESTRICT ON UPDATE CASCADE',
       "COMMIT",
     ])
+    assert.match(
+      operationalLimiterPlan,
+      /eight table columns\/defaults \(`id` plus seven non-id columns: `policy`, `scope`, `keyHash`, `count`, `windowStart`, `blockedUntil`, and `updatedAt`\)/i,
+    )
+    assert.doesNotMatch(operationalLimiterPlan, /those seven table columns\/defaults/i)
   })
 
   it("keeps the entire approved migration inside one explicit transaction", () => {
@@ -178,6 +205,27 @@ describe("operational rate-limit persistence", () => {
     assert.match(hardeningDesign, /migration is expansion-only[\s\S]*three nullable `AdminEmailIntent` delivery-claim columns[\s\S]*unique `deliveryClaimOperationKeyHash` index[\s\S]*`AdminEmailRetryOperationKey` table[\s\S]*`RESTRICT` foreign key/i)
     assert.match(hardeningDesign, /count-only Production `AdminEmailIntent` row-count preflight[\s\S]*immediately before[\s\S]*exact count is `0`[\s\S]*nonzero[\s\S]*hard stop/i)
     assert.doesNotMatch(hardeningDesign, /creates the enum, table, unique key, and cleanup indexes without changing or backfilling existing rows/i)
+    for (const [label, source] of [["binding design", hardeningDesign], ["public booking plan", publicBookingPlan]]) {
+      assert.match(
+        source,
+        /narrow first (?:request-)?prefix lookup[\s\S]*prefix advisory lock[\s\S]*authoritative second (?:prefix )?lookup[\s\S]*only the (?:still-)?true remaining miss[\s\S]*consume[\s\S]*`BOOKING_CREATE`[\s\S]*heavy/i,
+        label,
+      )
+      assert.match(
+        source,
+        /`consumeOperationalRateLimitInTransaction`[\s\S]*same `Prisma\.TransactionClient`[\s\S]*does not open a nested transaction[\s\S]*persistence errors propagate[\s\S]*outer bounded Serializable transaction/i,
+        label,
+      )
+      assert.match(
+        source,
+        /concurrent same-request[\s\S]*authoritative second (?:prefix )?lookup[\s\S]*without consuming (?:new )?quota/i,
+        label,
+      )
+    }
+    assert.match(publicBookingPlan, /only the (?:still-)?true remaining miss[\s\S]*consume[\s\S]*`WAITLIST_JOIN`[\s\S]*heavy/i)
+    assert.doesNotMatch(publicBookingPlan, /On miss, consume `BOOKING_CREATE`[\s\S]*In the transaction, acquire the prefix advisory lock/i)
+    assert.doesNotMatch(publicBookingPlan, /After quota[\s\S]*acquire the prefix lock\/recheck/i)
+    assert.doesNotMatch(hardeningDesign, /A miss consumes quota before expensive booking work[\s\S]*write transaction then acquires/i)
     assert.doesNotMatch(hardeningDesign, /perform the already designed membership writer-pause deployment and drain proof/i)
     assert.doesNotMatch(hardeningDesign, /first deploy[^.]*membership webhook writes paused[^.]*old writers drained[^.]*deploy the same SHA with writes enabled/i)
   })

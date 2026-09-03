@@ -109,10 +109,22 @@ describe("account activity surfaces", () => {
     })
     assert.deepEqual(alreadyDelivered.calls[2], ["revalidatePath", "/admin/users/user-1"])
 
-    const failed = retryActionHarness({ serviceResult: { status: "FAILED", attemptCount: 2, replayed: false } })
+    const failed = retryActionHarness({
+      serviceResult: { status: "FAILED", attemptCount: 2, attempted: true, replayed: false },
+    })
     const failedResult = await failed.action("user-1", idleState, retryForm())
     assert.deepEqual(failedResult, { status: "error", message: "The email could not be delivered. You can retry again." })
     assert.deepEqual(failed.calls[2], ["revalidatePath", "/admin/users/user-1"])
+
+    const replayedFailure = retryActionHarness({
+      serviceResult: { status: "FAILED", attemptCount: 2, attempted: false, replayed: true },
+    })
+    const replayedFailureResult = await replayedFailure.action("user-1", idleState, retryForm())
+    assert.deepEqual(replayedFailureResult, {
+      status: "error",
+      message: "The earlier email delivery attempt failed; no new send was attempted. You can retry again.",
+    })
+    assert.deepEqual(replayedFailure.calls[2], ["revalidatePath", "/admin/users/user-1"])
 
     for (const serviceResult of [
       { status: "BUSY", attemptCount: 2, attempted: false, replayed: false },

@@ -182,7 +182,7 @@ model OperationalRateLimitBucket {
 }
 ```
 
-The migration creates only the enum, those seven table columns/defaults, unique index, and two cleanup indexes. It contains no backfill, foreign key, trigger, row rewrite, or change to the auth bucket.
+The migration creates only the enum, eight table columns/defaults (`id` plus seven non-id columns: `policy`, `scope`, `keyHash`, `count`, `windowStart`, `blockedUntil`, and `updatedAt`), unique index, and two cleanup indexes. It contains no backfill, foreign key, trigger, row rewrite, or change to the auth bucket.
 
 - [ ] **Step 4: Run GREEN**
 

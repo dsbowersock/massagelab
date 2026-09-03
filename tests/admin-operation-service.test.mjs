@@ -989,16 +989,33 @@ describe("admin operation service", () => {
       intentId: emailIntentId,
       sendEmail: async () => ({ delivered: false }),
     })
+    let sends = 0
     const result = await retryAdminEmailIntent({
       prismaClient: database,
       actorUserId: "user_actor",
       expectedTargetUserId: "user_target",
       intentId: emailIntentId,
       idempotencyKey: "retry-failure",
-      sendEmail: async () => { throw new Error("sensitive provider payload") },
+      sendEmail: async () => {
+        sends += 1
+        throw new Error("sensitive provider payload")
+      },
+    })
+    const replayed = await retryAdminEmailIntent({
+      prismaClient: database,
+      actorUserId: "user_actor",
+      expectedTargetUserId: "user_target",
+      intentId: emailIntentId,
+      idempotencyKey: "retry-failure",
+      sendEmail: async () => {
+        sends += 1
+        return { delivered: true }
+      },
     })
 
     assert.deepEqual(result, { status: "FAILED", attemptCount: 2, replayed: false, attempted: true })
+    assert.deepEqual(replayed, { status: "FAILED", attemptCount: 2, replayed: true, attempted: false })
+    assert.equal(sends, 1)
     assert.equal(database.actions.at(-1).outcome, "FAILED")
     assert.equal(database.actions.at(-1).failureCode, "DELIVERY_FAILED")
     assert.doesNotMatch(JSON.stringify(database.actions.at(-1)), /sensitive provider payload/)

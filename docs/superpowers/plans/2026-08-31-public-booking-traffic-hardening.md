@@ -4,7 +4,7 @@
 
 **Goal:** Bound public availability, booking, and waitlist traffic while making ambiguous retries converge on one durable result and preserving guest booking.
 
-**Architecture:** Validate a canonical browser UUID and use a versioned UUID prefix plus a non-identifying selection digest as the existing domain-row ID. A narrow prefix lookup handles replay before quota; a transaction-scoped PostgreSQL advisory lock serializes concurrent uses of the same UUID, followed by a second lookup before any contact or calendar write. Availability uses quota before policy/solver/provider reads and a bounded public-projection cache for a short limiter-outage fallback. Server Actions return a typed state union consumed by `useActionState` instead of throwing redirects/errors through the form transport.
+**Architecture:** Validate a canonical browser UUID and use a versioned UUID prefix plus a non-identifying selection digest as the existing domain-row ID. A narrow first prefix lookup handles an obvious replay; on a miss, one bounded Serializable transaction acquires a transaction-scoped PostgreSQL advisory lock and performs an authoritative second prefix lookup. Only the still-true remaining miss consumes write quota inside that same transaction before heavy database work. Availability uses quota before policy/solver/provider reads and a bounded public-projection cache for a short limiter-outage fallback. Server Actions return a typed state union consumed by `useActionState` instead of throwing redirects/errors through the form transport.
 
 **Tech Stack:** Next.js App Router and Server Actions, React 19 `useActionState`, Prisma 7, PostgreSQL/Neon, Node.js 24 tests, Playwright 1.60.
 
@@ -17,7 +17,8 @@
 - Accept only canonical lowercase UUIDv4 request IDs. Never derive operation identity from `AUTH_SECRET`, email, account ID, network identity, or another rotating secret.
 - The stored SHA-256 digest covers only labeled non-identifying selection fields. It excludes email, account ID, practice-client ID, name, phone, notes, and free text.
 - Compare caller ownership from the authoritative domain row and related practice client; never expose row/digest/owner details in a conflict.
-- Run replay lookup before quota; run quota before sequence recomputation, contact-owner mutation, scheduling locks, event/appointment/notification writes, revalidation, or Google Calendar work.
+- Run the narrow first replay lookup, then the locked authoritative second lookup, before write quota. Only the still-true miss consumes quota, inside the same outer transaction, before sequence recomputation, contact-owner mutation, scheduling locks, or event/appointment/notification writes. Revalidation and Google Calendar work remain post-commit only.
+- Extend the operational limiter with a transaction-scoped entry point that accepts the caller's `Prisma.TransactionClient`; it must not open a nested transaction, and persistence failure must abort the outer bounded Serializable transaction.
 - Do not automatically retry a durable action after an ambiguous result. Keep its UUID until success or a deliberate new submission.
 - Tests must fake Google Calendar and database/provider seams; no hosted database or provider call.
 - Do not push, merge, deploy, apply migrations, or change provider settings.
@@ -29,6 +30,7 @@
 | `lib/public-request-id.ts` | Browser-safe canonical UUIDv4 parsing only; no Node-only import. |
 | `lib/public-request-owner.ts` | Server-only length-delimited selection digest and versioned request owner. |
 | `lib/public-booking-idempotency.ts` | Narrow replay lookup, owner/selection comparison, advisory-lock/recheck helpers. |
+| `lib/operational-rate-limit.ts` | Shared limiter core plus the transaction-scoped write-quota entry point used by booking and waitlist actions. |
 | `lib/public-booking-availability-cache.ts` | Bounded account-mode/public-projection cache with 20s fresh and 60s outage-stale windows. |
 | `app/calendar/actions/public-booking-state.ts` | Typed action result and fixed user-facing copy. |
 | `app/calendar/actions/public-booking.ts` | Booking/waitlist validation, replay, quota, locked writes, downstream suppression. |
@@ -138,7 +140,9 @@ Create `lib/public-booking-idempotency.ts` with focused helpers for each domain 
 await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${owner.prefix}, 0))`
 ```
 
-Then repeat the bounded `id: { startsWith: owner.prefix }` lookup before calling `ensureBookingPracticeClient`. A matching row must have the exact concrete ID, practice, canonical caller owner, and immutable row fields. A mismatched concrete ID, owner, or immutable field returns generic `CONFLICT`. A match returns `SUCCESS` without quota or downstream replay. A miss continues within the same transaction and explicitly sets the new `BookingGroup.id` or `BookingWaitlistEntry.id` to `owner.id`.
+The action performs one bounded narrow first prefix lookup before starting the write transaction. On a miss, the outer bounded Serializable transaction acquires the prefix advisory lock and repeats the bounded `id: { startsWith: owner.prefix }` query as the authoritative second prefix lookup before quota or `ensureBookingPracticeClient`. A matching row must have the exact concrete ID, practice, canonical caller owner, and immutable row fields. A mismatched concrete ID, owner, or immutable field returns generic `CONFLICT`. A match returns `SUCCESS` without quota or downstream replay. A concurrent same-request contender therefore waits for the lock and returns from the authoritative second prefix lookup without consuming new quota.
+
+Only the still-true remaining miss calls `consumeOperationalRateLimitInTransaction` with the same `Prisma.TransactionClient` to consume `BOOKING_CREATE` or `WAITLIST_JOIN`, then performs heavy database-only availability/contact/calendar work and explicitly sets the new `BookingGroup.id` or `BookingWaitlistEntry.id` to `owner.id`. The new limiter entry point delegates to the same rule resolution, key preparation, and bucket-consumption core as `consumeOperationalRateLimit` but does not open a nested transaction. Limiter persistence errors propagate through the outer bounded Serializable transaction, so a failed or retried transaction cannot commit quota without the domain row or commit the domain row without quota. Provider calls and revalidation remain outside the transaction and run after a new commit only.
 
 For guest ownership, compare the row's related `practiceClient.email` after canonical email normalization. For signed-in ownership, compare the authoritative `createdById`/practice-client user mapping to the session user ID. Never return another caller's success path.
 
@@ -280,12 +284,14 @@ Commit: `feat(booking): expose bounded booking action states`
 
 **Files:**
 - Modify: `app/calendar/actions/public-booking.ts`
+- Modify: `lib/operational-rate-limit.ts`
 - Modify: `tests/public-booking-traffic.test.mjs`
+- Modify: `tests/operational-rate-limit.test.mjs`
 - Modify: `tests/booking-policy.test.mjs`
 
 - [ ] **Step 1: Write booking RED coverage**
 
-Prove validation before lookup/quota; same UUID/owner/selection replay returns the original success without quota, sequence solve, contact update, events, notifications, revalidation, or Google push; same UUID with changed selection/owner conflicts generically; miss consumes `BOOKING_CREATE` before heavy work; denial/unavailability creates nothing; concurrent same submissions serialize and create one group/event set; concurrent changed selections produce one success/one conflict; retry after transaction failure with no owner may continue.
+Prove validation before lookup; same UUID/owner/selection at the narrow first lookup returns the original success without quota, sequence solve, contact update, events, notifications, revalidation, or Google push; same UUID with changed selection/owner conflicts generically. Prove a first-lookup miss acquires the prefix advisory lock and performs the authoritative second prefix lookup before quota; a concurrent same-request contender returns there without consuming new quota; and only the still-true remaining miss consumes `BOOKING_CREATE` before heavy work. Prove the transaction-scoped limiter uses the supplied transaction without nesting, and that denial, unavailability, limiter persistence failure, or later transaction failure commits neither quota nor domain work. Concurrent same submissions create one group/event set and consume write quota once; concurrent changed selections produce one success/one conflict; retry after transaction failure with no owner may continue.
 
 - [ ] **Step 2: Run RED**
 
@@ -297,7 +303,7 @@ Expected: generated group ID, no replay/lock/quota, and provider/revalidation re
 
 - [ ] **Step 3: Refactor the minimum ordered service**
 
-Parse session, headers, canonical request ID, bounded fields, normalized owner, and selection. Run one narrow prefix replay lookup. On miss, consume `BOOKING_CREATE`. Only then recompute availability/staff context. In the transaction, acquire the prefix advisory lock, recheck, ensure the practice client, create `BookingGroup` with `owner.id`, and write its events/appointments/notifications. After a new commit only, perform best-effort Google pushes and route revalidation. Return `SUCCESS` with the existing public path. Map validation/conflict/limit/unavailability to the typed union.
+Parse session, headers, canonical request ID, bounded fields, normalized owner, and selection. Run one narrow first prefix lookup. On its miss, enter the bounded Serializable write transaction, acquire the prefix advisory lock, and run the authoritative second prefix lookup. Return a match or conflict from the recheck without quota or downstream work. Only the still-true remaining miss uses `consumeOperationalRateLimitInTransaction` on that transaction client to consume `BOOKING_CREATE`; after allowance, recompute availability/staff context, ensure the practice client, create `BookingGroup` with `owner.id`, and write its events/appointments/notifications in the same transaction. After a new commit only, perform best-effort Google pushes and route revalidation. Return `SUCCESS` with the existing public path. Map validation/conflict/limit/unavailability to the typed union.
 
 - [ ] **Step 4: Run GREEN and regressions**
 
@@ -318,7 +324,7 @@ Commit: `feat(booking): make guest bookings idempotent`
 
 - [ ] **Step 1: Write waitlist RED coverage**
 
-Mirror booking proofs for `WAITLIST_JOIN`: bounded validation; prefix replay before quota; owner/selection conflict; denied zero solver/contact/entry/revalidation work; transaction lock/recheck; one entry under concurrency; no repeat revalidation on replay; failed transaction leaves no owner.
+Mirror booking proofs for `WAITLIST_JOIN`: bounded validation; narrow first prefix replay; owner/selection conflict; prefix advisory lock plus authoritative second prefix lookup before quota; only the still-true remaining miss consumes `WAITLIST_JOIN` before heavy work; denied zero solver/contact/entry/revalidation work; one entry and one quota consumption under same-request concurrency; no repeat revalidation on replay; failed transaction leaves no owner or committed quota.
 
 - [ ] **Step 2: Run RED**
 
@@ -330,7 +336,7 @@ Expected: generated waitlist ID and no replay/lock/quota.
 
 - [ ] **Step 3: Implement the same owner protocol**
 
-Use `public-waitlist-v1`, the exact waitlist selection components, and the authoritative related practice-client owner. After quota, prove no currently bookable option, then acquire the prefix lock/recheck before contact and entry creation. Set `BookingWaitlistEntry.id` to the concrete owner ID and revalidate only after a new commit.
+Use `public-waitlist-v1`, the exact waitlist selection components, and the authoritative related practice-client owner. Run the narrow first prefix lookup; on a miss, enter the bounded Serializable transaction, acquire the prefix advisory lock, and perform the authoritative second prefix lookup. A match or conflict returns without quota. Only the still-true remaining miss uses `consumeOperationalRateLimitInTransaction` on the same transaction client to consume `WAITLIST_JOIN`, then proves no currently bookable option before contact and entry creation. Set `BookingWaitlistEntry.id` to the concrete owner ID and revalidate only after a new commit.
 
 - [ ] **Step 4: Run GREEN**
 
@@ -382,7 +388,7 @@ Commit: `docs: record public booking traffic hardening`
 ## Completion receipts
 
 - Availability quota precedes expensive reads, with only a bounded 60-second complete public projection used during limiter outage.
-- Same request/owner/selection returns one durable result without consuming quota or replaying provider/downstream work.
+- A concurrent same-request/owner/selection contender returns from the authoritative second prefix lookup without consuming new quota or replaying provider/downstream work; only the still-true miss consumes quota inside the domain transaction.
 - Same UUID with a changed owner or selection conflicts generically, including concurrent submissions.
 - Denied/unavailable booking and waitlist attempts create no contact, calendar, notification, sync, revalidation, or provider work.
 - Browser controls visibly debounce, pend, back off, and recover without silently replaying durable actions.

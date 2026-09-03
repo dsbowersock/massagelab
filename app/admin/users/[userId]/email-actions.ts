@@ -60,6 +60,12 @@ export async function retryFailedEmailIntentAction(
     return { status: "success", message: "Email notification retried." }
   }
   if (result.status === "FAILED") {
+    if (!result.attempted) {
+      return {
+        status: "error",
+        message: "The earlier email delivery attempt failed; no new send was attempted. You can retry again.",
+      }
+    }
     return { status: "error", message: "The email could not be delivered. You can retry again." }
   }
   return {
