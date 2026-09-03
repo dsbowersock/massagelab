@@ -203,6 +203,58 @@ describe("admin operation service", () => {
     )
   })
 
+  it("matches nested in and not Date predicates by timestamp", () => {
+    const claimExpiry = "2026-08-08T14:05:00.000Z"
+    const intent = { deliveryClaimExpiresAt: new Date(claimExpiry) }
+
+    assert.equal(matchesIntentWhere(intent, {
+      AND: [{ deliveryClaimExpiresAt: { in: [new Date(claimExpiry)] } }],
+    }), true)
+    assert.equal(matchesIntentWhere(intent, {
+      OR: [{ deliveryClaimExpiresAt: { not: new Date(claimExpiry) } }],
+    }), false)
+  })
+
+  it("rejects invalid Date operands in nested in, not, and lt predicates", () => {
+    const validDate = new Date("2026-08-08T14:05:00.000Z")
+    const invalidDate = new Date(Number.NaN)
+    for (const { actual, predicate, message } of [
+      {
+        actual: validDate,
+        predicate: { in: [invalidDate] },
+        message: "Invalid fake intent in predicate for deliveryClaimExpiresAt",
+      },
+      {
+        actual: invalidDate,
+        predicate: { in: [validDate] },
+        message: "Invalid fake intent Date value for deliveryClaimExpiresAt",
+      },
+      {
+        actual: validDate,
+        predicate: { not: invalidDate },
+        message: "Invalid fake intent not predicate for deliveryClaimExpiresAt",
+      },
+      {
+        actual: invalidDate,
+        predicate: { not: validDate },
+        message: "Invalid fake intent Date value for deliveryClaimExpiresAt",
+      },
+      {
+        actual: invalidDate,
+        predicate: { lt: validDate },
+        message: "Invalid fake intent Date value for deliveryClaimExpiresAt",
+      },
+    ]) {
+      assert.throws(
+        () => matchesIntentWhere(
+          { deliveryClaimExpiresAt: actual },
+          { AND: [{ deliveryClaimExpiresAt: predicate }] },
+        ),
+        { message },
+      )
+    }
+  })
+
   it("rejects non-text internal notes before validating reason-specific content", async () => {
     const database = createAdminDatabase()
     await assert.rejects(
@@ -1551,6 +1603,13 @@ function makeFakeClient(root, transactionState = null) {
   return client
 }
 
+/** Returns a finite Date timestamp or raises the named fake-query contract error. */
+function fakeDateTimestamp(value, errorMessage) {
+  const timestamp = value instanceof Date ? value.getTime() : Number.NaN
+  if (!Number.isFinite(timestamp)) throw new Error(errorMessage)
+  return timestamp
+}
+
 /** Matches the exact scalar, set-membership, lease, and boolean predicates used by claim CAS. */
 function matchesIntentWhere(intent, where) {
   if (!where || typeof where !== "object") return true
@@ -1561,14 +1620,10 @@ function matchesIntentWhere(intent, where) {
     if (field === "AND" || field === "OR") continue
     const actual = intent[field]
     if (expected instanceof Date) {
-      if (!Number.isFinite(expected.getTime())) {
-        throw new Error(`Invalid fake intent Date predicate for ${field}`)
-      }
+      const expectedTimestamp = fakeDateTimestamp(expected, `Invalid fake intent Date predicate for ${field}`)
       if (!(actual instanceof Date)) return false
-      if (!Number.isFinite(actual.getTime())) {
-        throw new Error(`Invalid fake intent Date value for ${field}`)
-      }
-      if (actual.getTime() !== expected.getTime()) return false
+      const actualTimestamp = fakeDateTimestamp(actual, `Invalid fake intent Date value for ${field}`)
+      if (actualTimestamp !== expectedTimestamp) return false
       continue
     }
     if (expected && typeof expected === "object" && !Array.isArray(expected) && !(expected instanceof Date)) {
@@ -1576,13 +1631,41 @@ function matchesIntentWhere(intent, where) {
       if (unsupportedOperator) {
         throw new Error(`Unsupported fake intent predicate operator: ${unsupportedOperator}`)
       }
-      if (Object.hasOwn(expected, "in") && !expected.in.includes(actual)) return false
-      if (Object.hasOwn(expected, "not") && actual === expected.not) return false
-      if (Object.hasOwn(expected, "lt")) {
-        if (!(expected.lt instanceof Date) || !Number.isFinite(expected.lt.getTime())) {
-          throw new Error(`Invalid fake intent lt predicate for ${field}`)
+      if (Object.hasOwn(expected, "in")) {
+        if (!Array.isArray(expected.in)) {
+          throw new Error(`Invalid fake intent in predicate for ${field}`)
         }
-        if (!(actual instanceof Date && actual < expected.lt)) return false
+        const usesDates = actual instanceof Date || expected.in.some((value) => value instanceof Date)
+        if (usesDates) {
+          const expectedTimestamps = expected.in.map((value) => (
+            fakeDateTimestamp(value, `Invalid fake intent in predicate for ${field}`)
+          ))
+          if (!(actual instanceof Date)) return false
+          const actualTimestamp = fakeDateTimestamp(actual, `Invalid fake intent Date value for ${field}`)
+          if (!expectedTimestamps.includes(actualTimestamp)) return false
+        } else if (!expected.in.includes(actual)) {
+          return false
+        }
+      }
+      if (Object.hasOwn(expected, "not")) {
+        if (expected.not instanceof Date) {
+          const expectedTimestamp = fakeDateTimestamp(expected.not, `Invalid fake intent not predicate for ${field}`)
+          if (actual instanceof Date) {
+            const actualTimestamp = fakeDateTimestamp(actual, `Invalid fake intent Date value for ${field}`)
+            if (actualTimestamp === expectedTimestamp) return false
+          }
+        } else {
+          if (actual instanceof Date) {
+            fakeDateTimestamp(actual, `Invalid fake intent Date value for ${field}`)
+          }
+          if (actual === expected.not) return false
+        }
+      }
+      if (Object.hasOwn(expected, "lt")) {
+        const expectedTimestamp = fakeDateTimestamp(expected.lt, `Invalid fake intent lt predicate for ${field}`)
+        if (!(actual instanceof Date)) return false
+        const actualTimestamp = fakeDateTimestamp(actual, `Invalid fake intent Date value for ${field}`)
+        if (actualTimestamp >= expectedTimestamp) return false
       }
       continue
     }
