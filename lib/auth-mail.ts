@@ -22,7 +22,8 @@ const EXISTING_ACCOUNT_NOTICE_MESSAGE =
 
 /**
  * Enforced wall-clock deadline for one account-change SMTP attempt. Admin
- * email transactions use a larger timeout so the durable outcome can commit.
+ * database transactions finish before SMTP starts; this independent mail
+ * deadline is intentionally larger than their short transaction timeout.
  */
 export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = SMTP_DNS_TIMEOUT_MS
   + SMTP_CONNECTION_TIMEOUT_MS

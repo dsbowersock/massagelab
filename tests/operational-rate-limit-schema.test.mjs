@@ -126,6 +126,7 @@ describe("operational rate-limit persistence", () => {
 
   it("creates the limiter, active claim fields, and append-only retry-key owner in one migration", () => {
     assert.deepEqual(sqlStatements(migration), [
+      "BEGIN",
       'CREATE TYPE "OperationalRateLimitScope" AS ENUM(\'GLOBAL\', \'NETWORK\', \'ACCOUNT\', \'RESOURCE\')',
       'CREATE TABLE "OperationalRateLimitBucket"("id" TEXT NOT NULL, "policy" TEXT NOT NULL, "scope" "OperationalRateLimitScope" NOT NULL, "keyHash" TEXT NOT NULL, "count" INTEGER NOT NULL DEFAULT 0, "windowStart" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "blockedUntil" TIMESTAMP(3), "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "OperationalRateLimitBucket_pkey" PRIMARY KEY("id"))',
       'CREATE UNIQUE INDEX "OperationalRateLimitBucket_policy_scope_keyHash_key" ON "OperationalRateLimitBucket"("policy", "scope", "keyHash")',
@@ -137,7 +138,17 @@ describe("operational rate-limit persistence", () => {
       'CREATE UNIQUE INDEX "AdminEmailRetryOperationKey_operationKeyHash_key" ON "AdminEmailRetryOperationKey"("operationKeyHash")',
       'CREATE INDEX "AdminEmailRetryOperationKey_emailIntentId_createdAt_idx" ON "AdminEmailRetryOperationKey"("emailIntentId", "createdAt")',
       'ALTER TABLE "AdminEmailRetryOperationKey" ADD CONSTRAINT "AdminEmailRetryOperationKey_emailIntentId_fkey" FOREIGN KEY("emailIntentId") REFERENCES "AdminEmailIntent"("id") ON DELETE RESTRICT ON UPDATE CASCADE',
+      "COMMIT",
     ])
+  })
+
+  it("keeps the entire approved migration inside one explicit transaction", () => {
+    const statements = sqlStatements(migration)
+
+    assert.equal(statements[0], "BEGIN")
+    assert.equal(statements.at(-1), "COMMIT")
+    assert.equal(statements.filter((statement) => statement === "BEGIN").length, 1)
+    assert.equal(statements.filter((statement) => statement === "COMMIT").length, 1)
   })
 
   it("requires a fresh zero-row AdminEmailIntent preflight before the single migration", () => {

@@ -626,6 +626,33 @@ describe("admin operation service", () => {
     assert.equal(database.intents[0].deliveryClaimTokenHash, "a".repeat(64))
   })
 
+  it("keeps a nonempty claim with missing or invalid expiry BUSY without sending", async () => {
+    for (const [label, expiry] of [
+      ["missing expiry", null],
+      ["invalid expiry", new Date(Number.NaN)],
+    ]) {
+      const database = createAdminDatabase()
+      const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
+      database.intents[0].attemptCount = 3
+      database.intents[0].lastAttemptAt = new Date("2026-08-08T13:59:00.000Z")
+      database.intents[0].deliveryClaimTokenHash = "a".repeat(64)
+      database.intents[0].deliveryClaimExpiresAt = expiry
+      let sends = 0
+
+      const result = await deliverAdminEmailIntent({
+        prismaClient: database,
+        intentId: emailIntentId,
+        now: new Date("2026-08-08T14:00:00.000Z"),
+        sendEmail: async () => { sends += 1; return { delivered: true } },
+      })
+
+      assert.deepEqual(result, { status: "BUSY", attemptCount: 3, attempted: false }, label)
+      assert.equal(sends, 0, label)
+      assert.equal(database.intents[0].deliveryClaimTokenHash, "a".repeat(64), label)
+      assert.equal(database.intents[0].attemptCount, 3, label)
+    }
+  })
+
   it("recovers an expired initial claim and clears the replacement lease on completion", async () => {
     const database = createAdminDatabase()
     const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())

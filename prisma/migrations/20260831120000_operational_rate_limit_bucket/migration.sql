@@ -1,3 +1,5 @@
+BEGIN;
+
 CREATE TYPE "OperationalRateLimitScope" AS ENUM ('GLOBAL', 'NETWORK', 'ACCOUNT', 'RESOURCE');
 
 CREATE TABLE "OperationalRateLimitBucket" (
@@ -47,3 +49,5 @@ ALTER TABLE "AdminEmailRetryOperationKey"
   ADD CONSTRAINT "AdminEmailRetryOperationKey_emailIntentId_fkey"
   FOREIGN KEY ("emailIntentId") REFERENCES "AdminEmailIntent"("id")
   ON DELETE RESTRICT ON UPDATE CASCADE;
+
+COMMIT;

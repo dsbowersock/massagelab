@@ -525,6 +525,7 @@ function claimIsLive(intent: DeliveryIntent, now: Date): boolean {
     && intent.deliveryClaimExpiresAt.getTime() >= now.getTime()
 }
 
+/** Malformed leases stay BUSY because their provider outcome and expiry are uncertain. */
 function claimIsRecoverable(intent: DeliveryIntent, now: Date): boolean {
   if (intent.deliveryClaimTokenHash === null
     && intent.deliveryClaimExpiresAt === null

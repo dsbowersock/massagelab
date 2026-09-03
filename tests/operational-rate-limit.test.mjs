@@ -131,7 +131,9 @@ function bucketKey({ policy, scope, keyHash }) {
 
 function matchesCleanupWhere(row, where) {
   const stale = row.updatedAt < where.updatedAt.lt
-  const inactive = row.blockedUntil === null || row.blockedUntil < where.OR[1].blockedUntil.lt
+  const blockedUntilClause = where.OR?.find((clause) => clause?.blockedUntil?.lt instanceof Date)
+  assert.ok(blockedUntilClause, "expected blockedUntil.lt cleanup OR clause")
+  const inactive = row.blockedUntil === null || row.blockedUntil < blockedUntilClause.blockedUntil.lt
   return stale && inactive
 }
 

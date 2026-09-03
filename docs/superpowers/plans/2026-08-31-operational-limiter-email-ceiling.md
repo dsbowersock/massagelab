@@ -352,7 +352,7 @@ Commit: `feat: enforce deployment-wide email ceilings`
 
 - [ ] **Step 1: Update only verified current state**
 
-Record the new 44th additive migration as pending separate authorization, the exact test receipts, the no-email/no-provider boundary, and additive rollback posture. Do not silently rewrite the status of prior migrations without current evidence.
+Record the new additive migration as the pending 46th migration requiring separate authorization, the exact test receipts, the no-email/no-provider boundary, and additive rollback posture. Do not silently rewrite the status of prior migrations without current evidence.
 
 - [ ] **Step 2: Run exact-head validation**
 
