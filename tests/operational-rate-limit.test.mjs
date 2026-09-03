@@ -25,6 +25,11 @@ class InMemoryOperationalRateLimitClient {
     this.operationalRateLimitBucket = this.#delegate(this.rows, null)
   }
 
+  /**
+   * Models Serializable commits with a private row snapshot and start revision.
+   * Exactly one microtask yield lets peer callbacks overlap before commit;
+   * revision drift then raises Prisma-style P2034 instead of replacing new state.
+   */
   async $transaction(callback, options) {
     this.transactionAttempts += 1
     assert.equal(options?.isolationLevel, "Serializable")
@@ -65,6 +70,9 @@ class InMemoryOperationalRateLimitClient {
         return row ? cloneRow(row) : null
       },
       upsert: async ({ where, create, update }) => {
+        if (!transactionState) {
+          throw new Error("Operational rate-limit upsert requires an active transaction.")
+        }
         this.writeIdentities.push({ ...where.policy_scope_keyHash })
         const key = bucketKey(where.policy_scope_keyHash)
         const current = rows.get(key)
@@ -141,6 +149,34 @@ function identity(policy, scope, components) {
 }
 
 describe("operational rate-limit service", () => {
+  it("rejects an upsert outside a transaction before mutating the test double", async () => {
+    const client = new InMemoryOperationalRateLimitClient()
+    const directIdentity = {
+      policy: "direct-test.v1",
+      scope: "GLOBAL",
+      keyHash: "a".repeat(64),
+    }
+    let rejection
+
+    await assert.rejects(
+      () => client.operationalRateLimitBucket.upsert({
+        where: { policy_scope_keyHash: directIdentity },
+        create: directIdentity,
+        update: { count: 1 },
+      }),
+      (error) => {
+        rejection = error
+        return true
+      },
+    )
+
+    assert.equal(client.rows.size, 0)
+    assert.deepEqual(client.writeIdentities, [])
+    assert.equal(client.writeCount, 0)
+    assert.equal(client.nextId, 1)
+    assert.equal(rejection.message, "Operational rate-limit upsert requires an active transaction.")
+  })
+
   it("uses a length-delimited domain-separated HMAC without exposing raw subjects", () => {
     const first = operationalRateLimitKeyHash({
       policy: "policy.v1",

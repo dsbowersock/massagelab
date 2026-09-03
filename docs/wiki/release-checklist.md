@@ -107,6 +107,12 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
   extras or failure. The migration adds the bucket owner, three nullable Admin
   email claim fields, and append-only hashed retry operation-key ownership; do
   not deploy this runtime while it is pending.
+- Immediately before applying `20260831120000_operational_rate_limit_bucket`,
+  run a count-only Production `AdminEmailIntent` row-count preflight against
+  that exact authorized direct target. The current read-only aggregate evidence
+  is `0`, but it must be refreshed. Proceed only when the exact count is `0`;
+  any nonzero count must stop migration and trigger re-review. Do not connect or
+  query Production without separate authorization.
 - Prove outbound mail classification at the exact candidate: public-auth mail
   consumes both 70/global/fixed-24h and 90-total/global/fixed-24h, security mail
   consumes only the total 90, unknown classification and limiter unavailability

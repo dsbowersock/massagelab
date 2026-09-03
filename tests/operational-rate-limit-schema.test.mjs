@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
-const [schema, migration] = await Promise.all([
+const [schema, migration, deployment, releaseChecklist] = await Promise.all([
   readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8"),
   readFile(
     new URL(
@@ -11,6 +11,8 @@ const [schema, migration] = await Promise.all([
     ),
     "utf8",
   ).catch(() => ""),
+  readFile(new URL("../docs/wiki/deployment.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/wiki/release-checklist.md", import.meta.url), "utf8"),
 ])
 
 /** Returns a required capture so a missing declaration fails in its owning test. */
@@ -136,6 +138,22 @@ describe("operational rate-limit persistence", () => {
       'CREATE INDEX "AdminEmailRetryOperationKey_emailIntentId_createdAt_idx" ON "AdminEmailRetryOperationKey"("emailIntentId", "createdAt")',
       'ALTER TABLE "AdminEmailRetryOperationKey" ADD CONSTRAINT "AdminEmailRetryOperationKey_emailIntentId_fkey" FOREIGN KEY("emailIntentId") REFERENCES "AdminEmailIntent"("id") ON DELETE RESTRICT ON UPDATE CASCADE',
     ])
+  })
+
+  it("requires a fresh zero-row AdminEmailIntent preflight before the single migration", () => {
+    assert.match(migration, /intentionally non-concurrent[\s\S]*exactly zero rows[\s\S]*approved single migration/i)
+    assert.doesNotMatch(
+      migration,
+      /CREATE\s+UNIQUE\s+INDEX\s+CONCURRENTLY\s+"AdminEmailIntent_deliveryClaimOperationKeyHash_key"/i,
+    )
+
+    for (const source of [deployment, releaseChecklist]) {
+      assert.match(source, /count-only Production `AdminEmailIntent` row-count preflight/i)
+      assert.match(source, /immediately before[^.]*20260831120000_operational_rate_limit_bucket/i)
+      assert.match(source, /current read-only aggregate evidence\s+is `0`[^.]*must be refreshed/i)
+      assert.match(source, /proceed only when the exact count is `0`/i)
+      assert.match(source, /nonzero[^.]*stop[^.]*re-review/i)
+    }
   })
 
   it("contains no other existing-table change, data manipulation, or trigger", () => {

@@ -5,6 +5,7 @@ import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const authMailSource = await readFile(new URL("../lib/auth-mail.ts", import.meta.url), "utf8")
+const DELIVERY_BUDGET_EXPORT_PATTERN = /export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = SMTP_DNS_TIMEOUT_MS[\s\S]*?\+ SMTP_SOCKET_TIMEOUT_MS/
 
 /** Loads the private mail boundary with provider and limiter doubles only. */
 function loadAuthMail({
@@ -18,10 +19,13 @@ function loadAuthMail({
   let closed = 0
   const boundedSource = deliveryBudgetMs === undefined
     ? authMailSource
-    : authMailSource.replace(
-        /export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = SMTP_DNS_TIMEOUT_MS[\s\S]*?\+ SMTP_SOCKET_TIMEOUT_MS/,
-        `export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = ${deliveryBudgetMs}`,
-      )
+    : (() => {
+        assert.match(authMailSource, DELIVERY_BUDGET_EXPORT_PATTERN)
+        return authMailSource.replace(
+          DELIVERY_BUDGET_EXPORT_PATTERN,
+          `export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = ${deliveryBudgetMs}`,
+        )
+      })()
   const instrumentedSource = `${boundedSource}\nexport const __testSendMail = sendMail\n`
   const authMailModule = loadCompiledModule(instrumentedSource, "auth-mail-ceiling.review-test.ts", {
     "nodemailer-v9": {

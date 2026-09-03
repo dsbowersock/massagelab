@@ -24,6 +24,9 @@ ALTER TABLE "AdminEmailIntent"
   ADD COLUMN "deliveryClaimExpiresAt" TIMESTAMP(3),
   ADD COLUMN "deliveryClaimOperationKeyHash" TEXT;
 
+-- Intentionally non-concurrent: the immediately-before-migration Production
+-- preflight must prove AdminEmailIntent contains exactly zero rows. Keeping
+-- this index in the approved single migration preserves atomic application.
 CREATE UNIQUE INDEX "AdminEmailIntent_deliveryClaimOperationKeyHash_key"
   ON "AdminEmailIntent"("deliveryClaimOperationKeyHash");
 

@@ -418,7 +418,10 @@ describe("admin operation service", () => {
       sendEmail: async () => ({ delivered: false }),
     })
     let crossIntentSends = 0
-    for (const idempotencyKey of ["retry-action-collision", "different-recovery-key"]) {
+    for (const [idempotencyKey, expectedMessage] of [
+      ["retry-action-collision", "This administrative operation key is already in use."],
+      ["different-recovery-key", "The existing retry record is incomplete."],
+    ]) {
       await assert.rejects(
         () => retryAdminEmailIntent({
           prismaClient: database,
@@ -432,7 +435,10 @@ describe("admin operation service", () => {
             return { delivered: true }
           },
         }),
-        /already in use|incomplete/,
+        (error) => {
+          assert.equal(error.message, expectedMessage)
+          return true
+        },
       )
     }
     assert.equal(crossIntentSends, 0)
