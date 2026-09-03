@@ -291,7 +291,7 @@ describe("Anatomime traffic server primitives", () => {
     assert.deepEqual(observedSets, [])
   })
 
-  it("stores only tuple-safe HMAC keys", () => {
+  it("stores only tuple-safe HMAC keys", { concurrency: false }, () => {
     const observedKeys = []
     const originalSet = Map.prototype.set
     Map.prototype.set = function recordingSet(key, value) {
@@ -456,13 +456,22 @@ describe("Anatomime traffic server primitives", () => {
     const lastSeenAt = new Date("2026-08-31T12:00:00.000Z")
     const now = new Date("2026-08-31T12:00:15.000Z")
     const scenario = loadPresenceRoomServer({ lastSeenAt, presenceResult: now })
+    let preflightSnapshot = null
 
     const room = await scenario.loadAnatomimeRoom("room1", {
       playerId: "player-1",
       playerToken: "guest-token",
-    }, { now })
+    }, {
+      now,
+      beforeResolve: (snapshot) => {
+        preflightSnapshot = snapshot
+        assert.equal(scenario.hydrateCalls.length, 1)
+        assert.deepEqual(scenario.coalesceCalls, [])
+      },
+    })
 
     assert.equal(scenario.hydrateCalls.length, 1)
+    assert.equal(preflightSnapshot?.code, "ROOM1")
     assert.deepEqual(scenario.legacyPresenceCalls, [])
     assert.deepEqual(scenario.coalesceCalls, [{
       roomId: "room-1",

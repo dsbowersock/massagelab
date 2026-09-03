@@ -75,6 +75,7 @@ export const roomInclude = {
 export type AnatomimeRoomWithRelations = Prisma.AnatomimeRoomGetPayload<{ include: typeof roomInclude }>
 
 export type AnatomimePersistGuard = () => Promise<void>
+export type AnatomimeRoomResolveGuard = (room: AnatomimeRoomWithRelations) => Promise<void> | void
 
 type AnatomimeRunWithRelations = NonNullable<AnatomimeRoomWithRelations["currentRun"]>
 type TermOutcomeRow = {
@@ -936,18 +937,21 @@ export async function createAnatomimeRoom(
 
 /**
  * Loads a room by public code, applies idle expiration, and refreshes the
- * viewer's last-seen timestamp when their player credentials match.
+ * viewer's last-seen timestamp when their player credentials match. The
+ * optional guard sees that same loaded snapshot before expiration or presence
+ * writes, allowing poll validation and charging without a second room read.
  */
 export async function loadAnatomimeRoom(
   code: string,
   viewer: ViewerContext = {},
-  options: { now?: Date } = {},
+  options: { now?: Date; beforeResolve?: AnatomimeRoomResolveGuard } = {},
 ) {
   const room = await prisma.anatomimeRoom.findUnique({
     where: { code: publicCode(code) },
     include: roomInclude,
   })
   if (!room) return null
+  await options.beforeResolve?.(room)
 
   // Explicit test clocks remain exact; normal runtime time is captured after hydration.
   const now = options.now ?? new Date()

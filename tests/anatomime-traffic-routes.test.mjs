@@ -1,11 +1,13 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import { hashToken } from "../lib/auth-security.js"
 import { authRequestNetworkIdentifier } from "../lib/auth-request.ts"
 import { canJoinRoom } from "../lib/anatomime-room-rules.ts"
 import {
   AnatomimeTrafficLimitError,
   normalizeAnatomimeRoomIdentifier,
+  preflightLoadedAnatomimeViewer,
 } from "../lib/anatomime-traffic-server.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
@@ -724,7 +726,7 @@ describe("Anatomime room poll traffic boundary", () => {
     assert.deepEqual(scenario.hydrateCalls, [])
   })
 
-  it("stops joined-player shedding before full hydration and never uses durable quota", async () => {
+  it("stops joined-player shedding before room resolution and never uses durable quota", async () => {
     const scenario = loadPollRoute({ joinedDecision: { allowed: false, retryAfterSeconds: 4 } })
     const response = await scenario.GET(
       pollRequest("/api/anatomime/sessions/ab12", {
@@ -736,17 +738,17 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 429)
     assert.equal(response.headers.get("Retry-After"), "4")
-    assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight", "shed:joined"])
+    assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read", "preflight", "shed:joined"])
     assert.deepEqual(scenario.joinedCalls, [{
       networkIdentifier: "198.51.100.27",
       roomIdentifier: "AB12",
       playerId: "database-player",
     }])
     assert.deepEqual(scenario.durableCalls, [])
-    assert.deepEqual(scenario.hydrateCalls, [])
+    assert.equal(scenario.hydrateCalls.length, 1)
   })
 
-  it("hydrates an accepted joined poll exactly once without durable quota", async () => {
+  it("reuses one validated room snapshot for an accepted joined poll", async () => {
     const scenario = loadPollRoute({ session: { user: { id: "account-1" } } })
     const response = await scenario.GET(
       pollRequest("/api/anatomime/sessions/a-b12", {
@@ -758,7 +760,7 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 200)
     assert.deepEqual(await response.json(), { session: { code: "AB12", playerCount: 1 } })
-    assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight", "shed:joined", "hydrate", "summarize"])
+    assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read", "preflight", "shed:joined", "room:resolve", "summarize"])
     assert.deepEqual(scenario.joinedCalls, [{
       networkIdentifier: "198.51.100.27",
       roomIdentifier: "AB12",
@@ -768,6 +770,7 @@ describe("Anatomime room poll traffic boundary", () => {
       code: "AB12",
       viewer: { userId: "account-1", playerId: "stale-selector", playerToken: "stale-token" },
     }])
+    assert.deepEqual(scenario.preflightLookupCalls, [])
     assert.deepEqual(scenario.hydrateCalls, [{
       code: "AB12",
       viewer: { userId: "account-1", playerId: "stale-selector", playerToken: "stale-token" },
@@ -775,7 +778,7 @@ describe("Anatomime room poll traffic boundary", () => {
     assert.deepEqual(scenario.durableCalls, [])
   })
 
-  it("does not disclose joined or host projection when a proven guest becomes account-bound before hydration", async () => {
+  it("rejects a guest whose sole loaded snapshot is account-bound before resolution", async () => {
     const roomScenario = loadPresenceRoomServerForRoute({
       userId: "newly-bound-account",
       presenceResult: new Date("2026-08-31T12:00:15.000Z"),
@@ -789,9 +792,8 @@ describe("Anatomime room poll traffic boundary", () => {
       { params: Promise.resolve({ code: "ab12" }) },
     )
 
-    assert.equal(response.status, 200)
-    const payload = await response.json()
-    assert.deepEqual(payload.session.viewer, { isHost: false, playerId: null, teamId: null })
+    assert.equal(response.status, 403)
+    assert.deepEqual(await response.json(), { error: "Join this room before taking that action." })
     assert.deepEqual(roomScenario.coalesceCalls, [])
   })
 
@@ -840,7 +842,7 @@ describe("Anatomime room poll traffic boundary", () => {
     assert.deepEqual(roomScenario.coalesceCalls, [])
   })
 
-  it("returns a missing room without full hydration or durable quota", async () => {
+  it("returns a missing room after its sole room read without durable quota", async () => {
     const scenario = loadPollRoute({ preflightResult: { kind: "ROOM_NOT_FOUND" } })
     const response = await scenario.GET(
       pollRequest("/api/anatomime/sessions/missing"),
@@ -849,13 +851,14 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 404)
     assert.deepEqual(await response.json(), { error: "Game not found." })
-    assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight"])
+    assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read"])
+    assert.deepEqual(scenario.preflightCalls, [])
     assert.deepEqual(scenario.durableCalls, [])
-    assert.deepEqual(scenario.hydrateCalls, [])
+    assert.equal(scenario.hydrateCalls.length, 1)
   })
 
   for (const kind of ["UNJOINED", "INVALID"]) {
-    it(`stops ${kind.toLowerCase()} poll quota denial before full hydration`, async () => {
+    it(`stops ${kind.toLowerCase()} poll quota denial before room resolution`, async () => {
       const scenario = loadPollRoute({
         preflightResult: { kind, roomId: "room-db", roomIdentifier: "AB12" },
         durableError: new AnatomimeTrafficLimitError(429, 7),
@@ -870,17 +873,17 @@ describe("Anatomime room poll traffic boundary", () => {
 
       assert.equal(response.status, 429)
       assert.equal(response.headers.get("Retry-After"), "7")
-      assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight", "durable"])
+      assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read", "preflight", "durable"])
       assert.deepEqual(scenario.durableCalls, [{
         operation: "ANATOMIME_UNJOINED_LOOKUP",
         networkIdentifier: "198.51.100.27",
         roomIdentifier: "AB12",
       }])
-      assert.deepEqual(scenario.hydrateCalls, [])
+      assert.equal(scenario.hydrateCalls.length, 1)
     })
   }
 
-  it("returns generic invalid-proof rejection after allowance without full hydration", async () => {
+  it("returns generic invalid-proof rejection after allowance without room resolution", async () => {
     const scenario = loadPollRoute({
       preflightResult: { kind: "INVALID", roomId: "room-db", roomIdentifier: "AB12" },
     })
@@ -894,8 +897,8 @@ describe("Anatomime room poll traffic boundary", () => {
 
     assert.equal(response.status, 403)
     assert.deepEqual(await response.json(), { error: "Join this room before taking that action." })
-    assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight", "durable"])
-    assert.deepEqual(scenario.hydrateCalls, [])
+    assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read", "preflight", "durable"])
+    assert.equal(scenario.hydrateCalls.length, 1)
   })
 
   it("allows an uncredentialed public poll after durable allowance with one hydration", async () => {
@@ -908,7 +911,7 @@ describe("Anatomime room poll traffic boundary", () => {
     )
 
     assert.equal(response.status, 200)
-    assert.deepEqual(scenario.events, ["shed:peek", "auth", "preflight", "durable", "hydrate", "summarize"])
+    assert.deepEqual(scenario.events, ["shed:peek", "auth", "room:read", "preflight", "durable", "room:resolve", "summarize"])
     assert.equal(scenario.hydrateCalls.length, 1)
     assert.deepEqual(scenario.hydrateCalls[0], {
       code: "AB12",
@@ -1186,6 +1189,7 @@ function loadPollRoute({
   const peekCalls = []
   const joinedCalls = []
   const preflightCalls = []
+  const preflightLookupCalls = []
   const durableCalls = []
   const hydrateCalls = []
   const shedderOptions = []
@@ -1201,12 +1205,17 @@ function loadPollRoute({
         },
       },
       "@/lib/anatomime-api": apiBoundary,
+      "@/lib/anatomime-session-server": { AnatomimeSessionError },
       "@/lib/auth-request": { authRequestNetworkIdentifier },
       "@/lib/anatomime-room-server": roomServer ?? {
-        loadAnatomimeRoom: async (code, viewer) => {
-          events.push("hydrate")
+        loadAnatomimeRoom: async (code, viewer, options = {}) => {
+          events.push("room:read")
           hydrateCalls.push({ code, viewer })
-          return { id: "room-db", code: "AB12", players: [{ id: "database-player" }] }
+          if (preflightResult.kind === "ROOM_NOT_FOUND") return null
+          const room = { id: "room-db", code: "AB12", players: [{ id: "database-player" }] }
+          await options.beforeResolve?.(room)
+          events.push("room:resolve")
+          return room
         },
         summarizeAnatomimeRoom: (room) => {
           events.push("summarize")
@@ -1236,7 +1245,13 @@ function loadPollRoute({
         preflightAnatomimeViewer: async (code, viewer) => {
           events.push("preflight")
           preflightCalls.push({ code, viewer })
+          preflightLookupCalls.push({ code, viewer })
           return preflightResult
+        },
+        preflightLoadedAnatomimeViewer: (room, viewer) => {
+          events.push("preflight")
+          preflightCalls.push({ code: room.code, viewer })
+          return roomServer ? preflightLoadedAnatomimeViewer(room, viewer) : preflightResult
         },
         requireAnatomimeOperationalAllowance: async (input) => {
           events.push("durable")
@@ -1255,6 +1270,7 @@ function loadPollRoute({
       peekCalls,
       joinedCalls,
       preflightCalls,
+      preflightLookupCalls,
       shedderOptions,
     }
   } finally {
@@ -1303,7 +1319,7 @@ function loadPresenceRoomServerForRoute({
       teamId: null,
       userId,
       displayName: "Bound player",
-      guestTokenHash: "hash:opaque-token",
+      guestTokenHash: hashToken("opaque-token"),
       lastSeenAt,
     }],
   })
@@ -1326,7 +1342,7 @@ function loadPresenceRoomServerForRoute({
   const service = loadCompiledModule(roomServerSource, "lib/anatomime-room-server.binding-race-route-test.ts", {
     "./auth-security.js": {
       generateRandomToken: () => "ABC123",
-      hashToken: (value) => `hash:${value}`,
+      hashToken,
     },
     "./anatomime-session-server.ts": { AnatomimeSessionError },
     "./anatomime-progress-server.ts": { updateAnatomimeNameRecallProgress: async () => {} },

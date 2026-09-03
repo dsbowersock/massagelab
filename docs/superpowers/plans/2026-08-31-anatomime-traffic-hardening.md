@@ -4,7 +4,7 @@
 
 **Goal:** Bound Anatomime room, token, and fallback-poll traffic while preserving anonymous rooms and making every delay or terminal condition visible to the player.
 
-**Architecture:** Put durable quotas before low-frequency room writes and realtime-provider token work. Prove joined-player identity with one narrow database query before using an exposed player ID. Keep normal joined polling off the durable limiter by using a non-consuming instance-local ingress peek followed by one atomic joined HMAC consume, reduce an accepted poll to one full hydration, coalesce presence writes, and replace fixed client intervals with a status-aware scheduler.
+**Architecture:** Put durable quotas before low-frequency room writes and realtime-provider token work. Prove joined-player identity before using an exposed player ID: realtime-token issuance uses one narrow query, while fallback polling classifies the one loaded room snapshot that it will also summarize. Keep normal joined polling off the durable limiter by using a non-consuming instance-local ingress peek followed by one atomic joined HMAC consume, reduce every post-peek poll to one room read, coalesce presence writes, and replace fixed client intervals with a status-aware scheduler.
 
 **Tech Stack:** Next.js route handlers, React 19, Prisma 7, Ably boundary, Node.js 24 tests, Playwright 1.60.
 
@@ -25,13 +25,13 @@
 
 | File | Responsibility |
 | --- | --- |
-| `lib/anatomime-traffic-server.ts` | Narrow viewer preflight, PR A decision mapping, local poll shedding, presence coalescing. |
+| `lib/anatomime-traffic-server.ts` | Narrow realtime-token preflight, loaded-room poll classification, PR A decision mapping, local poll shedding, presence coalescing. |
 | `lib/anatomime-api.ts` | Generic `429`/`503` mapping and integer `Retry-After`. |
 | `lib/anatomime-room-server.ts` | Pre-persist guards, one-hydration load, coalesced in-memory presence update. |
 | `app/api/anatomime/sessions/route.ts` | Room-create quota after validation and before persistence. |
 | `app/api/anatomime/sessions/[code]/join/route.ts` | Room-join quota before persistence. |
 | `app/api/anatomime/sessions/[code]/realtime-token/route.ts` | Joined-player proof and two-stage token quota. |
-| `app/api/anatomime/sessions/[code]/route.ts` | Local shedding, narrow proof, durable bogus/unjoined protection, one hydration. |
+| `app/api/anatomime/sessions/[code]/route.ts` | Local shedding, same-snapshot proof, durable bogus/unjoined protection, one room read. |
 | `app/anatomime/anatomime-polling.ts` | Fetch result classification and pure next-poll scheduling. |
 | `app/anatomime/shared-session-client.tsx` | Credential-bound token request, player polling, terminal/retry UI. |
 | `app/anatomime/host-room-client.tsx` | Host scheduler adoption. |
@@ -59,6 +59,11 @@ export async function preflightAnatomimeViewer(
   viewer: ViewerContext,
   options?: { prismaClient?: AnatomimeTrafficPrismaClient },
 ): Promise<AnatomimeViewerPreflight>
+
+export function preflightLoadedAnatomimeViewer(
+  room: AnatomimeRoomWithRelations,
+  viewer: ViewerContext,
+): Exclude<AnatomimeViewerPreflight, { kind: "ROOM_NOT_FOUND" }>
 
 export class AnatomimeTrafficLimitError extends Error {
   status: 429 | 503
@@ -92,7 +97,7 @@ export async function coalesceAnatomimePlayerPresence(input: {
 }): Promise<Date | null>
 ```
 
-Preflight selects only room `id`/normalized `code` and candidate player `id`, `roomId`, `userId`, and `guestTokenHash`. It never selects teams, runs, guesses, scores, elections, metadata, or room projections.
+The database-backed realtime-token preflight selects only room `id`/normalized `code` and candidate player `id`, `roomId`, `userId`, and `guestTokenHash`. It never selects teams, runs, guesses, scores, elections, metadata, or room projections. Polling instead calls the pure loaded-room classifier from `loadAnatomimeRoom`'s pre-resolution guard, so validation and quota decisions reuse the sole snapshot later passed to the summarizer rather than issuing a second query.
 
 Create `app/anatomime/anatomime-polling.ts`:
 
@@ -258,13 +263,16 @@ Commit: `fix(anatomime): bind realtime tokens to joined players`
 export async function loadAnatomimeRoom(
   code: string,
   viewer?: ViewerContext,
-  options?: { now?: Date },
+  options?: {
+    now?: Date
+    beforeResolve?: (room: AnatomimeRoomWithRelations) => Promise<void> | void
+  },
 )
 ```
 
 - [ ] **Step 1: Write poll/presence RED coverage**
 
-Prove the non-consuming `peekIngress` denial makes no credential preflight and changes no local counter. After an allowed peek and `JOINED` preflight, prove one `consumeJoined` receives `networkIdentifier`, `roomIdentifier`, and `playerId`, atomically checks network+room, room, and player rules, increments none when any rule denies, and makes no hydration on denial. Prove an allowed joined consume increments every applicable counter and accepted credentialed polls perform one full hydration with no durable quota write. Bogus candidates still use one narrow preflight plus durable quota; invalid proof still returns rejoin without hydration; presence writes at most once per player/15s.
+Prove the non-consuming `peekIngress` denial makes no credential or room lookup and changes no local counter. After an allowed peek, prove exactly one room read supplies both authoritative viewer classification and the final summary. The pre-resolution guard must call one `consumeJoined` for a `JOINED` viewer with `networkIdentifier`, `roomIdentifier`, and `playerId`; it atomically checks network+room, room, and player rules and increments none when any rule denies. Denied joined, unjoined, or invalid requests may have completed that sole read, but must stop before expiration/presence resolution and summary. Prove an allowed joined consume increments every applicable counter and accepted credentialed polls perform no durable quota write. Bogus candidates use the same loaded-snapshot classification plus durable quota; invalid proof still returns generic rejoin guidance; presence writes at most once per player/15s.
 
 - [ ] **Step 2: Run RED**
 
@@ -277,7 +285,7 @@ Expected: direct hydration, invalid proof hydration, unconditional presence writ
 
 - [ ] **Step 3: Implement the ordered poll pipeline**
 
-Run the non-consuming `peekIngress({ networkIdentifier, roomIdentifier, now })` first; denial makes no credential preflight. Build the viewer and perform one narrow preflight after an allowed peek. For `JOINED`, call exactly one `consumeJoined({ networkIdentifier, roomIdentifier, playerId, now })`; that synchronous operation atomically checks all network+room, room, and player rules, increments none if any rule denies, and increments all of them only when all allow. Hydrate once only after an allowed joined consume. `UNJOINED` and `INVALID` durable quota semantics remain unchanged: consume `ANATOMIME_UNJOINED_LOOKUP` after the narrow preflight, invalid returns generic 403, and missing credentials may receive the public projection after allowance; neither path calls `consumeJoined`. Replace unconditional presence update/reload with conditional coalescing and update only that player's in-memory `lastSeenAt` after a successful write.
+Run the non-consuming `peekIngress({ networkIdentifier, roomIdentifier, now })` first; denial makes no credential or room lookup. Build the viewer, then call `loadAnatomimeRoom` once with a `beforeResolve` guard. The guard classifies the viewer against that already-loaded snapshot before expiration or presence writes. For `JOINED`, it calls exactly one `consumeJoined({ networkIdentifier, roomIdentifier, playerId, now })`; that synchronous operation atomically checks all network+room, room, and player rules, increments none if any rule denies, and increments all of them only when all allow. For `UNJOINED` or `INVALID`, durable quota semantics remain unchanged: the guard consumes `ANATOMIME_UNJOINED_LOOKUP`; invalid then returns generic 403, while missing credentials may receive the public projection after allowance. Neither path calls `consumeJoined`. After an allowed guard, resolve/coalesce presence and summarize that same loaded snapshot, with no second room query. Replace unconditional presence update/reload with conditional coalescing and update only that player's in-memory `lastSeenAt` after a successful write.
 
 - [ ] **Step 4: Run GREEN**
 

@@ -35,70 +35,24 @@ test("AtmoShaper acceptance is discovered once per Chromium project in the music
   assert.doesNotThrow(() => assertBrowserQaLaneCoverage())
 })
 
-test("identity-method safety is assigned to desktop lane 1 and mobile lane 2 exactly once", () => {
-  assert.equal(
-    ORDINARY_BROWSER_QA_SPEC_FILES.filter((spec) => spec === "identity-method-safety.spec.ts").length,
-    1,
-  )
-  const assignments = Object.entries(BROWSER_QA_LANES).flatMap(([laneId, lane]) => (
-    Object.entries(lane).flatMap(([project, specs]) => specs.map((spec) => ({ laneId, project, spec })))
-  ))
-  assert.deepEqual(
-    assignments.filter(({ spec }) => spec === "identity-method-safety.spec.ts"),
-    [
-      { laneId: "1", project: "desktop-chromium", spec: "identity-method-safety.spec.ts" },
-      { laneId: "2", project: "mobile-chromium", spec: "identity-method-safety.spec.ts" },
-    ],
-  )
-})
+const splitLaneAssignments = Object.entries(BROWSER_QA_LANES).flatMap(([laneId, lane]) => (
+  Object.entries(lane).flatMap(([project, specs]) => specs.map((spec) => ({ laneId, project, spec })))
+))
 
-test("membership return status is assigned to desktop lane 1 and mobile lane 2 exactly once", () => {
-  assert.equal(
-    ORDINARY_BROWSER_QA_SPEC_FILES.filter((spec) => spec === "membership-return-status.spec.ts").length,
-    1,
-  )
-  const assignments = Object.entries(BROWSER_QA_LANES).flatMap(([laneId, lane]) => (
-    Object.entries(lane).flatMap(([project, specs]) => specs.map((spec) => ({ laneId, project, spec })))
-  ))
-  assert.deepEqual(
-    assignments.filter(({ spec }) => spec === "membership-return-status.spec.ts"),
-    [
-      { laneId: "1", project: "desktop-chromium", spec: "membership-return-status.spec.ts" },
-      { laneId: "2", project: "mobile-chromium", spec: "membership-return-status.spec.ts" },
-    ],
-  )
-})
-
-test("interaction feedback is assigned to desktop lane 1 and mobile lane 2 exactly once", () => {
-  assert.equal(
-    ORDINARY_BROWSER_QA_SPEC_FILES.filter((spec) => spec === "interaction-feedback.spec.ts").length,
-    1,
-  )
-  const assignments = Object.entries(BROWSER_QA_LANES).flatMap(([laneId, lane]) => (
-    Object.entries(lane).flatMap(([project, specs]) => specs.map((spec) => ({ laneId, project, spec })))
-  ))
-  assert.deepEqual(
-    assignments.filter(({ spec }) => spec === "interaction-feedback.spec.ts"),
-    [
-      { laneId: "1", project: "desktop-chromium", spec: "interaction-feedback.spec.ts" },
-      { laneId: "2", project: "mobile-chromium", spec: "interaction-feedback.spec.ts" },
-    ],
-  )
-})
-
-test("Anatomime traffic recovery is assigned to desktop lane 1 and mobile lane 2 exactly once", () => {
-  assert.equal(
-    ORDINARY_BROWSER_QA_SPEC_FILES.filter((spec) => spec === "anatomime-traffic.spec.ts").length,
-    1,
-  )
-  const assignments = Object.entries(BROWSER_QA_LANES).flatMap(([laneId, lane]) => (
-    Object.entries(lane).flatMap(([project, specs]) => specs.map((spec) => ({ laneId, project, spec })))
-  ))
-  assert.deepEqual(
-    assignments.filter(({ spec }) => spec === "anatomime-traffic.spec.ts"),
-    [
-      { laneId: "1", project: "desktop-chromium", spec: "anatomime-traffic.spec.ts" },
-      { laneId: "2", project: "mobile-chromium", spec: "anatomime-traffic.spec.ts" },
-    ],
-  )
-})
+for (const [label, spec] of [
+  ["identity-method safety", "identity-method-safety.spec.ts"],
+  ["membership return status", "membership-return-status.spec.ts"],
+  ["interaction feedback", "interaction-feedback.spec.ts"],
+  ["Anatomime traffic recovery", "anatomime-traffic.spec.ts"],
+]) {
+  test(`${label} is assigned to desktop lane 1 and mobile lane 2 exactly once`, () => {
+    assert.equal(ORDINARY_BROWSER_QA_SPEC_FILES.filter((candidate) => candidate === spec).length, 1)
+    assert.deepEqual(
+      splitLaneAssignments.filter((assignment) => assignment.spec === spec),
+      [
+        { laneId: "1", project: "desktop-chromium", spec },
+        { laneId: "2", project: "mobile-chromium", spec },
+      ],
+    )
+  })
+}

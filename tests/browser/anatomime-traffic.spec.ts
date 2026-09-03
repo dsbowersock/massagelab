@@ -151,7 +151,7 @@ function responseGate() {
   return { release, wait }
 }
 
-test("player polling uses credential-bound tokens and 2s/5s/15s successful cadence", async ({ page }) => {
+test("player polling uses credential-bound tokens with 2s visible and 15s hidden cadence", async ({ page }) => {
   await page.clock.install()
   await installPlayerRuntime(page)
   const providerRequests = await installNoProviderBoundary(page)
@@ -338,7 +338,6 @@ test("successful ended, missing, and rejoin-required responses stop polling with
   await expect(page.getByRole("button", { name: "Clear Saved Player" })).toBeVisible()
   await page.clock.fastForward(60_000)
   expect(pollCount).toBe(3)
-  await pauseClockAtCurrentTime(page)
 })
 
 test("host review polling continues at 5s and stops on a successful ended snapshot", async ({ page }) => {

@@ -14,6 +14,19 @@ export type AnatomimeViewerPreflight =
   | { kind: "UNJOINED"; roomId: string; roomIdentifier: string }
   | { kind: "INVALID"; roomId: string; roomIdentifier: string }
 
+type AnatomimeViewerPreflightRoom = {
+  id: string
+  code: string
+  players: Array<{
+    id: string
+    roomId: string
+    userId: string | null
+    guestTokenHash: string | null
+  }>
+}
+
+type ResolvedAnatomimeViewerPreflight = Exclude<AnatomimeViewerPreflight, { kind: "ROOM_NOT_FOUND" }>
+
 export type AnatomimeTrafficPrismaClient = Pick<PrismaClient, "anatomimeRoom" | "anatomimeRoomPlayer">
 
 export type AnatomimePollShedDecision =
@@ -69,7 +82,17 @@ export async function preflightAnatomimeViewer(
   })
   if (!room) return { kind: "ROOM_NOT_FOUND" }
 
+  return preflightLoadedAnatomimeViewer(room, viewer)
+}
+
+/** Classifies a viewer against one already-loaded room snapshot without another database read. */
+export function preflightLoadedAnatomimeViewer(
+  room: AnatomimeViewerPreflightRoom,
+  viewer: ViewerContext,
+): ResolvedAnatomimeViewerPreflight {
   const normalizedRoomIdentifier = normalizeAnatomimeRoomIdentifier(room.code)
+  const userId = nonEmptyIdentifier(viewer?.userId)
+  const playerId = nonEmptyIdentifier(viewer?.playerId)
   const authenticatedPlayer = userId
     ? room.players.find((player) => player.roomId === room.id && player.userId === userId)
     : null

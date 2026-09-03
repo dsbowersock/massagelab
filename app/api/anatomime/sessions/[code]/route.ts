@@ -5,12 +5,13 @@ import {
   summarizeAnatomimeRoom,
 } from "@/lib/anatomime-room-server"
 import { anatomimeViewerFromRequest, apiErrorMapper } from "@/lib/anatomime-api"
+import { AnatomimeSessionError } from "@/lib/anatomime-session-server"
 import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 import {
   AnatomimeTrafficLimitError,
   createAnatomimePollShedder,
   normalizeAnatomimeRoomIdentifier,
-  preflightAnatomimeViewer,
+  preflightLoadedAnatomimeViewer,
   requireAnatomimeOperationalAllowance,
   type AnatomimePollShedDecision,
 } from "@/lib/anatomime-traffic-server"
@@ -37,30 +38,28 @@ export const GET = apiErrorMapper(async (request: Request, { params }: { params:
 
   const session = await getCurrentSession()
   const viewer = anatomimeViewerFromRequest(request, session?.user?.id)
-  const preflight = await preflightAnatomimeViewer(roomIdentifier, viewer)
+  const gameSession = await loadAnatomimeRoom(roomIdentifier, viewer, {
+    beforeResolve: async (room) => {
+      const preflight = preflightLoadedAnatomimeViewer(room, viewer)
+      if (preflight.kind === "JOINED") {
+        requireLocalPollAllowance(pollShedder.consumeJoined({
+          networkIdentifier,
+          roomIdentifier: preflight.roomIdentifier,
+          playerId: preflight.playerId,
+        }))
+        return
+      }
 
-  if (preflight.kind === "ROOM_NOT_FOUND") {
-    return NextResponse.json({ error: "Game not found." }, { status: 404 })
-  }
-
-  if (preflight.kind === "JOINED") {
-    requireLocalPollAllowance(pollShedder.consumeJoined({
-      networkIdentifier,
-      roomIdentifier: preflight.roomIdentifier,
-      playerId: preflight.playerId,
-    }))
-  } else {
-    await requireAnatomimeOperationalAllowance({
-      operation: "ANATOMIME_UNJOINED_LOOKUP",
-      networkIdentifier,
-      roomIdentifier: preflight.roomIdentifier,
-    })
-    if (preflight.kind === "INVALID") {
-      return NextResponse.json({ error: "Join this room before taking that action." }, { status: 403 })
-    }
-  }
-
-  const gameSession = await loadAnatomimeRoom(roomIdentifier, viewer)
+      await requireAnatomimeOperationalAllowance({
+        operation: "ANATOMIME_UNJOINED_LOOKUP",
+        networkIdentifier,
+        roomIdentifier: preflight.roomIdentifier,
+      })
+      if (preflight.kind === "INVALID") {
+        throw new AnatomimeSessionError(403, "join-required", "Join this room before taking that action.")
+      }
+    },
+  })
 
   if (!gameSession) {
     return NextResponse.json({ error: "Game not found." }, { status: 404 })

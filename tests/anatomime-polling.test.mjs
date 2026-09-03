@@ -1,12 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
-let polling = {}
-try {
-  polling = await import("../app/anatomime/anatomime-polling.ts")
-} catch (error) {
-  if (error?.code !== "ERR_MODULE_NOT_FOUND") throw error
-}
+const polling = await import("../app/anatomime/anatomime-polling.ts")
 
 const {
   fetchAnatomimeRoomSnapshot,

@@ -408,14 +408,24 @@ COMMIT;
     }
   })
 
-  it("requires non-consuming Anatomime preflight and atomic joined consumption signatures", () => {
+  it("requires non-consuming Anatomime ingress and one-snapshot atomic poll resolution", () => {
     for (const [label, source] of [
       ["binding design", hardeningDesign],
       ["Anatomime plan", anatomimeTrafficPlan],
     ]) {
       assert.match(
         source,
-        /non-consuming `peekIngress`[\s\S]*denial makes no (?:credential )?preflight/i,
+        /non-consuming `peekIngress`[\s\S]*denial makes no credential or room lookup/i,
+        label,
+      )
+      assert.match(
+        source,
+        /one room (?:query|read)[\s\S]*(?:same|sole) (?:loaded )?snapshot[\s\S]*pre-resolution guard[\s\S]*before (?:expiration|presence)/i,
+        label,
+      )
+      assert.match(
+        source,
+        /same (?:loaded )?snapshot[\s\S]*(?:no second room (?:query|read)|does not[^.]*read another)/i,
         label,
       )
       assert.match(

@@ -155,6 +155,7 @@ function isAnatomimeRoomSummary(value: unknown, expectedCode: string): value is 
     && (value.hostCanBeChallenged === undefined || typeof value.hostCanBeChallenged === "boolean")
 }
 
+/** Parses only the integer delay-seconds form of Retry-After; HTTP-date values fall back to zero. */
 export function anatomimeRetryAfterSeconds(response: Response) {
   const raw = response.headers.get("Retry-After")?.trim() ?? ""
   if (!/^\d+$/.test(raw)) return 0
