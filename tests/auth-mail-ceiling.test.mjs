@@ -17,6 +17,9 @@ function loadAuthMail({
   const transportOptions = []
   const messages = []
   let closed = 0
+  // Direct injection is unavailable at this private boundary, so the test rewrites the
+  // module constant and exposes sendMail. Keep DELIVERY_BUDGET_EXPORT_PATTERN synchronized
+  // with the production export so a changed deadline definition fails before replacement.
   const boundedSource = deliveryBudgetMs === undefined
     ? authMailSource
     : (() => {

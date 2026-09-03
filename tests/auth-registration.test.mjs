@@ -636,7 +636,6 @@ async function loadRegistrationRoute({ afterCallbacks, registerWork, registratio
     "@/lib/auth-mail": {
       sendExistingAccountRegistrationNotice: async () => ({ delivered: true }),
       sendPasswordSetupEmail: async () => ({ delivered: true }),
-      sendPasswordResetEmail: async () => ({ delivered: true }),
       sendVerificationEmail: async () => ({ delivered: true }),
     },
     "@/lib/auth-rate-limit": { consumeEmailWorkRateLimit: async () => ({ allowed: true }) },
