@@ -129,6 +129,11 @@ function bucketKey({ policy, scope, keyHash }) {
   return `${policy}\0${scope}\0${keyHash}`
 }
 
+/** Provides the test oracle for the locale-independent database lock order. */
+function compareCodeUnits(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0
+}
+
 function matchesCleanupWhere(row, where) {
   const stale = row.updatedAt < where.updatedAt.lt
   const inactive = where.OR?.some((clause) => (
@@ -227,15 +232,25 @@ describe("operational rate-limit service", () => {
       "booking.create.owner-practice.30m.v1",
     ]
 
-    assert.deepEqual(await consumeOperationalRateLimit(input), { allowed: true })
-    assert.deepEqual(await consumeOperationalRateLimit(input), { allowed: true })
+    const localeCompare = String.prototype.localeCompare
+    String.prototype.localeCompare = function (other) {
+      return compareCodeUnits(String(other), String(this))
+    }
+    try {
+      assert.equal(compareCodeUnits("Z", "a"), -1)
+      assert.equal(Math.sign("Z".localeCompare("a")), 1)
+      assert.deepEqual(await consumeOperationalRateLimit(input), { allowed: true })
+      assert.deepEqual(await consumeOperationalRateLimit(input), { allowed: true })
+    } finally {
+      String.prototype.localeCompare = localeCompare
+    }
     assert.deepEqual(client.readIdentities.slice(0, 4).map(({ policy }) => policy), expectedPolicies)
     assert.deepEqual(client.readIdentities.slice(4, 8).map(({ policy }) => policy), expectedPolicies)
     assert.deepEqual(client.writeIdentities.slice(0, 4).map(({ policy }) => policy), expectedPolicies)
     assert.deepEqual(client.writeIdentities.slice(4, 8).map(({ policy }) => policy), expectedPolicies)
     for (const identities of [client.readIdentities.slice(0, 4), client.writeIdentities.slice(0, 4)]) {
       const tuples = identities.map(({ policy, scope, keyHash }) => `${policy}\0${scope}\0${keyHash}`)
-      assert.deepEqual(tuples, [...tuples].sort((left, right) => left.localeCompare(right)))
+      assert.deepEqual(tuples, [...tuples].sort(compareCodeUnits))
     }
     const retainedIdentity = client.writeIdentities[0]
     await client.$transaction((tx) => tx.operationalRateLimitBucket.upsert({

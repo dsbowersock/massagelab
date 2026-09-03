@@ -250,10 +250,15 @@ function fixedWindowEnd(windowStart: Date, windowMs: number): Date {
   return new Date(windowStart.getTime() + windowMs)
 }
 
+/** Uses runtime-independent UTF-16 code-unit order for canonical database lock acquisition. */
+function compareCodeUnits(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0
+}
+
 function comparePreparedRules(left: PreparedRule, right: PreparedRule): number {
-  return left.policy.localeCompare(right.policy)
-    || left.scope.localeCompare(right.scope)
-    || left.keyHash.localeCompare(right.keyHash)
+  return compareCodeUnits(left.policy, right.policy)
+    || compareCodeUnits(left.scope, right.scope)
+    || compareCodeUnits(left.keyHash, right.keyHash)
 }
 
 function appendLengthDelimitedField(hmac: ReturnType<typeof createHmac>, value: string) {
