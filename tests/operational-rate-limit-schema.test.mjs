@@ -422,6 +422,7 @@ COMMIT;
 
   it("requires bounded consuming Anatomime ingress and one-snapshot atomic poll resolution", () => {
     const consumeJoinedContract = /^(?=[\s\S]*`consumeJoined`)(?=[\s\S]*`networkIdentifier`)(?=[\s\S]*`roomIdentifier`)(?=[\s\S]*`playerId`)(?=[\s\S]*atomically checks)(?=[\s\S]*network\+room)(?=[\s\S]*room)(?=[\s\S]*player)(?=[\s\S]*increments none)[\s\S]*$/i
+    const blockedMutationContract = /(?:any|one)[^.]*blocks?[\s\S]*(?:capacity|4,096)[\s\S]*(?:(?:mutates|increments) none|(?:mutates|increments) nothing)/i
     assert.throws(
       () => assertParagraphMatches(
         "one room read\n\nsame loaded snapshot",
@@ -435,6 +436,10 @@ COMMIT;
       consumeJoinedContract,
       "reordered consumeJoined fixture",
     )
+    assert.doesNotMatch(
+      "This unrelated paragraph mutates nothing.",
+      blockedMutationContract,
+    )
     for (const [label, source] of [
       ["binding design", hardeningDesign],
       ["Anatomime plan", anatomimeTrafficPlan],
@@ -446,7 +451,7 @@ COMMIT;
       )
       assertParagraphMatches(
         source,
-        /(?:any|one)[^.]*blocks?[\s\S]*(?:capacity|4,096)[\s\S]*(?:mutates|increments) none|(?:mutates|increments) nothing/i,
+        blockedMutationContract,
         label,
       )
       assertParagraphMatches(
