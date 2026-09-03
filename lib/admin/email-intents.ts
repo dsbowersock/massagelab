@@ -14,6 +14,8 @@ export type AdminEmailIntentDeliveryResult =
   | { status: "BUSY"; attemptCount: number; attempted: false }
   | { status: "AMBIGUOUS"; attemptCount: number; attempted: true }
 
+export type AdminEmailIntentDeliveryOutcome = Pick<AdminEmailIntentDeliveryResult, "status" | "attempted">
+
 export type AdminEmailIntentRetryResult =
   | { status: "DELIVERED" | "FAILED"; attemptCount: number; replayed: boolean }
   | { status: "BUSY"; attemptCount: number; replayed: false; attempted: false }

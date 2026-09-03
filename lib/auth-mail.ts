@@ -45,7 +45,7 @@ function isMailAttemptClass(value: unknown): value is MailAttemptClass {
  * patched Nodemailer 9 runtime through an alias without falsifying that peer.
  */
 async function sendMail(
-  mailClass: unknown,
+  mailClass: MailAttemptClass,
   to: string,
   subject: string,
   text: string,

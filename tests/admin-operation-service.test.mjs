@@ -159,6 +159,13 @@ describe("admin operation contract", () => {
 })
 
 describe("admin operation service", () => {
+  it("rejects unknown object operators in the fake intent predicate", () => {
+    assert.equal(matchesIntentWhere(
+      { status: "PENDING" },
+      { status: { equals: "PENDING" } },
+    ), false)
+  })
+
   it("rejects non-text internal notes before validating reason-specific content", async () => {
     const database = createAdminDatabase()
     await assert.rejects(
@@ -1475,6 +1482,7 @@ function matchesIntentWhere(intent, where) {
     if (field === "AND" || field === "OR") continue
     const actual = intent[field]
     if (expected && typeof expected === "object" && !Array.isArray(expected) && !(expected instanceof Date)) {
+      if (Object.keys(expected).some((operator) => !["in", "not", "lt"].includes(operator))) return false
       if (Object.hasOwn(expected, "in") && !expected.in.includes(actual)) return false
       if (Object.hasOwn(expected, "not") && actual === expected.not) return false
       if (Object.hasOwn(expected, "lt") && !(actual instanceof Date && actual < expected.lt)) return false

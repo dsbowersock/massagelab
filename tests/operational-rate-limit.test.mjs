@@ -17,6 +17,7 @@ class InMemoryOperationalRateLimitClient {
     this.nextId = 1
     this.transactionAttempts = 0
     this.writeCount = 0
+    this.findManyCallCount = 0
     this.readIdentities = []
     this.writeIdentities = []
     this.forceTransactionError = null
@@ -85,6 +86,7 @@ class InMemoryOperationalRateLimitClient {
         return cloneRow(rows.get(key))
       },
       findMany: async ({ where, orderBy, take, select }) => {
+        this.findManyCallCount += 1
         if (this.failPrune) throw new Error("cleanup unavailable")
         assert.deepEqual(orderBy, { updatedAt: "asc" })
         assert.deepEqual(select, { id: true })
@@ -427,16 +429,19 @@ describe("operational rate-limit service", () => {
       now: BASE_TIME,
       shouldPrune: () => true,
     }), { allowed: true })
+    assert.equal(client.findManyCallCount, 1)
     assert.equal(await maybePruneOperationalRateLimits({
       prismaClient: client,
       before: BASE_TIME,
       shouldPrune: () => true,
     }), 0)
+    assert.equal(client.findManyCallCount, 2)
     assert.equal(await maybePruneOperationalRateLimits({
       prismaClient: client,
       before: BASE_TIME,
       shouldPrune: () => false,
     }), 0)
+    assert.equal(client.findManyCallCount, 2)
   })
 
   it("reserves the last 20 total email attempts from public-auth traffic", async () => {

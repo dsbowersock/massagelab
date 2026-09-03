@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache"
 import { requireFullAdminUser } from "@/lib/admin/access"
-import { deliverAdminEmailIntent } from "@/lib/admin/email-intents"
+import {
+  deliverAdminEmailIntent,
+  type AdminEmailIntentDeliveryOutcome,
+} from "@/lib/admin/email-intents"
 import {
   ADMIN_REASON_CODES,
   validateAdminReason,
@@ -191,7 +194,7 @@ function parseExpectedActiveGrantIds(formData: FormData): string[] | null {
 async function deliverNotification(
   intentId: string,
   operation: string,
-): Promise<{ status: "DELIVERED" | "FAILED" | "BUSY" | "AMBIGUOUS"; attempted: boolean } | null> {
+): Promise<AdminEmailIntentDeliveryOutcome | null> {
   try {
     const result = await deliverAdminEmailIntent({ prismaClient: prisma, intentId })
     return { status: result.status, attempted: result.attempted }
@@ -203,7 +206,7 @@ async function deliverNotification(
 
 function notificationOutcome(
   prefix: string,
-  delivery: { status: "DELIVERED" | "FAILED" | "BUSY" | "AMBIGUOUS"; attempted: boolean } | null,
+  delivery: AdminEmailIntentDeliveryOutcome | null,
   replayed: boolean,
   selfTarget: boolean,
 ): TemporaryAccessActionState {

@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache"
 import { requireFullAdminUser } from "@/lib/admin/access"
-import { deliverAdminEmailIntent } from "@/lib/admin/email-intents"
+import {
+  deliverAdminEmailIntent,
+  type AdminEmailIntentDeliveryOutcome,
+} from "@/lib/admin/email-intents"
 import {
   ADMIN_BACKGROUND_CREDIT_GRANT_MAX,
   ADMIN_BACKGROUND_CREDIT_GRANT_MIN,
@@ -69,7 +72,7 @@ export async function grantBackgroundCreditsAction(
     }
   }
 
-  let deliveryOutcome: { status: "DELIVERED" | "FAILED" | "BUSY" | "AMBIGUOUS"; attempted: boolean } | null = null
+  let deliveryOutcome: AdminEmailIntentDeliveryOutcome | null = null
   try {
     const delivery = await deliverAdminEmailIntent({
       prismaClient: prisma,
@@ -146,7 +149,7 @@ function revalidateCreditGrantSurfaces(userId: string) {
 
 function creditGrantOutcome(
   result: Awaited<ReturnType<typeof grantAdminBackgroundCredits>>,
-  delivery: { status: "DELIVERED" | "FAILED" | "BUSY" | "AMBIGUOUS"; attempted: boolean } | null,
+  delivery: AdminEmailIntentDeliveryOutcome | null,
   selfTarget: boolean,
 ): CreditGrantActionState {
   if (result.replayed) {
