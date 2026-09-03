@@ -61,6 +61,10 @@ async function sendMail(
     operation: mailClass === "PUBLIC_AUTH" ? "EMAIL_PUBLIC_AUTH" : "EMAIL_SECURITY",
   })
   if (!decision.allowed) {
+    // Expected limiter denials are intentionally silent at this shared mail boundary:
+    // attacker-triggered denials must not amplify into unbounded logging/Sentry cost.
+    // Future aggregate or sampled caller telemetry may include only allowlisted mail class/policy and reason;
+    // never recipient, subject, or decision details.
     return { delivered: false } satisfies MailResult
   }
 

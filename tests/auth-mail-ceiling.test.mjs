@@ -138,7 +138,7 @@ describe("global authentication mail ceiling", () => {
     assert.equal(fixture.messages.length, 1)
   })
 
-  it("fails closed without constructing a transporter when quota denies or is unavailable", async () => {
+  it("fails closed silently without constructing a transporter when quota denies or is unavailable", { concurrency: false }, async () => {
     const fixture = loadAuthMail({
       decisions: [
         { allowed: false, reason: "RATE_LIMITED", retryAfterSeconds: 30 },
@@ -146,10 +146,26 @@ describe("global authentication mail ceiling", () => {
       ],
     })
 
-    const results = await withSmtpConfig(true, async () => [
-      await fixture.module.sendVerificationEmail("member@example.com", "one"),
-      await fixture.module.sendAccountChangeEmail("member@example.com", "Notice", "Message"),
-    ])
+    const originalConsole = {
+      error: console.error,
+      log: console.log,
+      warn: console.warn,
+    }
+    const consoleCalls = []
+    console.error = (...args) => consoleCalls.push(["error", ...args])
+    console.log = (...args) => consoleCalls.push(["log", ...args])
+    console.warn = (...args) => consoleCalls.push(["warn", ...args])
+    let results
+    try {
+      results = await withSmtpConfig(true, async () => [
+        await fixture.module.sendVerificationEmail("member@example.com", "one"),
+        await fixture.module.sendAccountChangeEmail("member@example.com", "Notice", "Message"),
+      ])
+    } finally {
+      console.error = originalConsole.error
+      console.log = originalConsole.log
+      console.warn = originalConsole.warn
+    }
 
     assert.deepEqual(results.map(({ delivered }) => delivered), [false, false])
     assert.deepEqual(fixture.limiterCalls, [
@@ -158,6 +174,11 @@ describe("global authentication mail ceiling", () => {
     ])
     assert.deepEqual(fixture.transportOptions, [])
     assert.deepEqual(fixture.messages, [])
+    assert.deepEqual(consoleCalls, [])
+    assert.match(
+      authMailSource,
+      /Expected limiter denials are intentionally silent at this shared mail boundary[\s\S]*aggregate or sampled caller telemetry[\s\S]*allowlisted mail class\/policy and reason[\s\S]*never recipient, subject, or decision details/i,
+    )
   })
 
   it("attempts SMTP exactly once after an allowed decision and does not refund failures", async () => {

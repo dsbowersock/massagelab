@@ -103,7 +103,7 @@ Each field is length-delimited before hashing so different tuples cannot collide
 
 The service reuses the existing server-owned network-identity boundary in `lib/auth-request.ts`. Production trusts the platform-owned forwarding header contract; the limiter never writes that address to the database or logs it.
 
-No request body, email, address, room code, player ID, practice ID, Checkout Session ID, or Sentry payload is stored in a limiter row. Expected denial logs contain only the allowlisted policy name and outcome, never a subject or hash.
+No request body, email, address, room code, player ID, practice ID, Checkout Session ID, or Sentry payload is stored in a limiter row. Expected limiter denials are intentionally silent at the shared mail boundary so attacker-triggered requests cannot amplify into unbounded logging or Sentry cost. Any future aggregate or sampled caller telemetry may include only the allowlisted mail class/policy and reason, never recipient, subject, or decision details; it must also exclude subject keys and hashes.
 
 ### Policy registry and transactions
 

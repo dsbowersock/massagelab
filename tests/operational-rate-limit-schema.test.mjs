@@ -155,8 +155,9 @@ describe("operational rate-limit persistence", () => {
     assert.match(
       hardeningDesign,
       /owner stores only[^.]*retry operation-key hash[\s\S]*raw retry operation keys never enter active claim\s+state or the append-only owner[\s\S]*raw retry key only in[\s\S]*AdminAction\.idempotencyKey/i,
+      "binding design",
     )
-    assert.doesNotMatch(hardeningDesign, /and\s+retry operation keys never enter active claim\s+state or the append-only owner/i)
+    assert.doesNotMatch(hardeningDesign, /and\s+retry operation keys never enter active claim\s+state or the append-only owner/i, "binding design")
   })
 
   it("declares the exact closed operational scope enum", () => {
@@ -258,11 +259,11 @@ describe("operational rate-limit persistence", () => {
       assert.match(source, /multiple\s+`NULL`\s+values[\s\S]*do not collide[\s\S]*exact-zero gate[\s\S]*deliberately stronger[\s\S]*rollout\s+state[\s\S]*lock[\s\S]*re-review/i, label)
     }
 
-    assert.match(hardeningDesign, /five identity and membership migrations[\s\S]*bridge ceremony[\s\S]*complete[\s\S]*writes enabled/i)
-    assert.match(hardeningDesign, /one new additive operational-limiter migration[\s\S]*exact candidate[\s\S]*ordinary separately authorized deploy[\s\S]*preserv(?:e|ing) current membership writer authority/i)
-    assert.match(hardeningDesign, /migration is expansion-only[\s\S]*three nullable `AdminEmailIntent` delivery-claim columns[\s\S]*unique `deliveryClaimOperationKeyHash` index[\s\S]*`AdminEmailRetryOperationKey` table[\s\S]*`RESTRICT` foreign key/i)
-    assert.match(hardeningDesign, /count-only Production `AdminEmailIntent` row-count preflight[\s\S]*immediately before[\s\S]*exact count is `0`[\s\S]*nonzero[\s\S]*hard stop/i)
-    assert.doesNotMatch(hardeningDesign, /creates the enum, table, unique key, and cleanup indexes without changing or backfilling existing rows/i)
+    assert.match(hardeningDesign, /five identity and membership migrations[\s\S]*bridge ceremony[\s\S]*complete[\s\S]*writes enabled/i, "binding design")
+    assert.match(hardeningDesign, /one new additive operational-limiter migration[\s\S]*exact candidate[\s\S]*ordinary separately authorized deploy[\s\S]*preserv(?:e|ing) current membership writer authority/i, "binding design")
+    assert.match(hardeningDesign, /migration is expansion-only[\s\S]*three nullable `AdminEmailIntent` delivery-claim columns[\s\S]*unique `deliveryClaimOperationKeyHash` index[\s\S]*`AdminEmailRetryOperationKey` table[\s\S]*`RESTRICT` foreign key/i, "binding design")
+    assert.match(hardeningDesign, /count-only Production `AdminEmailIntent` row-count preflight[\s\S]*immediately before[\s\S]*exact count is `0`[\s\S]*nonzero[\s\S]*hard stop/i, "binding design")
+    assert.doesNotMatch(hardeningDesign, /creates the enum, table, unique key, and cleanup indexes without changing or backfilling existing rows/i, "binding design")
     for (const [label, source] of [["binding design", hardeningDesign], ["public booking plan", publicBookingPlan]]) {
       assert.match(
         source,
@@ -283,9 +284,15 @@ describe("operational rate-limit persistence", () => {
     assert.match(publicBookingPlan, /only the (?:still-)?true remaining miss[\s\S]*consume[\s\S]*`WAITLIST_JOIN`[\s\S]*heavy/i)
     assert.doesNotMatch(publicBookingPlan, /On miss, consume `BOOKING_CREATE`[\s\S]*In the transaction, acquire the prefix advisory lock/i)
     assert.doesNotMatch(publicBookingPlan, /After quota[\s\S]*acquire the prefix lock\/recheck/i)
-    assert.doesNotMatch(hardeningDesign, /A miss consumes quota before expensive booking work[\s\S]*write transaction then acquires/i)
-    assert.doesNotMatch(hardeningDesign, /perform the already designed membership writer-pause deployment and drain proof/i)
-    assert.doesNotMatch(hardeningDesign, /first deploy[^.]*membership webhook writes paused[^.]*old writers drained[^.]*deploy the same SHA with writes enabled/i)
+    assert.doesNotMatch(hardeningDesign, /A miss consumes quota before expensive booking work[\s\S]*write transaction then acquires/i, "binding design")
+    assert.doesNotMatch(hardeningDesign, /perform the already designed membership writer-pause deployment and drain proof/i, "binding design")
+    assert.doesNotMatch(hardeningDesign, /first deploy[^.]*membership webhook writes paused[^.]*old writers drained[^.]*deploy the same SHA with writes enabled/i, "binding design")
+    assert.match(
+      hardeningDesign,
+      /Expected limiter denials are intentionally silent at the shared mail boundary[\s\S]*future aggregate or sampled caller telemetry[\s\S]*only the allowlisted mail class\/policy and reason[\s\S]*never recipient, subject, or decision details/i,
+      "binding design",
+    )
+    assert.doesNotMatch(hardeningDesign, /Expected denial logs contain/i, "binding design")
 
     for (const [label, source] of [
       ["binding design", hardeningDesign],

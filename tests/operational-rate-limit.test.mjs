@@ -224,7 +224,7 @@ describe("operational rate-limit service", () => {
     assert.notEqual(first, otherPolicy)
   })
 
-  it("reads and writes multi-rule identities in stable policy, scope, and hash order", async () => {
+  it("reads and writes multi-rule identities in stable policy, scope, and hash order", { concurrency: false }, async () => {
     const refreshedAt = new Date(BASE_TIME.getTime() + 60_000)
     const client = new InMemoryOperationalRateLimitClient({ clock: () => refreshedAt })
     const capturedBucketDelegate = client.operationalRateLimitBucket
@@ -245,7 +245,7 @@ describe("operational rate-limit service", () => {
       "booking.create.owner-practice.30m.v1",
     ]
 
-    const localeCompare = String.prototype.localeCompare
+    const originalLocaleCompare = String.prototype.localeCompare
     String.prototype.localeCompare = function (other) {
       return compareCodeUnits(String(other), String(this))
     }
@@ -255,8 +255,9 @@ describe("operational rate-limit service", () => {
       assert.deepEqual(await consumeOperationalRateLimit(input), { allowed: true })
       assert.deepEqual(await consumeOperationalRateLimit(input), { allowed: true })
     } finally {
-      String.prototype.localeCompare = localeCompare
+      String.prototype.localeCompare = originalLocaleCompare
     }
+    assert.equal(String.prototype.localeCompare, originalLocaleCompare)
     assert.deepEqual(client.transactionIsolationLevels, ["Serializable", "Serializable"])
     assert.deepEqual(client.readIdentities.slice(0, 4).map(({ policy }) => policy), expectedPolicies)
     assert.deepEqual(client.readIdentities.slice(4, 8).map(({ policy }) => policy), expectedPolicies)
