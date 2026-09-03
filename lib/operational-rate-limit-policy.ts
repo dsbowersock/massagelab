@@ -89,7 +89,7 @@ function roomCreateRules(request: UnknownRecord) {
   if (!network) return null
   const networkComponents = [network]
 
-  if (request.account !== undefined) {
+  if (request.account != null) {
     const account = accountComponents(request.account)
     if (!account) return null
     return [
@@ -153,7 +153,7 @@ function bookingAvailabilityRules(request: UnknownRecord) {
   const practice = identifierComponent("practice", request.practiceId)
   if (!network || !practice) return null
 
-  if (request.account !== undefined) {
+  if (request.account != null) {
     const account = accountComponents(request.account)
     if (!account) return null
     return [
@@ -188,7 +188,7 @@ function donationRules(request: UnknownRecord) {
   if (!network) return null
   const networkComponents = [network]
 
-  if (request.account !== undefined) {
+  if (request.account != null) {
     const account = accountComponents(request.account)
     if (!account) return null
     return [

@@ -4,7 +4,7 @@
 
 **Goal:** Bound Anatomime room, token, and fallback-poll traffic while preserving anonymous rooms and making every delay or terminal condition visible to the player.
 
-**Architecture:** Put durable quotas before low-frequency room writes and realtime-provider token work. Prove joined-player identity with one narrow database query before using an exposed player ID. Keep normal joined polling off the durable limiter by using bounded instance-local HMAC shedding, reduce an accepted poll to one full hydration, coalesce presence writes, and replace fixed client intervals with a status-aware scheduler.
+**Architecture:** Put durable quotas before low-frequency room writes and realtime-provider token work. Prove joined-player identity with one narrow database query before using an exposed player ID. Keep normal joined polling off the durable limiter by using a non-consuming instance-local ingress peek followed by one atomic joined HMAC consume, reduce an accepted poll to one full hydration, coalesce presence writes, and replace fixed client intervals with a status-aware scheduler.
 
 **Tech Stack:** Next.js route handlers, React 19, Prisma 7, Ably boundary, Node.js 24 tests, Playwright 1.60.
 
@@ -78,8 +78,8 @@ export function createAnatomimePollShedder(options: {
   secret: string
   maxEntries?: number
 }): {
-  consumeIngress(input: { networkIdentifier: string; roomIdentifier: string; now?: Date }): AnatomimePollShedDecision
-  consumeJoined(input: { playerId: string; now?: Date }): AnatomimePollShedDecision
+  peekIngress(input: { networkIdentifier: string; roomIdentifier: string; now?: Date }): AnatomimePollShedDecision
+  consumeJoined(input: { networkIdentifier: string; roomIdentifier: string; playerId: string; now?: Date }): AnatomimePollShedDecision
   readonly size: number
 }
 
@@ -136,7 +136,7 @@ Scheduling is exactly 2 seconds for `PLAYING`/`ACTIVE_TERM`, 5 seconds for lobby
 
 - [ ] **Step 1: Write RED coverage**
 
-Prove authenticated mapping precedence, matching guest selector/token proof, `INVALID` mismatches, `UNJOINED` absence, one exact narrow query, PR A denial/unavailability mapping, atomic local rule checks, final-slot behavior, integer retries, HMAC-only map keys, expiry pruning, 4,096-entry cap, and 15-second presence coalescing.
+Prove authenticated mapping precedence, matching guest selector/token proof, `INVALID` mismatches, `UNJOINED` absence, one exact narrow query, PR A denial/unavailability mapping, non-consuming ingress peeks, atomic joined local rule checks, final-slot behavior, integer retries, HMAC-only map keys, expiry pruning, 4,096-entry cap, and 15-second presence coalescing. Specifically prove `consumeJoined` receives network, room, and player identifiers; atomically checks the network+room, room, and player rules; and increments none when any rule denies.
 
 - [ ] **Step 2: Run RED**
 
@@ -148,7 +148,7 @@ Expected: missing module/exports.
 
 - [ ] **Step 3: Implement the minimum primitives**
 
-Local fixed-window limits are 150 per network+room/10s, 300 per room/10s, and 20 per joined player/10s. Check all applicable rules before incrementing any. Prune expired entries before insertion; when the 4,096 active-entry cap is full, fail closed without evicting an active quota. Map operational `RATE_LIMITED` to 429 and `UNAVAILABLE` to 503 with generic copy.
+Local fixed-window limits are 150 per network+room/10s, 300 per room/10s, and 20 per joined player/10s. `peekIngress` checks the ingress-facing network+room and room rules without incrementing them. `consumeJoined` synchronously checks all applicable network+room, room, and player rules before incrementing any, increments none on denial, and increments all applicable rules only on allowance. Keep this check-and-mutate path synchronous with no `await` so one shedder instance applies the joined decision atomically. Prune expired entries before insertion; when the 4,096 active-entry cap is full, fail closed without evicting an active quota. Map operational `RATE_LIMITED` to 429 and `UNAVAILABLE` to 503 with generic copy.
 
 Presence uses one conditional `updateMany` at or after 15 seconds and no write inside the window.
 
@@ -264,7 +264,7 @@ export async function loadAnatomimeRoom(
 
 - [ ] **Step 1: Write poll/presence RED coverage**
 
-Prove ingress denial makes no preflight; joined-player denial makes no hydration; bogus candidates use one narrow preflight plus durable quota; invalid proof returns rejoin without hydration; accepted credentialed polls perform one full hydration; valid polls make no durable quota write; presence writes at most once per player/15s.
+Prove the non-consuming `peekIngress` denial makes no credential preflight and changes no local counter. After an allowed peek and `JOINED` preflight, prove one `consumeJoined` receives `networkIdentifier`, `roomIdentifier`, and `playerId`, atomically checks network+room, room, and player rules, increments none when any rule denies, and makes no hydration on denial. Prove an allowed joined consume increments every applicable counter and accepted credentialed polls perform one full hydration with no durable quota write. Bogus candidates still use one narrow preflight plus durable quota; invalid proof still returns rejoin without hydration; presence writes at most once per player/15s.
 
 - [ ] **Step 2: Run RED**
 
@@ -277,7 +277,7 @@ Expected: direct hydration, invalid proof hydration, unconditional presence writ
 
 - [ ] **Step 3: Implement the ordered poll pipeline**
 
-Run local network+room/room shedding; build viewer; narrow preflight. For `JOINED`, run player shedding and one full hydration. For `UNJOINED`/`INVALID`, consume `ANATOMIME_UNJOINED_LOOKUP`; invalid returns generic 403, while missing credentials may receive the public projection after allowance. Replace unconditional presence update/reload with conditional coalescing and update only that player's in-memory `lastSeenAt` after a successful write.
+Run the non-consuming `peekIngress({ networkIdentifier, roomIdentifier, now })` first; denial makes no credential preflight. Build the viewer and perform one narrow preflight after an allowed peek. For `JOINED`, call exactly one `consumeJoined({ networkIdentifier, roomIdentifier, playerId, now })`; that synchronous operation atomically checks all network+room, room, and player rules, increments none if any rule denies, and increments all of them only when all allow. Hydrate once only after an allowed joined consume. `UNJOINED` and `INVALID` durable quota semantics remain unchanged: consume `ANATOMIME_UNJOINED_LOOKUP` after the narrow preflight, invalid returns generic 403, and missing credentials may receive the public projection after allowance; neither path calls `consumeJoined`. Replace unconditional presence update/reload with conditional coalescing and update only that player's in-memory `lastSeenAt` after a successful write.
 
 - [ ] **Step 4: Run GREEN**
 
@@ -368,6 +368,6 @@ Commit: `docs: record Anatomime traffic hardening evidence`
 
 - Exposed player IDs cannot mint tokens without joined-player proof.
 - Low-frequency writes/provider tokens are quota-protected before protected work.
-- Valid joined polls use bounded local shedding, one full hydration, and at most one presence write per 15 seconds.
+- Valid joined polls use a non-consuming ingress peek followed by one atomic network+room, room, and player consume that increments no counter on denial, one full hydration, and at most one presence write per 15 seconds.
 - Clients visibly honor cadence, backoff, `Retry-After`, room-ended, and rejoin states.
 - No schema change or real Ably/provider action occurred.

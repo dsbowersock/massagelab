@@ -10,6 +10,12 @@ import {
 const SECRET = "test-operational-secret"
 const BASE_TIME = new Date("2026-08-31T12:00:00.000Z")
 
+/**
+ * Models Prisma with private Serializable snapshots, revision-conflict detection,
+ * and dirty-only commits. forceTransactionError injects transaction failures,
+ * failPrune injects cleanup-read failures, and reactivateBeforeDelete models a
+ * stale row becoming active between cleanup selection and guarded deletion.
+ */
 class InMemoryOperationalRateLimitClient {
   constructor({ clock = () => BASE_TIME } = {}) {
     this.rows = new Map()

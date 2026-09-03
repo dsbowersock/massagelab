@@ -281,6 +281,12 @@ describe("operational rate-limit policy registry", () => {
       "anatomime.room-create.network.15m.v1",
       "anatomime.room-create.network.24h.v1",
     ])
+    assert.deepEqual(policies({ operation: "ANATOMIME_ROOM_CREATE", networkIdentifier: "household", account: null }), [
+      "anatomime.room-create.network-anonymous.15m.v1",
+      "anatomime.room-create.network-anonymous.24h.v1",
+      "anatomime.room-create.network.15m.v1",
+      "anatomime.room-create.network.24h.v1",
+    ])
     assert.deepEqual(policies({
       operation: "BOOKING_AVAILABILITY",
       networkIdentifier: "household",
@@ -291,6 +297,14 @@ describe("operational rate-limit policy registry", () => {
       "booking.availability.network-practice-authenticated.5m.v1",
     ])
     assert.deepEqual(policies({ operation: "BOOKING_AVAILABILITY", networkIdentifier: "household", practiceId: "practice" }), [
+      "booking.availability.network-practice-anonymous.5m.v1",
+    ])
+    assert.deepEqual(policies({
+      operation: "BOOKING_AVAILABILITY",
+      networkIdentifier: "household",
+      practiceId: "practice",
+      account: null,
+    }), [
       "booking.availability.network-practice-anonymous.5m.v1",
     ])
     assert.deepEqual(policies({
@@ -305,6 +319,13 @@ describe("operational rate-limit policy registry", () => {
       "donation.global.24h.v1",
     ])
     assert.deepEqual(policies({ operation: "DONATION_CHECKOUT", networkIdentifier: "household" }), [
+      "donation.network-anonymous.15m.v1",
+      "donation.network-anonymous.24h.v1",
+      "donation.network.15m.v1",
+      "donation.network.24h.v1",
+      "donation.global.24h.v1",
+    ])
+    assert.deepEqual(policies({ operation: "DONATION_CHECKOUT", networkIdentifier: "household", account: null }), [
       "donation.network-anonymous.15m.v1",
       "donation.network-anonymous.24h.v1",
       "donation.network.15m.v1",
@@ -351,7 +372,9 @@ describe("operational rate-limit policy registry", () => {
       { operation: "ANATOMIME_UNJOINED_LOOKUP", networkIdentifier: "", roomIdentifier: "room" },
       { operation: "ANATOMIME_ROOM_CREATE", networkIdentifier: "net", account: { kind: "EMAIL", value: "not-an-email" } },
       { operation: "ANATOMIME_ROOM_CREATE", networkIdentifier: "net", account: { kind: "ACCOUNT_ID", value: tooLong } },
+      { operation: "ANATOMIME_ROOM_CREATE", networkIdentifier: "net", account: false },
       { operation: "BOOKING_AVAILABILITY", networkIdentifier: "net", practiceId: "practice", account: { kind: "EMAIL", value: tooLong } },
+      { operation: "BOOKING_AVAILABILITY", networkIdentifier: "net", practiceId: "practice", account: "" },
       { operation: "BOOKING_AVAILABILITY", networkIdentifier: "net", practiceId: "" },
       { operation: "BOOKING_AVAILABILITY", networkIdentifier: "net", practiceId: tooLong },
       { operation: "BOOKING_CREATE", networkIdentifier: "net", practiceId: "practice" },
@@ -360,6 +383,7 @@ describe("operational rate-limit policy registry", () => {
       { operation: "WAITLIST_JOIN", networkIdentifier: "net", practiceId: "practice", owner: { kind: "ACCOUNT_ID", value: "" } },
       { operation: "WAITLIST_JOIN", networkIdentifier: "net", practiceId: "practice", owner: { kind: "GUEST_EMAIL", value: tooLong } },
       { operation: "DONATION_CHECKOUT", networkIdentifier: "net", account: { kind: "ACCOUNT_ID", value: "" } },
+      { operation: "DONATION_CHECKOUT", networkIdentifier: "net", account: false },
       { operation: "ANATOMIME_REALTIME_TOKEN_ISSUE", playerId: "player", roomId: " " },
       { operation: "PROBLEM_REPORT", networkIdentifier: 42 },
     ]

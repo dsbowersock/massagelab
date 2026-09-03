@@ -10,6 +10,7 @@ const [
   hardeningDesign,
   operationalLimiterPlan,
   publicBookingPlan,
+  anatomimeTrafficPlan,
 ] = await Promise.all([
   readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8"),
   readFile(
@@ -38,6 +39,13 @@ const [
   readFile(
     new URL(
       "../docs/superpowers/plans/2026-08-31-public-booking-traffic-hardening.md",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+  readFile(
+    new URL(
+      "../docs/superpowers/plans/2026-08-31-anatomime-traffic-hardening.md",
       import.meta.url,
     ),
     "utf8",
@@ -118,13 +126,7 @@ describe("operational rate-limit persistence", () => {
     )
     assert.deepEqual(documentedModelEntries, ["id String"])
 
-    const entries = requiredCapture(
-      schema,
-      /model\s+AdminEmailIntent\s*\{([\s\S]*?)\}/,
-      "AdminEmailIntent model",
-    )
-      .split(/\r?\n/)
-      .map((line) => line.trim().replace(/\s+/g, " "))
+    const entries = modelBodyLines(schema, "AdminEmailIntent")
 
     assert.ok(entries.includes("deliveryClaimTokenHash String?"))
     assert.ok(entries.includes("deliveryClaimExpiresAt DateTime?"))
@@ -284,6 +286,40 @@ describe("operational rate-limit persistence", () => {
     assert.doesNotMatch(hardeningDesign, /A miss consumes quota before expensive booking work[\s\S]*write transaction then acquires/i)
     assert.doesNotMatch(hardeningDesign, /perform the already designed membership writer-pause deployment and drain proof/i)
     assert.doesNotMatch(hardeningDesign, /first deploy[^.]*membership webhook writes paused[^.]*old writers drained[^.]*deploy the same SHA with writes enabled/i)
+
+    for (const [label, source] of [
+      ["binding design", hardeningDesign],
+      ["Anatomime plan", anatomimeTrafficPlan],
+    ]) {
+      assert.match(
+        source,
+        /non-consuming `peekIngress`[\s\S]*denial makes no (?:credential )?preflight/i,
+        label,
+      )
+      assert.match(
+        source,
+        /`consumeJoined`[\s\S]*`networkIdentifier`[\s\S]*`roomIdentifier`[\s\S]*`playerId`[\s\S]*atomically checks[\s\S]*network\+room[\s\S]*room[\s\S]*player[\s\S]*increments none/i,
+        label,
+      )
+      assert.match(
+        source,
+        /`UNJOINED`[\s\S]*`INVALID`[\s\S]*durable quota semantics remain unchanged/i,
+        label,
+      )
+    }
+    assert.match(
+      anatomimeTrafficPlan,
+      /peekIngress\(input:\s*\{\s*networkIdentifier: string; roomIdentifier: string; now\?: Date\s*\}\): AnatomimePollShedDecision/,
+    )
+    assert.match(
+      anatomimeTrafficPlan,
+      /consumeJoined\(input:\s*\{\s*networkIdentifier: string; roomIdentifier: string; playerId: string; now\?: Date\s*\}\): AnatomimePollShedDecision/,
+    )
+    assert.doesNotMatch(anatomimeTrafficPlan, /consumeIngress\(/)
+    assert.doesNotMatch(
+      anatomimeTrafficPlan,
+      /consumeJoined\(input:\s*\{\s*playerId: string; now\?: Date\s*\}/,
+    )
   })
 
   it("contains no other existing-table change, data manipulation, or trigger", () => {
