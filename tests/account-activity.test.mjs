@@ -113,8 +113,8 @@ describe("account activity surfaces", () => {
       assert.deepEqual(result, {
         status: "error",
         message: "Email delivery could not be confirmed. Check Activity before retrying.",
-      })
-      assert.doesNotMatch(result.message, /could not be delivered/i)
+      }, serviceResult.status)
+      assert.doesNotMatch(result.message, /could not be delivered/i, serviceResult.status)
     }
   })
 

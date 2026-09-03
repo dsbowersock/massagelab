@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
-const [schema, migration, deployment, releaseChecklist] = await Promise.all([
+const [schema, migration, deployment, releaseChecklist, hardeningDesign] = await Promise.all([
   readFile(new URL("../prisma/schema.prisma", import.meta.url), "utf8"),
   readFile(
     new URL(
@@ -13,6 +13,13 @@ const [schema, migration, deployment, releaseChecklist] = await Promise.all([
   ).catch(() => ""),
   readFile(new URL("../docs/wiki/deployment.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/wiki/release-checklist.md", import.meta.url), "utf8"),
+  readFile(
+    new URL(
+      "../docs/superpowers/specs/2026-08-31-family-friends-abuse-cost-hardening-design.md",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
 ])
 
 /** Returns a required capture so a missing declaration fails in its owning test. */
@@ -151,29 +158,35 @@ describe("operational rate-limit persistence", () => {
     assert.equal(statements.filter((statement) => statement === "COMMIT").length, 1)
   })
 
-  it("requires a fresh zero-row AdminEmailIntent preflight before the single migration", () => {
+  it("requires a fresh zero-row preflight and preserves the completed membership rollout", () => {
     assert.match(migration, /intentionally non-concurrent[\s\S]*exactly zero rows[\s\S]*approved single migration/i)
     assert.doesNotMatch(
       migration,
       /CREATE\s+UNIQUE\s+INDEX\s+CONCURRENTLY\s+"AdminEmailIntent_deliveryClaimOperationKeyHash_key"/i,
     )
 
-    for (const source of [deployment, releaseChecklist]) {
-      assert.match(source, /count-only Production `AdminEmailIntent` row-count preflight/i)
-      assert.match(source, /immediately before[^.]*20260831120000_operational_rate_limit_bucket/i)
-      assert.match(source, /current read-only aggregate evidence\s+is `0`[^.]*must be refreshed/i)
-      assert.match(source, /proceed only when the exact count is `0`/i)
-      assert.match(source, /nonzero[^.]*stop[^.]*re-review/i)
+    for (const [label, source] of [["deployment", deployment], ["release checklist", releaseChecklist]]) {
+      assert.match(source, /count-only Production `AdminEmailIntent` row-count preflight/i, label)
+      assert.match(source, /immediately before[^.]*20260831120000_operational_rate_limit_bucket/i, label)
+      assert.match(source, /current read-only aggregate evidence\s+is `0`[^.]*must be refreshed/i, label)
+      assert.match(source, /proceed only when the exact count is `0`/i, label)
+      assert.match(source, /nonzero[^.]*stop[^.]*re-review/i, label)
     }
+
+    assert.match(hardeningDesign, /five identity and membership migrations[\s\S]*bridge ceremony[\s\S]*complete[\s\S]*writes enabled/i)
+    assert.match(hardeningDesign, /one new additive operational-limiter migration[\s\S]*exact candidate[\s\S]*ordinary separately authorized deploy[\s\S]*preserv(?:e|ing) current membership writer authority/i)
+    assert.doesNotMatch(hardeningDesign, /perform the already designed membership writer-pause deployment and drain proof/i)
+    assert.doesNotMatch(hardeningDesign, /first deploy[^.]*membership webhook writes paused[^.]*old writers drained[^.]*deploy the same SHA with writes enabled/i)
   })
 
   it("contains no other existing-table change, data manipulation, or trigger", () => {
-    assert.equal((migration.match(/\bALTER\s+TABLE\b/gi) ?? []).length, 2)
-    assert.match(migration, /ALTER\s+TABLE\s+"AdminEmailIntent"/i)
-    assert.match(migration, /ALTER\s+TABLE\s+"AdminEmailRetryOperationKey"/i)
-    assert.doesNotMatch(migration, /ALTER\s+TABLE\s+"(?!AdminEmailIntent"|AdminEmailRetryOperationKey")/i)
-    assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|TRIGGER)\b|\b(?:UPDATE\s+"|DELETE\s+FROM|INSERT\s+INTO)\b/i)
-    assert.equal((migration.match(/\bREFERENCES\b/gi) ?? []).length, 1)
-    assert.doesNotMatch(migration, /AuthRateLimitBucket/)
+    const joinedSql = sqlStatements(migration).join(";\n")
+    assert.equal((joinedSql.match(/\bALTER\s+TABLE\b/gi) ?? []).length, 2)
+    assert.match(joinedSql, /ALTER\s+TABLE\s+"AdminEmailIntent"/i)
+    assert.match(joinedSql, /ALTER\s+TABLE\s+"AdminEmailRetryOperationKey"/i)
+    assert.doesNotMatch(joinedSql, /ALTER\s+TABLE\s+"(?!AdminEmailIntent"|AdminEmailRetryOperationKey")/i)
+    assert.doesNotMatch(joinedSql, /\b(?:DROP|TRUNCATE|TRIGGER)\b|\b(?:UPDATE\s+"|DELETE\s+FROM|INSERT\s+INTO)\b/i)
+    assert.equal((joinedSql.match(/\bREFERENCES\b/gi) ?? []).length, 1)
+    assert.doesNotMatch(joinedSql, /AuthRateLimitBucket/)
   })
 })

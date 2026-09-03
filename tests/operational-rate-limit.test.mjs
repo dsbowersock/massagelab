@@ -11,13 +11,14 @@ const SECRET = "test-operational-secret"
 const BASE_TIME = new Date("2026-08-31T12:00:00.000Z")
 
 class InMemoryOperationalRateLimitClient {
-  constructor() {
+  constructor({ clock = () => BASE_TIME } = {}) {
     this.rows = new Map()
+    this.clock = clock
     this.revision = 0
     this.nextId = 1
     this.transactionAttempts = 0
     this.writeCount = 0
-    this.findManyCallCount = 0
+    this.findManyCalls = []
     this.readIdentities = []
     this.writeIdentities = []
     this.forceTransactionError = null
@@ -77,19 +78,16 @@ class InMemoryOperationalRateLimitClient {
         this.writeIdentities.push({ ...where.policy_scope_keyHash })
         const key = bucketKey(where.policy_scope_keyHash)
         const current = rows.get(key)
-        rows.set(key, {
-          id: current?.id ?? `bucket-${this.nextId++}`,
-          ...(current ? update : create),
-        })
+        rows.set(key, current
+          ? { ...current, ...update, updatedAt: update.updatedAt ?? this.clock() }
+          : { id: `bucket-${this.nextId++}`, ...create, updatedAt: create.updatedAt ?? this.clock() })
         transactionState.dirty = true
         this.writeCount += 1
         return cloneRow(rows.get(key))
       },
       findMany: async ({ where, orderBy, take, select }) => {
-        this.findManyCallCount += 1
+        this.findManyCalls.push({ where, orderBy, take, select })
         if (this.failPrune) throw new Error("cleanup unavailable")
-        assert.deepEqual(orderBy, { updatedAt: "asc" })
-        assert.deepEqual(select, { id: true })
         return [...rows.values()]
           .filter((row) => matchesCleanupWhere(row, where))
           .sort((left, right) => left.updatedAt - right.updatedAt)
@@ -133,12 +131,13 @@ function bucketKey({ policy, scope, keyHash }) {
 
 function matchesCleanupWhere(row, where) {
   const stale = row.updatedAt < where.updatedAt.lt
-  const blockedUntilNullClause = where.OR?.find((clause) => clause?.blockedUntil === null)
-  assert.ok(blockedUntilNullClause, "expected explicit blockedUntil null cleanup OR clause")
-  const blockedUntilClause = where.OR?.find((clause) => clause?.blockedUntil?.lt instanceof Date)
-  assert.ok(blockedUntilClause, "expected blockedUntil.lt cleanup OR clause")
-  const inactive = row.blockedUntil === null || row.blockedUntil < blockedUntilClause.blockedUntil.lt
-  return stale && inactive
+  const inactive = where.OR?.some((clause) => (
+    (clause?.blockedUntil === null && row.blockedUntil === null)
+    || (clause?.blockedUntil?.lt instanceof Date
+      && row.blockedUntil instanceof Date
+      && row.blockedUntil < clause.blockedUntil.lt)
+  ))
+  return stale && inactive === true
 }
 
 function identity(policy, scope, components) {
@@ -209,7 +208,8 @@ describe("operational rate-limit service", () => {
   })
 
   it("reads and writes multi-rule identities in stable policy, scope, and hash order", async () => {
-    const client = new InMemoryOperationalRateLimitClient()
+    const refreshedAt = new Date(BASE_TIME.getTime() + 60_000)
+    const client = new InMemoryOperationalRateLimitClient({ clock: () => refreshedAt })
     const input = {
       operation: "BOOKING_CREATE",
       networkIdentifier: "net",
@@ -237,6 +237,18 @@ describe("operational rate-limit service", () => {
       const tuples = identities.map(({ policy, scope, keyHash }) => `${policy}\0${scope}\0${keyHash}`)
       assert.deepEqual(tuples, [...tuples].sort((left, right) => left.localeCompare(right)))
     }
+    const retainedIdentity = client.writeIdentities[0]
+    await client.$transaction((tx) => tx.operationalRateLimitBucket.upsert({
+      where: { policy_scope_keyHash: retainedIdentity },
+      create: { ...retainedIdentity, count: 1, windowStart: BASE_TIME, blockedUntil: null },
+      update: { count: 3 },
+    }), { isolationLevel: "Serializable" })
+    const refreshed = client.rowFor(retainedIdentity)
+    assert.deepEqual(
+      { policy: refreshed.policy, scope: refreshed.scope, keyHash: refreshed.keyHash },
+      retainedIdentity,
+    )
+    assert.deepEqual(refreshed.updatedAt, refreshedAt)
   })
 
   it("accepts the final slot, denies the next request, and stores only hashes", async () => {
@@ -385,6 +397,7 @@ describe("operational rate-limit service", () => {
   it("bounds cleanup and repeats stale predicates to preserve reactivated rows", async () => {
     const client = new InMemoryOperationalRateLimitClient()
     const staleAt = new Date(BASE_TIME.getTime() - 48 * 60 * 60_000)
+    const before = new Date(BASE_TIME.getTime() - 24 * 60 * 60_000)
     for (let index = 0; index < 150; index += 1) {
       client.seed({
         ...identity(`stale.${index}.v1`, "GLOBAL", [{ label: "deployment", value: "massagelab" }]),
@@ -396,10 +409,18 @@ describe("operational rate-limit service", () => {
     }
     assert.equal(await pruneOperationalRateLimits({
       prismaClient: client,
-      before: new Date(BASE_TIME.getTime() - 24 * 60 * 60_000),
+      before,
       maxRows: 500,
     }), 100)
     assert.equal(client.rows.size, 50)
+    assert.ok(Array.isArray(client.findManyCalls), "expected cleanup query calls to be recorded")
+    assert.equal(client.findManyCalls.length, 1)
+    assert.deepEqual(client.findManyCalls[0].orderBy, { updatedAt: "asc" })
+    assert.deepEqual(client.findManyCalls[0].select, { id: true })
+    assert.equal(client.findManyCalls[0].take, 100)
+    assert.deepEqual(client.findManyCalls[0].where.updatedAt, { lt: before })
+    assert.ok(client.findManyCalls[0].where.OR.some((clause) => clause?.blockedUntil === null))
+    assert.ok(client.findManyCalls[0].where.OR.some((clause) => clause?.blockedUntil?.lt instanceof Date))
 
     const reactivated = new InMemoryOperationalRateLimitClient()
     reactivated.seed({
@@ -412,7 +433,7 @@ describe("operational rate-limit service", () => {
     reactivated.reactivateBeforeDelete = true
     assert.equal(await pruneOperationalRateLimits({
       prismaClient: reactivated,
-      before: new Date(BASE_TIME.getTime() - 24 * 60 * 60_000),
+      before,
       maxRows: 100,
     }), 0)
     assert.equal(reactivated.rows.size, 1)
@@ -429,19 +450,25 @@ describe("operational rate-limit service", () => {
       now: BASE_TIME,
       shouldPrune: () => true,
     }), { allowed: true })
-    assert.equal(client.findManyCallCount, 1)
+    assert.ok(Array.isArray(client.findManyCalls), "expected sampled cleanup query calls to be recorded")
+    assert.equal(client.findManyCalls.length, 1)
+    assert.deepEqual(client.findManyCalls[0].orderBy, { updatedAt: "asc" })
+    assert.deepEqual(client.findManyCalls[0].select, { id: true })
+    assert.ok(client.findManyCalls[0].where.OR.some((clause) => clause?.blockedUntil === null))
+    assert.ok(client.findManyCalls[0].where.OR.some((clause) => clause?.blockedUntil?.lt instanceof Date))
     assert.equal(await maybePruneOperationalRateLimits({
       prismaClient: client,
       before: BASE_TIME,
       shouldPrune: () => true,
     }), 0)
-    assert.equal(client.findManyCallCount, 2)
+    assert.equal(client.findManyCalls.length, 2)
+    assert.deepEqual(client.findManyCalls[1].where.updatedAt, { lt: BASE_TIME })
     assert.equal(await maybePruneOperationalRateLimits({
       prismaClient: client,
       before: BASE_TIME,
       shouldPrune: () => false,
     }), 0)
-    assert.equal(client.findManyCallCount, 2)
+    assert.equal(client.findManyCalls.length, 2)
   })
 
   it("reserves the last 20 total email attempts from public-auth traffic", async () => {

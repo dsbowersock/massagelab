@@ -343,20 +343,26 @@ describe("operational rate-limit policy registry", () => {
       { operation: "UNKNOWN", networkIdentifier: "net" },
       { operation: "ANATOMIME_ROOM_JOIN", networkIdentifier: "", roomIdentifier: "room" },
       { operation: "ANATOMIME_ROOM_JOIN", networkIdentifier: "net", roomIdentifier: tooLong },
+      { operation: "PROBLEM_REPORT", networkIdentifier: tooLong },
       { operation: "ANATOMIME_REALTIME_TOKEN_START", networkIdentifier: "net", roomIdentifier: "" },
       { operation: "ANATOMIME_UNJOINED_LOOKUP", networkIdentifier: "", roomIdentifier: "room" },
       { operation: "ANATOMIME_ROOM_CREATE", networkIdentifier: "net", account: { kind: "EMAIL", value: "not-an-email" } },
+      { operation: "ANATOMIME_ROOM_CREATE", networkIdentifier: "net", account: { kind: "ACCOUNT_ID", value: tooLong } },
+      { operation: "BOOKING_AVAILABILITY", networkIdentifier: "net", practiceId: "practice", account: { kind: "EMAIL", value: tooLong } },
       { operation: "BOOKING_AVAILABILITY", networkIdentifier: "net", practiceId: "" },
+      { operation: "BOOKING_AVAILABILITY", networkIdentifier: "net", practiceId: tooLong },
       { operation: "BOOKING_CREATE", networkIdentifier: "net", practiceId: "practice" },
       { operation: "BOOKING_CREATE", networkIdentifier: "net", practiceId: "practice", owner: { kind: "GUEST_EMAIL", value: "" } },
+      { operation: "BOOKING_CREATE", networkIdentifier: "net", practiceId: "practice", owner: { kind: "ACCOUNT_ID", value: tooLong } },
       { operation: "WAITLIST_JOIN", networkIdentifier: "net", practiceId: "practice", owner: { kind: "ACCOUNT_ID", value: "" } },
+      { operation: "WAITLIST_JOIN", networkIdentifier: "net", practiceId: "practice", owner: { kind: "GUEST_EMAIL", value: tooLong } },
       { operation: "DONATION_CHECKOUT", networkIdentifier: "net", account: { kind: "ACCOUNT_ID", value: "" } },
       { operation: "ANATOMIME_REALTIME_TOKEN_ISSUE", playerId: "player", roomId: " " },
       { operation: "PROBLEM_REPORT", networkIdentifier: 42 },
     ]
 
     for (const request of malformed) {
-      assert.equal(resolveOperationalRateLimitRules(request), null)
+      assert.equal(resolveOperationalRateLimitRules(request), null, JSON.stringify(request))
     }
   })
 })

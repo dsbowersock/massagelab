@@ -94,7 +94,12 @@ describe("registration email delivery policy", () => {
     assert.doesNotMatch(registerRoute, /account already exists/i)
     assert.match(registerRoute, /sendPasswordSetup: sendPasswordSetupEmail/)
     assert.match(registerRoute, /sendExistingAccountNotice: sendExistingAccountRegistrationNotice/)
-    assert.match(registerRoute, /import \{ sendExistingAccountRegistrationNotice, sendPasswordSetupEmail, sendVerificationEmail \} from "@\/lib\/auth-mail"/)
+    const authMailImport = registerRoute.match(/import\s*\{([^}]*)\}\s*from\s*"@\/lib\/auth-mail"/)
+    assert.ok(authMailImport, "expected auth-mail import")
+    assert.deepEqual(
+      authMailImport[1].split(",").map((name) => name.trim()).filter(Boolean).sort(),
+      ["sendExistingAccountRegistrationNotice", "sendPasswordSetupEmail", "sendVerificationEmail"].sort(),
+    )
     assert.doesNotMatch(registerRoute, /sendAccountChangeEmail/)
     assert.doesNotMatch(registerRoute, /EXISTING_ACCOUNT_NOTICE_(?:SUBJECT|MESSAGE)/)
     assert.doesNotMatch(registerRoute, /sendPasswordReset: sendPasswordResetEmail/)

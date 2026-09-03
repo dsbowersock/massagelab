@@ -26,15 +26,13 @@ The hardening stack belongs after the existing family-and-friends PR stack and b
 
 The sequence is:
 
-1. finish and merge the already reviewed family-and-friends stack;
-2. review and merge the four hardening PRs described here in dependency order;
-3. apply the one new additive operational-limiter migration to the exact Production direct target under separate authorization;
-4. prove the combined exact candidate;
-5. perform the already designed membership writer-pause deployment and drain proof;
-6. deploy the same candidate with membership writes enabled; and
-7. run separately authorized real login and soft-launch checks.
+1. review and merge the four hardening PRs described here in dependency order;
+2. apply the one new additive operational-limiter migration to the exact Production direct target under separate authorization;
+3. prove the combined exact candidate;
+4. perform an ordinary separately authorized deploy of that exact candidate while preserving current membership writer authority; and
+5. run separately authorized real login and soft-launch checks.
 
-The five identity and membership migrations already applied to Production remain unchanged, and exact current main has all 45 baseline migrations current. This design adds one separately gated Layer A migration as the pending 46th migration; it does not modify or replay the five applied migrations.
+The five identity and membership migrations and their bridge ceremony are complete in Production, with membership webhook writes enabled. Exact current main has all 45 baseline migrations current. This design adds one separately gated Layer A migration as the pending 46th migration; it does not modify or replay the five applied migrations or repeat the completed pause/drain/unpause ceremony.
 
 ## Goals
 
@@ -388,7 +386,7 @@ No test uses a Production database, private row, real email, real Sentry event, 
 
 After all four PRs merge, the new migration is applied once to the configured Production direct Neon target under an exact-target, migration-only authorization. Migration status must report all migrations current before any runtime deployment.
 
-The existing two-deployment membership bridge remains the runtime rollout owner: first deploy the exact combined SHA with membership webhook writes paused, prove old writers drained, then deploy the same SHA with writes enabled and prove held deliveries converge. Hardening verification is included in both deployments, but no limiter row or provider event is manually fabricated in Production.
+The five identity and membership migrations and their bridge ceremony are already complete, and membership webhook writes are enabled. Layer A does not repeat the pause/drain/unpause ceremony. After its migration is current and the exact candidate is proven, the exact combined SHA receives an ordinary separately authorized deployment that preserves current membership writer authority. No limiter row or provider event is manually fabricated in Production.
 
 Operational verification uses aggregate status only: expected `429`/`503` handling, absence of unexpected provider calls, migration current, and ordinary low-volume success. It does not expose limiter keys, IP addresses, account data, database rows, or provider secrets.
 

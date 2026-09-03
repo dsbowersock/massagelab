@@ -752,6 +752,7 @@ describe("admin operation service", () => {
   it("reports AMBIGUOUS when a stale finalizer loses its exact claim", async () => {
     const database = createAdminDatabase()
     const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
+    const replacementClaimHash = "c".repeat(64)
 
     const result = await deliverAdminEmailIntent({
       prismaClient: database,
@@ -759,7 +760,7 @@ describe("admin operation service", () => {
       now: new Date("2026-08-08T14:00:00.000Z"),
       randomBytesFn: () => Buffer.alloc(32, 11),
       sendEmail: async () => {
-        database.intents[0].deliveryClaimTokenHash = "replacement-claim"
+        database.intents[0].deliveryClaimTokenHash = replacementClaimHash
         database.intents[0].deliveryClaimExpiresAt = new Date("2026-08-08T14:10:00.000Z")
         return { delivered: true }
       },
@@ -767,7 +768,7 @@ describe("admin operation service", () => {
 
     assert.deepEqual(result, { status: "AMBIGUOUS", attemptCount: 1, attempted: true })
     assert.equal(database.intents[0].status, "PENDING")
-    assert.equal(database.intents[0].deliveryClaimTokenHash, "replacement-claim")
+    assert.equal(database.intents[0].deliveryClaimTokenHash, replacementClaimHash)
   })
 
   it("lets a live initial claim make a concurrent retry BUSY with only one send", async () => {
@@ -798,16 +799,23 @@ describe("admin operation service", () => {
       idempotencyKey: "concurrent-initial-retry",
       sendEmail: async () => { sends += 1; return { delivered: true } },
     })
-    const quickRetry = await Promise.race([
-      retry.then((value) => ({ kind: "result", value }), (error) => ({ kind: "error", error })),
-      new Promise((resolve) => setTimeout(() => resolve({ kind: "timeout" }), 50)),
-    ])
-    releaseSend()
-    const initialResult = await initial
-    if (quickRetry.kind === "timeout") await retry.catch(() => undefined)
+    let timeoutId
+    let retryResult
+    let initialResult
+    try {
+      retryResult = await Promise.race([
+        retry,
+        new Promise((_resolve, reject) => {
+          timeoutId = setTimeout(() => reject(new Error("Concurrent retry did not settle within 50ms.")), 50)
+        }),
+      ])
+    } finally {
+      clearTimeout(timeoutId)
+      releaseSend()
+      initialResult = await initial
+    }
 
-    assert.notEqual(quickRetry.kind, "timeout")
-    assert.deepEqual(quickRetry.value, {
+    assert.deepEqual(retryResult, {
       status: "BUSY",
       attemptCount: 1,
       attempted: false,
