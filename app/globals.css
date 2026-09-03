@@ -3378,7 +3378,7 @@
 
   @container (max-width: 46rem) {
     .ml-atmoshaper-library {
-      padding: clamp(0.8rem, 3cqi, 1.25rem);
+      --ml-atmoshaper-library-padding: clamp(0.8rem, 3cqi, 1.25rem);
       scrollbar-gutter: auto;
     }
 

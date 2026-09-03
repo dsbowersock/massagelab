@@ -579,60 +579,75 @@ test.beforeEach(async ({ page }) => {
 })
 
 test("keeps the Sound Library tab rail edge-to-edge with reachable endpoints", async ({ page }) => {
-  await page.setViewportSize({ width: 615, height: 975 })
-  await openAtmoShaper(page)
+  const cases = [
+    { label: "narrow phone", viewport: { width: 375, height: 667 }, rootFontSize: null },
+    { label: "narrow tablet", viewport: { width: 615, height: 975 }, rootFontSize: null },
+    { label: "200% phone text", viewport: { width: 375, height: 667 }, rootFontSize: "200%" },
+  ] as const
 
-  const library = page.locator(".ml-atmoshaper-library")
-  const tabs = page.getByRole("tablist", { name: "AtmoShaper sound groups" })
-  const noise = page.getByRole("tab", { name: "Noise" })
-  const initial = await library.evaluate((element) => {
-    const list = element.querySelector<HTMLElement>(".ml-atmoshaper-library-tabs-list")
-    const first = list?.querySelector<HTMLElement>('[role="tab"]')
-    if (!list || !first) return null
-    const libraryRect = element.getBoundingClientRect()
-    const listRect = list.getBoundingClientRect()
-    const firstRect = first.getBoundingClientRect()
-    const listStyles = getComputedStyle(list)
-    return {
-      firstLeft: firstRect.left,
-      firstRight: firstRect.right,
-      justifyContent: listStyles.justifyContent,
-      libraryContentLeft: libraryRect.left + element.clientLeft,
-      libraryContentRight: libraryRect.left + element.clientLeft + element.clientWidth,
-      listLeft: listRect.left,
-      listRight: listRect.right,
-      scrollLeft: list.scrollLeft,
+  for (const testCase of cases) {
+    await page.setViewportSize(testCase.viewport)
+    await openAtmoShaper(page)
+    if (testCase.rootFontSize) {
+      await page.evaluate((fontSize) => {
+        document.documentElement.style.fontSize = fontSize
+      }, testCase.rootFontSize)
     }
-  })
-  expect(initial, "Sound Library geometry").not.toBeNull()
-  expect(initial!.scrollLeft).toBeLessThanOrEqual(1)
-  expect(initial!.justifyContent).toBe("flex-start")
-  expect(initial!.firstLeft).toBeGreaterThanOrEqual(initial!.listLeft)
-  expect(initial!.firstRight).toBeLessThanOrEqual(initial!.listRight)
-  expect(Math.abs(initial!.listLeft - initial!.libraryContentLeft)).toBeLessThanOrEqual(1)
-  expect(Math.abs(initial!.listRight - initial!.libraryContentRight)).toBeLessThanOrEqual(1)
-  await expect(noise).toHaveAttribute("data-state", "active")
 
-  await tabs.evaluate((element) => {
-    element.scrollLeft = element.scrollWidth
-  })
-  const final = await tabs.evaluate((element) => {
-    const last = element.querySelector<HTMLElement>('[role="tab"]:last-child')
-    if (!last) return null
-    const listRect = element.getBoundingClientRect()
-    const lastRect = last.getBoundingClientRect()
-    return {
-      lastLeft: lastRect.left,
-      lastRight: lastRect.right,
-      listLeft: listRect.left,
-      listRight: listRect.right,
-      remainingScroll: element.scrollWidth - element.clientWidth - element.scrollLeft,
+    const library = page.locator(".ml-atmoshaper-library")
+    const tabs = page.getByRole("tablist", { name: "AtmoShaper sound groups" })
+    const noise = page.getByRole("tab", { name: "Noise" })
+    const initial = await library.evaluate((element) => {
+      const list = element.querySelector<HTMLElement>(".ml-atmoshaper-library-tabs-list")
+      const first = list?.querySelector<HTMLElement>('[role="tab"]')
+      if (!list || !first) return null
+      const libraryRect = element.getBoundingClientRect()
+      const listRect = list.getBoundingClientRect()
+      const firstRect = first.getBoundingClientRect()
+      const listStyles = getComputedStyle(list)
+      return {
+        firstLeft: firstRect.left,
+        firstRight: firstRect.right,
+        justifyContent: listStyles.justifyContent,
+        libraryContentLeft: libraryRect.left + element.clientLeft,
+        libraryContentRight: libraryRect.left + element.clientLeft + element.clientWidth,
+        listLeft: listRect.left,
+        listRight: listRect.right,
+        scrollLeft: list.scrollLeft,
+      }
+    })
+    expect(initial, `${testCase.label} Sound Library geometry`).not.toBeNull()
+    expect(initial!.scrollLeft, testCase.label).toBeLessThanOrEqual(1)
+    expect(initial!.justifyContent, testCase.label).toBe("flex-start")
+    expect(initial!.firstLeft, testCase.label).toBeGreaterThanOrEqual(initial!.listLeft)
+    expect(initial!.firstRight, testCase.label).toBeLessThanOrEqual(initial!.listRight)
+    expect(Math.abs(initial!.listLeft - initial!.libraryContentLeft), testCase.label).toBeLessThanOrEqual(1)
+    expect(Math.abs(initial!.listRight - initial!.libraryContentRight), testCase.label).toBeLessThanOrEqual(1)
+    await expect(noise).toHaveAttribute("data-state", "active")
+
+    await tabs.evaluate((element) => {
+      element.scrollLeft = element.scrollWidth
+    })
+    const final = await tabs.evaluate((element) => {
+      const last = element.querySelector<HTMLElement>('[role="tab"]:last-child')
+      if (!last) return null
+      const listRect = element.getBoundingClientRect()
+      const lastRect = last.getBoundingClientRect()
+      return {
+        lastLeft: lastRect.left,
+        lastRight: lastRect.right,
+        listLeft: listRect.left,
+        listRight: listRect.right,
+        remainingScroll: element.scrollWidth - element.clientWidth - element.scrollLeft,
+      }
+    })
+    expect(final, `${testCase.label} Sound Library final tab geometry`).not.toBeNull()
+    expect(final!.remainingScroll, testCase.label).toBeLessThanOrEqual(1)
+    if (!testCase.rootFontSize) {
+      expect(final!.lastLeft, testCase.label).toBeGreaterThanOrEqual(final!.listLeft)
     }
-  })
-  expect(final, "Sound Library final tab geometry").not.toBeNull()
-  expect(final!.remainingScroll).toBeLessThanOrEqual(1)
-  expect(final!.lastLeft).toBeGreaterThanOrEqual(final!.listLeft)
-  expect(final!.lastRight).toBeLessThanOrEqual(final!.listRight)
+    expect(final!.lastRight, testCase.label).toBeLessThanOrEqual(final!.listRight)
+  }
 })
 
 test("keeps preview controls on the active card without shifting the sound-group rail", async ({ page }) => {

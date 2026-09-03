@@ -19,6 +19,11 @@ const atmoStyles = styles.slice(
   atmoStylesStart,
   styles.indexOf("  .ml-music-player-toolbar", atmoStylesStart),
 )
+const narrowLibraryQueryStart = atmoStyles.indexOf("  @container (max-width: 46rem)")
+const narrowLibraryQuery = atmoStyles.slice(
+  narrowLibraryQueryStart,
+  atmoStyles.indexOf("  @media (prefers-reduced-motion", narrowLibraryQueryStart),
+)
 
 describe("AtmoShaper annotated UI refinement contract", () => {
   it("gives the transparent glow-tab rail full vertical breathing room", () => {
@@ -31,6 +36,18 @@ describe("AtmoShaper annotated UI refinement contract", () => {
     assert.match(
       atmoStyles,
       /@container \(min-width:\s*54rem\)[\s\S]*?\.ml-atmoshaper-library-tabs-list,?[\s\S]*?overflow:\s*visible/,
+    )
+  })
+
+  it("keeps narrow library padding and its full-bleed tab rail on one shared value", () => {
+    assert.ok(narrowLibraryQueryStart >= 0, "expected the narrow Sound Library container query")
+    assert.match(
+      narrowLibraryQuery,
+      /\.ml-atmoshaper-library\s*\{[^}]*--ml-atmoshaper-library-padding:\s*clamp\(0\.8rem,\s*3cqi,\s*1\.25rem\)/,
+    )
+    assert.doesNotMatch(
+      narrowLibraryQuery,
+      /\.ml-atmoshaper-library\s*\{[^}]*\n\s*padding:\s*clamp\(0\.8rem,\s*3cqi,\s*1\.25rem\)/,
     )
   })
 

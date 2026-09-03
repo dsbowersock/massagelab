@@ -87,6 +87,7 @@ async function installCommerceFixture({
   baseURL,
   initialSnapshot = emptySnapshot(),
   featureKeys = [],
+  appSettings = {},
   fulfillAfterReads,
   failRedemptionRefresh = false,
   startPreferenceAccessUnavailable = false,
@@ -99,6 +100,7 @@ async function installCommerceFixture({
   baseURL: string
   initialSnapshot?: CommerceSnapshot
   featureKeys?: string[]
+  appSettings?: Record<string, unknown>
   fulfillAfterReads?: number
   failRedemptionRefresh?: boolean
   startPreferenceAccessUnavailable?: boolean
@@ -172,7 +174,7 @@ async function installCommerceFixture({
         features: featureKeys,
         ownedBackgroundIds: snapshot.ownedBackgroundIds,
         chimerSettings,
-        appSettings: {},
+        appSettings,
       }),
     })
     if (request.method() === "GET") preferenceAccessSuccesses += 1
@@ -1003,10 +1005,17 @@ test("Music visualizer keeps the shared account cart through minimize and restor
 
 test("global account cart appears after explicit cart intent and stays hidden on Calendar", async ({ context, page }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL)
+  const appSettings = {
+    appBarPosition: "bottom",
+    sidebarPosition: "left",
+    sidebarTriggerPosition: "bottom",
+    themeMode: "dark",
+  }
   const fixture = await installCommerceFixture({
     context,
     page,
     baseURL,
+    appSettings,
     initialSnapshot: emptySnapshot({
       cart: {
         items: [PRODUCTS[AURORA_ID]],
@@ -1034,6 +1043,27 @@ test("global account cart appears after explicit cart intent and stays hidden on
   await page.keyboard.press("Escape")
   await expect(cartDialog).toHaveCount(0)
   await expect(trigger).toHaveAccessibleName("Open account cart with 1 item")
+  const badge = trigger.locator('span[aria-hidden="true"]')
+  const expectBadgeToPaint = async () => {
+    await expect(badge).toHaveText("1")
+    await expect.poll(async () => badge.evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      const styles = getComputedStyle(element)
+      return bounds.width >= 20
+        && bounds.height >= 20
+        && Number.parseFloat(styles.opacity) > 0
+        && styles.visibility === "visible"
+    }), { message: "the account-cart count badge paints at full size" }).toBe(true)
+  }
+  await expectBadgeToPaint()
+
+  appSettings.appBarPosition = "top"
+  await page.goto("/music?commerceCart=open", { waitUntil: "domcontentloaded" })
+  await expect(cartDialog).toContainText(AURORA_NAME)
+  await page.keyboard.press("Escape")
+  await expect(page.locator(".ml-app-shell"))
+    .toHaveAttribute("data-app-bar-position", "top")
+  await expectBadgeToPaint()
 
   await page.evaluate(() => {
     window.history.pushState({}, "", "/calendar")
