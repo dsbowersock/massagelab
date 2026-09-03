@@ -18,7 +18,7 @@ const [
       import.meta.url,
     ),
     "utf8",
-  ).catch(() => ""),
+  ),
   readFile(new URL("../docs/wiki/deployment.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/wiki/release-checklist.md", import.meta.url), "utf8"),
   readFile(
@@ -173,7 +173,12 @@ describe("operational rate-limit persistence", () => {
       operationalLimiterPlan,
       /eight table columns\/defaults \(`id` plus seven non-id columns: `policy`, `scope`, `keyHash`, `count`, `windowStart`, `blockedUntil`, and `updatedAt`\)/i,
     )
+    assert.match(
+      operationalLimiterPlan,
+      /Task 1 limiter portion[\s\S]*no [^.]*foreign key[\s\S]*Task 4[\s\S]*same (?:single )?migration[\s\S]*`RESTRICT` foreign key/i,
+    )
     assert.doesNotMatch(operationalLimiterPlan, /those seven table columns\/defaults/i)
+    assert.doesNotMatch(operationalLimiterPlan, /The migration creates[^.]*It contains no [^.]*foreign key/i)
   })
 
   it("keeps the entire approved migration inside one explicit transaction", () => {

@@ -114,6 +114,7 @@ class InMemoryOperationalRateLimitClient {
             count += 1
           }
         }
+        if (count > 0 && transactionState) transactionState.dirty = true
         return { count }
       },
     }
@@ -461,6 +462,23 @@ describe("operational rate-limit service", () => {
       maxRows: 100,
     }), 0)
     assert.equal(reactivated.rows.size, 1)
+
+    const transactional = new InMemoryOperationalRateLimitClient()
+    const transactionalIdentity = identity("transactional-delete.v1", "GLOBAL", [
+      { label: "deployment", value: "massagelab" },
+    ])
+    transactional.seed({
+      ...transactionalIdentity,
+      count: 1,
+      windowStart: staleAt,
+      blockedUntil: null,
+      updatedAt: staleAt,
+    })
+    assert.equal(await transactional.$transaction(
+      (tx) => pruneOperationalRateLimits({ prismaClient: tx, before, maxRows: 100 }),
+      { isolationLevel: "Serializable" },
+    ), 1)
+    assert.equal(transactional.rowFor(transactionalIdentity), null)
   })
 
   it("keeps sampled cleanup failures best-effort and deletes stale rows on success", async () => {

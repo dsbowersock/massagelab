@@ -182,7 +182,7 @@ model OperationalRateLimitBucket {
 }
 ```
 
-The migration creates only the enum, eight table columns/defaults (`id` plus seven non-id columns: `policy`, `scope`, `keyHash`, `count`, `windowStart`, `blockedUntil`, and `updatedAt`), unique index, and two cleanup indexes. It contains no backfill, foreign key, trigger, row rewrite, or change to the auth bucket.
+The Task 1 limiter portion of the migration creates only the enum, eight table columns/defaults (`id` plus seven non-id columns: `policy`, `scope`, `keyHash`, `count`, `windowStart`, `blockedUntil`, and `updatedAt`), unique index, and two cleanup indexes. That limiter portion contains no backfill, foreign key, trigger, row rewrite, or change to the auth bucket. Task 4 later extends the same single migration with the Admin email claim columns, append-only retry-key table and indexes, and its `RESTRICT` foreign key to `AdminEmailIntent`.
 
 - [ ] **Step 4: Run GREEN**
 
