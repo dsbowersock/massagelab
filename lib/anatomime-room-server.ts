@@ -1095,6 +1095,9 @@ export async function joinAnatomimeRoom(
           },
         },
         data: {
+          // A token-proven guest may be claimed by the signed-in account in
+          // this same credential-rotation write. Existing bindings never move.
+          userId: existingPlayer.userId ?? userId ?? null,
           displayName: existingPlayer.id === currentRoom.hostPlayerId ? existingPlayer.displayName : displayName,
           teamId: existingPlayer.id === currentRoom.hostPlayerId || currentRoom.status === "PLAYING" ? existingPlayer.teamId : nextTeamId,
           guestTokenHash: tokenHash,

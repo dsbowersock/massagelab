@@ -318,6 +318,170 @@ describe("Anatomime create and join traffic boundaries", () => {
     })
   }
 
+  it("atomically links a proven unlinked guest to an authenticated rejoin", async () => {
+    const events = []
+    const writes = []
+    const initialRoom = roomFixture({
+      players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+    })
+    const transactionRoom = roomFixture({
+      players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+    })
+    const service = loadRoomServer({
+      events,
+      room: initialRoom,
+      transactionRoom,
+      onPlayerWrite: (event, args) => {
+        writes.push({ event, args })
+        const player = transactionRoom.players.find((candidate) => candidate.id === args.where.roomId_id.id)
+        assert.ok(player)
+        Object.assign(player, args.data)
+      },
+    })
+
+    const result = await service.joinAnatomimeRoom("room-1", {
+      displayName: "Signed-in Guest",
+      playerId: "player-1",
+      playerToken: "guest-token",
+    }, "account-1", {
+      beforePersist: async () => events.push("guard"),
+    })
+
+    assert.equal(result.player.id, "player-1")
+    assert.equal(result.player.userId, "account-1")
+    assert.equal(result.player.guestTokenHash, "hash:ABC123")
+    assert.equal(result.token, "ABC123")
+    assert.equal(writes.length, 1)
+    assert.equal(writes[0].event, "player-update")
+    assert.equal(writes[0].args.data.userId, "account-1")
+  })
+
+  it("rejects authenticated guest claims without current unlinked-token ownership", async () => {
+    for (const scenario of [
+      {
+        label: "wrong token",
+        players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+        input: { playerId: "player-1", playerToken: "wrong-token" },
+      },
+      {
+        label: "missing token",
+        players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+        input: { playerId: "player-1" },
+      },
+      {
+        label: "another account's player",
+        players: [playerFixture({ userId: "account-other", guestTokenHash: "hash:guest-token" })],
+        input: { playerId: "player-1", playerToken: "guest-token" },
+      },
+    ]) {
+      const events = []
+      const service = loadRoomServer({
+        events,
+        room: roomFixture({ players: scenario.players }),
+        playerWriteError: new Error(`${scenario.label} reached player write`),
+      })
+
+      await assert.rejects(
+        () => service.joinAnatomimeRoom("room-1", {
+          displayName: "Candidate",
+          ...scenario.input,
+        }, "account-candidate", {
+          beforePersist: async () => events.push("guard"),
+        }),
+        isGenericJoinCredentialError,
+        scenario.label,
+      )
+      assert.deepEqual(events, ["room-lookup"], scenario.label)
+    }
+  })
+
+  it("keeps a same-account rejoin bound while rotating its guest credential", async () => {
+    const events = []
+    const initialRoom = roomFixture({
+      players: [playerFixture({ userId: "account-1", guestTokenHash: "hash:old-token" })],
+    })
+    const transactionRoom = roomFixture({
+      players: [playerFixture({ userId: "account-1", guestTokenHash: "hash:old-token" })],
+    })
+    const service = loadRoomServer({
+      events,
+      room: initialRoom,
+      transactionRoom,
+      onPlayerWrite: (_event, args) => {
+        const player = transactionRoom.players.find((candidate) => candidate.id === args.where.roomId_id.id)
+        assert.ok(player)
+        Object.assign(player, args.data)
+      },
+    })
+
+    const result = await service.joinAnatomimeRoom("room-1", {
+      displayName: "Returning Player",
+      playerId: "stale-selector",
+      playerToken: "stale-token",
+    }, "account-1")
+
+    assert.equal(result.player.id, "player-1")
+    assert.equal(result.player.userId, "account-1")
+    assert.equal(result.player.guestTokenHash, "hash:ABC123")
+  })
+
+  it("revalidates an authenticated guest claim before linking after quota", async () => {
+    const events = []
+    const initialRoom = roomFixture({
+      players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+    })
+    const transactionRoom = roomFixture({
+      players: [playerFixture({ userId: "account-winner", guestTokenHash: "hash:guest-token" })],
+    })
+    const service = loadRoomServer({
+      events,
+      room: initialRoom,
+      transactionRoom,
+      playerWriteError: new Error("race loser reached player write"),
+    })
+
+    await assert.rejects(
+      () => service.joinAnatomimeRoom("room-1", {
+        displayName: "Race Loser",
+        playerId: "player-1",
+        playerToken: "guest-token",
+      }, "account-candidate", {
+        beforePersist: async () => events.push("guard"),
+      }),
+      isGenericJoinCredentialError,
+    )
+    assert.deepEqual(events, ["room-lookup", "guard", "transaction", "transaction-read"])
+
+    const uniqueConflict = new Error("room-user uniqueness conflict")
+    const conflictEvents = []
+    const unclaimedRoom = roomFixture({
+      players: [playerFixture({ guestTokenHash: "hash:guest-token" })],
+    })
+    const conflictService = loadRoomServer({
+      events: conflictEvents,
+      room: unclaimedRoom,
+      transactionRoom: unclaimedRoom,
+      playerWriteError: uniqueConflict,
+    })
+    await assert.rejects(
+      () => conflictService.joinAnatomimeRoom("room-1", {
+        displayName: "Conflict Loser",
+        playerId: "player-1",
+        playerToken: "guest-token",
+      }, "account-candidate", {
+        beforePersist: async () => conflictEvents.push("guard"),
+      }),
+      (error) => error === uniqueConflict,
+    )
+    assert.deepEqual(conflictEvents, [
+      "room-lookup",
+      "guard",
+      "transaction",
+      "transaction-read",
+      "player-update",
+    ])
+  })
+
   it("revalidates guest-only token ownership after quota before review re-entry", async () => {
     const events = []
     const initialRoom = roomFixture({
@@ -605,7 +769,8 @@ describe("Anatomime client poll ownership", () => {
 
   it("keeps canonical documentation receipts at the validated Layer B count", () => {
     for (const source of [projectStateSource, projectLogSource]) {
-      assert.match(source, /exact 143\/143 focused Anatomime matrix/)
+      assert.match(source, /exact 147\/147 focused Anatomime matrix/)
+      assert.doesNotMatch(source, /exact 143\/143 focused Anatomime matrix/)
       assert.doesNotMatch(source, /exact 142\/142 focused Anatomime matrix/)
     }
   })
@@ -1072,6 +1237,7 @@ function loadRoomServer({
   transactionRoom = room,
   transactionError,
   playerWriteError,
+  onPlayerWrite,
 }) {
   const prisma = {
     anatomimeRoom: {
@@ -1100,17 +1266,18 @@ function loadRoomServer({
           },
         },
         anatomimeRoomPlayer: {
-          create: () => playerWrite("player-create"),
-          update: () => playerWrite("player-update"),
-          upsert: () => playerWrite("player-upsert"),
+          create: (args) => playerWrite("player-create", args),
+          update: (args) => playerWrite("player-update", args),
+          upsert: (args) => playerWrite("player-upsert", args),
         },
       })
     },
   }
 
-  async function playerWrite(event) {
+  async function playerWrite(event, args) {
     events.push(event)
     if (playerWriteError) throw playerWriteError
+    onPlayerWrite?.(event, args)
     return transactionRoom.players[0]
   }
 
