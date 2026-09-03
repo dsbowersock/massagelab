@@ -578,6 +578,63 @@ test.beforeEach(async ({ page }) => {
   await installAtmoShaperBrowserQa(page)
 })
 
+test("keeps the Sound Library tab rail edge-to-edge with reachable endpoints", async ({ page }) => {
+  await page.setViewportSize({ width: 615, height: 975 })
+  await openAtmoShaper(page)
+
+  const library = page.locator(".ml-atmoshaper-library")
+  const tabs = page.getByRole("tablist", { name: "AtmoShaper sound groups" })
+  const noise = page.getByRole("tab", { name: "Noise" })
+  const initial = await library.evaluate((element) => {
+    const list = element.querySelector<HTMLElement>(".ml-atmoshaper-library-tabs-list")
+    const first = list?.querySelector<HTMLElement>('[role="tab"]')
+    if (!list || !first) return null
+    const libraryRect = element.getBoundingClientRect()
+    const listRect = list.getBoundingClientRect()
+    const firstRect = first.getBoundingClientRect()
+    const listStyles = getComputedStyle(list)
+    return {
+      firstLeft: firstRect.left,
+      firstRight: firstRect.right,
+      justifyContent: listStyles.justifyContent,
+      libraryContentLeft: libraryRect.left + element.clientLeft,
+      libraryContentRight: libraryRect.left + element.clientLeft + element.clientWidth,
+      listLeft: listRect.left,
+      listRight: listRect.right,
+      scrollLeft: list.scrollLeft,
+    }
+  })
+  expect(initial, "Sound Library geometry").not.toBeNull()
+  expect(initial!.scrollLeft).toBeLessThanOrEqual(1)
+  expect(initial!.justifyContent).toBe("flex-start")
+  expect(initial!.firstLeft).toBeGreaterThanOrEqual(initial!.listLeft)
+  expect(initial!.firstRight).toBeLessThanOrEqual(initial!.listRight)
+  expect(Math.abs(initial!.listLeft - initial!.libraryContentLeft)).toBeLessThanOrEqual(1)
+  expect(Math.abs(initial!.listRight - initial!.libraryContentRight)).toBeLessThanOrEqual(1)
+  await expect(noise).toHaveAttribute("data-state", "active")
+
+  await tabs.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth
+  })
+  const final = await tabs.evaluate((element) => {
+    const last = element.querySelector<HTMLElement>('[role="tab"]:last-child')
+    if (!last) return null
+    const listRect = element.getBoundingClientRect()
+    const lastRect = last.getBoundingClientRect()
+    return {
+      lastLeft: lastRect.left,
+      lastRight: lastRect.right,
+      listLeft: listRect.left,
+      listRight: listRect.right,
+      remainingScroll: element.scrollWidth - element.clientWidth - element.scrollLeft,
+    }
+  })
+  expect(final, "Sound Library final tab geometry").not.toBeNull()
+  expect(final!.remainingScroll).toBeLessThanOrEqual(1)
+  expect(final!.lastLeft).toBeGreaterThanOrEqual(final!.listLeft)
+  expect(final!.lastRight).toBeLessThanOrEqual(final!.listRight)
+})
+
 test("keeps preview controls on the active card without shifting the sound-group rail", async ({ page }) => {
   await page.setViewportSize({ width: 1027, height: 1027 })
   await openAtmoShaper(page)

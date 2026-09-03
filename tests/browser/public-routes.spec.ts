@@ -838,10 +838,11 @@ test("main bar exposes brand music clock quick create theme calendar and more co
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => {
+    const appBarPosition = sessionStorage.getItem("qa-app-bar-position") ?? "bottom"
     localStorage.setItem(
       "massage-lab-settings",
       JSON.stringify({
-        appBarPosition: "bottom",
+        appBarPosition,
         sidebarPosition: "left",
         sidebarTriggerPosition: "bottom",
         themeMode: "dark",
@@ -854,6 +855,23 @@ test("main bar exposes brand music clock quick create theme calendar and more co
   await expect(page.getByRole("link", { name: "MassageLab home" })).toHaveAttribute("href", "/")
   await expect(page.getByRole("link", { name: /^Open music$/i })).toHaveAttribute("href", "/music")
   await expect(page.getByRole("link", { name: /^Open clock$/i })).toHaveAttribute("href", "/clock")
+  const expectToolIconsToPaint = async () => {
+    for (const label of ["Open music", "Open clock", "Open calendar"]) {
+      const icon = page.getByRole("link", { name: label }).locator("svg").first()
+      await expect(icon, `${label} icon`).toHaveCount(1)
+      await expect.poll(async () => icon.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        const styles = getComputedStyle(element)
+        return bounds.width >= 16
+          && bounds.height >= 16
+          && Number.parseFloat(styles.opacity) > 0
+          && styles.visibility === "visible"
+          && styles.color !== "rgba(0, 0, 0, 0)"
+          && styles.stroke !== "none"
+      }), { message: `${label} icon paints at full size` }).toBe(true)
+    }
+  }
+  await expectToolIconsToPaint()
   const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
   await expect(quickCreate).toBeVisible()
   const quickCreateBox = await quickCreate.boundingBox()
@@ -877,6 +895,11 @@ test("main bar exposes brand music clock quick create theme calendar and more co
   const mainBar = page.getByRole("navigation", { name: /^MassageLab main navigation$/i })
   await expect(mainBar.locator(".ml-main-bar-drawer-brand .ml-main-bar-button")).toHaveAccessibleName("Open navigation")
   await expect(mainBar.locator(".ml-main-bar-tools").getByRole("group", { name: /^Theme$/i })).toBeVisible()
+
+  await page.evaluate(() => sessionStorage.setItem("qa-app-bar-position", "top"))
+  await page.reload({ waitUntil: "domcontentloaded" })
+  await expect(mainBar).toHaveAttribute("data-app-bar-position", "top")
+  await expectToolIconsToPaint()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.unexpectedExternalRequests, "unexpected external requests").toEqual([])
