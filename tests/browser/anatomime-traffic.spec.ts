@@ -282,8 +282,6 @@ test("player polling backs off through 2/4/8/16/30 seconds and resets after succ
 
   for (const delay of [2_001, 4_001, 8_001, 16_001, 27_001]) {
     const before = pollCount
-    await triggerRealtimeSignal(page)
-    expect(pollCount).toBe(before)
     await page.clock.fastForward(delay - 1)
     expect(pollCount).toBe(before)
     await page.clock.fastForward(1)
@@ -300,7 +298,7 @@ test("player polling backs off through 2/4/8/16/30 seconds and resets after succ
   expect(providerRequests(page)).toBe(0)
 })
 
-test("player polling honors Retry-After before recovery", async ({ page }) => {
+test("player realtime wakes failed recovery but cannot bypass Retry-After", async ({ page }) => {
   await page.clock.install()
   await installPlayerRuntime(page)
   let pollCount = 0
@@ -313,6 +311,10 @@ test("player polling honors Retry-After before recovery", async ({ page }) => {
     pollCount += 1
     if (pollCount === 1) {
       await firstPollResponse.wait
+      await fulfillJson(route, 503, { error: "Temporarily unavailable." })
+      return
+    }
+    if (pollCount === 2) {
       await fulfillJson(route, 429, { error: "Slow down." }, { "Retry-After": "7" })
       return
     }
@@ -324,13 +326,16 @@ test("player polling honors Retry-After before recovery", async ({ page }) => {
   await pauseClockAtCurrentTime(page)
   expect(pollCount).toBe(1)
   firstPollResponse.release()
+  await expect(page.getByText(/Connection interrupted/i)).toBeVisible()
+  await triggerRealtimeSignal(page)
+  await expect.poll(() => pollCount).toBe(2)
   await expect(page.getByText(/Trying again in 7 seconds/i)).toBeVisible()
   await triggerRealtimeSignal(page)
-  expect(pollCount).toBe(1)
+  expect(pollCount).toBe(2)
   await page.clock.fastForward(6_999)
-  expect(pollCount).toBe(1)
+  expect(pollCount).toBe(2)
   await page.clock.fastForward(1)
-  await expect.poll(() => pollCount).toBe(2)
+  await expect.poll(() => pollCount).toBe(3)
   expect(providerRequests(page)).toBe(0)
 })
 
@@ -429,7 +434,7 @@ test("host review polling continues at 5s and stops on a successful ended snapsh
   expect(providerRequests(page)).toBe(0)
 })
 
-test("host refresh cannot bypass Retry-After or failed-poll recovery", async ({ page }) => {
+test("host refresh wakes failed recovery but cannot bypass Retry-After", async ({ page }) => {
   await page.clock.install()
   await page.addInitScript(() => { Math.random = () => 0 })
   let hostPollCount = 0
@@ -480,10 +485,6 @@ test("host refresh cannot bypass Retry-After or failed-poll recovery", async ({ 
 
   await expect(page.getByText(/Connection interrupted/i)).toBeVisible()
   await refresh.click()
-  expect(hostPollCount).toBe(2)
-  await page.clock.fastForward(4_000)
-  expect(hostPollCount).toBe(2)
-  await page.clock.fastForward(1)
   await expect.poll(() => hostPollCount).toBe(3)
   expect(providerRequests(page)).toBe(0)
 })

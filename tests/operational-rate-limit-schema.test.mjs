@@ -421,6 +421,7 @@ COMMIT;
   })
 
   it("requires non-consuming Anatomime ingress and one-snapshot atomic poll resolution", () => {
+    const consumeJoinedContract = /^(?=[\s\S]*`consumeJoined`)(?=[\s\S]*`networkIdentifier`)(?=[\s\S]*`roomIdentifier`)(?=[\s\S]*`playerId`)(?=[\s\S]*atomically checks)(?=[\s\S]*network\+room)(?=[\s\S]*room)(?=[\s\S]*player)(?=[\s\S]*increments none)[\s\S]*$/i
     assert.throws(
       () => assertParagraphMatches(
         "one room read\n\nsame loaded snapshot",
@@ -428,6 +429,11 @@ COMMIT;
         "split-paragraph fixture",
       ),
       /split-paragraph fixture/,
+    )
+    assertParagraphMatches(
+      "`consumeJoined` atomically checks player, room, then network+room and increments none; it accepts `playerId`, `roomIdentifier`, and `networkIdentifier`.",
+      consumeJoinedContract,
+      "reordered consumeJoined fixture",
     )
     for (const [label, source] of [
       ["binding design", hardeningDesign],
@@ -445,12 +451,17 @@ COMMIT;
       )
       assertParagraphMatches(
         source,
-        /same (?:loaded )?snapshot[\s\S]*(?:no second room (?:query|read)|does not[^.]*read another)/i,
+        /(?:ordinary|normal|accepted)[^.]*poll[^.]*same (?:loaded )?snapshot[^.]*(?:no second room (?:query|read)|does not[^.]*read another)/i,
         label,
       )
       assertParagraphMatches(
         source,
-        /`consumeJoined`[\s\S]*`networkIdentifier`[\s\S]*`roomIdentifier`[\s\S]*`playerId`[\s\S]*atomically checks[\s\S]*network\+room[\s\S]*room[\s\S]*player[\s\S]*increments none/i,
+        /post-rollback[^.]*expiry[^.]*zero-row[^.]*reread[^.]*`EXPIRED`[^.]*(?:otherwise|divergent)[^.]*`503`/i,
+        label,
+      )
+      assertParagraphMatches(
+        source,
+        consumeJoinedContract,
         label,
       )
       assertParagraphMatches(

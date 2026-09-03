@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
+import ts from "typescript"
 import { hashToken } from "../lib/auth-security.js"
 import { authRequestNetworkIdentifier } from "../lib/auth-request.ts"
 import { canJoinRoom } from "../lib/anatomime-room-rules.ts"
@@ -20,6 +21,22 @@ const pollRouteSource = await readFile(new URL("../app/api/anatomime/sessions/[c
 const sharedSessionClientSource = await readFile(new URL("../app/anatomime/shared-session-client.tsx", import.meta.url), "utf8")
 const hostRoomClientSource = await readFile(new URL("../app/anatomime/host-room-client.tsx", import.meta.url), "utf8")
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
+
+/** Extracts one lexical top-level function without depending on its neighbors. */
+function topLevelFunctionSource(source, functionName, fileName) {
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  )
+  const declaration = sourceFile.statements.find((statement) => (
+    ts.isFunctionDeclaration(statement) && statement.name?.text === functionName
+  ))
+  assert.ok(declaration, `${fileName} must contain ${functionName}`)
+  return source.slice(declaration.getStart(sourceFile), declaration.getEnd())
+}
 
 class AnatomimeSessionError extends Error {
   constructor(status, code, message) {
@@ -377,13 +394,65 @@ describe("Anatomime create and join traffic boundaries", () => {
   })
 
   it("routes both join admission phases through one pure resolver", () => {
-    const joinSource = roomServerSource.match(
-      /export async function joinAnatomimeRoom[\s\S]*?(?=\/\*\*\s*\* Moves a joined non-host player)/,
-    )?.[0] ?? ""
+    const joinSource = topLevelFunctionSource(
+      roomServerSource,
+      "joinAnatomimeRoom",
+      "lib/anatomime-room-server.ts",
+    )
 
     assert.match(roomServerSource, /function resolveAnatomimeJoinAdmission\(/)
     assert.equal(joinSource.match(/resolveAnatomimeJoinAdmission\(/g)?.length, 2)
     assert.doesNotMatch(joinSource, /canJoinRoom\(/)
+  })
+
+  it("uses the same six-character public selector for load, join, player, and host actions", async () => {
+    assert.match(
+      roomServerSource,
+      /import\s*\{[\s\S]*?normalizeAnatomimeRoomIdentifier[\s\S]*?\}\s*from "\.\/anatomime-traffic-server\.ts"/,
+      "room actions reuse the canonical server normalizer",
+    )
+    const selector = " a-b c_1.2.3-long-tail "
+    const actionScenarios = [
+      {
+        label: "load",
+        run: (service) => service.loadAnatomimeRoom(selector),
+        verify: (result) => assert.equal(result?.code, "ABC123"),
+      },
+      {
+        label: "join",
+        room: roomFixture({ code: "ABC123", status: "ENDED", endedAt: new Date() }),
+        run: (service) => service.joinAnatomimeRoom(selector, { displayName: "Guest" }, null),
+        errorStatus: 409,
+      },
+      {
+        label: "player action",
+        run: (service) => service.changeAnatomimeRoomTeam(selector, { teamId: "team-1" }, {}),
+        errorCode: "join-required",
+      },
+      {
+        label: "host action",
+        run: (service) => service.startAnatomimeGameRun(selector, {}),
+        errorCode: "host-required",
+      },
+    ]
+
+    for (const scenario of actionScenarios) {
+      const events = []
+      const service = loadRoomServer({
+        events,
+        room: scenario.room ?? roomFixture({ code: "ABC123" }),
+      })
+      if (scenario.verify) scenario.verify(await scenario.run(service))
+      else {
+        await assert.rejects(
+          () => scenario.run(service),
+          (error) => error instanceof AnatomimeSessionError
+            && (scenario.errorCode ? error.code === scenario.errorCode : error.status === scenario.errorStatus),
+          scenario.label,
+        )
+      }
+      assert.deepEqual(events, ["room-lookup"], scenario.label)
+    }
   })
 
   it("runs join quota after bounded room validation and before transaction revalidation", async () => {
@@ -503,11 +572,11 @@ describe("Anatomime client poll ownership", () => {
     }
   })
 
-  it("only wakes an armed success-based poll timer", () => {
+  it("wakes only armed success or failed timers while preserving Retry-After", () => {
     for (const source of [sharedSessionClientSource, hostRoomClientSource]) {
       assert.match(
         source,
-        /const wakePoll = \(\) => \{\s+if \(cancelled \|\| stopped \|\| inFlight \|\| timer === null \|\| latestScheduledResult\?\.kind !== "SUCCESS"\) return/,
+        /const wakePoll = \(\) => \{\s+if \(cancelled \|\| stopped \|\| inFlight \|\| timer === null \|\| !latestScheduledResult \|\| latestScheduledResult\.kind === "RATE_LIMITED"\) return/,
       )
     }
   })
@@ -871,7 +940,7 @@ describe("Anatomime room poll traffic boundary", () => {
     assert.deepEqual(await response.json(), {
       error: "Anatomime is temporarily unavailable. Please try again.",
     })
-    assert.equal(roomScenario.hydrateCalls.length, 1)
+    assert.equal(roomScenario.hydrateCalls.length, 2)
     assert.deepEqual(roomScenario.coalesceCalls, [])
   })
 
@@ -978,8 +1047,8 @@ function loadRoomServer({
   const prisma = {
     anatomimeRoom: {
       findUnique: async (args) => {
-        events.push(args.where.code === "ROOM1" ? "room-lookup" : "code-lookup")
-        return args.where.code === "ROOM1" ? room : null
+        events.push(args.where.code === room.code ? "room-lookup" : "code-lookup")
+        return args.where.code === room.code ? room : null
       },
     },
     $transaction: async (callback) => {
@@ -1046,6 +1115,7 @@ function loadRoomServer({
     "./anatomime-traffic-server.ts": {
       AnatomimeTrafficLimitError,
       coalesceAnatomimePlayerPresence: async () => null,
+      normalizeAnatomimeRoomIdentifier,
     },
     "./prisma.ts": { prisma },
   })
@@ -1394,6 +1464,7 @@ function loadPresenceRoomServerForRoute({
         coalesceCalls.push(input)
         return presenceResult
       },
+      normalizeAnatomimeRoomIdentifier,
     },
     "./prisma.ts": {
       prisma: hasExpiryConflict

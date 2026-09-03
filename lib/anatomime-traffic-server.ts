@@ -152,6 +152,9 @@ export async function requireAnatomimeOperationalAllowance(
   try {
     decision = await consume(input)
   } catch {
+    // The shared limiter already owns bounded, fixed-label diagnostics. Do not log
+    // the error or request here: identifiers could leak and hostile traffic could
+    // amplify metered telemetry without adding actionable evidence.
     throw new AnatomimeTrafficLimitError(503)
   }
 

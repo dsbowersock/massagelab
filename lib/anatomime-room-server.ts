@@ -45,6 +45,7 @@ import type { AnatomyStudyCard } from "./anatomy-study.ts"
 import {
   AnatomimeTrafficLimitError,
   coalesceAnatomimePlayerPresence,
+  normalizeAnatomimeRoomIdentifier,
 } from "./anatomime-traffic-server.ts"
 import { prisma } from "./prisma.ts"
 
@@ -98,6 +99,14 @@ class StaleRoomMutationError extends Error {
   }
 }
 
+/** Rolls back a lost idle-expiration write before its winner is reread. */
+class ExpirationWriteConflictError extends Error {
+  constructor() {
+    super("Anatomime room expiration changed before commit.")
+    this.name = "ExpirationWriteConflictError"
+  }
+}
+
 function isStaleRoomMutation(error: unknown) {
   return error instanceof StaleRoomMutationError
 }
@@ -126,10 +135,6 @@ function addSeconds(date: Date, seconds: number) {
 
 function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60 * 1000)
-}
-
-function publicCode(value: string) {
-  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
 }
 
 async function generateUniqueRoomCode() {
@@ -567,18 +572,44 @@ async function expireRoomIfIdle(
 ): Promise<AnatomimeRoomWithRelations> {
   if (room.status === "EXPIRED" || room.expiresAt.getTime() > now.getTime()) return room
 
-  return prisma.$transaction(async (tx) => {
-    if (room.currentRun && room.currentRun.status === "PLAYING") {
-      const completed = await tx.anatomimeGameRun.updateMany({
-        where: { roomId: room.id, id: room.currentRun.id, status: "PLAYING" },
-        data: {
-          status: "GAME_COMPLETE",
-          phase: "GAME_COMPLETE",
-          termEndsAt: null,
-          completedAt: now,
-        },
-      })
-      if (completed.count === 0) throw new AnatomimeTrafficLimitError(503)
+  try {
+    return await prisma.$transaction(async (tx) => {
+      if (room.currentRun && room.currentRun.status === "PLAYING") {
+        const completed = await tx.anatomimeGameRun.updateMany({
+          where: { roomId: room.id, id: room.currentRun.id, status: "PLAYING" },
+          data: {
+            status: "GAME_COMPLETE",
+            phase: "GAME_COMPLETE",
+            termEndsAt: null,
+            completedAt: now,
+          },
+        })
+        if (completed.count === 0) throw new ExpirationWriteConflictError()
+
+        const expired = await tx.anatomimeRoom.updateMany({
+          where: {
+            id: room.id,
+            status: { not: "EXPIRED" },
+            expiresAt: { lte: now },
+          },
+          data: { status: "EXPIRED" },
+        })
+        // Keep the GameRun -> Room lock order used by normal transitions. A
+        // lost write rolls this transaction back before the winner is reread.
+        if (expired.count === 0) throw new ExpirationWriteConflictError()
+
+        return {
+          ...room,
+          status: "EXPIRED",
+          currentRun: {
+            ...room.currentRun,
+            status: "GAME_COMPLETE",
+            phase: "GAME_COMPLETE",
+            termEndsAt: null,
+            completedAt: now,
+          },
+        }
+      }
 
       const expired = await tx.anatomimeRoom.updateMany({
         where: {
@@ -588,35 +619,19 @@ async function expireRoomIfIdle(
         },
         data: { status: "EXPIRED" },
       })
-      // Keep the GameRun -> Room lock order used by normal transitions. A
-      // lost conditional write aborts this transaction so callers can retry.
-      if (expired.count === 0) throw new AnatomimeTrafficLimitError(503)
+      if (expired.count === 0) throw new ExpirationWriteConflictError()
 
-      return {
-        ...room,
-        status: "EXPIRED",
-        currentRun: {
-          ...room.currentRun,
-          status: "GAME_COMPLETE",
-          phase: "GAME_COMPLETE",
-          termEndsAt: null,
-          completedAt: now,
-        },
-      }
-    }
-
-    const expired = await tx.anatomimeRoom.updateMany({
-      where: {
-        id: room.id,
-        status: { not: "EXPIRED" },
-        expiresAt: { lte: now },
-      },
-      data: { status: "EXPIRED" },
+      return { ...room, status: "EXPIRED" }
     })
-    if (expired.count === 0) throw new AnatomimeTrafficLimitError(503)
-
-    return { ...room, status: "EXPIRED" }
-  })
+  } catch (error) {
+    if (!(error instanceof ExpirationWriteConflictError)) throw error
+    const concurrentRoom = await prisma.anatomimeRoom.findUnique({
+      where: { id: room.id },
+      include: roomInclude,
+    })
+    if (concurrentRoom?.status === "EXPIRED") return concurrentRoom
+    throw new AnatomimeTrafficLimitError(503)
+  }
 }
 
 async function markViewerSeen(room: AnatomimeRoomWithRelations, viewer: ViewerContext = {}, now = new Date()) {
@@ -1004,7 +1019,7 @@ export async function loadAnatomimeRoom(
   options: { now?: Date; beforeResolve?: AnatomimeRoomResolveGuard } = {},
 ) {
   const room = await prisma.anatomimeRoom.findUnique({
-    where: { code: publicCode(code) },
+    where: { code: normalizeAnatomimeRoomIdentifier(code) },
     include: roomInclude,
   })
   if (!room) return null
@@ -1030,7 +1045,7 @@ export async function joinAnatomimeRoom(
 ) {
   // Admission validation must stay read-only until the operational guard allows persistence.
   const room = await prisma.anatomimeRoom.findUnique({
-    where: { code: publicCode(code) },
+    where: { code: normalizeAnatomimeRoomIdentifier(code) },
     include: roomInclude,
   })
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
