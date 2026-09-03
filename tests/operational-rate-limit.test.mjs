@@ -139,6 +139,7 @@ function compareCodeUnits(left, right) {
   return left < right ? -1 : left > right ? 1 : 0
 }
 
+/** Mirrors the cleanup query's stale-row AND inactive-block predicate as a test oracle. */
 function matchesCleanupWhere(row, where) {
   const stale = row.updatedAt < where.updatedAt.lt
   const inactive = where.OR?.some((clause) => (
@@ -392,7 +393,7 @@ describe("operational rate-limit service", () => {
     ])).count, 2)
   })
 
-  it("maps invalid input, missing secret, and exhausted transaction retries to unavailable", async () => {
+  it("maps invalid input, missing secret, non-retryable errors, and exhausted retries to unavailable", async () => {
     assert.deepEqual(await consumeOperationalRateLimit({
       operation: "PROBLEM_REPORT",
       networkIdentifier: "",
@@ -417,6 +418,18 @@ describe("operational rate-limit service", () => {
       shouldPrune: () => false,
     }), { allowed: false, reason: "UNAVAILABLE" })
     assert.equal(client.transactionAttempts, 3)
+
+    const nonRetryableClient = new InMemoryOperationalRateLimitClient()
+    nonRetryableClient.forceTransactionError = new Error("transaction unavailable")
+    assert.deepEqual(await consumeOperationalRateLimit({
+      operation: "PROBLEM_REPORT",
+      networkIdentifier: "net",
+      prismaClient: nonRetryableClient,
+      secret: SECRET,
+      now: BASE_TIME,
+      shouldPrune: () => false,
+    }), { allowed: false, reason: "UNAVAILABLE" })
+    assert.equal(nonRetryableClient.transactionAttempts, 1)
   })
 
   it("bounds cleanup and repeats stale predicates to preserve reactivated rows", async () => {

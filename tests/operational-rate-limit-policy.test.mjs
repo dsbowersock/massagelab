@@ -44,10 +44,12 @@ const EXPECTED_POLICIES = new Map([
   ["email.total.global.24h.v1", ["GLOBAL", 90, 24 * HOUR]],
 ])
 
+/** Projects one resolved request into the ordered policy identifiers asserted by combination tests. */
 function policies(request) {
   return resolveOperationalRateLimitRules(request)?.map((rule) => rule.policy) ?? []
 }
 
+/** Builds one expected rule from the closed metadata oracle and its normalized subject components. */
 function expectedRule(policy, normalizedSubjectComponents) {
   const metadata = EXPECTED_POLICIES.get(policy)
   assert.ok(metadata, `missing expected metadata for ${policy}`)
@@ -55,6 +57,7 @@ function expectedRule(policy, normalizedSubjectComponents) {
   return { policy, scope, limit, windowMs, normalizedSubjectComponents }
 }
 
+/** Converts table-shaped policy/component pairs into complete expected resolver output. */
 function expectedRules(entries) {
   return entries.map(([policy, components]) => expectedRule(policy, components))
 }

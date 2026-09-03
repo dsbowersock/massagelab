@@ -352,7 +352,7 @@ Commit: `feat: enforce deployment-wide email ceilings`
 
 - [ ] **Step 1: Update only verified current state**
 
-Record the new additive migration as the pending 46th migration requiring separate authorization, the exact test receipts, the no-email/no-provider boundary, and additive rollback posture. Do not silently rewrite the status of prior migrations without current evidence.
+Record the new additive migration as the pending 46th migration requiring separate authorization, the exact test receipts, the no-email/no-provider boundary, and additive rollback posture. Preserve the exact-zero `AdminEmailIntent` gate rationale: PostgreSQL permits multiple `NULL` values in the unique claim-operation-key index, so nullable expansion values do not collide, but the exact-zero gate is deliberately stronger because it verifies the expected pre-claim-aware rollout state and forces non-concurrent index lock/application-plan re-review if any row exists. Do not silently rewrite the status of prior migrations without current evidence.
 
 - [ ] **Step 2: Run exact-head validation**
 

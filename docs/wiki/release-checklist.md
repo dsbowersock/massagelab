@@ -112,7 +112,12 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
   that exact authorized direct target. The current read-only aggregate evidence
   is `0`, but it must be refreshed. Proceed only when the exact count is `0`;
   any nonzero count must stop migration and trigger re-review. Do not connect or
-  query Production without separate authorization.
+  query Production without separate authorization. PostgreSQL permits multiple
+  `NULL` values in the unique claim-operation-key index, so nullable expansion
+  values do not collide. The exact-zero gate is deliberately stronger than that
+  uniqueness prerequisite: it verifies the expected pre-claim-aware rollout
+  state and forces non-concurrent index lock/application-plan re-review if any
+  row exists.
 - Prove outbound mail classification at the exact candidate: public-auth mail
   consumes both 70/global/fixed-24h and 90-total/global/fixed-24h, security mail
   consumes only the total 90, unknown classification and limiter unavailability

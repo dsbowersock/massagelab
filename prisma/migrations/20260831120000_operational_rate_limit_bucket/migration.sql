@@ -27,8 +27,12 @@ ALTER TABLE "AdminEmailIntent"
   ADD COLUMN "deliveryClaimOperationKeyHash" TEXT;
 
 -- Intentionally non-concurrent: the immediately-before-migration Production
--- preflight must prove AdminEmailIntent contains exactly zero rows. Keeping
--- this index in the approved single migration preserves atomic application.
+-- preflight must prove AdminEmailIntent contains exactly zero rows. PostgreSQL
+-- permits multiple NULL values in this unique index, so nullable expansion rows
+-- would not collide. The exact-zero gate is deliberately stronger: it verifies
+-- the expected pre-claim-aware rollout state and forces non-concurrent index
+-- lock/application-plan re-review on drift. The approved single migration
+-- preserves atomic application of the index with the expansion.
 CREATE UNIQUE INDEX "AdminEmailIntent_deliveryClaimOperationKeyHash_key"
   ON "AdminEmailIntent"("deliveryClaimOperationKeyHash");
 

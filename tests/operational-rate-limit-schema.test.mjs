@@ -192,6 +192,7 @@ describe("operational rate-limit persistence", () => {
 
   it("requires a fresh zero-row preflight and preserves the completed membership rollout", () => {
     assert.match(migration, /intentionally non-concurrent[\s\S]*exactly zero rows[\s\S]*approved single migration/i)
+    assert.match(migration, /multiple NULL values[\s\S]*would not collide[\s\S]*exact-zero gate[\s\S]*deliberately stronger[\s\S]*rollout state[\s\S]*lock[\s\S]*re-review/i)
     assert.doesNotMatch(
       migration,
       /CREATE\s+UNIQUE\s+INDEX\s+CONCURRENTLY\s+"AdminEmailIntent_deliveryClaimOperationKeyHash_key"/i,
@@ -203,6 +204,14 @@ describe("operational rate-limit persistence", () => {
       assert.match(source, /current read-only aggregate evidence\s+is `0`[^.]*must be refreshed/i, label)
       assert.match(source, /proceed only when the exact count is `0`/i, label)
       assert.match(source, /nonzero[^.]*stop[^.]*re-review/i, label)
+    }
+    for (const [label, source] of [
+      ["deployment", deployment],
+      ["release checklist", releaseChecklist],
+      ["binding design", hardeningDesign],
+      ["operational limiter plan", operationalLimiterPlan],
+    ]) {
+      assert.match(source, /multiple\s+`NULL`\s+values[\s\S]*do not collide[\s\S]*exact-zero gate[\s\S]*deliberately stronger[\s\S]*rollout\s+state[\s\S]*lock[\s\S]*re-review/i, label)
     }
 
     assert.match(hardeningDesign, /five identity and membership migrations[\s\S]*bridge ceremony[\s\S]*complete[\s\S]*writes enabled/i)

@@ -185,6 +185,15 @@ describe("admin operation service", () => {
       ),
       { message: "Invalid fake intent Date value for deliveryClaimExpiresAt" },
     )
+    for (const invalidBound of ["2026-08-08T14:06:00.000Z", new Date(Number.NaN)]) {
+      assert.throws(
+        () => matchesIntentWhere(
+          { deliveryClaimExpiresAt: new Date(claimExpiry) },
+          { deliveryClaimExpiresAt: { lt: invalidBound } },
+        ),
+        { message: "Invalid fake intent lt predicate for deliveryClaimExpiresAt" },
+      )
+    }
     assert.throws(
       () => matchesIntentWhere(
         { status: "PENDING" },
@@ -1569,7 +1578,12 @@ function matchesIntentWhere(intent, where) {
       }
       if (Object.hasOwn(expected, "in") && !expected.in.includes(actual)) return false
       if (Object.hasOwn(expected, "not") && actual === expected.not) return false
-      if (Object.hasOwn(expected, "lt") && !(actual instanceof Date && actual < expected.lt)) return false
+      if (Object.hasOwn(expected, "lt")) {
+        if (!(expected.lt instanceof Date) || !Number.isFinite(expected.lt.getTime())) {
+          throw new Error(`Invalid fake intent lt predicate for ${field}`)
+        }
+        if (!(actual instanceof Date && actual < expected.lt)) return false
+      }
       continue
     }
     if (actual !== expected) return false
