@@ -46,7 +46,7 @@ const POLL_HMAC_DOMAIN = "massagelab:anatomime-poll-shedder:v1"
 
 export function normalizeAnatomimeRoomIdentifier(value: string): string {
   return typeof value === "string"
-    ? value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+    ? value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6)
     : ""
 }
 

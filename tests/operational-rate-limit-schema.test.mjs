@@ -71,6 +71,18 @@ function modelBodyLines(source, modelName) {
     .filter((line) => line && !line.startsWith("//"))
 }
 
+/** Requires every clause in a documentation contract to occur within one paragraph. */
+function assertParagraphMatches(source, pattern, label) {
+  const paragraphs = source
+    .split(/\r?\n\s*\r?\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+  assert.ok(
+    paragraphs.some((paragraph) => pattern.test(paragraph)),
+    `${label}: expected one paragraph to match ${pattern}`,
+  )
+}
+
 /** Normalizes layout-only whitespace without weakening SQL token checks. */
 function normalizeSql(value) {
   return value
@@ -409,31 +421,39 @@ COMMIT;
   })
 
   it("requires non-consuming Anatomime ingress and one-snapshot atomic poll resolution", () => {
+    assert.throws(
+      () => assertParagraphMatches(
+        "one room read\n\nsame loaded snapshot",
+        /one room read[\s\S]*same loaded snapshot/i,
+        "split-paragraph fixture",
+      ),
+      /split-paragraph fixture/,
+    )
     for (const [label, source] of [
       ["binding design", hardeningDesign],
       ["Anatomime plan", anatomimeTrafficPlan],
     ]) {
-      assert.match(
+      assertParagraphMatches(
         source,
         /non-consuming `peekIngress`[\s\S]*denial makes no credential or room lookup/i,
         label,
       )
-      assert.match(
+      assertParagraphMatches(
         source,
-        /one room (?:query|read)[\s\S]*(?:same|sole) (?:loaded )?snapshot[\s\S]*pre-resolution guard[\s\S]*before (?:expiration|presence)/i,
+        /^(?=[\s\S]*one room (?:query|read))(?=[\s\S]*(?:same|sole) (?:loaded )?snapshot)(?=[\s\S]*pre-resolution guard)(?=[\s\S]*before (?:expiration|presence))[\s\S]*$/i,
         label,
       )
-      assert.match(
+      assertParagraphMatches(
         source,
         /same (?:loaded )?snapshot[\s\S]*(?:no second room (?:query|read)|does not[^.]*read another)/i,
         label,
       )
-      assert.match(
+      assertParagraphMatches(
         source,
         /`consumeJoined`[\s\S]*`networkIdentifier`[\s\S]*`roomIdentifier`[\s\S]*`playerId`[\s\S]*atomically checks[\s\S]*network\+room[\s\S]*room[\s\S]*player[\s\S]*increments none/i,
         label,
       )
-      assert.match(
+      assertParagraphMatches(
         source,
         /`UNJOINED`[\s\S]*`INVALID`[\s\S]*durable quota semantics remain unchanged/i,
         label,

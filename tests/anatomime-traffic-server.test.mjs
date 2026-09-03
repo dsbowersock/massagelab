@@ -15,6 +15,7 @@ import {
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
 const roomServerSource = await readFile(new URL("../lib/anatomime-room-server.ts", import.meta.url), "utf8")
+const trafficServerSource = await readFile(new URL("../lib/anatomime-traffic-server.ts", import.meta.url), "utf8")
 const { anatomimeErrorResponse } = loadCompiledModule(apiSource, "lib/anatomime-api.ts", {
   "next/server": {
     NextResponse: {
@@ -29,6 +30,13 @@ const { anatomimeErrorResponse } = loadCompiledModule(apiSource, "lib/anatomime-
 })
 
 describe("Anatomime traffic server primitives", () => {
+  it("normalizes room selectors to the canonical six-character namespace", () => {
+    assert.equal(normalizeAnatomimeRoomIdentifier(" a-b c12 3 "), "ABC123")
+    assert.equal(normalizeAnatomimeRoomIdentifier("ABC123-first-tail"), "ABC123")
+    assert.equal(normalizeAnatomimeRoomIdentifier("abc123-second-tail"), "ABC123")
+    assert.equal(normalizeAnatomimeRoomIdentifier("---"), "")
+  })
+
   it("normalizes the room selector and gives an authenticated mapping precedence in one narrow query", async () => {
     const calls = []
     const prismaClient = roomPreflightClient(calls, {
@@ -226,7 +234,7 @@ describe("Anatomime traffic server primitives", () => {
     }), { allowed: false, retryAfterSeconds: 1 })
   })
 
-  it("mutates no local bucket when any joined rule denies", { concurrency: false }, () => {
+  it("mutates no local bucket when any joined rule denies", () => {
     const start = new Date("2026-08-31T12:00:00.000Z")
     const playerFull = createAnatomimePollShedder({ secret: "shedder-secret" })
     for (let index = 0; index < 20; index += 1) {
@@ -260,59 +268,68 @@ describe("Anatomime traffic server primitives", () => {
       }
     }
 
-    const observedSets = []
-    const originalSet = Map.prototype.set
-    Map.prototype.set = function recordingSet(key, value) {
-      observedSets.push(key)
-      return originalSet.call(this, key, value)
-    }
-    try {
+    const playerFullSize = playerFull.size
+    assert.equal(playerFull.consumeJoined({
+      networkIdentifier: "network-a",
+      roomIdentifier: "ROOM1",
+      playerId: "player-full",
+      now: start,
+    }).allowed, false)
+    assert.equal(playerFull.size, playerFullSize)
+    for (let index = 0; index < 129; index += 1) {
       assert.equal(playerFull.consumeJoined({
         networkIdentifier: "network-a",
         roomIdentifier: "ROOM1",
-        playerId: "player-full",
+        playerId: `follow-up-player-${index}`,
         now: start,
-      }).allowed, false)
-      assert.equal(networkRoomFull.consumeJoined({
-        networkIdentifier: "network-full",
-        roomIdentifier: "ROOM1",
-        playerId: "network-denied-player",
-        now: start,
-      }).allowed, false)
-      assert.equal(roomFull.consumeJoined({
-        networkIdentifier: "network-c",
-        roomIdentifier: "ROOM1",
-        playerId: "room-denied-player",
-        now: start,
-      }).allowed, false)
-    } finally {
-      Map.prototype.set = originalSet
+      }).allowed, true)
     }
-    assert.deepEqual(observedSets, [])
+    assert.equal(playerFull.consumeJoined({
+      networkIdentifier: "network-a",
+      roomIdentifier: "ROOM1",
+      playerId: "network-boundary-player",
+      now: start,
+    }).allowed, true)
+
+    const networkRoomFullSize = networkRoomFull.size
+    assert.equal(networkRoomFull.consumeJoined({
+      networkIdentifier: "network-full",
+      roomIdentifier: "ROOM1",
+      playerId: "network-denied-player",
+      now: start,
+    }).allowed, false)
+    assert.equal(networkRoomFull.size, networkRoomFullSize)
+
+    const roomFullSize = roomFull.size
+    assert.equal(roomFull.consumeJoined({
+      networkIdentifier: "network-c",
+      roomIdentifier: "ROOM1",
+      playerId: "room-denied-player",
+      now: start,
+    }).allowed, false)
+    assert.equal(roomFull.size, roomFullSize)
   })
 
-  it("stores only tuple-safe HMAC keys", { concurrency: false }, () => {
-    const observedKeys = []
-    const originalSet = Map.prototype.set
-    Map.prototype.set = function recordingSet(key, value) {
-      observedKeys.push(key)
-      return originalSet.call(this, key, value)
-    }
-    try {
-      const shedder = createAnatomimePollShedder({ secret: "shedder-secret" })
-      shedder.consumeJoined({
-        networkIdentifier: "raw-network",
-        roomIdentifier: "RAWROOM",
-        playerId: "raw-player",
-      })
-    } finally {
-      Map.prototype.set = originalSet
-    }
+  it("keeps tuple-safe HMAC bucket identities without patching global Map behavior", () => {
+    const shedder = createAnatomimePollShedder({ secret: "shedder-secret", maxEntries: 4 })
+    assert.deepEqual(shedder.consumeJoined({
+      networkIdentifier: "left|middle",
+      roomIdentifier: "right",
+      playerId: "shared-player",
+    }), { allowed: true })
+    assert.equal(shedder.size, 3)
 
-    assert.equal(observedKeys.length, 3)
-    assert.equal(new Set(observedKeys).size, 3)
-    assert.equal(observedKeys.every((key) => typeof key === "string" && /^[0-9a-f]{64}$/.test(key)), true)
-    assert.doesNotMatch(JSON.stringify(observedKeys), /raw-network|RAWROOM|raw-player/)
+    assert.deepEqual(shedder.consumeJoined({
+      networkIdentifier: "left",
+      roomIdentifier: "middle|right",
+      playerId: "shared-player",
+    }), { allowed: false, retryAfterSeconds: 10 })
+    assert.equal(shedder.size, 3)
+    assert.match(trafficServerSource, /createHmac\("sha256", secret\)/)
+    assert.match(
+      trafficServerSource,
+      /appendLengthPrefixed\(hmac, POLL_HMAC_DOMAIN\)[\s\S]*appendLengthPrefixed\(hmac, rule\)[\s\S]*for \(const component of components\) appendLengthPrefixed\(hmac, component\)/,
+    )
   })
 
   it("prunes expired entries before insertion and fails closed at the 4,096 active-entry cap", () => {
@@ -347,7 +364,7 @@ describe("Anatomime traffic server primitives", () => {
     for (let index = 0; index < 1_365; index += 1) {
       assert.deepEqual(full.consumeJoined({
         networkIdentifier: `network-${index}`,
-        roomIdentifier: `ROOM${index}`,
+        roomIdentifier: `R${index.toString(36).padStart(5, "0")}`,
         playerId: `player-${index}`,
         now: start,
       }), { allowed: true })
@@ -355,14 +372,14 @@ describe("Anatomime traffic server primitives", () => {
     assert.equal(full.size, 4_095)
     assert.deepEqual(full.consumeJoined({
       networkIdentifier: "network-0",
-      roomIdentifier: "ROOM0",
+      roomIdentifier: "R00000",
       playerId: "player-last-slot",
       now: start,
     }), { allowed: true })
     assert.equal(full.size, 4_096)
     assert.deepEqual(full.consumeJoined({
       networkIdentifier: "network-0",
-      roomIdentifier: "ROOM0",
+      roomIdentifier: "R00000",
       playerId: "player-over-cap",
       now: start,
     }), {

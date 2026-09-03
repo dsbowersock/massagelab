@@ -17,6 +17,7 @@
 - Do not add or change schema/migrations.
 - Player IDs and room codes remain public selectors, never credentials. Authenticated user mapping wins; guest proof requires the stored player selector plus matching opaque token.
 - Do not write raw network, room, or player identifiers into the local shedder; use HMAC-reduced keys only.
+- Normalize every public room selector by trim, uppercase, non-alphanumeric removal, and a final six-character cap so all consumers share the canonical room-code namespace.
 - Valid joined polls use local shedding, not durable quota rows. Unjoined/bogus lookup traffic uses the durable limiter.
 - Tests must stub Ably and intercept browser traffic; no real provider call.
 - Do not push, merge, deploy, apply migrations, or change provider settings.
@@ -128,7 +129,7 @@ export function nextAnatomimePollSchedule(input: {
   | { action: "STOP"; reason: "ROOM_ENDED" | "REJOIN_REQUIRED" }
 ```
 
-Scheduling is exactly 2 seconds for `PLAYING`/`ACTIVE_TERM`, 5 seconds for lobby/review/other idle states, 15 seconds for a hidden successful page, and 2/4/8/16/30 seconds plus bounded positive jitter for failures with a 30-second cap. A `429` waits at least its integer `Retry-After`; `404` and credentialed `401/403` stop.
+Scheduling is exactly 2 seconds for `PLAYING`/`ACTIVE_TERM`, 5 seconds for lobby/review/other idle states, 15 seconds for a hidden successful page, and 2/4/8/16/30 seconds plus bounded positive jitter for failures with a 30-second cap. The terminal failure step retains jitter by shifting its jitter range below that cap instead of clamping every random result to the same value. A `429` waits at least its nonnegative integer `Retry-After`, capped at 30 seconds; `404` and credentialed `401/403` stop.
 
 ---
 
@@ -141,7 +142,7 @@ Scheduling is exactly 2 seconds for `PLAYING`/`ACTIVE_TERM`, 5 seconds for lobby
 
 - [ ] **Step 1: Write RED coverage**
 
-Prove authenticated mapping precedence, matching guest selector/token proof, `INVALID` mismatches, `UNJOINED` absence, one exact narrow query, PR A denial/unavailability mapping, non-consuming ingress peeks, atomic joined local rule checks, final-slot behavior, integer retries, HMAC-only map keys, expiry pruning, 4,096-entry cap, and 15-second presence coalescing. Specifically prove `consumeJoined` receives network, room, and player identifiers; atomically checks the network+room, room, and player rules; and increments none when any rule denies.
+Prove authenticated mapping precedence, matching guest selector/token proof, `INVALID` mismatches, `UNJOINED` absence, one exact narrow query, PR A denial/unavailability mapping, six-character room-selector normalization and long-input collisions, non-consuming ingress peeks, atomic joined local rule checks, final-slot behavior, integer retries, HMAC-only map keys, expiry pruning, 4,096-entry cap, and 15-second presence coalescing. Specifically prove `consumeJoined` receives network, room, and player identifiers; atomically checks the network+room, room, and player rules; and increments none when any rule denies.
 
 - [ ] **Step 2: Run RED**
 
@@ -206,7 +207,7 @@ Expected: no operational calls, pre-persist guard, or retry mapping.
 
 - [ ] **Step 3: Add the guards at the validated mutation boundary**
 
-For create, run existing setup/deck validation, then `beforePersist`, then uniqueness lookup/transaction. For join, run existing room/input/status/team/re-entry validation, then `beforePersist`, then transaction revalidation and write.
+For create, run existing setup/deck validation, then `beforePersist`, then uniqueness lookup/transaction. For join, run existing room/input/status/team/re-entry validation, then `beforePersist`, then transaction revalidation and write. Resolve credential ownership, `canJoinRoom`, and team availability through one pure snapshot-and-clock helper in both phases so the predicates cannot drift, while the transaction's fresh snapshot and clock remain authoritative.
 
 - [ ] **Step 4: Run GREEN**
 
@@ -272,7 +273,7 @@ export async function loadAnatomimeRoom(
 
 - [ ] **Step 1: Write poll/presence RED coverage**
 
-Prove the non-consuming `peekIngress` denial makes no credential or room lookup and changes no local counter. After an allowed peek, prove exactly one room read supplies both authoritative viewer classification and the final summary. The pre-resolution guard must call one `consumeJoined` for a `JOINED` viewer with `networkIdentifier`, `roomIdentifier`, and `playerId`; it atomically checks network+room, room, and player rules and increments none when any rule denies. Denied joined, unjoined, or invalid requests may have completed that sole read, but must stop before expiration/presence resolution and summary. Prove an allowed joined consume increments every applicable counter and accepted credentialed polls perform no durable quota write. Bogus candidates use the same loaded-snapshot classification plus durable quota; invalid proof still returns generic rejoin guidance; presence writes at most once per player/15s.
+Prove the non-consuming `peekIngress` denial makes no credential or room lookup and changes no local counter. After an allowed peek, prove exactly one room read supplies the same loaded snapshot for both authoritative viewer classification and the final summary. The pre-resolution guard must call one `consumeJoined` for a `JOINED` viewer with `networkIdentifier`, `roomIdentifier`, and `playerId`; it atomically checks network+room, room, and player rules and increments none when any rule denies. Denied joined, unjoined, or invalid requests may have completed that sole read, but must stop before expiration/presence resolution and summary. Prove an allowed joined consume increments every applicable counter and accepted credentialed polls perform no durable quota write. Bogus candidates use the same loaded-snapshot classification plus durable quota; invalid proof still returns generic rejoin guidance; presence writes at most once per player/15s.
 
 - [ ] **Step 2: Run RED**
 
@@ -309,7 +310,7 @@ Commit: `perf(anatomime): shed polls and coalesce presence`
 
 - [ ] **Step 1: Write scheduler RED coverage**
 
-Assert active/idle/hidden cadence, deterministic failure sequence with injected randomness, 30-second cap, exact `Retry-After` floor, and terminal 404/rejoin stop.
+Assert active/idle/hidden cadence, deterministic failure sequence with injected randomness, positive jitter at the terminal failure step, 30-second cap, a `Retry-After` floor bounded by that cap, and terminal 404/rejoin stop.
 
 - [ ] **Step 2: Run unit RED**
 
@@ -321,7 +322,7 @@ Expected: no scheduler and fixed 1.5-second loops.
 
 - [ ] **Step 3: Implement scheduler and client adoption**
 
-Use self-scheduling timeouts with abortable fetches; reset failures on success; never automatically replay create/join/token after a terminal or ambiguous result. Keep status messages in an accessible live region and disable controls only through the accepted retry window.
+Use self-scheduling timeouts with abortable fetches; reset failures on success; never automatically replay create/join/token after a terminal or ambiguous result. Keep status messages in an accessible live region and disable controls only through the accepted retry window. While the first lookup has no snapshot, announce `Loading shared game…`; if it fails, retain accessible failure feedback and restore the room-code entry panel as an escape path. Scheduled background polls stay quiet.
 
 - [ ] **Step 4: Run unit GREEN and browser RED/GREEN**
 

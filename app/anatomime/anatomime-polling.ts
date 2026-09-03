@@ -206,7 +206,8 @@ export async function fetchAnatomimeRoomSnapshot(input: {
 
 /**
  * Chooses the next one-shot poll. Successful snapshots reset recovery state;
- * failures use bounded positive jitter, while server Retry-After is a floor.
+ * failures use cap-aware bounded jitter, while a bounded server Retry-After is
+ * a floor.
  */
 export function nextAnatomimePollSchedule(input: {
   result: AnatomimeRoomFetchResult
@@ -237,10 +238,12 @@ export function nextAnatomimePollSchedule(input: {
   const baseDelayMs = FAILURE_DELAYS_MS[Math.min(consecutiveFailures - 1, FAILURE_DELAYS_MS.length - 1)]
   const rawRandom = (input.random ?? Math.random)()
   const boundedRandom = Math.min(1, Math.max(0, Number.isFinite(rawRandom) ? rawRandom : 0))
-  const jitterMs = Math.max(1, Math.floor(baseDelayMs * FAILURE_JITTER_FRACTION * boundedRandom))
-  const boundedFailureDelayMs = Math.min(MAX_FAILURE_DELAY_MS, baseDelayMs + jitterMs)
+  const jitterRangeMs = Math.max(1, Math.floor(baseDelayMs * FAILURE_JITTER_FRACTION))
+  const jitterStartMs = Math.min(baseDelayMs, MAX_FAILURE_DELAY_MS - jitterRangeMs)
+  const jitterMs = Math.max(1, Math.floor(jitterRangeMs * boundedRandom))
+  const boundedFailureDelayMs = Math.min(MAX_FAILURE_DELAY_MS, jitterStartMs + jitterMs)
   const retryFloorMs = input.result.kind === "RATE_LIMITED"
-    ? input.result.retryAfterSeconds * 1_000
+    ? Math.min(MAX_FAILURE_DELAY_MS, Math.max(0, input.result.retryAfterSeconds * 1_000))
     : 0
 
   return {

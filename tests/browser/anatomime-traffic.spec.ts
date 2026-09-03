@@ -125,6 +125,18 @@ async function installNoProviderBoundary(page: Page) {
   return () => providerRequests
 }
 
+const providerRequestCounters = new WeakMap<Page, () => number>()
+
+test.beforeEach(async ({ page }) => {
+  providerRequestCounters.set(page, await installNoProviderBoundary(page))
+})
+
+function providerRequests(page: Page) {
+  const currentCount = providerRequestCounters.get(page)
+  if (!currentCount) throw new Error("Anatomime provider boundary was not installed for this page.")
+  return currentCount()
+}
+
 async function fulfillJson(route: Route, status: number, body: unknown, headers?: Record<string, string>) {
   await route.fulfill({
     status,
@@ -154,7 +166,6 @@ function responseGate() {
 test("player polling uses credential-bound tokens with 2s visible and 15s hidden cadence", async ({ page }) => {
   await page.clock.install()
   await installPlayerRuntime(page)
-  const providerRequests = await installNoProviderBoundary(page)
   let pollCount = 0
   let currentSession = roomSession({ status: "PLAYING", phase: "ACTIVE_TERM" })
   let tokenHeaders: Record<string, string> | null = null
@@ -216,13 +227,33 @@ test("player polling uses credential-bound tokens with 2s visible and 15s hidden
   await page.clock.fastForward(1)
   await expect.poll(() => pollCount).toBe(4)
   expect(tokenCount).toBe(1)
-  expect(providerRequests()).toBe(0)
+  expect(providerRequests(page)).toBe(0)
+})
+
+test("a failed first lookup keeps feedback and restores room-code escape", async ({ page }) => {
+  await installPlayerRuntime(page, { storedPlayer: false })
+  const firstPollResponse = responseGate()
+
+  await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
+    await firstPollResponse.wait
+    await fulfillJson(route, 503, { error: "Temporarily unavailable." })
+  })
+
+  await page.goto(`/anatomime/join?code=${ROOM_CODE}`, { waitUntil: "domcontentloaded" })
+  const initialLoading = page.getByRole("status").filter({ hasText: "Loading shared game…" })
+  await expect(initialLoading).toBeVisible()
+  firstPollResponse.release()
+
+  await expect(initialLoading).toHaveCount(0)
+  await expect(page.getByRole("status").filter({ hasText: "Connection interrupted" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Game Code" })).toBeVisible()
+  await expect(page.getByLabel("Code")).toHaveValue(ROOM_CODE)
+  expect(providerRequests(page)).toBe(0)
 })
 
 test("player polling backs off through 2/4/8/16/30 seconds and resets after success", async ({ page }) => {
   await page.clock.install()
   await installPlayerRuntime(page)
-  const providerRequests = await installNoProviderBoundary(page)
   let pollCount = 0
   const firstPollResponse = responseGate()
 
@@ -249,7 +280,7 @@ test("player polling backs off through 2/4/8/16/30 seconds and resets after succ
   await expect(page.getByText(/Connection interrupted/i)).toBeVisible()
   await expect(initialLoading).toHaveCount(0)
 
-  for (const delay of [2_001, 4_001, 8_001, 16_001, 30_000]) {
+  for (const delay of [2_001, 4_001, 8_001, 16_001, 27_001]) {
     const before = pollCount
     await triggerRealtimeSignal(page)
     expect(pollCount).toBe(before)
@@ -266,7 +297,7 @@ test("player polling backs off through 2/4/8/16/30 seconds and resets after succ
   await expect.poll(() => pollCount).toBe(7)
   await triggerRealtimeSignal(page)
   await expect.poll(() => pollCount).toBe(8)
-  expect(providerRequests()).toBe(0)
+  expect(providerRequests(page)).toBe(0)
 })
 
 test("player polling honors Retry-After before recovery", async ({ page }) => {
@@ -300,6 +331,7 @@ test("player polling honors Retry-After before recovery", async ({ page }) => {
   expect(pollCount).toBe(1)
   await page.clock.fastForward(1)
   await expect.poll(() => pollCount).toBe(2)
+  expect(providerRequests(page)).toBe(0)
 })
 
 test("successful ended, missing, and rejoin-required responses stop polling with deliberate recovery", async ({ page }) => {
@@ -338,6 +370,7 @@ test("successful ended, missing, and rejoin-required responses stop polling with
   await expect(page.getByRole("button", { name: "Clear Saved Player" })).toBeVisible()
   await page.clock.fastForward(60_000)
   expect(pollCount).toBe(3)
+  expect(providerRequests(page)).toBe(0)
 })
 
 test("host review polling continues at 5s and stops on a successful ended snapshot", async ({ page }) => {
@@ -393,6 +426,7 @@ test("host review polling continues at 5s and stops on a successful ended snapsh
   await expect(page.getByText("Shared game ended", { exact: true })).toBeVisible()
   await page.clock.fastForward(60_000)
   expect(hostPollCount).toBe(3)
+  expect(providerRequests(page)).toBe(0)
 })
 
 test("host refresh cannot bypass Retry-After or failed-poll recovery", async ({ page }) => {
@@ -451,6 +485,7 @@ test("host refresh cannot bypass Retry-After or failed-poll recovery", async ({ 
   expect(hostPollCount).toBe(2)
   await page.clock.fastForward(1)
   await expect.poll(() => hostPollCount).toBe(3)
+  expect(providerRequests(page)).toBe(0)
 })
 
 test("create honors Retry-After lockout without replaying automatically", async ({ page }) => {
@@ -493,6 +528,7 @@ test("create honors Retry-After lockout without replaying automatically", async 
   expect(createCount).toBe(1)
   await page.getByRole("button", { name: /Create Shared Game/i }).click()
   await expect.poll(() => createCount).toBe(2)
+  expect(providerRequests(page)).toBe(0)
 })
 
 test("join honors Retry-After lockout without replaying automatically", async ({ page }) => {
@@ -540,4 +576,5 @@ test("join honors Retry-After lockout without replaying automatically", async ({
   expect(joinCount).toBe(1)
   await page.getByRole("button", { name: /Join Team/i }).click()
   await expect.poll(() => joinCount).toBe(2)
+  expect(providerRequests(page)).toBe(0)
 })

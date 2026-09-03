@@ -66,7 +66,7 @@ const feedbackCopy: Record<string, string> = {
 
 /** Keeps every browser-side room identity aligned with the server's canonical room code. */
 export function normalizeAnatomimeClientRoomCode(value: string) {
-  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6)
 }
 
 function storageKey(code: string) {
@@ -354,6 +354,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   const termKey = activeTermKey(session)
   const attempt = attemptsByTerm[termKey] ?? emptyAttempt()
   const joined = Boolean(storedPlayer && session?.viewer.playerId)
+  const showCodeEntry = !lookupCode || (!initialLookupPending && !session && !pollTerminal)
   const joinRetrySeconds = Math.max(0, Math.ceil((joinRetryUntil - now) / 1_000))
   const joinLocked = joiningGame || joinRetrySeconds > 0
   const activeTeamName = session?.activeTeam?.name ?? ""
@@ -676,7 +677,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
           </section>
         ) : null}
 
-        {!lookupCode ? (
+        {showCodeEntry ? (
           <section className="anatomime-panel">
             <div className="anatomime-section-heading">
               <h2>Game Code</h2>

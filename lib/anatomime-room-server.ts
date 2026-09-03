@@ -284,6 +284,63 @@ function playerTokenMatches(player: { guestTokenHash: string | null }, token?: s
   return Boolean(token && player.guestTokenHash && hashToken(token) === player.guestTokenHash)
 }
 
+/**
+ * Resolves join credentials, room admission, and team availability from one
+ * immutable room snapshot and one clock value. Both the read-only preflight
+ * and transactional revalidation use this resolver so their decisions cannot
+ * drift while the database transaction remains authoritative.
+ */
+function resolveAnatomimeJoinAdmission({
+  room,
+  userId,
+  suppliedPlayerId,
+  suppliedToken,
+  hasSuppliedPlayerCredentials,
+  requestedTeamId,
+  now,
+}: {
+  room: AnatomimeRoomWithRelations
+  userId?: string | null
+  suppliedPlayerId: string
+  suppliedToken: string
+  hasSuppliedPlayerCredentials: boolean
+  requestedTeamId: string
+  now: Date
+}) {
+  const existingSignedInPlayer = userId ? room.players.find((player) => player.userId === userId) : null
+  const selectedPlayer = suppliedPlayerId
+    ? room.players.find((player) => player.id === suppliedPlayerId)
+    : null
+  const existingGuestPlayer = selectedPlayer?.userId === null && playerTokenMatches(selectedPlayer, suppliedToken)
+    ? selectedPlayer
+    : null
+  if (!existingSignedInPlayer && hasSuppliedPlayerCredentials && !existingGuestPlayer) {
+    throw roomError(403, "join-required", "Join this room before taking that action.")
+  }
+
+  const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
+  const joinStatus = canJoinRoom(
+    {
+      status: room.status,
+      endedAt: room.endedAt,
+      reviewExpiresAt: room.reviewExpiresAt,
+      expiresAt: room.expiresAt,
+      existingPlayerIds: room.players.map((player) => player.id),
+    },
+    { now, playerId: existingPlayer?.id ?? null },
+  )
+  if (!joinStatus.allowed) throw roomError(409, joinStatus.reason, "This room is no longer accepting new joins.")
+
+  const requestedTeam = room.teams.find((team) => team.id === requestedTeamId)
+  const fallbackTeam = room.teams[0] ?? null
+  const nextTeamId = requestedTeam?.id ?? fallbackTeam?.id ?? null
+  if (!existingPlayer && !nextTeamId) {
+    throw roomError(409, "no-teams", "This room has no available teams.")
+  }
+
+  return { existingPlayer, nextTeamId }
+}
+
 function viewerPlayer(room: AnatomimeRoomWithRelations, viewer: ViewerContext = {}) {
   if (viewer.userId) {
     const playerByUser = room.players.find((player) => player.userId === viewer.userId)
@@ -986,34 +1043,15 @@ export async function joinAnatomimeRoom(
   const hasSuppliedPlayerCredentials = Object.hasOwn(body, "playerId") || Object.hasOwn(body, "playerToken")
   const validationNow = new Date()
 
-  const existingSignedInPlayer = userId ? room.players.find((player) => player.userId === userId) : null
-  const selectedPlayer = suppliedPlayerId
-    ? room.players.find((player) => player.id === suppliedPlayerId)
-    : null
-  const existingGuestPlayer = selectedPlayer?.userId === null && playerTokenMatches(selectedPlayer, suppliedToken)
-    ? selectedPlayer
-    : null
-  if (!existingSignedInPlayer && hasSuppliedPlayerCredentials && !existingGuestPlayer) {
-    throw roomError(403, "join-required", "Join this room before taking that action.")
-  }
-  const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
-  const joinStatus = canJoinRoom(
-    {
-      status: room.status,
-      endedAt: room.endedAt,
-      reviewExpiresAt: room.reviewExpiresAt,
-      expiresAt: room.expiresAt,
-      existingPlayerIds: room.players.map((player) => player.id),
-    },
-    { now: validationNow, playerId: existingPlayer?.id ?? null },
-  )
-  if (!joinStatus.allowed) throw roomError(409, joinStatus.reason, "This room is no longer accepting new joins.")
-
-  const requestedTeam = room.teams.find((team) => team.id === requestedTeamId)
-  const fallbackTeam = room.teams[0] ?? null
-  if (!existingPlayer && !(requestedTeam?.id ?? fallbackTeam?.id)) {
-    throw roomError(409, "no-teams", "This room has no available teams.")
-  }
+  resolveAnatomimeJoinAdmission({
+    room,
+    userId,
+    suppliedPlayerId,
+    suppliedToken,
+    hasSuppliedPlayerCredentials,
+    requestedTeamId,
+    now: validationNow,
+  })
 
   await options.beforePersist?.()
 
@@ -1023,32 +1061,15 @@ export async function joinAnatomimeRoom(
   const updatedRoom = await prisma.$transaction(async (tx) => {
     const currentRoom = await reloadRoom(tx, room.id)
     const transactionNow = new Date()
-    const existingSignedInPlayer = userId ? currentRoom.players.find((player) => player.userId === userId) : null
-    const selectedPlayer = suppliedPlayerId
-      ? currentRoom.players.find((player) => player.id === suppliedPlayerId)
-      : null
-    const existingGuestPlayer = selectedPlayer?.userId === null && playerTokenMatches(selectedPlayer, suppliedToken)
-      ? selectedPlayer
-      : null
-    if (!existingSignedInPlayer && hasSuppliedPlayerCredentials && !existingGuestPlayer) {
-      throw roomError(403, "join-required", "Join this room before taking that action.")
-    }
-    const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
-    const joinStatus = canJoinRoom(
-      {
-        status: currentRoom.status,
-        endedAt: currentRoom.endedAt,
-        reviewExpiresAt: currentRoom.reviewExpiresAt,
-        expiresAt: currentRoom.expiresAt,
-        existingPlayerIds: currentRoom.players.map((player) => player.id),
-      },
-      { now: transactionNow, playerId: existingPlayer?.id ?? null },
-    )
-    if (!joinStatus.allowed) throw roomError(409, joinStatus.reason, "This room is no longer accepting new joins.")
-
-    const requestedTeam = currentRoom.teams.find((team) => team.id === requestedTeamId)
-    const fallbackTeam = currentRoom.teams[0] ?? null
-    const nextTeamId = requestedTeam?.id ?? fallbackTeam?.id ?? null
+    const { existingPlayer, nextTeamId } = resolveAnatomimeJoinAdmission({
+      room: currentRoom,
+      userId,
+      suppliedPlayerId,
+      suppliedToken,
+      hasSuppliedPlayerCredentials,
+      requestedTeamId,
+      now: transactionNow,
+    })
 
     if (existingPlayer) {
       await tx.anatomimeRoomPlayer.update({

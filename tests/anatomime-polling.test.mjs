@@ -276,7 +276,7 @@ describe("Anatomime poll scheduling", () => {
       failures = next.consecutiveFailures
     }
 
-    assert.deepEqual(delays, [2_100, 4_200, 8_400, 16_800, 30_000, 30_000])
+    assert.deepEqual(delays, [2_100, 4_200, 8_400, 16_800, 28_500, 28_500])
     assert.equal(failures, 6)
     assert.equal(schedule({
       result: { kind: "FAILED" },
@@ -300,7 +300,27 @@ describe("Anatomime poll scheduling", () => {
       documentHidden: false,
       consecutiveFailures: 8,
       random: () => 0.5,
-    }).delayMs, 45_000)
+    }).delayMs, 30_000)
+    assert.equal(schedule({
+      result: { kind: "RATE_LIMITED", retryAfterSeconds: Number.MAX_SAFE_INTEGER },
+      documentHidden: false,
+      consecutiveFailures: 4,
+      random: () => 0,
+    }).delayMs, 30_000)
+  })
+
+  it("retains bounded jitter at the terminal failure attempt", () => {
+    const schedule = requirePollingFunction(nextAnatomimePollSchedule, "nextAnatomimePollSchedule")
+    const terminalDelay = (random) => schedule({
+      result: { kind: "FAILED" },
+      documentHidden: false,
+      consecutiveFailures: 4,
+      random: () => random,
+    }).delayMs
+
+    assert.equal(terminalDelay(0), 27_001)
+    assert.equal(terminalDelay(0.5), 28_500)
+    assert.equal(terminalDelay(1), 30_000)
   })
 
   it("stops ended and credential-invalid rooms", () => {

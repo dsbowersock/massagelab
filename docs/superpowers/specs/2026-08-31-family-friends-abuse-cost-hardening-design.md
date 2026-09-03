@@ -153,7 +153,7 @@ The limits are code-owned launch defaults. Each `24h` rule is one fixed 24-hour 
 
 ### Participant proof and token issuance
 
-Room creation and join validation remain unchanged, then consume the applicable quota before room or player creation. Guest players keep the existing opaque `x-anatomime-player-token` credential in the current browser storage boundary. Signed-in players prove ownership through their authenticated user-to-player mapping. Player IDs are selectors, not credentials, because room summaries expose them.
+Room creation and join validation remain unchanged, then consume the applicable quota before room or player creation. Public room selectors normalize into the existing canonical six-character uppercase alphanumeric code namespace; longer formatted inputs cannot create a second selector after the sixth canonical character. Both the read-only join preflight and the transactional revalidation call one pure snapshot-and-clock resolver for credential ownership, `canJoinRoom`, and team availability, while the transaction remains authoritative. Guest players keep the existing opaque `x-anatomime-player-token` credential in the current browser storage boundary. Signed-in players prove ownership through their authenticated user-to-player mapping. Player IDs are selectors, not credentials, because room summaries expose them.
 
 Realtime-token issuance no longer trusts a caller-supplied Ably `clientId`. Before participant lookup it consumes the low-frequency network+room token-start quota. It then uses `anatomimeViewerFromRequest` and the existing room authority to require either the authenticated user mapping or the matching guest player ID plus `x-anatomime-player-token`. After proof it consumes player and room token quotas and derives the Ably client ID from that database row. A caller cannot mint a token for an exposed player ID or a room they have not joined.
 
@@ -166,8 +166,8 @@ Ably remains the primary update path. Polling remains a recovery path and is mad
 - active play polls every 2 seconds;
 - lobby, review, and other idle shared-room states poll every 5 seconds;
 - a hidden document polls every 15 seconds;
-- failures back off through 2, 4, 8, 16, and 30 seconds with bounded jitter;
-- `429` honors `Retry-After` before another request;
+- failures back off through 2, 4, 8, 16, and 30 seconds with bounded positive jitter that remains present at the terminal step while the final delay stays capped at 30 seconds;
+- `429` honors a nonnegative `Retry-After` floor capped at 30 seconds before another request;
 - `404` stops polling and returns the existing room-ended/not-found guidance; and
 - an invalid authenticated mapping or guest player token stops automatic retry and offers the existing rejoin path.
 
@@ -181,7 +181,7 @@ A missing or failed credential classification consumes/checks the durable networ
 
 Valid high-frequency polls do not write durable limiter rows. The bounded instance-local fast bucket allows 20/player/10s, 150/network+room/10s, and 300/room/10s, stores only HMAC-reduced keys, and drops expired keys under a fixed retention cap. Together with the slower client cadence and existing high-entropy guest credential, this sheds accidental loops and single-instance floods without replacing the current presence write with two contended Neon limiter writes on every poll. Deployment-wide durable limits remain on room creation, joining, token starts/issuance, and unjoined lookups. Provider-side edge controls remain defense in depth, not a prerequisite for local implementation.
 
-Every post-peek poll reads the room at most once. Accepted credentialed polls validate, resolve, and summarize that same snapshot; the route does not preflight one room snapshot and then read another after presence work.
+Every post-peek poll reads the room at most once. Accepted credentialed polls validate, resolve, and summarize that same snapshot; the route does not preflight one room snapshot and then read another after presence work. A first lookup with no snapshot exposes an accessible loading status. If that lookup fails, the failure remains visible and the room-code entry panel returns as an escape path; ordinary background polls do not announce loading.
 
 Presence remains useful without writing on every poll. `lastSeenAt` is updated at most once per player per 15 seconds through a conditional update. Polls inside that interval can return current room state without another presence write. The implementation must not turn a valid fallback poll into more database operations than the current double-hydration path.
 

@@ -358,6 +358,34 @@ describe("Anatomime create and join traffic boundaries", () => {
     assert.deepEqual(events, ["room-lookup", "guard", "transaction", "transaction-read"])
   })
 
+  it("revalidates team availability after the quota guard", async () => {
+    const events = []
+    const service = loadRoomServer({
+      events,
+      room: roomFixture(),
+      transactionRoom: roomFixture({ teams: [] }),
+      playerWriteError: new Error("player write should not be reached"),
+    })
+
+    await assert.rejects(
+      () => service.joinAnatomimeRoom("room-1", { displayName: "Guest" }, null, {
+        beforePersist: async () => events.push("guard"),
+      }),
+      (error) => error instanceof AnatomimeSessionError && error.code === "no-teams",
+    )
+    assert.deepEqual(events, ["room-lookup", "guard", "transaction", "transaction-read"])
+  })
+
+  it("routes both join admission phases through one pure resolver", () => {
+    const joinSource = roomServerSource.match(
+      /export async function joinAnatomimeRoom[\s\S]*?(?=\/\*\*\s*\* Moves a joined non-host player)/,
+    )?.[0] ?? ""
+
+    assert.match(roomServerSource, /function resolveAnatomimeJoinAdmission\(/)
+    assert.equal(joinSource.match(/resolveAnatomimeJoinAdmission\(/g)?.length, 2)
+    assert.doesNotMatch(joinSource, /canJoinRoom\(/)
+  })
+
   it("runs join quota after bounded room validation and before transaction revalidation", async () => {
     const deniedEvents = []
     const denied = loadRoomServer({ events: deniedEvents, transactionError: new Error("guard was skipped") })
@@ -491,6 +519,11 @@ describe("Anatomime realtime token traffic boundary", () => {
     assert.equal(typeof client.normalizeAnatomimeClientRoomCode, "function")
     assert.equal(client.normalizeAnatomimeClientRoomCode("a-b12"), "AB12")
     assert.equal(client.normalizeAnatomimeClientRoomCode(" A-B12 "), "AB12")
+    assert.equal(client.normalizeAnatomimeClientRoomCode("abc123-first-tail"), "ABC123")
+    assert.equal(
+      client.normalizeAnatomimeClientRoomCode("abc123-first-tail"),
+      client.normalizeAnatomimeClientRoomCode("ABC123-second-tail"),
+    )
 
     assert.match(
       sharedSessionClientSource,
@@ -1279,6 +1312,25 @@ function loadPollRoute({
   }
 }
 
+function presenceCurrentRunFixture({ sameRunAdvance, conflictingRunIdentity }) {
+  if (sameRunAdvance) {
+    return {
+      id: "run-1",
+      status: "PLAYING",
+      phase: "TURN_REVIEW",
+      activeCardIndex: 2,
+      deckCardIds: ["card-1", "card-2", "card-3", "card-4"],
+      metadata: { activeCardId: "card-3" },
+      guesses: [{ cardId: "card-3" }],
+      scores: [{ teamId: "team-1", score: 3 }],
+    }
+  }
+  if (conflictingRunIdentity) {
+    return { id: "old-run", status: "PLAYING", phase: "ACTIVE_TERM" }
+  }
+  return null
+}
+
 function loadPresenceRoomServerForRoute({
   userId,
   presenceResult,
@@ -1288,20 +1340,7 @@ function loadPresenceRoomServerForRoute({
   const coalesceCalls = []
   const hydrateCalls = []
   const lastSeenAt = new Date("2026-08-31T12:00:00.000Z")
-  const currentRun = sameRunAdvance
-    ? {
-        id: "run-1",
-        status: "PLAYING",
-        phase: "TURN_REVIEW",
-        activeCardIndex: 2,
-        deckCardIds: ["card-1", "card-2", "card-3", "card-4"],
-        metadata: { activeCardId: "card-3" },
-        guesses: [{ cardId: "card-3" }],
-        scores: [{ teamId: "team-1", score: 3 }],
-      }
-    : conflictingRunIdentity
-      ? { id: "old-run", status: "PLAYING", phase: "ACTIVE_TERM" }
-    : null
+  const currentRun = presenceCurrentRunFixture({ sameRunAdvance, conflictingRunIdentity })
   const hasExpiryConflict = conflictingRunIdentity || sameRunAdvance
   const room = minimalRoomFixture({
     code: "AB12",
