@@ -804,8 +804,12 @@ describe("admin operation service", () => {
       idempotencyKey: "concurrent-initial-retry",
       sendEmail: async () => { sends += 1; return { delivered: true } },
     })
+    // Observe settlement before racing: the original promise still rejects the
+    // race immediately, while a timeout cannot leave a later rejection loose.
+    const retrySettlement = Promise.allSettled([retry])
     let timeoutId
     let retryResult
+    let retrySettlements = []
     let initialResult
     try {
       retryResult = await Promise.race([
@@ -820,7 +824,9 @@ describe("admin operation service", () => {
     } finally {
       clearTimeout(timeoutId)
       releaseSend()
-      initialResult = await initial
+      const [settledInitialResult, settledRetry] = await Promise.all([initial, retrySettlement])
+      initialResult = settledInitialResult
+      retrySettlements = settledRetry
     }
 
     assert.deepEqual(retryResult, {
@@ -829,6 +835,7 @@ describe("admin operation service", () => {
       attempted: false,
       replayed: false,
     })
+    assert.deepEqual(retrySettlements, [{ status: "fulfilled", value: retryResult }])
     assert.deepEqual(initialResult, { status: "DELIVERED", attemptCount: 1, attempted: true })
     assert.equal(sends, 1)
   })
