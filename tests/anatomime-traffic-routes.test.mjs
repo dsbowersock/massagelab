@@ -1446,6 +1446,9 @@ function routeRequest(path, body, headers = {}) {
     method: "POST",
     headers: {
       "content-type": "application/json",
+      // Exercise the local/test fallback while retaining the Vercel-owned
+      // production header that the deployed route receives.
+      "x-forwarded-for": "198.51.100.27, 10.0.0.2",
       "x-vercel-forwarded-for": "198.51.100.27, 10.0.0.2",
       ...headers,
     },
@@ -1456,6 +1459,9 @@ function routeRequest(path, body, headers = {}) {
 function pollRequest(path, headers = {}) {
   return new Request(`https://massagelab.test${path}`, {
     headers: {
+      // Exercise the local/test fallback while retaining the Vercel-owned
+      // production header that the deployed route receives.
+      "x-forwarded-for": "198.51.100.27, 10.0.0.2",
       "x-vercel-forwarded-for": "198.51.100.27, 10.0.0.2",
       ...headers,
     },
