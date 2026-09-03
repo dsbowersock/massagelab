@@ -19,7 +19,7 @@ const idleState = { status: "idle", message: "" }
  * authorization, service, safe-code, and revalidation interaction.
  */
 function retryActionHarness({
-  serviceResult = { status: "DELIVERED", attemptCount: 2, replayed: false },
+  serviceResult = { status: "DELIVERED", attemptCount: 2, attempted: true, replayed: false },
   serviceError,
   safeCode = "provider_error",
 } = {}) {
@@ -98,6 +98,16 @@ describe("account activity surfaces", () => {
     assert.equal(success.calls[1][1].expectedTargetUserId, "user-1")
     assert.equal(success.calls[1][1].idempotencyKey, "b7653eb8-0f7b-43b8-9d31-6657ab6c3a22")
     assert.deepEqual(success.calls[2], ["revalidatePath", "/admin/users/user-1"])
+
+    const alreadyDelivered = retryActionHarness({
+      serviceResult: { status: "DELIVERED", attemptCount: 2, attempted: false, replayed: true },
+    })
+    const alreadyDeliveredResult = await alreadyDelivered.action("user-1", idleState, retryForm())
+    assert.deepEqual(alreadyDeliveredResult, {
+      status: "success",
+      message: "The email notification was already delivered; no new send was attempted.",
+    })
+    assert.deepEqual(alreadyDelivered.calls[2], ["revalidatePath", "/admin/users/user-1"])
 
     const failed = retryActionHarness({ serviceResult: { status: "FAILED", attemptCount: 2, replayed: false } })
     const failedResult = await failed.action("user-1", idleState, retryForm())

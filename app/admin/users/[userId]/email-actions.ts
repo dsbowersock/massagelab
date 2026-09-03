@@ -51,6 +51,12 @@ export async function retryFailedEmailIntentAction(
 
   revalidatePath(`/admin/users/${encodeURIComponent(userId)}`)
   if (result.status === "DELIVERED") {
+    if (!result.attempted) {
+      return {
+        status: "success",
+        message: "The email notification was already delivered; no new send was attempted.",
+      }
+    }
     return { status: "success", message: "Email notification retried." }
   }
   if (result.status === "FAILED") {

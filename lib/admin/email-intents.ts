@@ -17,7 +17,8 @@ export type AdminEmailIntentDeliveryResult =
 export type AdminEmailIntentDeliveryOutcome = Pick<AdminEmailIntentDeliveryResult, "status" | "attempted">
 
 export type AdminEmailIntentRetryResult =
-  | { status: "DELIVERED" | "FAILED"; attemptCount: number; replayed: boolean }
+  | { status: "DELIVERED" | "FAILED"; attemptCount: number; replayed: false; attempted: true }
+  | { status: "DELIVERED" | "FAILED"; attemptCount: number; replayed: true; attempted: false }
   | { status: "BUSY"; attemptCount: number; replayed: false; attempted: false }
   | { status: "AMBIGUOUS"; attemptCount: number; replayed: false; attempted: true }
 
@@ -292,6 +293,7 @@ export async function retryAdminEmailIntent(input: {
     status: delivered ? "DELIVERED" : "FAILED",
     attemptCount: claimed.claim.attemptCount,
     replayed: false,
+    attempted: true,
   }
 }
 
@@ -458,6 +460,7 @@ function retryReplayOrFail(existing: {
   status: "DELIVERED" | "FAILED"
   attemptCount: number
   replayed: true
+  attempted: false
 } {
   if (existing.actorUserId !== input.actorUserId
     || existing.targetUserId !== intent.userId
@@ -485,6 +488,7 @@ function retryReplayOrFail(existing: {
     status: existing.outcome === "SUCCEEDED" ? "DELIVERED" : "FAILED",
     attemptCount: afterState.attemptCount,
     replayed: true,
+    attempted: false,
   }
 }
 

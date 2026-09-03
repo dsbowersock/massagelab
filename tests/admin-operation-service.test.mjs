@@ -15,6 +15,8 @@ import {
 } from "../lib/admin/email-intents.ts"
 import { ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS } from "../lib/auth-mail.ts"
 
+const CONCURRENT_RETRY_SETTLE_BUDGET_MS = 2_000
+
 /** All bundle writes use a caller-owned transaction, matching production use. */
 async function recordAdminActionBundle(database, input) {
   return database.$transaction((tx) => recordAdminActionBundleDirect(tx, input))
@@ -160,10 +162,13 @@ describe("admin operation contract", () => {
 
 describe("admin operation service", () => {
   it("rejects unknown object operators in the fake intent predicate", () => {
-    assert.equal(matchesIntentWhere(
-      { status: "PENDING" },
-      { status: { equals: "PENDING" } },
-    ), false)
+    assert.throws(
+      () => matchesIntentWhere(
+        { status: "PENDING" },
+        { status: { equals: "PENDING" } },
+      ),
+      { message: "Unsupported fake intent predicate operator: equals" },
+    )
   })
 
   it("rejects non-text internal notes before validating reason-specific content", async () => {
@@ -406,7 +411,7 @@ describe("admin operation service", () => {
         return { delivered: true }
       },
     })
-    assert.deepEqual(recovered, { status: "DELIVERED", attemptCount: 3, replayed: false })
+    assert.deepEqual(recovered, { status: "DELIVERED", attemptCount: 3, replayed: false, attempted: true })
     assert.equal(sends, 2)
     assert.equal(database.intents[0].deliveryClaimOperationKeyHash, null)
     assert.equal(database.retryOperationKeys.length, 2)
@@ -483,7 +488,7 @@ describe("admin operation service", () => {
       now: new Date("2026-08-08T14:06:00.000Z"),
       sendEmail: async () => ({ delivered: true }),
     })
-    assert.deepEqual(recovered, { status: "DELIVERED", attemptCount: 3, replayed: false })
+    assert.deepEqual(recovered, { status: "DELIVERED", attemptCount: 3, replayed: false, attempted: true })
     assert.equal(database.retryOperationKeys.length, 1)
     assert.equal(database.actions.filter((action) => action.idempotencyKey === "same-key-recovery").length, 1)
   })
@@ -528,7 +533,7 @@ describe("admin operation service", () => {
     releaseFirstSend()
     const staleResult = await stale
 
-    assert.deepEqual(recovered, { status: "DELIVERED", attemptCount: 3, replayed: false })
+    assert.deepEqual(recovered, { status: "DELIVERED", attemptCount: 3, replayed: false, attempted: true })
     assert.deepEqual(staleResult, {
       status: "AMBIGUOUS",
       attemptCount: 2,
@@ -806,7 +811,10 @@ describe("admin operation service", () => {
       retryResult = await Promise.race([
         retry,
         new Promise((_resolve, reject) => {
-          timeoutId = setTimeout(() => reject(new Error("Concurrent retry did not settle within 50ms.")), 50)
+          timeoutId = setTimeout(
+            () => reject(new Error(`Concurrent retry did not settle within ${CONCURRENT_RETRY_SETTLE_BUDGET_MS}ms.`)),
+            CONCURRENT_RETRY_SETTLE_BUDGET_MS,
+          )
         }),
       ])
     } finally {
@@ -934,8 +942,8 @@ describe("admin operation service", () => {
       },
     })
 
-    assert.deepEqual(first, { status: "DELIVERED", attemptCount: 2, replayed: false })
-    assert.deepEqual(replayed, { status: "DELIVERED", attemptCount: 2, replayed: true })
+    assert.deepEqual(first, { status: "DELIVERED", attemptCount: 2, replayed: false, attempted: true })
+    assert.deepEqual(replayed, { status: "DELIVERED", attemptCount: 2, replayed: true, attempted: false })
     assert.deepEqual(database.transactionOptions.at(-1), ADMIN_EMAIL_TRANSACTION_OPTIONS)
     assert.equal(calls, 1)
     assert.equal(database.actions.length, 2)
@@ -990,7 +998,7 @@ describe("admin operation service", () => {
       sendEmail: async () => { throw new Error("sensitive provider payload") },
     })
 
-    assert.deepEqual(result, { status: "FAILED", attemptCount: 2, replayed: false })
+    assert.deepEqual(result, { status: "FAILED", attemptCount: 2, replayed: false, attempted: true })
     assert.equal(database.actions.at(-1).outcome, "FAILED")
     assert.equal(database.actions.at(-1).failureCode, "DELIVERY_FAILED")
     assert.doesNotMatch(JSON.stringify(database.actions.at(-1)), /sensitive provider payload/)
@@ -1014,7 +1022,7 @@ describe("admin operation service", () => {
       sendEmail: async () => ({ delivered: true, providerDiagnostic: "still-do-not-store" }),
     })
 
-    assert.deepEqual(result, { status: "DELIVERED", attemptCount: 2, replayed: false })
+    assert.deepEqual(result, { status: "DELIVERED", attemptCount: 2, replayed: false, attempted: true })
     assert.equal(database.intents[0].status, "DELIVERED")
     assert.equal(database.intents[0].attemptCount, 2)
     assert.equal(database.intents[0].failureCode, null)
@@ -1490,7 +1498,10 @@ function matchesIntentWhere(intent, where) {
     if (field === "AND" || field === "OR") continue
     const actual = intent[field]
     if (expected && typeof expected === "object" && !Array.isArray(expected) && !(expected instanceof Date)) {
-      if (Object.keys(expected).some((operator) => !["in", "not", "lt"].includes(operator))) return false
+      const unsupportedOperator = Object.keys(expected).find((operator) => !["in", "not", "lt"].includes(operator))
+      if (unsupportedOperator) {
+        throw new Error(`Unsupported fake intent predicate operator: ${unsupportedOperator}`)
+      }
       if (Object.hasOwn(expected, "in") && !expected.in.includes(actual)) return false
       if (Object.hasOwn(expected, "not") && actual === expected.not) return false
       if (Object.hasOwn(expected, "lt") && !(actual instanceof Date && actual < expected.lt)) return false

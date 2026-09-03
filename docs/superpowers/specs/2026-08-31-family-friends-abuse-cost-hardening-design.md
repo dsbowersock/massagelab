@@ -87,7 +87,9 @@ model OperationalRateLimitBucket {
 }
 ```
 
-The migration is expansion-only. It creates the enum, table, unique key, and cleanup indexes without changing or backfilling existing rows.
+The migration is expansion-only. It creates the limiter enum, bucket table, unique key, and cleanup indexes. It also adds three nullable `AdminEmailIntent` delivery-claim columns, creates the unique `deliveryClaimOperationKeyHash` index, creates the append-only `AdminEmailRetryOperationKey` table and its indexes, and attaches its `RESTRICT` foreign key to `AdminEmailIntent`. It does not change or backfill existing row values.
+
+A count-only Production `AdminEmailIntent` row-count preflight is mandatory immediately before applying `20260831120000_operational_rate_limit_bucket`. Proceed only when the refreshed exact count is `0`; any nonzero result is a hard stop requiring re-review before migration or runtime deployment.
 
 ### Privacy boundary
 
