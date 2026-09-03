@@ -190,7 +190,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   const [rankedPlayerIds, setRankedPlayerIds] = useState<string[]>([])
   const [now, setNow] = useState(Date.now())
   const joinInFlightRef = useRef(false)
-  const pollWakeRef = useRef<() => void>(() => {})
+  const pollWakeRef = useRef<() => boolean>(() => false)
   const storedPlayerReady = !lookupCode || storedPlayerRecord.code === lookupCode
   const storedPlayer = storedPlayerReady ? storedPlayerRecord.player : null
 
@@ -277,10 +277,11 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     }
 
     const wakePoll = () => {
-      if (cancelled || stopped || inFlight || timer === null || !latestScheduledResult || latestScheduledResult.kind === "RATE_LIMITED") return
+      if (cancelled || stopped || inFlight || timer === null || !latestScheduledResult || latestScheduledResult.kind === "RATE_LIMITED") return false
       window.clearTimeout(timer)
       timer = null
       void poll()
+      return true
     }
     const onVisibilityChange = () => {
       if (cancelled || stopped || inFlight || timer === null) return
@@ -300,7 +301,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       if (timer !== null) window.clearTimeout(timer)
       controller?.abort()
       document.removeEventListener("visibilitychange", onVisibilityChange)
-      if (pollWakeRef.current === wakePoll) pollWakeRef.current = () => {}
+      if (pollWakeRef.current === wakePoll) pollWakeRef.current = () => false
     }
   }, [lookupCode, storedPlayer, storedPlayerReady])
 
@@ -610,6 +611,15 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   const findGame = () => {
     const nextLookupCode = normalizeAnatomimeClientRoomCode(code)
     setPollTerminal(null)
+    if (nextLookupCode === lookupCode) {
+      // Reuse the active owner so a manual retry does not depend on a state
+      // change; its boolean preserves a still-active Retry-After cooldown.
+      if (pollWakeRef.current()) {
+        setPollStatus("")
+        setInitialLookupPending(true)
+      }
+      return
+    }
     setPollStatus("")
     setInitialLookupPending(Boolean(nextLookupCode))
     setLookupCode(nextLookupCode)

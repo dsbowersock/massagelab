@@ -231,23 +231,40 @@ test("player polling uses credential-bound tokens with 2s visible and 15s hidden
 })
 
 test("a failed first lookup keeps feedback and restores room-code escape", async ({ page }) => {
+  await page.clock.install()
   await installPlayerRuntime(page, { storedPlayer: false })
   const firstPollResponse = responseGate()
+  const retryPollResponse = responseGate()
+  let pollCount = 0
 
   await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
-    await firstPollResponse.wait
-    await fulfillJson(route, 503, { error: "Temporarily unavailable." })
+    pollCount += 1
+    if (pollCount === 1) {
+      await firstPollResponse.wait
+      await fulfillJson(route, 503, { error: "Temporarily unavailable." })
+      return
+    }
+    await retryPollResponse.wait
+    await fulfillJson(route, 200, { session: roomSession({ joined: false }) })
   })
 
   await page.goto(`/anatomime/join?code=${ROOM_CODE}`, { waitUntil: "domcontentloaded" })
+  await expect.poll(() => pollCount).toBe(1)
   const initialLoading = page.getByRole("status").filter({ hasText: "Loading shared game…" })
   await expect(initialLoading).toBeVisible()
+  await pauseClockAtCurrentTime(page)
   firstPollResponse.release()
 
   await expect(initialLoading).toHaveCount(0)
   await expect(page.getByRole("status").filter({ hasText: "Connection interrupted" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Game Code" })).toBeVisible()
   await expect(page.getByLabel("Code")).toHaveValue(ROOM_CODE)
+  await page.getByRole("button", { name: "Find Game" }).click()
+  await expect(initialLoading).toBeVisible()
+  await expect.poll(() => pollCount).toBe(2)
+  retryPollResponse.release()
+  await expect(initialLoading).toHaveCount(0)
+  await expect(page.getByRole("heading", { name: `Join ${ROOM_CODE}` })).toBeVisible()
   expect(providerRequests(page)).toBe(0)
 })
 
@@ -398,6 +415,9 @@ test("host review polling continues at 5s and stops on a successful ended snapsh
     hostPollCount += 1
     await fulfillJson(route, 200, { session: hostSnapshot })
   })
+  await page.route((url) => url.pathname === TOKEN_PATH, async (route) => {
+    await fulfillJson(route, 200, { keyName: "test", nonce: "nonce", mac: "mac" })
+  })
 
   await page.goto("/anatomime", { waitUntil: "domcontentloaded" })
   await page.getByRole("button", { name: /Choose Anatomy Terms/i }).click()
@@ -461,6 +481,9 @@ test("host refresh wakes failed recovery but cannot bypass Retry-After", async (
       return
     }
     await fulfillJson(route, 200, { session: lobbySession })
+  })
+  await page.route((url) => url.pathname === TOKEN_PATH, async (route) => {
+    await fulfillJson(route, 200, { keyName: "test", nonce: "nonce", mac: "mac" })
   })
 
   await page.goto("/anatomime", { waitUntil: "domcontentloaded" })

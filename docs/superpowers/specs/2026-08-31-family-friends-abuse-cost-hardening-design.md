@@ -350,8 +350,9 @@ Implementation follows strict test-driven development: each behavior starts with
 - room creation and join limits run before durable room/player work;
 - arbitrary exposed player IDs without the authenticated mapping or matching guest player token cannot receive realtime tokens or joined-poll treatment;
 - token client identity is derived from the joined player;
+- realtime-token issuance uses the narrow preflight and stops invalid proof before issue quota or provider work;
 - token, unjoined-poll, and instance-local valid-poll limits return exact retry guidance;
-- bogus player/token candidates use only the narrow preflight and stop before full hydration once the durable unjoined bucket denies;
+- bogus player/token poll candidates classify against the sole fully loaded room snapshot; durable unjoined denial stops before expiration, presence, or summary;
 - one accepted poll performs one room hydration;
 - presence writes occur no more than once per 15 seconds;
 - client cadence, hidden-document behavior, jittered backoff, `404`, `429`, and invalid-proof behavior; and

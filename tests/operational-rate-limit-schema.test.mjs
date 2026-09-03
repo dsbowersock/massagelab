@@ -483,6 +483,20 @@ COMMIT;
       anatomimeTrafficPlan,
       /consumeJoined\(input:\s*\{\s*playerId: string; now\?: Date\s*\}/,
     )
+    assert.doesNotMatch(
+      hardeningDesign,
+      /bogus player\/token candidates[^.]*narrow preflight[^.]*before full hydration/i,
+    )
+    assertParagraphMatches(
+      hardeningDesign,
+      /bogus player\/token[^.]*sole (?:fully )?loaded room snapshot[^.]*durable[^.]*deni(?:al|es)[^.]*before expiration[^.]*presence[^.]*summary/i,
+      "binding design bogus-poll proof",
+    )
+    assertParagraphMatches(
+      hardeningDesign,
+      /realtime-token[^.]*narrow preflight[^.]*before[^.]*provider/i,
+      "binding design realtime-token proof",
+    )
   })
 
   it("contains no other existing-table change, data manipulation, or trigger", () => {

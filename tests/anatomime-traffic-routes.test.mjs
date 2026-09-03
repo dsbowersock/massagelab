@@ -580,6 +580,14 @@ describe("Anatomime client poll ownership", () => {
       )
     }
   })
+
+  it("retries an entered same code through the existing poll owner", () => {
+    assert.match(sharedSessionClientSource, /const pollWakeRef = useRef<\(\) => boolean>/)
+    assert.match(
+      sharedSessionClientSource,
+      /if \(nextLookupCode === lookupCode\) \{[\s\S]*?if \(pollWakeRef\.current\(\)\) \{[\s\S]*?setInitialLookupPending\(true\)[\s\S]*?\}[\s\S]*?return[\s\S]*?\}[\s\S]*?setLookupCode\(nextLookupCode\)/,
+    )
+  })
 })
 
 describe("Anatomime realtime token traffic boundary", () => {
