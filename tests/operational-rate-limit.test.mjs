@@ -17,6 +17,7 @@ class InMemoryOperationalRateLimitClient {
     this.revision = 0
     this.nextId = 1
     this.transactionAttempts = 0
+    this.transactionIsolationLevels = []
     this.writeCount = 0
     this.findManyCalls = []
     this.readIdentities = []
@@ -24,7 +25,7 @@ class InMemoryOperationalRateLimitClient {
     this.forceTransactionError = null
     this.failPrune = false
     this.reactivateBeforeDelete = false
-    this.operationalRateLimitBucket = this.#delegate(this.rows, null)
+    this.operationalRateLimitBucket = this.#delegate(() => this.rows, null)
   }
 
   /**
@@ -34,13 +35,13 @@ class InMemoryOperationalRateLimitClient {
    */
   async $transaction(callback, options) {
     this.transactionAttempts += 1
-    assert.equal(options?.isolationLevel, "Serializable")
+    this.transactionIsolationLevels.push(options?.isolationLevel)
     if (this.forceTransactionError) throw this.forceTransactionError
 
     const startRevision = this.revision
     const snapshot = new Map([...this.rows].map(([key, row]) => [key, cloneRow(row)]))
     const state = { dirty: false }
-    const result = await callback({ operationalRateLimitBucket: this.#delegate(snapshot, state) })
+    const result = await callback({ operationalRateLimitBucket: this.#delegate(() => snapshot, state) })
 
     if (!state.dirty) return result
     await Promise.resolve()
@@ -50,7 +51,6 @@ class InMemoryOperationalRateLimitClient {
       throw conflict
     }
     this.rows = snapshot
-    this.operationalRateLimitBucket = this.#delegate(this.rows, null)
     this.revision += 1
     return result
   }
@@ -64,9 +64,10 @@ class InMemoryOperationalRateLimitClient {
     return this.rows.get(bucketKey(identity)) ?? null
   }
 
-  #delegate(rows, transactionState) {
+  #delegate(resolveRows, transactionState) {
     return {
       findUnique: async ({ where }) => {
+        const rows = resolveRows()
         this.readIdentities.push({ ...where.policy_scope_keyHash })
         const row = rows.get(bucketKey(where.policy_scope_keyHash))
         return row ? cloneRow(row) : null
@@ -75,6 +76,7 @@ class InMemoryOperationalRateLimitClient {
         if (!transactionState) {
           throw new Error("Operational rate-limit upsert requires an active transaction.")
         }
+        const rows = resolveRows()
         this.writeIdentities.push({ ...where.policy_scope_keyHash })
         const key = bucketKey(where.policy_scope_keyHash)
         const current = rows.get(key)
@@ -86,6 +88,7 @@ class InMemoryOperationalRateLimitClient {
         return cloneRow(rows.get(key))
       },
       findMany: async ({ where, orderBy, take, select }) => {
+        const rows = resolveRows()
         this.findManyCalls.push({ where, orderBy, take, select })
         if (this.failPrune) throw new Error("cleanup unavailable")
         return [...rows.values()]
@@ -95,6 +98,7 @@ class InMemoryOperationalRateLimitClient {
           .map(({ id }) => ({ id }))
       },
       deleteMany: async ({ where }) => {
+        const rows = resolveRows()
         if (this.reactivateBeforeDelete) {
           const firstId = where.id.in[0]
           const row = [...rows.values()].find((candidate) => candidate.id === firstId)
@@ -215,6 +219,7 @@ describe("operational rate-limit service", () => {
   it("reads and writes multi-rule identities in stable policy, scope, and hash order", async () => {
     const refreshedAt = new Date(BASE_TIME.getTime() + 60_000)
     const client = new InMemoryOperationalRateLimitClient({ clock: () => refreshedAt })
+    const capturedBucketDelegate = client.operationalRateLimitBucket
     const input = {
       operation: "BOOKING_CREATE",
       networkIdentifier: "net",
@@ -244,6 +249,7 @@ describe("operational rate-limit service", () => {
     } finally {
       String.prototype.localeCompare = localeCompare
     }
+    assert.deepEqual(client.transactionIsolationLevels, ["Serializable", "Serializable"])
     assert.deepEqual(client.readIdentities.slice(0, 4).map(({ policy }) => policy), expectedPolicies)
     assert.deepEqual(client.readIdentities.slice(4, 8).map(({ policy }) => policy), expectedPolicies)
     assert.deepEqual(client.writeIdentities.slice(0, 4).map(({ policy }) => policy), expectedPolicies)
@@ -264,6 +270,9 @@ describe("operational rate-limit service", () => {
       retainedIdentity,
     )
     assert.deepEqual(refreshed.updatedAt, refreshedAt)
+    assert.deepEqual(await capturedBucketDelegate.findUnique({
+      where: { policy_scope_keyHash: retainedIdentity },
+    }), refreshed)
   })
 
   it("accepts the final slot, denies the next request, and stores only hashes", async () => {
@@ -454,7 +463,7 @@ describe("operational rate-limit service", () => {
     assert.equal(reactivated.rows.size, 1)
   })
 
-  it("samples cleanup after the decision without changing an allowed result on cleanup failure", async () => {
+  it("keeps sampled cleanup failures best-effort and deletes stale rows on success", async () => {
     const client = new InMemoryOperationalRateLimitClient()
     client.failPrune = true
     assert.deepEqual(await consumeOperationalRateLimit({
@@ -478,12 +487,32 @@ describe("operational rate-limit service", () => {
     }), 0)
     assert.equal(client.findManyCalls.length, 2)
     assert.deepEqual(client.findManyCalls[1].where.updatedAt, { lt: BASE_TIME })
+
+    client.failPrune = false
+    const staleIdentity = identity("stale.sampled-cleanup.v1", "GLOBAL", [
+      { label: "deployment", value: "massagelab" },
+    ])
+    const staleAt = new Date(BASE_TIME.getTime() - 1)
+    client.seed({
+      ...staleIdentity,
+      count: 1,
+      windowStart: staleAt,
+      blockedUntil: null,
+      updatedAt: staleAt,
+    })
+    assert.equal(await maybePruneOperationalRateLimits({
+      prismaClient: client,
+      before: BASE_TIME,
+      shouldPrune: () => true,
+    }), 1)
+    assert.equal(client.findManyCalls.length, 3)
+    assert.equal(client.rowFor(staleIdentity), null)
     assert.equal(await maybePruneOperationalRateLimits({
       prismaClient: client,
       before: BASE_TIME,
       shouldPrune: () => false,
     }), 0)
-    assert.equal(client.findManyCalls.length, 2)
+    assert.equal(client.findManyCalls.length, 3)
   })
 
   it("reserves the last 20 total email attempts from public-auth traffic", async () => {

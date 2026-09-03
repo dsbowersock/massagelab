@@ -53,6 +53,7 @@ type RetryDeliveryClaim = Omit<DeliveryClaim<DeliveryIntent & { userId: string }
 const EMAIL_INTENT_LOCK_PREFIX = "massagelab:admin-email-intent:"
 const CLAIM_LEASE_MS = 5 * 60 * 1000
 const CLAIM_HASH_DOMAIN = "massagelab:admin-email-delivery-claim:v1\0"
+const CLAIM_HASH_PATTERN = /^[0-9a-f]{64}$/
 
 /** Every database phase is short; SMTP and its limiter run after claim commit. */
 export const ADMIN_EMAIL_TRANSACTION_OPTIONS = {
@@ -529,17 +530,22 @@ function claimIsLive(intent: DeliveryIntent, now: Date): boolean {
     && intent.deliveryClaimExpiresAt.getTime() >= now.getTime()
 }
 
-/** Only an exact hash with a valid expired lease is safe to recover; malformed claims stay BUSY. */
+/** Recovers only unclaimed or expired canonical claim shapes for the intent status. */
 function claimIsRecoverable(intent: DeliveryIntent, now: Date): boolean {
-  if (intent.deliveryClaimTokenHash === null
+  const unclaimed = intent.deliveryClaimTokenHash === null
     && intent.deliveryClaimExpiresAt === null
-    && intent.deliveryClaimOperationKeyHash === null) return true
-  return typeof intent.deliveryClaimTokenHash === "string"
-    && /^[0-9a-f]{64}$/.test(intent.deliveryClaimTokenHash)
+    && intent.deliveryClaimOperationKeyHash === null
+  if (unclaimed) return true
+
+  const hasExpiredLease = typeof intent.deliveryClaimTokenHash === "string"
+    && CLAIM_HASH_PATTERN.test(intent.deliveryClaimTokenHash)
     && intent.deliveryClaimExpiresAt instanceof Date
     && intent.deliveryClaimExpiresAt.getTime() < now.getTime()
-    && (intent.deliveryClaimOperationKeyHash === null
-      || (typeof intent.deliveryClaimOperationKeyHash === "string" && /^[0-9a-f]{64}$/.test(intent.deliveryClaimOperationKeyHash)))
+  if (!hasExpiredLease) return false
+  if (intent.status === "PENDING") return intent.deliveryClaimOperationKeyHash === null
+  return intent.status === "FAILED"
+    && typeof intent.deliveryClaimOperationKeyHash === "string"
+    && CLAIM_HASH_PATTERN.test(intent.deliveryClaimOperationKeyHash)
 }
 
 function createClaimTokenHash(randomBytesFn: RandomBytes): string {

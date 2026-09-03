@@ -161,7 +161,30 @@ describe("admin operation contract", () => {
 })
 
 describe("admin operation service", () => {
-  it("rejects unknown object operators in the fake intent predicate", () => {
+  it("matches valid bare Date predicates by timestamp and rejects unsupported predicates", () => {
+    const claimExpiry = "2026-08-08T14:05:00.000Z"
+    assert.equal(matchesIntentWhere(
+      { deliveryClaimExpiresAt: new Date(claimExpiry) },
+      { deliveryClaimExpiresAt: new Date(claimExpiry) },
+    ), true)
+    assert.equal(matchesIntentWhere(
+      { deliveryClaimExpiresAt: new Date(claimExpiry) },
+      { deliveryClaimExpiresAt: new Date("2026-08-08T14:06:00.000Z") },
+    ), false)
+    assert.throws(
+      () => matchesIntentWhere(
+        { deliveryClaimExpiresAt: new Date(claimExpiry) },
+        { deliveryClaimExpiresAt: new Date(Number.NaN) },
+      ),
+      { message: "Invalid fake intent Date predicate for deliveryClaimExpiresAt" },
+    )
+    assert.throws(
+      () => matchesIntentWhere(
+        { deliveryClaimExpiresAt: new Date(Number.NaN) },
+        { deliveryClaimExpiresAt: new Date(claimExpiry) },
+      ),
+      { message: "Invalid fake intent Date value for deliveryClaimExpiresAt" },
+    )
     assert.throws(
       () => matchesIntentWhere(
         { status: "PENDING" },
@@ -665,11 +688,12 @@ describe("admin operation service", () => {
     }
   })
 
-  it("keeps malformed expired initial-delivery claim tokens BUSY without sending", async () => {
-    for (const [label, tokenHash] of [
-      ["short token", "a".repeat(63)],
-      ["uppercase token", "A".repeat(64)],
-      ["nonhex token", "g".repeat(64)],
+  it("keeps malformed expired initial-delivery claim shapes BUSY without sending", async () => {
+    for (const [label, tokenHash, operationKeyHash] of [
+      ["short token", "a".repeat(63), null],
+      ["uppercase token", "A".repeat(64), null],
+      ["nonhex token", "g".repeat(64), null],
+      ["retry operation hash on pending intent", "a".repeat(64), "b".repeat(64)],
     ]) {
       const database = createAdminDatabase()
       const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
@@ -677,6 +701,8 @@ describe("admin operation service", () => {
       database.intents[0].lastAttemptAt = new Date("2026-08-08T13:49:00.000Z")
       database.intents[0].deliveryClaimTokenHash = tokenHash
       database.intents[0].deliveryClaimExpiresAt = new Date("2026-08-08T13:55:00.000Z")
+      database.intents[0].deliveryClaimOperationKeyHash = operationKeyHash
+      const before = structuredClone(database.intents[0])
       let sends = 0
 
       const result = await deliverAdminEmailIntent({
@@ -688,16 +714,18 @@ describe("admin operation service", () => {
 
       assert.deepEqual(result, { status: "BUSY", attemptCount: 3, attempted: false }, label)
       assert.equal(sends, 0, label)
-      assert.equal(database.intents[0].deliveryClaimTokenHash, tokenHash, label)
-      assert.equal(database.intents[0].attemptCount, 3, label)
+      assert.deepEqual(database.intents[0], before, label)
+      assert.equal(database.actions.length, 1, label)
+      assert.equal(database.retryOperationKeys.length, 0, label)
     }
   })
 
-  it("keeps malformed expired retry claim tokens BUSY without sending", async () => {
-    for (const [label, tokenHash] of [
-      ["short token", "a".repeat(63)],
-      ["uppercase token", "A".repeat(64)],
-      ["nonhex token", "g".repeat(64)],
+  it("keeps malformed expired retry claim shapes BUSY without sending", async () => {
+    for (const [label, tokenHash, operationKeyHash] of [
+      ["short token", "a".repeat(63), "b".repeat(64)],
+      ["uppercase token", "A".repeat(64), "b".repeat(64)],
+      ["nonhex token", "g".repeat(64), "b".repeat(64)],
+      ["missing retry operation hash on failed intent", "a".repeat(64), null],
     ]) {
       const database = createAdminDatabase()
       const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
@@ -708,6 +736,8 @@ describe("admin operation service", () => {
       })
       database.intents[0].deliveryClaimTokenHash = tokenHash
       database.intents[0].deliveryClaimExpiresAt = new Date("2026-08-08T13:55:00.000Z")
+      database.intents[0].deliveryClaimOperationKeyHash = operationKeyHash
+      const before = structuredClone(database.intents[0])
       let sends = 0
 
       const result = await retryAdminEmailIntent({
@@ -727,8 +757,8 @@ describe("admin operation service", () => {
         attempted: false,
       }, label)
       assert.equal(sends, 0, label)
-      assert.equal(database.intents[0].deliveryClaimTokenHash, tokenHash, label)
-      assert.equal(database.intents[0].attemptCount, 1, label)
+      assert.deepEqual(database.intents[0], before, label)
+      assert.equal(database.actions.length, 1, label)
       assert.equal(database.retryOperationKeys.length, 0, label)
     }
   })
@@ -1521,6 +1551,17 @@ function matchesIntentWhere(intent, where) {
   for (const [field, expected] of Object.entries(where)) {
     if (field === "AND" || field === "OR") continue
     const actual = intent[field]
+    if (expected instanceof Date) {
+      if (!Number.isFinite(expected.getTime())) {
+        throw new Error(`Invalid fake intent Date predicate for ${field}`)
+      }
+      if (!(actual instanceof Date)) return false
+      if (!Number.isFinite(actual.getTime())) {
+        throw new Error(`Invalid fake intent Date value for ${field}`)
+      }
+      if (actual.getTime() !== expected.getTime()) return false
+      continue
+    }
     if (expected && typeof expected === "object" && !Array.isArray(expected) && !(expected instanceof Date)) {
       const unsupportedOperator = Object.keys(expected).find((operator) => !["in", "not", "lt"].includes(operator))
       if (unsupportedOperator) {
