@@ -10,6 +10,45 @@ export const ANATOMIME_ACTION_REQUEST_TIMEOUT_MS = 20_000
 /** Prevents repeated manual action traffic when a nonconforming 429 omits a usable delay. */
 export const ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS = 10
 
+type AnatomimeActionCooldownTimer = ReturnType<typeof globalThis.setInterval>
+
+/**
+ * Synchronizes a manual-action deadline immediately, then owns its display ticker
+ * only while the deadline remains active so delayed React effects cannot strand a lock.
+ */
+export function installAnatomimeActionCooldownTicker({
+  deadlineMs,
+  onTick,
+  now = Date.now,
+  setIntervalFn = globalThis.setInterval,
+  clearIntervalFn = globalThis.clearInterval,
+}: {
+  deadlineMs: number
+  onTick: (currentMs: number) => void
+  now?: () => number
+  setIntervalFn?: (callback: () => void, delayMs: number) => AnatomimeActionCooldownTimer
+  clearIntervalFn?: (timer: AnatomimeActionCooldownTimer) => void
+}) {
+  if (deadlineMs <= 0) return () => {}
+
+  let timer: AnatomimeActionCooldownTimer | undefined
+  const stop = () => {
+    if (timer === undefined) return
+    clearIntervalFn(timer)
+    timer = undefined
+  }
+  const tick = () => {
+    const current = now()
+    onTick(current)
+    if (current >= deadlineMs) stop()
+    return current
+  }
+
+  if (tick() >= deadlineMs) return stop
+  timer = setIntervalFn(tick, 250)
+  return stop
+}
+
 /** Keeps rate-limit feedback accurate without presenting a frozen numeric countdown. */
 export const ANATOMIME_RATE_LIMITED_POLL_STATUS =
   "Updates are paused. Automatic refresh will resume when the server allows it."

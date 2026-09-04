@@ -43,6 +43,7 @@ import {
   ANATOMIME_ACTION_REQUEST_TIMEOUT_MS,
   ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS,
   anatomimeActionRetryAfterSeconds,
+  installAnatomimeActionCooldownTicker,
 } from "./anatomime-polling"
 import type { AnatomimeRoomSummary } from "./shared-session-types"
 import "./styles.css"
@@ -235,13 +236,10 @@ export function AnatomimeGameClient({
   }, [selectedSetupTermIds])
 
   useEffect(() => {
-    if (createRetryUntil <= Date.now()) return
-    const timer = window.setInterval(() => {
-      const current = Date.now()
-      setCreateRetryNow(current)
-      if (current >= createRetryUntil) window.clearInterval(timer)
-    }, 250)
-    return () => window.clearInterval(timer)
+    return installAnatomimeActionCooldownTicker({
+      deadlineMs: createRetryUntil,
+      onTick: setCreateRetryNow,
+    })
   }, [createRetryUntil])
 
   useEffect(() => {

@@ -6,6 +6,7 @@ import {
 } from "@/lib/anatomime-room-server"
 import { anatomimeViewerFromRequest, apiErrorMapper } from "@/lib/anatomime-api"
 import { AnatomimeSessionError } from "@/lib/anatomime-session-server"
+import { getAuthSecret } from "@/lib/auth-env"
 import { authRequestNetworkIdentifier } from "@/lib/auth-request"
 import {
   AnatomimeTrafficLimitError,
@@ -18,7 +19,7 @@ import {
 
 const pollShedder: ReturnType<typeof createAnatomimePollShedder> | null = (() => {
   try {
-    return createAnatomimePollShedder({ secret: process.env.AUTH_SECRET ?? "" })
+    return createAnatomimePollShedder({ secret: getAuthSecret() })
   } catch {
     // A missing/invalid server secret must disable polling rather than retaining raw identifiers.
     try {

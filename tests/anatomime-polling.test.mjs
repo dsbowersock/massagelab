@@ -8,6 +8,7 @@ const {
   ANATOMIME_RATE_LIMITED_POLL_STATUS,
   anatomimeActionRetryAfterSeconds,
   fetchAnatomimeRoomSnapshot,
+  installAnatomimeActionCooldownTicker,
   nextAnatomimePollSchedule,
   nextAnatomimeVisibilitySchedule,
 } = polling
@@ -530,6 +531,90 @@ describe("Anatomime poll scheduling", () => {
       }), { action: "STOP", reason: "ROOM_ENDED" })
     })
   }
+})
+
+describe("Anatomime manual-action cooldown ticker", () => {
+  it("synchronizes an already expired nonzero deadline without allocating an interval", () => {
+    const installTicker = requirePollingFunction(
+      installAnatomimeActionCooldownTicker,
+      "installAnatomimeActionCooldownTicker",
+    )
+    const ticks = []
+    const intervalCalls = []
+    const clearedTimers = []
+    const cleanup = installTicker({
+      deadlineMs: 1_000,
+      onTick: (current) => ticks.push(current),
+      now: () => 1_001,
+      setIntervalFn: (callback, delayMs) => {
+        intervalCalls.push({ callback, delayMs })
+        return "unexpected-timer"
+      },
+      clearIntervalFn: (timer) => clearedTimers.push(timer),
+    })
+
+    assert.deepEqual(ticks, [1_001])
+    assert.deepEqual(intervalCalls, [])
+    cleanup()
+    assert.deepEqual(clearedTimers, [])
+  })
+
+  it("ticks immediately and clears its active interval exactly at expiry", () => {
+    const installTicker = requirePollingFunction(
+      installAnatomimeActionCooldownTicker,
+      "installAnatomimeActionCooldownTicker",
+    )
+    let current = 1_000
+    let scheduledTick
+    const ticks = []
+    const timer = { id: "expiry-timer" }
+    const clearedTimers = []
+    const cleanup = installTicker({
+      deadlineMs: 1_500,
+      onTick: (value) => ticks.push(value),
+      now: () => current,
+      setIntervalFn: (callback, delayMs) => {
+        scheduledTick = callback
+        assert.equal(delayMs, 250)
+        return timer
+      },
+      clearIntervalFn: (value) => clearedTimers.push(value),
+    })
+
+    assert.deepEqual(ticks, [1_000])
+    assert.equal(typeof scheduledTick, "function")
+    assert.deepEqual(clearedTimers, [])
+    current = 1_499
+    scheduledTick()
+    assert.deepEqual(ticks, [1_000, 1_499])
+    assert.deepEqual(clearedTimers, [])
+    current = 1_500
+    scheduledTick()
+    assert.deepEqual(ticks, [1_000, 1_499, 1_500])
+    assert.deepEqual(clearedTimers, [timer])
+    cleanup()
+    assert.deepEqual(clearedTimers, [timer])
+  })
+
+  it("clears an active interval during effect cleanup", () => {
+    const installTicker = requirePollingFunction(
+      installAnatomimeActionCooldownTicker,
+      "installAnatomimeActionCooldownTicker",
+    )
+    const timer = { id: "cleanup-timer" }
+    const clearedTimers = []
+    const cleanup = installTicker({
+      deadlineMs: 2_000,
+      onTick: () => {},
+      now: () => 1_000,
+      setIntervalFn: () => timer,
+      clearIntervalFn: (value) => clearedTimers.push(value),
+    })
+
+    cleanup()
+    cleanup()
+    assert.deepEqual(clearedTimers, [timer])
+  })
 })
 
 describe("Anatomime visibility rescheduling", () => {

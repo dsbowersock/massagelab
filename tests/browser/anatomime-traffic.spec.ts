@@ -238,6 +238,7 @@ async function installStalledActionJson(page: Page, targetPath: string) {
       matchingCalls += 1
       if (matchingCalls !== 1) return response
 
+      // This shim models only ok/status/headers/json; other Response APIs are intentionally omitted.
       return {
         ok: response.ok,
         status: response.status,
@@ -840,19 +841,20 @@ test("create honors Retry-After lockout without replaying automatically", async 
   firstCreateResponse.release()
   await expect(page.getByRole("button", { name: "Try again in 3s" })).toBeDisabled()
   await expect(page.getByText("Please wait before creating another room.", { exact: true })).toBeVisible()
-  const createCooldownStatus = page.locator(".anatomime-poll-status[role='status']")
-  await expect(createCooldownStatus).toHaveText("Shared game creation is temporarily paused. You can retry when the countdown ends.")
+  const createCooldownMessage = "Shared game creation is temporarily paused. You can retry when the countdown ends."
+  const createCooldownStatus = page.getByRole("status").filter({ hasText: createCooldownMessage })
+  await expect(createCooldownStatus).toHaveText(createCooldownMessage)
   expect(createCount).toBe(1)
 
   await page.clock.runFor(1_000)
   await expect(page.getByRole("button", { name: "Try again in 2s" })).toBeDisabled()
-  await expect(createCooldownStatus).toHaveText("Shared game creation is temporarily paused. You can retry when the countdown ends.")
+  await expect(createCooldownStatus).toHaveText(createCooldownMessage)
   await page.clock.runFor(1_999)
   expect(createCount).toBe(1)
   await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
   await page.clock.runFor(1)
   await expect(page.getByRole("button", { name: /Create Shared Game/i })).toBeEnabled()
-  await expect(createCooldownStatus).toHaveText("")
+  await expect(createCooldownStatus).toHaveCount(0)
   expect(createCount).toBe(1)
   await page.getByRole("button", { name: /Create Shared Game/i }).click()
   await expect.poll(() => createCount).toBe(2)

@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import ts from "typescript"
+import { getAuthSecret } from "../lib/auth-env.ts"
 import { hashToken } from "../lib/auth-security.js"
 import { authRequestNetworkIdentifier } from "../lib/auth-request.ts"
 import { canJoinRoom } from "../lib/anatomime-room-rules.ts"
@@ -23,7 +24,7 @@ const hostRoomClientSource = await readFile(new URL("../app/anatomime/host-room-
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
 const projectStateSource = await readFile(new URL("../docs/project-state.md", import.meta.url), "utf8")
 const projectLogSource = await readFile(new URL("../docs/project-log.md", import.meta.url), "utf8")
-const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 169
+const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 173
 const verifiedLayerBReceiptPattern = new RegExp(escapeRegExp(
   `exact ${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL}/${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL} focused Anatomime matrix`,
 ))
@@ -1413,6 +1414,37 @@ describe("Anatomime room poll traffic boundary", () => {
     })
   })
 
+  it("initializes polling from the canonical NEXTAUTH_SECRET fallback", { concurrency: false }, async () => {
+    const previousAuthSecret = process.env.AUTH_SECRET
+    const previousNextAuthSecret = process.env.NEXTAUTH_SECRET
+    try {
+      delete process.env.AUTH_SECRET
+      process.env.NEXTAUTH_SECRET = "test-nextauth-fallback-secret"
+      const scenario = loadPollRoute({ useCurrentAuthEnvironment: true })
+      const response = await scenario.GET(
+        pollRequest("/api/anatomime/sessions/ab12"),
+        { params: Promise.resolve({ code: "ab12" }) },
+      )
+
+      assert.equal(response.status, 200)
+      assert.deepEqual(scenario.shedderOptions, [{ secret: "test-nextauth-fallback-secret" }])
+      assert.deepEqual(scenario.events, [
+        "shed:ingress",
+        "auth",
+        "room:read",
+        "preflight",
+        "shed:joined",
+        "room:resolve",
+        "summarize",
+      ])
+    } finally {
+      if (previousAuthSecret === undefined) delete process.env.AUTH_SECRET
+      else process.env.AUTH_SECRET = previousAuthSecret
+      if (previousNextAuthSecret === undefined) delete process.env.NEXTAUTH_SECRET
+      else process.env.NEXTAUTH_SECRET = previousNextAuthSecret
+    }
+  })
+
   it("fails closed before auth with one fixed structured error diagnostic when the process-local shedder secret is invalid", { concurrency: false }, async () => {
     const originalError = console.error
     const originalWarn = console.warn
@@ -1852,6 +1884,7 @@ function loadPollRoute({
   durableError,
   shedderError,
   roomServer,
+  useCurrentAuthEnvironment = false,
 } = {}) {
   const events = []
   const ingressCalls = []
@@ -1862,7 +1895,7 @@ function loadPollRoute({
   const hydrateCalls = []
   const shedderOptions = []
   const previousSecret = process.env.AUTH_SECRET
-  process.env.AUTH_SECRET = "test-auth-secret"
+  if (!useCurrentAuthEnvironment) process.env.AUTH_SECRET = "test-auth-secret"
   try {
     const route = loadCompiledModule(pollRouteSource, "poll-anatomime-traffic-route.test.ts", {
       "next/server": { NextResponse: responseAdapter() },
@@ -1874,6 +1907,7 @@ function loadPollRoute({
       },
       "@/lib/anatomime-api": apiBoundary,
       "@/lib/anatomime-session-server": { AnatomimeSessionError },
+      "@/lib/auth-env": { getAuthSecret },
       "@/lib/auth-request": { authRequestNetworkIdentifier },
       "@/lib/anatomime-room-server": roomServer ?? {
         loadAnatomimeRoom: async (code, viewer, options = {}) => {
@@ -1895,6 +1929,7 @@ function loadPollRoute({
         createAnatomimePollShedder: (options) => {
           events.push("shedder:create")
           shedderOptions.push(options)
+          if (!options.secret?.trim()) throw new Error("Poll shedder test stub rejects a blank secret.")
           if (shedderError) throw shedderError
           return {
             consumeIngress: (input) => {
@@ -1942,8 +1977,10 @@ function loadPollRoute({
       shedderOptions,
     }
   } finally {
-    if (previousSecret === undefined) delete process.env.AUTH_SECRET
-    else process.env.AUTH_SECRET = previousSecret
+    if (!useCurrentAuthEnvironment) {
+      if (previousSecret === undefined) delete process.env.AUTH_SECRET
+      else process.env.AUTH_SECRET = previousSecret
+    }
   }
 }
 
