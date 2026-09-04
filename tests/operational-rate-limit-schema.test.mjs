@@ -444,6 +444,17 @@ COMMIT;
     )
   })
 
+  it("separates ordinary polling failure backoff from server-directed cooldowns", () => {
+    for (const [label, source] of [
+      ["binding design", hardeningDesign],
+      ["Anatomime plan", anatomimeTrafficPlan],
+    ]) {
+      assert.match(source, /failures[^\n.]*30[- ]second/i, label)
+      assert.match(source, /`?Retry-After`?[^\n.]*10 minutes/i, label)
+      assert.doesNotMatch(source, /`?Retry-After`?[^\n.]*capped at 30 seconds/i, label)
+    }
+  })
+
   it("requires bounded consuming Anatomime ingress and one-snapshot atomic poll resolution", () => {
     for (const [label, source] of [
       ["binding design", hardeningDesign],

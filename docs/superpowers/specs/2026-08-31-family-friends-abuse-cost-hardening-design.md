@@ -167,7 +167,7 @@ Ably remains the primary update path. Polling remains a recovery path and is mad
 - lobby, review, and other idle shared-room states poll every 5 seconds;
 - a hidden document polls every 15 seconds;
 - failures back off through 2, 4, 8, 16, and 30 seconds with bounded positive jitter that remains present at the terminal step while the final delay stays capped at 30 seconds;
-- `429` honors a nonnegative `Retry-After` floor capped at 30 seconds before another request;
+- `429` honors a nonnegative `Retry-After` floor capped separately at 10 minutes before another request, allowing the durable 10-minute unjoined-lookup quota to impose meaningful backpressure;
 - `404` stops polling and returns the existing room-ended/not-found guidance; and
 - an invalid authenticated mapping or guest player token stops automatic retry and offers the existing rejoin path.
 

@@ -27,7 +27,7 @@ const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 167
 const verifiedLayerBReceiptPattern = new RegExp(escapeRegExp(
   `exact ${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL}/${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL} focused Anatomime matrix`,
 ))
-const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 20
+const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 22
 const verifiedAnatomimeBrowserQaReceiptPattern = new RegExp(escapeRegExp(
   `All ${VERIFIED_ANATOMIME_BROWSER_QA_TOTAL} full intercepted Anatomime Browser QA desktop/mobile cases reported`,
 ))

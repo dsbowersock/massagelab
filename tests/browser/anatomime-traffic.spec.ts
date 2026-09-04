@@ -497,7 +497,7 @@ test("player realtime wakes failed recovery but cannot bypass Retry-After", asyn
       return
     }
     if (pollCount === 2) {
-      await fulfillJson(route, 429, { error: "Slow down." }, { "Retry-After": "7" })
+      await fulfillJson(route, 429, { error: "Slow down." }, { "Retry-After": "45" })
       return
     }
     await fulfillJson(route, 200, { session: roomSession() })
@@ -511,10 +511,10 @@ test("player realtime wakes failed recovery but cannot bypass Retry-After", asyn
   await expect(page.getByText(/Connection interrupted/i)).toBeVisible()
   await triggerRealtimeSignal(page)
   await expect.poll(() => pollCount).toBe(2)
-  await expect(page.getByText(/Trying again in 7 seconds/i)).toBeVisible()
+  await expect(page.getByText("Updates are paused. Automatic refresh will resume when the server allows it.", { exact: true })).toBeVisible()
   await triggerRealtimeSignal(page)
   expect(pollCount).toBe(2)
-  await page.clock.fastForward(6_999)
+  await page.clock.fastForward(44_999)
   expect(pollCount).toBe(2)
   await page.clock.fastForward(1)
   await expect.poll(() => pollCount).toBe(3)
@@ -640,7 +640,7 @@ test("host refresh wakes failed recovery but cannot bypass Retry-After", async (
     hostPollCount += 1
     if (hostPollCount === 1) {
       await firstHostPollResponse.wait
-      await fulfillJson(route, 429, { error: "Slow down." }, { "Retry-After": "7" })
+      await fulfillJson(route, 429, { error: "Slow down." }, { "Retry-After": "45" })
       return
     }
     if (hostPollCount === 2) {
@@ -669,11 +669,15 @@ test("host refresh wakes failed recovery but cannot bypass Retry-After", async (
   await expect(page.getByRole("status").filter({ hasText: "Update already in progress." })).toBeVisible()
   expect(hostPollCount).toBe(1)
   firstHostPollResponse.release()
-  await expect(page.getByText(/Trying again in 7 seconds/i)).toBeVisible()
+  const rateLimitedStatus = page.getByText(
+    "Updates are paused. Automatic refresh will resume when the server allows it.",
+    { exact: true },
+  )
+  await expect(rateLimitedStatus).toBeVisible()
   await refresh.click()
-  await expect(page.getByText(/Trying again in 7 seconds/i)).toBeVisible()
+  await expect(rateLimitedStatus).toBeVisible()
   expect(hostPollCount).toBe(1)
-  await page.clock.fastForward(6_999)
+  await page.clock.fastForward(44_999)
   expect(hostPollCount).toBe(1)
   await page.clock.fastForward(1)
   await expect.poll(() => hostPollCount).toBe(2)

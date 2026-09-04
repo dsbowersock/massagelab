@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { CheckCircle2, Copy, LogIn, Play, QrCode, RefreshCw, RotateCcw, SkipForward, Timer, UserCog, X } from "lucide-react"
 import { AnatomimeActionButton } from "./anatomime-action-button"
 import {
+  ANATOMIME_RATE_LIMITED_POLL_STATUS,
   fetchAnatomimeRoomSnapshot,
   nextAnatomimePollSchedule,
   nextAnatomimeVisibilitySchedule,
@@ -188,7 +189,7 @@ export function HostRoomClient({
       consecutiveFailures = schedule.consecutiveFailures
       latestScheduledResult = result
       if (result.kind === "RATE_LIMITED") {
-        setPollStatus(`Updates are paused. Trying again in ${Math.ceil(schedule.delayMs / 1_000)} seconds.`)
+        setPollStatus(ANATOMIME_RATE_LIMITED_POLL_STATUS)
       } else if (result.kind === "FAILED") {
         setPollStatus("Connection interrupted. Updates will retry automatically.")
       }

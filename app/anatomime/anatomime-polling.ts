@@ -4,6 +4,10 @@ import type { AnatomimeRoomSummary } from "./shared-session-types"
 /** Bounds one room snapshot across both transport and successful JSON consumption. */
 export const ANATOMIME_ROOM_SNAPSHOT_TIMEOUT_MS = 1_500
 
+/** Keeps rate-limit feedback accurate without presenting a frozen numeric countdown. */
+export const ANATOMIME_RATE_LIMITED_POLL_STATUS =
+  "Updates are paused. Automatic refresh will resume when the server allows it."
+
 export type AnatomimeRoomCredentials = {
   playerId: string
   token: string
@@ -22,6 +26,8 @@ export type AnatomimePollSchedule =
 
 const FAILURE_DELAYS_MS = [2_000, 4_000, 8_000, 16_000, 30_000] as const
 const MAX_FAILURE_DELAY_MS = 30_000
+/** Preserves meaningful durable-limiter backpressure without permitting an unbounded client pause. */
+const MAX_SERVER_RETRY_AFTER_MS = 10 * 60_000
 const FAILURE_JITTER_FRACTION = 0.1
 const ROOM_STATUSES = new Set(["LOBBY", "PLAYING", "GAME_COMPLETE", "REVIEW", "ENDED", "EXPIRED"])
 const ROOM_PHASES = new Set(["LOBBY", "ACTIVE_TERM", "TURN_REVIEW", "GAME_COMPLETE"])
@@ -252,7 +258,7 @@ export function nextAnatomimePollSchedule(input: {
   const jitterMs = Math.max(1, Math.floor(jitterRangeMs * boundedRandom))
   const boundedFailureDelayMs = Math.min(MAX_FAILURE_DELAY_MS, jitterStartMs + jitterMs)
   const retryFloorMs = input.result.kind === "RATE_LIMITED"
-    ? Math.min(MAX_FAILURE_DELAY_MS, Math.max(0, input.result.retryAfterSeconds * 1_000))
+    ? Math.min(MAX_SERVER_RETRY_AFTER_MS, Math.max(0, input.result.retryAfterSeconds * 1_000))
     : 0
 
   return {

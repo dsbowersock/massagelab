@@ -8,6 +8,7 @@ import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
 import { AnatomimeActionButton } from "./anatomime-action-button"
 import {
+  ANATOMIME_RATE_LIMITED_POLL_STATUS,
   anatomimeRetryAfterSeconds,
   fetchAnatomimeRoomSnapshot,
   nextAnatomimePollSchedule,
@@ -269,7 +270,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       consecutiveFailures = schedule.consecutiveFailures
       latestScheduledResult = result
       if (result.kind === "RATE_LIMITED") {
-        setPollStatus(`Updates are paused. Trying again in ${Math.ceil(schedule.delayMs / 1_000)} seconds.`)
+        setPollStatus(ANATOMIME_RATE_LIMITED_POLL_STATUS)
       } else if (result.kind === "FAILED") {
         setPollStatus("Connection interrupted. Updates will retry automatically.")
       }

@@ -129,7 +129,7 @@ export function nextAnatomimePollSchedule(input: {
   | { action: "STOP"; reason: "ROOM_ENDED" | "REJOIN_REQUIRED" }
 ```
 
-Scheduling is exactly 2 seconds for `PLAYING`/`ACTIVE_TERM`, 5 seconds for lobby/review/other idle states, 15 seconds for a hidden successful page, and 2/4/8/16/30 seconds plus bounded positive jitter for failures with a 30-second cap. The terminal failure step retains jitter by shifting its jitter range below that cap instead of clamping every random result to the same value. A `429` waits at least its nonnegative integer `Retry-After`, capped at 30 seconds; `404` and credentialed `401/403` stop.
+Scheduling is exactly 2 seconds for `PLAYING`/`ACTIVE_TERM`, 5 seconds for lobby/review/other idle states, 15 seconds for a hidden successful page, and 2/4/8/16/30 seconds plus bounded positive jitter for failures with a 30-second cap. The terminal failure step retains jitter by shifting its jitter range below that cap instead of clamping every random result to the same value. A `429` waits at least its nonnegative integer `Retry-After`, capped separately at 10 minutes so a durable limiter can impose meaningful backpressure; `404` and credentialed `401/403` stop.
 
 ---
 
@@ -314,7 +314,7 @@ Commit: `perf(anatomime): shed polls and coalesce presence`
 
 - [ ] **Step 1: Write scheduler RED coverage**
 
-Assert active/idle/hidden cadence, deterministic failure sequence with injected randomness, positive jitter at the terminal failure step, 30-second cap, a `Retry-After` floor bounded by that cap, and terminal 404/rejoin stop.
+Assert active/idle/hidden cadence, deterministic failure sequence with injected randomness, positive jitter at the terminal failure step, the 30-second ordinary-failure cap, a server-directed `Retry-After` floor capped separately at 10 minutes, and terminal 404/rejoin stop.
 
 - [ ] **Step 2: Run unit RED**
 

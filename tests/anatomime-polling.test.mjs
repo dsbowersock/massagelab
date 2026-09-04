@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 const polling = await import("../app/anatomime/anatomime-polling.ts")
 
 const {
+  ANATOMIME_RATE_LIMITED_POLL_STATUS,
   fetchAnatomimeRoomSnapshot,
   nextAnatomimePollSchedule,
   nextAnatomimeVisibilitySchedule,
@@ -421,6 +422,11 @@ describe("Anatomime poll scheduling", () => {
   it("honors Retry-After as a floor while preserving failure state", () => {
     const schedule = requirePollingFunction(nextAnatomimePollSchedule, "nextAnatomimePollSchedule")
 
+    assert.equal(
+      ANATOMIME_RATE_LIMITED_POLL_STATUS,
+      "Updates are paused. Automatic refresh will resume when the server allows it.",
+    )
+
     assert.deepEqual(schedule({
       result: { kind: "RATE_LIMITED", retryAfterSeconds: 0 },
       documentHidden: false,
@@ -438,13 +444,19 @@ describe("Anatomime poll scheduling", () => {
       documentHidden: false,
       consecutiveFailures: 8,
       random: () => 0.5,
-    }).delayMs, 30_000)
+    }).delayMs, 45_000)
+    assert.equal(schedule({
+      result: { kind: "RATE_LIMITED", retryAfterSeconds: 600 },
+      documentHidden: false,
+      consecutiveFailures: 4,
+      random: () => 0,
+    }).delayMs, 600_000)
     assert.equal(schedule({
       result: { kind: "RATE_LIMITED", retryAfterSeconds: Number.MAX_SAFE_INTEGER },
       documentHidden: false,
       consecutiveFailures: 4,
       random: () => 0,
-    }).delayMs, 30_000)
+    }).delayMs, 600_000)
   })
 
   it("retains bounded jitter at the terminal failure attempt", () => {
