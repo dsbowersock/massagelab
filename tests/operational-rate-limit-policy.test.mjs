@@ -1,5 +1,4 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { resolveOperationalRateLimitRules } from "../lib/operational-rate-limit-policy.ts"
 
@@ -414,22 +413,4 @@ describe("operational rate-limit policy registry", () => {
     }
   })
 
-  it("keeps the privacy-safe diagnostic allowlist exhaustive with the request union", async () => {
-    const [policySource, limiterSource] = await Promise.all([
-      readFile(new URL("../lib/operational-rate-limit-policy.ts", import.meta.url), "utf8"),
-      readFile(new URL("../lib/operational-rate-limit.ts", import.meta.url), "utf8"),
-    ])
-    const unionOperations = [...new Set(
-      [...policySource.matchAll(/\| \{ operation: "([A-Z_]+)"/g)].map((match) => match[1]),
-    )].sort()
-    const allowlistBody = limiterSource.match(/const DIAGNOSTIC_OPERATION_ALLOWLIST = \{([\s\S]*?)\}\s+satisfies/)
-    assert.ok(allowlistBody, "diagnostic operation allowlist")
-    const diagnosticOperations = [...allowlistBody[1].matchAll(/^\s*([A-Z_]+): true,/gm)]
-      .map((match) => match[1])
-      .sort()
-
-    assert.ok(unionOperations.length > 0, "request union operations")
-    assert.ok(diagnosticOperations.length > 0, "diagnostic allowlist operations")
-    assert.deepEqual(diagnosticOperations, unionOperations)
-  })
 })

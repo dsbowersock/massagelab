@@ -92,6 +92,9 @@ describe("fetchJsonWithTimeout", () => {
     assert.equal(injectedInit.signal.aborted, false)
     assert.equal(injectedInput, input)
     assert.deepEqual(result.json, { source: "injected" })
+
+    callerController.abort(new DOMException("Too late", "AbortError"))
+    assert.equal(injectedInit.signal.aborted, false)
   })
 
   it("keeps the request deadline active while a successful response body is read", { timeout: 250 }, async () => {

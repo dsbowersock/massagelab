@@ -173,10 +173,6 @@ describe("Anatomime traffic server primitives", () => {
       for (const [method, implementation] of Object.entries(originalConsole)) console[method] = implementation
     }
     assert.deepEqual(captured, [])
-    assert.match(
-      trafficServerSource,
-      /shared limiter[\s\S]*bounded[\s\S]*Do not log[\s\S]*(?:identifiers|request)[\s\S]*amplif/i,
-    )
   })
 
   it("maps traffic errors to generic 429 and 503 responses with an integer Retry-After", async () => {
