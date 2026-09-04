@@ -83,6 +83,10 @@ function assertParagraphMatches(source, pattern, label) {
   )
 }
 
+const CONSUME_JOINED_CONTRACT = /^(?=[\s\S]*`consumeJoined`)(?=[\s\S]*`networkIdentifier`)(?=[\s\S]*`roomIdentifier`)(?=[\s\S]*`playerId`)(?=[\s\S]*atomically checks)(?=[\s\S]*network\+room)(?=[\s\S]*room)(?=[\s\S]*player)(?=[\s\S]*increments none)[\s\S]*$/i
+const BLOCKED_MUTATION_CONTRACT = /(?:any|one)[^.]*blocks?[\s\S]*(?:capacity|4,096)[\s\S]*(?:(?:mutates|increments) none|(?:mutates|increments) nothing)/i
+const EXPIRY_CONFLICT_CONTRACT = /^(?=[\s\S]*post-rollback[^.]*idle-expiry[^.]*zero-row)(?=[\s\S]*exactly one[^.]*winner reread)(?=[\s\S]*`EXPIRED`)(?=[\s\S]*`expiresAt`[^.]*strictly later[^.]*captured[^.]*`now`)(?=[\s\S]*missing)(?=[\s\S]*non-`EXPIRED`[^.]*(?:still overdue|still-overdue))(?=[\s\S]*`503`)(?=[\s\S]*(?:(?:guard|quota)[^.]*not (?:called|repeat)|does not repeat[^.]*(?:guard|quota)))[\s\S]*$/i
+
 /** Normalizes layout-only whitespace without weakening SQL token checks. */
 function normalizeSql(value) {
   return value
@@ -420,10 +424,7 @@ COMMIT;
     }
   })
 
-  it("requires bounded consuming Anatomime ingress and one-snapshot atomic poll resolution", () => {
-    const consumeJoinedContract = /^(?=[\s\S]*`consumeJoined`)(?=[\s\S]*`networkIdentifier`)(?=[\s\S]*`roomIdentifier`)(?=[\s\S]*`playerId`)(?=[\s\S]*atomically checks)(?=[\s\S]*network\+room)(?=[\s\S]*room)(?=[\s\S]*player)(?=[\s\S]*increments none)[\s\S]*$/i
-    const blockedMutationContract = /(?:any|one)[^.]*blocks?[\s\S]*(?:capacity|4,096)[\s\S]*(?:(?:mutates|increments) none|(?:mutates|increments) nothing)/i
-    const expiryConflictContract = /^(?=[\s\S]*post-rollback[^.]*idle-expiry[^.]*zero-row)(?=[\s\S]*exactly one[^.]*winner reread)(?=[\s\S]*`EXPIRED`)(?=[\s\S]*`expiresAt`[^.]*strictly later[^.]*captured[^.]*`now`)(?=[\s\S]*missing)(?=[\s\S]*non-`EXPIRED`[^.]*(?:still overdue|still-overdue))(?=[\s\S]*`503`)(?=[\s\S]*(?:(?:guard|quota)[^.]*not (?:called|repeat)|does not repeat[^.]*(?:guard|quota)))[\s\S]*$/i
+  it("keeps the Anatomime documentation matchers meaningful", () => {
     assert.throws(
       () => assertParagraphMatches(
         "one room read\n\nsame loaded snapshot",
@@ -434,13 +435,16 @@ COMMIT;
     )
     assertParagraphMatches(
       "`consumeJoined` atomically checks player, room, then network+room and increments none; it accepts `playerId`, `roomIdentifier`, and `networkIdentifier`.",
-      consumeJoinedContract,
+      CONSUME_JOINED_CONTRACT,
       "reordered consumeJoined fixture",
     )
     assert.doesNotMatch(
       "This unrelated paragraph mutates nothing.",
-      blockedMutationContract,
+      BLOCKED_MUTATION_CONTRACT,
     )
+  })
+
+  it("requires bounded consuming Anatomime ingress and one-snapshot atomic poll resolution", () => {
     for (const [label, source] of [
       ["binding design", hardeningDesign],
       ["Anatomime plan", anatomimeTrafficPlan],
@@ -452,7 +456,7 @@ COMMIT;
       )
       assertParagraphMatches(
         source,
-        blockedMutationContract,
+        BLOCKED_MUTATION_CONTRACT,
         label,
       )
       assertParagraphMatches(
@@ -472,12 +476,12 @@ COMMIT;
       )
       assertParagraphMatches(
         source,
-        expiryConflictContract,
+        EXPIRY_CONFLICT_CONTRACT,
         label,
       )
       assertParagraphMatches(
         source,
-        consumeJoinedContract,
+        CONSUME_JOINED_CONTRACT,
         label,
       )
       assertParagraphMatches(
@@ -495,6 +499,7 @@ COMMIT;
       /consumeJoined\(input:\s*\{\s*networkIdentifier: string; roomIdentifier: string; playerId: string; now\?: Date\s*\}\): AnatomimePollShedDecision/,
     )
     assert.doesNotMatch(anatomimeTrafficPlan, /peekIngress\(/)
+    assert.doesNotMatch(hardeningDesign, /peekIngress\(/)
     assert.doesNotMatch(
       anatomimeTrafficPlan,
       /consumeJoined\(input:\s*\{\s*playerId: string; now\?: Date\s*\}/,

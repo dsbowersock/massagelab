@@ -24,6 +24,8 @@ export const POST = apiErrorMapper(async (request: Request) => {
   const session = await getCurrentSession().catch(() => null)
   const accountId = session?.user?.id
   const created = await createAnatomimeRoom(body.config ?? body, accountId, {
+    // Create quota runs after config validation but before code or database persistence.
+    // Nullish account identity intentionally uses the anonymous quota.
     beforePersist: () => requireAnatomimeOperationalAllowance({
       operation: "ANATOMIME_ROOM_CREATE",
       networkIdentifier: authRequestNetworkIdentifier(request),

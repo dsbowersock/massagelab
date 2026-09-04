@@ -92,16 +92,64 @@ async function installPlayerRuntime(page: Page, { storedPlayer = true } = {}) {
       Ably?: unknown
       __anatomimeAblySignal?: (() => void) | null
     }
+    type AblyCallback = () => void
+    type AblyClientState = {
+      channels: Map<string, Set<AblyCallback>>
+      closed: boolean
+    }
+    const activeClients = new Set<AblyClientState>()
+    const dispatchActiveCallbacks = () => {
+      const callbacks: AblyCallback[] = []
+      for (const client of activeClients) {
+        for (const channelCallbacks of client.channels.values()) callbacks.push(...channelCallbacks)
+      }
+      for (const callback of callbacks) callback()
+    }
+    const refreshDispatcher = () => {
+      runtime.__anatomimeAblySignal = [...activeClients].some((client) => (
+        [...client.channels.values()].some((callbacks) => callbacks.size > 0)
+      ))
+        ? dispatchActiveCallbacks
+        : null
+    }
     runtime.__anatomimeAblySignal = null
     runtime.Ably = {
       Realtime: class {
-        channels = {
-          get: () => ({
-            subscribe(callback: () => void) { runtime.__anatomimeAblySignal = callback },
-            unsubscribe() {},
-          }),
+        private readonly state: AblyClientState = { channels: new Map(), closed: false }
+
+        constructor() {
+          activeClients.add(this.state)
         }
-        close() {}
+
+        channels = {
+          get: (channelName: string) => {
+            let callbacks = this.state.channels.get(channelName)
+            if (!callbacks) {
+              callbacks = new Set()
+              this.state.channels.set(channelName, callbacks)
+            }
+            return {
+              subscribe: (callback: AblyCallback) => {
+                if (this.state.closed) return
+                callbacks.add(callback)
+                refreshDispatcher()
+              },
+              unsubscribe: () => {
+                callbacks.clear()
+                refreshDispatcher()
+              },
+            }
+          },
+        }
+
+        close() {
+          if (this.state.closed) return
+          this.state.closed = true
+          for (const callbacks of this.state.channels.values()) callbacks.clear()
+          this.state.channels.clear()
+          activeClients.delete(this.state)
+          refreshDispatcher()
+        }
       },
     }
   }, { roomCode: ROOM_CODE, stored: storedPlayer })
@@ -162,6 +210,68 @@ function responseGate() {
   const wait = new Promise<void>((resolve) => { release = resolve })
   return { release, wait }
 }
+
+test("Ably harness isolates subscriptions across client and channel lifecycles", async ({ page }) => {
+  await installPlayerRuntime(page, { storedPlayer: false })
+  await page.goto("data:text/html,<title>Ably harness</title>")
+
+  const lifecycle = await page.evaluate(() => {
+    type TestChannel = {
+      subscribe: (callback: () => void) => void
+      unsubscribe: () => void
+    }
+    type TestClient = {
+      channels: { get: (name: string) => TestChannel }
+      close: () => void
+    }
+    const runtime = window as typeof window & {
+      Ably?: { Realtime: new () => TestClient }
+      __anatomimeAblySignal?: (() => void) | null
+    }
+    if (!runtime.Ably) throw new Error("Ably harness is unavailable.")
+
+    const calls: string[] = []
+    const dispatch = () => {
+      const start = calls.length
+      runtime.__anatomimeAblySignal?.()
+      return calls.slice(start)
+    }
+    const firstClient = new runtime.Ably.Realtime()
+    const secondClient = new runtime.Ably.Realtime()
+    const firstRoom = firstClient.channels.get("room")
+    const firstOther = firstClient.channels.get("other")
+    const secondRoom = secondClient.channels.get("room")
+
+    firstRoom.subscribe(() => calls.push("first-room-a"))
+    firstRoom.subscribe(() => calls.push("first-room-b"))
+    firstOther.subscribe(() => calls.push("first-other"))
+    secondRoom.subscribe(() => calls.push("second-room-a"))
+    const initial = dispatch()
+
+    firstRoom.unsubscribe()
+    const afterChannelUnsubscribe = dispatch()
+
+    firstRoom.subscribe(() => calls.push("first-room-c"))
+    const afterResubscribe = dispatch()
+
+    firstClient.close()
+    const afterClientClose = dispatch()
+
+    secondRoom.subscribe(() => calls.push("second-room-b"))
+    const afterSecondSubscription = dispatch()
+
+    return { initial, afterChannelUnsubscribe, afterResubscribe, afterClientClose, afterSecondSubscription }
+  })
+
+  expect(lifecycle).toEqual({
+    initial: ["first-room-a", "first-room-b", "first-other", "second-room-a"],
+    afterChannelUnsubscribe: ["first-other", "second-room-a"],
+    afterResubscribe: ["first-room-c", "first-other", "second-room-a"],
+    afterClientClose: ["second-room-a"],
+    afterSecondSubscription: ["second-room-a", "second-room-b"],
+  })
+  await page.close()
+})
 
 test("player polling uses credential-bound tokens with 2s visible and 15s hidden cadence", async ({ page }) => {
   await page.clock.install()
