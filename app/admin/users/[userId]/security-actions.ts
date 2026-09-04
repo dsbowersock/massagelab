@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache"
 import { requireFullAdminUser } from "@/lib/admin/access"
-import { deliverAdminEmailIntent } from "@/lib/admin/email-intents"
+import {
+  deliverAdminEmailIntent,
+  type AdminEmailIntentDeliveryOutcome,
+} from "@/lib/admin/email-intents"
 import {
   ADMIN_REASON_CODES,
   validateAdminReason,
@@ -39,10 +42,7 @@ type ParsedCommon = {
   operationId: string
 }
 
-type NotificationOutcome = {
-  status: "DELIVERED" | "FAILED"
-  attempted: boolean
-} | null
+type NotificationOutcome = AdminEmailIntentDeliveryOutcome | null
 
 /**
  * Invalidates a target's older JWTs through the canonical version owner. The

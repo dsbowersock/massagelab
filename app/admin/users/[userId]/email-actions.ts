@@ -12,8 +12,8 @@ export type RetryEmailActionState =
   | { status: "error"; message: string }
 
 /**
- * Retries one already-failed, non-password account-change notification. The
- * durable service rechecks both the current full-Admin authority and intent
+ * Retries one recoverable, non-password account-change notification. The
+ * durable service rechecks current full-Admin authority, claim state, and intent
  * eligibility. Expected validation and delivery failures become safe UI state;
  * authorization failures still reject before those outcomes are handled.
  */
@@ -26,7 +26,7 @@ export async function retryFailedEmailIntentAction(
   const intentId = formData.get("intentId")
   const operationId = formData.get("operationId")
   if (typeof intentId !== "string" || !intentId.trim() || intentId.length > 191) {
-    return { status: "error", message: "Choose a valid failed email notification." }
+    return { status: "error", message: "Choose a valid email notification." }
   }
   if (typeof operationId !== "string" || !isUuid(operationId)) {
     return { status: "error", message: "Refresh this account before retrying the notification." }
@@ -50,9 +50,31 @@ export async function retryFailedEmailIntentAction(
   }
 
   revalidatePath(`/admin/users/${encodeURIComponent(userId)}`)
-  return result.status === "DELIVERED"
-    ? { status: "success", message: "Email notification retried." }
-    : { status: "error", message: "The email could not be delivered. You can retry again." }
+  // `attempted` separates this invocation's provider call from an idempotent
+  // replay of an already-recorded delivery result, so the operator copy never
+  // implies that replaying the same operation key sent another email.
+  if (result.status === "DELIVERED") {
+    if (!result.attempted) {
+      return {
+        status: "success",
+        message: "The email notification was already delivered; no new send was attempted.",
+      }
+    }
+    return { status: "success", message: "Email notification retried." }
+  }
+  if (result.status === "FAILED") {
+    if (!result.attempted) {
+      return {
+        status: "error",
+        message: "The earlier email delivery attempt failed; no new send was attempted. You can retry again.",
+      }
+    }
+    return { status: "error", message: "The email could not be delivered. You can retry again." }
+  }
+  return {
+    status: "error",
+    message: "Email delivery could not be confirmed. Check Activity before retrying.",
+  }
 }
 
 function isUuid(value: string) {

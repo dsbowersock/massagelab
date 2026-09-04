@@ -1,6 +1,6 @@
 import { after, NextResponse } from "next/server"
 import { getAuthSecret } from "@/lib/auth-env"
-import { sendAccountChangeEmail, sendPasswordSetupEmail, sendVerificationEmail } from "@/lib/auth-mail"
+import { sendExistingAccountRegistrationNotice, sendPasswordSetupEmail, sendVerificationEmail } from "@/lib/auth-mail"
 import { consumeEmailWorkRateLimit } from "@/lib/auth-rate-limit"
 import { PUBLIC_ACCOUNT_ENTRY_MESSAGE } from "@/lib/auth-entry-messages"
 import { authRequestNetworkIdentifier, isPublicAccountEmail } from "@/lib/auth-request"
@@ -23,10 +23,6 @@ import {
 } from "@/lib/public-launch-controls"
 
 const RATE_LIMIT_MESSAGE = "Too many requests. Please try again later."
-const EXISTING_ACCOUNT_NOTICE_SUBJECT = "MassageLab account sign-in request"
-const EXISTING_ACCOUNT_NOTICE_MESSAGE =
-  "A password registration request was received for this MassageLab account. Sign in with your existing password, or use account recovery if you need to reset it. If you did not make this request, no action is needed."
-
 export async function POST(request: Request) {
   if (!getPublicLaunchControls().registrationOpen) {
     return NextResponse.json({ message: REGISTRATION_PAUSED_MESSAGE }, { status: 503 })
@@ -76,11 +72,7 @@ export async function POST(request: Request) {
       sendRegistrationVerification(sendVerificationEmail, recipient, token, safeCallbackUrl)
     ),
     sendPasswordSetup: sendPasswordSetupEmail,
-    sendExistingAccountNotice: (recipient) => sendAccountChangeEmail(
-      recipient,
-      EXISTING_ACCOUNT_NOTICE_SUBJECT,
-      EXISTING_ACCOUNT_NOTICE_MESSAGE,
-    ),
+    sendExistingAccountNotice: sendExistingAccountRegistrationNotice,
     scheduleAccountWork: (work) => after(work),
   })
 

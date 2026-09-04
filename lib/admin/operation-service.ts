@@ -190,6 +190,9 @@ function isExactBundleReplay(existing: {
     lastAttemptAt: Date | null
     deliveredAt: Date | null
     failureCode: string | null
+    deliveryClaimTokenHash: string | null
+    deliveryClaimExpiresAt: Date | null
+    deliveryClaimOperationKeyHash: string | null
   } | null
 }, input: NormalizedRecordInput): boolean {
   const activity = existing.activity
@@ -233,21 +236,48 @@ export async function acquireAdminActionIdempotencyLock(tx: Prisma.TransactionCl
 
 function hasCoherentEmailIntentState(intent: NonNullable<Parameters<typeof isExactBundleReplay>[0]["emailIntent"]>): boolean {
   if (!Number.isSafeInteger(intent.attemptCount) || intent.attemptCount < 0) return false
+  const hasNoClaim = intent.deliveryClaimTokenHash === null
+    && intent.deliveryClaimExpiresAt === null
+    && intent.deliveryClaimOperationKeyHash === null
+  const hasBaseClaim = typeof intent.deliveryClaimTokenHash === "string"
+    && /^[0-9a-f]{64}$/.test(intent.deliveryClaimTokenHash)
+    && intent.deliveryClaimExpiresAt instanceof Date
+  const hasInitialClaim = hasBaseClaim && intent.deliveryClaimOperationKeyHash === null
+  const hasRetryClaim = hasBaseClaim
+    && typeof intent.deliveryClaimOperationKeyHash === "string"
+    && /^[0-9a-f]{64}$/.test(intent.deliveryClaimOperationKeyHash)
+  // Valid shapes/statuses: no claim for untouched PENDING or finalized
+  // DELIVERED/FAILED; token+expiry for initial PENDING; retry adds the
+  // operation hash and may remain PENDING or FAILED after ambiguous completion.
+  if (!hasNoClaim && !hasInitialClaim && !hasRetryClaim) return false
   if (intent.recipientEmail === null) {
     return intent.status === "FAILED"
       && intent.failureCode === "RECIPIENT_UNAVAILABLE"
       && intent.attemptCount === 0
       && intent.lastAttemptAt === null
       && intent.deliveredAt === null
+      && hasNoClaim
   }
   if (intent.status === "PENDING") {
-    return intent.attemptCount === 0 && intent.lastAttemptAt === null && intent.deliveredAt === null && intent.failureCode === null
+    return intent.deliveredAt === null
+      && intent.failureCode === null
+      && (hasNoClaim
+        ? intent.attemptCount === 0 && intent.lastAttemptAt === null
+        : (hasInitialClaim || hasRetryClaim) && intent.attemptCount > 0 && intent.lastAttemptAt instanceof Date)
   }
   if (intent.status === "DELIVERED") {
-    return intent.attemptCount > 0 && intent.lastAttemptAt instanceof Date && intent.deliveredAt instanceof Date && intent.failureCode === null
+    return hasNoClaim
+      && intent.attemptCount > 0
+      && intent.lastAttemptAt instanceof Date
+      && intent.deliveredAt instanceof Date
+      && intent.failureCode === null
   }
   if (intent.status === "FAILED") {
-    return intent.failureCode === "DELIVERY_FAILED" && intent.attemptCount > 0 && intent.lastAttemptAt instanceof Date && intent.deliveredAt === null
+    return intent.failureCode === "DELIVERY_FAILED"
+      && intent.attemptCount > 0
+      && intent.lastAttemptAt instanceof Date
+      && intent.deliveredAt === null
+      && (hasNoClaim || hasRetryClaim)
   }
   return false
 }

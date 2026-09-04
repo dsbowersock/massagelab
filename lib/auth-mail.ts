@@ -1,11 +1,14 @@
 import nodemailer from "nodemailer-v9"
 import { getSiteUrl } from "./auth-env.ts"
 import { buildVerificationEmailUrl } from "./auth-registration.js"
+import { consumeOperationalRateLimit } from "./operational-rate-limit.ts"
 
 type MailResult = {
   delivered: boolean
   devLink?: string
 }
+
+type MailAttemptClass = "PUBLIC_AUTH" | "SECURITY"
 
 const ACCOUNT_CHANGE_EMAIL_SUBJECT_MAX_LENGTH = 200
 const ACCOUNT_CHANGE_EMAIL_MESSAGE_MAX_LENGTH = 5_000
@@ -13,10 +16,14 @@ const SMTP_DNS_TIMEOUT_MS = 5_000
 const SMTP_CONNECTION_TIMEOUT_MS = 10_000
 const SMTP_GREETING_TIMEOUT_MS = 10_000
 const SMTP_SOCKET_TIMEOUT_MS = 20_000
+const EXISTING_ACCOUNT_NOTICE_SUBJECT = "MassageLab account sign-in request"
+const EXISTING_ACCOUNT_NOTICE_MESSAGE =
+  "A password registration request was received for this MassageLab account. Sign in with your existing password, or use account recovery if you need to reset it. If you did not make this request, no action is needed."
 
 /**
  * Enforced wall-clock deadline for one account-change SMTP attempt. Admin
- * email transactions use a larger timeout so the durable outcome can commit.
+ * database transactions finish before SMTP starts; this independent mail
+ * deadline is intentionally larger than their short transaction timeout.
  */
 export const ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS = SMTP_DNS_TIMEOUT_MS
   + SMTP_CONNECTION_TIMEOUT_MS
@@ -27,14 +34,37 @@ function hasSmtpConfig() {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM && (!process.env.SMTP_USER || process.env.SMTP_PASSWORD))
 }
 
+function isMailAttemptClass(value: unknown): value is MailAttemptClass {
+  return value === "PUBLIC_AUTH" || value === "SECURITY"
+}
+
 /**
  * Delivers a fixed-field text message without exposing Nodemailer's raw message
  * or attachment-loading options to callers. This boundary is intentional while
  * Auth.js does not enable its optional email provider, so MassageLab loads the
  * patched Nodemailer 9 runtime through an alias without falsifying that peer.
  */
-async function sendMail(to: string, subject: string, text: string): Promise<MailResult> {
+async function sendMail(
+  mailClass: MailAttemptClass,
+  to: string,
+  subject: string,
+  text: string,
+): Promise<MailResult> {
+  if (!isMailAttemptClass(mailClass)) {
+    return { delivered: false } satisfies MailResult
+  }
   if (!hasSmtpConfig()) {
+    return { delivered: false } satisfies MailResult
+  }
+
+  const decision = await consumeOperationalRateLimit({
+    operation: mailClass === "PUBLIC_AUTH" ? "EMAIL_PUBLIC_AUTH" : "EMAIL_SECURITY",
+  })
+  if (!decision.allowed) {
+    // Expected limiter denials are intentionally silent at this shared mail boundary:
+    // attacker-triggered denials must not amplify into unbounded logging/Sentry cost.
+    // Future aggregate or sampled caller telemetry may include only allowlisted mail class/policy and reason;
+    // never recipient, subject, or decision details.
     return { delivered: false } satisfies MailResult
   }
 
@@ -101,7 +131,21 @@ export async function sendAccountChangeEmail(to: string, subject: string, messag
     return { delivered: false }
   }
 
-  return sendMail(to, subject, message)
+  return sendMail("SECURITY", to, subject, message)
+}
+
+/** Sends fixed enumeration-safe copy for a password request on an existing account. */
+export async function sendExistingAccountRegistrationNotice(email: string): Promise<MailResult> {
+  if (!isSafeAccountChangeMailField(email, 320)) {
+    return { delivered: false }
+  }
+
+  return sendMail(
+    "PUBLIC_AUTH",
+    email,
+    EXISTING_ACCOUNT_NOTICE_SUBJECT,
+    EXISTING_ACCOUNT_NOTICE_MESSAGE,
+  )
 }
 
 function isSafeAccountChangeMailField(value: string, maxLength: number, allowLineBreaks = false): boolean {
@@ -131,6 +175,7 @@ export function buildVerificationEmailLink(token: string, callbackUrl?: string) 
 export async function sendVerificationEmail(email: string, token: string, callbackUrl?: string) {
   const link = buildVerificationEmailLink(token, callbackUrl)
   const result = await sendMail(
+    "PUBLIC_AUTH",
     email,
     "Verify your MassageLab email",
     `Verify your MassageLab account by opening this link:\n\n${link}\n\nThis link expires in 24 hours.`,
@@ -142,6 +187,7 @@ export async function sendVerificationEmail(email: string, token: string, callba
 export async function sendPasswordResetEmail(email: string, token: string) {
   const link = `${getSiteUrl()}/reset-password?token=${encodeURIComponent(token)}`
   const result = await sendMail(
+    "PUBLIC_AUTH",
     email,
     "Reset your MassageLab password",
     `Reset your MassageLab password by opening this link:\n\n${link}\n\nThis link expires in 60 minutes.`,
@@ -167,7 +213,7 @@ export function passwordSetupEmailCopy(link: string, googleLinked: boolean) {
 export async function sendPasswordSetupEmail(email: string, token: string, googleLinked: boolean) {
   const link = `${getSiteUrl()}/reset-password?token=${encodeURIComponent(token)}`
   const copy = passwordSetupEmailCopy(link, googleLinked)
-  const result = await sendMail(email, copy.subject, copy.text)
+  const result = await sendMail("PUBLIC_AUTH", email, copy.subject, copy.text)
 
   return process.env.NODE_ENV === "production" ? result : { ...result, devLink: link }
 }

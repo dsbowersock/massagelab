@@ -19,7 +19,7 @@ const idleState = { status: "idle", message: "" }
  * authorization, service, safe-code, and revalidation interaction.
  */
 function retryActionHarness({
-  serviceResult = { status: "DELIVERED", attemptCount: 2, replayed: false },
+  serviceResult = { status: "DELIVERED", attemptCount: 2, attempted: true, replayed: false },
   serviceError,
   safeCode = "provider_error",
 } = {}) {
@@ -61,9 +61,9 @@ describe("account activity surfaces", () => {
     assert.match(accountPageSource, /activity:\s*"Sign in"/)
   })
 
-  it("renders an explicit retry only for service-retryable failed non-password email intents", () => {
-    assert.match(retryFormSource, /Retry failed email/)
-    assert.match(adminDetailSource, /email\?\.status === "FAILED"[\s\S]*email\.kind !== "PASSWORD_RESET"[\s\S]*email\.failureCode !== "RECIPIENT_UNAVAILABLE"/)
+  it("renders an explicit retry for recoverable pending or failed non-password email intents", () => {
+    assert.match(retryFormSource, /Retry email notification/)
+    assert.match(adminDetailSource, /const canRetry = email\?\.retryEligible === true/)
     assert.match(adminDetailSource, /failedPasswordReset[\s\S]*FreshPasswordResetForm/)
     assert.match(securityFormSource, /Send a new reset link/)
     assert.match(securityFormSource, /sendAdminPasswordResetAction\.bind\(null, userId\)/)
@@ -87,7 +87,7 @@ describe("account activity surfaces", () => {
 
     const result = await action("user-1", idleState, retryForm({ intentId: "" }))
 
-    assert.deepEqual(result, { status: "error", message: "Choose a valid failed email notification." })
+    assert.deepEqual(result, { status: "error", message: "Choose a valid email notification." })
     assert.deepEqual(calls, [["requireFullAdminUser"]])
   })
 
@@ -99,10 +99,45 @@ describe("account activity surfaces", () => {
     assert.equal(success.calls[1][1].idempotencyKey, "b7653eb8-0f7b-43b8-9d31-6657ab6c3a22")
     assert.deepEqual(success.calls[2], ["revalidatePath", "/admin/users/user-1"])
 
-    const failed = retryActionHarness({ serviceResult: { status: "FAILED", attemptCount: 2, replayed: false } })
+    const alreadyDelivered = retryActionHarness({
+      serviceResult: { status: "DELIVERED", attemptCount: 2, attempted: false, replayed: true },
+    })
+    const alreadyDeliveredResult = await alreadyDelivered.action("user-1", idleState, retryForm())
+    assert.deepEqual(alreadyDeliveredResult, {
+      status: "success",
+      message: "The email notification was already delivered; no new send was attempted.",
+    })
+    assert.deepEqual(alreadyDelivered.calls[2], ["revalidatePath", "/admin/users/user-1"])
+
+    const failed = retryActionHarness({
+      serviceResult: { status: "FAILED", attemptCount: 2, attempted: true, replayed: false },
+    })
     const failedResult = await failed.action("user-1", idleState, retryForm())
     assert.deepEqual(failedResult, { status: "error", message: "The email could not be delivered. You can retry again." })
     assert.deepEqual(failed.calls[2], ["revalidatePath", "/admin/users/user-1"])
+
+    const replayedFailure = retryActionHarness({
+      serviceResult: { status: "FAILED", attemptCount: 2, attempted: false, replayed: true },
+    })
+    const replayedFailureResult = await replayedFailure.action("user-1", idleState, retryForm())
+    assert.deepEqual(replayedFailureResult, {
+      status: "error",
+      message: "The earlier email delivery attempt failed; no new send was attempted. You can retry again.",
+    })
+    assert.deepEqual(replayedFailure.calls[2], ["revalidatePath", "/admin/users/user-1"])
+
+    for (const serviceResult of [
+      { status: "BUSY", attemptCount: 2, attempted: false, replayed: false },
+      { status: "AMBIGUOUS", attemptCount: 2, attempted: true, replayed: false },
+    ]) {
+      const unconfirmed = retryActionHarness({ serviceResult })
+      const result = await unconfirmed.action("user-1", idleState, retryForm())
+      assert.deepEqual(result, {
+        status: "error",
+        message: "Email delivery could not be confirmed. Check Activity before retrying.",
+      }, serviceResult.status)
+      assert.doesNotMatch(result.message, /could not be delivered/i, serviceResult.status)
+    }
   })
 
   it("converts service exceptions into a generic retry error without leaking details", async () => {

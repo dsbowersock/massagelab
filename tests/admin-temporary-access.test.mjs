@@ -278,6 +278,9 @@ function createDatabase({
             attemptCount: 0,
             lastAttemptAt: null,
             deliveredAt: null,
+            deliveryClaimTokenHash: null,
+            deliveryClaimExpiresAt: null,
+            deliveryClaimOperationKeyHash: null,
           }
           state().intents.set(data.adminActionId, intent)
           return { id: intent.id }
@@ -363,6 +366,9 @@ function commitCompetingAdminBundle(root, { idempotencyKey, actionKind }) {
     lastAttemptAt: null,
     deliveredAt: null,
     failureCode: null,
+    deliveryClaimTokenHash: null,
+    deliveryClaimExpiresAt: null,
+    deliveryClaimOperationKeyHash: null,
   })
 }
 

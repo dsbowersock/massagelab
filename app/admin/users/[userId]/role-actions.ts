@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache"
 import { requireFullAdminUser } from "@/lib/admin/access"
-import { deliverAdminEmailIntent } from "@/lib/admin/email-intents"
+import {
+  deliverAdminEmailIntent,
+  type AdminEmailIntentDeliveryOutcome,
+} from "@/lib/admin/email-intents"
 import {
   ADMIN_REASON_CODES,
   validateAdminReason,
@@ -84,7 +87,7 @@ export async function changeAnatomyRoleAction(
     }
   }
 
-  let notificationOutcome: { status: "DELIVERED" | "FAILED"; attempted: boolean } | null = null
+  let notificationOutcome: AdminEmailIntentDeliveryOutcome | null = null
   try {
     const delivery = await deliverAdminEmailIntent({
       prismaClient: prisma,

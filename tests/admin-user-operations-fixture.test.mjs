@@ -96,6 +96,9 @@ describe("admin user operations browser fixture", () => {
         { userId: { in: ids } },
         { grantedById: { in: ids } },
       ] } }],
+      ["adminEmailRetryOperationKey.deleteMany", { where: {
+        emailIntent: { is: { userId: { in: ids } } },
+      } }],
       ["adminEmailIntent.deleteMany", { where: { userId: { in: ids } } }],
       ["userAccountActivity.deleteMany", { where: { userId: { in: ids } } }],
       ["adminAction.deleteMany", { where: { OR: [{ actorUserId: { in: ids } }, { targetUserId: { in: ids } }] } }],
@@ -146,7 +149,7 @@ describe("admin user operations browser fixture", () => {
 function cleanupPrisma(calls) {
   return Object.fromEntries([
     "temporaryFeatureGrantRevocation", "temporaryFeatureGrant",
-    "adminEmailIntent", "userAccountActivity", "adminAction", "session", "userRole",
+    "adminEmailRetryOperationKey", "adminEmailIntent", "userAccountActivity", "adminAction", "session", "userRole",
     "passwordResetToken", "backupCode", "twoFactorSecret", "passwordCredential",
     "commerceEvent", "backgroundCreditEntry", "backgroundCreditWallet", "user",
   ].map((model) => [model, {

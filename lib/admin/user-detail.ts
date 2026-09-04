@@ -6,6 +6,7 @@ import {
   getConfiguredMembershipOptions,
   loadActiveTemporaryGrants,
 } from "../membership.js"
+import { isAdminEmailIntentRetryEligible } from "./email-intents.ts"
 import { activeMembershipSubscriptionWhere } from "./subscription-activity.ts"
 
 export const ADMIN_USER_DETAIL_SECTIONS = ["overview", "access", "billing", "security", "activity"] as const
@@ -243,6 +244,7 @@ export async function loadAdminUserActivity(input: { prismaClient: DetailPrismaC
         kind: activity.adminAction.emailIntent.kind,
         status: activity.adminAction.emailIntent.status,
         failureCode: activity.adminAction.emailIntent.failureCode,
+        retryEligible: isAdminEmailIntentRetryEligible(activity.adminAction.emailIntent),
         attemptCount: activity.adminAction.emailIntent.attemptCount,
         lastAttemptAt: dateValue(activity.adminAction.emailIntent.lastAttemptAt),
         deliveredAt: dateValue(activity.adminAction.emailIntent.deliveredAt),
@@ -362,7 +364,7 @@ const ACTIVITY_SELECT = {
   accountActivities: {
     select: {
       id: true, title: true, explanation: true, effectiveValue: true, occurredAt: true,
-      adminAction: { select: { actionKind: true, outcome: true, occurredAt: true, emailIntent: { select: { id: true, kind: true, status: true, failureCode: true, attemptCount: true, lastAttemptAt: true, deliveredAt: true } } } },
+      adminAction: { select: { actionKind: true, outcome: true, occurredAt: true, emailIntent: { select: { id: true, kind: true, status: true, recipientEmail: true, failureCode: true, attemptCount: true, lastAttemptAt: true, deliveredAt: true } } } },
     }, orderBy: [{ occurredAt: "desc" }, { id: "desc" }], take: 50,
   },
 } satisfies Prisma.UserSelect
