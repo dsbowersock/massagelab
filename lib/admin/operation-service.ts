@@ -246,6 +246,9 @@ function hasCoherentEmailIntentState(intent: NonNullable<Parameters<typeof isExa
   const hasRetryClaim = hasBaseClaim
     && typeof intent.deliveryClaimOperationKeyHash === "string"
     && /^[0-9a-f]{64}$/.test(intent.deliveryClaimOperationKeyHash)
+  // Valid shapes/statuses: no claim for untouched PENDING or finalized
+  // DELIVERED/FAILED; token+expiry for initial PENDING; retry adds the
+  // operation hash and may remain PENDING or FAILED after ambiguous completion.
   if (!hasNoClaim && !hasInitialClaim && !hasRetryClaim) return false
   if (intent.recipientEmail === null) {
     return intent.status === "FAILED"

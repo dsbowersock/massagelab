@@ -89,7 +89,7 @@ model OperationalRateLimitBucket {
 
 The migration is expansion-only. It creates the limiter enum, bucket table, unique key, and cleanup indexes. It also adds three nullable `AdminEmailIntent` delivery-claim columns, creates the unique `deliveryClaimOperationKeyHash` index, creates the append-only `AdminEmailRetryOperationKey` table and its indexes, and attaches its `RESTRICT` foreign key to `AdminEmailIntent`. It does not change or backfill existing row values.
 
-A count-only Production `AdminEmailIntent` row-count preflight is mandatory immediately before applying `20260831120000_operational_rate_limit_bucket`. Proceed only when the refreshed exact count is `0`; any nonzero result is a hard stop requiring re-review before migration or runtime deployment. PostgreSQL permits multiple `NULL` values in the unique claim-operation-key index, so nullable expansion values do not collide. The exact-zero gate is deliberately stronger than that uniqueness prerequisite: it verifies the expected pre-claim-aware rollout state and forces non-concurrent index lock/application-plan re-review if any row exists.
+A count-only Production `AdminEmailIntent` row-count preflight is mandatory immediately before applying `20260831120000_operational_rate_limit_bucket`. Proceed only when the refreshed exact count is `0`; any nonzero result is a hard stop requiring re-review before migration or runtime deployment. To close a writer race after that separate read, the migration takes an access-exclusive table lock and atomically validates a temporary false constraint while the lock is held. Any intervening row aborts and rolls back the migration; the temporary constraint is dropped before the successful transaction commits. PostgreSQL permits multiple `NULL` values in the unique claim-operation-key index, so nullable expansion values do not collide. The exact-zero gate is deliberately stronger than that uniqueness prerequisite: it verifies the expected pre-claim-aware rollout state and forces non-concurrent index lock/application-plan re-review if any row exists.
 
 ### Privacy boundary
 
@@ -217,9 +217,9 @@ Only a still-true miss after the locked authoritative recheck consumes booking o
 
 ## Donation Checkout hardening
 
-The pricing client creates a cryptographically random UUIDv4 `checkoutAttemptId`, stores it in session storage, and injects it into the existing form. The same ID survives rate-limit, limiter-unavailable, timeout, generic provider-error, and Checkout redirect round trips for at most 24 hours. It rotates after a confirmed success/cancel return, a definitive invalid/conflicting request, deliberate “start a new attempt,” or expiry. JSON clients have the same reuse contract.
+The pricing client creates a cryptographically random UUIDv4 `checkoutAttemptId`, stores it in session storage, and injects it into the existing form. The same ID survives rate-limit, limiter-unavailable, timeout, generic provider-error, and Checkout redirect round trips for less than 23 hours 55 minutes. It rotates at or beyond 23 hours 55 minutes, after a confirmed success/cancel return, a definitive invalid/conflicting request, or deliberate “start a new attempt.” JSON clients have the same reuse contract. The five-minute margin below Stripe's documented 24-hour pruning floor prevents MassageLab from promising reuse at the provider boundary and matches the repository's established replay convention.
 
-The Stripe idempotency key is `massagelab-donation-v1:<checkoutAttemptId>`. The random UUID is non-identifying, stable across network changes, independent of secret rotation, and short enough for the provider boundary. Repeating the same attempt and parameters returns Stripe's idempotent result; reusing the attempt with changed parameters is mapped to generic conflict guidance and does not create another Session. MassageLab's replay guarantee is bounded to the 24-hour application attempt window and must not exceed the provider's confirmed idempotency retention.
+The Stripe idempotency key is `massagelab-donation-v1:<checkoutAttemptId>`. The random UUID is non-identifying, stable across network changes, independent of secret rotation, and short enough for the provider boundary. Repeating the same attempt and parameters returns Stripe's idempotent result; reusing the attempt with changed parameters is mapped to generic conflict guidance and does not create another Session. MassageLab's replay guarantee is bounded to the 23-hour-55-minute application attempt window and remains below the provider's confirmed idempotency retention floor.
 
 Quota is consumed before constructing the Stripe client or making a provider call. JSON denial returns `429` with `Retry-After`, and JSON limiter unavailability returns `503`. The native form preserves its transport by redirecting with `303` to fixed pricing notices for rate-limited, unavailable, or conflicting outcomes; it never navigates the browser to a raw error body. Neither denial path calls Stripe. Existing origin validation, amount allowlist, tax behavior, success/cancel destinations, and support-only donation semantics remain unchanged.
 
@@ -237,7 +237,7 @@ An accepted attempt consumes quota before Sentry capture. A provider capture or 
 
 ### Classification
 
-All outbound SMTP attempts pass through the existing narrow `sendMail` boundary and consume the total email ceiling immediately before `transporter.sendMail`. Its internal input requires an allowlisted `PUBLIC_AUTH` or `SECURITY` class and has no default. An unknown runtime value fails closed with `{ delivered: false }`.
+All outbound SMTP attempts pass through the existing narrow `sendMail` boundary. After validating the mail class and SMTP configuration, it consumes the total email ceiling before constructing the transporter or calling `transporter.sendMail`; denied or unavailable decisions return `{ delivered: false }` without constructing a transporter. Its internal input requires an allowlisted `PUBLIC_AUTH` or `SECURITY` class and has no default. An unknown runtime value fails closed with `{ delivered: false }`.
 
 Admin email intents cannot hold their existing interactive transaction open while
 the mail boundary consumes the deployment-wide quota: that would nest a second
@@ -256,8 +256,9 @@ acquire a fourth transient status. Claims use a separate domain-separated
 SHA-256 hash of 32 random bytes and a five-minute lease; raw claim tokens are
 never stored or logged, and raw retry operation keys never enter active claim
 state or the append-only owner. Exact finalization stores the raw retry key only in
-the existing `AdminAction.idempotencyKey` audit owner. A live claim makes no
-provider attempt. After expiry, the same retry key may recover its claim, or a fresh key
+the existing `AdminAction.idempotencyKey` audit owner. Claim transactions make no
+SMTP call; provider delivery begins only after the claim transaction commits, while
+a competing invocation that observes the live claim remains non-sending. After expiry, the same retry key may recover its claim, or a fresh key
 from a regenerated Activity form may create another permanent owner for the
 same intent and replace the active claim. Every reserved key remains forbidden
 from claiming a different intent. The independent random claim token prevents

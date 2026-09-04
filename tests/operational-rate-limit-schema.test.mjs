@@ -285,6 +285,10 @@ COMMIT;
       'CREATE UNIQUE INDEX "OperationalRateLimitBucket_policy_scope_keyHash_key" ON "OperationalRateLimitBucket"("policy", "scope", "keyHash")',
       'CREATE INDEX "OperationalRateLimitBucket_updatedAt_idx" ON "OperationalRateLimitBucket"("updatedAt")',
       'CREATE INDEX "OperationalRateLimitBucket_blockedUntil_idx" ON "OperationalRateLimitBucket"("blockedUntil")',
+      'LOCK TABLE "AdminEmailIntent" IN ACCESS EXCLUSIVE MODE',
+      'ALTER TABLE "AdminEmailIntent" ADD CONSTRAINT "AdminEmailIntent_zero_row_gate" CHECK(FALSE) NOT VALID',
+      'ALTER TABLE "AdminEmailIntent" VALIDATE CONSTRAINT "AdminEmailIntent_zero_row_gate"',
+      'ALTER TABLE "AdminEmailIntent" DROP CONSTRAINT "AdminEmailIntent_zero_row_gate"',
       'ALTER TABLE "AdminEmailIntent" ADD COLUMN "deliveryClaimTokenHash" TEXT, ADD COLUMN "deliveryClaimExpiresAt" TIMESTAMP(3), ADD COLUMN "deliveryClaimOperationKeyHash" TEXT',
       'CREATE UNIQUE INDEX "AdminEmailIntent_deliveryClaimOperationKeyHash_key" ON "AdminEmailIntent"("deliveryClaimOperationKeyHash")',
       'CREATE TABLE "AdminEmailRetryOperationKey"("id" TEXT NOT NULL, "emailIntentId" TEXT NOT NULL, "operationKeyHash" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "AdminEmailRetryOperationKey_pkey" PRIMARY KEY("id"))',
@@ -315,6 +319,10 @@ COMMIT;
   })
 
   it("requires the exact-zero AdminEmailIntent rollout preflight", () => {
+    assert.match(migration, /LOCK\s+TABLE\s+"AdminEmailIntent"\s+IN\s+ACCESS\s+EXCLUSIVE\s+MODE/i)
+    assert.match(migration, /ADD\s+CONSTRAINT\s+"AdminEmailIntent_zero_row_gate"\s+CHECK\s*\(\s*FALSE\s*\)\s+NOT\s+VALID/i)
+    assert.match(migration, /VALIDATE\s+CONSTRAINT\s+"AdminEmailIntent_zero_row_gate"/i)
+    assert.match(migration, /DROP\s+CONSTRAINT\s+"AdminEmailIntent_zero_row_gate"/i)
     assert.match(migration, /intentionally non-concurrent[\s\S]*exactly zero rows[\s\S]*approved single migration/i)
     assert.match(migration, /multiple NULL values[\s\S]*would not collide[\s\S]*exact-zero gate[\s\S]*deliberately stronger[\s\S]*rollout state[\s\S]*lock[\s\S]*re-review/i)
     assert.doesNotMatch(
@@ -446,11 +454,12 @@ COMMIT;
 
   it("contains no other existing-table change, data manipulation, or trigger", () => {
     const joinedSql = sqlStatements(migration).join(";\n")
-    assert.equal((joinedSql.match(/\bALTER\s+TABLE\b/gi) ?? []).length, 2)
+    assert.equal((joinedSql.match(/\bALTER\s+TABLE\b/gi) ?? []).length, 5)
+    assert.equal((joinedSql.match(/ALTER\s+TABLE\s+"AdminEmailIntent"/gi) ?? []).length, 4)
     assert.match(joinedSql, /ALTER\s+TABLE\s+"AdminEmailIntent"/i)
     assert.match(joinedSql, /ALTER\s+TABLE\s+"AdminEmailRetryOperationKey"/i)
     assert.doesNotMatch(joinedSql, /ALTER\s+TABLE\s+"(?!AdminEmailIntent"|AdminEmailRetryOperationKey")/i)
-    assert.doesNotMatch(joinedSql, /\b(?:DROP|TRUNCATE|TRIGGER)\b|\b(?:UPDATE\s+"|DELETE\s+FROM|INSERT\s+INTO)\b/i)
+    assert.doesNotMatch(joinedSql, /\bDROP\s+(?:TABLE|TYPE|INDEX|SCHEMA|DATABASE)\b|\b(?:TRUNCATE|TRIGGER)\b|\b(?:UPDATE\s+"|DELETE\s+FROM|INSERT\s+INTO)\b/i)
     assert.equal((joinedSql.match(/\bREFERENCES\b/gi) ?? []).length, 1)
     assert.doesNotMatch(joinedSql, /AuthRateLimitBucket/)
   })

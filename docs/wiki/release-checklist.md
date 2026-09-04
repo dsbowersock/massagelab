@@ -117,13 +117,18 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
   values do not collide. The exact-zero gate is deliberately stronger than that
   uniqueness prerequisite: it verifies the expected pre-claim-aware rollout
   state and forces non-concurrent index lock/application-plan re-review if any
-  row exists.
+  row exists. Confirm the migration closes the post-count writer race inside
+  its explicit transaction: it must take an access-exclusive table lock,
+  atomically validate and then drop its temporary false zero-row constraint,
+  hold the lock through commit, and roll back the whole migration if any
+  intervening row exists.
 - Prove outbound mail classification at the exact candidate: public-auth mail
   consumes both 70/global/fixed-24h and 90-total/global/fixed-24h, security mail
   consumes only the total 90, unknown classification and limiter unavailability
   fail closed before transporter construction, and accepted provider failures
   remain charged. Confirm Admin SMTP runs outside interactive transactions,
-  live claims do not send, expired claims recover, stale finalizers remain
+  claim transactions themselves make no SMTP call, competing invocations with
+  a live claim remain non-sending, expired claims recover, stale finalizers remain
   ambiguous, every retry-key hash stays bound to one intent, and disposable QA
   cleanup removes only its own restrictive children. Provider delivery/bounce
   proof, migration application, and Production SMTP remain separate actions.

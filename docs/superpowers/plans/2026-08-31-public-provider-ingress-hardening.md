@@ -4,7 +4,7 @@
 
 **Goal:** Bound anonymous donation Checkout and privacy-safe problem-report provider calls while preserving native-form and browser recovery.
 
-**Architecture:** Give each donation attempt a canonical browser UUID retained for at most 24 hours and pass its versioned opaque key to Stripe's idempotency boundary. Validate origin, payload, and amount before consuming quota, then stop before constructing Stripe on denial. Replace the problem-report process-local map with PR A's durable multi-instance limiter after trusted-origin, JSON, size, and privacy validation but before Sentry capture. Clients expose pending, retry, conflict, and temporary-unavailable states without automatically replaying ambiguous provider actions.
+**Architecture:** Give each donation attempt a canonical browser UUID retained for less than 23 hours 55 minutes and pass its versioned opaque key to Stripe's idempotency boundary. The five-minute safety margin keeps MassageLab's reuse window below Stripe's documented 24-hour idempotency-key pruning floor and matches the repository's established Stripe replay convention. Validate origin, payload, and amount before consuming quota, then stop before constructing Stripe on denial. Replace the problem-report process-local map with PR A's durable multi-instance limiter after trusted-origin, JSON, size, and privacy validation but before Sentry capture. Clients expose pending, retry, conflict, and temporary-unavailable states without automatically replaying ambiguous provider actions.
 
 **Tech Stack:** Next.js route handlers and React 19, Stripe 22, Sentry, Node.js 24 tests, Playwright 1.60.
 
@@ -27,7 +27,7 @@
 | File | Responsibility |
 | --- | --- |
 | `lib/stripe-billing.js` | Require and pass the donation idempotency key; normalize provider conflict. |
-| `lib/donation-checkout-attempt.ts` | Pure 24-hour browser attempt record validation/rotation decisions. |
+| `lib/donation-checkout-attempt.ts` | Pure 23-hour-55-minute browser attempt record validation/rotation decisions. |
 | `app/pricing/donation-checkout-form.tsx` | One native form with amount buttons, sessionStorage attempt retention, visible pending/retry controls. |
 | `app/pricing/page.tsx` | Supplies a server-generated no-JS initial UUID, renders the client form, maps fixed notices. |
 | `app/api/billing/donation/route.ts` | Parse/validate attempt, quota, Stripe key, JSON/303 error mapping. |
@@ -95,7 +95,7 @@ export function donationCheckoutAttemptForAmount(input: {
 export function donationCheckoutIdempotencyKey(attemptId: string): string
 ```
 
-Reject malformed/noncanonical UUID, non-allowlisted amount, invalid timestamp, future timestamp, or age over 24 hours. Keep an existing record only when the amount is unchanged and it remains valid. Amount change, expiry, confirmed success/cancel, invalid/conflicting response, or deliberate new attempt rotates/removes it. Rate-limited, unavailable, timeout, generic provider error, and redirect ambiguity retain it.
+Reject malformed/noncanonical UUID, non-allowlisted amount, invalid timestamp, future timestamp, or age at or beyond 23 hours 55 minutes. Keep an existing record only when the amount is unchanged and it remains valid. Amount change, expiry, confirmed success/cancel, invalid/conflicting response, or deliberate new attempt rotates/removes it. Rate-limited, unavailable, timeout, generic provider error, and redirect ambiguity retain it. Boundary coverage must prove that `23h55m - 1ms` remains reusable while exactly `23h55m` rotates, so a browser clock boundary cannot extend reuse to Stripe's pruning floor.
 
 ## Problem-report order
 
@@ -159,7 +159,7 @@ Commit: `feat(billing): add donation checkout idempotency`
 
 - [ ] **Step 1: Write attempt/route RED coverage**
 
-Prove 24-hour parse/retention/rotation rules; form and JSON parse `checkoutAttemptId`; invalid origin/amount/attempt consumes no quota; authenticated input supplies account plus network/global donation rules; anonymous uses network/global rules; denial/unavailability constructs no Stripe client; JSON 429 has exact header, 503 is generic, and conflict is 409; form outcomes redirect 303 to fixed `rate-limited`, `unavailable`, or `conflict` pricing notices; allowed call receives the exact versioned key.
+Prove 23-hour-55-minute parse/retention/rotation rules, including reusable at `23h55m - 1ms` and expired at exactly `23h55m`; form and JSON parse `checkoutAttemptId`; invalid origin/amount/attempt consumes no quota; authenticated input supplies account plus network/global donation rules; anonymous uses network/global rules; denial/unavailability constructs no Stripe client; JSON 429 has exact header, 503 is generic, and conflict is 409; form outcomes redirect 303 to fixed `rate-limited`, `unavailable`, or `conflict` pricing notices; allowed call receives the exact versioned key.
 
 - [ ] **Step 2: Run RED**
 

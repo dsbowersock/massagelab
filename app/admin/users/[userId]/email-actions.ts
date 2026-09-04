@@ -50,6 +50,9 @@ export async function retryFailedEmailIntentAction(
   }
 
   revalidatePath(`/admin/users/${encodeURIComponent(userId)}`)
+  // `attempted` separates this invocation's provider call from an idempotent
+  // replay of an already-recorded delivery result, so the operator copy never
+  // implies that replaying the same operation key sent another email.
   if (result.status === "DELIVERED") {
     if (!result.attempted) {
       return {

@@ -21,13 +21,26 @@ CREATE INDEX "OperationalRateLimitBucket_updatedAt_idx"
 CREATE INDEX "OperationalRateLimitBucket_blockedUntil_idx"
   ON "OperationalRateLimitBucket"("blockedUntil");
 
+-- Close the gap between the read-only rollout preflight and this migration.
+-- The false, initially unvalidated constraint validates only when the table is
+-- empty; the access-exclusive lock keeps writers out until the temporary gate
+-- is dropped and this transaction commits. Any row aborts the whole migration.
+LOCK TABLE "AdminEmailIntent" IN ACCESS EXCLUSIVE MODE;
+ALTER TABLE "AdminEmailIntent"
+  ADD CONSTRAINT "AdminEmailIntent_zero_row_gate" CHECK (FALSE) NOT VALID;
+ALTER TABLE "AdminEmailIntent"
+  VALIDATE CONSTRAINT "AdminEmailIntent_zero_row_gate";
+ALTER TABLE "AdminEmailIntent"
+  DROP CONSTRAINT "AdminEmailIntent_zero_row_gate";
+
 ALTER TABLE "AdminEmailIntent"
   ADD COLUMN "deliveryClaimTokenHash" TEXT,
   ADD COLUMN "deliveryClaimExpiresAt" TIMESTAMP(3),
   ADD COLUMN "deliveryClaimOperationKeyHash" TEXT;
 
 -- Intentionally non-concurrent: the immediately-before-migration Production
--- preflight must prove AdminEmailIntent contains exactly zero rows. PostgreSQL
+-- preflight and atomic migration gate must prove AdminEmailIntent contains
+-- exactly zero rows. PostgreSQL
 -- permits multiple NULL values in this unique index, so nullable expansion rows
 -- would not collide. The exact-zero gate is deliberately stronger: it verifies
 -- the expected pre-claim-aware rollout state and forces non-concurrent index

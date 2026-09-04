@@ -125,6 +125,10 @@ export async function deliverAdminEmailIntent(input: {
   const delivered = await attemptDelivery(claimed.claim, input.sendEmail)
 
   try {
+    // Initial completion is a one-row CAS on id, PENDING, and the exact
+    // claim-token hash. It rejects stale finalizers without reopening an
+    // advisory-lock transaction; retry finalization locks to append its audit
+    // atomically.
     const finished = await input.prismaClient.adminEmailIntent.updateMany({
       where: {
         id: claimed.claim.intent.id,
