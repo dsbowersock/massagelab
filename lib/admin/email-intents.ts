@@ -46,9 +46,7 @@ type DeliveryClaim<TIntent extends DeliveryIntent = DeliveryIntent> = {
   now: Date
 }
 
-type RetryDeliveryClaim = Omit<DeliveryClaim<DeliveryIntent & { userId: string }>, "beforeStatus"> & {
-  beforeStatus: "FAILED"
-}
+type RetryDeliveryClaim = DeliveryClaim<DeliveryIntent & { userId: string }>
 
 const EMAIL_INTENT_LOCK_PREFIX = "massagelab:admin-email-intent:"
 const CLAIM_LEASE_MS = 5 * 60 * 1000
@@ -85,7 +83,9 @@ export async function deliverAdminEmailIntent(input: {
 
     const existingResult = initialResultWithoutClaim(intent, now)
     if (existingResult) return { kind: "RESULT" as const, result: existingResult }
-    if (!claimIsRecoverable(intent, now) || !intent.recipientEmail) {
+    if (!claimIsRecoverable(intent, now)
+      || intent.deliveryClaimOperationKeyHash !== null
+      || !intent.recipientEmail) {
       return {
         kind: "RESULT" as const,
         result: { status: "BUSY" as const, attemptCount: intent.attemptCount, attempted: false as const },
@@ -148,8 +148,9 @@ export async function deliverAdminEmailIntent(input: {
 }
 
 /**
- * Authorizes and claims one FAILED intent before transport. The retry audit is
- * committed atomically with exact-token finalization after the provider call.
+ * Authorizes and claims one recoverable PENDING or FAILED intent before
+ * transport. The retry audit is committed atomically with exact-token
+ * finalization after the provider call.
  */
 export async function retryAdminEmailIntent(input: {
   prismaClient: PrismaClient
@@ -213,7 +214,7 @@ export async function retryAdminEmailIntent(input: {
     }
 
     const updated = await tx.adminEmailIntent.updateMany({
-      where: exactClaimCandidate(intent, "FAILED"),
+      where: exactClaimCandidate(intent, intent.status),
       data: {
         attemptCount: { increment: 1 },
         lastAttemptAt: now,
@@ -243,7 +244,7 @@ export async function retryAdminEmailIntent(input: {
         intent: { ...current, recipientEmail: current.recipientEmail },
         claimTokenHash,
         attemptCount: current.attemptCount,
-        beforeStatus: "FAILED" as const,
+        beforeStatus: intent.status,
         beforeAttemptCount: intent.attemptCount,
         now,
       } satisfies RetryDeliveryClaim,
@@ -260,7 +261,7 @@ export async function retryAdminEmailIntent(input: {
       const updated = await tx.adminEmailIntent.updateMany({
         where: {
           id: claimed.claim.intent.id,
-          status: "FAILED",
+          status: claimed.claim.beforeStatus,
           deliveryClaimTokenHash: claimed.claim.claimTokenHash,
         },
         data: completionData(delivered, claimed.claim.now),
@@ -476,7 +477,7 @@ function retryReplayOrFail(existing: {
   const beforeState = retryStateForIntent(existing.beforeState, intent.id)
   const afterState = retryStateForIntent(existing.afterState, intent.id)
   if (!beforeState || !afterState
-    || beforeState.status !== "FAILED"
+    || (beforeState.status !== "PENDING" && beforeState.status !== "FAILED")
     || !isRetryResultStatus(afterState.status)
     || afterState.attemptCount !== beforeState.attemptCount + 1
     || (existing.outcome === "SUCCEEDED" && (afterState.status !== "DELIVERED" || existing.failureCode !== null))
@@ -517,10 +518,13 @@ function isRetryResultStatus(status: string): boolean {
   return status === "DELIVERED" || status === "FAILED"
 }
 
-function isRetryableIntent(intent: DeliveryIntent): intent is DeliveryIntent & { status: "FAILED"; recipientEmail: string } {
-  return intent.status === "FAILED"
-    && intent.failureCode === "DELIVERY_FAILED"
-    && Boolean(intent.recipientEmail)
+function isRetryableIntent(intent: DeliveryIntent): intent is DeliveryIntent & {
+  status: "PENDING" | "FAILED"
+  recipientEmail: string
+} {
+  return Boolean(intent.recipientEmail)
+    && ((intent.status === "PENDING" && intent.failureCode === null)
+      || (intent.status === "FAILED" && intent.failureCode === "DELIVERY_FAILED"))
 }
 
 function claimIsLive(intent: DeliveryIntent, now: Date): boolean {
@@ -542,7 +546,11 @@ function claimIsRecoverable(intent: DeliveryIntent, now: Date): boolean {
     && intent.deliveryClaimExpiresAt instanceof Date
     && intent.deliveryClaimExpiresAt.getTime() < now.getTime()
   if (!hasExpiredLease) return false
-  if (intent.status === "PENDING") return intent.deliveryClaimOperationKeyHash === null
+  if (intent.status === "PENDING") {
+    return intent.deliveryClaimOperationKeyHash === null
+      || (typeof intent.deliveryClaimOperationKeyHash === "string"
+        && CLAIM_HASH_PATTERN.test(intent.deliveryClaimOperationKeyHash))
+  }
   return intent.status === "FAILED"
     && typeof intent.deliveryClaimOperationKeyHash === "string"
     && CLAIM_HASH_PATTERN.test(intent.deliveryClaimOperationKeyHash)

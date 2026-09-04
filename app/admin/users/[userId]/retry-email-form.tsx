@@ -29,7 +29,7 @@ export function RetryEmailForm({
       <input type="hidden" name="intentId" value={intentId} />
       <input type="hidden" name="operationId" value={operationId} />
       <Button type="submit" size="sm" disabled={isPending}>
-        {isPending ? "Retrying email…" : "Retry failed email"}
+        {isPending ? "Retrying email…" : "Retry email notification"}
       </Button>
       {actionState.status !== "idle" ? (
         <p

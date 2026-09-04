@@ -260,7 +260,7 @@ function hasCoherentEmailIntentState(intent: NonNullable<Parameters<typeof isExa
       && intent.failureCode === null
       && (hasNoClaim
         ? intent.attemptCount === 0 && intent.lastAttemptAt === null
-        : hasInitialClaim && intent.attemptCount > 0 && intent.lastAttemptAt instanceof Date)
+        : (hasInitialClaim || hasRetryClaim) && intent.attemptCount > 0 && intent.lastAttemptAt instanceof Date)
   }
   if (intent.status === "DELIVERED") {
     return hasNoClaim

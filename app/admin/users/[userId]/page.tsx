@@ -139,9 +139,9 @@ function ActivitySection({ detail, userId, canMutate }: { detail: Record<string,
 
   return <ol className="space-y-3">{entries.map((entry) => {
     const email = entry.email
-    const canRetry = email?.status === "FAILED"
-      && email.kind !== "PASSWORD_RESET"
-      && email.failureCode !== "RECIPIENT_UNAVAILABLE"
+    const canRetry = email?.kind !== "PASSWORD_RESET"
+      && (email?.status === "PENDING"
+        || (email?.status === "FAILED" && email.failureCode !== "RECIPIENT_UNAVAILABLE"))
     const failedPasswordReset = email?.status === "FAILED" && email.kind === "PASSWORD_RESET"
     // Each rendered retry form gets one key that useActionState submits
     // unchanged. A consumed key replays; revalidatePath normally renders a

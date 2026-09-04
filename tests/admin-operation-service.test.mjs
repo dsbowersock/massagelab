@@ -388,6 +388,7 @@ describe("admin operation service", () => {
       ({ intent }) => {
         intent.attemptCount = 1
         intent.lastAttemptAt = new Date()
+        intent.failureCode = "DELIVERY_FAILED"
         intent.deliveryClaimTokenHash = "a".repeat(64)
         intent.deliveryClaimExpiresAt = new Date()
         intent.deliveryClaimOperationKeyHash = "b".repeat(64)
@@ -889,6 +890,85 @@ describe("admin operation service", () => {
     assert.equal(database.intents[0].deliveryClaimTokenHash, replacementClaimHash)
   })
 
+  it("audits recovery of an expired ambiguous initial claim from PENDING", async () => {
+    const database = createAdminDatabase()
+    const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
+    const initialAt = new Date("2026-08-08T14:00:00.000Z")
+    let sends = 0
+
+    const ambiguous = await deliverAdminEmailIntent({
+      prismaClient: database,
+      intentId: emailIntentId,
+      now: initialAt,
+      randomBytesFn: () => Buffer.alloc(32, 12),
+      sendEmail: async () => {
+        sends += 1
+        database.intents[0].deliveryClaimTokenHash = "d".repeat(64)
+        database.intents[0].deliveryClaimExpiresAt = new Date("2026-08-08T14:05:00.000Z")
+        return { delivered: true }
+      },
+    })
+
+    assert.deepEqual(ambiguous, { status: "AMBIGUOUS", attemptCount: 1, attempted: true })
+    assert.equal(database.intents[0].status, "PENDING")
+    assert.equal(database.intents[0].deliveryClaimOperationKeyHash, null)
+
+    const ambiguousRetry = await retryAdminEmailIntent({
+      prismaClient: database,
+      actorUserId: "user_actor",
+      expectedTargetUserId: "user_target",
+      intentId: emailIntentId,
+      idempotencyKey: "recover-ambiguous-initial",
+      now: new Date("2026-08-08T14:05:00.001Z"),
+      randomBytesFn: () => Buffer.alloc(32, 13),
+      sendEmail: async () => {
+        sends += 1
+        database.intents[0].deliveryClaimTokenHash = "e".repeat(64)
+        database.intents[0].deliveryClaimExpiresAt = new Date("2026-08-08T14:10:00.000Z")
+        return { delivered: true }
+      },
+    })
+
+    assert.deepEqual(ambiguousRetry, { status: "AMBIGUOUS", attemptCount: 2, replayed: false, attempted: true })
+    assert.equal(sends, 2)
+    assert.equal(database.intents[0].status, "PENDING")
+    assert.match(database.intents[0].deliveryClaimOperationKeyHash, /^[0-9a-f]{64}$/)
+    assert.equal((await recordAdminActionBundle(database, bundleInput())).replayed, true)
+
+    const recovered = await retryAdminEmailIntent({
+      prismaClient: database,
+      actorUserId: "user_actor",
+      expectedTargetUserId: "user_target",
+      intentId: emailIntentId,
+      idempotencyKey: "recover-ambiguous-retry",
+      now: new Date("2026-08-08T14:10:00.001Z"),
+      randomBytesFn: () => Buffer.alloc(32, 14),
+      sendEmail: async () => { sends += 1; return { delivered: true } },
+    })
+
+    assert.deepEqual(recovered, { status: "DELIVERED", attemptCount: 3, replayed: false, attempted: true })
+    assert.equal(sends, 3)
+    assert.equal(database.intents[0].status, "DELIVERED")
+    assert.equal(database.intents[0].deliveryClaimTokenHash, null)
+    assert.equal(database.intents[0].deliveryClaimExpiresAt, null)
+    assert.equal(database.intents[0].deliveryClaimOperationKeyHash, null)
+    const retryAction = database.actions.at(-1)
+    assert.deepEqual(retryAction.beforeState, { emailIntentId, status: "PENDING", attemptCount: 2 })
+    assert.deepEqual(retryAction.afterState, { emailIntentId, status: "DELIVERED", attemptCount: 3 })
+
+    const replay = await retryAdminEmailIntent({
+      prismaClient: database,
+      actorUserId: "user_actor",
+      expectedTargetUserId: "user_target",
+      intentId: emailIntentId,
+      idempotencyKey: "recover-ambiguous-retry",
+      now: new Date("2026-08-08T14:11:00.000Z"),
+      sendEmail: async () => { sends += 1; return { delivered: true } },
+    })
+    assert.deepEqual(replay, { status: "DELIVERED", attemptCount: 3, replayed: true, attempted: false })
+    assert.equal(sends, 3)
+  })
+
   it("lets a live initial claim make a concurrent retry BUSY with only one send", async () => {
     const database = createAdminDatabase()
     const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
@@ -1219,7 +1299,7 @@ describe("admin operation service", () => {
     }
   })
 
-  it("rejects a historical retry replay whose before state was PENDING without sending", async () => {
+  it("rejects a historical retry replay whose before state has an unsupported status without sending", async () => {
     const database = createAdminDatabase()
     const { emailIntentId } = await recordAdminActionBundle(database, bundleInput())
     await deliverAdminEmailIntent({
@@ -1236,7 +1316,7 @@ describe("admin operation service", () => {
       sendEmail: async () => ({ delivered: true }),
     })
     const retryAction = database.actions.at(-1)
-    retryAction.beforeState = { ...retryAction.beforeState, status: "PENDING" }
+    retryAction.beforeState = { ...retryAction.beforeState, status: "DELIVERED" }
     let sends = 0
 
     await assert.rejects(

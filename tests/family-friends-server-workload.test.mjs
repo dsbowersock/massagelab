@@ -65,7 +65,7 @@ const normalizedProjectLogSource = normalizeDocumentationWhitespace(projectLogSo
 const normalizedDeploymentSource = normalizeDocumentationWhitespace(deploymentSource)
 const normalizedReleaseChecklistSource = normalizeDocumentationWhitespace(releaseChecklistSource)
 // Advance this review-date ceiling only alongside newly verified project-state evidence.
-const PROJECT_STATE_VERIFIED_DATE_UPPER_BOUND = "2026-09-02"
+const PROJECT_STATE_VERIFIED_DATE_UPPER_BOUND = "2026-09-04"
 
 /** Returns one named function body bounded by the next named owner. */
 function namedFunctionSlice(source, startMarker, endMarker) {

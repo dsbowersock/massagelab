@@ -12,8 +12,8 @@ export type RetryEmailActionState =
   | { status: "error"; message: string }
 
 /**
- * Retries one already-failed, non-password account-change notification. The
- * durable service rechecks both the current full-Admin authority and intent
+ * Retries one recoverable, non-password account-change notification. The
+ * durable service rechecks current full-Admin authority, claim state, and intent
  * eligibility. Expected validation and delivery failures become safe UI state;
  * authorization failures still reject before those outcomes are handled.
  */
@@ -26,7 +26,7 @@ export async function retryFailedEmailIntentAction(
   const intentId = formData.get("intentId")
   const operationId = formData.get("operationId")
   if (typeof intentId !== "string" || !intentId.trim() || intentId.length > 191) {
-    return { status: "error", message: "Choose a valid failed email notification." }
+    return { status: "error", message: "Choose a valid email notification." }
   }
   if (typeof operationId !== "string" || !isUuid(operationId)) {
     return { status: "error", message: "Refresh this account before retrying the notification." }

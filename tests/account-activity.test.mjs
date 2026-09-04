@@ -61,9 +61,9 @@ describe("account activity surfaces", () => {
     assert.match(accountPageSource, /activity:\s*"Sign in"/)
   })
 
-  it("renders an explicit retry only for service-retryable failed non-password email intents", () => {
-    assert.match(retryFormSource, /Retry failed email/)
-    assert.match(adminDetailSource, /email\?\.status === "FAILED"[\s\S]*email\.kind !== "PASSWORD_RESET"[\s\S]*email\.failureCode !== "RECIPIENT_UNAVAILABLE"/)
+  it("renders an explicit retry for recoverable pending or failed non-password email intents", () => {
+    assert.match(retryFormSource, /Retry email notification/)
+    assert.match(adminDetailSource, /email\?\.kind !== "PASSWORD_RESET"[\s\S]*email\?\.status === "PENDING"[\s\S]*email\?\.status === "FAILED"[\s\S]*email\.failureCode !== "RECIPIENT_UNAVAILABLE"/)
     assert.match(adminDetailSource, /failedPasswordReset[\s\S]*FreshPasswordResetForm/)
     assert.match(securityFormSource, /Send a new reset link/)
     assert.match(securityFormSource, /sendAdminPasswordResetAction\.bind\(null, userId\)/)
@@ -87,7 +87,7 @@ describe("account activity surfaces", () => {
 
     const result = await action("user-1", idleState, retryForm({ intentId: "" }))
 
-    assert.deepEqual(result, { status: "error", message: "Choose a valid failed email notification." })
+    assert.deepEqual(result, { status: "error", message: "Choose a valid email notification." })
     assert.deepEqual(calls, [["requireFullAdminUser"]])
   })
 
