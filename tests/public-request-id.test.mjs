@@ -40,6 +40,41 @@ const bookingIdempotencyModule = bookingIdempotencySource
 
 const REQUEST_ID = "123e4567-e89b-42d3-a456-426614174000"
 const OTHER_REQUEST_ID = "223e4567-e89b-42d3-a456-426614174000"
+let requestOwnerTestModuleSequence = 0
+
+function bookingOwnerComponents(addOnVariantIds = ["variant-addon-a", "variant-addon-b"]) {
+  return [
+    { label: "serviceVariantId", value: "variant-primary" },
+    ...addOnVariantIds.map((value) => ({ label: "addOnVariantId", value })),
+    { label: "pressure", value: "3" },
+    { label: "requestedStart", value: "2026-09-02T14:00:00.000Z" },
+    { label: "preferredProviderId", value: "provider-1" },
+  ]
+}
+
+function waitlistOwnerComponents(addOnVariantIds = ["variant-addon-a", "variant-addon-b"]) {
+  return [
+    { label: "serviceVariantId", value: "variant-primary" },
+    ...addOnVariantIds.map((value) => ({ label: "addOnVariantId", value })),
+    { label: "pressure", value: "3" },
+    { label: "preferredStart", value: "2026-09-03T14:00:00.000Z" },
+    { label: "preferredProviderId", value: "provider-1" },
+  ]
+}
+
+function loadRequestOwnerWithCreateHash(createHash) {
+  requestOwnerTestModuleSequence += 1
+  return loadCompiledModule(
+    requestOwnerSource,
+    `lib/public-request-owner.before-hash-${requestOwnerTestModuleSequence}.test.ts`,
+    {
+      "server-only": {},
+      "node:crypto": { createHash },
+      "./public-request-id.ts": requestIdModule,
+    },
+  )
+}
+
 const BOOKING_SELECTION = Object.freeze({
   requestId: REQUEST_ID,
   primaryServiceVariantId: "variant-primary",
@@ -95,12 +130,26 @@ describe("public request ownership", () => {
     const left = publicRequestOwner({
       namespace: "public-booking-v1",
       requestId: REQUEST_ID,
-      selectionComponents: [{ label: "ab", value: "c" }],
+      selectionComponents: [
+        { label: "serviceVariantId", value: "variant-primary" },
+        { label: "addOnVariantId", value: "a" },
+        { label: "addOnVariantId", value: "addOnVariantIdz" },
+        { label: "pressure", value: "3" },
+        { label: "requestedStart", value: "2026-09-02T14:00:00.000Z" },
+        { label: "preferredProviderId", value: "provider-1" },
+      ],
     })
     const right = publicRequestOwner({
       namespace: "public-booking-v1",
       requestId: REQUEST_ID,
-      selectionComponents: [{ label: "a", value: "bc" }],
+      selectionComponents: [
+        { label: "serviceVariantId", value: "variant-primary" },
+        { label: "addOnVariantId", value: "aaddOnVariantId" },
+        { label: "addOnVariantId", value: "z" },
+        { label: "pressure", value: "3" },
+        { label: "requestedStart", value: "2026-09-02T14:00:00.000Z" },
+        { label: "preferredProviderId", value: "provider-1" },
+      ],
     })
 
     assert.notEqual(left.selectionDigest, right.selectionDigest)
@@ -109,27 +158,161 @@ describe("public request ownership", () => {
 
   it("keeps random request identity out of the digest while framing its namespace", () => {
     const { publicRequestOwner } = requestOwnerModule
-    const selectionComponents = [{ label: "primaryServiceVariantId", value: "variant-primary" }]
     const booking = publicRequestOwner({
       namespace: "public-booking-v1",
       requestId: REQUEST_ID,
-      selectionComponents,
+      selectionComponents: bookingOwnerComponents(),
     })
     const otherRequest = publicRequestOwner({
       namespace: "public-booking-v1",
       requestId: OTHER_REQUEST_ID,
-      selectionComponents,
+      selectionComponents: bookingOwnerComponents(),
     })
     const waitlist = publicRequestOwner({
       namespace: "public-waitlist-v1",
       requestId: REQUEST_ID,
-      selectionComponents,
+      selectionComponents: waitlistOwnerComponents(),
     })
 
     assert.equal(booking.selectionDigest, otherRequest.selectionDigest)
     assert.notEqual(booking.prefix, otherRequest.prefix)
     assert.notEqual(booking.id, otherRequest.id)
     assert.notEqual(booking.selectionDigest, waitlist.selectionDigest)
+  })
+
+  it("rejects every malformed closed-label mutation before constructing the hash", () => {
+    let hashConstructions = 0
+    const { publicRequestOwner } = loadRequestOwnerWithCreateHash(() => {
+      hashConstructions += 1
+      throw new Error("hashing started")
+    })
+    const validCases = [
+      ["booking without add-ons", "public-booking-v1", bookingOwnerComponents([])],
+      ["booking with sorted add-ons", "public-booking-v1", bookingOwnerComponents()],
+      ["waitlist without add-ons", "public-waitlist-v1", waitlistOwnerComponents([])],
+      ["waitlist with sorted add-ons", "public-waitlist-v1", waitlistOwnerComponents()],
+    ]
+
+    for (const [name, namespace, selectionComponents] of validCases) {
+      hashConstructions = 0
+      assert.throws(
+        () => publicRequestOwner({ namespace, requestId: REQUEST_ID, selectionComponents }),
+        /hashing started/,
+        name,
+      )
+      assert.equal(hashConstructions, 1, name)
+    }
+
+    const booking = bookingOwnerComponents()
+    const waitlist = waitlistOwnerComponents()
+    const removeLabel = (components, label) => components.filter((component) => component.label !== label)
+    const duplicateLabel = (components, label) => components.flatMap((component) => (
+      component.label === label ? [component, { ...component }] : [component]
+    ))
+    const replaceLabel = (components, oldLabel, label) => components.map((component) => (
+      component.label === oldLabel ? { ...component, label } : component
+    ))
+    const swap = (components, left, right) => {
+      const mutated = components.map((component) => ({ ...component }))
+      ;[mutated[left], mutated[right]] = [mutated[right], mutated[left]]
+      return mutated
+    }
+    const invalidCases = [
+      ...["serviceVariantId", "pressure", "requestedStart", "preferredProviderId"].map((label) => [
+        `booking missing ${label}`,
+        "public-booking-v1",
+        removeLabel(booking, label),
+      ]),
+      ...["serviceVariantId", "pressure", "preferredStart", "preferredProviderId"].map((label) => [
+        `waitlist missing ${label}`,
+        "public-waitlist-v1",
+        removeLabel(waitlist, label),
+      ]),
+      ...["serviceVariantId", "pressure", "requestedStart", "preferredProviderId"].map((label) => [
+        `booking duplicate singleton ${label}`,
+        "public-booking-v1",
+        duplicateLabel(booking, label),
+      ]),
+      ...["serviceVariantId", "pressure", "preferredStart", "preferredProviderId"].map((label) => [
+        `waitlist duplicate singleton ${label}`,
+        "public-waitlist-v1",
+        duplicateLabel(waitlist, label),
+      ]),
+      [
+        "booking duplicate add-on value",
+        "public-booking-v1",
+        bookingOwnerComponents(["variant-addon-a", "variant-addon-a"]),
+      ],
+      [
+        "waitlist duplicate add-on value",
+        "public-waitlist-v1",
+        waitlistOwnerComponents(["variant-addon-a", "variant-addon-a"]),
+      ],
+      [
+        "booking unsorted add-ons",
+        "public-booking-v1",
+        bookingOwnerComponents(["variant-addon-b", "variant-addon-a"]),
+      ],
+      [
+        "waitlist unsorted add-ons",
+        "public-waitlist-v1",
+        waitlistOwnerComponents(["variant-addon-b", "variant-addon-a"]),
+      ],
+      ["booking out-of-order leading segment", "public-booking-v1", swap(booking, 0, 1)],
+      ["booking out-of-order trailing segment", "public-booking-v1", swap(booking, 3, 4)],
+      ["waitlist out-of-order leading segment", "public-waitlist-v1", swap(waitlist, 0, 1)],
+      ["waitlist out-of-order trailing segment", "public-waitlist-v1", swap(waitlist, 3, 4)],
+      [
+        "booking non-contiguous add-on segment",
+        "public-booking-v1",
+        [booking[0], booking[1], booking[3], booking[2], ...booking.slice(4)],
+      ],
+      [
+        "waitlist non-contiguous add-on segment",
+        "public-waitlist-v1",
+        [waitlist[0], waitlist[1], waitlist[3], waitlist[2], ...waitlist.slice(4)],
+      ],
+      [
+        "booking cross-namespace start",
+        "public-booking-v1",
+        replaceLabel(booking, "requestedStart", "preferredStart"),
+      ],
+      [
+        "waitlist cross-namespace start",
+        "public-waitlist-v1",
+        replaceLabel(waitlist, "preferredStart", "requestedStart"),
+      ],
+      ["booking unknown label", "public-booking-v1", replaceLabel(booking, "pressure", "mystery")],
+      ["waitlist unknown label", "public-waitlist-v1", replaceLabel(waitlist, "pressure", "mystery")],
+      ...[
+        "email",
+        "guestEmail",
+        "contactEmail",
+        "accountId",
+        "userId",
+        "practiceClientId",
+        "name",
+        "guestName",
+        "phone",
+        "guestPhone",
+        "notes",
+        "note",
+        "freeText",
+      ].flatMap((label) => [
+        [`booking prohibited ${label}`, "public-booking-v1", replaceLabel(booking, "pressure", label)],
+        [`waitlist prohibited ${label}`, "public-waitlist-v1", replaceLabel(waitlist, "pressure", label)],
+      ]),
+    ]
+
+    for (const [name, namespace, selectionComponents] of invalidCases) {
+      hashConstructions = 0
+      assert.throws(
+        () => publicRequestOwner({ namespace, requestId: REQUEST_ID, selectionComponents }),
+        /canonical public request selection components/i,
+        name,
+      )
+      assert.equal(hashConstructions, 0, name)
+    }
   })
 
   it("canonicalizes booking and waitlist add-on selection order", () => {

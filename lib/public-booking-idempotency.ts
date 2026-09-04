@@ -1,7 +1,7 @@
 import "server-only"
 
 import type { Prisma } from "@prisma/client"
-import { publicRequestOwner, type PublicRequestOwner, type PublicRequestSelectionComponent } from "./public-request-owner.ts"
+import { publicRequestOwner, type PublicRequestOwner } from "./public-request-owner.ts"
 
 const BOOKING_SELECTION_FIELDS = Object.freeze([
   "requestId",
@@ -54,7 +54,7 @@ export function publicBookingRequestOwner(input: PublicBookingRequestSelection):
       addOnServiceVariantIds: input.addOnServiceVariantIds,
       requestedPressureLevel: input.requestedPressureLevel,
       startsAt: canonicalIso(input.requestedStartsAt, "requested start", false),
-      startsAtLabel: "requestedStartsAt",
+      startsAtLabel: "requestedStart",
       preferredProviderId: input.preferredProviderId,
     }),
   })
@@ -71,7 +71,7 @@ export function publicWaitlistRequestOwner(input: PublicWaitlistRequestSelection
       addOnServiceVariantIds: input.addOnServiceVariantIds,
       requestedPressureLevel: input.requestedPressureLevel,
       startsAt: canonicalIso(input.preferredStartsAt, "preferred start", true),
-      startsAtLabel: "preferredStartsAt",
+      startsAtLabel: "preferredStart",
       preferredProviderId: input.preferredProviderId,
     }),
   })
@@ -160,14 +160,17 @@ export async function acquirePublicRequestLock(
   await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${owner.prefix}, 0))`
 }
 
-function selectionComponents(input: {
+function selectionComponents<StartLabel extends "requestedStart" | "preferredStart">(input: {
   primaryServiceVariantId: string
   addOnServiceVariantIds: readonly string[]
   requestedPressureLevel: number
   startsAt: string
-  startsAtLabel: "requestedStartsAt" | "preferredStartsAt"
+  startsAtLabel: StartLabel
   preferredProviderId: string
-}): PublicRequestSelectionComponent[] {
+}): ReadonlyArray<Readonly<{
+  label: "serviceVariantId" | "addOnVariantId" | "pressure" | StartLabel | "preferredProviderId"
+  value: string
+}>> {
   const primaryServiceVariantId = canonicalIdentifier(input.primaryServiceVariantId, "primary service variant")
   if (!Array.isArray(input.addOnServiceVariantIds)) {
     throw new Error("Provide valid public request selection fields.")
@@ -183,11 +186,11 @@ function selectionComponents(input: {
   const preferredProviderId = optionalCanonicalIdentifier(input.preferredProviderId, "preferred provider")
 
   return [
-    { label: "primaryServiceVariantId", value: primaryServiceVariantId },
-    ...addOnServiceVariantIds.map((value) => ({ label: "addOnServiceVariantId", value })),
-    { label: "requestedPressureLevel", value: String(input.requestedPressureLevel) },
+    { label: "serviceVariantId" as const, value: primaryServiceVariantId },
+    ...addOnServiceVariantIds.map((value) => ({ label: "addOnVariantId" as const, value })),
+    { label: "pressure" as const, value: String(input.requestedPressureLevel) },
     { label: input.startsAtLabel, value: input.startsAt },
-    { label: "preferredProviderId", value: preferredProviderId },
+    { label: "preferredProviderId" as const, value: preferredProviderId },
   ]
 }
 
