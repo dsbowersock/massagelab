@@ -83,6 +83,8 @@ export async function deliverAdminEmailIntent(input: {
 
     const existingResult = initialResultWithoutClaim(intent, now)
     if (existingResult) return { kind: "RESULT" as const, result: existingResult }
+    // Direct delivery may recover only the initial PENDING owner. An expired
+    // retry-owned claim remains the audited retry path's responsibility.
     if (!claimIsRecoverable(intent, now)
       || intent.deliveryClaimOperationKeyHash !== null
       || !intent.recipientEmail) {
@@ -522,6 +524,7 @@ function isRetryResultStatus(status: string): boolean {
   return status === "DELIVERED" || status === "FAILED"
 }
 
+/** Aligns service eligibility with Activity: ambiguous PENDING or a delivery failure with a recipient. */
 function isRetryableIntent(intent: DeliveryIntent): intent is DeliveryIntent & {
   status: "PENDING" | "FAILED"
   recipientEmail: string
@@ -551,10 +554,14 @@ function claimIsRecoverable(intent: DeliveryIntent, now: Date): boolean {
     && intent.deliveryClaimExpiresAt.getTime() < now.getTime()
   if (!hasExpiredLease) return false
   if (intent.status === "PENDING") {
+    // Expired PENDING may be an initial claim (no operation hash) or an
+    // ambiguous retry claim that keeps its permanent operation-key ownership.
     return intent.deliveryClaimOperationKeyHash === null
       || (typeof intent.deliveryClaimOperationKeyHash === "string"
         && CLAIM_HASH_PATTERN.test(intent.deliveryClaimOperationKeyHash))
   }
+  // FAILED can retain an expired claim only after retry-finalization ambiguity,
+  // so the retry operation hash must remain present and canonical.
   return intent.status === "FAILED"
     && typeof intent.deliveryClaimOperationKeyHash === "string"
     && CLAIM_HASH_PATTERN.test(intent.deliveryClaimOperationKeyHash)

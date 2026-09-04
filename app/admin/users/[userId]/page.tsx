@@ -139,6 +139,9 @@ function ActivitySection({ detail, userId, canMutate }: { detail: Record<string,
 
   return <ol className="space-y-3">{entries.map((entry) => {
     const email = entry.email
+    // Keep this display gate aligned with email-intents.ts isRetryableIntent():
+    // only recoverable PENDING or delivery-failed notices qualify, while a
+    // missing recipient and every PASSWORD_RESET remain on their safer paths.
     const canRetry = email?.kind !== "PASSWORD_RESET"
       && (email?.status === "PENDING"
         || (email?.status === "FAILED" && email.failureCode !== "RECIPIENT_UNAVAILABLE"))
