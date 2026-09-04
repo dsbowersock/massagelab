@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import {
+  MAX_PUBLIC_ADD_ONS,
   normalizePublicBookingSequenceDescriptor,
   PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS,
 } from "../lib/public-booking-sequences.js"
@@ -61,14 +62,27 @@ function responseJson(payload, init = {}) {
   })
 }
 
-function routeRequest(body = DESCRIPTOR_BODY) {
+function routeRequest(body = DESCRIPTOR_BODY, { headers = {}, stream = false } = {}) {
+  const serializedBody = typeof body === "string" ? body : JSON.stringify(body)
   return new Request("https://massagelab.test/api/book/practice-slug/sequence-options", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "x-forwarded-for": "198.51.100.8",
+      ...headers,
     },
-    body: typeof body === "string" ? body : JSON.stringify(body),
+    body: stream
+      ? new ReadableStream({
+          start(controller) {
+            const bytes = new TextEncoder().encode(serializedBody)
+            const midpoint = Math.floor(bytes.byteLength / 2)
+            controller.enqueue(bytes.slice(0, midpoint))
+            controller.enqueue(bytes.slice(midpoint))
+            controller.close()
+          },
+        })
+      : serializedBody,
+    ...(stream ? { duplex: "half" } : {}),
   })
 }
 
@@ -140,6 +154,7 @@ function loadAvailabilityRoute({
       },
     },
     "@/lib/public-booking-sequences": {
+      MAX_PUBLIC_ADD_ONS,
       PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS,
       normalizePublicBookingSequenceDescriptor(input) {
         events.push("descriptor")
@@ -177,6 +192,12 @@ async function postAvailability(route, body = DESCRIPTOR_BODY) {
   })
 }
 
+async function postAvailabilityRequest(route, request) {
+  return route.POST(request, {
+    params: Promise.resolve({ practiceSlug: "practice-slug" }),
+  })
+}
+
 function loadAvailabilityCache() {
   if (!cacheSource) return {}
   return loadCompiledModule(cacheSource, "lib/public-booking-availability-cache.test.ts", {
@@ -206,6 +227,68 @@ function mutableCompleteOptions(label = "Provider One") {
 }
 
 describe("public booking availability traffic", () => {
+  it("availability accepts only a bounded UTF-8 JSON object before descriptor or downstream work", async () => {
+    const cases = [
+      routeRequest(DESCRIPTOR_BODY, { headers: { "content-type": "text/plain" } }),
+      routeRequest(DESCRIPTOR_BODY, { headers: { "content-length": "4097" } }),
+      routeRequest({ ...DESCRIPTOR_BODY, padding: "x".repeat(4096) }, { stream: true }),
+      routeRequest([]),
+    ]
+
+    for (const request of cases) {
+      const route = loadAvailabilityRoute()
+      const response = await postAvailabilityRequest(route, request)
+
+      assert.equal(response.status, 400)
+      assert.deepEqual(route.practiceReads, [])
+      assert.deepEqual(route.limiterCalls, [])
+      assert.doesNotMatch(route.events.join(","), /descriptor|session|network|limiter|cache|policy|solver/)
+    }
+  })
+
+  it("availability enforces canonical 191-character identifiers before downstream work", async () => {
+    const acceptedIdentifier = "a".repeat(191)
+    const acceptedRoute = loadAvailabilityRoute()
+    const acceptedResponse = await postAvailability(acceptedRoute, {
+      primaryServiceVariantId: acceptedIdentifier,
+      addOnServiceVariantIds: [acceptedIdentifier],
+      requestedPressureLevel: 3,
+      preferredProviderId: acceptedIdentifier,
+    })
+
+    assert.equal(acceptedResponse.status, 200)
+    assert.equal(acceptedRoute.practiceReads.length, 2)
+    assert.equal(acceptedRoute.limiterCalls.length, 1)
+    assert.equal(acceptedRoute.solverCalls.length, 1)
+
+    for (const body of [
+      { ...DESCRIPTOR_BODY, primaryServiceVariantId: "a".repeat(192) },
+      { ...DESCRIPTOR_BODY, addOnServiceVariantIds: ["a".repeat(192)] },
+      { ...DESCRIPTOR_BODY, preferredProviderId: "a".repeat(192) },
+    ]) {
+      const route = loadAvailabilityRoute()
+      const response = await postAvailability(route, body)
+
+      assert.equal(response.status, 400)
+      assert.deepEqual(route.practiceReads, [])
+      assert.deepEqual(route.limiterCalls, [])
+      assert.doesNotMatch(route.events.join(","), /descriptor|session|network|limiter|cache|policy|solver/)
+    }
+  })
+
+  it("availability rejects more than the public add-on maximum before normalizing or downstream work", async () => {
+    const route = loadAvailabilityRoute()
+    const response = await postAvailability(route, {
+      ...DESCRIPTOR_BODY,
+      addOnServiceVariantIds: ["add-1", "add-2", "add-3", "add-4"],
+    })
+
+    assert.equal(response.status, 400)
+    assert.deepEqual(route.practiceReads, [])
+    assert.deepEqual(route.limiterCalls, [])
+    assert.doesNotMatch(route.events.join(","), /descriptor|session|network|limiter|cache|policy|solver/)
+  })
+
   it("availability rejects malformed JSON and invalid descriptors before practice, session, network, or quota", async () => {
     for (const body of ["{", { requestedPressureLevel: 3 }]) {
       const route = loadAvailabilityRoute()
