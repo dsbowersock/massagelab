@@ -4,6 +4,9 @@ import type { AnatomimeRoomSummary } from "./shared-session-types"
 /** Bounds one room snapshot across both transport and successful JSON consumption. */
 export const ANATOMIME_ROOM_SNAPSHOT_TIMEOUT_MS = 1_500
 
+/** Bounds ambiguous manual create and join outcomes before a cautious retry window begins. */
+export const ANATOMIME_ACTION_REQUEST_TIMEOUT_MS = 20_000
+
 /** Prevents repeated manual action traffic when a nonconforming 429 omits a usable delay. */
 export const ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS = 10
 

@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 const polling = await import("../app/anatomime/anatomime-polling.ts")
 
 const {
+  ANATOMIME_ACTION_REQUEST_TIMEOUT_MS,
   ANATOMIME_RATE_LIMITED_POLL_STATUS,
   anatomimeActionRetryAfterSeconds,
   fetchAnatomimeRoomSnapshot,
@@ -89,6 +90,10 @@ function validSession(overrides = {}) {
 }
 
 describe("Anatomime room fetch classification", () => {
+  it("keeps manual create and join ambiguity bounded to the exact action deadline", () => {
+    assert.equal(ANATOMIME_ACTION_REQUEST_TIMEOUT_MS, 20_000)
+  })
+
   it("keeps manual actions locked for a safe fallback when a 429 delay is unusable", () => {
     const actionRetryAfter = requirePollingFunction(
       anatomimeActionRetryAfterSeconds,

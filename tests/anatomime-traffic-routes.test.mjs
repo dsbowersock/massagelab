@@ -23,11 +23,11 @@ const hostRoomClientSource = await readFile(new URL("../app/anatomime/host-room-
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
 const projectStateSource = await readFile(new URL("../docs/project-state.md", import.meta.url), "utf8")
 const projectLogSource = await readFile(new URL("../docs/project-log.md", import.meta.url), "utf8")
-const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 168
+const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 169
 const verifiedLayerBReceiptPattern = new RegExp(escapeRegExp(
   `exact ${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL}/${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL} focused Anatomime matrix`,
 ))
-const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 28
+const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 36
 const verifiedAnatomimeBrowserQaReceiptPattern = new RegExp(escapeRegExp(
   `All ${VERIFIED_ANATOMIME_BROWSER_QA_TOTAL} full intercepted Anatomime Browser QA desktop/mobile cases reported`,
 ))
@@ -1824,9 +1824,14 @@ function loadSharedSessionClient() {
     "@/components/ui/label": { Label: emptyComponent },
     "@/components/ui/page-heading": { PageHeading: emptyComponent },
     "@/components/moving-background": { MovingBackground: emptyComponent },
+    "@/lib/client-fetch": {
+      fetchJsonResponseWithTimeout: async () => ({ response: { ok: true }, json: {} }),
+    },
     "./anatomime-action-button": { AnatomimeActionButton: emptyComponent },
     "./anatomime-polling": {
-      anatomimeRetryAfterSeconds: () => 0,
+      ANATOMIME_ACTION_REQUEST_TIMEOUT_MS: 20_000,
+      ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS: 10,
+      anatomimeActionRetryAfterSeconds: () => 10,
       fetchAnatomimeRoomSnapshot: async () => ({ kind: "FAILED" }),
       nextAnatomimePollSchedule: () => ({ action: "SCHEDULE", delayMs: 2_000, consecutiveFailures: 1 }),
     },

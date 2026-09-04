@@ -56,3 +56,24 @@ export async function fetchJsonWithTimeout<T = unknown>(
     json: response.ok ? await response.json() as T : undefined,
   }), fetchImpl)
 }
+
+/**
+ * Fetches and attempts JSON consumption for every HTTP status under one deadline.
+ * Non-OK parse failures preserve the response with undefined JSON; caller
+ * cancellation and successful parse failures still reject.
+ */
+export async function fetchJsonResponseWithTimeout<T = unknown>(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = 1500,
+  fetchImpl: typeof fetch = fetch,
+) {
+  return runWithFetchDeadline(input, init, timeoutMs, async (response) => {
+    try {
+      return { response, json: await response.json() as T }
+    } catch (error) {
+      if (init.signal?.aborted || response.ok) throw error
+      return { response, json: undefined }
+    }
+  }, fetchImpl)
+}

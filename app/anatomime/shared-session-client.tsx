@@ -7,7 +7,10 @@ import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
 import { AnatomimeActionButton } from "./anatomime-action-button"
+import { fetchJsonResponseWithTimeout } from "@/lib/client-fetch"
 import {
+  ANATOMIME_ACTION_REQUEST_TIMEOUT_MS,
+  ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS,
   ANATOMIME_RATE_LIMITED_POLL_STATUS,
   anatomimeActionRetryAfterSeconds,
   fetchAnatomimeRoomSnapshot,
@@ -433,23 +436,33 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     joinInFlightRef.current = true
     setJoiningGame(true)
     try {
-      const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(nextLookupCode)}/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          displayName,
-          teamId: selectedTeamId || session?.teams[0]?.id,
-        }),
-      })
-      const payload = await response.json().catch(() => ({}))
+      const { response, json: payload } = await fetchJsonResponseWithTimeout<{
+        error?: string
+        player: { id: string; token: string; teamId: string | null }
+        session: AnatomimeRoomSummary
+      }>(
+        `/api/anatomime/sessions/${encodeURIComponent(nextLookupCode)}/join`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            displayName,
+            teamId: selectedTeamId || session?.teams[0]?.id,
+          }),
+        },
+        ANATOMIME_ACTION_REQUEST_TIMEOUT_MS,
+      )
       if (!response.ok) {
         if (response.status === 429) {
           const retrySeconds = anatomimeActionRetryAfterSeconds(response)
-          setJoinRetryUntil(Date.now() + retrySeconds * 1_000)
+          const current = Date.now()
+          setNow(current)
+          setJoinRetryUntil(current + retrySeconds * 1_000)
         }
-        setMessage(payload.error ?? "Could not join game.")
+        setMessage(payload?.error ?? "Could not join game.")
         return
       }
+      if (!payload) throw new Error("Shared game join returned no JSON payload.")
 
       const player = {
         playerId: payload.player.id,
@@ -466,7 +479,10 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       setPollStatus("")
       setMessage("")
     } catch {
-      setMessage("Could not join game.")
+      const current = Date.now()
+      setNow(current)
+      setJoinRetryUntil(current + ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS * 1_000)
+      setMessage("We could not confirm whether you joined the game. Wait briefly, then retry manually; retrying may add another guest.")
     } finally {
       joinInFlightRef.current = false
       setJoiningGame(false)

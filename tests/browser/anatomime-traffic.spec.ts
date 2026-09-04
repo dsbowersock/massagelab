@@ -215,6 +215,59 @@ function responseGate() {
   return { release, wait }
 }
 
+/** Makes the first matching successful response expose a JSON reader that waits for abort. */
+async function installStalledActionJson(page: Page, targetPath: string) {
+  await page.addInitScript((path) => {
+    const runtime = window as typeof window & { __releaseStalledActionJson?: () => void }
+    const nativeFetch = window.fetch.bind(window)
+    let matchingCalls = 0
+    let releaseCurrent: (() => void) | null = null
+
+    runtime.__releaseStalledActionJson = () => releaseCurrent?.()
+    window.fetch = async (input, init) => {
+      const response = await nativeFetch(input, init)
+      const inputUrl = typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url
+      if (new URL(inputUrl, window.location.href).pathname !== path || init?.method !== "POST") {
+        return response
+      }
+
+      matchingCalls += 1
+      if (matchingCalls !== 1) return response
+
+      return {
+        ok: response.ok,
+        status: response.status,
+        headers: response.headers,
+        json: () => new Promise((_resolve, reject) => {
+          const signal = init.signal
+          let settled = false
+          const finish = (reason: unknown) => {
+            if (settled) return
+            settled = true
+            signal?.removeEventListener("abort", onAbort)
+            releaseCurrent = null
+            reject(reason)
+          }
+          const onAbort = () => finish(signal?.reason ?? new DOMException("Aborted", "AbortError"))
+          releaseCurrent = () => finish(new DOMException("Released", "AbortError"))
+          if (signal?.aborted) onAbort()
+          else signal?.addEventListener("abort", onAbort, { once: true })
+        }),
+      } as Response
+    }
+  }, targetPath)
+}
+
+async function releaseStalledActionJson(page: Page) {
+  await page.evaluate(() => {
+    ;(window as typeof window & { __releaseStalledActionJson?: () => void }).__releaseStalledActionJson?.()
+  }).catch(() => {})
+}
+
 test("Ably harness isolates subscriptions across client and channel lifecycles", async ({ page }) => {
   await installPlayerRuntime(page, { storedPlayer: false })
   await page.goto("data:text/html,<title>Ably harness</title>")
@@ -786,6 +839,7 @@ test("create honors Retry-After lockout without replaying automatically", async 
   expect(createCount).toBe(1)
   firstCreateResponse.release()
   await expect(page.getByRole("button", { name: "Try again in 3s" })).toBeDisabled()
+  await expect(page.getByText("Please wait before creating another room.", { exact: true })).toBeVisible()
   const createCooldownStatus = page.locator(".anatomime-poll-status[role='status']")
   await expect(createCooldownStatus).toHaveText("Shared game creation is temporarily paused. You can retry when the countdown ends.")
   expect(createCount).toBe(1)
@@ -882,6 +936,7 @@ test("join honors Retry-After lockout without replaying automatically", async ({
   expect(joinCount).toBe(1)
   firstJoinResponse.release()
   await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
+  await expect(page.getByText("Please wait before joining again.", { exact: true })).toBeVisible()
   await expect(page.getByText(/Joining is paused/i)).toBeVisible()
   expect(joinCount).toBe(1)
 
@@ -943,3 +998,131 @@ test("join applies a safe manual cooldown when a 429 has an unusable Retry-After
   await expect.poll(() => joinCount).toBe(2)
   expect(providerRequests(page)).toBe(0)
 })
+
+for (const stalledAt of ["transport", "successful JSON"] as const) {
+  test(`create bounds a stalled ${stalledAt} response before a manual retry`, async ({ page }) => {
+    test.setTimeout(90_000)
+    await page.clock.install()
+    let createCount = 0
+    const transportGate = responseGate()
+    const ambiguityMessage = "We could not confirm whether the shared game was created. Wait briefly, then retry manually; retrying may create another room."
+
+    if (stalledAt === "successful JSON") {
+      await installStalledActionJson(page, "/api/anatomime/sessions")
+    }
+    await page.route((url) => url.pathname === "/api/anatomime/sessions", async (route) => {
+      createCount += 1
+      if (createCount === 1 && stalledAt === "transport") {
+        await transportGate.wait
+      }
+      await fulfillJson(route, 201, {
+        session: roomSession({ joined: false, host: true }),
+        host: { playerId: "host-player", token: "host-token" },
+      }).catch(() => {})
+    })
+    await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
+      await fulfillJson(route, 200, { session: roomSession({ joined: false, host: true }) })
+    })
+
+    try {
+      await page.goto("/anatomime", { waitUntil: "networkidle" })
+      const chooseTerms = page.getByRole("button", { name: /Choose Anatomy Terms/i })
+      const createGame = page.getByRole("button", { name: /Create Shared Game/i })
+      await chooseTerms.click()
+      await expect(createGame).toBeVisible()
+      await pauseClockAtCurrentTime(page)
+      await page.getByRole("button", { name: /Create Shared Game/i }).click()
+      await expect.poll(() => createCount).toBe(1)
+      await expect(page.getByRole("button", { name: "Creating..." })).toBeDisabled()
+
+      await page.clock.runFor(19_999)
+      await expect(page.getByRole("button", { name: "Creating..." })).toBeDisabled()
+      await expect(page.getByText(ambiguityMessage, { exact: true })).toHaveCount(0)
+      expect(createCount).toBe(1)
+
+      await page.clock.runFor(1)
+      await expect(page.getByText(ambiguityMessage, { exact: true })).toBeVisible()
+      await expect(page.getByRole("button", { name: "Try again in 10s" })).toBeDisabled()
+      expect(createCount).toBe(1)
+
+      await page.clock.runFor(9_999)
+      await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
+      expect(createCount).toBe(1)
+      await page.clock.runFor(1)
+      await expect(page.getByRole("button", { name: /Create Shared Game/i })).toBeEnabled()
+      await expect(page.getByText(ambiguityMessage, { exact: true })).toBeVisible()
+      expect(createCount).toBe(1)
+
+      await page.getByRole("button", { name: /Create Shared Game/i }).click()
+      await expect.poll(() => createCount).toBe(2)
+      expect(providerRequests(page)).toBe(0)
+    } finally {
+      transportGate.release()
+      await releaseStalledActionJson(page)
+    }
+  })
+
+  test(`join bounds a stalled ${stalledAt} response before a manual retry`, async ({ page }) => {
+    test.setTimeout(90_000)
+    await page.clock.install()
+    await installPlayerRuntime(page, { storedPlayer: false })
+    let joinCount = 0
+    const transportGate = responseGate()
+    const ambiguityMessage = "We could not confirm whether you joined the game. Wait briefly, then retry manually; retrying may add another guest."
+
+    if (stalledAt === "successful JSON") {
+      await installStalledActionJson(page, `${ROOM_PATH}/join`)
+    }
+    await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
+      await fulfillJson(route, 200, { session: roomSession({ joined: false }) })
+    })
+    await page.route((url) => url.pathname === `${ROOM_PATH}/join`, async (route) => {
+      joinCount += 1
+      if (joinCount === 1 && stalledAt === "transport") {
+        await transportGate.wait
+      }
+      await fulfillJson(route, 201, {
+        player: { id: "player-1", token: "player-token", teamId: "team-1" },
+        session: roomSession(),
+      }).catch(() => {})
+    })
+    await page.route((url) => url.pathname === TOKEN_PATH, async (route) => {
+      await fulfillJson(route, 200, { keyName: "test", nonce: "nonce", mac: "mac" })
+    })
+
+    try {
+      await page.goto(`/anatomime/join?code=${ROOM_CODE}`, { waitUntil: "networkidle" })
+      await expect(page.getByRole("button", { name: /Join Team/i })).toBeVisible()
+      await pauseClockAtCurrentTime(page)
+      await page.getByLabel("Display name").fill("Avery")
+      await page.getByRole("button", { name: /Join Team/i }).evaluate((button: HTMLButtonElement) => button.click())
+      await expect.poll(() => joinCount).toBe(1)
+      await expect(page.getByRole("button", { name: "Joining..." })).toBeDisabled()
+
+      await page.clock.runFor(19_999)
+      await expect(page.getByRole("button", { name: "Joining..." })).toBeDisabled()
+      await expect(page.getByText(ambiguityMessage, { exact: true })).toHaveCount(0)
+      expect(joinCount).toBe(1)
+
+      await page.clock.runFor(1)
+      await expect(page.getByText(ambiguityMessage, { exact: true })).toBeVisible()
+      await expect(page.getByRole("button", { name: "Try again in 10s" })).toBeDisabled()
+      expect(joinCount).toBe(1)
+
+      await page.clock.runFor(9_999)
+      await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
+      expect(joinCount).toBe(1)
+      await page.clock.runFor(1)
+      await expect(page.getByRole("button", { name: /Join Team/i })).toBeEnabled()
+      await expect(page.getByText(ambiguityMessage, { exact: true })).toBeVisible()
+      expect(joinCount).toBe(1)
+
+      await page.getByRole("button", { name: /Join Team/i }).click()
+      await expect.poll(() => joinCount).toBe(2)
+      expect(providerRequests(page)).toBe(0)
+    } finally {
+      transportGate.release()
+      await releaseStalledActionJson(page)
+    }
+  })
+}

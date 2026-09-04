@@ -28,18 +28,20 @@
 | --- | --- |
 | `lib/anatomime-traffic-server.ts` | Narrow realtime-token preflight, loaded-room poll classification, PR A decision mapping, local poll shedding, presence coalescing. |
 | `lib/anatomime-api.ts` | Generic `429`/`503` mapping and integer `Retry-After`. |
+| `lib/client-fetch.ts` | Shared fetch/JSON deadline that preserves non-OK status, headers, valid error JSON, and caller cancellation. |
 | `lib/anatomime-room-server.ts` | Pre-persist guards, one-hydration load, coalesced in-memory presence update. |
 | `app/api/anatomime/sessions/route.ts` | Room-create quota after validation and before persistence. |
 | `app/api/anatomime/sessions/[code]/join/route.ts` | Network ingress before auth/body/room work, then verified room-resource quota before persistence. |
 | `app/api/anatomime/sessions/[code]/realtime-token/route.ts` | Network ingress, found-room start protection, joined-player proof, and issue quota. |
 | `app/api/anatomime/sessions/[code]/route.ts` | Local shedding, same-snapshot proof, durable bogus/unjoined protection, and the bounded expiry-race reread exception. |
 | `app/anatomime/anatomime-polling.ts` | Fetch classification, pure next-poll scheduling, and the shared manual-action `429` fallback. |
-| `app/anatomime/shared-session-client.tsx` | Credential-bound token request, player polling, terminal/retry UI. |
+| `app/anatomime/shared-session-client.tsx` | Credential-bound token request, player polling, bounded join response, terminal/retry UI. |
 | `app/anatomime/host-room-client.tsx` | Host scheduler adoption. |
-| `app/anatomime/anatomime-game-client.tsx` | Create retry lockout and visible guidance. |
+| `app/anatomime/anatomime-game-client.tsx` | Bounded create response, retry lockout, and visible guidance. |
 | `tests/anatomime-traffic-server.test.mjs` | Server primitive privacy, proof, quota, cap, and presence contracts. |
 | `tests/anatomime-traffic-routes.test.mjs` | Create/join/token/poll order and zero-work denial. |
 | `tests/anatomime-polling.test.mjs` | Cadence, jitter, `Retry-After`, and terminal scheduling. |
+| `tests/client-fetch.test.mjs` | All-status JSON preservation, caller cancellation, and transport/body deadline semantics. |
 | `tests/browser/anatomime-traffic.spec.ts` | Desktop/mobile intercepted browser recovery proof. |
 
 ## Interfaces
@@ -326,17 +328,18 @@ Expected: no scheduler and fixed 1.5-second loops.
 
 - [ ] **Step 3: Implement scheduler and client adoption**
 
-Use self-scheduling timeouts with abortable fetches; reset failures on success; never automatically replay create/join/token after a terminal or ambiguous result. Keep status messages in an accessible live region and disable controls only through the accepted retry window. Create and join preserve a usable positive integer `Retry-After`; a missing or unusable header uses the shared 10-second manual-action fallback, whose expiry unlocks the control without replaying the request. While the first lookup has no snapshot, announce `Loading shared game…`; if it fails, retain accessible failure feedback and restore the room-code entry panel as an escape path. Scheduled background polls stay quiet.
+Use self-scheduling timeouts with abortable fetches; reset failures on success; never automatically replay create/join/token after a terminal or ambiguous result. Keep status messages in an accessible live region and disable controls only through the accepted retry window. Create and join preserve a usable positive integer `Retry-After`; a missing or unusable header uses the shared 10-second manual-action fallback, whose expiry unlocks the control without replaying the request. Their transport and JSON consumption share an exact 20-second deadline while caller-owned cancellation propagates unchanged. A stalled transport or successful body clears pending state into fixed ambiguous-outcome guidance and the same manual-only cooldown. Because these writes are not idempotent, an explicit retry can still create a second room or guest if the first request committed after the client lost confirmation. While the first lookup has no snapshot, announce `Loading shared game…`; if it fails, retain accessible failure feedback and restore the room-code entry panel as an escape path. Scheduled background polls stay quiet.
 
 - [ ] **Step 4: Run unit GREEN and browser RED/GREEN**
 
 ```powershell
 node --test tests/anatomime-polling.test.mjs
+node --test tests/client-fetch.test.mjs
 npm run build:browser-qa
 npm run test:browser -- tests/browser/anatomime-traffic.spec.ts --project=desktop-chromium --project=mobile-chromium
 ```
 
-Use `page.clock.install()`/`fastForward()` and intercepted routes. Prove token credential headers/no `clientId`, 2s/5s/15s cadence, 2/4/8/16/30 failure recovery, `Retry-After`, terminal guidance, valid-header and missing/unusable-header create/join retry lockout, manual-only unlock, and zero Ably/provider traffic.
+Install `page.clock` before navigation, pause it only after hydration/readiness, then use exact `fastForward()` boundaries and intercepted routes. Prove token credential headers/no `clientId`, 2s/5s/15s cadence, 2/4/8/16/30 failure recovery, `Retry-After`, terminal guidance, valid-header and missing/unusable-header create/join retry lockout, exact 20-second stalled-transport and stalled-success-body recovery, manual-only unlock, and zero Ably/provider traffic.
 
 - [ ] **Step 5: Run existing journeys**
 
