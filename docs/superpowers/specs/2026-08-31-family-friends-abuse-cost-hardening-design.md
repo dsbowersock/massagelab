@@ -32,7 +32,7 @@ The sequence is:
 4. perform an ordinary separately authorized deploy of that exact candidate while preserving current membership writer authority; and
 5. run separately authorized real login and soft-launch checks.
 
-The five identity and membership migrations and their bridge ceremony are complete in Production, with membership webhook writes enabled. Exact current main has all 45 baseline migrations current. This design adds one separately gated Layer A migration as the pending 46th migration; it does not modify or replay the five applied migrations or repeat the completed pause/drain/unpause ceremony.
+The five identity and membership migrations and their bridge ceremony are complete in Production, with membership webhook writes enabled. At design time, the then-current Production baseline had all 45 baseline migrations current. This design adds one separately gated Layer A migration as the pending 46th migration; it does not modify or replay the five applied migrations or repeat the completed pause/drain/unpause ceremony.
 
 ## Goals
 
