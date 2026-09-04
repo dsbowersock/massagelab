@@ -6,11 +6,13 @@ const polling = await import("../app/anatomime/anatomime-polling.ts")
 const {
   ANATOMIME_ACTION_REQUEST_TIMEOUT_MS,
   ANATOMIME_RATE_LIMITED_POLL_STATUS,
+  ANATOMIME_REALTIME_SETUP_TIMEOUT_MS,
   anatomimeActionRetryAfterSeconds,
   fetchAnatomimeRoomSnapshot,
   installAnatomimeActionCooldownTicker,
   nextAnatomimePollSchedule,
   nextAnatomimeVisibilitySchedule,
+  waitForAnatomimeRealtimeScript,
 } = polling
 
 function requirePollingFunction(value, name) {
@@ -93,6 +95,55 @@ function validSession(overrides = {}) {
 describe("Anatomime room fetch classification", () => {
   it("keeps manual create and join ambiguity bounded to the exact action deadline", () => {
     assert.equal(ANATOMIME_ACTION_REQUEST_TIMEOUT_MS, 20_000)
+    assert.equal(ANATOMIME_REALTIME_SETUP_TIMEOUT_MS, 10_000)
+  })
+
+  it("isolates abortable realtime script waiters without poisoning the shared script", async () => {
+    const waitForScript = requirePollingFunction(
+      waitForAnatomimeRealtimeScript,
+      "waitForAnatomimeRealtimeScript",
+    )
+    const target = new EventTarget()
+    const activeListeners = new Map([
+      ["load", new Set()],
+      ["error", new Set()],
+    ])
+    const addEventListener = target.addEventListener.bind(target)
+    const removeEventListener = target.removeEventListener.bind(target)
+    target.addEventListener = (type, listener, options) => {
+      activeListeners.get(type)?.add(listener)
+      addEventListener(type, listener, options)
+    }
+    target.removeEventListener = (type, listener, options) => {
+      activeListeners.get(type)?.delete(listener)
+      removeEventListener(type, listener, options)
+    }
+
+    const firstController = new AbortController()
+    const firstWait = waitForScript(target, firstController.signal)
+    const secondController = new AbortController()
+    const secondWait = waitForScript(target, secondController.signal)
+    assert.equal(activeListeners.get("load").size, 2)
+    assert.equal(activeListeners.get("error").size, 2)
+
+    const callerReason = new DOMException("Superseded", "AbortError")
+    firstController.abort(callerReason)
+    await assert.rejects(firstWait, (error) => error === callerReason)
+    assert.equal(activeListeners.get("load").size, 1)
+    assert.equal(activeListeners.get("error").size, 1)
+
+    target.dispatchEvent(new Event("load"))
+    await secondWait
+    assert.equal(activeListeners.get("load").size, 0)
+    assert.equal(activeListeners.get("error").size, 0)
+
+    const thirdController = new AbortController()
+    const thirdWait = waitForScript(target, thirdController.signal)
+    const scriptError = new Event("error")
+    target.dispatchEvent(scriptError)
+    await assert.rejects(thirdWait, (error) => error === scriptError)
+    assert.equal(activeListeners.get("load").size, 0)
+    assert.equal(activeListeners.get("error").size, 0)
   })
 
   it("keeps manual actions locked for a safe fallback when a 429 delay is unusable", () => {

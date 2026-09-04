@@ -7,10 +7,50 @@ export const ANATOMIME_ROOM_SNAPSHOT_TIMEOUT_MS = 1_500
 /** Bounds ambiguous manual create and join outcomes before a cautious retry window begins. */
 export const ANATOMIME_ACTION_REQUEST_TIMEOUT_MS = 20_000
 
+/** Bounds one realtime token request plus browser SDK readiness under one setup deadline. */
+export const ANATOMIME_REALTIME_SETUP_TIMEOUT_MS = 10_000
+
 /** Prevents repeated manual action traffic when a nonconforming 429 omits a usable delay. */
 export const ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS = 10
 
 type AnatomimeActionCooldownTimer = ReturnType<typeof globalThis.setInterval>
+
+/**
+ * Waits for one shared realtime script without binding the script lifecycle to
+ * this caller. Every waiter removes only its own listeners on load, error, or abort.
+ */
+export function waitForAnatomimeRealtimeScript(
+  script: Pick<EventTarget, "addEventListener" | "removeEventListener">,
+  signal: AbortSignal,
+) {
+  if (signal.aborted) {
+    return Promise.reject(signal.reason ?? new DOMException("Aborted", "AbortError"))
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    let settled = false
+    const cleanup = () => {
+      script.removeEventListener("load", onLoad)
+      script.removeEventListener("error", onError)
+      signal.removeEventListener("abort", onAbort)
+    }
+    const settle = (complete: () => void) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      complete()
+    }
+    const onLoad = () => settle(resolve)
+    const onError = (event: Event) => settle(() => reject(event))
+    const onAbort = () => settle(() => reject(
+      signal.reason ?? new DOMException("Aborted", "AbortError"),
+    ))
+
+    script.addEventListener("load", onLoad)
+    script.addEventListener("error", onError)
+    signal.addEventListener("abort", onAbort, { once: true })
+  })
+}
 
 /**
  * Synchronizes a manual-action deadline immediately, then owns its display ticker

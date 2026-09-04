@@ -73,8 +73,11 @@ function roomSession({
  * Installs optional stored-player state, controllable visibility, deterministic retry jitter,
  * and fake Ably signaling whose callback lifetime follows active clients and subscriptions.
  */
-async function installPlayerRuntime(page: Page, { storedPlayer = true } = {}) {
-  await page.addInitScript(({ roomCode, stored }) => {
+async function installPlayerRuntime(page: Page, {
+  storedPlayer = true,
+  realtimeProvider = true,
+} = {}) {
+  await page.addInitScript(({ roomCode, stored, installRealtimeProvider }) => {
     if (stored) {
       window.localStorage.setItem(`massagelab-anatomime-player:${roomCode}`, JSON.stringify({
         playerId: "player-1",
@@ -117,6 +120,7 @@ async function installPlayerRuntime(page: Page, { storedPlayer = true } = {}) {
         : null
     }
     runtime.__anatomimeAblySignal = null
+    if (!installRealtimeProvider) return
     runtime.Ably = {
       Realtime: class {
         private readonly state: AblyClientState = { channels: new Map(), closed: false }
@@ -156,7 +160,11 @@ async function installPlayerRuntime(page: Page, { storedPlayer = true } = {}) {
         }
       },
     }
-  }, { roomCode: ROOM_CODE, stored: storedPlayer })
+  }, {
+    roomCode: ROOM_CODE,
+    stored: storedPlayer,
+    installRealtimeProvider: realtimeProvider,
+  })
 }
 
 async function triggerRealtimeSignal(page: Page) {
@@ -267,6 +275,47 @@ async function releaseStalledActionJson(page: Page) {
   await page.evaluate(() => {
     ;(window as typeof window & { __releaseStalledActionJson?: () => void }).__releaseStalledActionJson?.()
   }).catch(() => {})
+}
+
+/** Supplies a pending shared Ably script while tracking only its caller-owned wait listeners. */
+async function installInertAblyScript(page: Page) {
+  await page.addInitScript(() => {
+    const runtime = window as typeof window & {
+      __anatomimeAblyWaitListenerCount?: () => number
+    }
+    const inertScript = document.createElement("script")
+    inertScript.dataset.anatomimeAbly = "true"
+    const activeListeners = new Map<string, Set<EventListenerOrEventListenerObject>>([
+      ["load", new Set()],
+      ["error", new Set()],
+    ])
+    const addEventListener = inertScript.addEventListener.bind(inertScript)
+    const removeEventListener = inertScript.removeEventListener.bind(inertScript)
+    inertScript.addEventListener = ((
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | AddEventListenerOptions,
+    ) => {
+      activeListeners.get(type)?.add(listener)
+      addEventListener(type, listener, options)
+    }) as typeof inertScript.addEventListener
+    inertScript.removeEventListener = ((
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | EventListenerOptions,
+    ) => {
+      activeListeners.get(type)?.delete(listener)
+      removeEventListener(type, listener, options)
+    }) as typeof inertScript.removeEventListener
+
+    const querySelector = document.querySelector.bind(document)
+    document.querySelector = ((selector: string) => (
+      selector === "script[data-anatomime-ably]" ? inertScript : querySelector(selector)
+    )) as typeof document.querySelector
+    runtime.__anatomimeAblyWaitListenerCount = () => (
+      (activeListeners.get("load")?.size ?? 0) + (activeListeners.get("error")?.size ?? 0)
+    )
+  })
 }
 
 test("Ably harness isolates subscriptions across client and channel lifecycles", async ({ page }) => {
@@ -397,6 +446,91 @@ test("player polling uses credential-bound tokens with 2s visible and 15s hidden
   expect(tokenCount).toBe(1)
   expect(providerRequests(page)).toBe(0)
 })
+
+for (const stalledAt of ["token transport", "successful token JSON", "inert Ably script"] as const) {
+  test(`player bounds stalled realtime setup at 10s during ${stalledAt}`, async ({ page }) => {
+    test.setTimeout(90_000)
+    await page.clock.install()
+    await installPlayerRuntime(page, {
+      storedPlayer: false,
+      realtimeProvider: stalledAt !== "inert Ably script",
+    })
+    if (stalledAt === "inert Ably script") await installInertAblyScript(page)
+    if (stalledAt === "successful token JSON") await installStalledActionJson(page, TOKEN_PATH)
+
+    let joined = false
+    let pollCount = 0
+    let tokenCount = 0
+    const tokenTransportGate = responseGate()
+    const fallbackMessage = "Live updates are unavailable. Automatic refresh is active."
+
+    await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
+      pollCount += 1
+      await fulfillJson(route, 200, {
+        session: roomSession({ status: "PLAYING", phase: "ACTIVE_TERM", joined }),
+      }).catch(() => {})
+    })
+    await page.route((url) => url.pathname === `${ROOM_PATH}/join`, async (route) => {
+      joined = true
+      await fulfillJson(route, 201, {
+        player: { id: "player-1", token: "player-token", teamId: "team-1" },
+        session: roomSession({ status: "PLAYING", phase: "ACTIVE_TERM" }),
+      })
+    })
+    await page.route((url) => url.pathname === TOKEN_PATH, async (route) => {
+      tokenCount += 1
+      if (stalledAt === "token transport") await tokenTransportGate.wait
+      await fulfillJson(route, 200, { keyName: "test", nonce: "nonce", mac: "mac" }).catch(() => {})
+    })
+
+    try {
+      await page.goto(`/anatomime/join?code=${ROOM_CODE}`, { waitUntil: "networkidle" })
+      await expect(page.getByRole("button", { name: /Join Team/i })).toBeVisible()
+      await pauseClockAtCurrentTime(page)
+      await page.evaluate(() => {
+        ;(window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden = true
+        document.dispatchEvent(new Event("visibilitychange"))
+      })
+      await page.getByLabel("Display name").fill("Avery")
+      await page.getByRole("button", { name: /Join Team/i }).evaluate((button: HTMLButtonElement) => button.click())
+      await expect.poll(() => tokenCount).toBe(1)
+      await expect.poll(() => pollCount).toBe(2)
+
+      await page.clock.runFor(9_999)
+      await expect(page.getByText(fallbackMessage, { exact: true })).toHaveCount(0)
+      expect(tokenCount).toBe(1)
+
+      await page.clock.runFor(1)
+      await expect(page.getByText(fallbackMessage, { exact: true })).toBeVisible()
+      expect(tokenCount).toBe(1)
+      if (stalledAt === "inert Ably script") {
+        await expect.poll(() => page.evaluate(() => (
+          (window as typeof window & { __anatomimeAblyWaitListenerCount?: () => number })
+            .__anatomimeAblyWaitListenerCount?.()
+        ))).toBe(0)
+      }
+
+      await page.evaluate(() => {
+        ;(window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden = false
+        document.dispatchEvent(new Event("visibilitychange"))
+      })
+      await expect(page.getByText(fallbackMessage, { exact: true })).toBeVisible()
+      expect(tokenCount).toBe(1)
+      expect(providerRequests(page)).toBe(0)
+
+      // Realtime fallback must not stop the independent visible two-second poll cadence.
+      await page.clock.runFor(1_999)
+      expect(pollCount).toBe(2)
+      await page.clock.runFor(1)
+      await expect.poll(() => pollCount).toBe(3)
+      expect(tokenCount).toBe(1)
+      expect(providerRequests(page)).toBe(0)
+    } finally {
+      tokenTransportGate.release()
+      await releaseStalledActionJson(page)
+    }
+  })
+}
 
 test("team changes preserve server polling cooldowns and realtime credentials", async ({ page }) => {
   await page.clock.install()
@@ -946,6 +1080,9 @@ test("join honors Retry-After lockout without replaying automatically", async ({
   expect(joinCount).toBe(1)
   await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
   await page.clock.runFor(1)
+  expect(joinCount).toBe(1)
+  await page.clock.runFor(500)
+  expect(joinCount).toBe(1)
   await expect(page.getByRole("button", { name: /Join Team/i })).toBeEnabled()
   expect(joinCount).toBe(1)
   await page.getByRole("button", { name: /Join Team/i }).click()
@@ -994,6 +1131,9 @@ test("join applies a safe manual cooldown when a 429 has an unusable Retry-After
   expect(joinCount).toBe(1)
   await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
   await page.clock.runFor(1)
+  expect(joinCount).toBe(1)
+  await page.clock.runFor(500)
+  expect(joinCount).toBe(1)
   await expect(page.getByRole("button", { name: /Join Team/i })).toBeEnabled()
   expect(joinCount).toBe(1)
   await page.getByRole("button", { name: /Join Team/i }).click()
@@ -1115,6 +1255,9 @@ for (const stalledAt of ["transport", "successful JSON"] as const) {
       await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
       expect(joinCount).toBe(1)
       await page.clock.runFor(1)
+      expect(joinCount).toBe(1)
+      await page.clock.runFor(500)
+      expect(joinCount).toBe(1)
       await expect(page.getByRole("button", { name: /Join Team/i })).toBeEnabled()
       await expect(page.getByText(ambiguityMessage, { exact: true })).toBeVisible()
       expect(joinCount).toBe(1)

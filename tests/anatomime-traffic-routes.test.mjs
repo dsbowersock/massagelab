@@ -24,13 +24,13 @@ const hostRoomClientSource = await readFile(new URL("../app/anatomime/host-room-
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
 const projectStateSource = await readFile(new URL("../docs/project-state.md", import.meta.url), "utf8")
 const projectLogSource = await readFile(new URL("../docs/project-log.md", import.meta.url), "utf8")
-const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 173
+const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 174
 const verifiedLayerBReceiptPattern = new RegExp(escapeRegExp(
   `exact ${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL}/${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL} focused Anatomime matrix`,
 ))
-const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 36
+const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 42
 const verifiedAnatomimeBrowserQaReceiptPattern = new RegExp(escapeRegExp(
-  `All ${VERIFIED_ANATOMIME_BROWSER_QA_TOTAL} full intercepted Anatomime Browser QA desktop/mobile cases reported`,
+  `Fresh exact-head full intercepted Anatomime Browser QA coverage reports ${VERIFIED_ANATOMIME_BROWSER_QA_TOTAL}/${VERIFIED_ANATOMIME_BROWSER_QA_TOTAL} desktop/mobile cases ok in one post-fix run`,
 ))
 
 /** Escapes a literal receipt so one verified count drives both documentation checks. */
@@ -502,7 +502,7 @@ describe("Anatomime create and join traffic boundaries", () => {
     ])
   })
 
-  it("lets exactly one authenticated transaction claim a token-proven guest", async () => {
+  it("lets exactly one authenticated transaction claim a token-proven guest", { timeout: 5_000 }, async () => {
     const scenario = loadConcurrentGuestClaimServer()
     const claimInput = {
       displayName: "Claiming Player",
@@ -530,7 +530,7 @@ describe("Anatomime create and join traffic boundaries", () => {
     assert.equal(scenario.committedPlayer.guestTokenHash, `hash:${winner.token}`)
   })
 
-  it("lets exactly one anonymous same-token re-entry rotate the guest credential", async () => {
+  it("lets exactly one anonymous same-token re-entry rotate the guest credential", { timeout: 5_000 }, async () => {
     const scenario = loadConcurrentGuestClaimServer()
     const reentryInput = {
       displayName: "Returning Guest",
@@ -976,7 +976,7 @@ describe("Anatomime realtime token traffic boundary", () => {
     )
     assert.match(
       sharedSessionClientSource,
-      /fetch\(`\/api\/anatomime\/sessions\/\$\{encodeURIComponent\(lookupCode\)\}\/realtime-token`/,
+      /fetchJsonWithTimeout\(\s*`\/api\/anatomime\/sessions\/\$\{encodeURIComponent\(lookupCode\)\}\/realtime-token`/,
     )
     assert.match(sharedSessionClientSource, /channels\.get\(`anatomime:\$\{lookupCode\}`\)/)
 

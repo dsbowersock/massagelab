@@ -7,15 +7,17 @@ import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
 import { AnatomimeActionButton } from "./anatomime-action-button"
-import { fetchJsonResponseWithTimeout } from "@/lib/client-fetch"
+import { fetchJsonResponseWithTimeout, fetchJsonWithTimeout } from "@/lib/client-fetch"
 import {
   ANATOMIME_ACTION_REQUEST_TIMEOUT_MS,
   ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS,
   ANATOMIME_RATE_LIMITED_POLL_STATUS,
+  ANATOMIME_REALTIME_SETUP_TIMEOUT_MS,
   anatomimeActionRetryAfterSeconds,
   fetchAnatomimeRoomSnapshot,
   nextAnatomimePollSchedule,
   nextAnatomimeVisibilitySchedule,
+  waitForAnatomimeRealtimeScript,
   type AnatomimeRoomFetchResult,
 } from "./anatomime-polling"
 import type { AnatomimeRoomSummary } from "./shared-session-types"
@@ -136,43 +138,37 @@ function playerName(session: AnatomimeRoomSummary, playerId: string) {
  * Loads the browser Ably SDK once for shared-session updates. It falls back to
  * polling when the script or realtime token is unavailable.
  */
-function ablyScript() {
-  return new Promise<void>((resolve, reject) => {
-    if (window.Ably) {
-      resolve()
-      return
-    }
+function ablyScript(signal: AbortSignal) {
+  if (signal.aborted) {
+    return Promise.reject(signal.reason ?? new DOMException("Aborted", "AbortError"))
+  }
+  if (window.Ably) return Promise.resolve()
 
-    const existing = document.querySelector<HTMLScriptElement>("script[data-anatomime-ably]")
-    if (existing) {
-      const status = existing.getAttribute("data-anatomime-ably-status")
-      if (status === "loaded") {
-        resolve()
-        return
-      }
-      if (status === "error") {
-        existing.remove()
-      } else {
-        existing.addEventListener("load", () => resolve(), { once: true })
-        existing.addEventListener("error", reject, { once: true })
-        return
-      }
+  const existing = document.querySelector<HTMLScriptElement>("script[data-anatomime-ably]")
+  if (existing) {
+    const status = existing.getAttribute("data-anatomime-ably-status")
+    if (status === "loaded") return Promise.resolve()
+    if (status === "error") {
+      existing.remove()
+    } else {
+      return waitForAnatomimeRealtimeScript(existing, signal)
     }
+  }
 
-    const script = document.createElement("script")
-    script.src = "https://cdn.ably.com/lib/ably.min-2.js"
-    script.async = true
-    script.dataset.anatomimeAbly = "true"
-    script.onload = () => {
-      script.setAttribute("data-anatomime-ably-status", "loaded")
-      resolve()
-    }
-    script.onerror = (event) => {
-      script.setAttribute("data-anatomime-ably-status", "error")
-      reject(event)
-    }
-    document.head.appendChild(script)
-  })
+  const script = document.createElement("script")
+  script.src = "https://cdn.ably.com/lib/ably.min-2.js"
+  script.async = true
+  script.dataset.anatomimeAbly = "true"
+  // Shared metadata follows the script itself; caller cancellation only settles its waiter.
+  script.addEventListener("load", () => {
+    script.setAttribute("data-anatomime-ably-status", "loaded")
+  }, { once: true })
+  script.addEventListener("error", () => {
+    script.setAttribute("data-anatomime-ably-status", "error")
+  }, { once: true })
+  const ready = waitForAnatomimeRealtimeScript(script, signal)
+  document.head.appendChild(script)
+  return ready
 }
 
 export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode?: string }) {
@@ -325,20 +321,37 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     const realtimePlayerToken = storedPlayerToken
     let cancelled = false
     let ablyClient: AblyRealtimeClient | null = null
+    const controller = new AbortController()
+    let setupTimer: number | null = window.setTimeout(() => {
+      controller.abort(new DOMException("Realtime setup timed out.", "TimeoutError"))
+    }, ANATOMIME_REALTIME_SETUP_TIMEOUT_MS)
+
+    const clearSetupTimer = () => {
+      if (setupTimer === null) return
+      window.clearTimeout(setupTimer)
+      setupTimer = null
+    }
 
     async function connectRealtime() {
       try {
-        const tokenResponse = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/realtime-token`, {
-          method: "POST",
-          headers: {
-            "x-anatomime-player-id": realtimePlayerId,
-            "x-anatomime-player-token": realtimePlayerToken,
+        const { response: tokenResponse, json: tokenRequest } = await fetchJsonWithTimeout(
+          `/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/realtime-token`,
+          {
+            method: "POST",
+            headers: {
+              "x-anatomime-player-id": realtimePlayerId,
+              "x-anatomime-player-token": realtimePlayerToken,
+            },
+            signal: controller.signal,
           },
-        })
+          ANATOMIME_REALTIME_SETUP_TIMEOUT_MS,
+        )
         if (!tokenResponse.ok) throw new Error("Realtime unavailable")
-        const tokenRequest = await tokenResponse.json()
-        await ablyScript()
-        if (cancelled || !window.Ably) return
+        if (cancelled) return
+        await ablyScript(controller.signal)
+        if (cancelled) return
+        if (controller.signal.aborted) throw controller.signal.reason
+        if (!window.Ably) throw new Error("Realtime unavailable")
 
         ablyClient = new window.Ably.Realtime({
           authCallback(_tokenParams, callback) {
@@ -351,6 +364,8 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
         })
       } catch {
         if (!cancelled) setPollStatus((current) => current || "Live updates are unavailable. Automatic refresh is active.")
+      } finally {
+        clearSetupTimer()
       }
     }
 
@@ -358,6 +373,8 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
 
     return () => {
       cancelled = true
+      controller.abort(new DOMException("Realtime setup cancelled.", "AbortError"))
+      clearSetupTimer()
       ablyClient?.close()
     }
   }, [lookupCode, pollTerminal, storedPlayerId, storedPlayerToken])
