@@ -442,6 +442,14 @@ COMMIT;
       "This unrelated paragraph mutates nothing.",
       BLOCKED_MUTATION_CONTRACT,
     )
+    assert.throws(
+      () => assertParagraphMatches(
+        "Post-rollback idle-expiry zero-row handling performs exactly one winner reread. It accepts `EXPIRED` only when `expiresAt` is strictly later than captured `now`; missing or non-`EXPIRED` but still overdue conflicts return `503`.",
+        EXPIRY_CONFLICT_CONTRACT,
+        "missing guard/quota fixture",
+      ),
+      /missing guard\/quota fixture/,
+    )
   })
 
   it("separates ordinary polling failure backoff from server-directed cooldowns", () => {
