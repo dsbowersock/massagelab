@@ -132,8 +132,9 @@ export function HostRoomClient({
     onSessionChange(nextSession)
   }, [onSessionChange])
 
-  // This host owner starts from its authoritative snapshot and schedules the first refresh from it.
-  // Shared transport, cadence, backoff, and Retry-After policy lives in anatomime-polling.ts.
+  // Poll lifecycle orchestration stays host-local because startup, credentials, state publication,
+  // terminal handling, and wake contracts differ from the player owner.
+  // Only pure transport and scheduling policy is shared through anatomime-polling.ts.
   useEffect(() => {
     let cancelled = false
     let stopped = false

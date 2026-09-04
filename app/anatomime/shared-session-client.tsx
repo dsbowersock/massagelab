@@ -212,8 +212,9 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     return rankedPlayerIds.filter((playerId) => allowed.has(playerId))
   }, [rankedPlayerIds, session?.hostElection?.candidatePlayerIds])
 
-  // This player owner waits for browser credential hydration and performs the first lookup immediately.
-  // Shared transport, cadence, backoff, and Retry-After policy lives in anatomime-polling.ts.
+  // Poll lifecycle orchestration stays player-local because startup, credentials, state publication,
+  // terminal handling, and wake contracts differ from the host owner.
+  // Only pure transport and scheduling policy is shared through anatomime-polling.ts.
   useEffect(() => {
     if (!lookupCode || !storedPlayerReady) return
     let cancelled = false

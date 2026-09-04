@@ -308,6 +308,8 @@ export function nextAnatomimePollSchedule(input: {
   const jitterStartMs = Math.min(baseDelayMs, MAX_FAILURE_DELAY_MS - jitterRangeMs)
   const jitterMs = Math.max(1, Math.floor(jitterRangeMs * boundedRandom))
   const boundedFailureDelayMs = Math.min(MAX_FAILURE_DELAY_MS, jitterStartMs + jitterMs)
+  // Missing or unusable polling guidance intentionally uses ordinary jittered failure backoff;
+  // the 10-second fallback applies only to manual create/join writes.
   const retryFloorMs = input.result.kind === "RATE_LIMITED"
     ? Math.min(MAX_SERVER_RETRY_AFTER_MS, Math.max(0, input.result.retryAfterSeconds * 1_000))
     : 0

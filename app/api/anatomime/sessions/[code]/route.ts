@@ -17,6 +17,8 @@ import {
   type AnatomimePollShedDecision,
 } from "@/lib/anatomime-traffic-server"
 
+// Runtime configuration is fixed for one warm instance, so this module-static shedder
+// retains its counters; initialization failure logs once and stays closed until a new runtime.
 const pollShedder: ReturnType<typeof createAnatomimePollShedder> | null = (() => {
   try {
     return createAnatomimePollShedder({ secret: getAuthSecret() })
