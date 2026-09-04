@@ -63,7 +63,7 @@ describe("account activity surfaces", () => {
 
   it("renders an explicit retry for recoverable pending or failed non-password email intents", () => {
     assert.match(retryFormSource, /Retry email notification/)
-    assert.match(adminDetailSource, /email\?\.kind !== "PASSWORD_RESET"[\s\S]*email\?\.status === "PENDING"[\s\S]*email\?\.status === "FAILED"[\s\S]*email\.failureCode !== "RECIPIENT_UNAVAILABLE"/)
+    assert.match(adminDetailSource, /const canRetry = email\?\.retryEligible === true/)
     assert.match(adminDetailSource, /failedPasswordReset[\s\S]*FreshPasswordResetForm/)
     assert.match(securityFormSource, /Send a new reset link/)
     assert.match(securityFormSource, /sendAdminPasswordResetAction\.bind\(null, userId\)/)
