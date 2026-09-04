@@ -11,45 +11,157 @@ import {
   createStripeDonationCheckoutSession,
 } from "@/lib/stripe-billing"
 import {
-  isBrowserFormRequest,
   isTrustedCheckoutFormOrigin,
 } from "@/lib/trusted-form-origin"
 
 export const runtime = "nodejs"
 
-/**
- * Parses one-time support payloads from either HTML form submissions or JSON clients.
- * The returned `isForm` flag controls whether failures redirect or return JSON.
- */
-async function donationRequest(request: Request, isForm = isBrowserFormRequest(request)) {
-  if (isForm) {
-    let formData
-    try {
-      formData = await request.formData()
-    } catch {
-      // Preserve form-response semantics while the empty amount flows through
-      // the existing invalid-amount redirect without reaching Stripe.
-      return { isForm: true, amountCents: null, checkoutAttemptId: null }
+const MAX_DONATION_REQUEST_BYTES = 4096
+
+type DonationMediaKind = "json" | "urlencoded" | "multipart"
+
+type DonationRequestResult =
+  | {
+      ok: true
+      isForm: boolean
+      amountCents: unknown
+      checkoutAttemptId: unknown
     }
+  | { ok: false; isForm: boolean }
+
+/**
+ * Parses one bounded one-time support payload without asking the original
+ * request to buffer an unbounded body. Native form duplicates remain visible
+ * to the existing ambiguity checks.
+ */
+async function donationRequest(
+  request: Request,
+  mediaKind: DonationMediaKind,
+): Promise<DonationRequestResult> {
+  const isForm = mediaKind !== "json"
+  const boundedBody = await readBoundedDonationBody(request)
+  if (!boundedBody) return { ok: false, isForm }
+
+  if (mediaKind === "urlencoded") {
+    const serialized = decodeDonationUtf8(boundedBody)
+    if (serialized === null) return { ok: false, isForm: true }
+    const formData = new URLSearchParams(serialized)
     return {
+      ok: true,
       isForm: true,
       amountCents: formData.getAll("amountCents"),
       checkoutAttemptId: formData.getAll("checkoutAttemptId"),
     }
   }
 
-  const parsedBody = await request.json().catch(() => null)
-  const body = (
-    parsedBody
-    && typeof parsedBody === "object"
-    && !Array.isArray(parsedBody)
-  )
-    ? parsedBody
-    : {}
+  if (mediaKind === "multipart") {
+    let formData: FormData
+    try {
+      const boundedRequest = new Request(request.url, {
+        method: "POST",
+        headers: { "content-type": request.headers.get("content-type") ?? "" },
+        body: boundedBody,
+      })
+      formData = await boundedRequest.formData()
+    } catch {
+      return { ok: false, isForm: true }
+    }
+    return {
+      ok: true,
+      isForm: true,
+      amountCents: formData.getAll("amountCents"),
+      checkoutAttemptId: formData.getAll("checkoutAttemptId"),
+    }
+  }
+
+  const serialized = decodeDonationUtf8(boundedBody)
+  if (serialized === null) return { ok: false, isForm: false }
+
+  let parsedBody: unknown
+  try {
+    parsedBody = JSON.parse(serialized)
+  } catch {
+    return { ok: false, isForm: false }
+  }
+  if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+    return { ok: false, isForm: false }
+  }
+
+  const body = parsedBody as Record<string, unknown>
   return {
+    ok: true,
     isForm: false,
     amountCents: body.amountCents,
     checkoutAttemptId: body.checkoutAttemptId,
+  }
+}
+
+/** Classifies only the three request media bases this endpoint understands. */
+function donationMediaKind(request: Request): DonationMediaKind | null {
+  const mediaType = (request.headers.get("content-type") ?? "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase()
+  if (mediaType === "application/json") return "json"
+  if (mediaType === "application/x-www-form-urlencoded") return "urlencoded"
+  if (mediaType === "multipart/form-data") return "multipart"
+  return null
+}
+
+/**
+ * Reads at most the inclusive route cap and cancels an open body exactly once
+ * when either declared or observed bytes exceed that cap.
+ */
+async function readBoundedDonationBody(request: Request): Promise<Uint8Array | null> {
+  const declaredLength = request.headers.get("content-length")
+  if (declaredLength !== null) {
+    const normalizedLength = declaredLength.trim()
+    if (!/^\d+$/.test(normalizedLength)) return null
+    const byteLength = Number(normalizedLength)
+    if (!Number.isSafeInteger(byteLength)) return null
+    if (byteLength > MAX_DONATION_REQUEST_BYTES) {
+      await request.body?.cancel().catch(() => undefined)
+      return null
+    }
+  }
+
+  const reader = request.body?.getReader()
+  if (!reader) return new Uint8Array()
+
+  const chunks: Uint8Array[] = []
+  let totalBytes = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (totalBytes + value.byteLength > MAX_DONATION_REQUEST_BYTES) {
+        await reader.cancel().catch(() => undefined)
+        return null
+      }
+      totalBytes += value.byteLength
+      chunks.push(value)
+    }
+  } catch {
+    return null
+  } finally {
+    reader.releaseLock()
+  }
+
+  const bytes = new Uint8Array(totalBytes)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return bytes
+}
+
+/** Decodes JSON and urlencoded bodies without replacement characters. */
+function decodeDonationUtf8(bytes: Uint8Array): string | null {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+  } catch {
+    return null
   }
 }
 
@@ -66,6 +178,10 @@ function invalidInputResponse(isForm: boolean, kind: "amount" | "attempt") {
     { error: kind === "amount" ? "Unsupported one-time support amount" : "Invalid checkout attempt" },
     { status: 400 },
   )
+}
+
+function unsupportedMediaResponse() {
+  return NextResponse.json({ error: "Unsupported request media type" }, { status: 415 })
 }
 
 function rateLimitedResponse(isForm: boolean, retryAfterSeconds: number) {
@@ -117,12 +233,14 @@ function submittedAttemptId(value: unknown, isForm: boolean): unknown {
 }
 
 export async function POST(request: Request) {
-  const isForm = isBrowserFormRequest(request)
+  const mediaKind = donationMediaKind(request)
+  const isForm = mediaKind === "urlencoded" || mediaKind === "multipart"
   if (!isTrustedCheckoutFormOrigin(request, getSiteUrl())) {
     return isForm
       ? pricingRedirect("invalid-request")
       : NextResponse.json({ error: "Invalid request origin" }, { status: 403 })
   }
+  if (!mediaKind) return unsupportedMediaResponse()
 
   let input = {
     isForm,
@@ -131,7 +249,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    input = await donationRequest(request, isForm)
+    const parsedInput = await donationRequest(request, mediaKind)
+    if (!parsedInput.ok) return invalidInputResponse(parsedInput.isForm, "amount")
+    input = parsedInput
     const submittedAmount = canonicalSubmittedAmount(input.amountCents, input.isForm)
     const oneTimeSupport = submittedAmount === null ? null : findDonationOption(submittedAmount)
 
