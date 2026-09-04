@@ -65,14 +65,20 @@ describe("fetchWithTimeout", () => {
 
 describe("fetchJsonWithTimeout", () => {
   it("uses an injected fetch implementation", async () => {
-    let injectedFetchCalled = false
+    const input = "data:application/json,%7B%22source%22%3A%22global%22%7D"
+    const callerController = new AbortController()
+    let injectedFetchCalls = 0
+    let injectedInput
+    let injectedInit
 
     const result = await fetchJsonWithTimeout(
-      "data:application/json,%7B%22source%22%3A%22global%22%7D",
-      {},
+      input,
+      { signal: callerController.signal },
       100,
-      async () => {
-        injectedFetchCalled = true
+      async (receivedInput, receivedInit) => {
+        injectedFetchCalls += 1
+        injectedInput = receivedInput
+        injectedInit = receivedInit
         return new Response(JSON.stringify({ source: "injected" }), {
           status: 200,
           headers: { "content-type": "application/json" },
@@ -80,7 +86,11 @@ describe("fetchJsonWithTimeout", () => {
       },
     )
 
-    assert.equal(injectedFetchCalled, true)
+    assert.equal(injectedFetchCalls, 1)
+    assert.ok(injectedInit?.signal instanceof AbortSignal)
+    assert.notEqual(injectedInit.signal, callerController.signal)
+    assert.equal(injectedInit.signal.aborted, false)
+    assert.equal(injectedInput, input)
     assert.deepEqual(result.json, { source: "injected" })
   })
 

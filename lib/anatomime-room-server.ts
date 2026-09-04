@@ -629,7 +629,12 @@ async function expireRoomIfIdle(
       where: { id: room.id },
       include: roomInclude,
     })
-    if (concurrentRoom?.status === "EXPIRED") return concurrentRoom
+    // The reread is authoritative only when the winner either expired the room
+    // or moved its deadline forward; an arbitrary active-but-overdue graph is ambiguous.
+    if (concurrentRoom && (
+      concurrentRoom.status === "EXPIRED"
+      || concurrentRoom.expiresAt.getTime() > now.getTime()
+    )) return concurrentRoom
     throw new AnatomimeTrafficLimitError(503)
   }
 }

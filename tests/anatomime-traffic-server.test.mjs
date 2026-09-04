@@ -713,6 +713,186 @@ describe("Anatomime traffic server primitives", () => {
     assert.deepEqual(scenario.coalesceCalls, [])
   })
 
+  it("returns the exact future-extended playing graph after losing expiry", async () => {
+    const now = new Date("2026-08-31T12:00:16.000Z")
+    const room = minimalPresenceRoom({
+      status: "PLAYING",
+      expiresAt: new Date("2026-08-31T12:00:15.000Z"),
+      currentRun: playingRunFixture(),
+    })
+    const conflictRoom = {
+      ...room,
+      expiresAt: new Date("2026-08-31T12:30:00.000Z"),
+      metadata: { winner: "future-extension" },
+      currentRun: {
+        ...room.currentRun,
+        activeCardIndex: 3,
+      },
+    }
+    const scenario = loadPresenceRoomServer({ room, expireRunCount: 0, conflictRoom })
+    let beforeResolveCalls = 0
+
+    const loaded = await scenario.loadAnatomimeRoom("room1", {}, {
+      now,
+      beforeResolve: () => {
+        beforeResolveCalls += 1
+      },
+    })
+
+    assert.equal(loaded, conflictRoom)
+    assert.equal(beforeResolveCalls, 1)
+    assert.equal(scenario.hydrateCalls.length, 2)
+    assert.equal(scenario.expireRunCalls.length, 1)
+    assert.deepEqual(scenario.expireRoomCalls, [])
+    assert.deepEqual(scenario.transactionEvents, ["run:update"])
+    assert.deepEqual(scenario.committedTransactionEvents, [])
+    assert.deepEqual(scenario.coalesceCalls, [])
+  })
+
+  it("uses the exact future-extended no-run graph for viewer access and presence", async () => {
+    const now = new Date("2026-08-31T12:00:16.000Z")
+    const room = minimalPresenceRoom({
+      status: "LOBBY",
+      expiresAt: new Date("2026-08-31T12:00:15.000Z"),
+      currentRunId: null,
+      currentRun: null,
+    })
+    const replacementPlayer = {
+      ...room.players[0],
+      id: "player-2",
+      displayName: "Replacement",
+      guestTokenHash: hashToken("replacement-token"),
+    }
+    const conflictRoom = {
+      ...room,
+      expiresAt: new Date("2026-08-31T12:30:00.000Z"),
+      hostPlayerId: replacementPlayer.id,
+      hostPlayer: replacementPlayer,
+      players: [replacementPlayer],
+    }
+    const scenario = loadPresenceRoomServer({
+      room,
+      expireRoomCount: 0,
+      conflictRoom,
+      presenceResult: now,
+    })
+    const viewer = { playerId: "player-1", playerToken: "guest-token" }
+    let beforeResolveCalls = 0
+
+    const loaded = await scenario.loadAnatomimeRoom("room1", viewer, {
+      now,
+      beforeResolve: () => {
+        beforeResolveCalls += 1
+      },
+    })
+    const projection = scenario.summarizeAnatomimeRoom(loaded, viewer)
+
+    assert.equal(loaded, conflictRoom)
+    assert.deepEqual(projection.viewer, { isHost: false, playerId: null, teamId: null })
+    assert.equal(beforeResolveCalls, 1)
+    assert.equal(scenario.hydrateCalls.length, 2)
+    assert.equal(scenario.expireRoomCalls.length, 1)
+    assert.deepEqual(scenario.transactionEvents, ["room:update"])
+    assert.deepEqual(scenario.committedTransactionEvents, [])
+    assert.deepEqual(scenario.coalesceCalls, [])
+    assert.deepEqual(scenario.legacyPresenceCalls, [])
+  })
+
+  it("fails retryably when the expiry conflict winner is missing", async () => {
+    const room = minimalPresenceRoom({
+      status: "LOBBY",
+      expiresAt: new Date("2026-08-31T12:00:15.000Z"),
+      currentRunId: null,
+      currentRun: null,
+    })
+    const scenario = loadPresenceRoomServer({ room, expireRoomCount: 0, conflictRoom: null })
+
+    await assert.rejects(
+      () => scenario.loadAnatomimeRoom("room1", {}, { now: new Date("2026-08-31T12:00:16.000Z") }),
+      (error) => error instanceof AnatomimeTrafficLimitError
+        && error.status === 503
+        && error.message === "Anatomime is temporarily unavailable. Please try again.",
+    )
+    assert.equal(scenario.hydrateCalls.length, 2)
+    assert.equal(scenario.expireRoomCalls.length, 1)
+    assert.deepEqual(scenario.transactionEvents, ["room:update"])
+    assert.deepEqual(scenario.committedTransactionEvents, [])
+    assert.deepEqual(scenario.coalesceCalls, [])
+  })
+
+  it("fails retryably when the reread remains non-expired and overdue", async () => {
+    const now = new Date("2026-08-31T12:00:16.000Z")
+    const room = minimalPresenceRoom({
+      status: "LOBBY",
+      expiresAt: new Date("2026-08-31T12:00:15.000Z"),
+      currentRunId: null,
+      currentRun: null,
+    })
+    const conflictRoom = {
+      ...room,
+      status: "LOBBY",
+      metadata: { winner: "still-overdue" },
+    }
+    const scenario = loadPresenceRoomServer({ room, expireRoomCount: 0, conflictRoom })
+
+    await assert.rejects(
+      () => scenario.loadAnatomimeRoom("room1", {}, { now }),
+      (error) => error instanceof AnatomimeTrafficLimitError
+        && error.status === 503
+        && error.message === "Anatomime is temporarily unavailable. Please try again.",
+    )
+    assert.equal(scenario.hydrateCalls.length, 2)
+    assert.equal(scenario.expireRoomCalls.length, 1)
+    assert.deepEqual(scenario.transactionEvents, ["room:update"])
+    assert.deepEqual(scenario.committedTransactionEvents, [])
+    assert.deepEqual(scenario.coalesceCalls, [])
+  })
+
+  it("fails retryably when a non-expired reread deadline equals captured now", async () => {
+    const now = new Date("2026-08-31T12:00:16.000Z")
+    const room = minimalPresenceRoom({
+      status: "LOBBY",
+      expiresAt: new Date("2026-08-31T12:00:15.000Z"),
+      currentRunId: null,
+      currentRun: null,
+    })
+    const conflictRoom = {
+      ...room,
+      status: "LOBBY",
+      expiresAt: now,
+      metadata: { winner: "equal-deadline" },
+    }
+    const scenario = loadPresenceRoomServer({
+      room,
+      expireRoomCount: 0,
+      conflictRoom,
+      presenceResult: now,
+    })
+    let beforeResolveCalls = 0
+
+    await assert.rejects(
+      () => scenario.loadAnatomimeRoom("room1", {
+        playerId: "player-1",
+        playerToken: "guest-token",
+      }, {
+        now,
+        beforeResolve: () => {
+          beforeResolveCalls += 1
+        },
+      }),
+      (error) => error instanceof AnatomimeTrafficLimitError
+        && error.status === 503
+        && error.message === "Anatomime is temporarily unavailable. Please try again.",
+    )
+    assert.equal(beforeResolveCalls, 1)
+    assert.equal(scenario.hydrateCalls.length, 2)
+    assert.equal(scenario.expireRoomCalls.length, 1)
+    assert.deepEqual(scenario.transactionEvents, ["room:update"])
+    assert.deepEqual(scenario.committedTransactionEvents, [])
+    assert.deepEqual(scenario.coalesceCalls, [])
+    assert.deepEqual(scenario.legacyPresenceCalls, [])
+  })
+
   for (const scenarioInput of [
     {
       label: "a hydrated room without a run gains a new run",

@@ -428,6 +428,8 @@ describe("operational rate-limit policy registry", () => {
       .map((match) => match[1])
       .sort()
 
+    assert.ok(unionOperations.length > 0, "request union operations")
+    assert.ok(diagnosticOperations.length > 0, "diagnostic allowlist operations")
     assert.deepEqual(diagnosticOperations, unionOperations)
   })
 })

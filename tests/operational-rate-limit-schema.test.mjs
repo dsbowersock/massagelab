@@ -423,6 +423,7 @@ COMMIT;
   it("requires bounded consuming Anatomime ingress and one-snapshot atomic poll resolution", () => {
     const consumeJoinedContract = /^(?=[\s\S]*`consumeJoined`)(?=[\s\S]*`networkIdentifier`)(?=[\s\S]*`roomIdentifier`)(?=[\s\S]*`playerId`)(?=[\s\S]*atomically checks)(?=[\s\S]*network\+room)(?=[\s\S]*room)(?=[\s\S]*player)(?=[\s\S]*increments none)[\s\S]*$/i
     const blockedMutationContract = /(?:any|one)[^.]*blocks?[\s\S]*(?:capacity|4,096)[\s\S]*(?:(?:mutates|increments) none|(?:mutates|increments) nothing)/i
+    const expiryConflictContract = /^(?=[\s\S]*post-rollback[^.]*idle-expiry[^.]*zero-row)(?=[\s\S]*exactly one[^.]*winner reread)(?=[\s\S]*`EXPIRED`)(?=[\s\S]*`expiresAt`[^.]*strictly later[^.]*captured[^.]*`now`)(?=[\s\S]*missing)(?=[\s\S]*non-`EXPIRED`[^.]*(?:still overdue|still-overdue))(?=[\s\S]*`503`)(?=[\s\S]*(?:(?:guard|quota)[^.]*not (?:called|repeat)|does not repeat[^.]*(?:guard|quota)))[\s\S]*$/i
     assert.throws(
       () => assertParagraphMatches(
         "one room read\n\nsame loaded snapshot",
@@ -471,7 +472,7 @@ COMMIT;
       )
       assertParagraphMatches(
         source,
-        /post-rollback[^.]*expiry[^.]*zero-row[^.]*reread[^.]*`EXPIRED`[^.]*(?:otherwise|divergent)[^.]*`503`/i,
+        expiryConflictContract,
         label,
       )
       assertParagraphMatches(
