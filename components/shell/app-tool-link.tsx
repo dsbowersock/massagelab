@@ -111,7 +111,7 @@ function AppToolLinkContent({
         <Icon aria-hidden="true" className="size-4 group-data-[navigation-pending=true]:opacity-0" />
         <LinkPendingIndicator />
       </span>
-      {showLabel ? <span>{label}</span> : null}
+      {showLabel ? <span className="ml-main-bar-button-label">{label}</span> : null}
     </>
   )
 }

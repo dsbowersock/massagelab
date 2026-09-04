@@ -2389,10 +2389,12 @@
   }
 
   .ml-atmoshaper-library {
+    --ml-atmoshaper-library-padding: clamp(1rem, 2cqi, 2rem);
+
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: clamp(1rem, 2cqi, 2rem);
+    padding: var(--ml-atmoshaper-library-padding);
     scrollbar-gutter: stable;
   }
 
@@ -2436,15 +2438,18 @@
   }
 
   .ml-atmoshaper-library-tabs-list {
+    /* Extend the scrollport through the library padding; its own padding remains
+       the glow buffer that keeps both endpoint buttons fully paintable. */
     display: flex;
-    justify-content: flex-start;
+    justify-content: flex-start !important;
     gap: 0.5rem;
-    width: 100%;
+    width: calc(100% + var(--ml-atmoshaper-library-padding) + var(--ml-atmoshaper-library-padding));
     height: auto !important;
     min-block-size: 5rem;
     overflow-x: auto;
     overflow-y: hidden;
     margin-block: 0;
+    margin-inline: calc(-1 * var(--ml-atmoshaper-library-padding));
     border: 0;
     border-radius: 0;
     background: transparent !important;
@@ -3373,7 +3378,7 @@
 
   @container (max-width: 46rem) {
     .ml-atmoshaper-library {
-      padding: clamp(0.8rem, 3cqi, 1.25rem);
+      --ml-atmoshaper-library-padding: clamp(0.8rem, 3cqi, 1.25rem);
       scrollbar-gutter: auto;
     }
 
@@ -4070,7 +4075,7 @@
     width: 1.35rem;
   }
 
-  .ml-mobile-main-bar .ml-main-bar-button span:not(.sr-only) {
+  .ml-mobile-main-bar .ml-main-bar-button .ml-main-bar-button-label {
     display: none;
     max-width: 2.4rem;
     overflow: hidden;
