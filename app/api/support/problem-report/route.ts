@@ -57,7 +57,7 @@ async function readReportBody(request: Request) {
       offset += chunk.byteLength
     }
 
-    const body = JSON.parse(new TextDecoder().decode(bytes))
+    const body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))
     return body && typeof body === "object" && !Array.isArray(body) ? body : null
   } catch {
     return null

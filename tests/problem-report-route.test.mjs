@@ -51,6 +51,7 @@ function responseJson(body, init = {}) {
 function loadRoute({
   buildPayload = buildProblemReportSentryPayload,
   consumeRateLimit = async () => ({ allowed: true }),
+  getRequestHeaders,
   networkIdentifier = authRequestNetworkIdentifier,
   requestHeaders = new Headers({
     "user-agent": "Mozilla/5.0 Chrome/140.0",
@@ -68,7 +69,7 @@ function loadRoute({
     "app/api/support/problem-report/route.ts",
     {
       "@sentry/nextjs": sentry,
-      "next/headers": { headers: async () => requestHeaders },
+      "next/headers": { headers: getRequestHeaders ?? (async () => requestHeaders) },
       "next/server": { NextResponse: { json: responseJson } },
       "@/lib/auth-env": { getSiteUrl: () => siteUrl },
       "@/lib/auth-request": { authRequestNetworkIdentifier: networkIdentifier },
@@ -169,6 +170,62 @@ describe("privacy-safe problem report route", () => {
       assert.equal(response.status, 400)
       assert.deepEqual(response.body, { error: "Problem report could not be accepted." })
     }
+  })
+
+  it("rejects malformed UTF-8 before headers, payload, Sentry, network, or quota work", async () => {
+    const encoder = new TextEncoder()
+    const prefix = encoder.encode('{"category":"')
+    const suffix = encoder.encode('","area":"chimer-clock","route":"/chimer"}')
+    const bytes = new Uint8Array(prefix.byteLength + 2 + suffix.byteLength)
+    bytes.set(prefix)
+    bytes.set([0xc3, 0x28], prefix.byteLength)
+    bytes.set(suffix, prefix.byteLength + 2)
+    assert.deepEqual(
+      JSON.parse(new TextDecoder().decode(bytes)),
+      { category: "�(", area: "chimer-clock", route: "/chimer" },
+      "the positive control must remain valid JSON under lenient replacement decoding",
+    )
+
+    const calls = []
+    const response = await loadRoute({
+      getRequestHeaders: async () => {
+        calls.push("headers")
+        return new Headers({
+          "user-agent": "Mozilla/5.0 Chrome/140.0",
+          "x-vercel-forwarded-for": "198.51.100.7",
+        })
+      },
+      buildPayload() {
+        calls.push("payload")
+        return buildProblemReportSentryPayload(VALID_REPORT)
+      },
+      networkIdentifier() {
+        calls.push("network")
+        return "network_household"
+      },
+      async consumeRateLimit() {
+        calls.push("quota")
+        return { allowed: true }
+      },
+      sentry: {
+        isEnabled() {
+          calls.push("enabled")
+          return true
+        },
+        captureMessage() {
+          calls.push("capture")
+          return "event-id"
+        },
+        async flush() {
+          calls.push("flush")
+          return true
+        },
+      },
+    }).POST(diagnosticRequest({ body: bytes }))
+
+    assert.deepEqual(calls, [])
+    assert.equal(response.status, 400)
+    assert.deepEqual(response.body, { error: "Problem report could not be accepted." })
   })
 
   it("rejects a declared body over 2048 bytes", async () => {
