@@ -320,11 +320,14 @@ test("a stalled first lookup reaches visible recovery only after its deadline an
   expect(providerRequests(page)).toBe(0)
 })
 
-test("player polling backs off through 2/4/8/16/30 seconds and resets after success", async ({ page }) => {
+test("player polling backs off through 2/4/8/16 seconds and capped terminal jitter, then resets", async ({ page }) => {
   await page.clock.install()
   await installPlayerRuntime(page)
   let pollCount = 0
   const firstPollResponse = responseGate()
+  // installPlayerRuntime pins Math.random to zero, so the 30s terminal base exercises
+  // the exact 27_001ms lower edge of the bounded 27_001-30_000ms range.
+  const zeroRandomFailureDelaysMs = [2_001, 4_001, 8_001, 16_001, 27_001]
 
   await page.route((url) => url.pathname === TOKEN_PATH, async (route) => {
     await fulfillJson(route, 200, { keyName: "test", nonce: "nonce", mac: "mac" })
@@ -349,7 +352,7 @@ test("player polling backs off through 2/4/8/16/30 seconds and resets after succ
   await expect(page.getByText(/Connection interrupted/i)).toBeVisible()
   await expect(initialLoading).toHaveCount(0)
 
-  for (const delay of [2_001, 4_001, 8_001, 16_001, 27_001]) {
+  for (const delay of zeroRandomFailureDelaysMs) {
     const before = pollCount
     await page.clock.fastForward(delay - 1)
     expect(pollCount).toBe(before)
