@@ -117,6 +117,7 @@ type ActivityEmail = {
   kind: string
   status: string
   failureCode: string | null
+  retryEligible: boolean
   attemptCount: number
   lastAttemptAt: string | null
   deliveredAt: string | null
@@ -139,12 +140,9 @@ function ActivitySection({ detail, userId, canMutate }: { detail: Record<string,
 
   return <ol className="space-y-3">{entries.map((entry) => {
     const email = entry.email
-    // Keep this display gate aligned with email-intents.ts isRetryableIntent():
-    // only recoverable PENDING or delivery-failed notices qualify, while a
-    // missing recipient and every PASSWORD_RESET remain on their safer paths.
-    const canRetry = email?.kind !== "PASSWORD_RESET"
-      && (email?.status === "PENDING"
-        || (email?.status === "FAILED" && email.failureCode !== "RECIPIENT_UNAVAILABLE"))
+    // The server projection uses the same recipient-aware predicate as the
+    // retry service without exposing the historical recipient to this page.
+    const canRetry = email?.retryEligible === true
     const failedPasswordReset = email?.status === "FAILED" && email.kind === "PASSWORD_RESET"
     // Each rendered retry form gets one key that useActionState submits
     // unchanged. A consumed key replays; revalidatePath normally renders a

@@ -37,6 +37,21 @@ type DeliveryIntent = {
   deliveryClaimOperationKeyHash: string | null
 }
 
+type AdminEmailIntentRetryEligibilityInput = Pick<
+  DeliveryIntent,
+  "kind" | "status" | "recipientEmail" | "failureCode"
+>
+
+/** Provides one canonical retry predicate for the service and its safe Admin projection. */
+export function isAdminEmailIntentRetryEligible<T extends AdminEmailIntentRetryEligibilityInput>(
+  intent: T,
+): intent is T & { status: "PENDING" | "FAILED"; recipientEmail: string } {
+  return intent.kind !== "PASSWORD_RESET"
+    && Boolean(intent.recipientEmail)
+    && ((intent.status === "PENDING" && intent.failureCode === null)
+      || (intent.status === "FAILED" && intent.failureCode === "DELIVERY_FAILED"))
+}
+
 type DeliveryClaim<TIntent extends DeliveryIntent = DeliveryIntent> = {
   intent: TIntent & { recipientEmail: string }
   claimTokenHash: string
@@ -207,7 +222,7 @@ export async function retryAdminEmailIntent(input: {
         },
       }
     }
-    if (!isRetryableIntent(intent)) throw new Error("This notification cannot be retried.")
+    if (!isAdminEmailIntentRetryEligible(intent)) throw new Error("This notification cannot be retried.")
 
     if (!operationKeyOwner) {
       await tx.adminEmailRetryOperationKey.create({
@@ -522,16 +537,6 @@ function retryStateForIntent(value: Prisma.JsonValue, intentId: string): { statu
 
 function isRetryResultStatus(status: string): boolean {
   return status === "DELIVERED" || status === "FAILED"
-}
-
-/** Aligns service eligibility with Activity: ambiguous PENDING or a delivery failure with a recipient. */
-function isRetryableIntent(intent: DeliveryIntent): intent is DeliveryIntent & {
-  status: "PENDING" | "FAILED"
-  recipientEmail: string
-} {
-  return Boolean(intent.recipientEmail)
-    && ((intent.status === "PENDING" && intent.failureCode === null)
-      || (intent.status === "FAILED" && intent.failureCode === "DELIVERY_FAILED"))
 }
 
 function claimIsLive(intent: DeliveryIntent, now: Date): boolean {

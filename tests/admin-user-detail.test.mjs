@@ -409,6 +409,7 @@ describe("admin user detail", () => {
         kind: "ACCOUNT_CHANGED",
         status: "DELIVERED",
         failureCode: null,
+        retryEligible: false,
         attemptCount: 1,
         lastAttemptAt: "2026-08-08T12:01:00.000Z",
         deliveredAt: "2026-08-08T12:01:00.000Z",
@@ -424,6 +425,7 @@ describe("admin user detail", () => {
     assert.match(detailPageSource, /Recent commerce orders/)
     assert.match(detailPageSource, /Connection rows/)
     assert.match(detailPageSource, /Review order/)
+    assert.match(detailPageSource, /const canRetry = email\?\.retryEligible === true/)
   })
 })
 
@@ -543,9 +545,9 @@ function assertSafeSelect(section, select) {
     assert.deepEqual(select.twoFactorSecret.select, { enabledAt: true })
   }
   if (section === "activity") {
-    assert.doesNotMatch(serialized, /beforeState|afterState|internalNote|recipientEmail|message|metadata/i)
+    assert.doesNotMatch(serialized, /beforeState|afterState|internalNote|message|metadata/i)
     assert.deepEqual(select.accountActivities.select.adminAction.select.emailIntent.select, {
-      id: true, kind: true, status: true, failureCode: true, attemptCount: true, lastAttemptAt: true, deliveredAt: true,
+      id: true, kind: true, status: true, recipientEmail: true, failureCode: true, attemptCount: true, lastAttemptAt: true, deliveredAt: true,
     })
     assert.equal(select.accountActivities.select.id, true)
     assert.deepEqual(select.accountActivities.orderBy, [{ occurredAt: "desc" }, { id: "desc" }])

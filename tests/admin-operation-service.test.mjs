@@ -11,6 +11,7 @@ import { recordAdminActionBundle as recordAdminActionBundleDirect } from "../lib
 import {
   ADMIN_EMAIL_TRANSACTION_OPTIONS,
   deliverAdminEmailIntent,
+  isAdminEmailIntentRetryEligible,
   retryAdminEmailIntent,
 } from "../lib/admin/email-intents.ts"
 import { ACCOUNT_CHANGE_EMAIL_DELIVERY_BUDGET_MS } from "../lib/auth-mail.ts"
@@ -23,6 +24,17 @@ async function recordAdminActionBundle(database, input) {
 }
 
 describe("admin operation contract", () => {
+  it("shares one exact retry-eligibility predicate with the Admin Activity projection", () => {
+    const candidate = { kind: "ACCOUNT_CHANGED", status: "PENDING", recipientEmail: "user@example.test", failureCode: null }
+    assert.equal(isAdminEmailIntentRetryEligible(candidate), true)
+    assert.equal(isAdminEmailIntentRetryEligible({ ...candidate, recipientEmail: null }), false)
+    assert.equal(isAdminEmailIntentRetryEligible({ ...candidate, failureCode: "DELIVERY_FAILED" }), false)
+    assert.equal(isAdminEmailIntentRetryEligible({ ...candidate, status: "FAILED", failureCode: "DELIVERY_FAILED" }), true)
+    assert.equal(isAdminEmailIntentRetryEligible({ ...candidate, status: "FAILED", failureCode: null }), false)
+    assert.equal(isAdminEmailIntentRetryEligible({ ...candidate, status: "FAILED", failureCode: "RECIPIENT_UNAVAILABLE" }), false)
+    assert.equal(isAdminEmailIntentRetryEligible({ ...candidate, kind: "PASSWORD_RESET" }), false)
+  })
+
   it("accepts every approved support reason", () => {
     for (const reasonCode of ADMIN_REASON_CODES) {
       validateAdminReason(reasonCode, reasonCode === "OTHER" ? "Documented exception." : undefined)
