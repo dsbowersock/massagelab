@@ -27,7 +27,7 @@ const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 167
 const verifiedLayerBReceiptPattern = new RegExp(escapeRegExp(
   `exact ${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL}/${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL} focused Anatomime matrix`,
 ))
-const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 22
+const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 24
 const verifiedAnatomimeBrowserQaReceiptPattern = new RegExp(escapeRegExp(
   `All ${VERIFIED_ANATOMIME_BROWSER_QA_TOTAL} full intercepted Anatomime Browser QA desktop/mobile cases reported`,
 ))
@@ -1173,8 +1173,11 @@ describe("Anatomime realtime token traffic boundary", () => {
   }
 
   it("sends guest proof in headers and never supplies a body clientId", () => {
-    assert.match(sharedSessionClientSource, /"x-anatomime-player-id"\s*:\s*realtimePlayer\.playerId/)
-    assert.match(sharedSessionClientSource, /"x-anatomime-player-token"\s*:\s*realtimePlayer\.playerToken/)
+    assert.match(sharedSessionClientSource, /const realtimePlayerId = storedPlayerId/)
+    assert.match(sharedSessionClientSource, /const realtimePlayerToken = storedPlayerToken/)
+    assert.match(sharedSessionClientSource, /"x-anatomime-player-id"\s*:\s*realtimePlayerId/)
+    assert.match(sharedSessionClientSource, /"x-anatomime-player-token"\s*:\s*realtimePlayerToken/)
+    assert.match(sharedSessionClientSource, /\[lookupCode, pollTerminal, storedPlayerId, storedPlayerToken\]/)
     assert.doesNotMatch(sharedSessionClientSource, /body\s*:\s*JSON\.stringify\(\{\s*clientId/)
   })
 })
@@ -1410,18 +1413,45 @@ describe("Anatomime room poll traffic boundary", () => {
     })
   })
 
-  it("fails closed before auth when the process-local shedder secret is invalid", async () => {
-    const scenario = loadPollRoute({ shedderError: new Error("missing secret") })
+  it("fails closed before auth with one static diagnostic when the process-local shedder secret is invalid", { concurrency: false }, async () => {
+    const originalWarn = console.warn
+    const warnings = []
+    const shedderError = new Error("private shedder secret and player identifier")
+    shedderError.name = "PrivateShedderSecretError"
+    let scenario
+    let throwingLoggerScenario
+    try {
+      console.warn = (...fields) => warnings.push(fields)
+      scenario = loadPollRoute({ shedderError })
+      console.warn = () => { throw new Error("logger unavailable") }
+      throwingLoggerScenario = loadPollRoute({ shedderError })
+    } finally {
+      console.warn = originalWarn
+    }
+
     const response = await scenario.GET(
+      pollRequest("/api/anatomime/sessions/ab12"),
+      { params: Promise.resolve({ code: "ab12" }) },
+    )
+    const throwingLoggerResponse = await throwingLoggerScenario.GET(
       pollRequest("/api/anatomime/sessions/ab12"),
       { params: Promise.resolve({ code: "ab12" }) },
     )
 
     assert.equal(response.status, 503)
+    assert.deepEqual(warnings, [[
+      "Anatomime poll shedder unavailable.",
+      { component: "ANATOMIME_POLL_SHEDDER", failureClass: "INITIALIZATION" },
+    ]])
+    assert.doesNotMatch(JSON.stringify(warnings), /private|secret|player|identifier/i)
     assert.deepEqual(scenario.events, [])
     assert.deepEqual(scenario.shedderOptions, [{ secret: "test-auth-secret" }])
     assert.deepEqual(scenario.preflightCalls, [])
     assert.deepEqual(scenario.hydrateCalls, [])
+    assert.equal(throwingLoggerResponse.status, 503)
+    assert.deepEqual(throwingLoggerScenario.events, [])
+    assert.deepEqual(throwingLoggerScenario.preflightCalls, [])
+    assert.deepEqual(throwingLoggerScenario.hydrateCalls, [])
   })
 })
 

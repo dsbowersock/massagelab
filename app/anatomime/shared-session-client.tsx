@@ -194,6 +194,8 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   const pollWakeRef = useRef<() => boolean>(() => false)
   const storedPlayerReady = !lookupCode || storedPlayerRecord.code === lookupCode
   const storedPlayer = storedPlayerReady ? storedPlayerRecord.player : null
+  const storedPlayerId = storedPlayer?.playerId
+  const storedPlayerToken = storedPlayer?.playerToken
 
   useEffect(() => {
     setStoredPlayerRecord({
@@ -216,8 +218,8 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     let controller: AbortController | null = null
     let consecutiveFailures = 0
     let latestScheduledResult: AnatomimeRoomFetchResult | null = null
-    const credentials = storedPlayer
-      ? { playerId: storedPlayer.playerId, token: storedPlayer.playerToken }
+    const credentials = storedPlayerId !== undefined && storedPlayerToken !== undefined
+      ? { playerId: storedPlayerId, token: storedPlayerToken }
       : undefined
 
     function armPoll(delayMs: number) {
@@ -304,11 +306,17 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       document.removeEventListener("visibilitychange", onVisibilityChange)
       if (pollWakeRef.current === wakePoll) pollWakeRef.current = () => false
     }
-  }, [lookupCode, storedPlayer, storedPlayerReady])
+  }, [lookupCode, storedPlayerId, storedPlayerReady, storedPlayerToken])
 
   useEffect(() => {
-    if (!lookupCode || !storedPlayer || pollTerminal) return
-    const realtimePlayer = storedPlayer
+    if (
+      !lookupCode
+      || storedPlayerId === undefined
+      || storedPlayerToken === undefined
+      || pollTerminal
+    ) return
+    const realtimePlayerId = storedPlayerId
+    const realtimePlayerToken = storedPlayerToken
     let cancelled = false
     let ablyClient: AblyRealtimeClient | null = null
 
@@ -317,8 +325,8 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
         const tokenResponse = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/realtime-token`, {
           method: "POST",
           headers: {
-            "x-anatomime-player-id": realtimePlayer.playerId,
-            "x-anatomime-player-token": realtimePlayer.playerToken,
+            "x-anatomime-player-id": realtimePlayerId,
+            "x-anatomime-player-token": realtimePlayerToken,
           },
         })
         if (!tokenResponse.ok) throw new Error("Realtime unavailable")
@@ -346,7 +354,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       cancelled = true
       ablyClient?.close()
     }
-  }, [lookupCode, pollTerminal, storedPlayer])
+  }, [lookupCode, pollTerminal, storedPlayerId, storedPlayerToken])
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 500)

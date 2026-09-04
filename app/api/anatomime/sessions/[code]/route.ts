@@ -21,6 +21,14 @@ const pollShedder: ReturnType<typeof createAnatomimePollShedder> | null = (() =>
     return createAnatomimePollShedder({ secret: process.env.AUTH_SECRET ?? "" })
   } catch {
     // A missing/invalid server secret must disable polling rather than retaining raw identifiers.
+    try {
+      console.warn("Anatomime poll shedder unavailable.", {
+        component: "ANATOMIME_POLL_SHEDDER",
+        failureClass: "INITIALIZATION",
+      })
+    } catch {
+      // Diagnostics must never weaken the fail-closed initialization boundary.
+    }
     return null
   }
 })()

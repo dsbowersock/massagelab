@@ -340,6 +340,71 @@ test("player polling uses credential-bound tokens with 2s visible and 15s hidden
   expect(providerRequests(page)).toBe(0)
 })
 
+test("team changes preserve server polling cooldowns and realtime credentials", async ({ page }) => {
+  await page.clock.install()
+  await installPlayerRuntime(page)
+  let pollCount = 0
+  let tokenCount = 0
+  let teamCount = 0
+  const firstPollResponse = responseGate()
+  const lobbySession = roomSession()
+  const updatedSession = roomSession()
+  updatedSession.viewer.teamId = "team-2"
+  const updatedPlayer = updatedSession.players.find((player) => player.id === "player-1")
+  if (updatedPlayer) updatedPlayer.teamId = "team-2"
+
+  await page.route((url) => url.pathname === TOKEN_PATH, async (route) => {
+    tokenCount += 1
+    await fulfillJson(route, 200, { keyName: "test", nonce: "nonce", mac: "mac" })
+  })
+  await page.route((url) => url.pathname === `${ROOM_PATH}/team`, async (route) => {
+    teamCount += 1
+    await fulfillJson(route, 200, { session: updatedSession })
+  })
+  await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
+    pollCount += 1
+    if (pollCount === 1) {
+      await firstPollResponse.wait
+      await fulfillJson(route, 200, { session: lobbySession })
+      return
+    }
+    if (pollCount === 2) {
+      await fulfillJson(route, 429, { error: "Slow down." }, { "Retry-After": "45" })
+      return
+    }
+    await fulfillJson(route, 200, { session: updatedSession })
+  })
+
+  await page.goto(`/anatomime/play/${ROOM_CODE}`, { waitUntil: "domcontentloaded" })
+  await expect.poll(() => pollCount).toBe(1)
+  await pauseClockAtCurrentTime(page)
+  firstPollResponse.release()
+  await expect(page.getByText("Lobby", { exact: true })).toBeVisible()
+  await expect.poll(() => tokenCount).toBe(1)
+
+  await page.clock.fastForward(4_999)
+  expect(pollCount).toBe(1)
+  await page.clock.fastForward(1)
+  await expect.poll(() => pollCount).toBe(2)
+  const rateLimitedStatus = page.getByText(
+    "Updates are paused. Automatic refresh will resume when the server allows it.",
+    { exact: true },
+  )
+  await expect(rateLimitedStatus).toBeVisible()
+
+  await page.getByRole("button", { name: "Team 2" }).click()
+  await expect.poll(() => teamCount).toBe(1)
+  await expect(page.getByText("Team updated.", { exact: true })).toBeVisible()
+  await expect(rateLimitedStatus).toBeVisible()
+  await page.clock.fastForward(44_999)
+  expect(pollCount).toBe(2)
+  expect(tokenCount).toBe(1)
+  await page.clock.fastForward(1)
+  await expect.poll(() => pollCount).toBe(3)
+  expect(tokenCount).toBe(1)
+  expect(providerRequests(page)).toBe(0)
+})
+
 test("a failed first lookup keeps feedback and restores room-code escape", async ({ page }) => {
   await page.clock.install()
   await installPlayerRuntime(page, { storedPlayer: false })
