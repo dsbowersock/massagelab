@@ -146,6 +146,10 @@ function loadBookingCreateAction({
   limiterDecision = { allowed: true },
   existingRows = [],
   failFirstTransaction = false,
+  failLimiterPersistence = false,
+  retryFirstSerializableAttempt = false,
+  staleConflictCode = "P2034",
+  failLimiterUniqueWithoutWinner = false,
   failFirstRevalidation = false,
   dropSecondSolverOptionAfterCommit = false,
 } = {}) {
@@ -157,6 +161,10 @@ function loadBookingCreateAction({
   const mutex = createPrefixMutex()
   let nextId = 1
   let shouldFailTransaction = failFirstTransaction
+  let shouldFailLimiter = failLimiterPersistence
+  let shouldRetrySerializable = retryFirstSerializableAttempt
+  let shouldFailLimiterUnique = failLimiterUniqueWithoutWinner
+  let revision = 0
   let shouldFailRevalidation = failFirstRevalidation
   let solverCallCount = 0
   let resolveFirstCommit
@@ -168,12 +176,13 @@ function loadBookingCreateAction({
     pushes: 0,
     revalidations: 0,
     contactWrites: 0,
+    quotaCharges: 0,
   }
 
-  function findRow(query, event) {
+  function findRow(query, event, rows = bookingRows) {
     events.push(event)
     const prefix = query.where.id.startsWith
-    return bookingRows.find((row) => row.id.startsWith(prefix)) ?? null
+    return rows.find((row) => row.id.startsWith(prefix)) ?? null
   }
 
   const prisma = {
@@ -207,6 +216,9 @@ function loadBookingCreateAction({
       },
     },
     async $transaction(callback) {
+      const startRevision = revision
+      const bookingSnapshot = bookingRows.map((row) => ({ ...row }))
+      const clientSnapshot = new Map([...clients].map(([id, client]) => [id, { ...client }]))
       const staged = {
         bookingRows: [],
         clients: new Map(),
@@ -214,22 +226,32 @@ function loadBookingCreateAction({
         appointments: 0,
         notifications: 0,
         contactWrites: 0,
+        quotaCharges: 0,
       }
       let release = null
+      const visibleClients = () => new Map([...clientSnapshot, ...staged.clients]).values()
       const tx = {
         __staged: staged,
+        __startRevision: startRevision,
         async $queryRaw(_strings, ...values) {
           assert.match(values[0], /^public-booking-v1:/)
           release = await mutex.acquire()
           events.push("tx-lock")
           return []
         },
+        practice: prisma.practice,
+        practiceMembership: prisma.practiceMembership,
         bookingGroup: {
           async findFirst(query) {
-            return findRow(query, "replay-transaction")
+            return findRow(query, "replay-transaction", [...bookingSnapshot, ...staged.bookingRows])
           },
           async create({ data }) {
             events.push("group-create")
+            if (bookingRows.some((row) => row.id === data.id)) {
+              const error = new Error("exact owner id unique conflict")
+              error.code = "P2002"
+              throw error
+            }
             const row = {
               id: data.id ?? `generated-group-${nextId++}`,
               practiceId: data.practiceId,
@@ -246,7 +268,7 @@ function loadBookingCreateAction({
         practiceClient: {
           async findFirst({ where }) {
             events.push("contact-read")
-            return [...clients.values()].find((client) => (
+            return [...visibleClients()].find((client) => (
               client.id === where.id
               || (client.userId === null && client.email === where.email)
             )) ?? null
@@ -254,7 +276,7 @@ function loadBookingCreateAction({
           async update({ where, data }) {
             events.push("contact-write")
             staged.contactWrites += 1
-            const existing = clients.get(where.id)
+            const existing = staged.clients.get(where.id) ?? clientSnapshot.get(where.id)
             const client = { ...existing, ...data }
             staged.clients.set(client.id, client)
             return client
@@ -269,7 +291,7 @@ function loadBookingCreateAction({
           async upsert({ where, create, update }) {
             events.push("contact-write")
             staged.contactWrites += 1
-            const existing = [...clients.values()].find((client) => (
+            const existing = [...visibleClients()].find((client) => (
               client.userId === where.practiceId_userId.userId
             ))
             const client = existing
@@ -335,6 +357,23 @@ function loadBookingCreateAction({
 
       try {
         const result = await callback(tx)
+        if (shouldRetrySerializable) {
+          shouldRetrySerializable = false
+          const error = new Error("injected serialization conflict")
+          error.code = "P2034"
+          throw error
+        }
+        const dirty = staged.quotaCharges > 0
+          || staged.bookingRows.length > 0
+          || staged.clients.size > 0
+          || staged.calendarEvents > 0
+          || staged.appointments > 0
+          || staged.notifications > 0
+        if (dirty && startRevision !== revision) {
+          const error = new Error("snapshot serialization conflict")
+          error.code = "P2034"
+          throw error
+        }
         for (const [id, client] of staged.clients) clients.set(id, client)
         for (const row of staged.bookingRows) {
           const practiceClient = clients.get(row.practiceClientId)
@@ -345,6 +384,8 @@ function loadBookingCreateAction({
         durable.appointments += staged.appointments
         durable.notifications += staged.notifications
         durable.contactWrites += staged.contactWrites
+        durable.quotaCharges += staged.quotaCharges
+        if (dirty) revision += 1
         return result
       } finally {
         release?.()
@@ -426,10 +467,46 @@ function loadBookingCreateAction({
           }
         },
       },
+      "@/lib/commerce/transactions": {
+        async runCommerceTransaction(client, callback) {
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            events.push("transaction")
+            assert.equal(client, prisma)
+            try {
+              return await client.$transaction(callback, { isolationLevel: "Serializable" })
+            } catch (error) {
+              if (error?.code !== "P2034" || attempt === 2) throw error
+            }
+          }
+        },
+      },
       "@/lib/operational-rate-limit": {
-        async consumeOperationalRateLimit(input) {
+        async consumeOperationalRateLimitInTransaction(input) {
           events.push("limiter")
-          limiterCalls.push(input)
+          assert.ok(input.transaction, "expected the caller-owned transaction")
+          limiterCalls.push({
+            operation: input.operation,
+            networkIdentifier: input.networkIdentifier,
+            practiceId: input.practiceId,
+            owner: input.owner,
+          })
+          if (input.transaction.__startRevision !== revision && staleConflictCode) {
+            const error = new Error("stale limiter snapshot")
+            error.code = staleConflictCode
+            throw error
+          }
+          if (shouldFailLimiterUnique) {
+            shouldFailLimiterUnique = false
+            const error = new Error("unrelated unique conflict")
+            error.code = "P2002"
+            throw error
+          }
+          if (shouldFailLimiter) {
+            shouldFailLimiter = false
+            input.transaction.__staged.quotaCharges += 1
+            throw new Error("injected limiter persistence failure")
+          }
+          if (limiterDecision.allowed) input.transaction.__staged.quotaCharges += 1
           return limiterDecision
         },
       },
@@ -437,8 +514,9 @@ function loadBookingCreateAction({
       "@/lib/public-booking-idempotency": publicBookingIdempotencyModule,
       "@/lib/public-booking-sequences": {
         PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS,
-        async publicBookingSequenceOptions() {
+        async publicBookingSequenceOptions(input) {
           events.push("solver")
+          assert.ok(input.db, "expected the solver to use the caller-owned transaction")
           solverCallCount += 1
           if (dropSecondSolverOptionAfterCommit && solverCallCount === 2) await firstCommit
           return {
@@ -638,8 +716,9 @@ describe("public booking create traffic", () => {
       practiceId: "practice-1",
       owner: { kind: "GUEST_EMAIL", value: "guest@example.com" },
     }])
-    assert.ok(action.events.indexOf("replay-preflight") < action.events.indexOf("limiter"))
-    assert.ok(action.events.indexOf("limiter") < action.events.indexOf("readiness"))
+    assert.ok(action.events.indexOf("replay-preflight") < action.events.indexOf("transaction"))
+    assert.ok(action.events.indexOf("transaction") < action.events.indexOf("tx-lock"))
+    assert.ok(action.events.indexOf("replay-transaction") < action.events.indexOf("limiter"))
     assert.ok(action.events.indexOf("limiter") < action.events.indexOf("solver"))
     assert.ok(action.events.indexOf("limiter") < action.events.indexOf("staff-read"))
     assert.match(action.bookingRows[0].id, /^public-booking-v1:/)
@@ -683,8 +762,9 @@ describe("public booking create traffic", () => {
         pushes: 0,
         revalidations: 0,
         contactWrites: 0,
+        quotaCharges: 0,
       })
-      assert.doesNotMatch(action.events.join(","), /readiness|solver|staff-read|contact-|tx-lock|group-create|event-create|notification-write|google-push|revalidate/)
+      assert.doesNotMatch(action.events.join(","), /solver|staff-read|contact-|group-create|event-create|notification-write|google-push|revalidate/)
     }
   })
 
@@ -696,6 +776,9 @@ describe("public booking create traffic", () => {
     const ordered = action.events.filter((event) => [
       "tx-lock",
       "replay-transaction",
+      "limiter",
+      "solver",
+      "staff-read",
       "contact-read",
       "contact-write",
       "group-create",
@@ -707,6 +790,9 @@ describe("public booking create traffic", () => {
     assert.deepEqual(ordered, [
       "tx-lock",
       "replay-transaction",
+      "limiter",
+      "solver",
+      "staff-read",
       "contact-read",
       "contact-write",
       "group-create",
@@ -734,6 +820,8 @@ describe("public booking create traffic", () => {
     assert.equal(same.durable.notifications, 2)
     assert.equal(same.durable.pushes, 2)
     assert.equal(same.durable.revalidations, 1)
+    assert.equal(same.durable.quotaCharges, 1)
+    assert.equal(same.events.filter((event) => event === "transaction").length, 3)
 
     const changed = loadBookingCreateAction()
     const changedResults = await Promise.all([
@@ -744,6 +832,41 @@ describe("public booking create traffic", () => {
     assert.equal(changed.bookingRows.length, 1)
     assert.equal(changed.durable.calendarEvents, 2)
     assert.equal(changed.durable.revalidations, 1)
+    assert.equal(changed.durable.quotaCharges, 1)
+    assert.equal(changed.events.filter((event) => event === "transaction").length, 3)
+  })
+
+  it("reconciles an expected stale-snapshot P2002 but fails closed on an unrelated unique conflict", async () => {
+    const same = loadBookingCreateAction({ staleConflictCode: null })
+    const sameResults = await Promise.all([
+      same.requestBookingSequence({ status: "IDLE" }, bookingForm()),
+      same.requestBookingSequence({ status: "IDLE" }, bookingForm()),
+    ])
+    assert.deepEqual(sameResults.map((result) => result.status), ["SUCCESS", "SUCCESS"])
+    assert.equal(same.bookingRows.length, 1)
+    assert.equal(same.durable.quotaCharges, 1)
+    assert.equal(same.durable.revalidations, 1)
+    assert.equal(same.durable.pushes, 2)
+    assert.equal(same.events.filter((event) => event === "group-create").length, 2)
+    assert.equal(same.events.filter((event) => event === "transaction").length, 2)
+
+    const changed = loadBookingCreateAction()
+    const changedResults = await Promise.all([
+      changed.requestBookingSequence({ status: "IDLE" }, bookingForm()),
+      changed.requestBookingSequence({ status: "IDLE" }, bookingForm({ requestedPressureLevel: "4" })),
+    ])
+    assert.deepEqual(changedResults.map((result) => result.status).sort(), ["CONFLICT", "SUCCESS"])
+    assert.equal(changed.bookingRows.length, 1)
+    assert.equal(changed.durable.quotaCharges, 1)
+
+    const unrelated = loadBookingCreateAction({ failLimiterUniqueWithoutWinner: true })
+    assert.deepEqual(
+      await unrelated.requestBookingSequence({ status: "IDLE" }, bookingForm()),
+      publicBookingStateModule.publicBookingUnavailable(),
+    )
+    assert.equal(unrelated.bookingRows.length, 0)
+    assert.equal(unrelated.durable.quotaCharges, 0)
+    assert.equal(unrelated.events.filter((event) => event === "group-create").length, 0)
   })
 
   it("recovers an exact concurrent replay when the committed booking removes the second solver option", async () => {
@@ -754,8 +877,8 @@ describe("public booking create traffic", () => {
     ])
     assert.deepEqual(results.map((result) => result.status), ["SUCCESS", "SUCCESS"])
     assert.equal(action.bookingRows.length, 1)
-    assert.deepEqual(action.durable, { calendarEvents: 2, appointments: 2, notifications: 2, pushes: 2, revalidations: 1, contactWrites: 1 })
-    assert.equal(action.events.filter((event) => event === "solver").length, 2)
+    assert.deepEqual(action.durable, { calendarEvents: 2, appointments: 2, notifications: 2, pushes: 2, revalidations: 1, contactWrites: 1, quotaCharges: 1 })
+    assert.equal(action.events.filter((event) => event === "solver").length, 1)
   })
 
   it("rolls back a failed transaction so the same request can retry without replaying downstream work", async () => {
@@ -768,12 +891,38 @@ describe("public booking create traffic", () => {
     assert.equal(action.durable.calendarEvents, 0)
     assert.equal(action.durable.pushes, 0)
     assert.equal(action.durable.revalidations, 0)
+    assert.equal(action.durable.quotaCharges, 0)
 
     const second = await action.requestBookingSequence({ status: "IDLE" }, bookingForm())
     assert.equal(second.status, "SUCCESS")
     assert.equal(action.bookingRows.length, 1)
     assert.equal(action.bookingRows[0].id, publicBookingIdempotencyModule.publicBookingRequestOwner(bookingSelection()).id)
     assert.equal(action.durable.calendarEvents, 2)
+    assert.equal(action.durable.pushes, 2)
+    assert.equal(action.durable.revalidations, 1)
+    assert.equal(action.durable.quotaCharges, 1)
+  })
+
+  it("rolls limiter persistence failures back with all booking work", async () => {
+    const action = loadBookingCreateAction({ failLimiterPersistence: true })
+
+    assert.deepEqual(
+      await action.requestBookingSequence({ status: "IDLE" }, bookingForm()),
+      publicBookingStateModule.publicBookingUnavailable(),
+    )
+    assert.equal(action.durable.quotaCharges, 0)
+    assert.equal(action.bookingRows.length, 0)
+    assert.doesNotMatch(action.events.join(","), /solver|contact-|group-create|event-create|google-push|revalidate/)
+  })
+
+  it("retries the complete Serializable unit without double-charging quota or post-commit work", async () => {
+    const action = loadBookingCreateAction({ retryFirstSerializableAttempt: true })
+
+    assert.equal((await action.requestBookingSequence({ status: "IDLE" }, bookingForm())).status, "SUCCESS")
+    assert.equal(action.events.filter((event) => event === "transaction").length, 2)
+    assert.equal(action.limiterCalls.length, 2)
+    assert.equal(action.durable.quotaCharges, 1)
+    assert.equal(action.bookingRows.length, 1)
     assert.equal(action.durable.pushes, 2)
     assert.equal(action.durable.revalidations, 1)
   })

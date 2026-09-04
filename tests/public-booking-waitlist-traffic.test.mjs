@@ -157,6 +157,10 @@ function loadWaitlistAction({
   hasBookableOption = false,
   failFirstTransaction = false,
   failFirstRevalidation = false,
+  failLimiterPersistence = false,
+  retryFirstSerializableAttempt = false,
+  staleConflictCode = "P2034",
+  failLimiterUniqueWithoutWinner = false,
 } = {}) {
   const events = []
   const limiterCalls = []
@@ -169,16 +173,21 @@ function loadWaitlistAction({
   let nextId = 1
   let shouldFailTransaction = failFirstTransaction
   let shouldFailRevalidation = failFirstRevalidation
+  let shouldFailLimiter = failLimiterPersistence
+  let shouldRetrySerializable = retryFirstSerializableAttempt
+  let shouldFailLimiterUnique = failLimiterUniqueWithoutWinner
+  let revision = 0
   const durable = {
     entries: waitlistRows.length,
     contactWrites: 0,
     revalidations: 0,
+    quotaCharges: 0,
   }
 
-  function findRow(query, event) {
+  function findRow(query, event, rows = waitlistRows) {
     events.push(event)
     const prefix = query.where.id.startsWith
-    return waitlistRows.find((row) => row.id.startsWith(prefix)) ?? null
+    return rows.find((row) => row.id.startsWith(prefix)) ?? null
   }
 
   const prisma = {
@@ -216,28 +225,41 @@ function loadWaitlistAction({
       },
     },
     async $transaction(callback) {
+      const startRevision = revision
+      const waitlistSnapshot = waitlistRows.map((row) => ({ ...row }))
+      const clientSnapshot = new Map([...clients].map(([id, client]) => [id, { ...client }]))
       const staged = {
         waitlistRows: [],
         clients: new Map(),
         contactWrites: 0,
+        quotaCharges: 0,
       }
       let release = null
+      const visibleClients = () => new Map([...clientSnapshot, ...staged.clients]).values()
       const tx = {
+        __staged: staged,
+        __startRevision: startRevision,
         async $queryRaw(_strings, ...values) {
           assert.match(values[0], /^public-waitlist-v1:/)
           release = await mutex.acquire()
           events.push("tx-lock")
           return []
         },
+        practice: prisma.practice,
         bookingWaitlistEntry: {
           async findFirst(query) {
-            return findRow(query, "replay-transaction")
+            return findRow(query, "replay-transaction", [...waitlistSnapshot, ...staged.waitlistRows])
           },
           async create({ data }) {
             events.push("entry-create")
             if (shouldFailTransaction) {
               shouldFailTransaction = false
               throw new Error("injected transaction failure")
+            }
+            if (waitlistRows.some((row) => row.id === data.id)) {
+              const error = new Error("exact owner id unique conflict")
+              error.code = "P2002"
+              throw error
             }
             const row = {
               ...data,
@@ -255,7 +277,7 @@ function loadWaitlistAction({
         practiceClient: {
           async findFirst({ where }) {
             events.push("contact-read")
-            return [...clients.values()].find((client) => (
+            return [...visibleClients()].find((client) => (
               client.id === where.id
               || (client.userId === null && client.email === where.email)
             )) ?? null
@@ -263,7 +285,7 @@ function loadWaitlistAction({
           async update({ where, data }) {
             events.push("contact-write")
             staged.contactWrites += 1
-            const client = { ...clients.get(where.id), ...data }
+            const client = { ...(staged.clients.get(where.id) ?? clientSnapshot.get(where.id)), ...data }
             staged.clients.set(client.id, client)
             return client
           },
@@ -277,7 +299,7 @@ function loadWaitlistAction({
           async upsert({ where, create, update }) {
             events.push("contact-write")
             staged.contactWrites += 1
-            const existing = [...clients.values()].find((client) => (
+            const existing = [...visibleClients()].find((client) => (
               client.userId === where.practiceId_userId.userId
             ))
             const client = existing
@@ -297,6 +319,20 @@ function loadWaitlistAction({
 
       try {
         const result = await callback(tx)
+        if (shouldRetrySerializable) {
+          shouldRetrySerializable = false
+          const error = new Error("injected serialization conflict")
+          error.code = "P2034"
+          throw error
+        }
+        const dirty = staged.quotaCharges > 0
+          || staged.waitlistRows.length > 0
+          || staged.clients.size > 0
+        if (dirty && startRevision !== revision) {
+          const error = new Error("snapshot serialization conflict")
+          error.code = "P2034"
+          throw error
+        }
         for (const [id, client] of staged.clients) clients.set(id, client)
         for (const row of staged.waitlistRows) {
           const practiceClient = clients.get(row.practiceClientId)
@@ -304,6 +340,8 @@ function loadWaitlistAction({
         }
         durable.entries += staged.waitlistRows.length
         durable.contactWrites += staged.contactWrites
+        durable.quotaCharges += staged.quotaCharges
+        if (dirty) revision += 1
         return result
       } finally {
         release?.()
@@ -374,10 +412,46 @@ function loadWaitlistAction({
           throw new Error("calendar creation is outside the waitlist harness")
         },
       },
+      "@/lib/commerce/transactions": {
+        async runCommerceTransaction(client, callback) {
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            events.push("transaction")
+            assert.equal(client, prisma)
+            try {
+              return await client.$transaction(callback, { isolationLevel: "Serializable" })
+            } catch (error) {
+              if (error?.code !== "P2034" || attempt === 2) throw error
+            }
+          }
+        },
+      },
       "@/lib/operational-rate-limit": {
-        async consumeOperationalRateLimit(input) {
+        async consumeOperationalRateLimitInTransaction(input) {
           events.push("limiter")
-          limiterCalls.push(input)
+          assert.ok(input.transaction, "expected the caller-owned transaction")
+          limiterCalls.push({
+            operation: input.operation,
+            networkIdentifier: input.networkIdentifier,
+            practiceId: input.practiceId,
+            owner: input.owner,
+          })
+          if (input.transaction.__startRevision !== revision && staleConflictCode) {
+            const error = new Error("stale limiter snapshot")
+            error.code = staleConflictCode
+            throw error
+          }
+          if (shouldFailLimiterUnique) {
+            shouldFailLimiterUnique = false
+            const error = new Error("unrelated unique conflict")
+            error.code = "P2002"
+            throw error
+          }
+          if (shouldFailLimiter) {
+            shouldFailLimiter = false
+            input.transaction.__staged.quotaCharges += 1
+            throw new Error("injected limiter persistence failure")
+          }
+          if (limiterDecision.allowed) input.transaction.__staged.quotaCharges += 1
           return limiterDecision
         },
       },
@@ -388,6 +462,7 @@ function loadWaitlistAction({
         async publicBookingSequenceOptions(input) {
           events.push("solver")
           assert.equal(input.maxOptions, 1)
+          assert.ok(input.db, "expected the solver to use the caller-owned transaction")
           return {
             allowGuestBooking: true,
             practice: {
@@ -519,7 +594,7 @@ describe("public booking waitlist traffic", () => {
       )
       assert.doesNotMatch(
         action.events.join(","),
-        /readiness|solver|contact-|tx-lock|entry-create|revalidate/,
+        /solver|contact-|entry-create|revalidate/,
       )
     }
   })
@@ -579,7 +654,7 @@ describe("public booking waitlist traffic", () => {
     }
   })
 
-  it("consumes guest or account waitlist quota before readiness, availability, or contact work", async () => {
+  it("locks and rechecks before consuming quota and performing availability or contact work", async () => {
     const guest = loadWaitlistAction()
     assert.equal(
       (await guest.joinBookingWaitlist({ status: "IDLE" }, waitlistForm())).status,
@@ -591,7 +666,9 @@ describe("public booking waitlist traffic", () => {
       practiceId: "practice-1",
       owner: { kind: "GUEST_EMAIL", value: "guest@example.com" },
     }])
-    assert.ok(guest.events.indexOf("limiter") < guest.events.indexOf("readiness"))
+    assert.ok(guest.events.indexOf("replay-preflight") < guest.events.indexOf("transaction"))
+    assert.ok(guest.events.indexOf("transaction") < guest.events.indexOf("tx-lock"))
+    assert.ok(guest.events.indexOf("replay-transaction") < guest.events.indexOf("limiter"))
     assert.ok(guest.events.indexOf("limiter") < guest.events.indexOf("solver"))
     assert.ok(guest.events.indexOf("limiter") < guest.events.indexOf("contact-read"))
 
@@ -627,10 +704,11 @@ describe("public booking waitlist traffic", () => {
         entries: 0,
         contactWrites: 0,
         revalidations: 0,
+        quotaCharges: 0,
       })
       assert.doesNotMatch(
         action.events.join(","),
-        /readiness|solver|contact-|tx-lock|entry-create|revalidate/,
+        /solver|contact-|entry-create|revalidate/,
       )
     }
   })
@@ -645,8 +723,9 @@ describe("public booking waitlist traffic", () => {
       entries: 0,
       contactWrites: 0,
       revalidations: 0,
+      quotaCharges: 0,
     })
-    assert.doesNotMatch(action.events.join(","), /contact-|tx-lock|entry-create|revalidate/)
+    assert.doesNotMatch(action.events.join(","), /contact-|entry-create|revalidate/)
   })
 
   it("locks and rechecks before contact and explicit waitlist owner creation", async () => {
@@ -657,6 +736,8 @@ describe("public booking waitlist traffic", () => {
     assert.deepEqual(action.events.filter((event) => [
       "tx-lock",
       "replay-transaction",
+      "limiter",
+      "solver",
       "contact-read",
       "contact-write",
       "entry-create",
@@ -664,6 +745,8 @@ describe("public booking waitlist traffic", () => {
     ].includes(event)), [
       "tx-lock",
       "replay-transaction",
+      "limiter",
+      "solver",
       "contact-read",
       "contact-write",
       "entry-create",
@@ -686,8 +769,10 @@ describe("public booking waitlist traffic", () => {
       entries: 1,
       contactWrites: 1,
       revalidations: 1,
+      quotaCharges: 1,
     })
 
+    assert.equal(same.events.filter((event) => event === "transaction").length, 3)
     const changed = loadWaitlistAction()
     const changedResults = await Promise.all([
       changed.joinBookingWaitlist({ status: "IDLE" }, waitlistForm()),
@@ -704,7 +789,9 @@ describe("public booking waitlist traffic", () => {
       entries: 1,
       contactWrites: 1,
       revalidations: 1,
+      quotaCharges: 1,
     })
+    assert.equal(changed.events.filter((event) => event === "transaction").length, 3)
   })
 
   it("rolls back a failed waitlist transaction so the same request can retry", async () => {
@@ -717,6 +804,7 @@ describe("public booking waitlist traffic", () => {
       entries: 0,
       contactWrites: 0,
       revalidations: 0,
+      quotaCharges: 0,
     })
     assert.equal(action.waitlistRows.length, 0)
 
@@ -728,6 +816,7 @@ describe("public booking waitlist traffic", () => {
       entries: 1,
       contactWrites: 1,
       revalidations: 1,
+      quotaCharges: 1,
     })
   })
 
@@ -741,6 +830,7 @@ describe("public booking waitlist traffic", () => {
       entries: 1,
       contactWrites: 1,
       revalidations: 1,
+      quotaCharges: 1,
     })
 
     assert.equal(
@@ -751,7 +841,72 @@ describe("public booking waitlist traffic", () => {
       entries: 1,
       contactWrites: 1,
       revalidations: 1,
+      quotaCharges: 1,
     })
     assert.equal(action.events.filter((event) => event === "solver").length, 1)
+  })
+
+  it("rolls limiter persistence failures back before availability or waitlist writes", async () => {
+    const action = loadWaitlistAction({ failLimiterPersistence: true })
+
+    assert.deepEqual(
+      await action.joinBookingWaitlist({ status: "IDLE" }, waitlistForm()),
+      publicBookingStateModule.publicBookingUnavailable(),
+    )
+    assert.equal(action.durable.quotaCharges, 0)
+    assert.equal(action.waitlistRows.length, 0)
+    assert.doesNotMatch(action.events.join(","), /solver|contact-|entry-create|revalidate/)
+  })
+
+  it("retries the complete Serializable unit without double-charging waitlist quota", async () => {
+    const action = loadWaitlistAction({ retryFirstSerializableAttempt: true })
+
+    assert.equal((await action.joinBookingWaitlist({ status: "IDLE" }, waitlistForm())).status, "SUCCESS")
+    assert.equal(action.events.filter((event) => event === "transaction").length, 2)
+    assert.equal(action.limiterCalls.length, 2)
+    assert.deepEqual(action.durable, {
+      entries: 1,
+      contactWrites: 1,
+      revalidations: 1,
+      quotaCharges: 1,
+    })
+  })
+
+  it("reconciles an expected stale-snapshot P2002 but fails closed on an unrelated unique conflict", async () => {
+    const same = loadWaitlistAction({ staleConflictCode: null })
+    const sameResults = await Promise.all([
+      same.joinBookingWaitlist({ status: "IDLE" }, waitlistForm()),
+      same.joinBookingWaitlist({ status: "IDLE" }, waitlistForm()),
+    ])
+    assert.deepEqual(sameResults.map((result) => result.status), ["SUCCESS", "SUCCESS"])
+    assert.deepEqual(same.durable, {
+      entries: 1,
+      contactWrites: 1,
+      revalidations: 1,
+      quotaCharges: 1,
+    })
+    assert.equal(same.events.filter((event) => event === "entry-create").length, 2)
+    assert.equal(same.events.filter((event) => event === "transaction").length, 2)
+
+    const changed = loadWaitlistAction()
+    const changedResults = await Promise.all([
+      changed.joinBookingWaitlist({ status: "IDLE" }, waitlistForm()),
+      changed.joinBookingWaitlist(
+        { status: "IDLE" },
+        waitlistForm({ requestedPressureLevel: "4" }),
+      ),
+    ])
+    assert.deepEqual(changedResults.map((result) => result.status).sort(), ["CONFLICT", "SUCCESS"])
+    assert.equal(changed.durable.entries, 1)
+    assert.equal(changed.durable.quotaCharges, 1)
+
+    const unrelated = loadWaitlistAction({ failLimiterUniqueWithoutWinner: true })
+    assert.deepEqual(
+      await unrelated.joinBookingWaitlist({ status: "IDLE" }, waitlistForm()),
+      publicBookingStateModule.publicBookingUnavailable(),
+    )
+    assert.equal(unrelated.waitlistRows.length, 0)
+    assert.equal(unrelated.durable.quotaCharges, 0)
+    assert.equal(unrelated.events.filter((event) => event === "entry-create").length, 0)
   })
 })

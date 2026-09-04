@@ -16,7 +16,8 @@ import { dateValue, localDateTimeToUtc } from "@/lib/calendar"
 import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { pushCalendarEventToGoogleBestEffort } from "@/lib/calendar-sync-service"
 import { buildCalendarCreationPlan } from "@/lib/calendar-flows"
-import { consumeOperationalRateLimit } from "@/lib/operational-rate-limit"
+import { runCommerceTransaction } from "@/lib/commerce/transactions"
+import { consumeOperationalRateLimitInTransaction } from "@/lib/operational-rate-limit"
 import { prisma } from "@/lib/prisma"
 import {
   acquirePublicRequestLock,
@@ -302,8 +303,11 @@ function publicBookingReplayDecision(
     : "CONFLICT"
 }
 
-async function trustedPublicBookingPath(practiceId: string): Promise<string> {
-  const practice = await prisma.practice.findUnique({
+async function trustedPublicBookingPath(
+  practiceId: string,
+  db: Pick<Prisma.TransactionClient, "practice"> | typeof prisma = prisma,
+): Promise<string> {
+  const practice = await db.practice.findUnique({
     where: { id: practiceId },
     select: {
       slug: true,
@@ -598,6 +602,7 @@ async function createBookingSequenceMutation({
   forceStatus,
   waitlistEntryId,
   publicRequest,
+  networkIdentifier,
 }: {
   userId: string | null
   clientIdentity?: BookingClientIdentity
@@ -611,54 +616,65 @@ async function createBookingSequenceMutation({
   forceStatus?: "CONFIRMED"
   waitlistEntryId?: string
   publicRequest?: PreparedPublicBookingRequest
+  networkIdentifier?: string
 }) {
-  const context = await publicBookingSequenceOptions({
-    practiceId,
-    primaryServiceVariantId,
-    addOnServiceVariantIds,
-    requestedPressureLevel,
-    preferredProviderId,
-    viewerUserId: userId,
-    maxOptions: PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS,
-  })
-  if (!userId && !context.allowGuestBooking) {
-    throw new Error("Sign in before requesting an appointment with this practice.")
-  }
-  const requestedStart = startsAt.toISOString()
-  const option = context.options.find((candidate: { startsAt: string }) => candidate.startsAt === requestedStart)
-  if (!option && publicRequest) {
-    const replayPath = await publicBookingReplayPathIfPresent(publicRequest)
-    if (replayPath) return { publicBookingPath: replayPath, outcome: "REPLAY" as const }
-  }
-  if (!option) {
-    throw new Error("Choose an available booking sequence.")
-  }
-
-  const status = forceStatus ?? option.status as "REQUESTED" | "CONFIRMED"
-  const groupStatus = status === "CONFIRMED" ? "CONFIRMED" : "REQUESTED"
-  const variantById = new Map(context.variants.map((variant) => [variant.id, variant]))
-  const providerById = new Map(context.providers.map((provider) => [provider.userId, provider]))
-  const staffRecipients = await prisma.practiceMembership.findMany({
-    where: {
-      practiceId,
-      role: { in: ["OWNER", "STAFF"] },
-    },
-    select: { userId: true },
-  })
-  const createdEventIds: string[] = []
-  let mutationOutcome: "CREATED" | "REPLAY" = "CREATED"
-
-  await prisma.$transaction(async (tx) => {
+  const mutate = async (tx: Prisma.TransactionClient) => {
     if (publicRequest) {
       await acquirePublicRequestLock(tx, publicRequest.owner)
       const existing = await findPublicBookingRequest(tx, publicRequest.owner)
       const replayDecision = publicBookingReplayDecision(existing, publicRequest)
       if (replayDecision === "CONFLICT") throw new PublicBookingConflictError()
       if (replayDecision === "REPLAY") {
-        mutationOutcome = "REPLAY"
-        return
+        return {
+          publicBookingPath: await trustedPublicBookingPath(practiceId, tx),
+          outcome: "REPLAY" as const,
+          createdEventIds: [] as string[],
+        }
+      }
+
+      const limiterDecision = await consumeOperationalRateLimitInTransaction({
+        operation: "BOOKING_CREATE",
+        networkIdentifier: networkIdentifier ?? "",
+        practiceId,
+        owner: publicRequest.limiterOwner,
+        transaction: tx,
+      })
+      if (!limiterDecision.allowed) {
+        return { outcome: "LIMITED" as const, limiterDecision }
       }
     }
+
+    const context = await publicBookingSequenceOptions({
+      practiceId,
+      primaryServiceVariantId,
+      addOnServiceVariantIds,
+      requestedPressureLevel,
+      preferredProviderId,
+      viewerUserId: userId,
+      maxOptions: PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS,
+      db: tx,
+    })
+    if (!userId && !context.allowGuestBooking) {
+      throw new Error("Sign in before requesting an appointment with this practice.")
+    }
+    const requestedStart = startsAt.toISOString()
+    const option = context.options.find((candidate: { startsAt: string }) => candidate.startsAt === requestedStart)
+    if (!option) {
+      throw new Error("Choose an available booking sequence.")
+    }
+
+    const status = forceStatus ?? option.status as "REQUESTED" | "CONFIRMED"
+    const groupStatus = status === "CONFIRMED" ? "CONFIRMED" : "REQUESTED"
+    const variantById = new Map(context.variants.map((variant) => [variant.id, variant]))
+    const providerById = new Map(context.providers.map((provider) => [provider.userId, provider]))
+    const staffRecipients = await tx.practiceMembership.findMany({
+      where: {
+        practiceId,
+        role: { in: ["OWNER", "STAFF"] },
+      },
+      select: { userId: true },
+    })
+    const createdEventIds: string[] = []
 
     const practiceClient = await ensureBookingPracticeClient(tx, practiceId, clientIdentity ?? { userId, practiceClientId })
     const bookingGroup = await tx.bookingGroup.create({
@@ -802,14 +818,44 @@ async function createBookingSequenceMutation({
         },
       })
     }
-  })
-
-  const publicBookingPath = publicBookingPathForPractice(context.practice)
-  if (mutationOutcome === "CREATED") {
-    await Promise.all(createdEventIds.map((eventId) => pushCalendarEventToGoogleBestEffort(eventId)))
-    revalidateCalendarRoutes(context.practice.slug, publicBookingPath)
+    return {
+      publicBookingPath: publicBookingPathForPractice(context.practice),
+      practiceSlug: context.practice.slug,
+      outcome: "CREATED" as const,
+      createdEventIds,
+    }
   }
-  return { publicBookingPath, outcome: mutationOutcome }
+
+  // Public retries must replay the complete database-only unit; per-attempt
+  // state is returned from the successful attempt and never accumulated outside it.
+  let result: Awaited<ReturnType<typeof mutate>>
+  try {
+    result = publicRequest
+      ? await runCommerceTransaction(prisma, mutate)
+      : await prisma.$transaction(mutate)
+  } catch (error) {
+    if (!publicRequest || !isPrismaUniqueConstraintError(error)) throw error
+    const replayPath = await publicBookingReplayPathIfPresent(publicRequest)
+    if (!replayPath) throw error
+    result = { publicBookingPath: replayPath, outcome: "REPLAY", createdEventIds: [] }
+  }
+
+  if (result.outcome === "CREATED") {
+    await Promise.all(result.createdEventIds.map((eventId) => pushCalendarEventToGoogleBestEffort(eventId)))
+    revalidateCalendarRoutes(result.practiceSlug, result.publicBookingPath)
+  }
+  return result
+}
+
+class PublicBookingValidationError extends Error {
+  constructor() {
+    super("Public booking request is not allowed by the current practice policy.")
+    this.name = "PublicBookingValidationError"
+  }
+}
+
+function isPrismaUniqueConstraintError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2002")
 }
 
 export async function requestBookingSequence(
@@ -842,18 +888,6 @@ export async function requestBookingSequence(
       return publicBookingSuccess(`${publicBookingPath}?booking=requested`)
     }
 
-    const limiterDecision = await consumeOperationalRateLimit({
-      operation: "BOOKING_CREATE",
-      networkIdentifier,
-      practiceId: prepared.practiceId,
-      owner: prepared.limiterOwner,
-    })
-    if (!limiterDecision.allowed) {
-      return limiterDecision.reason === "RATE_LIMITED"
-        ? publicBookingRateLimited(limiterDecision.retryAfterSeconds)
-        : publicBookingUnavailable()
-    }
-
     await assertCalendarDatabaseReady()
     const mutation = await createBookingSequenceMutation({
       userId: prepared.userId,
@@ -865,7 +899,14 @@ export async function requestBookingSequence(
       startsAt: prepared.startsAt,
       preferredProviderId: prepared.preferredProviderId,
       publicRequest: prepared,
+      networkIdentifier,
     })
+
+    if (mutation.outcome === "LIMITED") {
+      return mutation.limiterDecision.reason === "RATE_LIMITED"
+        ? publicBookingRateLimited(mutation.limiterDecision.retryAfterSeconds)
+        : publicBookingUnavailable()
+    }
 
     return publicBookingSuccess(`${mutation.publicBookingPath}?booking=requested`)
   } catch (error) {
@@ -904,44 +945,46 @@ export async function joinBookingWaitlist(
       return publicBookingSuccess(`${replayPath}?waitlist=joined`)
     }
 
-    const limiterDecision = await consumeOperationalRateLimit({
-      operation: "WAITLIST_JOIN",
-      networkIdentifier,
-      practiceId: prepared.practiceId,
-      owner: prepared.limiterOwner,
-    })
-    if (!limiterDecision.allowed) {
-      return limiterDecision.reason === "RATE_LIMITED"
-        ? publicBookingRateLimited(limiterDecision.retryAfterSeconds)
-        : publicBookingUnavailable()
-    }
-
     await assertCalendarDatabaseReady()
-
-    const context = await publicBookingSequenceOptions({
-      practiceId: prepared.practiceId,
-      primaryServiceVariantId: prepared.primaryServiceVariantId,
-      addOnServiceVariantIds: prepared.addOnServiceVariantIds,
-      requestedPressureLevel: prepared.requestedPressureLevel,
-      preferredProviderId: prepared.preferredProviderId,
-      viewerUserId: prepared.userId,
-      maxOptions: 1,
-    })
-
-    if (!prepared.userId && !context.allowGuestBooking) {
-      return publicBookingValidationError()
-    }
-    if (context.options.length > 0) {
-      return publicBookingConflict()
-    }
-
-    const mutationOutcome = await prisma.$transaction(async (tx) => {
+    const mutate = async (tx: Prisma.TransactionClient) => {
       await acquirePublicRequestLock(tx, prepared.owner)
       const existing = await findPublicWaitlistRequest(tx, prepared.owner)
       const replayDecision = publicWaitlistReplayDecision(existing, prepared)
       if (replayDecision === "CONFLICT") throw new PublicBookingConflictError()
       if (replayDecision === "REPLAY") {
-        return "REPLAY" as const
+        return {
+          publicBookingPath: await trustedPublicBookingPath(prepared.practiceId, tx),
+          outcome: "REPLAY" as const,
+        }
+      }
+
+      const limiterDecision = await consumeOperationalRateLimitInTransaction({
+        operation: "WAITLIST_JOIN",
+        networkIdentifier,
+        practiceId: prepared.practiceId,
+        owner: prepared.limiterOwner,
+        transaction: tx,
+      })
+      if (!limiterDecision.allowed) {
+        return { outcome: "LIMITED" as const, limiterDecision }
+      }
+
+      const context = await publicBookingSequenceOptions({
+        practiceId: prepared.practiceId,
+        primaryServiceVariantId: prepared.primaryServiceVariantId,
+        addOnServiceVariantIds: prepared.addOnServiceVariantIds,
+        requestedPressureLevel: prepared.requestedPressureLevel,
+        preferredProviderId: prepared.preferredProviderId,
+        viewerUserId: prepared.userId,
+        maxOptions: 1,
+        db: tx,
+      })
+
+      if (!prepared.userId && !context.allowGuestBooking) {
+        throw new PublicBookingValidationError()
+      }
+      if (context.options.length > 0) {
+        throw new PublicBookingConflictError()
       }
 
       const practiceClient = await ensureBookingPracticeClient(
@@ -962,20 +1005,35 @@ export async function joinBookingWaitlist(
           preferredStartsAt: prepared.preferredStartsAt,
         },
       })
-      return "CREATED" as const
-    })
-
-    const publicBookingPath = mutationOutcome === "REPLAY"
-      ? await trustedPublicBookingPath(prepared.practiceId)
-      : publicBookingPathForPractice(context.practice)
-    if (mutationOutcome === "CREATED") {
-      revalidateCalendarRoutes(context.practice.slug, publicBookingPath)
+      return {
+        publicBookingPath: publicBookingPathForPractice(context.practice),
+        practiceSlug: context.practice.slug,
+        outcome: "CREATED" as const,
+      }
     }
-    return publicBookingSuccess(`${publicBookingPath}?waitlist=joined`)
+    let mutation: Awaited<ReturnType<typeof mutate>>
+    try {
+      mutation = await runCommerceTransaction(prisma, mutate)
+    } catch (error) {
+      if (!isPrismaUniqueConstraintError(error)) throw error
+      const recoveredPath = await publicWaitlistReplayPathIfPresent(prepared)
+      if (!recoveredPath) throw error
+      mutation = { publicBookingPath: recoveredPath, outcome: "REPLAY" }
+    }
+
+    if (mutation.outcome === "LIMITED") {
+      return mutation.limiterDecision.reason === "RATE_LIMITED"
+        ? publicBookingRateLimited(mutation.limiterDecision.retryAfterSeconds)
+        : publicBookingUnavailable()
+    }
+    if (mutation.outcome === "CREATED") {
+      revalidateCalendarRoutes(mutation.practiceSlug, mutation.publicBookingPath)
+    }
+    return publicBookingSuccess(`${mutation.publicBookingPath}?waitlist=joined`)
   } catch (error) {
-    return error instanceof PublicBookingConflictError
-      ? publicBookingConflict()
-      : publicBookingUnavailable()
+    if (error instanceof PublicBookingConflictError) return publicBookingConflict()
+    if (error instanceof PublicBookingValidationError) return publicBookingValidationError()
+    return publicBookingUnavailable()
   }
 }
 
