@@ -64,6 +64,26 @@ describe("fetchWithTimeout", () => {
 })
 
 describe("fetchJsonWithTimeout", () => {
+  it("uses an injected fetch implementation", async () => {
+    let injectedFetchCalled = false
+
+    const result = await fetchJsonWithTimeout(
+      "data:application/json,%7B%22source%22%3A%22global%22%7D",
+      {},
+      100,
+      async () => {
+        injectedFetchCalled = true
+        return new Response(JSON.stringify({ source: "injected" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        })
+      },
+    )
+
+    assert.equal(injectedFetchCalled, true)
+    assert.deepEqual(result.json, { source: "injected" })
+  })
+
   it("keeps the request deadline active while a successful response body is read", { timeout: 250 }, async () => {
     const restoreFetch = installStalledJsonFetch()
 

@@ -23,9 +23,13 @@ const hostRoomClientSource = await readFile(new URL("../app/anatomime/host-room-
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
 const projectStateSource = await readFile(new URL("../docs/project-state.md", import.meta.url), "utf8")
 const projectLogSource = await readFile(new URL("../docs/project-log.md", import.meta.url), "utf8")
-const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 156
+const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 159
 const verifiedLayerBReceiptPattern = new RegExp(escapeRegExp(
   `exact ${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL}/${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL} focused Anatomime matrix`,
+))
+const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 20
+const verifiedAnatomimeBrowserQaReceiptPattern = new RegExp(escapeRegExp(
+  `All ${VERIFIED_ANATOMIME_BROWSER_QA_TOTAL} full intercepted Anatomime Browser QA desktop/mobile cases reported`,
 ))
 
 /** Escapes a literal receipt so one verified count drives both documentation checks. */
@@ -929,6 +933,7 @@ describe("Anatomime client poll ownership", () => {
   it("keeps canonical documentation receipts at the validated Layer B count", () => {
     for (const source of [projectStateSource, projectLogSource]) {
       assert.match(source, verifiedLayerBReceiptPattern)
+      assert.match(source, verifiedAnatomimeBrowserQaReceiptPattern)
     }
   })
 })

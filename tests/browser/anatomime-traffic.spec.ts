@@ -277,6 +277,49 @@ test("a failed first lookup keeps feedback and restores room-code escape", async
   expect(providerRequests(page)).toBe(0)
 })
 
+test("a stalled first lookup reaches visible recovery only after its deadline and backoff", async ({ page }) => {
+  await page.clock.install()
+  await installPlayerRuntime(page, { storedPlayer: false })
+  const firstPollResponse = responseGate()
+  let pollCount = 0
+
+  await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
+    pollCount += 1
+    if (pollCount === 1) {
+      await firstPollResponse.wait
+      await route.abort("timedout").catch(() => {})
+      return
+    }
+    await fulfillJson(route, 200, { session: roomSession({ joined: false }) })
+  })
+
+  await page.goto("/anatomime/join", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: "Game Code" })).toBeVisible()
+  await pauseClockAtCurrentTime(page)
+  await page.getByLabel("Code").fill(ROOM_CODE)
+  await page.getByRole("button", { name: "Find Game" }).click()
+  await expect.poll(() => pollCount).toBe(1)
+  const initialLoading = page.getByRole("status").filter({ hasText: "Loading shared game…" })
+  await expect(initialLoading).toBeVisible()
+
+  await page.clock.fastForward(1_499)
+  await expect(initialLoading).toBeVisible()
+  expect(pollCount).toBe(1)
+
+  await page.clock.fastForward(1)
+  await expect(initialLoading).toHaveCount(0)
+  await expect(page.getByRole("status").filter({ hasText: "Connection interrupted" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Game Code" })).toBeVisible()
+  expect(pollCount).toBe(1)
+
+  await page.clock.fastForward(2_000)
+  expect(pollCount).toBe(1)
+  firstPollResponse.release()
+  await page.clock.fastForward(1)
+  await expect.poll(() => pollCount).toBe(2)
+  expect(providerRequests(page)).toBe(0)
+})
+
 test("player polling backs off through 2/4/8/16/30 seconds and resets after success", async ({ page }) => {
   await page.clock.install()
   await installPlayerRuntime(page)

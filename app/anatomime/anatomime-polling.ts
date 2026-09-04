@@ -1,4 +1,8 @@
+import { fetchJsonWithTimeout } from "../../lib/client-fetch.ts"
 import type { AnatomimeRoomSummary } from "./shared-session-types"
+
+/** Bounds one room snapshot across both transport and successful JSON consumption. */
+export const ANATOMIME_ROOM_SNAPSHOT_TIMEOUT_MS = 1_500
 
 export type AnatomimeRoomCredentials = {
   playerId: string
@@ -172,19 +176,25 @@ export async function fetchAnatomimeRoomSnapshot(input: {
   credentials?: AnatomimeRoomCredentials
   fetcher?: typeof fetch
   signal?: AbortSignal
+  timeoutMs?: number
 }): Promise<AnatomimeRoomFetchResult> {
   const fetcher = input.fetcher ?? fetch
   try {
-    const response = await fetcher(`/api/anatomime/sessions/${encodeURIComponent(input.code)}`, {
-      cache: "no-store",
-      headers: input.credentials
-        ? {
-            "x-anatomime-player-id": input.credentials.playerId,
-            "x-anatomime-player-token": input.credentials.token,
-          }
-        : undefined,
-      signal: input.signal,
-    })
+    const { response, json: payload } = await fetchJsonWithTimeout<{ session?: unknown }>(
+      `/api/anatomime/sessions/${encodeURIComponent(input.code)}`,
+      {
+        cache: "no-store",
+        headers: input.credentials
+          ? {
+              "x-anatomime-player-id": input.credentials.playerId,
+              "x-anatomime-player-token": input.credentials.token,
+            }
+          : undefined,
+        signal: input.signal,
+      },
+      input.timeoutMs ?? ANATOMIME_ROOM_SNAPSHOT_TIMEOUT_MS,
+      fetcher,
+    )
 
     if (response.status === 429) {
       return { kind: "RATE_LIMITED", retryAfterSeconds: anatomimeRetryAfterSeconds(response) }
@@ -195,7 +205,6 @@ export async function fetchAnatomimeRoomSnapshot(input: {
     }
     if (!response.ok) return { kind: "FAILED" }
 
-    const payload = await response.json().catch(() => null) as { session?: unknown } | null
     return isAnatomimeRoomSummary(payload?.session, input.code)
       ? { kind: "SUCCESS", session: payload.session }
       : { kind: "FAILED" }

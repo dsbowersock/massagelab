@@ -87,7 +87,7 @@ function validSession(overrides = {}) {
 }
 
 describe("Anatomime room fetch classification", () => {
-  it("returns a successful room snapshot and sends only credential headers", async () => {
+  it("returns a successful room snapshot, composes its signal, and cleans up its deadline", { timeout: 250 }, async () => {
     const fetchRoom = requirePollingFunction(fetchAnatomimeRoomSnapshot, "fetchAnatomimeRoomSnapshot")
     const calls = []
     const controller = new AbortController()
@@ -97,6 +97,7 @@ describe("Anatomime room fetch classification", () => {
       code: "AB12",
       credentials: { playerId: "player-1", token: "opaque-token" },
       signal: controller.signal,
+      timeoutMs: 10,
       fetcher: async (url, init) => {
         calls.push({ url, init })
         return jsonResponse(200, { session })
@@ -110,8 +111,123 @@ describe("Anatomime room fetch classification", () => {
       "x-anatomime-player-id": "player-1",
       "x-anatomime-player-token": "opaque-token",
     })
-    assert.equal(calls[0].init.signal, controller.signal)
+    assert.notEqual(calls[0].init.signal, controller.signal)
+    assert.equal(calls[0].init.signal.aborted, false)
+    assert.equal(controller.signal.aborted, false)
     assert.equal(calls[0].init.cache, "no-store")
+
+    await new Promise((resolve) => setTimeout(resolve, 25))
+    assert.equal(calls[0].init.signal.aborted, false)
+    controller.abort(new DOMException("Superseded", "AbortError"))
+    await new Promise((resolve) => setImmediate(resolve))
+    assert.equal(calls[0].init.signal.aborted, false)
+  })
+
+  it("fails a signal-aware stalled request at the internal deadline without aborting the caller", { timeout: 250 }, async () => {
+    const fetchRoom = requirePollingFunction(fetchAnatomimeRoomSnapshot, "fetchAnatomimeRoomSnapshot")
+    const controller = new AbortController()
+    let capturedSignal
+    let pendingCheck
+
+    const pendingResult = fetchRoom({
+      code: "AB12",
+      signal: controller.signal,
+      timeoutMs: 10,
+      fetcher: async (_url, init = {}) => {
+        capturedSignal = init.signal
+        return new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true })
+        })
+      },
+    })
+
+    try {
+      const result = await Promise.race([
+        pendingResult,
+        new Promise((resolve) => {
+          pendingCheck = setTimeout(() => resolve({ kind: "STILL_PENDING" }), 40)
+        }),
+      ])
+      assert.deepEqual(result, { kind: "FAILED" })
+      assert.notEqual(capturedSignal, controller.signal)
+      assert.equal(capturedSignal.aborted, true)
+      assert.equal(capturedSignal.reason?.name, "TimeoutError")
+      assert.equal(controller.signal.aborted, false)
+    } finally {
+      clearTimeout(pendingCheck)
+      if (!controller.signal.aborted) {
+        controller.abort(new DOMException("Test cleanup", "AbortError"))
+      }
+      await pendingResult
+    }
+  })
+
+  it("keeps the snapshot deadline active while successful JSON stalls", { timeout: 250 }, async () => {
+    const fetchRoom = requirePollingFunction(fetchAnatomimeRoomSnapshot, "fetchAnatomimeRoomSnapshot")
+    const controller = new AbortController()
+    let capturedSignal
+    let pendingCheck
+
+    const pendingResult = fetchRoom({
+      code: "AB12",
+      signal: controller.signal,
+      timeoutMs: 10,
+      fetcher: async (_url, init = {}) => {
+        capturedSignal = init.signal
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ "content-type": "application/json" }),
+          json: () => new Promise((_resolve, reject) => {
+            init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true })
+          }),
+        }
+      },
+    })
+
+    try {
+      const result = await Promise.race([
+        pendingResult,
+        new Promise((resolve) => {
+          pendingCheck = setTimeout(() => resolve({ kind: "STILL_PENDING" }), 40)
+        }),
+      ])
+      assert.deepEqual(result, { kind: "FAILED" })
+      assert.equal(capturedSignal.aborted, true)
+      assert.equal(capturedSignal.reason?.name, "TimeoutError")
+      assert.equal(controller.signal.aborted, false)
+    } finally {
+      clearTimeout(pendingCheck)
+      if (!controller.signal.aborted) {
+        controller.abort(new DOMException("Test cleanup", "AbortError"))
+      }
+      await pendingResult
+    }
+  })
+
+  it("keeps caller aborts retryable while preserving their abort reason", async () => {
+    const fetchRoom = requirePollingFunction(fetchAnatomimeRoomSnapshot, "fetchAnatomimeRoomSnapshot")
+    const controller = new AbortController()
+    let capturedSignal
+
+    const pendingResult = fetchRoom({
+      code: "AB12",
+      signal: controller.signal,
+      timeoutMs: 1_000,
+      fetcher: async (_url, init = {}) => {
+        capturedSignal = init.signal
+        return new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true })
+        })
+      },
+    })
+    controller.abort(new DOMException("Superseded", "AbortError"))
+
+    assert.deepEqual(await pendingResult, { kind: "FAILED" })
+    assert.notEqual(capturedSignal, controller.signal)
+    assert.equal(capturedSignal.aborted, true)
+    assert.equal(capturedSignal.reason?.name, "AbortError")
+    assert.equal(controller.signal.reason?.name, "AbortError")
   })
 
   it("classifies rate limits with an integer Retry-After", async () => {
