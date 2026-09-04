@@ -86,6 +86,35 @@ function routeRequest(body = DESCRIPTOR_BODY, { headers = {}, stream = false } =
   })
 }
 
+function routeRequestBytes(bytes, { headers = {} } = {}) {
+  return new Request("https://massagelab.test/api/book/practice-slug/sequence-options", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-forwarded-for": "198.51.100.8",
+      ...headers,
+    },
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(bytes)
+        controller.close()
+      },
+    }),
+    duplex: "half",
+  })
+}
+
+function exactSizeDescriptorBody(byteLength) {
+  const encoder = new TextEncoder()
+  const body = { ...DESCRIPTOR_BODY, padding: "" }
+  const emptyPaddingBytes = encoder.encode(JSON.stringify(body)).byteLength
+  assert.ok(emptyPaddingBytes <= byteLength)
+  body.padding = "x".repeat(byteLength - emptyPaddingBytes)
+  const serialized = JSON.stringify(body)
+  assert.equal(encoder.encode(serialized).byteLength, byteLength)
+  return serialized
+}
+
 function loadAvailabilityRoute({
   session = null,
   practiceExists = true,
@@ -227,6 +256,52 @@ function mutableCompleteOptions(label = "Provider One") {
 }
 
 describe("public booking availability traffic", () => {
+  it("availability accepts exactly 4096 UTF-8 JSON bytes with a charset media parameter", async () => {
+    const route = loadAvailabilityRoute()
+    const request = routeRequest(exactSizeDescriptorBody(4096), {
+      headers: { "content-type": "application/json; charset=utf-8" },
+      stream: true,
+    })
+    assert.equal(request.headers.get("content-length"), null)
+
+    const response = await postAvailabilityRequest(route, request)
+
+    assert.equal(response.status, 200)
+    assert.equal(route.practiceReads.length, 2)
+    assert.equal(route.limiterCalls.length, 1)
+    assert.equal(route.solverCalls.length, 1)
+  })
+
+  it("availability rejects exactly 4097 streamed UTF-8 JSON bytes without Content-Length", async () => {
+    const route = loadAvailabilityRoute()
+    const request = routeRequest(exactSizeDescriptorBody(4097), { stream: true })
+    assert.equal(request.headers.get("content-length"), null)
+
+    const response = await postAvailabilityRequest(route, request)
+
+    assert.equal(response.status, 400)
+    assert.deepEqual(route.practiceReads, [])
+    assert.deepEqual(route.limiterCalls, [])
+    assert.doesNotMatch(route.events.join(","), /descriptor|session|network|limiter|cache|policy|solver/)
+  })
+
+  it("availability rejects malformed UTF-8 before descriptor or downstream work", async () => {
+    const encoder = new TextEncoder()
+    const prefix = encoder.encode('{"primaryServiceVariantId":"')
+    const suffix = encoder.encode('","addOnServiceVariantIds":[],"requestedPressureLevel":3,"preferredProviderId":""}')
+    const bytes = new Uint8Array(prefix.byteLength + 2 + suffix.byteLength)
+    bytes.set(prefix)
+    bytes.set([0xc3, 0x28], prefix.byteLength)
+    bytes.set(suffix, prefix.byteLength + 2)
+    const route = loadAvailabilityRoute()
+    const response = await postAvailabilityRequest(route, routeRequestBytes(bytes))
+
+    assert.equal(response.status, 400)
+    assert.deepEqual(route.practiceReads, [])
+    assert.deepEqual(route.limiterCalls, [])
+    assert.doesNotMatch(route.events.join(","), /descriptor|session|network|limiter|cache|policy|solver/)
+  })
+
   it("availability accepts only a bounded UTF-8 JSON object before descriptor or downstream work", async () => {
     const cases = [
       routeRequest(DESCRIPTOR_BODY, { headers: { "content-type": "text/plain" } }),
@@ -265,6 +340,25 @@ describe("public booking availability traffic", () => {
       { ...DESCRIPTOR_BODY, primaryServiceVariantId: "a".repeat(192) },
       { ...DESCRIPTOR_BODY, addOnServiceVariantIds: ["a".repeat(192)] },
       { ...DESCRIPTOR_BODY, preferredProviderId: "a".repeat(192) },
+    ]) {
+      const route = loadAvailabilityRoute()
+      const response = await postAvailability(route, body)
+
+      assert.equal(response.status, 400)
+      assert.deepEqual(route.practiceReads, [])
+      assert.deepEqual(route.limiterCalls, [])
+      assert.doesNotMatch(route.events.join(","), /descriptor|session|network|limiter|cache|policy|solver/)
+    }
+  })
+
+  it("availability counts raw identifier characters before trimming for every descriptor ID", async () => {
+    const rawOversizeIdentifier = `${"a".repeat(191)} `
+    assert.equal(rawOversizeIdentifier.length, 192)
+
+    for (const body of [
+      { ...DESCRIPTOR_BODY, primaryServiceVariantId: rawOversizeIdentifier },
+      { ...DESCRIPTOR_BODY, addOnServiceVariantIds: [rawOversizeIdentifier] },
+      { ...DESCRIPTOR_BODY, preferredProviderId: rawOversizeIdentifier },
     ]) {
       const route = loadAvailabilityRoute()
       const response = await postAvailability(route, body)

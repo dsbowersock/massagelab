@@ -206,7 +206,7 @@ function publicAvailabilityDescriptorIsBounded(body: Record<string, unknown>): b
 }
 
 function publicBookingIdentifierIsBounded(value: unknown, allowEmpty: boolean): boolean {
-  if (typeof value !== "string") return false
+  if (typeof value !== "string" || value.length > MAX_PUBLIC_BOOKING_IDENTIFIER_LENGTH) return false
   const canonicalLength = value.trim().length
-  return canonicalLength <= MAX_PUBLIC_BOOKING_IDENTIFIER_LENGTH && (allowEmpty || canonicalLength > 0)
+  return allowEmpty || canonicalLength > 0
 }
