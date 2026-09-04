@@ -230,15 +230,31 @@ describe("Anatomime room fetch classification", () => {
     assert.equal(controller.signal.reason?.name, "AbortError")
   })
 
-  it("classifies rate limits with an integer Retry-After", async () => {
-    const fetchRoom = requirePollingFunction(fetchAnatomimeRoomSnapshot, "fetchAnatomimeRoomSnapshot")
-    const result = await fetchRoom({
-      code: "AB12",
-      fetcher: async () => jsonResponse(429, { error: "Slow down." }, { "Retry-After": "7" }),
-    })
+  for (const retryCase of [
+    { label: "an integer Retry-After", headerValue: "7", expectedSeconds: 7 },
+    { label: "a negative Retry-After", headerValue: "-5", expectedSeconds: 0 },
+    { label: "a malformed Retry-After", headerValue: "abc", expectedSeconds: 0 },
+    { label: "a missing Retry-After", headerValue: undefined, expectedSeconds: 0 },
+  ]) {
+    it(`classifies rate limits with ${retryCase.label}`, async () => {
+      const fetchRoom = requirePollingFunction(fetchAnatomimeRoomSnapshot, "fetchAnatomimeRoomSnapshot")
+      const result = await fetchRoom({
+        code: "AB12",
+        fetcher: async () => jsonResponse(
+          429,
+          { error: "Slow down." },
+          retryCase.headerValue === undefined ? undefined : { "Retry-After": retryCase.headerValue },
+        ),
+      })
 
-    assert.deepEqual(result, { kind: "RATE_LIMITED", retryAfterSeconds: 7 })
-  })
+      assert.deepEqual(result, {
+        kind: "RATE_LIMITED",
+        retryAfterSeconds: retryCase.expectedSeconds,
+      })
+      assert.equal(Number.isSafeInteger(result.retryAfterSeconds), true)
+      assert.ok(result.retryAfterSeconds >= 0)
+    })
+  }
 
   it("classifies missing rooms as ended", async () => {
     const fetchRoom = requirePollingFunction(fetchAnatomimeRoomSnapshot, "fetchAnatomimeRoomSnapshot")
@@ -405,6 +421,12 @@ describe("Anatomime poll scheduling", () => {
   it("honors Retry-After as a floor while preserving failure state", () => {
     const schedule = requirePollingFunction(nextAnatomimePollSchedule, "nextAnatomimePollSchedule")
 
+    assert.deepEqual(schedule({
+      result: { kind: "RATE_LIMITED", retryAfterSeconds: 0 },
+      documentHidden: false,
+      consecutiveFailures: 0,
+      random: () => 0,
+    }), { action: "SCHEDULE", delayMs: 2_001, consecutiveFailures: 1 })
     assert.deepEqual(schedule({
       result: { kind: "RATE_LIMITED", retryAfterSeconds: 12 },
       documentHidden: false,

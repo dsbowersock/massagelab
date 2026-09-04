@@ -379,7 +379,7 @@ describe("Anatomime traffic server primitives", () => {
   })
 
   it("keeps tuple-safe HMAC bucket identities without patching global Map behavior", () => {
-    const shedder = createAnatomimePollShedder({ secret: "shedder-secret", maxEntries: 4 })
+    const shedder = createAnatomimePollShedder({ secret: "shedder-secret", maxEntries: 5 })
     assert.deepEqual(shedder.consumeJoined({
       networkIdentifier: "left|middle",
       roomIdentifier: "right",
@@ -391,8 +391,8 @@ describe("Anatomime traffic server primitives", () => {
       networkIdentifier: "left",
       roomIdentifier: "middle|right",
       playerId: "shared-player",
-    }), { allowed: false, retryAfterSeconds: 10 })
-    assert.equal(shedder.size, 3)
+    }), { allowed: true })
+    assert.equal(shedder.size, 5)
     assert.match(trafficServerSource, /createHmac\("sha256", secret\)/)
     assert.match(
       trafficServerSource,
