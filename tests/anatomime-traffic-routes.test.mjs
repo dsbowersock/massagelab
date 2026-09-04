@@ -23,11 +23,11 @@ const hostRoomClientSource = await readFile(new URL("../app/anatomime/host-room-
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
 const projectStateSource = await readFile(new URL("../docs/project-state.md", import.meta.url), "utf8")
 const projectLogSource = await readFile(new URL("../docs/project-log.md", import.meta.url), "utf8")
-const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 167
+const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 168
 const verifiedLayerBReceiptPattern = new RegExp(escapeRegExp(
   `exact ${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL}/${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL} focused Anatomime matrix`,
 ))
-const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 24
+const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 28
 const verifiedAnatomimeBrowserQaReceiptPattern = new RegExp(escapeRegExp(
   `All ${VERIFIED_ANATOMIME_BROWSER_QA_TOTAL} full intercepted Anatomime Browser QA desktop/mobile cases reported`,
 ))
@@ -1413,19 +1413,23 @@ describe("Anatomime room poll traffic boundary", () => {
     })
   })
 
-  it("fails closed before auth with one static diagnostic when the process-local shedder secret is invalid", { concurrency: false }, async () => {
+  it("fails closed before auth with one fixed structured error diagnostic when the process-local shedder secret is invalid", { concurrency: false }, async () => {
+    const originalError = console.error
     const originalWarn = console.warn
+    const errors = []
     const warnings = []
     const shedderError = new Error("private shedder secret and player identifier")
     shedderError.name = "PrivateShedderSecretError"
     let scenario
     let throwingLoggerScenario
     try {
+      console.error = (...fields) => errors.push(fields)
       console.warn = (...fields) => warnings.push(fields)
       scenario = loadPollRoute({ shedderError })
-      console.warn = () => { throw new Error("logger unavailable") }
+      console.error = () => { throw new Error("logger unavailable") }
       throwingLoggerScenario = loadPollRoute({ shedderError })
     } finally {
+      console.error = originalError
       console.warn = originalWarn
     }
 
@@ -1439,11 +1443,12 @@ describe("Anatomime room poll traffic boundary", () => {
     )
 
     assert.equal(response.status, 503)
-    assert.deepEqual(warnings, [[
+    assert.deepEqual(errors, [[
       "Anatomime poll shedder unavailable.",
       { component: "ANATOMIME_POLL_SHEDDER", failureClass: "INITIALIZATION" },
     ]])
-    assert.doesNotMatch(JSON.stringify(warnings), /private|secret|player|identifier/i)
+    assert.deepEqual(warnings, [])
+    assert.doesNotMatch(JSON.stringify({ errors, warnings }), /private|secret|player|identifier/i)
     assert.deepEqual(scenario.events, [])
     assert.deepEqual(scenario.shedderOptions, [{ secret: "test-auth-secret" }])
     assert.deepEqual(scenario.preflightCalls, [])

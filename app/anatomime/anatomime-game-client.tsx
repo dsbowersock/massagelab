@@ -38,7 +38,7 @@ import {
   updateScore,
 } from "@/lib/anatomime-game"
 import { HostRoomClient } from "./host-room-client"
-import { anatomimeRetryAfterSeconds } from "./anatomime-polling"
+import { anatomimeActionRetryAfterSeconds } from "./anatomime-polling"
 import type { AnatomimeRoomSummary } from "./shared-session-types"
 import "./styles.css"
 
@@ -628,12 +628,10 @@ export function AnatomimeGameClient({
 
       if (!response.ok) {
         if (response.status === 429) {
-          const retrySeconds = anatomimeRetryAfterSeconds(response)
-          if (retrySeconds > 0) {
-            const current = Date.now()
-            setCreateRetryNow(current)
-            setCreateRetryUntil(current + retrySeconds * 1_000)
-          }
+          const retrySeconds = anatomimeActionRetryAfterSeconds(response)
+          const current = Date.now()
+          setCreateRetryNow(current)
+          setCreateRetryUntil(current + retrySeconds * 1_000)
         }
         setMessage(payload.error ?? "Could not create shared game.")
         return

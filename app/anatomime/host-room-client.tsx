@@ -132,6 +132,8 @@ export function HostRoomClient({
     onSessionChange(nextSession)
   }, [onSessionChange])
 
+  // This host owner starts from its authoritative snapshot and schedules the first refresh from it.
+  // Shared transport, cadence, backoff, and Retry-After policy lives in anatomime-polling.ts.
   useEffect(() => {
     let cancelled = false
     let stopped = false

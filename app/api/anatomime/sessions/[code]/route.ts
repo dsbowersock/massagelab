@@ -22,7 +22,7 @@ const pollShedder: ReturnType<typeof createAnatomimePollShedder> | null = (() =>
   } catch {
     // A missing/invalid server secret must disable polling rather than retaining raw identifiers.
     try {
-      console.warn("Anatomime poll shedder unavailable.", {
+      console.error("Anatomime poll shedder unavailable.", {
         component: "ANATOMIME_POLL_SHEDDER",
         failureClass: "INITIALIZATION",
       })

@@ -4,6 +4,9 @@ import type { AnatomimeRoomSummary } from "./shared-session-types"
 /** Bounds one room snapshot across both transport and successful JSON consumption. */
 export const ANATOMIME_ROOM_SNAPSHOT_TIMEOUT_MS = 1_500
 
+/** Prevents repeated manual action traffic when a nonconforming 429 omits a usable delay. */
+export const ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS = 10
+
 /** Keeps rate-limit feedback accurate without presenting a frozen numeric countdown. */
 export const ANATOMIME_RATE_LIMITED_POLL_STATUS =
   "Updates are paused. Automatic refresh will resume when the server allows it."
@@ -171,6 +174,12 @@ export function anatomimeRetryAfterSeconds(response: Response) {
   if (!/^\d+$/.test(raw)) return 0
   const parsed = Number(raw)
   return Number.isSafeInteger(parsed) ? parsed : 0
+}
+
+/** Preserves valid server guidance while giving every manual-action 429 a safe cooldown. */
+export function anatomimeActionRetryAfterSeconds(response: Response) {
+  const parsedSeconds = anatomimeRetryAfterSeconds(response)
+  return parsedSeconds > 0 ? parsedSeconds : ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS
 }
 
 /**

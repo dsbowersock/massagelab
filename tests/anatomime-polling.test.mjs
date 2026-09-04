@@ -5,6 +5,7 @@ const polling = await import("../app/anatomime/anatomime-polling.ts")
 
 const {
   ANATOMIME_RATE_LIMITED_POLL_STATUS,
+  anatomimeActionRetryAfterSeconds,
   fetchAnatomimeRoomSnapshot,
   nextAnatomimePollSchedule,
   nextAnatomimeVisibilitySchedule,
@@ -88,6 +89,29 @@ function validSession(overrides = {}) {
 }
 
 describe("Anatomime room fetch classification", () => {
+  it("keeps manual actions locked for a safe fallback when a 429 delay is unusable", () => {
+    const actionRetryAfter = requirePollingFunction(
+      anatomimeActionRetryAfterSeconds,
+      "anatomimeActionRetryAfterSeconds",
+    )
+    for (const retryCase of [
+      { headerValue: "7", expectedSeconds: 7 },
+      { headerValue: undefined, expectedSeconds: 10 },
+      { headerValue: "0", expectedSeconds: 10 },
+      { headerValue: "-5", expectedSeconds: 10 },
+      { headerValue: "abc", expectedSeconds: 10 },
+      { headerValue: String(Number.MAX_SAFE_INTEGER + 1), expectedSeconds: 10 },
+      { headerValue: "Wed, 21 Oct 2037 07:28:00 GMT", expectedSeconds: 10 },
+    ]) {
+      const response = jsonResponse(
+        429,
+        { error: "Slow down." },
+        retryCase.headerValue === undefined ? undefined : { "Retry-After": retryCase.headerValue },
+      )
+      assert.equal(actionRetryAfter(response), retryCase.expectedSeconds)
+    }
+  })
+
   it("returns a successful room snapshot, composes its signal, and cleans up its deadline", { timeout: 250 }, async () => {
     const fetchRoom = requirePollingFunction(fetchAnatomimeRoomSnapshot, "fetchAnatomimeRoomSnapshot")
     const calls = []

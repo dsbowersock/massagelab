@@ -33,7 +33,7 @@
 | `app/api/anatomime/sessions/[code]/join/route.ts` | Network ingress before auth/body/room work, then verified room-resource quota before persistence. |
 | `app/api/anatomime/sessions/[code]/realtime-token/route.ts` | Network ingress, found-room start protection, joined-player proof, and issue quota. |
 | `app/api/anatomime/sessions/[code]/route.ts` | Local shedding, same-snapshot proof, durable bogus/unjoined protection, and the bounded expiry-race reread exception. |
-| `app/anatomime/anatomime-polling.ts` | Fetch result classification and pure next-poll scheduling. |
+| `app/anatomime/anatomime-polling.ts` | Fetch classification, pure next-poll scheduling, and the shared manual-action `429` fallback. |
 | `app/anatomime/shared-session-client.tsx` | Credential-bound token request, player polling, terminal/retry UI. |
 | `app/anatomime/host-room-client.tsx` | Host scheduler adoption. |
 | `app/anatomime/anatomime-game-client.tsx` | Create retry lockout and visible guidance. |
@@ -154,7 +154,7 @@ Expected: missing module/exports.
 
 - [ ] **Step 3: Implement the minimum primitives**
 
-`consumeIngress` synchronously evaluates the 300/network/10s ingress candidate plus retained 150/network+room/10s and 300/room/10s entries as peek-only rules without incrementing either selector-derived key. If any rule blocks, or if adding the network ingress key would exceed the 4,096-entry capacity, it mutates nothing; otherwise it creates or increments only the HMAC-reduced network ingress key. This local boundary is best-effort per warm runtime, not deployment-wide. Shedder initialization failure remains fail closed and emits one static privacy-safe diagnostic per runtime; it never logs the caught error, name, message, stack, secret, request, or identifier. `consumeJoined` synchronously checks the 150/network+room/10s, 300/room/10s, and 20/player/10s rules before incrementing any, increments none on denial, and increments all applicable rules only on allowance. Keep both check-and-mutate paths synchronous with no `await` so one shedder instance applies each decision atomically. Prune expired entries before insertion; when the active-entry cap is full, fail closed without evicting an active quota. Map operational `RATE_LIMITED` to 429 and `UNAVAILABLE` to 503 with generic copy.
+`consumeIngress` synchronously evaluates the 300/network/10s ingress candidate plus retained 150/network+room/10s and 300/room/10s entries as peek-only rules without incrementing either selector-derived key. If any rule blocks, or if adding the network ingress key would exceed the 4,096-entry capacity, it mutates nothing; otherwise it creates or increments only the HMAC-reduced network ingress key. This local boundary is best-effort per warm runtime, not deployment-wide. Shedder initialization failure remains fail closed and emits one fixed structured privacy-safe error diagnostic per runtime; it never logs the caught error, name, message, stack, secret, request, or identifier. `consumeJoined` synchronously checks the 150/network+room/10s, 300/room/10s, and 20/player/10s rules before incrementing any, increments none on denial, and increments all applicable rules only on allowance. Keep both check-and-mutate paths synchronous with no `await` so one shedder instance applies each decision atomically. Prune expired entries before insertion; when the active-entry cap is full, fail closed without evicting an active quota. Map operational `RATE_LIMITED` to 429 and `UNAVAILABLE` to 503 with generic copy.
 
 Presence uses one conditional `updateMany` at or after 15 seconds and no write inside the window.
 
@@ -326,7 +326,7 @@ Expected: no scheduler and fixed 1.5-second loops.
 
 - [ ] **Step 3: Implement scheduler and client adoption**
 
-Use self-scheduling timeouts with abortable fetches; reset failures on success; never automatically replay create/join/token after a terminal or ambiguous result. Keep status messages in an accessible live region and disable controls only through the accepted retry window. While the first lookup has no snapshot, announce `Loading shared game…`; if it fails, retain accessible failure feedback and restore the room-code entry panel as an escape path. Scheduled background polls stay quiet.
+Use self-scheduling timeouts with abortable fetches; reset failures on success; never automatically replay create/join/token after a terminal or ambiguous result. Keep status messages in an accessible live region and disable controls only through the accepted retry window. Create and join preserve a usable positive integer `Retry-After`; a missing or unusable header uses the shared 10-second manual-action fallback, whose expiry unlocks the control without replaying the request. While the first lookup has no snapshot, announce `Loading shared game…`; if it fails, retain accessible failure feedback and restore the room-code entry panel as an escape path. Scheduled background polls stay quiet.
 
 - [ ] **Step 4: Run unit GREEN and browser RED/GREEN**
 
@@ -336,7 +336,7 @@ npm run build:browser-qa
 npm run test:browser -- tests/browser/anatomime-traffic.spec.ts --project=desktop-chromium --project=mobile-chromium
 ```
 
-Use `page.clock.install()`/`fastForward()` and intercepted routes. Prove token credential headers/no `clientId`, 2s/5s/15s cadence, 2/4/8/16/30 failure recovery, `Retry-After`, terminal guidance, create/join retry lockout, and zero Ably/provider traffic.
+Use `page.clock.install()`/`fastForward()` and intercepted routes. Prove token credential headers/no `clientId`, 2s/5s/15s cadence, 2/4/8/16/30 failure recovery, `Retry-After`, terminal guidance, valid-header and missing/unusable-header create/join retry lockout, manual-only unlock, and zero Ably/provider traffic.
 
 - [ ] **Step 5: Run existing journeys**
 

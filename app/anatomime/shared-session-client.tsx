@@ -9,7 +9,7 @@ import { MovingBackground } from "@/components/moving-background"
 import { AnatomimeActionButton } from "./anatomime-action-button"
 import {
   ANATOMIME_RATE_LIMITED_POLL_STATUS,
-  anatomimeRetryAfterSeconds,
+  anatomimeActionRetryAfterSeconds,
   fetchAnatomimeRoomSnapshot,
   nextAnatomimePollSchedule,
   nextAnatomimeVisibilitySchedule,
@@ -209,6 +209,8 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     return rankedPlayerIds.filter((playerId) => allowed.has(playerId))
   }, [rankedPlayerIds, session?.hostElection?.candidatePlayerIds])
 
+  // This player owner waits for browser credential hydration and performs the first lookup immediately.
+  // Shared transport, cadence, backoff, and Retry-After policy lives in anatomime-polling.ts.
   useEffect(() => {
     if (!lookupCode || !storedPlayerReady) return
     let cancelled = false
@@ -442,8 +444,8 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) {
         if (response.status === 429) {
-          const retrySeconds = anatomimeRetryAfterSeconds(response)
-          if (retrySeconds > 0) setJoinRetryUntil(Date.now() + retrySeconds * 1_000)
+          const retrySeconds = anatomimeActionRetryAfterSeconds(response)
+          setJoinRetryUntil(Date.now() + retrySeconds * 1_000)
         }
         setMessage(payload.error ?? "Could not join game.")
         return

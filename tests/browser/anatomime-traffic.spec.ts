@@ -69,6 +69,10 @@ function roomSession({
   }
 }
 
+/**
+ * Installs optional stored-player state, controllable visibility, deterministic retry jitter,
+ * and fake Ably signaling whose callback lifetime follows active clients and subscriptions.
+ */
 async function installPlayerRuntime(page: Page, { storedPlayer = true } = {}) {
   await page.addInitScript(({ roomCode, stored }) => {
     if (stored) {
@@ -801,6 +805,49 @@ test("create honors Retry-After lockout without replaying automatically", async 
   expect(providerRequests(page)).toBe(0)
 })
 
+test("create applies a safe manual cooldown when a 429 omits Retry-After", async ({ page }) => {
+  await page.clock.install()
+  let createCount = 0
+  const firstCreateResponse = responseGate()
+
+  await page.route((url) => url.pathname === "/api/anatomime/sessions", async (route) => {
+    createCount += 1
+    if (createCount === 1) {
+      await firstCreateResponse.wait
+      await fulfillJson(route, 429, { error: "Please wait before creating another room." })
+      return
+    }
+    await fulfillJson(route, 201, {
+      session: roomSession({ joined: false, host: true }),
+      host: { playerId: "host-player", token: "host-token" },
+    })
+  })
+  await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
+    await fulfillJson(route, 200, { session: roomSession({ joined: false, host: true }) })
+  })
+
+  await page.goto("/anatomime", { waitUntil: "domcontentloaded" })
+  await page.getByRole("button", { name: /Choose Anatomy Terms/i }).click()
+  await page.getByRole("button", { name: /Create Shared Game/i }).click()
+  await expect.poll(() => createCount).toBe(1)
+  await pauseClockAtCurrentTime(page)
+  firstCreateResponse.release()
+
+  const createButton = page.getByRole("button", { name: "Try again in 10s" })
+  await expect(createButton).toBeDisabled()
+  await createButton.evaluate((button: HTMLButtonElement) => button.click())
+  expect(createCount).toBe(1)
+  await page.clock.runFor(9_999)
+  expect(createCount).toBe(1)
+  await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
+  await page.clock.runFor(1)
+  await expect(page.getByRole("button", { name: /Create Shared Game/i })).toBeEnabled()
+  expect(createCount).toBe(1)
+  await page.getByRole("button", { name: /Create Shared Game/i }).click()
+  await expect.poll(() => createCount).toBe(2)
+  expect(providerRequests(page)).toBe(0)
+})
+
 test("join honors Retry-After lockout without replaying automatically", async ({ page }) => {
   await page.clock.install()
   await installPlayerRuntime(page, { storedPlayer: false })
@@ -839,6 +886,54 @@ test("join honors Retry-After lockout without replaying automatically", async ({
   expect(joinCount).toBe(1)
 
   await page.clock.runFor(2_999)
+  expect(joinCount).toBe(1)
+  await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
+  await page.clock.runFor(1)
+  await expect(page.getByRole("button", { name: /Join Team/i })).toBeEnabled()
+  expect(joinCount).toBe(1)
+  await page.getByRole("button", { name: /Join Team/i }).click()
+  await expect.poll(() => joinCount).toBe(2)
+  expect(providerRequests(page)).toBe(0)
+})
+
+test("join applies a safe manual cooldown when a 429 has an unusable Retry-After", async ({ page }) => {
+  await page.clock.install()
+  await installPlayerRuntime(page, { storedPlayer: false })
+  let joinCount = 0
+  const publicSession = roomSession({ joined: false })
+  const firstJoinResponse = responseGate()
+
+  await page.route((url) => url.pathname === ROOM_PATH, async (route) => {
+    await fulfillJson(route, 200, { session: publicSession })
+  })
+  await page.route((url) => url.pathname === `${ROOM_PATH}/join`, async (route) => {
+    joinCount += 1
+    if (joinCount === 1) {
+      await firstJoinResponse.wait
+      await fulfillJson(route, 429, { error: "Please wait before joining again." }, { "Retry-After": "0" })
+      return
+    }
+    await fulfillJson(route, 201, {
+      player: { id: "player-1", token: "player-token", teamId: "team-1" },
+      session: roomSession(),
+    })
+  })
+  await page.route((url) => url.pathname === TOKEN_PATH, async (route) => {
+    await fulfillJson(route, 200, { keyName: "test", nonce: "nonce", mac: "mac" })
+  })
+
+  await page.goto(`/anatomime/join?code=${ROOM_CODE}`, { waitUntil: "domcontentloaded" })
+  await page.getByLabel("Display name").fill("Avery")
+  await page.getByRole("button", { name: /Join Team/i }).click()
+  await expect.poll(() => joinCount).toBe(1)
+  await pauseClockAtCurrentTime(page)
+  firstJoinResponse.release()
+
+  const joinButton = page.getByRole("button", { name: "Try again in 10s" })
+  await expect(joinButton).toBeDisabled()
+  await joinButton.evaluate((button: HTMLButtonElement) => button.click())
+  expect(joinCount).toBe(1)
+  await page.clock.runFor(9_999)
   expect(joinCount).toBe(1)
   await expect(page.getByRole("button", { name: /Try again in \d+s/i })).toBeDisabled()
   await page.clock.runFor(1)
