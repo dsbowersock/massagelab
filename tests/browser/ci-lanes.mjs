@@ -21,6 +21,8 @@ export const ORDINARY_BROWSER_QA_SPEC_FILES = [
   "pwa.spec.ts",
 ]
 
+// Rebalance only from exact-head hosted wall-clock evidence, not static test counts.
+// The latest hosted baseline still makes lane 3 the critical path, so placement stays unchanged.
 export const BROWSER_QA_LANES = {
   "1": {
     "desktop-chromium": [

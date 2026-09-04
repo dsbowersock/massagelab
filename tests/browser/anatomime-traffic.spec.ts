@@ -9,6 +9,29 @@ const teams = [
   { id: "team-2", name: "Team 2", sortOrder: 1, score: 0 },
 ]
 
+/** Installs one visibility model that keeps both browser document properties in sync. */
+async function installVisibilityRuntime(page: Page) {
+  await page.addInitScript(() => {
+    ;(window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden = false
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => (window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden ? "hidden" : "visible",
+    })
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => Boolean((window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden),
+    })
+  })
+}
+
+/** Changes the installed visibility model and delivers its browser lifecycle signal once. */
+async function setPageHidden(page: Page, hidden: boolean) {
+  await page.evaluate((nextHidden) => {
+    ;(window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden = nextHidden
+    document.dispatchEvent(new Event("visibilitychange"))
+  }, hidden)
+}
+
 function roomSession({
   status = "LOBBY",
   phase = "LOBBY",
@@ -77,6 +100,7 @@ async function installPlayerRuntime(page: Page, {
   storedPlayer = true,
   realtimeProvider = true,
 } = {}) {
+  await installVisibilityRuntime(page)
   await page.addInitScript(({ roomCode, stored, installRealtimeProvider }) => {
     if (stored) {
       window.localStorage.setItem(`massagelab-anatomime-player:${roomCode}`, JSON.stringify({
@@ -85,15 +109,6 @@ async function installPlayerRuntime(page: Page, {
         teamId: "team-1",
       }))
     }
-    ;(window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden = false
-    Object.defineProperty(document, "visibilityState", {
-      configurable: true,
-      get: () => (window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden ? "hidden" : "visible",
-    })
-    Object.defineProperty(document, "hidden", {
-      configurable: true,
-      get: () => Boolean((window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden),
-    })
     Math.random = () => 0
     const runtime = window as typeof window & {
       Ably?: unknown
@@ -425,20 +440,14 @@ test("player polling uses credential-bound tokens with 2s visible and 15s hidden
   await expect(page.getByText("LOBBY", { exact: true }).first()).toBeVisible()
 
   currentSession = roomSession({ status: "PLAYING", phase: "ACTIVE_TERM" })
-  await page.evaluate(() => {
-    ;(window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden = true
-    document.dispatchEvent(new Event("visibilitychange"))
-  })
+  await setPageHidden(page, true)
   await page.clock.fastForward(14_999)
   expect(pollCount).toBe(2)
   await page.clock.fastForward(1)
   await expect.poll(() => pollCount).toBe(3)
   await expect(page.getByText("ACTIVE_TERM", { exact: true })).toBeVisible()
 
-  await page.evaluate(() => {
-    ;(window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden = false
-    document.dispatchEvent(new Event("visibilitychange"))
-  })
+  await setPageHidden(page, false)
   await page.clock.fastForward(1_999)
   expect(pollCount).toBe(3)
   await page.clock.fastForward(1)
@@ -487,10 +496,7 @@ for (const stalledAt of ["token transport", "successful token JSON", "inert Ably
       await page.goto(`/anatomime/join?code=${ROOM_CODE}`, { waitUntil: "networkidle" })
       await expect(page.getByRole("button", { name: /Join Team/i })).toBeVisible()
       await pauseClockAtCurrentTime(page)
-      await page.evaluate(() => {
-        ;(window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden = true
-        document.dispatchEvent(new Event("visibilitychange"))
-      })
+      await setPageHidden(page, true)
       await page.getByLabel("Display name").fill("Avery")
       await page.getByRole("button", { name: /Join Team/i }).evaluate((button: HTMLButtonElement) => button.click())
       await expect.poll(() => tokenCount).toBe(1)
@@ -510,10 +516,7 @@ for (const stalledAt of ["token transport", "successful token JSON", "inert Ably
         ))).toBe(0)
       }
 
-      await page.evaluate(() => {
-        ;(window as typeof window & { __anatomimeHidden?: boolean }).__anatomimeHidden = false
-        document.dispatchEvent(new Event("visibilitychange"))
-      })
+      await setPageHidden(page, false)
       await expect(page.getByText(fallbackMessage, { exact: true })).toBeVisible()
       expect(tokenCount).toBe(1)
       expect(providerRequests(page)).toBe(0)
@@ -819,6 +822,7 @@ test("successful ended, missing, and rejoin-required responses stop polling with
 
 test("host review polling continues at 5s and stops on a successful ended snapshot", async ({ page }) => {
   await page.clock.install()
+  await installVisibilityRuntime(page)
   let hostPollCount = 0
   let createCount = 0
   const reviewSession = roomSession({ status: "REVIEW", phase: "GAME_COMPLETE", joined: false, host: true })
@@ -853,18 +857,12 @@ test("host review polling continues at 5s and stops on a successful ended snapsh
   expect(hostPollCount).toBe(0)
   await page.clock.fastForward(1)
   await expect.poll(() => hostPollCount).toBe(1)
-  await page.evaluate(() => {
-    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" })
-    document.dispatchEvent(new Event("visibilitychange"))
-  })
+  await setPageHidden(page, true)
   await page.clock.fastForward(14_999)
   expect(hostPollCount).toBe(1)
   await page.clock.fastForward(1)
   await expect.poll(() => hostPollCount).toBe(2)
-  await page.evaluate(() => {
-    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" })
-    document.dispatchEvent(new Event("visibilitychange"))
-  })
+  await setPageHidden(page, false)
   hostSnapshot = roomSession({ status: "EXPIRED", phase: "GAME_COMPLETE", joined: false, host: true })
   await page.clock.fastForward(4_999)
   expect(hostPollCount).toBe(2)

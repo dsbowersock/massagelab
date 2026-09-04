@@ -179,24 +179,31 @@ describe("fetchJsonResponseWithTimeout", () => {
     const callerReason = new DOMException("The caller moved on.", "AbortError")
     let markBodyStarted = () => {}
     const bodyStarted = new Promise((resolve) => { markBodyStarted = resolve })
+    let internalSignal
     const pending = fetchJsonResponseWithTimeout(
       "/stalled-error-body",
       { signal: controller.signal },
       100,
-      async (_input, init = {}) => ({
-        ok: false,
-        status: 429,
-        headers: new Headers({ "Retry-After": "8" }),
-        json: () => new Promise((_resolve, reject) => {
-          markBodyStarted()
-          init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true })
-        }),
-      }),
+      async (_input, init = {}) => {
+        internalSignal = init.signal
+        return {
+          ok: false,
+          status: 429,
+          headers: new Headers({ "Retry-After": "8" }),
+          json: () => new Promise((_resolve, reject) => {
+            markBodyStarted()
+            init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true })
+          }),
+        }
+      },
     )
 
     await bodyStarted
     controller.abort(callerReason)
 
+    assert.notEqual(internalSignal, controller.signal)
+    assert.equal(internalSignal?.aborted, true)
+    assert.equal(internalSignal?.reason, callerReason)
     await assert.rejects(pending, (error) => error === callerReason)
   })
 
