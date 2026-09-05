@@ -32,10 +32,20 @@ async function readJson(relativePath) {
   return JSON.parse(await readFile(join(repoRoot, relativePath), "utf8"))
 }
 
+/**
+ * Compare text authorities as their LF-owned Git blobs while tolerating Git's
+ * CRLF checkout conversion on existing Windows worktrees. Other bytes remain
+ * covered by the pinned hashes and exact renderer comparison.
+ */
+function normalizeGitTextCheckout(contents) {
+  return contents.replaceAll("\r\n", "\n")
+}
+
 async function readEvidenceFixture(name, expectedSha256) {
   const contents = await readFile(join(fixtureRoot, name))
-  assert.equal(createHash("sha256").update(contents).digest("hex"), expectedSha256)
-  return JSON.parse(contents.toString("utf8"))
+  const canonicalContents = normalizeGitTextCheckout(contents.toString("utf8"))
+  assert.equal(createHash("sha256").update(canonicalContents).digest("hex"), expectedSha256)
+  return JSON.parse(canonicalContents)
 }
 
 async function loadAuthorityBundle() {
@@ -232,9 +242,11 @@ describe("AtmoShaper Signature construction-review authority", () => {
       exportedReview: authority.exportedListeningReview,
       strategyPolicy: authority.strategyPolicy,
     })
-    const listeningBytes = await readFile(
-      join(repoRoot, "data", "atmoshaper", "signature-sound-listening-review.json"),
-      "utf8",
+    const listeningBytes = normalizeGitTextCheckout(
+      await readFile(
+        join(repoRoot, "data", "atmoshaper", "signature-sound-listening-review.json"),
+        "utf8",
+      ),
     )
     assert.equal(renderSignatureSoundListeningReviewJson(normalizedListening, {
       discoveryReview: normalizedDiscovery,

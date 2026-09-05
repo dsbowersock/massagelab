@@ -57,13 +57,13 @@ No repository `SECURITY.md` applies to `package.json` or `.github/workflows/ci.y
 
 - User-visible need: reduce avoidable release/security maintenance risk before inviting early users.
 - No-change option: documentation alone would leave known vulnerable transitive copies, the deprecated CI runtime pin, and a Windows-only false failure in the raw fixture-hash gate in place.
-- Minimum change boundary: `package.json`, `package-lock.json`, `.github/workflows/ci.yml`, `.gitattributes`, the existing dependency-security test, and canonical security/release documentation.
+- Minimum change boundary: `package.json`, `package-lock.json`, `.github/workflows/ci.yml`, `.gitattributes`, the dependency-security test, the AtmoShaper authority test's checkout normalization, and canonical security/release documentation.
 - Decision: config-and-test change; no application source change.
 
 ## Execution Readiness View
 
 - Intent Lock: close safe patch-level dependency findings and the cache-action runtime warning before Layer B.
-- Scope Fence: dependency metadata, lock resolution, CI cache pin, existing security regression, and canonical documentation only.
+- Scope Fence: dependency metadata, lock resolution, CI cache pin, cross-platform test checkout handling, existing security regression, and canonical documentation only.
 - Baseline Lock: start from exact clean `main` commit `94c05b827eb2511659994cdae00cfcb99f909d77`; preserve all other worktrees and untracked primary-checkout files.
 - Approved Behavior: no user-visible or server-runtime behavior change.
 - Owner / Contract Constraints: `package.json` owns override policy; `package-lock.json` owns exact resolution; the existing dependency-security test owns floor enforcement.
@@ -81,8 +81,9 @@ No repository `SECURITY.md` applies to `package.json` or `.github/workflows/ci.y
 - Exact base remains `94c05b827eb2511659994cdae00cfcb99f909d77`; the primary checkout and all unrelated worktrees remain untouched.
 - Initial npm resolution exposed unrelated transitive refreshes. The lockfile was narrowed to the reviewed package families and their required dependency closure before clean-install verification.
 - `npm ci`, the focused 4/4 dependency-security contract, Prisma validation/generation, TypeScript, lint, `git diff --check`, and the 115-page Production build pass.
-- The exact baseline reproduced nine AtmoShaper raw-byte failures only on the Windows checkout. Git-blob hashes matched their pinned authorities. After the narrow LF checkout policy, the focused suite passes 10/10 and the complete suite passes `3,884`, fails `0`, and intentionally skips `3` across `3,887` tests.
+- The exact baseline reproduced nine AtmoShaper raw-byte failures only on the Windows checkout. Git-blob hashes matched their pinned authorities. After the narrow LF checkout policy and test-boundary CRLF normalization for already-existing Windows worktrees, the focused suite passes 10/10 and the complete suite passes `3,884`, fails `0`, and intentionally skips `3` across `3,887` tests.
 - Fresh full and `--omit=dev` audits each report five high affected nodes, all propagated from the one documented `deepmerge-ts` Prisma CLI/config advisory. No new critical or Production-reachable finding appeared.
+- Initial hosted reviews at head `4e447331e6933852946c8a4cea78c0025513955a` raised two valid issues: existing Windows worktrees needed test-boundary CRLF tolerance in addition to `.gitattributes`, and the focused dependency test needed a package-script owner. Both follow-ups are locally verified, including an explicit temporary-CRLF run. Fresh hosted review remains required on the corrected head.
 - Hosted PR review, hosted CI/CodeQL/CodeRabbit, merge, deployment, and post-deploy verification remain pending.
 
 ## Triage Summary
@@ -96,6 +97,7 @@ The current npm report normalizes to advisory claims across PostCSS, fast-uri, b
 - Modify `.github/workflows/ci.yml`: pin `actions/cache@v6.1.0` by exact commit and update the provenance comment.
 - Add `.gitattributes`: keep the two raw-hash-locked AtmoShaper authority fixtures and their byte-compared canonical listening export as LF on every checkout.
 - Modify `tests/dependency-security.test.mjs`: assert the new reviewed floors.
+- Modify `tests/atmoshaper-signature-sound-construction-review.test.mjs`: normalize only Git CRLF checkout conversion before raw hash and renderer comparisons so existing Windows worktrees remain reproducible.
 - Modify `docs/wiki/dependency-security.md`: replace stale counts with current triage, fixes, and residual risk.
 - Modify `docs/project-state.md` and `docs/project-log.md`: record the maintenance release only after verification/merge evidence exists.
 
@@ -109,7 +111,7 @@ The current npm report normalizes to advisory claims across PostCSS, fast-uri, b
 4. Add exact reviewed overrides for `nanoid@3.3.18`, `browserslist@4.28.9`, and `mysql2@3.24.3`.
 5. Raise development-tool-only floors for `brace-expansion@1.1.18`, `hono@4.12.34`, `body-parser@2.3.0`, `qs@6.16.0`, and `@humanfs/node@0.16.8`.
 6. Regenerate only the lockfile and inspect the complete package/lock diff for unrelated upgrades.
-7. Update the existing dependency-floor regression assertions and run `node --test tests/dependency-security.test.mjs`.
+7. Add the focused `test:dependency-security` package script, update the existing dependency-floor regression assertions, and run `npm run test:dependency-security`.
 8. Run fresh full and `--omit=dev` audits; stop if a new runtime-reachable or critical finding appears.
 
 ### Task 2: Remove the GitHub Actions runtime warning
@@ -129,7 +131,8 @@ The current npm report normalizes to advisory claims across PostCSS, fast-uri, b
 1. Confirm the failing AtmoShaper construction-review test reproduces on an untouched checkout of the exact baseline commit.
 2. Confirm each committed Git blob has the expected SHA-256 and the Windows worktree copy differs only because Git converted LF to CRLF.
 3. Add exact `text eol=lf` attributes for those two authority fixtures and the byte-compared canonical listening export without changing their committed blobs.
-4. Re-run the focused AtmoShaper construction-review test and the complete suite.
+4. Normalize only CRLF checkout conversion at the test read boundary so an existing Windows worktree that already contains CRLF remains valid while all other byte drift still fails.
+5. Re-run the focused AtmoShaper construction-review test against both LF and temporary CRLF worktree copies, then run the complete suite.
 
 ### Task 5: Verify, review, and integrate
 

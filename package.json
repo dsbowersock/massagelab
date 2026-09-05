@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
+    "test:dependency-security": "node --test tests/dependency-security.test.mjs",
     "test:browser": "playwright test",
     "test:browser:build": "npm run build:browser-qa && npm run test:browser",
     "readiness:timings": "node scripts/family-friends-route-timings.mjs",

@@ -86,6 +86,7 @@ Dependabot and hosted CI rescans remain the final inventory checks after merge.
 
 ```bash
 # Run only where sharing the dependency graph with npm is authorized.
+npm run test:dependency-security
 npm audit --json
 npm audit --omit=dev --json
 npm ls nodemailer nodemailer-v9 postcss next prisma @hono/node-server hono \
