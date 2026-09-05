@@ -5,6 +5,7 @@ export const BROWSER_QA_PROJECT_NAMES = [
 
 export const ORDINARY_BROWSER_QA_SPEC_FILES = [
   "admin-user-operations.spec.ts",
+  "anatomime-traffic.spec.ts",
   "app-shell.spec.ts",
   "atmoshaper.spec.ts",
   "background-commerce.spec.ts",
@@ -20,6 +21,8 @@ export const ORDINARY_BROWSER_QA_SPEC_FILES = [
   "pwa.spec.ts",
 ]
 
+// Rebalance only from exact-head hosted wall-clock evidence, not static test counts.
+// The latest hosted baseline still makes lane 3 the critical path, so placement stays unchanged.
 export const BROWSER_QA_LANES = {
   "1": {
     "desktop-chromium": [
@@ -28,6 +31,7 @@ export const BROWSER_QA_LANES = {
       "identity-method-safety.spec.ts",
       "membership-return-status.spec.ts",
       "interaction-feedback.spec.ts",
+      "anatomime-traffic.spec.ts",
     ],
     "mobile-chromium": [
       "app-shell.spec.ts",
@@ -45,6 +49,7 @@ export const BROWSER_QA_LANES = {
       "identity-method-safety.spec.ts",
       "membership-return-status.spec.ts",
       "interaction-feedback.spec.ts",
+      "anatomime-traffic.spec.ts",
     ],
   },
   "3": {

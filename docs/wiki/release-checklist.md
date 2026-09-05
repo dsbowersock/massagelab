@@ -326,6 +326,7 @@ first-cohort Production monitoring remain external invite-readiness gates.
 
 ## Production Operating Checks
 
+- Before releasing Anatomime hardening, verify the closed operational policy registry contains exactly 37 rules: the existing join network IDs remain unchanged but belong to `ANATOMIME_ROOM_JOIN_INGRESS`, verified join keeps only 20/network+room/10m, and realtime adds 120/network/10m ingress before found-room 60/network+room/10m start and joined 6/player plus 40/room issue. Prove missing join/realtime rooms consume no room-scoped key; poll rotation across 301 distinct selectors permits 300 then denies one network, retains only one HMAC ingress key, and treats tuple/room checks atomically as peek-only. This poll control is best-effort per warm runtime, not a deployment-wide ceiling; retain provider/edge monitoring and do not describe it as global enforcement.
 - Production runtime `DATABASE_URL` uses the Neon pooled host. Direct Neon URLs stay limited to migrations and maintenance paths.
 - Vercel Production `prebuild` runs the read-only migration gate before Prisma generation. Do not promote when the direct maintenance URL is absent, status cannot be verified, or committed migrations are pending. Apply reviewed migrations only through a separately authorized maintenance action, verify status, then redeploy the same reviewed commit.
 - Production `robots.txt`, `sitemap.xml`, and metadata index only approved public pages. Preview/local deployments stay noindex.

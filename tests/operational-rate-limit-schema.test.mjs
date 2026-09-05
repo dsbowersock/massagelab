@@ -71,6 +71,22 @@ function modelBodyLines(source, modelName) {
     .filter((line) => line && !line.startsWith("//"))
 }
 
+/** Requires every clause in a documentation contract to occur within one paragraph. */
+function assertParagraphMatches(source, pattern, label) {
+  const paragraphs = source
+    .split(/\r?\n\s*\r?\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+  assert.ok(
+    paragraphs.some((paragraph) => pattern.test(paragraph)),
+    `${label}: expected one paragraph to match ${pattern}`,
+  )
+}
+
+const CONSUME_JOINED_CONTRACT = /^(?=[\s\S]*`consumeJoined`)(?=[\s\S]*`networkIdentifier`)(?=[\s\S]*`roomIdentifier`)(?=[\s\S]*`playerId`)(?=[\s\S]*atomically checks)(?=[\s\S]*network\+room)(?=[\s\S]*room)(?=[\s\S]*player)(?=[\s\S]*increments none)[\s\S]*$/i
+const BLOCKED_MUTATION_CONTRACT = /(?:any|one)[^.]*blocks?[\s\S]*(?:capacity|4,096)[\s\S]*(?:(?:mutates|increments) none|(?:mutates|increments) nothing)/i
+const EXPIRY_CONFLICT_CONTRACT = /^(?=[\s\S]*post-rollback[^.]*idle-expiry[^.]*zero-row)(?=[\s\S]*exactly one[^.]*winner reread)(?=[\s\S]*`EXPIRED`)(?=[\s\S]*`expiresAt`[^.]*strictly later[^.]*captured[^.]*`now`)(?=[\s\S]*missing)(?=[\s\S]*non-`EXPIRED`[^.]*(?:still overdue|still-overdue))(?=[\s\S]*`503`)(?=[\s\S]*(?:(?:guard|quota)[^.]*not (?:called|repeat)|does not repeat[^.]*(?:guard|quota)))[\s\S]*$/i
+
 /** Normalizes layout-only whitespace without weakening SQL token checks. */
 function normalizeSql(value) {
   return value
@@ -416,22 +432,86 @@ COMMIT;
     }
   })
 
-  it("requires non-consuming Anatomime preflight and atomic joined consumption signatures", () => {
+  it("keeps the Anatomime documentation matchers meaningful", () => {
+    assert.throws(
+      () => assertParagraphMatches(
+        "one room read\n\nsame loaded snapshot",
+        /one room read[\s\S]*same loaded snapshot/i,
+        "split-paragraph fixture",
+      ),
+      /split-paragraph fixture/,
+    )
+    assertParagraphMatches(
+      "`consumeJoined` atomically checks player, room, then network+room and increments none; it accepts `playerId`, `roomIdentifier`, and `networkIdentifier`.",
+      CONSUME_JOINED_CONTRACT,
+      "reordered consumeJoined fixture",
+    )
+    assert.doesNotMatch(
+      "This unrelated paragraph mutates nothing.",
+      BLOCKED_MUTATION_CONTRACT,
+    )
+    assert.throws(
+      () => assertParagraphMatches(
+        "Post-rollback idle-expiry zero-row handling performs exactly one winner reread. It accepts `EXPIRED` only when `expiresAt` is strictly later than captured `now`; missing or non-`EXPIRED` but still overdue conflicts return `503`.",
+        EXPIRY_CONFLICT_CONTRACT,
+        "missing guard/quota fixture",
+      ),
+      /missing guard\/quota fixture/,
+    )
+  })
+
+  it("separates ordinary polling failure backoff from server-directed cooldowns", () => {
     for (const [label, source] of [
       ["binding design", hardeningDesign],
       ["Anatomime plan", anatomimeTrafficPlan],
     ]) {
-      assert.match(
+      assert.match(source, /failures[^\n.]*30[- ]second/i, label)
+      assert.match(source, /`?Retry-After`?[^\n.]*10 minutes/i, label)
+      assert.doesNotMatch(source, /`?Retry-After`?[^\n.]*capped at 30 seconds/i, label)
+    }
+  })
+
+  it("requires bounded consuming Anatomime ingress and one-snapshot atomic poll resolution", () => {
+    for (const [label, source] of [
+      ["binding design", hardeningDesign],
+      ["Anatomime plan", anatomimeTrafficPlan],
+    ]) {
+      assertParagraphMatches(
         source,
-        /non-consuming `peekIngress`[\s\S]*denial makes no (?:credential )?preflight/i,
+        /`consumeIngress`[\s\S]*300[^.]*network[^.]*10s[\s\S]*150[^.]*network\+room[\s\S]*300[^.]*room[\s\S]*(?:peek-only|without incrementing)[\s\S]*(?:increments|mutates)[^.]*only[^.]*network ingress/i,
         label,
       )
-      assert.match(
+      assertParagraphMatches(
         source,
-        /`consumeJoined`[\s\S]*`networkIdentifier`[\s\S]*`roomIdentifier`[\s\S]*`playerId`[\s\S]*atomically checks[\s\S]*network\+room[\s\S]*room[\s\S]*player[\s\S]*increments none/i,
+        BLOCKED_MUTATION_CONTRACT,
         label,
       )
-      assert.match(
+      assertParagraphMatches(
+        source,
+        /best-effort[^.]*warm runtime[^.]*not deployment-wide/i,
+        label,
+      )
+      assertParagraphMatches(
+        source,
+        /^(?=[\s\S]*one room (?:query|read))(?=[\s\S]*(?:same|sole) (?:loaded )?snapshot)(?=[\s\S]*pre-resolution guard)(?=[\s\S]*before (?:expiration|presence))[\s\S]*$/i,
+        label,
+      )
+      assertParagraphMatches(
+        source,
+        /(?:ordinary|normal|accepted)[^.]*poll[^.]*same (?:loaded )?snapshot[^.]*(?:no second room (?:query|read)|does not[^.]*read another)/i,
+        label,
+      )
+      assertParagraphMatches(
+        source,
+        EXPIRY_CONFLICT_CONTRACT,
+        label,
+      )
+      assertParagraphMatches(
+        source,
+        CONSUME_JOINED_CONTRACT,
+        label,
+      )
+      assertParagraphMatches(
         source,
         /`UNJOINED`[\s\S]*`INVALID`[\s\S]*durable quota semantics remain unchanged/i,
         label,
@@ -439,17 +519,42 @@ COMMIT;
     }
     assert.match(
       anatomimeTrafficPlan,
-      /peekIngress\(input:\s*\{\s*networkIdentifier: string; roomIdentifier: string; now\?: Date\s*\}\): AnatomimePollShedDecision/,
+      /consumeIngress\(input:\s*\{\s*networkIdentifier: string; roomIdentifier: string; now\?: Date\s*\}\): AnatomimePollShedDecision/,
     )
     assert.match(
       anatomimeTrafficPlan,
       /consumeJoined\(input:\s*\{\s*networkIdentifier: string; roomIdentifier: string; playerId: string; now\?: Date\s*\}\): AnatomimePollShedDecision/,
     )
-    assert.doesNotMatch(anatomimeTrafficPlan, /consumeIngress\(/)
+    assert.doesNotMatch(anatomimeTrafficPlan, /peekIngress\(/)
+    assert.doesNotMatch(hardeningDesign, /peekIngress\(/)
     assert.doesNotMatch(
       anatomimeTrafficPlan,
       /consumeJoined\(input:\s*\{\s*playerId: string; now\?: Date\s*\}/,
     )
+    assert.doesNotMatch(
+      hardeningDesign,
+      /bogus player\/token candidates[^.]*narrow preflight[^.]*before full hydration/i,
+    )
+    assertParagraphMatches(
+      hardeningDesign,
+      /bogus player\/token[^.]*sole (?:fully )?loaded room snapshot[^.]*durable[^.]*deni(?:al|es)[^.]*before expiration[^.]*presence[^.]*summary/i,
+      "binding design bogus-poll proof",
+    )
+    assertParagraphMatches(
+      hardeningDesign,
+      /^(?=[\s\S]*realtime-token)(?=[\s\S]*network ingress)(?=[\s\S]*before session\/auth)(?=[\s\S]*narrow preflight)(?=[\s\S]*missing room)(?=[\s\S]*network\+room token-start)(?=[\s\S]*provider)[\s\S]*$/i,
+      "binding design realtime-token proof",
+    )
+    for (const [label, source] of [
+      ["binding design", hardeningDesign],
+      ["Anatomime plan", anatomimeTrafficPlan],
+    ]) {
+      assertParagraphMatches(
+        source,
+        /^(?=[\s\S]*join ingress)(?=[\s\S]*before[^.]*(?:auth|session))(?=[\s\S]*body)(?=[\s\S]*(?:room service|room work))(?=[\s\S]*verified[^.]*room)(?=[\s\S]*(?:validation|admission))(?=[\s\S]*before (?:transaction\/write|transaction|write))[\s\S]*$/i,
+        label,
+      )
+    }
   })
 
   it("contains no other existing-table change, data manipulation, or trigger", () => {

@@ -4,6 +4,13 @@ import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CheckCircle2, Copy, LogIn, Play, QrCode, RefreshCw, RotateCcw, SkipForward, Timer, UserCog, X } from "lucide-react"
 import { AnatomimeActionButton } from "./anatomime-action-button"
+import {
+  ANATOMIME_RATE_LIMITED_POLL_STATUS,
+  fetchAnatomimeRoomSnapshot,
+  nextAnatomimePollSchedule,
+  nextAnatomimeVisibilitySchedule,
+  type AnatomimeRoomFetchResult,
+} from "./anatomime-polling"
 import type { AnatomimePlayerSummary, AnatomimeRoomSummary } from "./shared-session-types"
 
 type HostCredentials = { playerId: string; token: string }
@@ -56,16 +63,21 @@ export function HostRoomClient({
 }) {
   const [session, setSession] = useState(initialSession)
   const [message, setMessage] = useState("")
+  const [pollStatus, setPollStatus] = useState("")
+  const [pollTerminal, setPollTerminal] = useState<"ROOM_ENDED" | "REJOIN_REQUIRED" | null>(null)
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [now, setNow] = useState(Date.now())
   const [joinUrl, setJoinUrl] = useState("")
   const [qrDataUrl, setQrDataUrl] = useState("")
   const [qrGenerationFailed, setQrGenerationFailed] = useState(false)
+  const sessionRef = useRef(initialSession)
   const timeoutKeyRef = useRef("")
+  const pollWakeRef = useRef<() => boolean>(() => false)
   const joinPath = `/anatomime/join?code=${encodeURIComponent(session.code)}`
 
   useEffect(() => {
     setSession(initialSession)
+    sessionRef.current = initialSession
   }, [initialSession])
 
   useEffect(() => {
@@ -115,46 +127,131 @@ export function HostRoomClient({
   }, [joinUrl])
 
   const setSyncedSession = useCallback((nextSession: AnatomimeRoomSummary) => {
+    sessionRef.current = nextSession
     setSession(nextSession)
     onSessionChange(nextSession)
   }, [onSessionChange])
 
-  const refreshSession = useCallback(async () => {
-    const response = await fetch(`/api/anatomime/sessions/${session.code}`, {
-      cache: "no-store",
-      headers: hostHeaders(credentials),
-    })
-    const payload = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Error(payload.error ?? "Could not refresh shared game.")
-    setSyncedSession(payload.session as AnatomimeRoomSummary)
-  }, [credentials, session.code, setSyncedSession])
-
+  // Poll lifecycle orchestration stays host-local because startup, credentials, state publication,
+  // terminal handling, and wake contracts differ from the player owner.
+  // Only pure transport and scheduling policy is shared through anatomime-polling.ts.
   useEffect(() => {
-    if (session.status === "REVIEW" || session.status === "EXPIRED") return
     let cancelled = false
+    let stopped = false
     let inFlight = false
-    let timer = 0
+    let timer: number | null = null
+    let controller: AbortController | null = null
+    let consecutiveFailures = 0
+    let latestScheduledResult: AnatomimeRoomFetchResult | null = null
 
-    const poll = async () => {
-      if (!inFlight) {
-        inFlight = true
-        try {
-          await refreshSession()
-        } catch {
-          // Keep polling; the host screen should recover when the next poll succeeds.
-        } finally {
-          inFlight = false
-        }
-      }
-      if (!cancelled) timer = window.setTimeout(poll, 1500)
+    const stopPolling = (reason: "ROOM_ENDED" | "REJOIN_REQUIRED") => {
+      stopped = true
+      setPollTerminal(reason)
+      setPollStatus(reason === "ROOM_ENDED"
+        ? "This shared game has ended or is no longer available."
+        : "The host credentials are no longer valid for this shared game.")
     }
 
-    timer = window.setTimeout(poll, 1500)
+    function armPoll(delayMs: number) {
+      if (timer !== null) window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        timer = null
+        void poll()
+      }, delayMs)
+    }
+
+    async function poll() {
+      if (cancelled || stopped || inFlight) return
+      inFlight = true
+      controller = new AbortController()
+      const result = await fetchAnatomimeRoomSnapshot({
+        code: sessionRef.current.code,
+        credentials: { playerId: credentials.playerId, token: credentials.token },
+        signal: controller.signal,
+      })
+      inFlight = false
+      if (cancelled || controller.signal.aborted) return
+
+      if (result.kind === "SUCCESS") {
+        setSyncedSession(result.session)
+        setPollStatus("")
+        setPollTerminal(null)
+      }
+      const schedule = nextAnatomimePollSchedule({
+        result,
+        roomStatus: result.kind === "SUCCESS" ? result.session.status : undefined,
+        roomPhase: result.kind === "SUCCESS" ? result.session.phase : undefined,
+        documentHidden: document.visibilityState === "hidden",
+        consecutiveFailures,
+      })
+      if (schedule.action === "STOP") {
+        stopPolling(schedule.reason)
+        return
+      }
+
+      consecutiveFailures = schedule.consecutiveFailures
+      latestScheduledResult = result
+      if (result.kind === "RATE_LIMITED") {
+        setPollStatus(ANATOMIME_RATE_LIMITED_POLL_STATUS)
+      } else if (result.kind === "FAILED") {
+        setPollStatus("Connection interrupted. Updates will retry automatically.")
+      }
+      armPoll(schedule.delayMs)
+    }
+
+    const wakePoll = () => {
+      if (cancelled || stopped || inFlight || timer === null || !latestScheduledResult || latestScheduledResult.kind === "RATE_LIMITED") return false
+      window.clearTimeout(timer)
+      timer = null
+      void poll()
+      return true
+    }
+    const onVisibilityChange = () => {
+      if (cancelled || stopped || inFlight || timer === null) return
+      const schedule = nextAnatomimeVisibilitySchedule({
+        result: latestScheduledResult,
+        documentHidden: document.visibilityState === "hidden",
+      })
+      if (!schedule || schedule.action !== "SCHEDULE") return
+      armPoll(schedule.delayMs)
+    }
+    pollWakeRef.current = wakePoll
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    const currentSession = sessionRef.current
+    const initialResult = { kind: "SUCCESS", session: currentSession } as const
+    const firstSchedule = nextAnatomimePollSchedule({
+      result: initialResult,
+      roomStatus: currentSession.status,
+      roomPhase: currentSession.phase,
+      documentHidden: document.visibilityState === "hidden",
+      consecutiveFailures: 0,
+    })
+    if (firstSchedule.action === "SCHEDULE") {
+      latestScheduledResult = initialResult
+      armPoll(firstSchedule.delayMs)
+    } else {
+      stopPolling(firstSchedule.reason)
+    }
     return () => {
       cancelled = true
-      window.clearTimeout(timer)
+      if (timer !== null) window.clearTimeout(timer)
+      controller?.abort()
+      document.removeEventListener("visibilitychange", onVisibilityChange)
+      if (pollWakeRef.current === wakePoll) pollWakeRef.current = () => false
     }
-  }, [refreshSession, session.status])
+  }, [
+    credentials.playerId,
+    credentials.token,
+    initialSession.code,
+    initialSession.phase,
+    initialSession.status,
+    setSyncedSession,
+  ])
+
+  const refreshRoom = () => {
+    if (pollWakeRef.current()) return
+    setPollStatus((current) => current || "Update already in progress.")
+  }
 
   const performAction = useCallback(async (label: string, path: string, body: Record<string, unknown> = {}) => {
     setBusyAction(label)
@@ -181,12 +278,12 @@ export function HostRoomClient({
   const playerCount = joinedPlayers.length
 
   useEffect(() => {
-    if (session.status !== "PLAYING" || session.phase !== "ACTIVE_TERM" || !session.activeItem || termSeconds !== 0) return
+    if (pollTerminal || session.status !== "PLAYING" || session.phase !== "ACTIVE_TERM" || !session.activeItem || termSeconds !== 0) return
     const key = `${session.code}:${session.activeItem.index}:${session.phaseEndsAt ?? "none"}`
     if (timeoutKeyRef.current === key) return
     timeoutKeyRef.current = key
     void performAction("timeout", `/api/anatomime/sessions/${session.code}/timeout`)
-  }, [performAction, session, termSeconds])
+  }, [performAction, pollTerminal, session, termSeconds])
 
   const copyText = async (value: string, success: string) => {
     if (!window.navigator.clipboard) {
@@ -250,13 +347,30 @@ export function HostRoomClient({
           <Copy className="h-4 w-4" />
           Copy Join Link
         </AnatomimeActionButton>
-        <AnatomimeActionButton type="button" intent="secondary" onClick={() => refreshSession().catch((error) => setMessage(error.message))}>
+        <AnatomimeActionButton type="button" intent="secondary" onClick={refreshRoom}>
           <RefreshCw className="h-4 w-4" />
           Refresh
         </AnatomimeActionButton>
       </div>
 
-      {message ? <div className="anatomime-message" role="status">{message}</div> : null}
+      {message ? <div className="anatomime-message" role="status" aria-live="polite">{message}</div> : null}
+      <div className={pollStatus ? "anatomime-message" : "anatomime-poll-status"} role="status" aria-live="polite">
+        {pollStatus}
+      </div>
+      {pollTerminal ? (
+        <div className="anatomime-rejoin-notice">
+          <div>
+            <strong>{pollTerminal === "ROOM_ENDED" ? "Shared game ended" : "Host access needs to be restored"}</strong>
+            <p>{pollTerminal === "ROOM_ENDED"
+              ? "This room is no longer available. Start a new shared game when you are ready."
+              : "These host credentials no longer match the room. Start a new shared game to continue safely."}</p>
+          </div>
+          <AnatomimeActionButton type="button" intent="secondary" onClick={onResetLocalGame}>
+            <RotateCcw className="h-4 w-4" />
+            Start New Game
+          </AnatomimeActionButton>
+        </div>
+      ) : null}
 
       <div className="anatomime-score-grid">
         {session.teams.map((team) => (
@@ -267,7 +381,7 @@ export function HostRoomClient({
         ))}
       </div>
 
-      {session.status === "LOBBY" ? (
+      {!pollTerminal && session.status === "LOBBY" ? (
         <>
           <div className="anatomime-setup-grid">
             {session.teams.map((team) => (
@@ -297,7 +411,7 @@ export function HostRoomClient({
         </>
       ) : null}
 
-      {session.status === "PLAYING" && session.activeItem ? (
+      {!pollTerminal && session.status === "PLAYING" && session.activeItem ? (
         <div className="anatomime-current-term">
           <span>{session.activeItem.index + 1} of {session.activeItem.total} · {session.activeTeam?.name}</span>
           <div className="anatomime-host-timer">
@@ -324,7 +438,7 @@ export function HostRoomClient({
         </div>
       ) : null}
 
-      {session.status === "PLAYING" && session.phase === "ACTIVE_TERM" && session.config.answerMode === "host-judged" ? (
+      {!pollTerminal && session.status === "PLAYING" && session.phase === "ACTIVE_TERM" && session.config.answerMode === "host-judged" ? (
         <div className="anatomime-actions">
           <AnatomimeActionButton
             type="button" intent="primary"
@@ -337,7 +451,7 @@ export function HostRoomClient({
         </div>
       ) : null}
 
-      {session.phase === "TURN_REVIEW" ? (
+      {!pollTerminal && session.phase === "TURN_REVIEW" ? (
         <div className="anatomime-learning-review">
           <div className="anatomime-section-heading compact">
             <div>
@@ -366,7 +480,7 @@ export function HostRoomClient({
         </div>
       ) : null}
 
-      {session.status === "GAME_COMPLETE" || session.status === "REVIEW" ? (
+      {!pollTerminal && (session.status === "GAME_COMPLETE" || session.status === "REVIEW") ? (
         <div className="anatomime-learning-review">
           <div className="anatomime-section-heading compact">
             <div>
@@ -404,7 +518,7 @@ export function HostRoomClient({
         </div>
       ) : null}
 
-      {hostTransferTargets.length > 0 && session.status !== "REVIEW" && session.status !== "EXPIRED" ? (
+      {!pollTerminal && hostTransferTargets.length > 0 && session.status !== "REVIEW" && session.status !== "EXPIRED" ? (
         <div className="anatomime-host-transfer">
           <h3>Transfer host</h3>
           <div className="anatomime-selection-toolbar">
@@ -423,7 +537,7 @@ export function HostRoomClient({
         </div>
       ) : null}
 
-      {session.status !== "REVIEW" && session.status !== "EXPIRED" ? (
+      {!pollTerminal && session.status !== "REVIEW" && session.status !== "EXPIRED" ? (
         <div className="anatomime-actions">
           <AnatomimeActionButton
             type="button" intent="danger"
