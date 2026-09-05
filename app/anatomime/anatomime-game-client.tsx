@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
 import { AnatomimeActionButton } from "./anatomime-action-button"
+import { fetchJsonResponseWithTimeout } from "@/lib/client-fetch"
 import {
   type AnatomyStudyBodySystem,
   type AnatomyStudyCategory,
@@ -38,6 +39,12 @@ import {
   updateScore,
 } from "@/lib/anatomime-game"
 import { HostRoomClient } from "./host-room-client"
+import {
+  ANATOMIME_ACTION_REQUEST_TIMEOUT_MS,
+  ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS,
+  anatomimeActionRetryAfterSeconds,
+  installAnatomimeActionCooldownTicker,
+} from "./anatomime-polling"
 import type { AnatomimeRoomSummary } from "./shared-session-types"
 import "./styles.css"
 
@@ -218,12 +225,22 @@ export function AnatomimeGameClient({
   const [sharedSession, setSharedSession] = useState<AnatomimeRoomSummary | null>(null)
   const [hostCredentials, setHostCredentials] = useState<{ playerId: string; token: string } | null>(null)
   const [creatingSharedGame, setCreatingSharedGame] = useState(false)
+  const [createRetryUntil, setCreateRetryUntil] = useState(0)
+  const [createRetryNow, setCreateRetryNow] = useState(Date.now())
+  const createInFlightRef = useRef(false)
   const selectedSetupTermIdsRef = useRef(selectedSetupTermIds)
   const termCount = TERM_COUNT
 
   useEffect(() => {
     selectedSetupTermIdsRef.current = selectedSetupTermIds
   }, [selectedSetupTermIds])
+
+  useEffect(() => {
+    return installAnatomimeActionCooldownTicker({
+      deadlineMs: createRetryUntil,
+      onTick: setCreateRetryNow,
+    })
+  }, [createRetryUntil])
 
   useEffect(() => {
     setTeamNames((current) => normalizeTeamNames(current, teamCount))
@@ -559,10 +576,15 @@ export function AnatomimeGameClient({
     setTurnHistory([])
     setSharedSession(null)
     setHostCredentials(null)
+    setCreateRetryUntil(0)
     setMessage("")
   }
 
+  const createRetrySeconds = Math.max(0, Math.ceil((createRetryUntil - createRetryNow) / 1_000))
+  const createLocked = creatingSharedGame || createRetrySeconds > 0
+
   const createSharedGame = async () => {
+    if (createInFlightRef.current || creatingSharedGame || Date.now() < createRetryUntil) return
     const trimmedNames = teamNames.slice(0, teamCount).map((name) => name.trim())
     if (trimmedNames.some((name) => !name)) {
       setMessage("Enter names for all teams before creating a shared game.")
@@ -581,39 +603,55 @@ export function AnatomimeGameClient({
       return
     }
 
+    createInFlightRef.current = true
     setCreatingSharedGame(true)
     setMessage("")
 
     try {
-      const response = await fetch("/api/anatomime/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          config: {
-            categories: selectedKinds,
-            regions: selectedRegions,
-            bodySystems: selectedBodySystems,
-            clueLevel,
-            answerMode,
-            termCount,
-            roundLimit,
-            hardcoreMode,
-            selectedCardIds: selectedSetupTermIds,
-            roundSeconds: ROUND_SECONDS,
-            teamNames: trimmedNames,
-          },
-        }),
-      })
-      const payload = await response.json().catch(() => ({}))
+      const { response, json: payload } = await fetchJsonResponseWithTimeout<{
+        error?: string
+        session: AnatomimeRoomSummary
+        host: { playerId: string; token: string }
+      }>(
+        "/api/anatomime/sessions",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            config: {
+              categories: selectedKinds,
+              regions: selectedRegions,
+              bodySystems: selectedBodySystems,
+              clueLevel,
+              answerMode,
+              termCount,
+              roundLimit,
+              hardcoreMode,
+              selectedCardIds: selectedSetupTermIds,
+              roundSeconds: ROUND_SECONDS,
+              teamNames: trimmedNames,
+            },
+          }),
+        },
+        ANATOMIME_ACTION_REQUEST_TIMEOUT_MS,
+      )
 
       if (!response.ok) {
-        setMessage(payload.error ?? "Could not create shared game.")
+        if (response.status === 429) {
+          const retrySeconds = anatomimeActionRetryAfterSeconds(response)
+          const current = Date.now()
+          setCreateRetryNow(current)
+          setCreateRetryUntil(current + retrySeconds * 1_000)
+        }
+        setMessage(payload?.error ?? "Could not create shared game.")
         return
       }
+      if (!payload) throw new Error("Shared game creation returned no JSON payload.")
 
       setTeamNames(trimmedNames)
       setSharedSession(payload.session)
       setHostCredentials({ playerId: payload.host.playerId, token: payload.host.token })
+      setCreateRetryUntil(0)
       setGamePhase("sharedHost")
       try {
         window.localStorage.setItem(`massagelab-anatomime-host:${payload.session.code}`, JSON.stringify(payload.host))
@@ -621,8 +659,12 @@ export function AnatomimeGameClient({
         // Hosting can continue even when browser storage is unavailable.
       }
     } catch {
-      setMessage("Could not create shared game.")
+      const current = Date.now()
+      setCreateRetryNow(current)
+      setCreateRetryUntil(current + ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS * 1_000)
+      setMessage("We could not confirm whether the shared game was created. Wait briefly, then retry manually; retrying may create another room.")
     } finally {
+      createInFlightRef.current = false
       setCreatingSharedGame(false)
     }
   }
@@ -936,13 +978,22 @@ export function AnatomimeGameClient({
               <AnatomimeActionButton type="button" intent="primary" onClick={continueToSetup}>
                 Continue
               </AnatomimeActionButton>
-              <AnatomimeActionButton type="button" intent="secondary" onClick={createSharedGame} disabled={creatingSharedGame}>
+              <AnatomimeActionButton type="button" intent="secondary" onClick={createSharedGame} disabled={createLocked}>
                 <Users className="h-4 w-4" />
-                {creatingSharedGame ? "Creating..." : "Create Shared Game"}
+                {creatingSharedGame
+                  ? "Creating..."
+                  : createRetrySeconds > 0
+                    ? `Try again in ${createRetrySeconds}s`
+                    : "Create Shared Game"}
               </AnatomimeActionButton>
             </div>
+            <div className="anatomime-poll-status" role="status" aria-live="polite">
+              {createRetrySeconds > 0
+                ? "Shared game creation is temporarily paused. You can retry when the countdown ends."
+                : ""}
+            </div>
             {message ? (
-              <div className="anatomime-message" role="status">
+              <div className="anatomime-message" role="status" aria-live="polite">
                 {message}
               </div>
             ) : null}

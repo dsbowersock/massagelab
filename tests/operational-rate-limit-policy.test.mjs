@@ -15,6 +15,7 @@ const EXPECTED_POLICIES = new Map([
   ["anatomime.room-join.network.15m.v1", ["NETWORK", 30, 15 * MINUTE]],
   ["anatomime.room-join.network.24h.v1", ["NETWORK", 100, 24 * HOUR]],
   ["anatomime.room-join.network-room.10m.v1", ["RESOURCE", 20, 10 * MINUTE]],
+  ["anatomime.realtime-token.network.10m.v1", ["NETWORK", 120, 10 * MINUTE]],
   ["anatomime.realtime-token.network-room.10m.v1", ["RESOURCE", 60, 10 * MINUTE]],
   ["anatomime.realtime-token.player.10m.v1", ["RESOURCE", 6, 10 * MINUTE]],
   ["anatomime.realtime-token.room.10m.v1", ["RESOURCE", 40, 10 * MINUTE]],
@@ -63,11 +64,13 @@ function expectedRules(entries) {
 }
 
 describe("operational rate-limit policy registry", () => {
-  it("owns all 36 exact versioned policies, thresholds, windows, and scopes", () => {
+  it("owns all 37 exact versioned policies, thresholds, windows, and scopes", () => {
     const requests = [
       { operation: "ANATOMIME_ROOM_CREATE", networkIdentifier: "net", account: { kind: "ACCOUNT_ID", value: "acct" } },
       { operation: "ANATOMIME_ROOM_CREATE", networkIdentifier: "net" },
+      { operation: "ANATOMIME_ROOM_JOIN_INGRESS", networkIdentifier: "net" },
       { operation: "ANATOMIME_ROOM_JOIN", networkIdentifier: "net", roomIdentifier: "room" },
+      { operation: "ANATOMIME_REALTIME_TOKEN_INGRESS", networkIdentifier: "net" },
       { operation: "ANATOMIME_REALTIME_TOKEN_START", networkIdentifier: "net", roomIdentifier: "room" },
       { operation: "ANATOMIME_REALTIME_TOKEN_ISSUE", playerId: "player", roomId: "room-id" },
       { operation: "ANATOMIME_UNJOINED_LOOKUP", networkIdentifier: "net", roomIdentifier: "room" },
@@ -85,7 +88,7 @@ describe("operational rate-limit policy registry", () => {
     const rules = requests.flatMap((request) => resolveOperationalRateLimitRules(request) ?? [])
     const byPolicy = new Map(rules.map((rule) => [rule.policy, rule]))
 
-    assert.equal(EXPECTED_POLICIES.size, 36)
+    assert.equal(EXPECTED_POLICIES.size, 37)
     assert.deepEqual([...byPolicy.keys()].sort(), [...EXPECTED_POLICIES.keys()].sort())
     for (const [policy, [scope, limit, windowMs]] of EXPECTED_POLICIES) {
       const rule = byPolicy.get(policy)
@@ -126,12 +129,25 @@ describe("operational rate-limit policy registry", () => {
         ]),
       },
       {
-        name: "room join",
-        request: { operation: "ANATOMIME_ROOM_JOIN", networkIdentifier: "household", roomIdentifier: " room-code " },
+        name: "room join ingress",
+        request: { operation: "ANATOMIME_ROOM_JOIN_INGRESS", networkIdentifier: "household" },
         expected: expectedRules([
           ["anatomime.room-join.network.15m.v1", network],
           ["anatomime.room-join.network.24h.v1", network],
+        ]),
+      },
+      {
+        name: "verified room join resource",
+        request: { operation: "ANATOMIME_ROOM_JOIN", networkIdentifier: "household", roomIdentifier: " room-code " },
+        expected: expectedRules([
           ["anatomime.room-join.network-room.10m.v1", [...network, room]],
+        ]),
+      },
+      {
+        name: "realtime token ingress",
+        request: { operation: "ANATOMIME_REALTIME_TOKEN_INGRESS", networkIdentifier: "household" },
+        expected: expectedRules([
+          ["anatomime.realtime-token.network.10m.v1", network],
         ]),
       },
       {
@@ -365,9 +381,13 @@ describe("operational rate-limit policy registry", () => {
       null,
       {},
       { operation: "UNKNOWN", networkIdentifier: "net" },
+      { operation: "ANATOMIME_ROOM_JOIN_INGRESS", networkIdentifier: "" },
+      { operation: "ANATOMIME_ROOM_JOIN_INGRESS", networkIdentifier: tooLong },
       { operation: "ANATOMIME_ROOM_JOIN", networkIdentifier: "", roomIdentifier: "room" },
       { operation: "ANATOMIME_ROOM_JOIN", networkIdentifier: "net", roomIdentifier: tooLong },
       { operation: "PROBLEM_REPORT", networkIdentifier: tooLong },
+      { operation: "ANATOMIME_REALTIME_TOKEN_INGRESS", networkIdentifier: "" },
+      { operation: "ANATOMIME_REALTIME_TOKEN_INGRESS", networkIdentifier: tooLong },
       { operation: "ANATOMIME_REALTIME_TOKEN_START", networkIdentifier: "net", roomIdentifier: "" },
       { operation: "ANATOMIME_UNJOINED_LOOKUP", networkIdentifier: "", roomIdentifier: "room" },
       { operation: "ANATOMIME_ROOM_CREATE", networkIdentifier: "net", account: { kind: "EMAIL", value: "not-an-email" } },
@@ -392,4 +412,5 @@ describe("operational rate-limit policy registry", () => {
       assert.equal(resolveOperationalRateLimitRules(request), null, JSON.stringify(request))
     }
   })
+
 })

@@ -12,7 +12,9 @@ export type OperationalBookingSubject =
 
 export type OperationalRateLimitRequest =
   | { operation: "ANATOMIME_ROOM_CREATE"; networkIdentifier: string; account?: OperationalAccountSubject }
+  | { operation: "ANATOMIME_ROOM_JOIN_INGRESS"; networkIdentifier: string }
   | { operation: "ANATOMIME_ROOM_JOIN"; networkIdentifier: string; roomIdentifier: string }
+  | { operation: "ANATOMIME_REALTIME_TOKEN_INGRESS"; networkIdentifier: string }
   | { operation: "ANATOMIME_REALTIME_TOKEN_START"; networkIdentifier: string; roomIdentifier: string }
   | { operation: "ANATOMIME_REALTIME_TOKEN_ISSUE"; playerId: string; roomId: string }
   | { operation: "ANATOMIME_UNJOINED_LOOKUP"; networkIdentifier: string; roomIdentifier: string }
@@ -54,8 +56,12 @@ export function resolveOperationalRateLimitRules(
   switch (request.operation) {
     case "ANATOMIME_ROOM_CREATE":
       return roomCreateRules(request)
+    case "ANATOMIME_ROOM_JOIN_INGRESS":
+      return roomJoinIngressRules(request)
     case "ANATOMIME_ROOM_JOIN":
       return roomJoinRules(request)
+    case "ANATOMIME_REALTIME_TOKEN_INGRESS":
+      return realtimeTokenIngressRules(request)
     case "ANATOMIME_REALTIME_TOKEN_START":
       return realtimeTokenStartRules(request)
     case "ANATOMIME_REALTIME_TOKEN_ISSUE":
@@ -108,16 +114,27 @@ function roomCreateRules(request: UnknownRecord) {
   ]
 }
 
-function roomJoinRules(request: UnknownRecord) {
+function roomJoinIngressRules(request: UnknownRecord) {
   const network = identifierComponent("network", request.networkIdentifier)
-  const room = identifierComponent("room", request.roomIdentifier)
-  if (!network || !room) return null
+  if (!network) return null
 
   return [
     rule("anatomime.room-join.network.15m.v1", "NETWORK", 30, 15 * MINUTE_MS, [network]),
     rule("anatomime.room-join.network.24h.v1", "NETWORK", 100, 24 * HOUR_MS, [network]),
-    rule("anatomime.room-join.network-room.10m.v1", "RESOURCE", 20, 10 * MINUTE_MS, [network, room]),
   ]
+}
+
+function roomJoinRules(request: UnknownRecord) {
+  const network = identifierComponent("network", request.networkIdentifier)
+  const room = identifierComponent("room", request.roomIdentifier)
+  if (!network || !room) return null
+  return [rule("anatomime.room-join.network-room.10m.v1", "RESOURCE", 20, 10 * MINUTE_MS, [network, room])]
+}
+
+function realtimeTokenIngressRules(request: UnknownRecord) {
+  const network = identifierComponent("network", request.networkIdentifier)
+  if (!network) return null
+  return [rule("anatomime.realtime-token.network.10m.v1", "NETWORK", 120, 10 * MINUTE_MS, [network])]
 }
 
 function realtimeTokenStartRules(request: UnknownRecord) {

@@ -4,6 +4,7 @@ async function runWithFetchDeadline<T>(
   init: RequestInit,
   timeoutMs: number,
   consume: (response: Response) => Promise<T> | T,
+  fetchImpl: typeof fetch,
 ) {
   const controller = new AbortController()
   const callerSignal = init.signal
@@ -21,7 +22,7 @@ async function runWithFetchDeadline<T>(
   )
 
   try {
-    const response = await fetch(input, {
+    const response = await fetchImpl(input, {
       ...init,
       signal: controller.signal,
     })
@@ -37,7 +38,7 @@ async function runWithFetchDeadline<T>(
  * Caller abort reasons propagate unchanged; an elapsed deadline rejects as TimeoutError.
  */
 export async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 1500) {
-  return runWithFetchDeadline(input, init, timeoutMs, (response) => response)
+  return runWithFetchDeadline(input, init, timeoutMs, (response) => response, fetch)
 }
 
 /**
@@ -48,9 +49,31 @@ export async function fetchJsonWithTimeout<T = unknown>(
   input: RequestInfo | URL,
   init: RequestInit = {},
   timeoutMs = 1500,
+  fetchImpl: typeof fetch = fetch,
 ) {
   return runWithFetchDeadline(input, init, timeoutMs, async (response) => ({
     response,
     json: response.ok ? await response.json() as T : undefined,
-  }))
+  }), fetchImpl)
+}
+
+/**
+ * Fetches and attempts JSON consumption for every HTTP status under one deadline.
+ * Non-OK parse failures preserve the response with undefined JSON; caller
+ * cancellation and successful parse failures still reject.
+ */
+export async function fetchJsonResponseWithTimeout<T = unknown>(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = 1500,
+  fetchImpl: typeof fetch = fetch,
+) {
+  return runWithFetchDeadline(input, init, timeoutMs, async (response) => {
+    try {
+      return { response, json: await response.json() as T }
+    } catch (error) {
+      if (init.signal?.aborted || response.ok) throw error
+      return { response, json: undefined }
+    }
+  }, fetchImpl)
 }

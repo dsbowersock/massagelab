@@ -42,6 +42,11 @@ import {
   type AnatomimeTermState,
 } from "./anatomime-room-rules.ts"
 import type { AnatomyStudyCard } from "./anatomy-study.ts"
+import {
+  AnatomimeTrafficLimitError,
+  coalesceAnatomimePlayerPresence,
+  normalizeAnatomimeRoomIdentifier,
+} from "./anatomime-traffic-server.ts"
 import { prisma } from "./prisma.ts"
 
 export const roomInclude = {
@@ -70,6 +75,9 @@ export const roomInclude = {
 
 export type AnatomimeRoomWithRelations = Prisma.AnatomimeRoomGetPayload<{ include: typeof roomInclude }>
 
+export type AnatomimePersistGuard = () => Promise<void>
+export type AnatomimeRoomResolveGuard = (room: AnatomimeRoomWithRelations) => Promise<void> | void
+
 type AnatomimeRunWithRelations = NonNullable<AnatomimeRoomWithRelations["currentRun"]>
 type TermOutcomeRow = {
   cardId: string
@@ -88,6 +96,14 @@ class StaleRoomMutationError extends Error {
   constructor() {
     super("Anatomime room changed before the transition could be applied.")
     this.name = "StaleRoomMutationError"
+  }
+}
+
+/** Rolls back a lost idle-expiration write before its winner is reread. */
+class ExpirationWriteConflictError extends Error {
+  constructor() {
+    super("Anatomime room expiration changed before commit.")
+    this.name = "ExpirationWriteConflictError"
   }
 }
 
@@ -119,10 +135,6 @@ function addSeconds(date: Date, seconds: number) {
 
 function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60 * 1000)
-}
-
-function publicCode(value: string) {
-  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
 }
 
 async function generateUniqueRoomCode() {
@@ -277,6 +289,63 @@ function playerTokenMatches(player: { guestTokenHash: string | null }, token?: s
   return Boolean(token && player.guestTokenHash && hashToken(token) === player.guestTokenHash)
 }
 
+/**
+ * Resolves join credentials, room admission, and team availability from one
+ * immutable room snapshot and one clock value. Both the read-only preflight
+ * and transactional revalidation use this resolver so their decisions cannot
+ * drift while the database transaction remains authoritative.
+ */
+function resolveAnatomimeJoinAdmission({
+  room,
+  userId,
+  suppliedPlayerId,
+  suppliedToken,
+  hasSuppliedPlayerCredentials,
+  requestedTeamId,
+  now,
+}: {
+  room: AnatomimeRoomWithRelations
+  userId?: string | null
+  suppliedPlayerId: string
+  suppliedToken: string
+  hasSuppliedPlayerCredentials: boolean
+  requestedTeamId: string
+  now: Date
+}) {
+  const existingSignedInPlayer = userId ? room.players.find((player) => player.userId === userId) : null
+  const selectedPlayer = suppliedPlayerId
+    ? room.players.find((player) => player.id === suppliedPlayerId)
+    : null
+  const existingGuestPlayer = selectedPlayer?.userId === null && playerTokenMatches(selectedPlayer, suppliedToken)
+    ? selectedPlayer
+    : null
+  if (!existingSignedInPlayer && hasSuppliedPlayerCredentials && !existingGuestPlayer) {
+    throw roomError(403, "join-required", "Join this room before taking that action.")
+  }
+
+  const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
+  const joinStatus = canJoinRoom(
+    {
+      status: room.status,
+      endedAt: room.endedAt,
+      reviewExpiresAt: room.reviewExpiresAt,
+      expiresAt: room.expiresAt,
+      existingPlayerIds: room.players.map((player) => player.id),
+    },
+    { now, playerId: existingPlayer?.id ?? null },
+  )
+  if (!joinStatus.allowed) throw roomError(409, joinStatus.reason, "This room is no longer accepting new joins.")
+
+  const requestedTeam = room.teams.find((team) => team.id === requestedTeamId)
+  const fallbackTeam = room.teams[0] ?? null
+  const nextTeamId = requestedTeam?.id ?? fallbackTeam?.id ?? null
+  if (!existingPlayer && !nextTeamId) {
+    throw roomError(409, "no-teams", "This room has no available teams.")
+  }
+
+  return { existingPlayer, nextTeamId }
+}
+
 function viewerPlayer(room: AnatomimeRoomWithRelations, viewer: ViewerContext = {}) {
   if (viewer.userId) {
     const playerByUser = room.players.find((player) => player.userId === viewer.userId)
@@ -284,7 +353,11 @@ function viewerPlayer(room: AnatomimeRoomWithRelations, viewer: ViewerContext = 
   }
 
   if (viewer.playerId) {
-    const byToken = room.players.find((player) => player.id === viewer.playerId && playerTokenMatches(player, viewer.playerToken))
+    const byToken = room.players.find((player) => (
+      player.id === viewer.playerId
+      && player.userId === null
+      && playerTokenMatches(player, viewer.playerToken)
+    ))
     if (byToken) return byToken
   }
 
@@ -493,56 +566,97 @@ async function loadLockedTurnReviewRoom(
   return { room: currentRoom, run: currentRun }
 }
 
-async function expireRoomIfIdle(room: AnatomimeRoomWithRelations) {
-  const now = new Date()
+async function expireRoomIfIdle(
+  room: AnatomimeRoomWithRelations,
+  now = new Date(),
+): Promise<AnatomimeRoomWithRelations> {
   if (room.status === "EXPIRED" || room.expiresAt.getTime() > now.getTime()) return room
 
-  return prisma.$transaction(async (tx) => {
-    const expired = await tx.anatomimeRoom.updateMany({
-      where: {
-        id: room.id,
-        status: { not: "EXPIRED" },
-        expiresAt: { lte: now },
-      },
-      data: { status: "EXPIRED" },
-    })
-    if (expired.count === 0) return reloadRoom(tx, room.id)
+  try {
+    return await prisma.$transaction(async (tx) => {
+      if (room.currentRun && room.currentRun.status === "PLAYING") {
+        const completed = await tx.anatomimeGameRun.updateMany({
+          where: { roomId: room.id, id: room.currentRun.id, status: "PLAYING" },
+          data: {
+            status: "GAME_COMPLETE",
+            phase: "GAME_COMPLETE",
+            termEndsAt: null,
+            completedAt: now,
+          },
+        })
+        if (completed.count === 0) throw new ExpirationWriteConflictError()
 
-    const currentRoom = await reloadRoom(tx, room.id)
-    if (currentRoom.currentRun && currentRoom.currentRun.status === "PLAYING") {
-      await tx.anatomimeGameRun.updateMany({
-        where: { roomId: currentRoom.id, id: currentRoom.currentRun.id, status: "PLAYING" },
-        data: {
-          status: "GAME_COMPLETE",
-          phase: "GAME_COMPLETE",
-          termEndsAt: null,
-          completedAt: now,
+        const expired = await tx.anatomimeRoom.updateMany({
+          where: {
+            id: room.id,
+            status: { not: "EXPIRED" },
+            expiresAt: { lte: now },
+          },
+          data: { status: "EXPIRED" },
+        })
+        // Keep the GameRun -> Room lock order used by normal transitions. A
+        // lost write rolls this transaction back before the winner is reread.
+        if (expired.count === 0) throw new ExpirationWriteConflictError()
+
+        return {
+          ...room,
+          status: "EXPIRED",
+          currentRun: {
+            ...room.currentRun,
+            status: "GAME_COMPLETE",
+            phase: "GAME_COMPLETE",
+            termEndsAt: null,
+            completedAt: now,
+          },
+        }
+      }
+
+      const expired = await tx.anatomimeRoom.updateMany({
+        where: {
+          id: room.id,
+          status: { not: "EXPIRED" },
+          expiresAt: { lte: now },
         },
+        data: { status: "EXPIRED" },
       })
-    }
+      if (expired.count === 0) throw new ExpirationWriteConflictError()
 
-    return reloadRoom(tx, currentRoom.id)
-  })
+      return { ...room, status: "EXPIRED" }
+    })
+  } catch (error) {
+    if (!(error instanceof ExpirationWriteConflictError)) throw error
+    const concurrentRoom = await prisma.anatomimeRoom.findUnique({
+      where: { id: room.id },
+      include: roomInclude,
+    })
+    // The reread is authoritative only when the winner either expired the room
+    // or moved its deadline forward; an arbitrary active-but-overdue graph is ambiguous.
+    if (concurrentRoom && (
+      concurrentRoom.status === "EXPIRED"
+      || concurrentRoom.expiresAt.getTime() > now.getTime()
+    )) return concurrentRoom
+    throw new AnatomimeTrafficLimitError(503)
+  }
 }
 
-async function markViewerSeen(room: AnatomimeRoomWithRelations, viewer: ViewerContext = {}) {
+async function markViewerSeen(room: AnatomimeRoomWithRelations, viewer: ViewerContext = {}, now = new Date()) {
   const player = viewerPlayer(room, viewer)
   if (!player) return room
 
-  await prisma.anatomimeRoomPlayer.update({
-    where: {
-      roomId_id: {
-        roomId: room.id,
-        id: player.id,
-      },
-    },
-    data: { lastSeenAt: new Date() },
+  const presenceAt = await coalesceAnatomimePlayerPresence({
+    roomId: room.id,
+    playerId: player.id,
+    lastSeenAt: player.lastSeenAt,
+    now,
   })
+  if (!presenceAt) return room
 
-  return await prisma.anatomimeRoom.findUnique({
-    where: { id: room.id },
-    include: roomInclude,
-  }) ?? room
+  return {
+    ...room,
+    players: room.players.map((candidate) => (
+      candidate.id === player.id ? { ...candidate, lastSeenAt: presenceAt } : candidate
+    )),
+  }
 }
 
 async function createRunScores(tx: Prisma.TransactionClient, room: AnatomimeRoomWithRelations, runId: string) {
@@ -840,7 +954,11 @@ function recapRows(room: AnatomimeRoomWithRelations) {
  * Returns the hydrated room plus the one-time host token; requires a playable
  * four-term deck before any database rows are created.
  */
-export async function createAnatomimeRoom(input: unknown, hostUserId?: string | null) {
+export async function createAnatomimeRoom(
+  input: unknown,
+  hostUserId?: string | null,
+  options: { beforePersist?: AnatomimePersistGuard } = {},
+) {
   const config = normalizeAnatomimeSessionConfig(input)
   const minimumDeck = createAnatomimeSessionDeck(config)
   if (minimumDeck.length < ANATOMIME_TERMS_PER_TURN) {
@@ -855,6 +973,8 @@ export async function createAnatomimeRoom(input: unknown, hostUserId?: string | 
     roundSeconds: ANATOMIME_TERM_SECONDS,
     stealSeconds: 0,
   }
+  await options.beforePersist?.()
+
   const code = await generateUniqueRoomCode()
   const hostToken = generateRandomToken(18)
   const now = new Date()
@@ -894,17 +1014,27 @@ export async function createAnatomimeRoom(input: unknown, hostUserId?: string | 
 
 /**
  * Loads a room by public code, applies idle expiration, and refreshes the
- * viewer's last-seen timestamp when their player credentials match.
+ * viewer's last-seen timestamp when their player credentials match. The
+ * optional guard sees that same loaded snapshot before expiration or presence
+ * writes, allowing poll validation and charging without a second room read.
  */
-export async function loadAnatomimeRoom(code: string, viewer: ViewerContext = {}) {
+export async function loadAnatomimeRoom(
+  code: string,
+  viewer: ViewerContext = {},
+  options: { now?: Date; beforeResolve?: AnatomimeRoomResolveGuard } = {},
+) {
   const room = await prisma.anatomimeRoom.findUnique({
-    where: { code: publicCode(code) },
+    where: { code: normalizeAnatomimeRoomIdentifier(code) },
     include: roomInclude,
   })
   if (!room) return null
+  await options.beforeResolve?.(room)
 
-  const currentRoom = await expireRoomIfIdle(room)
-  return markViewerSeen(currentRoom, viewer)
+  // Explicit test clocks remain exact; normal runtime time is captured after hydration.
+  const now = options.now ?? new Date()
+  const currentRoom = await expireRoomIfIdle(room, now)
+  if (currentRoom.status === "EXPIRED") return currentRoom
+  return markViewerSeen(currentRoom, viewer, now)
 }
 
 /**
@@ -912,8 +1042,17 @@ export async function loadAnatomimeRoom(code: string, viewer: ViewerContext = {}
  * Team assignment is mutable only before play starts, and review rooms only
  * admit players who were already present.
  */
-export async function joinAnatomimeRoom(code: string, input: unknown, userId?: string | null) {
-  const room = await loadAnatomimeRoom(code)
+export async function joinAnatomimeRoom(
+  code: string,
+  input: unknown,
+  userId?: string | null,
+  options: { beforePersist?: AnatomimePersistGuard } = {},
+) {
+  // Admission validation must stay read-only until the operational guard allows persistence.
+  const room = await prisma.anatomimeRoom.findUnique({
+    where: { code: normalizeAnatomimeRoomIdentifier(code) },
+    include: roomInclude,
+  })
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
 
   const body = objectBody(input)
@@ -921,49 +1060,74 @@ export async function joinAnatomimeRoom(code: string, input: unknown, userId?: s
   const requestedTeamId = typeof body.teamId === "string" ? body.teamId : ""
   const suppliedPlayerId = typeof body.playerId === "string" ? body.playerId : ""
   const suppliedToken = typeof body.playerToken === "string" ? body.playerToken : ""
+  const hasSuppliedPlayerCredentials = Object.hasOwn(body, "playerId") || Object.hasOwn(body, "playerToken")
+  const validationNow = new Date()
+
+  resolveAnatomimeJoinAdmission({
+    room,
+    userId,
+    suppliedPlayerId,
+    suppliedToken,
+    hasSuppliedPlayerCredentials,
+    requestedTeamId,
+    now: validationNow,
+  })
+
+  await options.beforePersist?.()
+
   const token = generateRandomToken(18)
   const tokenHash = hashToken(token)
-  const now = new Date()
 
   const updatedRoom = await prisma.$transaction(async (tx) => {
     const currentRoom = await reloadRoom(tx, room.id)
-    const existingSignedInPlayer = userId ? currentRoom.players.find((player) => player.userId === userId) : null
-    const existingGuestPlayer = suppliedPlayerId
-      ? currentRoom.players.find((player) => player.id === suppliedPlayerId && playerTokenMatches(player, suppliedToken))
-      : null
-    const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
-    const joinStatus = canJoinRoom(
-      {
-        status: currentRoom.status,
-        endedAt: currentRoom.endedAt,
-        reviewExpiresAt: currentRoom.reviewExpiresAt,
-        expiresAt: currentRoom.expiresAt,
-        existingPlayerIds: currentRoom.players.map((player) => player.id),
-      },
-      { now, playerId: existingPlayer?.id ?? null },
-    )
-    if (!joinStatus.allowed) throw roomError(409, joinStatus.reason, "This room is no longer accepting new joins.")
-
-    const requestedTeam = currentRoom.teams.find((team) => team.id === requestedTeamId)
-    const fallbackTeam = currentRoom.teams[0] ?? null
-    const nextTeamId = requestedTeam?.id ?? fallbackTeam?.id ?? null
+    const transactionNow = new Date()
+    const { existingPlayer, nextTeamId } = resolveAnatomimeJoinAdmission({
+      room: currentRoom,
+      userId,
+      suppliedPlayerId,
+      suppliedToken,
+      hasSuppliedPlayerCredentials,
+      requestedTeamId,
+      now: transactionNow,
+    })
 
     if (existingPlayer) {
-      await tx.anatomimeRoomPlayer.update({
-        where: {
-          roomId_id: {
+      const playerUpdate = {
+        // A token-proven guest may be claimed by the signed-in account in
+        // this same credential-rotation write. Existing bindings never move.
+        userId: existingPlayer.userId ?? userId ?? null,
+        displayName: existingPlayer.id === currentRoom.hostPlayerId ? existingPlayer.displayName : displayName,
+        teamId: existingPlayer.id === currentRoom.hostPlayerId || currentRoom.status === "PLAYING" ? existingPlayer.teamId : nextTeamId,
+        guestTokenHash: tokenHash,
+        lastSeenAt: transactionNow,
+        lastActionAt: transactionNow,
+      }
+      if (existingPlayer.userId === null) {
+        // Recheck the opaque credential in the write predicate: concurrent
+        // transactions may both have loaded the same still-unclaimed snapshot.
+        const claimedPlayer = await tx.anatomimeRoomPlayer.updateMany({
+          where: {
             roomId: currentRoom.id,
             id: existingPlayer.id,
+            userId: null,
+            guestTokenHash: hashToken(suppliedToken),
           },
-        },
-        data: {
-          displayName: existingPlayer.id === currentRoom.hostPlayerId ? existingPlayer.displayName : displayName,
-          teamId: existingPlayer.id === currentRoom.hostPlayerId || currentRoom.status === "PLAYING" ? existingPlayer.teamId : nextTeamId,
-          guestTokenHash: tokenHash,
-          lastSeenAt: now,
-          lastActionAt: now,
-        },
-      })
+          data: playerUpdate,
+        })
+        if (claimedPlayer.count !== 1) {
+          throw roomError(403, "join-required", "Join this room before taking that action.")
+        }
+      } else {
+        await tx.anatomimeRoomPlayer.update({
+          where: {
+            roomId_id: {
+              roomId: currentRoom.id,
+              id: existingPlayer.id,
+            },
+          },
+          data: playerUpdate,
+        })
+      }
     } else {
       if (!nextTeamId) throw roomError(409, "no-teams", "This room has no available teams.")
 
@@ -981,13 +1145,13 @@ export async function joinAnatomimeRoom(code: string, input: unknown, userId?: s
             userId,
             displayName,
             guestTokenHash: tokenHash,
-            lastSeenAt: now,
-            lastActionAt: now,
+            lastSeenAt: transactionNow,
+            lastActionAt: transactionNow,
           },
           update: {
             guestTokenHash: tokenHash,
-            lastSeenAt: now,
-            lastActionAt: now,
+            lastSeenAt: transactionNow,
+            lastActionAt: transactionNow,
           },
         })
       } else {
@@ -998,14 +1162,14 @@ export async function joinAnatomimeRoom(code: string, input: unknown, userId?: s
             userId: null,
             displayName,
             guestTokenHash: tokenHash,
-            lastSeenAt: now,
-            lastActionAt: now,
+            lastSeenAt: transactionNow,
+            lastActionAt: transactionNow,
           },
         })
       }
     }
 
-    return touchRoom(tx, currentRoom.id, { lastMeaningfulActivityAt: now })
+    return touchRoom(tx, currentRoom.id, { lastMeaningfulActivityAt: transactionNow })
   })
   const player = userId
     ? updatedRoom.players.find((candidate) => candidate.userId === userId)

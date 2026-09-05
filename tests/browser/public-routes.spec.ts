@@ -1811,14 +1811,15 @@ test("first station Play activation stays hidden before carousel readiness", asy
   })
 
   try {
-    // Commit returns once the document response begins, allowing the streamed
-    // server markup to expose the real pre-hydration carousel state while its
-    // own client bundle remains behind the deterministic route gate above.
+    // Commit returns once the document response begins. With the carousel
+    // bundle held, Next legitimately keeps this segment behind the root route
+    // loading boundary, where no station action may be activated.
     await page.goto("/music", { waitUntil: "commit" })
     await expect.poll(() => carouselBundleHeld).toBe(true)
+    await expect(page.getByRole("status").filter({ hasText: /^Loading page$/ })).toBeVisible()
     const carousel = page.getByRole("region", { name: "Station carousel" })
-    await expect(carousel).toHaveAttribute("data-carousel-ready", "false")
-    await expect(carousel.locator("[data-carousel-primary-action]").first()).toHaveCSS("visibility", "hidden")
+    await expect(carousel).toHaveCount(0)
+    await expect(page.locator("[data-carousel-primary-action]")).toHaveCount(0)
 
     releaseCarouselBundle()
     await expect(carousel).toHaveAttribute("data-carousel-ready", "true")

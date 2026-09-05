@@ -1,12 +1,25 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { LogIn, RotateCcw, Send, Users } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
 import { AnatomimeActionButton } from "./anatomime-action-button"
+import { fetchJsonResponseWithTimeout, fetchJsonWithTimeout } from "@/lib/client-fetch"
+import {
+  ANATOMIME_ACTION_REQUEST_TIMEOUT_MS,
+  ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS,
+  ANATOMIME_RATE_LIMITED_POLL_STATUS,
+  ANATOMIME_REALTIME_SETUP_TIMEOUT_MS,
+  anatomimeActionRetryAfterSeconds,
+  fetchAnatomimeRoomSnapshot,
+  nextAnatomimePollSchedule,
+  nextAnatomimeVisibilitySchedule,
+  waitForAnatomimeRealtimeScript,
+  type AnatomimeRoomFetchResult,
+} from "./anatomime-polling"
 import type { AnatomimeRoomSummary } from "./shared-session-types"
 import "./styles.css"
 
@@ -57,8 +70,13 @@ const feedbackCopy: Record<string, string> = {
   "practice-correct": "Correct for practice.",
 }
 
+/** Keeps every browser-side room identity aligned with the server's canonical room code. */
+export function normalizeAnatomimeClientRoomCode(value: string) {
+  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6)
+}
+
 function storageKey(code: string) {
-  return `massagelab-anatomime-player:${code.toUpperCase()}`
+  return `massagelab-anatomime-player:${normalizeAnatomimeClientRoomCode(code)}`
 }
 
 function readStoredPlayer(code: string): StoredPlayer | null {
@@ -120,47 +138,41 @@ function playerName(session: AnatomimeRoomSummary, playerId: string) {
  * Loads the browser Ably SDK once for shared-session updates. It falls back to
  * polling when the script or realtime token is unavailable.
  */
-function ablyScript() {
-  return new Promise<void>((resolve, reject) => {
-    if (window.Ably) {
-      resolve()
-      return
-    }
+function ablyScript(signal: AbortSignal) {
+  if (signal.aborted) {
+    return Promise.reject(signal.reason ?? new DOMException("Aborted", "AbortError"))
+  }
+  if (window.Ably) return Promise.resolve()
 
-    const existing = document.querySelector<HTMLScriptElement>("script[data-anatomime-ably]")
-    if (existing) {
-      const status = existing.getAttribute("data-anatomime-ably-status")
-      if (status === "loaded") {
-        resolve()
-        return
-      }
-      if (status === "error") {
-        existing.remove()
-      } else {
-        existing.addEventListener("load", () => resolve(), { once: true })
-        existing.addEventListener("error", reject, { once: true })
-        return
-      }
+  const existing = document.querySelector<HTMLScriptElement>("script[data-anatomime-ably]")
+  if (existing) {
+    const status = existing.getAttribute("data-anatomime-ably-status")
+    if (status === "loaded") return Promise.resolve()
+    if (status === "error") {
+      existing.remove()
+    } else {
+      return waitForAnatomimeRealtimeScript(existing, signal)
     }
+  }
 
-    const script = document.createElement("script")
-    script.src = "https://cdn.ably.com/lib/ably.min-2.js"
-    script.async = true
-    script.dataset.anatomimeAbly = "true"
-    script.onload = () => {
-      script.setAttribute("data-anatomime-ably-status", "loaded")
-      resolve()
-    }
-    script.onerror = (event) => {
-      script.setAttribute("data-anatomime-ably-status", "error")
-      reject(event)
-    }
-    document.head.appendChild(script)
-  })
+  const script = document.createElement("script")
+  script.src = "https://cdn.ably.com/lib/ably.min-2.js"
+  script.async = true
+  script.dataset.anatomimeAbly = "true"
+  // Shared metadata follows the script itself; caller cancellation only settles its waiter.
+  script.addEventListener("load", () => {
+    script.setAttribute("data-anatomime-ably-status", "loaded")
+  }, { once: true })
+  script.addEventListener("error", () => {
+    script.setAttribute("data-anatomime-ably-status", "error")
+  }, { once: true })
+  const ready = waitForAnatomimeRealtimeScript(script, signal)
+  document.head.appendChild(script)
+  return ready
 }
 
 export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode?: string }) {
-  const normalizedInitialCode = initialCode.trim().toUpperCase()
+  const normalizedInitialCode = normalizeAnatomimeClientRoomCode(initialCode)
   const [code, setCode] = useState(normalizedInitialCode)
   const [lookupCode, setLookupCode] = useState(normalizedInitialCode)
   const [displayName, setDisplayName] = useState("")
@@ -169,11 +181,20 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   const [storedPlayerRecord, setStoredPlayerRecord] = useState<StoredPlayerRecord>({ code: "", player: null })
   const [session, setSession] = useState<AnatomimeRoomSummary | null>(null)
   const [message, setMessage] = useState("")
+  const [pollStatus, setPollStatus] = useState("")
+  const [initialLookupPending, setInitialLookupPending] = useState(Boolean(normalizedInitialCode))
+  const [pollTerminal, setPollTerminal] = useState<"ROOM_ENDED" | "REJOIN_REQUIRED" | null>(null)
+  const [joiningGame, setJoiningGame] = useState(false)
+  const [joinRetryUntil, setJoinRetryUntil] = useState(0)
   const [attemptsByTerm, setAttemptsByTerm] = useState<Record<string, TermAttemptState>>({})
   const [rankedPlayerIds, setRankedPlayerIds] = useState<string[]>([])
   const [now, setNow] = useState(Date.now())
+  const joinInFlightRef = useRef(false)
+  const pollWakeRef = useRef<() => boolean>(() => false)
   const storedPlayerReady = !lookupCode || storedPlayerRecord.code === lookupCode
   const storedPlayer = storedPlayerReady ? storedPlayerRecord.player : null
+  const storedPlayerId = storedPlayer?.playerId
+  const storedPlayerToken = storedPlayer?.playerToken
 
   useEffect(() => {
     setStoredPlayerRecord({
@@ -182,70 +203,155 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     })
   }, [lookupCode])
 
-  const playerQuery = useMemo(() => {
-    if (!storedPlayer) return ""
-    return `?playerId=${encodeURIComponent(storedPlayer.playerId)}`
-  }, [storedPlayer])
-
-  const playerHeaders = useMemo(() => (
-    storedPlayer
-      ? {
-        "x-anatomime-player-id": storedPlayer.playerId,
-        "x-anatomime-player-token": storedPlayer.playerToken,
-      }
-      : undefined
-  ), [storedPlayer])
   const visibleRankedPlayerIds = useMemo(() => {
     const allowed = new Set(session?.hostElection?.candidatePlayerIds ?? [])
     return rankedPlayerIds.filter((playerId) => allowed.has(playerId))
   }, [rankedPlayerIds, session?.hostElection?.candidatePlayerIds])
 
-  const refreshSession = useCallback(async () => {
+  // Poll lifecycle orchestration stays player-local because startup, credentials, state publication,
+  // terminal handling, and wake contracts differ from the host owner.
+  // Only pure transport and scheduling policy is shared through anatomime-polling.ts.
+  useEffect(() => {
     if (!lookupCode || !storedPlayerReady) return
+    let cancelled = false
+    let stopped = false
+    let inFlight = false
+    let timer: number | null = null
+    let controller: AbortController | null = null
+    let consecutiveFailures = 0
+    let latestScheduledResult: AnatomimeRoomFetchResult | null = null
+    const credentials = storedPlayerId !== undefined && storedPlayerToken !== undefined
+      ? { playerId: storedPlayerId, token: storedPlayerToken }
+      : undefined
 
-    try {
-      const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}${playerQuery}`, {
-        cache: "no-store",
-        headers: playerHeaders,
+    function armPoll(delayMs: number) {
+      if (timer !== null) window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        timer = null
+        void poll()
+      }, delayMs)
+    }
+
+    async function poll() {
+      if (cancelled || stopped || inFlight) return
+      inFlight = true
+      controller = new AbortController()
+      const result = await fetchAnatomimeRoomSnapshot({
+        code: lookupCode,
+        credentials,
+        signal: controller.signal,
       })
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        setMessage(payload.error ?? "Game not found.")
-        setSession(null)
+      inFlight = false
+      if (cancelled || controller.signal.aborted) return
+
+      // Only the first lookup owns visible loading UI; scheduled background polls stay quiet.
+      setInitialLookupPending(false)
+      if (result.kind === "SUCCESS") {
+        setSession(result.session)
+        setSelectedTeamId((current) => (
+          current || result.session.viewer.teamId || result.session.teams[0]?.id || ""
+        ))
+        setPollStatus("")
+        setPollTerminal(null)
+      }
+
+      const schedule = nextAnatomimePollSchedule({
+        result,
+        roomStatus: result.kind === "SUCCESS" ? result.session.status : undefined,
+        roomPhase: result.kind === "SUCCESS" ? result.session.phase : undefined,
+        documentHidden: document.visibilityState === "hidden",
+        consecutiveFailures,
+      })
+      if (schedule.action === "STOP") {
+        stopped = true
+        setPollTerminal(schedule.reason)
+        setPollStatus(schedule.reason === "ROOM_ENDED"
+          ? "This shared game has ended or is no longer available."
+          : "Your saved player pass is no longer valid. Rejoin to continue.")
         return
       }
 
-      setSession(payload.session)
-      setSelectedTeamId((current) => current || payload.session?.viewer?.teamId || payload.session?.teams?.[0]?.id || "")
-      setMessage("")
-    } catch {
-      setMessage("Could not refresh game.")
-      setSession(null)
+      consecutiveFailures = schedule.consecutiveFailures
+      latestScheduledResult = result
+      if (result.kind === "RATE_LIMITED") {
+        setPollStatus(ANATOMIME_RATE_LIMITED_POLL_STATUS)
+      } else if (result.kind === "FAILED") {
+        setPollStatus("Connection interrupted. Updates will retry automatically.")
+      }
+      armPoll(schedule.delayMs)
     }
-  }, [lookupCode, playerHeaders, playerQuery, storedPlayerReady])
+
+    const wakePoll = () => {
+      if (cancelled || stopped || inFlight || timer === null || !latestScheduledResult || latestScheduledResult.kind === "RATE_LIMITED") return false
+      window.clearTimeout(timer)
+      timer = null
+      void poll()
+      return true
+    }
+    const onVisibilityChange = () => {
+      if (cancelled || stopped || inFlight || timer === null) return
+      const schedule = nextAnatomimeVisibilitySchedule({
+        result: latestScheduledResult,
+        documentHidden: document.visibilityState === "hidden",
+      })
+      if (!schedule || schedule.action !== "SCHEDULE") return
+      armPoll(schedule.delayMs)
+    }
+    pollWakeRef.current = wakePoll
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    void poll()
+
+    return () => {
+      cancelled = true
+      if (timer !== null) window.clearTimeout(timer)
+      controller?.abort()
+      document.removeEventListener("visibilitychange", onVisibilityChange)
+      if (pollWakeRef.current === wakePoll) pollWakeRef.current = () => false
+    }
+  }, [lookupCode, storedPlayerId, storedPlayerReady, storedPlayerToken])
 
   useEffect(() => {
-    void refreshSession()
-  }, [refreshSession])
-
-  useEffect(() => {
-    if (!lookupCode || !storedPlayer) return
-    const realtimePlayer = storedPlayer
+    if (
+      !lookupCode
+      || storedPlayerId === undefined
+      || storedPlayerToken === undefined
+      || pollTerminal
+    ) return
+    const realtimePlayerId = storedPlayerId
+    const realtimePlayerToken = storedPlayerToken
     let cancelled = false
     let ablyClient: AblyRealtimeClient | null = null
-    let fallbackTimer: number | null = null
+    const controller = new AbortController()
+    let setupTimer: number | null = window.setTimeout(() => {
+      controller.abort(new DOMException("Realtime setup timed out.", "TimeoutError"))
+    }, ANATOMIME_REALTIME_SETUP_TIMEOUT_MS)
+
+    const clearSetupTimer = () => {
+      if (setupTimer === null) return
+      window.clearTimeout(setupTimer)
+      setupTimer = null
+    }
 
     async function connectRealtime() {
       try {
-        const tokenResponse = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/realtime-token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ clientId: realtimePlayer.playerId }),
-        })
+        const { response: tokenResponse, json: tokenRequest } = await fetchJsonWithTimeout(
+          `/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/realtime-token`,
+          {
+            method: "POST",
+            headers: {
+              "x-anatomime-player-id": realtimePlayerId,
+              "x-anatomime-player-token": realtimePlayerToken,
+            },
+            signal: controller.signal,
+          },
+          ANATOMIME_REALTIME_SETUP_TIMEOUT_MS,
+        )
         if (!tokenResponse.ok) throw new Error("Realtime unavailable")
-        const tokenRequest = await tokenResponse.json()
-        await ablyScript()
-        if (cancelled || !window.Ably) return
+        if (cancelled) return
+        await ablyScript(controller.signal)
+        if (cancelled) return
+        if (controller.signal.aborted) throw controller.signal.reason
+        if (!window.Ably) throw new Error("Realtime unavailable")
 
         ablyClient = new window.Ably.Realtime({
           authCallback(_tokenParams, callback) {
@@ -254,12 +360,12 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
         })
         const channel = ablyClient.channels.get(`anatomime:${lookupCode}`)
         channel.subscribe(() => {
-          void refreshSession()
+          pollWakeRef.current()
         })
       } catch {
-        fallbackTimer = window.setInterval(() => {
-          void refreshSession()
-        }, 1500)
+        if (!cancelled) setPollStatus((current) => current || "Live updates are unavailable. Automatic refresh is active.")
+      } finally {
+        clearSetupTimer()
       }
     }
 
@@ -267,29 +373,23 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
 
     return () => {
       cancelled = true
-      if (fallbackTimer) window.clearInterval(fallbackTimer)
+      controller.abort(new DOMException("Realtime setup cancelled.", "AbortError"))
+      clearSetupTimer()
       ablyClient?.close()
     }
-  }, [lookupCode, refreshSession, storedPlayer])
+  }, [lookupCode, pollTerminal, storedPlayerId, storedPlayerToken])
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 500)
     return () => window.clearInterval(timer)
   }, [])
 
-  useEffect(() => {
-    if (!lookupCode || !session?.phaseEndsAt) return
-    const delay = Math.max(500, new Date(session.phaseEndsAt).getTime() - Date.now() + 300)
-    const timer = window.setTimeout(() => {
-      void refreshSession()
-    }, delay)
-
-    return () => window.clearTimeout(timer)
-  }, [lookupCode, refreshSession, session?.phaseEndsAt])
-
   const termKey = activeTermKey(session)
   const attempt = attemptsByTerm[termKey] ?? emptyAttempt()
   const joined = Boolean(storedPlayer && session?.viewer.playerId)
+  const showCodeEntry = !lookupCode || (!initialLookupPending && !session && !pollTerminal)
+  const joinRetrySeconds = Math.max(0, Math.ceil((joinRetryUntil - now) / 1_000))
+  const joinLocked = joiningGame || joinRetrySeconds > 0
   const activeTeamName = session?.activeTeam?.name ?? ""
   const myTeam = session?.teams.find((team) => team.id === session.viewer.teamId || team.id === storedPlayer?.teamId)
   const me = currentPlayer(session)
@@ -340,9 +440,10 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     session.activeItem.choices.length === 4,
   )
   const joinGame = async () => {
-    const nextLookupCode = lookupCode || code.trim().toUpperCase()
+    if (joinInFlightRef.current || joiningGame || Date.now() < joinRetryUntil) return
+    const nextLookupCode = lookupCode || normalizeAnatomimeClientRoomCode(code)
     if (!nextLookupCode) {
-      setLookupCode(code.trim().toUpperCase())
+      setLookupCode(normalizeAnatomimeClientRoomCode(code))
       return
     }
     if (!displayName.trim()) {
@@ -350,20 +451,36 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       return
     }
 
+    joinInFlightRef.current = true
+    setJoiningGame(true)
     try {
-      const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(nextLookupCode)}/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          displayName,
-          teamId: selectedTeamId || session?.teams[0]?.id,
-        }),
-      })
-      const payload = await response.json().catch(() => ({}))
+      const { response, json: payload } = await fetchJsonResponseWithTimeout<{
+        error?: string
+        player: { id: string; token: string; teamId: string | null }
+        session: AnatomimeRoomSummary
+      }>(
+        `/api/anatomime/sessions/${encodeURIComponent(nextLookupCode)}/join`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            displayName,
+            teamId: selectedTeamId || session?.teams[0]?.id,
+          }),
+        },
+        ANATOMIME_ACTION_REQUEST_TIMEOUT_MS,
+      )
       if (!response.ok) {
-        setMessage(payload.error ?? "Could not join game.")
+        if (response.status === 429) {
+          const retrySeconds = anatomimeActionRetryAfterSeconds(response)
+          const current = Date.now()
+          setNow(current)
+          setJoinRetryUntil(current + retrySeconds * 1_000)
+        }
+        setMessage(payload?.error ?? "Could not join game.")
         return
       }
+      if (!payload) throw new Error("Shared game join returned no JSON payload.")
 
       const player = {
         playerId: payload.player.id,
@@ -375,9 +492,18 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       setLookupCode(nextLookupCode)
       setStoredPlayerRecord({ code: nextLookupCode, player })
       setSession(payload.session)
+      setJoinRetryUntil(0)
+      setPollTerminal(null)
+      setPollStatus("")
       setMessage("")
     } catch {
-      setMessage("Could not join game.")
+      const current = Date.now()
+      setNow(current)
+      setJoinRetryUntil(current + ANATOMIME_ACTION_RETRY_FALLBACK_SECONDS * 1_000)
+      setMessage("We could not confirm whether you joined the game. Wait briefly, then retry manually; retrying may add another guest.")
+    } finally {
+      joinInFlightRef.current = false
+      setJoiningGame(false)
     }
   }
 
@@ -522,7 +648,40 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     if (lookupCode) removeStoredPlayer(lookupCode)
     setStoredPlayerRecord({ code: lookupCode, player: null })
     setSelectedTeamId(session?.teams[0]?.id ?? "")
+    setPollTerminal(null)
+    setPollStatus("")
     setMessage("")
+  }
+
+  const findGame = () => {
+    const nextLookupCode = normalizeAnatomimeClientRoomCode(code)
+    if (!nextLookupCode) {
+      setMessage("Enter a game code.")
+      return
+    }
+    setMessage("")
+    setPollTerminal(null)
+    if (nextLookupCode === lookupCode) {
+      // Reuse the active owner so a manual retry does not depend on a state
+      // change; its boolean preserves a still-active Retry-After cooldown.
+      if (pollWakeRef.current()) {
+        setPollStatus("")
+        setInitialLookupPending(true)
+      }
+      return
+    }
+    setPollStatus("")
+    setInitialLookupPending(Boolean(nextLookupCode))
+    setLookupCode(nextLookupCode)
+  }
+
+  const leaveEndedRoom = () => {
+    setLookupCode("")
+    setCode("")
+    setSession(null)
+    setPollTerminal(null)
+    setPollStatus("")
+    setInitialLookupPending(false)
   }
 
   return (
@@ -541,9 +700,44 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
           </div>
         </header>
 
-        {message ? <div className="anatomime-message" role="status">{message}</div> : null}
+        {message ? <div className="anatomime-message" role="status" aria-live="polite">{message}</div> : null}
+        <div className={pollStatus ? "anatomime-message" : "anatomime-poll-status"} role="status" aria-live="polite">
+          {pollStatus}
+        </div>
 
-        {!lookupCode ? (
+        {lookupCode && initialLookupPending && !session && !pollTerminal ? (
+          <section className="anatomime-panel" aria-busy="true">
+            <div className="anatomime-message" role="status" aria-live="polite">
+              Loading shared game…
+            </div>
+          </section>
+        ) : null}
+
+        {lookupCode && pollTerminal ? (
+          <section className="anatomime-panel">
+            <div className="anatomime-section-heading">
+              <div>
+                <h2>{pollTerminal === "ROOM_ENDED" ? "Shared game ended" : "Rejoin required"}</h2>
+                <p>{pollTerminal === "ROOM_ENDED"
+                  ? "This room is no longer available. Enter another code when you are ready."
+                  : "Clear the saved player pass, then rejoin this room with your display name."}</p>
+              </div>
+            </div>
+            {pollTerminal === "ROOM_ENDED" ? (
+              <AnatomimeActionButton type="button" intent="secondary" onClick={leaveEndedRoom}>
+                <RotateCcw className="h-4 w-4" />
+                Find Another Game
+              </AnatomimeActionButton>
+            ) : (
+              <AnatomimeActionButton type="button" intent="secondary" onClick={clearStoredPlayer}>
+                <RotateCcw className="h-4 w-4" />
+                Clear Saved Player
+              </AnatomimeActionButton>
+            )}
+          </section>
+        ) : null}
+
+        {showCodeEntry ? (
           <section className="anatomime-panel">
             <div className="anatomime-section-heading">
               <h2>Game Code</h2>
@@ -552,14 +746,14 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
               <Label htmlFor="anatomime-code">Code</Label>
               <Input id="anatomime-code" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} className="anatomime-input" />
             </div>
-            <AnatomimeActionButton type="button" intent="primary" onClick={() => setLookupCode(code.trim().toUpperCase())}>
+            <AnatomimeActionButton type="button" intent="primary" onClick={findGame}>
               <LogIn className="h-4 w-4" />
               Find Game
             </AnatomimeActionButton>
           </section>
         ) : null}
 
-        {lookupCode && session && !joined ? (
+        {lookupCode && session && !joined && !pollTerminal ? (
           <section className="anatomime-panel">
             <div className="anatomime-section-heading">
               <div>
@@ -601,14 +795,19 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
                 </div>
               </div>
             </div>
-            <AnatomimeActionButton type="button" intent="primary" onClick={joinGame}>
+            <AnatomimeActionButton type="button" intent="primary" onClick={joinGame} disabled={joinLocked}>
               <Users className="h-4 w-4" />
-              Join Team
+              {joiningGame ? "Joining..." : joinRetrySeconds > 0 ? `Try again in ${joinRetrySeconds}s` : "Join Team"}
             </AnatomimeActionButton>
+            <div className="anatomime-poll-status" role="status" aria-live="polite">
+              {joinRetrySeconds > 0
+                ? `Joining is paused for ${joinRetrySeconds} more second${joinRetrySeconds === 1 ? "" : "s"}. You can retry when the countdown ends.`
+                : ""}
+            </div>
           </section>
         ) : null}
 
-        {joined && session ? (
+        {joined && session && !pollTerminal ? (
           <section className="anatomime-panel anatomime-play-panel">
             <div className="anatomime-score-grid">
               {session.teams.map((team) => (
