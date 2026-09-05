@@ -140,6 +140,7 @@ function loadWaitlistAction({
   sessionUserId = null,
   limiterDecision = { allowed: true },
   existingRows = [],
+  allowGuestBooking = true,
   hasBookableOption = false,
   failFirstTransaction = false,
   failFirstRevalidation = false,
@@ -453,7 +454,7 @@ function loadWaitlistAction({
           assert.equal(input.maxOptions, 1)
           assert.ok(input.db, "expected the solver to use the caller-owned transaction")
           return {
-            allowGuestBooking: true,
+            allowGuestBooking,
             practice: {
               id: "practice-1",
               slug: "practice-slug",
@@ -552,6 +553,35 @@ describe("public booking waitlist traffic", () => {
         /network|replay-|readiness|solver|contact-|tx-lock|entry-create|revalidate/,
       )
     }
+  })
+
+  it("maps a disabled guest policy to unavailable without exposing request data", async () => {
+    const action = loadWaitlistAction({ allowGuestBooking: false })
+    const errors = []
+    const originalError = console.error
+    console.error = (...args) => errors.push(args)
+
+    try {
+      assert.deepEqual(
+        await action.joinBookingWaitlist({ status: "IDLE" }, waitlistForm()),
+        publicBookingStateModule.publicBookingUnavailable(),
+      )
+    } finally {
+      console.error = originalError
+    }
+
+    assert.deepEqual(action.durable, {
+      entries: 0,
+      contactWrites: 0,
+      revalidations: 0,
+      quotaCharges: 0,
+    })
+    assert.doesNotMatch(action.events.join(","), /contact-|entry-create|revalidate/)
+    assert.deepEqual(errors, [[
+      "Public booking action unavailable.",
+      { operation: "WAITLIST_JOIN", failureClass: "POLICY", code: "unexpected_error" },
+    ]])
+    assert.doesNotMatch(JSON.stringify(errors), /sign in|practice-1|request|owner|guest|example|network-1/i)
   })
 
   it("replays exact guest requests including converted entries and an empty preferred start", async () => {

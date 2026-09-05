@@ -881,13 +881,6 @@ async function createBookingSequenceMutation({
   return result
 }
 
-class PublicBookingValidationError extends Error {
-  constructor() {
-    super("Public booking request is not allowed by the current practice policy.")
-    this.name = "PublicBookingValidationError"
-  }
-}
-
 function isPrismaUniqueConstraintError(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2002")
 }
@@ -1019,7 +1012,10 @@ export async function joinBookingWaitlist(
       })
 
       if (!prepared.userId && !context.allowGuestBooking) {
-        throw new PublicBookingValidationError()
+        throw new PublicBookingExpectedUnavailableError(
+          "POLICY",
+          "Sign in before requesting an appointment with this practice.",
+        )
       }
       if (context.options.length > 0) {
         throw new PublicBookingConflictError()
@@ -1070,7 +1066,6 @@ export async function joinBookingWaitlist(
     return publicBookingSuccess(`${mutation.publicBookingPath}?waitlist=joined`)
   } catch (error) {
     if (error instanceof PublicBookingConflictError) return publicBookingConflict()
-    if (error instanceof PublicBookingValidationError) return publicBookingValidationError()
     reportPublicBookingFailureOnce("WAITLIST_JOIN", error)
     return publicBookingUnavailable()
   }

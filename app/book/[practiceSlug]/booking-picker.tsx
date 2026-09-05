@@ -169,6 +169,12 @@ function distanceMiles(a: { latitude: number; longitude: number }, b: { latitude
   return 2 * earthMiles * Math.asin(Math.sqrt(h))
 }
 
+/**
+ * Converts the current action state into a nonnegative retry countdown.
+ * The retained source identity prevents a stale countdown from crossing action
+ * attempts; each new rate-limit state establishes a fresh deadline, while any
+ * other state clears the retry window.
+ */
 function usePublicBookingRetryWindow(state: PublicBookingActionState): number {
   const [retryWindow, setRetryWindow] = useState<{
     source: PublicBookingActionState | null
