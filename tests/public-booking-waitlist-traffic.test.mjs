@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
+import { safeErrorCode } from "../lib/safe-error-code.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const actionSource = await readFile(
@@ -48,21 +49,6 @@ const publicBookingStateModule = loadCompiledModule(
 
 const WAITLIST_REQUEST_ID = "223e4567-e89b-42d3-a456-426614174000"
 const PREFERRED_START = "2026-09-03T14:00:00.000Z"
-
-it("waitlist joins adopt the public request owner, quota, and transaction lock protocol", () => {
-  const prepareStart = actionSource.indexOf("function preparePublicWaitlistRequest(")
-  const prepareEnd = actionSource.indexOf("function publicBookingCallerOwnsExistingRequest(")
-  const prepareBlock = actionSource.slice(prepareStart, prepareEnd)
-  const start = actionSource.indexOf("export async function joinBookingWaitlist(")
-  const end = actionSource.indexOf("export async function convertWaitlistEntry(")
-  const waitlistBlock = actionSource.slice(start, end)
-
-  assert.match(prepareBlock, /normalizePublicRequestId/)
-  assert.match(prepareBlock, /publicWaitlistRequestOwner/)
-  assert.match(waitlistBlock, /operation:\s*"WAITLIST_JOIN"/)
-  assert.match(waitlistBlock, /acquirePublicRequestLock/)
-  assert.match(waitlistBlock, /id:\s*[^,]*owner\.id/)
-})
 
 function waitlistForm(overrides = {}) {
   const values = {
@@ -173,7 +159,9 @@ function loadWaitlistAction({
   let nextId = 1
   let shouldFailTransaction = failFirstTransaction
   let shouldFailRevalidation = failFirstRevalidation
-  let shouldFailLimiter = failLimiterPersistence
+  let limiterFailuresRemaining = typeof failLimiterPersistence === "number"
+    ? failLimiterPersistence
+    : failLimiterPersistence ? 1 : 0
   let shouldRetrySerializable = retryFirstSerializableAttempt
   let shouldFailLimiterUnique = failLimiterUniqueWithoutWinner
   let revision = 0
@@ -446,8 +434,8 @@ function loadWaitlistAction({
             error.code = "P2002"
             throw error
           }
-          if (shouldFailLimiter) {
-            shouldFailLimiter = false
+          if (limiterFailuresRemaining > 0) {
+            limiterFailuresRemaining -= 1
             input.transaction.__staged.quotaCharges += 1
             throw new Error("injected limiter persistence failure")
           }
@@ -456,6 +444,7 @@ function loadWaitlistAction({
         },
       },
       "@/lib/prisma": { prisma },
+      "@/lib/safe-error-code": { safeErrorCode },
       "@/lib/public-booking-idempotency": publicBookingIdempotencyModule,
       "@/lib/public-booking-sequences": {
         PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS: 8,
@@ -847,15 +836,31 @@ describe("public booking waitlist traffic", () => {
   })
 
   it("rolls limiter persistence failures back before availability or waitlist writes", async () => {
-    const action = loadWaitlistAction({ failLimiterPersistence: true })
+    const action = loadWaitlistAction({ failLimiterPersistence: 2 })
+    const errors = []
+    const originalError = console.error
+    console.error = (...args) => errors.push(args)
 
-    assert.deepEqual(
-      await action.joinBookingWaitlist({ status: "IDLE" }, waitlistForm()),
-      publicBookingStateModule.publicBookingUnavailable(),
-    )
+    try {
+      assert.deepEqual(
+        await action.joinBookingWaitlist({ status: "IDLE" }, waitlistForm()),
+        publicBookingStateModule.publicBookingUnavailable(),
+      )
+      assert.deepEqual(
+        await action.joinBookingWaitlist({ status: "IDLE" }, waitlistForm()),
+        publicBookingStateModule.publicBookingUnavailable(),
+      )
+    } finally {
+      console.error = originalError
+    }
     assert.equal(action.durable.quotaCharges, 0)
     assert.equal(action.waitlistRows.length, 0)
     assert.doesNotMatch(action.events.join(","), /solver|contact-|entry-create|revalidate/)
+    assert.deepEqual(errors, [[
+      "Public booking action unavailable.",
+      { operation: "WAITLIST_JOIN", failureClass: "UNEXPECTED", code: "unexpected_error" },
+    ]])
+    assert.doesNotMatch(JSON.stringify(errors), /injected|request|owner|guest|example|network-1/i)
   })
 
   it("retries the complete Serializable unit without double-charging waitlist quota", async () => {

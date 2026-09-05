@@ -268,7 +268,7 @@ describe("sequential public booking options", () => {
           bookingRole: "PRIMARY",
           bookableMinutes: 60,
           massageCapacityMinutes: 60,
-          eligibleProviderIds: ["provider_1"],
+          eligibleProviderIds: ["provider_1", "provider_2"],
         },
         {
           serviceVariantId: "variant_add_on",
@@ -282,7 +282,11 @@ describe("sequential public booking options", () => {
       ],
       slotsByVariantAndProvider: {
         "variant_primary:provider_1": [{ startsAt: "2026-05-18T13:00:00.000Z" }],
-        "variant_add_on:provider_2": [{ startsAt: "2026-05-18T14:00:00.000Z" }],
+        "variant_primary:provider_2": [{ startsAt: "2026-05-18T12:45:00.000Z" }],
+        "variant_add_on:provider_2": [
+          { startsAt: "2026-05-18T13:45:00.000Z" },
+          { startsAt: "2026-05-18T14:00:00.000Z" },
+        ],
       },
       capacityRules: [],
       existingBookings: [],

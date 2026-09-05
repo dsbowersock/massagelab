@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import { PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS } from "../lib/public-booking-sequences.js"
+import { safeErrorCode } from "../lib/safe-error-code.js"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -145,8 +146,10 @@ function loadBookingCreateAction({
   sessionUserId = null,
   limiterDecision = { allowed: true },
   existingRows = [],
+  allowGuestBooking = true,
   failFirstTransaction = false,
   failLimiterPersistence = false,
+  limiterFailureCode = null,
   retryFirstSerializableAttempt = false,
   staleConflictCode = "P2034",
   failLimiterUniqueWithoutWinner = false,
@@ -161,7 +164,9 @@ function loadBookingCreateAction({
   const mutex = createPrefixMutex()
   let nextId = 1
   let shouldFailTransaction = failFirstTransaction
-  let shouldFailLimiter = failLimiterPersistence
+  let limiterFailuresRemaining = typeof failLimiterPersistence === "number"
+    ? failLimiterPersistence
+    : failLimiterPersistence ? 1 : 0
   let shouldRetrySerializable = retryFirstSerializableAttempt
   let shouldFailLimiterUnique = failLimiterUniqueWithoutWinner
   let revision = 0
@@ -501,16 +506,19 @@ function loadBookingCreateAction({
             error.code = "P2002"
             throw error
           }
-          if (shouldFailLimiter) {
-            shouldFailLimiter = false
+          if (limiterFailuresRemaining > 0) {
+            limiterFailuresRemaining -= 1
             input.transaction.__staged.quotaCharges += 1
-            throw new Error("injected limiter persistence failure")
+            const error = new Error("injected limiter persistence failure")
+            if (limiterFailureCode) error.code = limiterFailureCode
+            throw error
           }
           if (limiterDecision.allowed) input.transaction.__staged.quotaCharges += 1
           return limiterDecision
         },
       },
       "@/lib/prisma": { prisma },
+      "@/lib/safe-error-code": { safeErrorCode },
       "@/lib/public-booking-idempotency": publicBookingIdempotencyModule,
       "@/lib/public-booking-sequences": {
         PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS,
@@ -520,7 +528,7 @@ function loadBookingCreateAction({
           solverCallCount += 1
           if (dropSecondSolverOptionAfterCommit && solverCallCount === 2) await firstCommit
           return {
-            allowGuestBooking: true,
+            allowGuestBooking,
             practice: {
               id: "practice-1",
               slug: "practice-slug",
@@ -904,15 +912,53 @@ describe("public booking create traffic", () => {
   })
 
   it("rolls limiter persistence failures back with all booking work", async () => {
-    const action = loadBookingCreateAction({ failLimiterPersistence: true })
+    const action = loadBookingCreateAction({ failLimiterPersistence: 2, limiterFailureCode: "P1001" })
+    const errors = []
+    const originalError = console.error
+    console.error = (...args) => errors.push(args)
 
-    assert.deepEqual(
-      await action.requestBookingSequence({ status: "IDLE" }, bookingForm()),
-      publicBookingStateModule.publicBookingUnavailable(),
-    )
+    try {
+      assert.deepEqual(
+        await action.requestBookingSequence({ status: "IDLE" }, bookingForm()),
+        publicBookingStateModule.publicBookingUnavailable(),
+      )
+      assert.deepEqual(
+        await action.requestBookingSequence({ status: "IDLE" }, bookingForm()),
+        publicBookingStateModule.publicBookingUnavailable(),
+      )
+    } finally {
+      console.error = originalError
+    }
     assert.equal(action.durable.quotaCharges, 0)
     assert.equal(action.bookingRows.length, 0)
     assert.doesNotMatch(action.events.join(","), /solver|contact-|group-create|event-create|google-push|revalidate/)
+    assert.deepEqual(errors, [[
+      "Public booking action unavailable.",
+      { operation: "BOOKING_CREATE", failureClass: "PERSISTENCE", code: "P1001" },
+    ]])
+    assert.doesNotMatch(JSON.stringify(errors), /injected|request|owner|guest|example|network-1/i)
+  })
+
+  it("classifies a known public policy rejection without logging request or error data", async () => {
+    const action = loadBookingCreateAction({ allowGuestBooking: false })
+    const errors = []
+    const originalError = console.error
+    console.error = (...args) => errors.push(args)
+
+    try {
+      assert.deepEqual(
+        await action.requestBookingSequence({ status: "IDLE" }, bookingForm()),
+        publicBookingStateModule.publicBookingUnavailable(),
+      )
+    } finally {
+      console.error = originalError
+    }
+
+    assert.deepEqual(errors, [[
+      "Public booking action unavailable.",
+      { operation: "BOOKING_CREATE", failureClass: "POLICY", code: "unexpected_error" },
+    ]])
+    assert.doesNotMatch(JSON.stringify(errors), /sign in|practice-1|request|owner|guest|example|network-1/i)
   })
 
   it("retries the complete Serializable unit without double-charging quota or post-commit work", async () => {

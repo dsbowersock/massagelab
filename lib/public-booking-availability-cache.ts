@@ -23,6 +23,10 @@ function cleanRequiredString(value: unknown): string | null {
   return cleaned ? cleaned : null
 }
 
+/**
+ * Accepts one complete public sequence-item object, rejects missing, malformed,
+ * or unsafe fields, and returns a copied immutable cache projection.
+ */
 function cloneItem(value: unknown): Readonly<PublicBookingSequenceItem> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
   const item = value as Record<string, unknown>
@@ -62,6 +66,10 @@ function cloneItem(value: unknown): Readonly<PublicBookingSequenceItem> | null {
   })
 }
 
+/**
+ * Accepts one complete public sequence-option object, rejects invalid nested
+ * items or scalar fields, and returns a recursively copied immutable projection.
+ */
 function cloneOption(value: unknown): Readonly<PublicBookingSequenceOption> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
   const option = value as Record<string, unknown>

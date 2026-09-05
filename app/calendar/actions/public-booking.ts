@@ -19,6 +19,7 @@ import { buildCalendarCreationPlan } from "@/lib/calendar-flows"
 import { runCommerceTransaction } from "@/lib/commerce/transactions"
 import { consumeOperationalRateLimitInTransaction } from "@/lib/operational-rate-limit"
 import { prisma } from "@/lib/prisma"
+import { safeErrorCode } from "@/lib/safe-error-code"
 import {
   acquirePublicRequestLock,
   findPublicBookingRequest,
@@ -106,11 +107,58 @@ type PreparedPublicWaitlistRequest = {
 }
 
 type PublicBookingReplayDecision = "MISS" | "REPLAY" | "CONFLICT"
+type PublicBookingActionOperation = "BOOKING_CREATE" | "WAITLIST_JOIN"
+type PublicBookingExpectedFailureClass = "POLICY" | "SELECTION" | "CAPACITY"
+type PublicBookingFailureClass = PublicBookingExpectedFailureClass | "PERSISTENCE" | "UNEXPECTED"
+
+type PublicRequestCallerRow = {
+  id: string
+  practiceId: string
+  createdById: string | null
+  practiceClient: { userId: string | null; email: string | null } | null
+}
+
+type PreparedPublicRequest<TSelection> = {
+  userId: string | null
+  clientIdentity: BookingClientIdentity
+  practiceId: string
+  owner: PublicBookingOwner
+  selection: TSelection
+}
+
+const emittedPublicBookingFailureDiagnostics = new Set<string>()
 
 class PublicBookingConflictError extends Error {
   constructor() {
     super("Public booking request conflicts with an existing request.")
     this.name = "PublicBookingConflictError"
+  }
+}
+
+class PublicBookingExpectedUnavailableError extends Error {
+  constructor(readonly failureClass: PublicBookingExpectedFailureClass, message: string) {
+    super(message)
+    this.name = "PublicBookingExpectedUnavailableError"
+  }
+}
+
+/**
+ * Emits one bounded, privacy-safe diagnostic per operation and allowlisted code.
+ * Request owners, selections, contact fields, raw errors, and messages never cross
+ * this boundary, and a logging failure cannot alter the fixed client response.
+ */
+function reportPublicBookingFailureOnce(operation: PublicBookingActionOperation, error: unknown): void {
+  const code = safeErrorCode(error)
+  const failureClass: PublicBookingFailureClass = error instanceof PublicBookingExpectedUnavailableError
+    ? error.failureClass
+    : code === "unexpected_error" ? "UNEXPECTED" : "PERSISTENCE"
+  const diagnosticKey = `${operation}:${failureClass}:${code}`
+  if (emittedPublicBookingFailureDiagnostics.has(diagnosticKey)) return
+  emittedPublicBookingFailureDiagnostics.add(diagnosticKey)
+  try {
+    console.error("Public booking action unavailable.", { operation, failureClass, code })
+  } catch {
+    // Observability must not alter the fail-closed public action result.
   }
 }
 
@@ -244,9 +292,10 @@ function preparePublicWaitlistRequest(
   }
 }
 
-function publicBookingCallerOwnsExistingRequest(
-  existing: NonNullable<ExistingPublicBookingRequest>,
-  prepared: PreparedPublicBookingRequest,
+/** Compares the authoritative account or normalized guest owner stored on a public request row. */
+function publicRequestCallerOwnsRow(
+  existing: PublicRequestCallerRow,
+  prepared: Pick<PreparedPublicRequest<unknown>, "userId" | "clientIdentity">,
 ): boolean {
   if (prepared.userId) {
     return existing.createdById === prepared.userId
@@ -289,16 +338,20 @@ function publicBookingPersistedSelectionMatches(
     && actualAddOns.every((value, index) => value === expectedAddOns[index])
 }
 
-/** Classifies a bounded prefix hit without disclosing which proof mismatched. */
-function publicBookingReplayDecision(
-  existing: ExistingPublicBookingRequest,
-  prepared: PreparedPublicBookingRequest,
+/**
+ * Classifies one bounded prefix hit from the shared identity proofs plus a
+ * domain-specific immutable-selection comparison.
+ */
+function publicRequestReplayDecision<TRow extends PublicRequestCallerRow, TSelection>(
+  existing: TRow | null,
+  prepared: PreparedPublicRequest<TSelection>,
+  persistedSelectionMatches: (row: TRow, selection: TSelection) => boolean,
 ): PublicBookingReplayDecision {
   if (!existing) return "MISS"
   return hasExactPublicRequestSelection(existing, prepared.owner)
     && existing.practiceId === prepared.practiceId
-    && publicBookingCallerOwnsExistingRequest(existing, prepared)
-    && publicBookingPersistedSelectionMatches(existing, prepared.selection)
+    && publicRequestCallerOwnsRow(existing, prepared)
+    && persistedSelectionMatches(existing, prepared.selection)
     ? "REPLAY"
     : "CONFLICT"
 }
@@ -315,9 +368,9 @@ async function trustedPublicBookingPath(
       publicBookingSlug: true,
     },
   })
-  if (!practice) throw new Error("Public booking practice is unavailable.")
+  if (!practice) throw new PublicBookingExpectedUnavailableError("SELECTION", "Public booking practice is unavailable.")
   const path = publicBookingPathForPractice(practice)
-  if (!path) throw new Error("Public booking path is unavailable.")
+  if (!path) throw new PublicBookingExpectedUnavailableError("SELECTION", "Public booking path is unavailable.")
   return path
 }
 
@@ -326,24 +379,11 @@ async function publicBookingReplayPathIfPresent(
   prepared: PreparedPublicBookingRequest,
 ): Promise<string | null> {
   const existing = await findPublicBookingRequest(prisma, prepared.owner)
-  const replayDecision = publicBookingReplayDecision(existing, prepared)
+  const replayDecision = publicRequestReplayDecision(existing, prepared, publicBookingPersistedSelectionMatches)
   if (replayDecision === "CONFLICT") throw new PublicBookingConflictError()
   return replayDecision === "REPLAY"
     ? trustedPublicBookingPath(prepared.practiceId)
     : null
-}
-
-function publicWaitlistCallerOwnsExistingRequest(
-  existing: NonNullable<ExistingPublicWaitlistRequest>,
-  prepared: PreparedPublicWaitlistRequest,
-): boolean {
-  if (prepared.userId) {
-    return existing.createdById === prepared.userId
-      && existing.practiceClient?.userId === prepared.userId
-  }
-  return existing.createdById === null
-    && existing.practiceClient?.userId === null
-    && normalizeEmail(existing.practiceClient?.email) === prepared.clientIdentity.guestEmail
 }
 
 function publicWaitlistPersistedSelectionMatches(
@@ -373,24 +413,11 @@ function publicWaitlistPersistedSelectionMatches(
   }
 }
 
-function publicWaitlistReplayDecision(
-  existing: ExistingPublicWaitlistRequest,
-  prepared: PreparedPublicWaitlistRequest,
-): PublicBookingReplayDecision {
-  if (!existing) return "MISS"
-  return hasExactPublicRequestSelection(existing, prepared.owner)
-    && existing.practiceId === prepared.practiceId
-    && publicWaitlistCallerOwnsExistingRequest(existing, prepared)
-    && publicWaitlistPersistedSelectionMatches(existing, prepared.selection)
-    ? "REPLAY"
-    : "CONFLICT"
-}
-
 async function publicWaitlistReplayPathIfPresent(
   prepared: PreparedPublicWaitlistRequest,
 ): Promise<string | null> {
   const existing = await findPublicWaitlistRequest(prisma, prepared.owner)
-  const replayDecision = publicWaitlistReplayDecision(existing, prepared)
+  const replayDecision = publicRequestReplayDecision(existing, prepared, publicWaitlistPersistedSelectionMatches)
   if (replayDecision === "CONFLICT") throw new PublicBookingConflictError()
   return replayDecision === "REPLAY"
     ? trustedPublicBookingPath(prepared.practiceId)
@@ -556,7 +583,7 @@ async function assertProviderBookingPolicyLimits({
     minRestMinutes: provider.minRestMinutes ?? 0,
     existingBookings,
   })) {
-    throw new Error("Provider rest gap is no longer available.")
+    throw new PublicBookingExpectedUnavailableError("CAPACITY", "Provider rest gap is no longer available.")
   }
 
   const limitState = providerAppointmentLimitAllows({
@@ -568,7 +595,7 @@ async function assertProviderBookingPolicyLimits({
     timeZone,
   })
   if (!limitState.allowed) {
-    throw new Error("Provider booking limit is no longer available.")
+    throw new PublicBookingExpectedUnavailableError("CAPACITY", "Provider booking limit is no longer available.")
   }
 
   const capacityState = capacityAllowsBooking({
@@ -581,7 +608,7 @@ async function assertProviderBookingPolicyLimits({
     timeZone,
   })
   if (!capacityState.allowed) {
-    throw new Error("Provider massage capacity is no longer available.")
+    throw new PublicBookingExpectedUnavailableError("CAPACITY", "Provider massage capacity is no longer available.")
   }
 }
 
@@ -622,7 +649,11 @@ async function createBookingSequenceMutation({
     if (publicRequest) {
       await acquirePublicRequestLock(tx, publicRequest.owner)
       const existing = await findPublicBookingRequest(tx, publicRequest.owner)
-      const replayDecision = publicBookingReplayDecision(existing, publicRequest)
+      const replayDecision = publicRequestReplayDecision(
+        existing,
+        publicRequest,
+        publicBookingPersistedSelectionMatches,
+      )
       if (replayDecision === "CONFLICT") throw new PublicBookingConflictError()
       if (replayDecision === "REPLAY") {
         return {
@@ -655,12 +686,15 @@ async function createBookingSequenceMutation({
       db: tx,
     })
     if (!userId && !context.allowGuestBooking) {
-      throw new Error("Sign in before requesting an appointment with this practice.")
+      throw new PublicBookingExpectedUnavailableError(
+        "POLICY",
+        "Sign in before requesting an appointment with this practice.",
+      )
     }
     const requestedStart = startsAt.toISOString()
     const option = context.options.find((candidate: { startsAt: string }) => candidate.startsAt === requestedStart)
     if (!option) {
-      throw new Error("Choose an available booking sequence.")
+      throw new PublicBookingExpectedUnavailableError("SELECTION", "Choose an available booking sequence.")
     }
 
     const status = forceStatus ?? option.status as "REQUESTED" | "CONFIRMED"
@@ -697,7 +731,7 @@ async function createBookingSequenceMutation({
         },
       })
       if (waitlistUpdate.count !== 1) {
-        throw new Error("Choose an open waitlist entry.")
+        throw new PublicBookingExpectedUnavailableError("SELECTION", "Choose an open waitlist entry.")
       }
     }
 
@@ -705,10 +739,10 @@ async function createBookingSequenceMutation({
       const variant = variantById.get(item.serviceVariantId)
       const provider = providerById.get(item.providerUserId)
       if (!variant) {
-        throw new Error("Choose available booking services.")
+        throw new PublicBookingExpectedUnavailableError("SELECTION", "Choose available booking services.")
       }
       if (!provider) {
-        throw new Error("Choose an available booking provider.")
+        throw new PublicBookingExpectedUnavailableError("SELECTION", "Choose an available booking provider.")
       }
 
       const itemStartsAt = dateValue(item.startsAt)
@@ -910,9 +944,9 @@ export async function requestBookingSequence(
 
     return publicBookingSuccess(`${mutation.publicBookingPath}?booking=requested`)
   } catch (error) {
-    return error instanceof PublicBookingConflictError
-      ? publicBookingConflict()
-      : publicBookingUnavailable()
+    if (error instanceof PublicBookingConflictError) return publicBookingConflict()
+    reportPublicBookingFailureOnce("BOOKING_CREATE", error)
+    return publicBookingUnavailable()
   }
 }
 
@@ -949,7 +983,11 @@ export async function joinBookingWaitlist(
     const mutate = async (tx: Prisma.TransactionClient) => {
       await acquirePublicRequestLock(tx, prepared.owner)
       const existing = await findPublicWaitlistRequest(tx, prepared.owner)
-      const replayDecision = publicWaitlistReplayDecision(existing, prepared)
+      const replayDecision = publicRequestReplayDecision(
+        existing,
+        prepared,
+        publicWaitlistPersistedSelectionMatches,
+      )
       if (replayDecision === "CONFLICT") throw new PublicBookingConflictError()
       if (replayDecision === "REPLAY") {
         return {
@@ -1033,6 +1071,7 @@ export async function joinBookingWaitlist(
   } catch (error) {
     if (error instanceof PublicBookingConflictError) return publicBookingConflict()
     if (error instanceof PublicBookingValidationError) return publicBookingValidationError()
+    reportPublicBookingFailureOnce("WAITLIST_JOIN", error)
     return publicBookingUnavailable()
   }
 }

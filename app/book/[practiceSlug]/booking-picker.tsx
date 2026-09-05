@@ -14,6 +14,7 @@ import {
   publicBookingActionStateForAttempt,
   publicBookingRemainingRetrySeconds,
   publicBookingRetryAfterSeconds,
+  publicBookingRetryDelayLabel,
   runPublicBookingActionWithRecovery,
   schedulePublicAvailabilityRequest,
   type PublicBookingActionState,
@@ -217,7 +218,7 @@ function PublicBookingActionStatus({
         {publicBookingActionAnnouncement(state, retrySeconds)}
       </p>
       {state.status === "RATE_LIMITED" && retrySeconds > 0 ? (
-        <p>{`Try again in ${retrySeconds} seconds.`}</p>
+        <p>{publicBookingRetryDelayLabel(retrySeconds)}</p>
       ) : null}
     </div>
   )
@@ -716,7 +717,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
               <div className="mx-4 rounded-lg border border-dashed border-border/80 bg-background/50 p-6 sm:mx-6">
                 <p className="text-sm text-muted-foreground">
                   {sequenceError}
-                  {sequenceRetrySeconds > 0 ? ` Try again in ${sequenceRetrySeconds} seconds.` : ""}
+                  {sequenceRetrySeconds > 0 ? ` ${publicBookingRetryDelayLabel(sequenceRetrySeconds)}` : ""}
                 </p>
                 <Button
                   type="button"

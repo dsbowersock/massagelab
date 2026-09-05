@@ -78,9 +78,11 @@ describe("public booking picker helpers", () => {
   it("debounce parses Retry-After and keeps ticking countdowns outside live regions", () => {
     const {
       publicBookingActionAnnouncement,
+      publicBookingActionStatusMessage,
       publicBookingRateLimited,
       publicBookingRemainingRetrySeconds,
       publicBookingRetryAfterSeconds,
+      publicBookingRetryDelayLabel,
     } = loadPickerTrafficHelpers()
 
     assert.equal(publicBookingRetryAfterSeconds("47"), 47)
@@ -90,7 +92,13 @@ describe("public booking picker helpers", () => {
     }
     assert.equal(publicBookingRemainingRetrySeconds(10_000, 7_001), 3)
     assert.equal(publicBookingRemainingRetrySeconds(10_000, 10_000), 0)
+    assert.equal(publicBookingRetryDelayLabel(1), "Try again in 1 second.")
+    assert.equal(publicBookingRetryDelayLabel(2), "Try again in 2 seconds.")
     const rateLimited = publicBookingRateLimited(3)
+    assert.equal(
+      publicBookingActionStatusMessage(rateLimited, 1),
+      `${rateLimited.message} Try again in 1 second.`,
+    )
     assert.equal(publicBookingActionAnnouncement(rateLimited, 3), rateLimited.message)
     assert.equal(publicBookingActionAnnouncement(rateLimited, 2), rateLimited.message)
     assert.equal(publicBookingActionAnnouncement(rateLimited, 0), "You can try again now.")
@@ -98,6 +106,8 @@ describe("public booking picker helpers", () => {
     assert.match(pickerSource, /response\.status === 503[\s\S]*temporarily unavailable/i)
     assert.match(pickerSource, /role="status"[\s\S]*aria-live="polite"/)
     assert.match(pickerSource, /publicBookingActionAnnouncement\(state,\s*retrySeconds\)/)
+    assert.match(pickerSource, /publicBookingRetryDelayLabel\(retrySeconds\)/)
+    assert.match(pickerSource, /publicBookingRetryDelayLabel\(sequenceRetrySeconds\)/)
     assert.doesNotMatch(pickerSource, /publicBookingActionStatusMessage\(state,\s*retrySeconds\)/)
     assert.doesNotMatch(pickerSource, /\$\{sequenceError\}\$\{sequenceRetrySeconds/)
   })

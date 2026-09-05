@@ -38,6 +38,12 @@ export function publicBookingRemainingRetrySeconds(deadlineMs: number, nowMs: nu
   return Math.max(0, Math.ceil((deadlineMs - nowMs) / 1_000))
 }
 
+/** Formats one visible retry delay with a grammatically correct time unit. */
+export function publicBookingRetryDelayLabel(seconds: number): string {
+  const normalized = Number.isFinite(seconds) ? Math.max(0, Math.ceil(seconds)) : 0
+  return `Try again in ${normalized} ${normalized === 1 ? "second" : "seconds"}.`
+}
+
 /** Generates request IDs only in a mounted browser with Web Crypto support. */
 export function createBrowserPublicBookingRequestId(): string {
   if (typeof window === "undefined" || typeof window.crypto?.randomUUID !== "function") return ""
@@ -121,7 +127,7 @@ export function publicBookingActionStatusMessage(
 ): string {
   if (state.status === "IDLE" || state.status === "SUCCESS") return ""
   if (state.status === "RATE_LIMITED" && retrySeconds > 0) {
-    return `${state.message} Try again in ${retrySeconds} seconds.`
+    return `${state.message} ${publicBookingRetryDelayLabel(retrySeconds)}`
   }
   if (state.status === "UNAVAILABLE") {
     return `${state.message} Try again when you're ready.`
