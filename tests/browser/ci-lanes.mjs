@@ -17,6 +17,7 @@ export const ORDINARY_BROWSER_QA_SPEC_FILES = [
   "membership-return-status.spec.ts",
   "music-media-session.spec.ts",
   "music-visualizer.spec.ts",
+  "public-booking-traffic.spec.ts",
   "public-routes.spec.ts",
   "pwa.spec.ts",
 ]
@@ -32,6 +33,7 @@ export const BROWSER_QA_LANES = {
       "membership-return-status.spec.ts",
       "interaction-feedback.spec.ts",
       "anatomime-traffic.spec.ts",
+      "public-booking-traffic.spec.ts",
     ],
     "mobile-chromium": [
       "app-shell.spec.ts",
@@ -50,6 +52,7 @@ export const BROWSER_QA_LANES = {
       "membership-return-status.spec.ts",
       "interaction-feedback.spec.ts",
       "anatomime-traffic.spec.ts",
+      "public-booking-traffic.spec.ts",
     ],
   },
   "3": {

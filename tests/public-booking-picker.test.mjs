@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 
 import {
@@ -9,8 +10,140 @@ import {
   sequenceWeekStartKey,
   visibleSequenceDays,
 } from "../lib/public-booking-picker.js"
+import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+
+const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const pickerSource = await readFile(
+  new URL("../app/book/[practiceSlug]/booking-picker.tsx", import.meta.url),
+  "utf8",
+)
+const actionStateSource = await readFile(
+  new URL("../app/calendar/actions/public-booking-state.ts", import.meta.url),
+  "utf8",
+)
+
+function loadPickerTrafficHelpers() {
+  return loadCompiledModule(
+    actionStateSource,
+    "booking-picker.traffic-helpers.test.ts",
+  )
+}
 
 describe("public booking picker helpers", () => {
+  it("debounce starts availability at 350ms and aborts a superseded in-flight request", async () => {
+    const { schedulePublicAvailabilityRequest } = loadPickerTrafficHelpers()
+    assert.equal(typeof schedulePublicAvailabilityRequest, "function")
+
+    const timers = []
+    const cleared = []
+    const previousWindow = globalThis.window
+    globalThis.window = {
+      setTimeout(callback, delay) {
+        timers.push({ callback, delay })
+        return timers.length
+      },
+      clearTimeout(timerId) {
+        cleared.push(timerId)
+      },
+    }
+
+    try {
+      const starts = []
+      const cancelFirst = schedulePublicAvailabilityRequest((signal) => {
+        starts.push({ at: 350, signal })
+      })
+      assert.equal(timers[0].delay, 350)
+      assert.deepEqual(starts, [], "the request must not start at 349ms")
+
+      timers[0].callback()
+      await Promise.resolve()
+      assert.equal(starts.length, 1, "the request starts at the 350ms boundary")
+      assert.equal(starts[0].signal.aborted, false)
+
+      cancelFirst()
+      assert.equal(cleared.includes(1), true)
+      assert.equal(starts[0].signal.aborted, true, "superseding cleanup aborts the in-flight request")
+
+      const cancelSecond = schedulePublicAvailabilityRequest((signal) => {
+        starts.push({ at: 700, signal })
+      })
+      assert.equal(timers[1].delay, 350)
+      cancelSecond()
+    } finally {
+      if (previousWindow === undefined) delete globalThis.window
+      else globalThis.window = previousWindow
+    }
+  })
+
+  it("debounce parses Retry-After and keeps ticking countdowns outside live regions", () => {
+    const {
+      publicBookingActionAnnouncement,
+      publicBookingRateLimited,
+      publicBookingRemainingRetrySeconds,
+      publicBookingRetryAfterSeconds,
+    } = loadPickerTrafficHelpers()
+
+    assert.equal(publicBookingRetryAfterSeconds("47"), 47)
+    assert.equal(publicBookingRetryAfterSeconds(" 8 "), 8)
+    for (const invalid of [null, "", "0", "-1", "1.5", "1e2", "not-a-number"]) {
+      assert.equal(publicBookingRetryAfterSeconds(invalid), null)
+    }
+    assert.equal(publicBookingRemainingRetrySeconds(10_000, 7_001), 3)
+    assert.equal(publicBookingRemainingRetrySeconds(10_000, 10_000), 0)
+    const rateLimited = publicBookingRateLimited(3)
+    assert.equal(publicBookingActionAnnouncement(rateLimited, 3), rateLimited.message)
+    assert.equal(publicBookingActionAnnouncement(rateLimited, 2), rateLimited.message)
+    assert.equal(publicBookingActionAnnouncement(rateLimited, 0), "You can try again now.")
+    assert.match(pickerSource, /response\.status === 429[\s\S]*headers\.get\("Retry-After"\)/)
+    assert.match(pickerSource, /response\.status === 503[\s\S]*temporarily unavailable/i)
+    assert.match(pickerSource, /role="status"[\s\S]*aria-live="polite"/)
+    assert.match(pickerSource, /publicBookingActionAnnouncement\(state,\s*retrySeconds\)/)
+    assert.doesNotMatch(pickerSource, /publicBookingActionStatusMessage\(state,\s*retrySeconds\)/)
+    assert.doesNotMatch(pickerSource, /\$\{sequenceError\}\$\{sequenceRetrySeconds/)
+  })
+
+  it("request id state is browser-only, separate, retained for recovery, and rotated only deliberately or on success", () => {
+    const { createBrowserPublicBookingRequestId } = loadPickerTrafficHelpers()
+    assert.equal(typeof createBrowserPublicBookingRequestId, "function")
+    const previousWindow = globalThis.window
+    try {
+      delete globalThis.window
+      assert.equal(createBrowserPublicBookingRequestId(), "")
+      let generated = 0
+      globalThis.window = { crypto: { randomUUID: () => `00000000-0000-4000-8000-${String(++generated).padStart(12, "0")}` } }
+      assert.notEqual(createBrowserPublicBookingRequestId(), createBrowserPublicBookingRequestId())
+    } finally {
+      if (previousWindow === undefined) delete globalThis.window
+      else globalThis.window = previousWindow
+    }
+
+    assert.equal((pickerSource.match(/useActionState\(/g) ?? []).length, 2)
+    assert.match(pickerSource, /bookingRequestId[\s\S]*waitlistRequestId/)
+    assert.match(pickerSource, /bookingResultRequestId,\s*setBookingResultRequestId[\s\S]*formData\.get\("requestId"\)[\s\S]*setBookingResultRequestId\(requestId\)/)
+    assert.match(pickerSource, /waitlistResultRequestId,\s*setWaitlistResultRequestId[\s\S]*formData\.get\("requestId"\)[\s\S]*setWaitlistResultRequestId\(requestId\)/)
+    assert.doesNotMatch(pickerSource, /ResultRequestIdRef/)
+    assert.match(pickerSource, /publicBookingActionStateForAttempt\([\s\S]*bookingRequestId/)
+    assert.match(pickerSource, /publicBookingActionStateForAttempt\([\s\S]*waitlistRequestId/)
+    assert.match(pickerSource, /name="requestId" value=\{bookingRequestId\}/)
+    assert.match(pickerSource, /name="requestId" value=\{waitlistRequestId\}/)
+    assert.match(pickerSource, /visibleBookingActionState\.status === "SUCCESS"[\s\S]*setBookingRequestId\(createBrowserPublicBookingRequestId\(\)\)[\s\S]*router\.push/)
+    assert.match(pickerSource, /visibleWaitlistActionState\.status === "SUCCESS"[\s\S]*setWaitlistRequestId\(createBrowserPublicBookingRequestId\(\)\)[\s\S]*router\.push/)
+    assert.match(pickerSource, /RATE_LIMITED[\s\S]*retryAfterSeconds/)
+    assert.match(actionStateSource, /UNAVAILABLE[\s\S]*Try again/)
+    const bookingRotationLabel = pickerSource.indexOf("Start a new booking request")
+    const waitlistRotationLabel = pickerSource.indexOf("Start a new waitlist request")
+    const bookingRotationButton = pickerSource.slice(
+      pickerSource.lastIndexOf("<Button", bookingRotationLabel),
+      bookingRotationLabel,
+    )
+    const waitlistRotationButton = pickerSource.slice(
+      pickerSource.lastIndexOf("<Button", waitlistRotationLabel),
+      waitlistRotationLabel,
+    )
+    assert.match(bookingRotationButton, /disabled=\{bookingPending\}/)
+    assert.match(waitlistRotationButton, /disabled=\{waitlistPending\}/)
+  })
+
   it("hides provider preference when any-provider plus one named provider is the only meaningful choice", () => {
     const model = providerPreferenceModel([
       { id: "", label: "Any available provider" },

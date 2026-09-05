@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   consumeOperationalRateLimit,
+  consumeOperationalRateLimitInTransaction,
   maybePruneOperationalRateLimits,
   operationalRateLimitKeyHash,
   pruneOperationalRateLimits,
@@ -170,6 +171,133 @@ function identity(policy, scope, components) {
 }
 
 describe("operational rate-limit service", () => {
+  it("consumes through the supplied transaction without nesting or pruning", async () => {
+    const client = new InMemoryOperationalRateLimitClient()
+    let decision
+
+    await client.$transaction(async (tx) => {
+      decision = await consumeOperationalRateLimitInTransaction({
+        operation: "BOOKING_CREATE",
+        networkIdentifier: "net",
+        practiceId: "practice",
+        owner: { kind: "ACCOUNT_ID", value: "account" },
+        transaction: tx,
+        secret: SECRET,
+        now: BASE_TIME,
+      })
+    }, { isolationLevel: "Serializable" })
+
+    assert.deepEqual(decision, { allowed: true })
+    assert.equal(client.transactionAttempts, 1)
+    assert.equal(client.findManyCalls.length, 0)
+    assert.equal(client.rows.size, 4)
+  })
+
+  it("keeps transaction-scoped policy, keys, and lock order identical to standalone consumption", async () => {
+    const standalone = new InMemoryOperationalRateLimitClient()
+    const transactional = new InMemoryOperationalRateLimitClient()
+    const request = {
+      operation: "BOOKING_CREATE",
+      networkIdentifier: "net",
+      practiceId: "practice",
+      owner: { kind: "ACCOUNT_ID", value: "account" },
+      secret: SECRET,
+      now: BASE_TIME,
+    }
+
+    assert.deepEqual(await consumeOperationalRateLimit({
+      ...request,
+      prismaClient: standalone,
+      shouldPrune: () => false,
+    }), { allowed: true })
+    await transactional.$transaction(async (tx) => {
+      assert.deepEqual(await consumeOperationalRateLimitInTransaction({
+        ...request,
+        transaction: tx,
+      }), { allowed: true })
+    }, { isolationLevel: "Serializable" })
+
+    assert.deepEqual(transactional.readIdentities, standalone.readIdentities)
+    assert.deepEqual(transactional.writeIdentities, standalone.writeIdentities)
+  })
+
+  it("does not mutate a supplied transaction when any rule is already denied", async () => {
+    const client = new InMemoryOperationalRateLimitClient()
+    const blocked = identity("booking.create.owner-practice.30m.v1", "RESOURCE", [
+      { label: "account-id", value: "account" },
+      { label: "practice", value: "practice" },
+    ])
+    client.seed({
+      ...blocked,
+      count: 3,
+      windowStart: BASE_TIME,
+      blockedUntil: new Date(BASE_TIME.getTime() + 30 * 60_000),
+    })
+
+    let decision
+    const writesBefore = client.writeCount
+    await client.$transaction(async (tx) => {
+      decision = await consumeOperationalRateLimitInTransaction({
+        operation: "BOOKING_CREATE",
+        networkIdentifier: "net",
+        practiceId: "practice",
+        owner: { kind: "ACCOUNT_ID", value: "account" },
+        transaction: tx,
+        secret: SECRET,
+        now: BASE_TIME,
+      })
+    }, { isolationLevel: "Serializable" })
+
+    assert.deepEqual(decision, {
+      allowed: false,
+      reason: "RATE_LIMITED",
+      retryAfterSeconds: 30 * 60,
+    })
+    assert.equal(client.writeCount, writesBefore)
+  })
+
+  it("propagates persistence failures and rolls every transaction-scoped bucket back", async () => {
+    const client = new InMemoryOperationalRateLimitClient()
+    const persistenceFailure = new Error("injected persistence failure")
+    const originalWarn = console.warn
+    const warnings = []
+    console.warn = (...args) => warnings.push(args)
+
+    try {
+      await assert.rejects(
+        () => client.$transaction(async (tx) => {
+          const originalUpsert = tx.operationalRateLimitBucket.upsert
+          let writes = 0
+          tx.operationalRateLimitBucket.upsert = async (args) => {
+            writes += 1
+            if (writes === 3) throw persistenceFailure
+            return originalUpsert(args)
+          }
+          await consumeOperationalRateLimitInTransaction({
+            operation: "BOOKING_CREATE",
+            networkIdentifier: "private-network",
+            practiceId: "private-practice",
+            owner: { kind: "ACCOUNT_ID", value: "private-account" },
+            transaction: tx,
+            secret: SECRET,
+            now: BASE_TIME,
+          })
+        }, { isolationLevel: "Serializable" }),
+        (error) => error === persistenceFailure,
+      )
+    } finally {
+      console.warn = originalWarn
+    }
+
+    assert.equal(client.rows.size, 0)
+    assert.equal(client.findManyCalls.length, 0)
+    assert.deepEqual(warnings, [[
+      "Operational rate limiter unavailable.",
+      { operation: "BOOKING_CREATE", failureClass: "PERSISTENCE" },
+    ]])
+    assert.doesNotMatch(JSON.stringify(warnings), /private-network|private-practice|private-account|injected/)
+  })
+
   it("rejects an upsert outside a transaction before mutating the test double", async () => {
     const client = new InMemoryOperationalRateLimitClient()
     const directIdentity = {

@@ -30,6 +30,16 @@ test("normalizePublicBookingSequenceDescriptor requires pressure 1-5 and caps or
   }), /pressure preference from 1 to 5/)
 })
 
+test("normalizePublicBookingSequenceDescriptor preserves its internal add-on compatibility cap", () => {
+  const descriptor = normalizePublicBookingSequenceDescriptor({
+    primaryServiceVariantId: "primary_60",
+    addOnServiceVariantIds: "add_1,add_2,add_3,add_4",
+    requestedPressureLevel: 3,
+  })
+
+  assert.deepEqual(descriptor.addOnServiceVariantIds, ["add_1", "add_2", "add_3"])
+})
+
 test("buildPublicBookingSequenceCacheKey includes ordered descriptor and input signatures", () => {
   const base = {
     practiceId: "practice_1",
