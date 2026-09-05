@@ -364,7 +364,7 @@ Record the exact PR A base, focused totals, browser projects, one-hydration/pres
 - [ ] **Step 2: Run the PR gate**
 
 ```powershell
-node --test tests/anatomime-traffic-server.test.mjs tests/anatomime-traffic-routes.test.mjs tests/anatomime-polling.test.mjs tests/anatomime-shared.test.mjs tests/anatomime-room-rules.test.mjs tests/anatomime-page-lazy-boundary.test.mjs tests/anatomime-invite-qr.test.mjs
+node --test tests/anatomime-traffic-server.test.mjs tests/anatomime-traffic-routes.test.mjs tests/anatomime-polling.test.mjs tests/anatomime-shared.test.mjs tests/anatomime-room-rules.test.mjs tests/anatomime-page-lazy-boundary.test.mjs tests/anatomime-invite-qr.test.mjs tests/anatomime-release-receipts.test.mjs
 npm run build:browser-qa
 npm run test:browser -- tests/browser/anatomime-traffic.spec.ts tests/browser/public-routes.spec.ts --project=desktop-chromium --project=mobile-chromium
 npm run prisma:validate

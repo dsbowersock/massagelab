@@ -71,7 +71,11 @@ function modelBodyLines(source, modelName) {
     .filter((line) => line && !line.startsWith("//"))
 }
 
-/** Requires every clause in a documentation contract to occur within one paragraph. */
+/**
+ * Asserts that `source` contains one blank-line-delimited paragraph matching
+ * `pattern`. `label` identifies the owning contract in the assertion failure;
+ * if no single paragraph matches, the helper throws through `assert.ok`.
+ */
 function assertParagraphMatches(source, pattern, label) {
   const paragraphs = source
     .split(/\r?\n\s*\r?\n/)
@@ -83,8 +87,11 @@ function assertParagraphMatches(source, pattern, label) {
   )
 }
 
+// consumeJoined must atomically evaluate all three scoped keys and charge none when any key blocks.
 const CONSUME_JOINED_CONTRACT = /^(?=[\s\S]*`consumeJoined`)(?=[\s\S]*`networkIdentifier`)(?=[\s\S]*`roomIdentifier`)(?=[\s\S]*`playerId`)(?=[\s\S]*atomically checks)(?=[\s\S]*network\+room)(?=[\s\S]*room)(?=[\s\S]*player)(?=[\s\S]*increments none)[\s\S]*$/i
+// Capacity or rule denial must leave every participating local bucket unmodified.
 const BLOCKED_MUTATION_CONTRACT = /(?:any|one)[^.]*blocks?[\s\S]*(?:capacity|4,096)[\s\S]*(?:(?:mutates|increments) none|(?:mutates|increments) nothing)/i
+// A lost idle-expiry race gets one reread and accepts only a valid winner; other conflicts fail retryably without recharging quota.
 const EXPIRY_CONFLICT_CONTRACT = /^(?=[\s\S]*post-rollback[^.]*idle-expiry[^.]*zero-row)(?=[\s\S]*exactly one[^.]*winner reread)(?=[\s\S]*`EXPIRED`)(?=[\s\S]*`expiresAt`[^.]*strictly later[^.]*captured[^.]*`now`)(?=[\s\S]*missing)(?=[\s\S]*non-`EXPIRED`[^.]*(?:still overdue|still-overdue))(?=[\s\S]*`503`)(?=[\s\S]*(?:(?:guard|quota)[^.]*not (?:called|repeat)|does not repeat[^.]*(?:guard|quota)))[\s\S]*$/i
 
 /** Normalizes layout-only whitespace without weakening SQL token checks. */

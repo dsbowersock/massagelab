@@ -2,6 +2,10 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { hashToken } from "../lib/auth-security.js"
+import {
+  ANATOMIME_HOST_IDLE_SECONDS,
+  ANATOMIME_TERMS_PER_TURN,
+} from "../lib/anatomime-room-rules.ts"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
 import {
   AnatomimeTrafficLimitError,
@@ -580,6 +584,8 @@ describe("Anatomime traffic server primitives", () => {
 
     assert.deepEqual(scenario.coalesceCalls, [])
     assert.deepEqual(projection.viewer, { isHost: false, playerId: null, teamId: null })
+    assert.equal(projection.config.termCount, ANATOMIME_TERMS_PER_TURN)
+    assert.equal(projection.hostCanBeChallenged, true)
   })
 
   it("captures runtime time after delayed hydration and expires without refreshing presence", async () => {
@@ -1114,7 +1120,10 @@ function loadPresenceRoomServer({
         roundLimit: 1,
       }),
     },
-    "./anatomime-room-rules.ts": {},
+    "./anatomime-room-rules.ts": {
+      ANATOMIME_HOST_IDLE_SECONDS,
+      ANATOMIME_TERMS_PER_TURN,
+    },
     "./anatomime-traffic-server.ts": {
       AnatomimeTrafficLimitError,
       coalesceAnatomimePlayerPresence: async (input) => {

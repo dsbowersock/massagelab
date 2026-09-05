@@ -22,21 +22,6 @@ const pollRouteSource = await readFile(new URL("../app/api/anatomime/sessions/[c
 const sharedSessionClientSource = await readFile(new URL("../app/anatomime/shared-session-client.tsx", import.meta.url), "utf8")
 const hostRoomClientSource = await readFile(new URL("../app/anatomime/host-room-client.tsx", import.meta.url), "utf8")
 const apiSource = await readFile(new URL("../lib/anatomime-api.ts", import.meta.url), "utf8")
-const projectStateSource = await readFile(new URL("../docs/project-state.md", import.meta.url), "utf8")
-const projectLogSource = await readFile(new URL("../docs/project-log.md", import.meta.url), "utf8")
-const VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL = 174
-const verifiedLayerBReceiptPattern = new RegExp(escapeRegExp(
-  `exact ${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL}/${VERIFIED_LAYER_B_FOCUSED_MATRIX_TOTAL} focused Anatomime matrix`,
-))
-const VERIFIED_ANATOMIME_BROWSER_QA_TOTAL = 42
-const verifiedAnatomimeBrowserQaReceiptPattern = new RegExp(escapeRegExp(
-  `Fresh exact-head full intercepted Anatomime Browser QA coverage reports ${VERIFIED_ANATOMIME_BROWSER_QA_TOTAL}/${VERIFIED_ANATOMIME_BROWSER_QA_TOTAL} desktop/mobile cases ok in one post-fix run`,
-))
-
-/** Escapes a literal receipt so one verified count drives both documentation checks. */
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}
 
 /** Extracts one lexical top-level function without depending on its neighbors. */
 function topLevelFunctionSource(source, functionName, fileName) {
@@ -931,12 +916,6 @@ describe("Anatomime client poll ownership", () => {
     )
   })
 
-  it("keeps canonical documentation receipts at the validated Layer B count", () => {
-    for (const source of [projectStateSource, projectLogSource]) {
-      assert.match(source, verifiedLayerBReceiptPattern)
-      assert.match(source, verifiedAnatomimeBrowserQaReceiptPattern)
-    }
-  })
 })
 
 describe("Anatomime realtime token traffic boundary", () => {
