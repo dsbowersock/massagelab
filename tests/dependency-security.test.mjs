@@ -85,7 +85,7 @@ test("reviewed dependency copies stay above their patched security floors", asyn
   assert.equal(packageJson.dependencies["nodemailer-v9"], "npm:nodemailer@^9.0.3")
   assertVersionAtLeast(packageJson.dependencies["@prisma/adapter-neon"], "7.9.1", "@prisma/adapter-neon")
   assertVersionAtLeast(packageJson.dependencies["@prisma/client"], "7.9.1", "@prisma/client")
-  assertVersionAtLeast(packageJson.devDependencies.postcss, "8.5.18", "postcss")
+  assertVersionAtLeast(packageJson.devDependencies.postcss, "8.5.28", "postcss")
   assertVersionAtLeast(packageJson.devDependencies.prisma, "7.9.1", "prisma")
   assertVersionAtLeast(packageJson.devDependencies.shadcn, "4.16.1", "shadcn")
   assert.equal(packageJson.devDependencies["eslint-config-next"], packageJson.dependencies.next)
@@ -93,10 +93,16 @@ test("reviewed dependency copies stay above their patched security floors", asyn
   const fixedVersionFloors = new Map([
     ["@babel/core", "7.29.6"],
     ["@hono/node-server", "2.0.10"],
-    ["fast-uri", "3.1.4"],
-    ["hono", "4.12.27"],
+    ["@humanfs/node", "0.16.8"],
+    ["body-parser", "2.3.0"],
+    ["browserslist", "4.28.9"],
+    ["fast-uri", "3.1.7"],
+    ["hono", "4.12.34"],
+    ["mysql2", "3.24.3"],
+    ["nanoid", "3.3.18"],
     ["nodemailer-v9", "9.0.1"],
-    ["postcss", "8.5.18"],
+    ["postcss", "8.5.28"],
+    ["qs", "6.16.0"],
     ["sharp", "0.35.3"],
   ])
 
@@ -111,9 +117,9 @@ test("reviewed dependency copies stay above their patched security floors", asyn
   )
 
   const braceExpansionFloors = new Map([
-    [1, "1.1.16"],
-    [2, "2.1.3"],
-    [5, "5.0.8"],
+    [1, "1.1.18"],
+    [2, "2.1.4"],
+    [5, "5.0.9"],
   ])
 
   const braceExpansionVersions = getLockedVersions(lock, "brace-expansion")
