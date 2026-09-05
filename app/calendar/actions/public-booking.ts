@@ -1011,6 +1011,7 @@ export async function joinBookingWaitlist(
         db: tx,
       })
 
+      // Guest policy is not form validation: return generic UNAVAILABLE and emit only the bounded POLICY diagnostic.
       if (!prepared.userId && !context.allowGuestBooking) {
         throw new PublicBookingExpectedUnavailableError(
           "POLICY",
