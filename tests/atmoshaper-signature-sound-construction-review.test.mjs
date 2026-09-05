@@ -36,11 +36,22 @@ async function readJson(relativePath) {
  * Compare text authorities as their LF-owned Git blobs while tolerating Git's
  * CRLF checkout conversion on existing Windows worktrees. Other bytes remain
  * covered by the pinned hashes and exact renderer comparison.
+ *
+ * @param {string} contents UTF-8 text read from a Git checkout.
+ * @returns {string} The text with CRLF sequences canonicalized to LF.
  */
 function normalizeGitTextCheckout(contents) {
   return contents.replaceAll("\r\n", "\n")
 }
 
+/**
+ * Read a JSON evidence fixture as UTF-8, canonicalize CRLF checkout conversion,
+ * verify the SHA-256 of the canonical LF text, and return its parsed value.
+ *
+ * @param {string} name Fixture filename beneath the evidence-fixture root.
+ * @param {string} expectedSha256 SHA-256 expected for the canonical LF text.
+ * @returns {Promise<unknown>} The parsed fixture JSON.
+ */
 async function readEvidenceFixture(name, expectedSha256) {
   const contents = await readFile(join(fixtureRoot, name))
   const canonicalContents = normalizeGitTextCheckout(contents.toString("utf8"))
