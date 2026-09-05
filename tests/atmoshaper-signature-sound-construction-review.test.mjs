@@ -32,10 +32,31 @@ async function readJson(relativePath) {
   return JSON.parse(await readFile(join(repoRoot, relativePath), "utf8"))
 }
 
+/**
+ * Compare text authorities as their LF-owned Git blobs while tolerating Git's
+ * CRLF checkout conversion on existing Windows worktrees. Other bytes remain
+ * covered by the pinned hashes and exact renderer comparison.
+ *
+ * @param {string} contents UTF-8 text read from a Git checkout.
+ * @returns {string} The text with CRLF sequences canonicalized to LF.
+ */
+function normalizeGitTextCheckout(contents) {
+  return contents.replaceAll("\r\n", "\n")
+}
+
+/**
+ * Read a JSON evidence fixture as UTF-8, canonicalize CRLF checkout conversion,
+ * verify the SHA-256 of the canonical LF text, and return its parsed value.
+ *
+ * @param {string} name Fixture filename beneath the evidence-fixture root.
+ * @param {string} expectedSha256 SHA-256 expected for the canonical LF text.
+ * @returns {Promise<unknown>} The parsed fixture JSON.
+ */
 async function readEvidenceFixture(name, expectedSha256) {
   const contents = await readFile(join(fixtureRoot, name))
-  assert.equal(createHash("sha256").update(contents).digest("hex"), expectedSha256)
-  return JSON.parse(contents.toString("utf8"))
+  const canonicalContents = normalizeGitTextCheckout(contents.toString("utf8"))
+  assert.equal(createHash("sha256").update(canonicalContents).digest("hex"), expectedSha256)
+  return JSON.parse(canonicalContents)
 }
 
 async function loadAuthorityBundle() {
@@ -232,9 +253,11 @@ describe("AtmoShaper Signature construction-review authority", () => {
       exportedReview: authority.exportedListeningReview,
       strategyPolicy: authority.strategyPolicy,
     })
-    const listeningBytes = await readFile(
-      join(repoRoot, "data", "atmoshaper", "signature-sound-listening-review.json"),
-      "utf8",
+    const listeningBytes = normalizeGitTextCheckout(
+      await readFile(
+        join(repoRoot, "data", "atmoshaper", "signature-sound-listening-review.json"),
+        "utf8",
+      ),
     )
     assert.equal(renderSignatureSoundListeningReviewJson(normalizedListening, {
       discoveryReview: normalizedDiscovery,
