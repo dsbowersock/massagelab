@@ -44,9 +44,10 @@ CLI/config dependency graph pending an upstream-compatible major update.
   `@auth/prisma-adapter` moved to `2.11.3`, leaving one deduplicated
   `@auth/core@0.41.3` resolution.
 - `ws` was updated from `8.20.0` to `8.21.0`, superseding Dependabot PR #31's `8.20.1` security bump for GHSA-58qx-3vcg-4xpx.
-- Top-level `postcss` moved from `8.5.14` through `8.5.15` to the patched
-  `^8.5.18` range, currently resolved at `8.5.25`; Next's nested copy is
-  overridden from `8.4.31` to `8.5.18`.
+- An earlier update moved top-level `postcss` from `8.5.14` through `8.5.15`
+  to the patched `^8.5.18` range, which resolved at `8.5.25` at that
+  checkpoint; Next's nested copy moved from `8.4.31` to `8.5.18`. The
+  September maintenance gate below supersedes both floors with `8.5.28`.
 - Fix Wave 2 moves Prisma packages from `7.8.0` to `7.9.1`, shadcn from
   `4.7.0` to `4.16.1`, and replaces the vulnerable Nodemailer 7 runtime with
   the patched Nodemailer 9 alias. Narrow overrides cover remaining reviewed

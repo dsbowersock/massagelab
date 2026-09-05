@@ -62,7 +62,7 @@ No repository `SECURITY.md` applies to `package.json` or `.github/workflows/ci.y
 
 ## Execution Readiness View
 
-- Intent Lock: close safe patch-level dependency findings and the cache-action runtime warning before Layer B.
+- Intent Lock: close safe same-major dependency findings and the cache-action runtime warning before Layer B.
 - Scope Fence: dependency metadata, lock resolution, CI cache pin, cross-platform test checkout handling, existing security regression, and canonical documentation only.
 - Baseline Lock: start from exact clean `main` commit `94c05b827eb2511659994cdae00cfcb99f909d77`; preserve all other worktrees and untracked primary-checkout files.
 - Approved Behavior: no user-visible or server-runtime behavior change.
@@ -88,7 +88,7 @@ No repository `SECURITY.md` applies to `package.json` or `.github/workflows/ci.y
 
 ## Triage Summary
 
-The current npm report normalizes to advisory claims across PostCSS, fast-uri, brace-expansion, nanoid, deepmerge-ts, Browserslist, mysql2, Hono, body-parser, qs, and `@humanfs/node`. Static repository evidence finds no application import of those packages. PostCSS, fast-uri, brace-expansion, nanoid, and Browserslist are reached through trusted build/bundler configuration. Hono, body-parser, qs, and `@humanfs/node` occur only in local development tooling. `deepmerge-ts` and `mysql2` are reached through the Prisma CLI; MassageLab deploys PostgreSQL through Neon and has no MySQL runtime path. The hosted application therefore does not establish the attacker-controlled sources or supported boundary crossings required to confirm the advisory claims. Patch-level hygiene remains worthwhile where compatibility is bounded.
+The current npm report normalizes to advisory claims across PostCSS, fast-uri, brace-expansion, nanoid, deepmerge-ts, Browserslist, mysql2, Hono, body-parser, qs, and `@humanfs/node`. Static repository evidence finds no application import of those packages. PostCSS, fast-uri, brace-expansion, nanoid, and Browserslist are reached through trusted build/bundler configuration. Hono, body-parser, qs, and `@humanfs/node` occur only in local development tooling. `deepmerge-ts` and `mysql2` are reached through the Prisma CLI; MassageLab deploys PostgreSQL through Neon and has no MySQL runtime path. The hosted application therefore does not establish the attacker-controlled sources or supported boundary crossings required to confirm the advisory claims. Same-major hygiene remains worthwhile where compatibility is bounded.
 
 ## Files
 
@@ -107,7 +107,7 @@ The current npm report normalizes to advisory claims across PostCSS, fast-uri, b
 
 1. Update the existing PostCSS floor and Next.js nested override to `8.5.28`.
 2. Raise `fast-uri` within major 3 to `3.1.7`.
-3. Raise brace-expansion major-2 and major-5 copies to `2.1.4` and `5.0.9`; preserve the unaffected major-1 floor.
+3. Raise brace-expansion major-2 and major-5 copies to `2.1.4` and `5.0.9`; retain major 1 as a separate compatibility line for its own reviewed floor.
 4. Add exact reviewed overrides for `nanoid@3.3.18`, `browserslist@4.28.9`, and `mysql2@3.24.3`.
 5. Raise development-tool-only floors for `brace-expansion@1.1.18`, `hono@4.12.34`, `body-parser@2.3.0`, `qs@6.16.0`, and `@humanfs/node@0.16.8`.
 6. Regenerate only the lockfile and inspect the complete package/lock diff for unrelated upgrades.
