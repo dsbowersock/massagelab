@@ -44,6 +44,7 @@ for (const [label, spec] of [
   ["membership return status", "membership-return-status.spec.ts"],
   ["interaction feedback", "interaction-feedback.spec.ts"],
   ["Anatomime traffic recovery", "anatomime-traffic.spec.ts"],
+  ["public booking traffic", "public-booking-traffic.spec.ts"],
 ]) {
   test(`${label} is assigned to desktop lane 1 and mobile lane 2 exactly once`, () => {
     assert.equal(ORDINARY_BROWSER_QA_SPEC_FILES.filter((candidate) => candidate === spec).length, 1)

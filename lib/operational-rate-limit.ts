@@ -1,5 +1,5 @@
 import { createHmac, randomInt } from "node:crypto"
-import type { PrismaClient } from "@prisma/client"
+import type { Prisma, PrismaClient } from "@prisma/client"
 import { getAuthSecret } from "./auth-env.ts"
 import { runCommerceTransaction } from "./commerce/transactions.ts"
 import {
@@ -24,6 +24,14 @@ export type OperationalRateLimitDecision =
 
 export type OperationalRateLimitClient =
   Pick<PrismaClient, "$transaction" | "operationalRateLimitBucket">
+
+type OperationalRateLimitTransactionClient =
+  Pick<Prisma.TransactionClient, "operationalRateLimitBucket">
+
+type OperationalRateLimitInput = OperationalRateLimitRequest & {
+  secret?: string
+  now?: Date
+}
 
 type OperationalBucketRecord = {
   count: number
@@ -94,25 +102,78 @@ function reportOperationalFailureOnce(input: unknown, failureClass: OperationalF
  * persistence fail closed before protected work begins.
  */
 export async function consumeOperationalRateLimit(
-  input: OperationalRateLimitRequest & {
+  input: OperationalRateLimitInput & {
     prismaClient?: OperationalRateLimitClient
-    secret?: string
-    now?: Date
     shouldPrune?: () => boolean
   },
 ): Promise<OperationalRateLimitDecision> {
   let client: OperationalRateLimitClient
-  let now: Date
-  let preparedRules: PreparedRule[]
+  let prepared: { now: Date; rules: PreparedRule[] }
 
   try {
     client = input.prismaClient ?? prisma
-    now = input.now ?? new Date()
-    if (!Number.isFinite(now.getTime())) throw new Error("A valid limiter time is required.")
-    const secret = resolveSecret(input.secret)
-    const rules = resolveOperationalRateLimitRules(input)
-    if (!rules || rules.length === 0) throw new Error("Unknown operational rate-limit operation.")
-    preparedRules = rules
+    prepared = prepareOperationalRateLimit(input)
+  } catch {
+    reportOperationalFailureOnce(input, "DEFINITION")
+    return { allowed: false, reason: "UNAVAILABLE" }
+  }
+
+  let decision: OperationalRateLimitDecision
+  try {
+    decision = await runCommerceTransaction(client, (tx) => (
+      consumePreparedOperationalRateLimit(tx, prepared)
+    ))
+  } catch {
+    reportOperationalFailureOnce(input, "PERSISTENCE")
+    return { allowed: false, reason: "UNAVAILABLE" }
+  }
+
+  await schedulePrune({
+    prismaClient: client,
+    now: prepared.now,
+    shouldPrune: input.shouldPrune,
+  })
+  return decision
+}
+
+/**
+ * Consumes the canonical rules on a caller-owned transaction. Persistence
+ * failures propagate so the caller's protected writes and every quota bucket
+ * commit or roll back together. Cleanup is intentionally owned by standalone
+ * consumption and never extends the caller's transaction.
+ */
+export async function consumeOperationalRateLimitInTransaction(
+  input: OperationalRateLimitInput & {
+    transaction: OperationalRateLimitTransactionClient
+  },
+): Promise<OperationalRateLimitDecision> {
+  let prepared: { now: Date; rules: PreparedRule[] }
+  try {
+    prepared = prepareOperationalRateLimit(input)
+  } catch {
+    reportOperationalFailureOnce(input, "DEFINITION")
+    return { allowed: false, reason: "UNAVAILABLE" }
+  }
+
+  try {
+    return await consumePreparedOperationalRateLimit(input.transaction, prepared)
+  } catch (error) {
+    reportOperationalFailureOnce(input, "PERSISTENCE")
+    throw error
+  }
+}
+
+function prepareOperationalRateLimit(
+  input: OperationalRateLimitInput,
+): { now: Date; rules: PreparedRule[] } {
+  const now = input.now ?? new Date()
+  if (!Number.isFinite(now.getTime())) throw new Error("A valid limiter time is required.")
+  const secret = resolveSecret(input.secret)
+  const rules = resolveOperationalRateLimitRules(input)
+  if (!rules || rules.length === 0) throw new Error("Unknown operational rate-limit operation.")
+  return {
+    now,
+    rules: rules
       .map((rule) => ({
         ...rule,
         keyHash: operationalRateLimitKeyHash({
@@ -122,71 +183,59 @@ export async function consumeOperationalRateLimit(
           secret,
         }),
       }))
-      .sort(comparePreparedRules)
-  } catch {
-    reportOperationalFailureOnce(input, "DEFINITION")
-    return { allowed: false, reason: "UNAVAILABLE" }
+      .sort(comparePreparedRules),
   }
+}
 
-  let decision: OperationalRateLimitDecision
-  try {
-    decision = await runCommerceTransaction(client, async (tx) => {
-      const existing = await Promise.all(preparedRules.map((rule) => (
-        tx.operationalRateLimitBucket.findUnique({
-          where: {
-            policy_scope_keyHash: {
-              policy: rule.policy,
-              scope: rule.scope,
-              keyHash: rule.keyHash,
-            },
-          },
-        })
-      )))
-
-      const latestBlock = latestActiveBlock(existing, preparedRules, now)
-      if (latestBlock) {
-        return {
-          allowed: false,
-          reason: "RATE_LIMITED",
-          retryAfterSeconds: Math.max(1, Math.ceil((latestBlock.getTime() - now.getTime()) / 1000)),
-        } as const
-      }
-
-      for (let index = 0; index < preparedRules.length; index += 1) {
-        const rule = preparedRules[index]
-        const record = existing[index]
-        const expired = !record || fixedWindowEnd(record.windowStart, rule.windowMs) <= now
-        const windowStart = expired ? now : record.windowStart
-        const count = expired ? 1 : record.count + 1
-        const blockedUntil = count >= rule.limit
-          ? fixedWindowEnd(windowStart, rule.windowMs)
-          : null
-        const identity = {
+async function consumePreparedOperationalRateLimit(
+  transaction: OperationalRateLimitTransactionClient,
+  prepared: { now: Date; rules: PreparedRule[] },
+): Promise<OperationalRateLimitDecision> {
+  const { now, rules } = prepared
+  const existing = await Promise.all(rules.map((rule) => (
+    transaction.operationalRateLimitBucket.findUnique({
+      where: {
+        policy_scope_keyHash: {
           policy: rule.policy,
           scope: rule.scope,
           keyHash: rule.keyHash,
-        }
-
-        await tx.operationalRateLimitBucket.upsert({
-          where: { policy_scope_keyHash: identity },
-          create: { ...identity, count, windowStart, blockedUntil, updatedAt: now },
-          update: { count, windowStart, blockedUntil, updatedAt: now },
-        })
-      }
-
-      return { allowed: true } as const
+        },
+      },
     })
-  } catch {
-    reportOperationalFailureOnce(input, "PERSISTENCE")
-    return { allowed: false, reason: "UNAVAILABLE" }
+  )))
+
+  const latestBlock = latestActiveBlock(existing, rules, now)
+  if (latestBlock) {
+    return {
+      allowed: false,
+      reason: "RATE_LIMITED",
+      retryAfterSeconds: Math.max(1, Math.ceil((latestBlock.getTime() - now.getTime()) / 1000)),
+    }
   }
 
-  await schedulePrune({
-    prismaClient: client,
-    now,
-    shouldPrune: input.shouldPrune,
-  })
-  return decision
+  for (let index = 0; index < rules.length; index += 1) {
+    const rule = rules[index]
+    const record = existing[index]
+    const expired = !record || fixedWindowEnd(record.windowStart, rule.windowMs) <= now
+    const windowStart = expired ? now : record.windowStart
+    const count = expired ? 1 : record.count + 1
+    const blockedUntil = count >= rule.limit
+      ? fixedWindowEnd(windowStart, rule.windowMs)
+      : null
+    const identity = {
+      policy: rule.policy,
+      scope: rule.scope,
+      keyHash: rule.keyHash,
+    }
+
+    await transaction.operationalRateLimitBucket.upsert({
+      where: { policy_scope_keyHash: identity },
+      create: { ...identity, count, windowStart, blockedUntil, updatedAt: now },
+      update: { count, windowStart, blockedUntil, updatedAt: now },
+    })
+  }
+
+  return { allowed: true }
 }
 
 /** Produces the only subject identity persisted by the operational limiter. */
