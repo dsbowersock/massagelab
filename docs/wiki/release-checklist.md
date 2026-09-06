@@ -170,6 +170,18 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
   proof. Provider or environment changes, database access, payment/Checkout or
   event creation/replay, Sentry capture, email delivery, push, merge, and
   deployment each retain their separate authorization boundaries.
+- Completed receipt: PR #204 exact reviewed head
+  `fa4fffee9f270246f97ae282c64014a189c58f89` merged into prior main
+  `8cc0c80f4d0e08cd85f0431af963f339e1f6f5d4` as exact commit
+  `5e5601fef23ad3b8b7281107d5e9469b6102f5a8`; the merge and reviewed trees are
+  byte-identical. The final full GitHub Actions rerun `34025979327` passed Code
+  quality, Browser build, all four Browser QA lanes, and aggregate `qa`.
+  Deployment `dpl_2sHQqJvy9G793CTViZCJvA4u9Lht` is READY at that exact SHA on
+  all five Production aliases; the homepage, Pricing, and Support returned HTTP
+  200; all 46 migrations are current; the membership webhook-write pause flag
+  is exactly `0`; and the checked one-hour Vercel and 24-hour Sentry windows
+  contained no Production error. This completes Layer D's ordinary release
+  gate without live/test payment, event, Sentry-capture, or email actions.
 
 ## Navigation And Action Feedback Gate
 
