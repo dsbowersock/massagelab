@@ -16,10 +16,13 @@ import {
 import {
   PROBLEM_REPORT_AREAS,
   PROBLEM_REPORT_CATEGORIES,
+  PROBLEM_REPORT_REQUEST_TIMEOUT_MS,
   problemReportAreaById,
   problemReportCategoryById,
+  problemReportRetryAnnouncement,
 } from "@/lib/problem-report"
 import { buildSupportMailtoUrl } from "@/lib/support-contact"
+import { fetchJsonWithTimeout } from "@/lib/client-fetch"
 
 type DiagnosticResponse = {
   eventId?: string
@@ -30,10 +33,14 @@ type DiagnosticResponse = {
 type DiagnosticStatus =
   | { kind: "idle" }
   | { kind: "sending" }
-  | { kind: "sent"; result: DiagnosticResponse }
+  | {
+      kind: "sent"
+      result: DiagnosticResponse
+      submission: { category: string; area: string }
+    }
   | { kind: "rate-limited"; retryAt: number }
   | { kind: "unavailable" }
-  | { kind: "failed" }
+  | { kind: "ambiguous" }
 
 type SupportDiagnosticReportProps = {
   linkedEventId?: string
@@ -51,8 +58,9 @@ export function SupportDiagnosticReport({ linkedEventId = "" }: SupportDiagnosti
   const requestGenerationRef = React.useRef(0)
   const requestAbortRef = React.useRef<AbortController | null>(null)
 
-  const selectedCategory = problemReportCategoryById(category)
-  const selectedArea = problemReportAreaById(area)
+  const sentSubmission = status.kind === "sent" ? status.submission : { category, area }
+  const selectedCategory = problemReportCategoryById(sentSubmission.category)
+  const selectedArea = problemReportAreaById(sentSubmission.area)
   const diagnosticId = status.kind === "sent" ? status.result.eventId ?? "" : ""
   const canUseDiagnosticId = Boolean(diagnosticId)
   const emailUrl = canUseDiagnosticId
@@ -90,7 +98,16 @@ export function SupportDiagnosticReport({ linkedEventId = "" }: SupportDiagnosti
     : 0
   const retryBlocked = status.kind === "rate-limited" && retrySeconds > 0
   const isSending = status.kind === "sending"
-  const isRetry = ["rate-limited", "unavailable", "failed"].includes(status.kind)
+  const isRetry = ["rate-limited", "unavailable", "ambiguous"].includes(status.kind)
+  const statusAnnouncement = status.kind === "sent" && diagnosticId
+    ? `Diagnostic report sent. Sentry reference: ${diagnosticId}.`
+    : status.kind === "rate-limited"
+      ? problemReportRetryAnnouncement(retrySeconds)
+      : status.kind === "unavailable"
+        ? "Diagnostic report temporarily unavailable. Try again manually when you are ready."
+        : status.kind === "ambiguous"
+          ? "MassageLab could not confirm whether the diagnostic report was sent. This page will not resend it automatically."
+          : ""
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -111,28 +128,33 @@ export function SupportDiagnosticReport({ linkedEventId = "" }: SupportDiagnosti
     }
     setStatus({ kind: "sending" })
     setCopyState("idle")
+    const submission = { category, area }
 
     const displayMode = window.matchMedia("(display-mode: standalone)").matches
       ? "standalone"
       : "browser"
 
     try {
-      const response = await fetch("/api/support/problem-report", {
-        method: "POST",
-        signal: requestAbort.signal,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category,
-          area,
-          route: window.location.pathname,
-          linkedEventId,
-          clientContext: {
-            displayMode,
-            online: navigator.onLine,
-            viewportWidth: window.innerWidth,
-          },
-        }),
-      })
+      const { response, json: body } = await fetchJsonWithTimeout<DiagnosticResponse>(
+        "/api/support/problem-report",
+        {
+          method: "POST",
+          signal: requestAbort.signal,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category: submission.category,
+            area: submission.area,
+            route: window.location.pathname,
+            linkedEventId,
+            clientContext: {
+              displayMode,
+              online: navigator.onLine,
+              viewportWidth: window.innerWidth,
+            },
+          }),
+        },
+        PROBLEM_REPORT_REQUEST_TIMEOUT_MS,
+      )
 
       if (!mountedRef.current || requestGenerationRef.current !== requestGeneration) return
 
@@ -176,20 +198,19 @@ export function SupportDiagnosticReport({ linkedEventId = "" }: SupportDiagnosti
       }
 
       if (!response.ok) {
-        setStatus({ kind: "failed" })
+        setStatus({ kind: "ambiguous" })
         return
       }
 
-      const body = await response.json() as DiagnosticResponse
       if (!mountedRef.current || requestGenerationRef.current !== requestGeneration) return
-      setStatus({ kind: "sent", result: body })
+      setStatus({ kind: "sent", result: body ?? {}, submission })
     } catch {
       if (
         requestAbort.signal.aborted
         || !mountedRef.current
         || requestGenerationRef.current !== requestGeneration
       ) return
-      setStatus({ kind: "failed" })
+      setStatus({ kind: "ambiguous" })
     } finally {
       if (requestGenerationRef.current === requestGeneration) {
         requestAbortRef.current = null
@@ -283,7 +304,11 @@ export function SupportDiagnosticReport({ linkedEventId = "" }: SupportDiagnosti
           ) : null}
         </div>
 
-        <div role="status" aria-live="polite" aria-atomic="true">
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {statusAnnouncement}
+        </p>
+
+        <div>
           {status.kind === "sent" && diagnosticId ? (
             <AppNotice
               title="Diagnostic report sent"
@@ -309,10 +334,10 @@ export function SupportDiagnosticReport({ linkedEventId = "" }: SupportDiagnosti
             />
           ) : null}
 
-          {status.kind === "failed" ? (
+          {status.kind === "ambiguous" ? (
             <AppNotice
-              title="Diagnostic report was not sent"
-              description="The email support form still works without a diagnostic ID."
+              title="Diagnostic report delivery uncertain"
+              description="MassageLab could not confirm whether it was sent. Try again manually only if you still need to; this page will not resend it automatically. The email support form still works without a diagnostic ID."
               tone="destructive"
             />
           ) : null}

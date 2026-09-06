@@ -9,6 +9,7 @@ import {
 const DONATION_PATH = "/api/billing/donation"
 const REPORT_PATH = "/api/support/problem-report"
 const DONATION_STORAGE_KEY = "massagelab-donation-checkout-attempt-v1"
+const REPORT_REQUEST_TIMEOUT_MS = 10_000
 
 type ProviderBoundary = {
   appOrigin: string
@@ -412,15 +413,19 @@ test("diagnostic Retry-After owns a countdown without automatic replay", async (
   providerBoundary,
 }) => {
   await installSameOriginAppBoundary(page, providerBoundary)
-  const reportBodies: unknown[] = []
+  const reportBodies: Array<Record<string, unknown>> = []
   let releaseFirst: () => void = () => undefined
   const firstResponseGate = new Promise<void>((resolve) => {
     releaseFirst = resolve
   })
+  let releaseSecond: () => void = () => undefined
+  const secondResponseGate = new Promise<void>((resolve) => {
+    releaseSecond = resolve
+  })
   await page.route((url) => (
     isSameOriginPath(url, providerBoundary.appOrigin, REPORT_PATH)
   ), async (route) => {
-    reportBodies.push(route.request().postDataJSON())
+    reportBodies.push(route.request().postDataJSON() as Record<string, unknown>)
     if (reportBodies.length === 1) {
       await firstResponseGate
       await route.fulfill({
@@ -431,6 +436,7 @@ test("diagnostic Retry-After owns a countdown without automatic replay", async (
       })
       return
     }
+    await secondResponseGate
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -452,6 +458,8 @@ test("diagnostic Retry-After owns a countdown without automatic replay", async (
   const liveStatus = form.getByRole("status")
   await expect(liveStatus).toHaveAttribute("aria-live", "polite")
   await expect(liveStatus).toHaveAttribute("aria-atomic", "true")
+  const waitingAnnouncement = "Diagnostic reports are temporarily paused. Wait before trying again. This page will not resend the report automatically."
+  await expect(liveStatus).toHaveText(waitingAnnouncement)
   const retry = page.getByRole("button", { name: "Try Diagnostic Again", exact: true })
   await expect(retry).toBeDisabled()
   await expect(page.getByText(
@@ -459,21 +467,98 @@ test("diagnostic Retry-After owns a countdown without automatic replay", async (
     { exact: true },
   )).toBeVisible()
 
-  await page.clock.fastForward(2_999)
+  await page.clock.fastForward(1_000)
+  await expect(page.getByText(
+    "Please wait 2 seconds before trying again. This page will not resend the report automatically.",
+    { exact: true },
+  )).toBeVisible()
+  await expect(liveStatus).toHaveText(waitingAnnouncement)
+  await page.clock.fastForward(1_999)
   await expect(retry).toBeDisabled()
   await page.clock.fastForward(1)
   await expect(retry).toBeEnabled()
-  await expect(page.getByText(
+  await expect(page.getByRole("paragraph").filter({
+    hasText: "You can try again now. This page will not resend the report automatically.",
+  })).toBeVisible()
+  await expect(liveStatus).toHaveText(
     "You can try again now. This page will not resend the report automatically.",
-    { exact: true },
-  )).toBeVisible()
+  )
   await page.clock.fastForward(30_000)
   expect(reportBodies).toHaveLength(1)
 
   await retry.click()
   await expect.poll(() => reportBodies.length).toBe(2)
+  await page.getByRole("combobox", { name: "Tool area" }).click()
+  await page.getByRole("option", { name: "Account, billing, or login" }).click()
+  await page.getByRole("combobox", { name: "Issue type" }).click()
+  await page.getByRole("option", { name: "Page crashed or would not load" }).click()
+  releaseSecond()
   await expect(page.getByText("Diagnostic report sent", { exact: true })).toBeVisible()
   await expect(liveStatus).toContainText("Diagnostic report sent")
+  expect(reportBodies[1]).toMatchObject({ area: "not-sure", category: "action-failed" })
+  const emailHref = await page.getByRole("link", { name: "Open Email", exact: true }).getAttribute("href")
+  expect(emailHref).not.toBeNull()
+  const emailBody = new URL(emailHref ?? "mailto:").searchParams.get("body") ?? ""
+  expect(emailBody).toContain("Tool area: Not sure")
+  expect(emailBody).toContain("Issue type: Button or action failed")
+  expect(emailBody).not.toContain("Tool area: Account, billing, or login")
+  expect(emailBody).not.toContain("Issue type: Page crashed or would not load")
+})
+
+test("diagnostic client deadline returns to manual ambiguous recovery without replay", async ({
+  page,
+  providerBoundary,
+}) => {
+  await installSameOriginAppBoundary(page, providerBoundary)
+  const reportBodies: Array<Record<string, unknown>> = []
+  let releaseStalled: () => void = () => undefined
+  let settleStalled: () => void = () => undefined
+  const stalledGate = new Promise<void>((resolve) => {
+    releaseStalled = resolve
+  })
+  const stalledSettled = new Promise<void>((resolve) => {
+    settleStalled = resolve
+  })
+  await page.route((url) => (
+    isSameOriginPath(url, providerBoundary.appOrigin, REPORT_PATH)
+  ), async (route) => {
+    reportBodies.push(route.request().postDataJSON() as Record<string, unknown>)
+    if (reportBodies.length === 1) {
+      await stalledGate
+      await route.abort().catch(() => undefined)
+      settleStalled()
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ eventId: "browser-timeout-recovery-event" }),
+    })
+  })
+
+  const { form, submit } = await openSupport(page)
+  await page.clock.install()
+  await submit.click()
+  await expect.poll(() => reportBodies.length).toBe(1)
+  await expect(form).toHaveAttribute("aria-busy", "true")
+  await page.clock.fastForward(REPORT_REQUEST_TIMEOUT_MS - 1_000)
+  await expect(page.getByRole("button", { name: "Sending...", exact: true })).toBeDisabled()
+  await page.clock.fastForward(1_000)
+
+  await expect(page.getByText("Diagnostic report delivery uncertain", { exact: true })).toBeVisible()
+  const retry = page.getByRole("button", { name: "Try Diagnostic Again", exact: true })
+  await expect(retry).toBeEnabled()
+  await expect(form.getByRole("status")).toHaveText(
+    "MassageLab could not confirm whether the diagnostic report was sent. This page will not resend it automatically.",
+  )
+  await page.clock.fastForward(30_000)
+  expect(reportBodies).toHaveLength(1)
+
+  releaseStalled()
+  await stalledSettled
+  await retry.click()
+  await expect.poll(() => reportBodies.length).toBe(2)
+  await expect(page.getByText("Diagnostic report sent", { exact: true })).toBeVisible()
 })
 
 test("diagnostic malformed limit, unavailable, and generic failure require manual recovery", async ({
@@ -566,7 +651,7 @@ test("diagnostic malformed limit, unavailable, and generic failure require manua
 
   await retry.click()
   await expect.poll(() => reportBodies.length).toBe(4)
-  await expect(page.getByText("Diagnostic report was not sent", { exact: true })).toBeVisible()
+  await expect(page.getByText("Diagnostic report delivery uncertain", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "Try Diagnostic Again", exact: true }).click()
   await expect.poll(() => reportBodies.length).toBe(5)
   await expect(page.getByText("Diagnostic report sent", { exact: true })).toBeVisible()
