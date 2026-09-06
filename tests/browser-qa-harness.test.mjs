@@ -742,19 +742,23 @@ test("CI workflow parallelizes browser QA and aggregates every upstream result",
   assert.match(ciWorkflow, /key: \$\{\{ runner\.os \}\}-nextjs-v2-/)
 
   const runtimeArtifact = "next-runtime-${{ github.sha }}-${{ github.run_attempt }}"
+  const browserQaJob = getWorkflowJob(ciWorkflow, "browser_qa")
   assert.match(ciWorkflow, new RegExp(`name: ${runtimeArtifact.replaceAll("$", "\\$").replaceAll("{", "\\{").replaceAll("}", "\\}")}`))
   assert.match(
     ciWorkflow,
     /uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a\r?\n        with:\r?\n          name: next-runtime-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}\r?\n          path: \|\r?\n            \.next\r?\n            !\.next\/cache\/\*\*\r?\n          if-no-files-found: error\r?\n          retention-days: 1\r?\n          include-hidden-files: true/,
   )
   assert.match(
-    ciWorkflow,
+    browserQaJob,
     /id: download_browser_runtime\r?\n        #[^\r\n]*\r?\n        #[^\r\n]*\r?\n        continue-on-error: \$\{\{ github\.run_attempt > 1 \}\}\r?\n        uses: actions\/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c\r?\n        with:\r?\n          name: next-runtime-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}\r?\n          path: \.next/,
   )
   assert.match(
-    ciWorkflow,
+    browserQaJob,
     /- name: Rebuild browser runtime after rerun artifact loss\r?\n        if: \$\{\{ github\.run_attempt > 1 && steps\.download_browser_runtime\.outcome == 'failure' \}\}\r?\n        run: npm run build:browser-qa/,
   )
+  assert.equal((browserQaJob.match(/^        run: npm run build:browser-qa$/gm) ?? []).length, 1)
+  assertWorkflowStepBefore(browserQaJob, "id: download_browser_runtime", "npm run build:browser-qa")
+  assertWorkflowStepBefore(browserQaJob, "npm run build:browser-qa", "npm run test:browser")
   assert.match(
     ciWorkflow,
     /if: \$\{\{ always\(\) \}\}\r?\n        uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a\r?\n        with:\r?\n          name: browser-diagnostics-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}-lane-\$\{\{ matrix\.lane \}\}\r?\n          path: test-results\r?\n          if-no-files-found: ignore\r?\n          retention-days: 7\r?\n          include-hidden-files: true/,
