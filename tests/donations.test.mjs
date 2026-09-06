@@ -130,12 +130,16 @@ describe("one-time support options", () => {
 })
 
 describe("donation Checkout attempt records", () => {
-  it("accepts only a canonical current 24-hour browser attempt record", () => {
-    const { readDonationCheckoutAttempt } = loadDonationAttemptModule()
+  it("accepts only a canonical browser attempt younger than 23 hours 55 minutes", () => {
+    const {
+      DONATION_CHECKOUT_ATTEMPT_MAX_AGE_MS,
+      readDonationCheckoutAttempt,
+    } = loadDonationAttemptModule()
+    assert.equal(DONATION_CHECKOUT_ATTEMPT_MAX_AGE_MS, (((23 * 60) + 55) * 60 * 1000))
     const valid = {
       attemptId: CHECKOUT_ATTEMPT_ID,
       amountCents: 1500,
-      createdAt: CHECKOUT_ATTEMPT_NOW - (24 * 60 * 60 * 1000),
+      createdAt: CHECKOUT_ATTEMPT_NOW - DONATION_CHECKOUT_ATTEMPT_MAX_AGE_MS + 1,
     }
 
     assert.deepEqual(
@@ -154,7 +158,7 @@ describe("donation Checkout attempt records", () => {
       JSON.stringify({ ...valid, amountCents: 1499 }),
       JSON.stringify({ ...valid, createdAt: Number.NaN }),
       JSON.stringify({ ...valid, createdAt: CHECKOUT_ATTEMPT_NOW + 1 }),
-      JSON.stringify({ ...valid, createdAt: CHECKOUT_ATTEMPT_NOW - (24 * 60 * 60 * 1000) - 1 }),
+      JSON.stringify({ ...valid, createdAt: CHECKOUT_ATTEMPT_NOW - DONATION_CHECKOUT_ATTEMPT_MAX_AGE_MS }),
     ]) {
       assert.equal(readDonationCheckoutAttempt(invalid, { now: CHECKOUT_ATTEMPT_NOW }), null, invalid)
     }
@@ -189,7 +193,10 @@ describe("donation Checkout attempt records", () => {
       [{ current: null, amountCents: 500 }, 500],
       [{ current, amountCents: 500, forceNew: true }, 500],
       [{
-        current: { ...current, createdAt: CHECKOUT_ATTEMPT_NOW - (24 * 60 * 60 * 1000) - 1 },
+        current: {
+          ...current,
+          createdAt: CHECKOUT_ATTEMPT_NOW - (((23 * 60) + 55) * 60 * 1000),
+        },
         amountCents: 500,
       }, 500],
     ]) {

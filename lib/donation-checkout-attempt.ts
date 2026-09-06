@@ -2,7 +2,7 @@ import { findDonationOption } from "@/lib/donations"
 import { normalizePublicRequestId } from "@/lib/public-request-id"
 
 export const DONATION_CHECKOUT_ATTEMPT_STORAGE_KEY = "massagelab-donation-checkout-attempt-v1"
-export const DONATION_CHECKOUT_ATTEMPT_MAX_AGE_MS = 24 * 60 * 60 * 1000
+export const DONATION_CHECKOUT_ATTEMPT_MAX_AGE_MS = ((23 * 60) + 55) * 60 * 1000
 
 export type DonationCheckoutAttempt = {
   attemptId: string
@@ -14,8 +14,8 @@ type AttemptClock = { now?: number }
 
 /**
  * Parses the first-party browser replay record without repairing caller data.
- * The 24-hour window limits browser reuse only; Stripe remains the durable
- * authority for repeated requests that use the same versioned provider key.
+ * The 23-hour-55-minute window stays below Stripe's documented 24-hour
+ * idempotency-retention floor while bounding first-party browser reuse.
  */
 export function readDonationCheckoutAttempt(
   value: string | null | undefined,
@@ -96,7 +96,7 @@ function isCurrentDonationCheckoutAttempt(
   if (!isAllowedDonationAmount(value.amountCents)) return false
   const createdAt = value.createdAt
   if (typeof createdAt !== "number" || !Number.isInteger(createdAt)) return false
-  return createdAt <= now && now - createdAt <= DONATION_CHECKOUT_ATTEMPT_MAX_AGE_MS
+  return createdAt <= now && now - createdAt < DONATION_CHECKOUT_ATTEMPT_MAX_AGE_MS
 }
 
 function isAllowedDonationAmount(value: unknown): value is number {
