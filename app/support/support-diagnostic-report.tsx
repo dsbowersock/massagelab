@@ -17,6 +17,7 @@ import {
   PROBLEM_REPORT_AREAS,
   PROBLEM_REPORT_CATEGORIES,
   PROBLEM_REPORT_REQUEST_TIMEOUT_MS,
+  normalizeLinkedSentryEventId,
   problemReportAreaById,
   problemReportCategoryById,
   problemReportRetryAnnouncement,
@@ -25,9 +26,7 @@ import { buildSupportMailtoUrl } from "@/lib/support-contact"
 import { fetchJsonWithTimeout } from "@/lib/client-fetch"
 
 type DiagnosticResponse = {
-  eventId?: string
-  area?: string
-  privacyLevel?: string
+  eventId?: unknown
 }
 
 type DiagnosticStatus =
@@ -35,7 +34,7 @@ type DiagnosticStatus =
   | { kind: "sending" }
   | {
       kind: "sent"
-      result: DiagnosticResponse
+      result: { eventId: string }
       submission: { category: string; area: string }
     }
   | { kind: "rate-limited"; retryAt: number }
@@ -135,7 +134,7 @@ export function SupportDiagnosticReport({ linkedEventId = "" }: SupportDiagnosti
       : "browser"
 
     try {
-      const { response, json: body } = await fetchJsonWithTimeout<DiagnosticResponse>(
+      const { response, json: body } = await fetchJsonWithTimeout<DiagnosticResponse | null>(
         "/api/support/problem-report",
         {
           method: "POST",
@@ -202,8 +201,14 @@ export function SupportDiagnosticReport({ linkedEventId = "" }: SupportDiagnosti
         return
       }
 
+      const confirmedEventId = normalizeLinkedSentryEventId(body?.eventId)
+      if (!confirmedEventId) {
+        setStatus({ kind: "ambiguous" })
+        return
+      }
+
       if (!mountedRef.current || requestGenerationRef.current !== requestGeneration) return
-      setStatus({ kind: "sent", result: body ?? {}, submission })
+      setStatus({ kind: "sent", result: { eventId: confirmedEventId }, submission })
     } catch {
       if (
         requestAbort.signal.aborted

@@ -112,6 +112,7 @@ describe("privacy-safe problem reports", () => {
     assert.equal(getSafeBrowserHint("Mozilla/5.0 Firefox/120.0"), "firefox")
     assert.equal(normalizeLinkedSentryEventId(" ABCDEFabcdef12345678901234567890 "), "abcdefabcdef12345678901234567890")
     assert.equal(normalizeLinkedSentryEventId("abc"), undefined)
+    assert.equal(normalizeLinkedSentryEventId(42), undefined)
   })
 
   it("survives the final Sentry sanitizer without retaining identity or behavior data", () => {

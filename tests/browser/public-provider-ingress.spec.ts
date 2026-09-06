@@ -10,6 +10,9 @@ const DONATION_PATH = "/api/billing/donation"
 const REPORT_PATH = "/api/support/problem-report"
 const DONATION_STORAGE_KEY = "massagelab-donation-checkout-attempt-v1"
 const REPORT_REQUEST_TIMEOUT_MS = 10_000
+const RETRY_DIAGNOSTIC_EVENT_ID = "11111111111111111111111111111111"
+const TIMEOUT_DIAGNOSTIC_EVENT_ID = "22222222222222222222222222222222"
+const RECOVERY_DIAGNOSTIC_EVENT_ID = "33333333333333333333333333333333"
 
 type ProviderBoundary = {
   appOrigin: string
@@ -117,11 +120,15 @@ async function settledDonationForm(page: Page) {
 
 async function openSupport(page: Page) {
   await page.goto("/support", { waitUntil: "domcontentloaded" })
-  const submit = page.getByRole("button", { name: "Send Diagnostic", exact: true })
+  const forms = page.locator("form").filter({
+    has: page.getByText("No clinical details in this report", { exact: true }),
+  })
+  // Next can briefly retain the outgoing document during a soft navigation.
+  // Wait for one current diagnostic owner before checking React hydration.
+  await expect(forms).toHaveCount(1)
+  const form = forms.first()
+  const submit = form.getByRole("button", { name: "Send Diagnostic", exact: true })
   await expect(submit).toBeVisible()
-  const form = page
-    .getByText("No clinical details in this report", { exact: true })
-    .locator("xpath=ancestor::form")
   await waitForReactHydration(form)
   return { form, submit }
 }
@@ -440,7 +447,7 @@ test("diagnostic Retry-After owns a countdown without automatic replay", async (
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ eventId: "browser-diagnostic-event" }),
+      body: JSON.stringify({ eventId: RETRY_DIAGNOSTIC_EVENT_ID }),
     })
   })
 
@@ -532,7 +539,7 @@ test("diagnostic client deadline returns to manual ambiguous recovery without re
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ eventId: "browser-timeout-recovery-event" }),
+      body: JSON.stringify({ eventId: TIMEOUT_DIAGNOSTIC_EVENT_ID }),
     })
   })
 
@@ -570,7 +577,8 @@ test("diagnostic malformed limit, unavailable, and generic failure require manua
     { status: 429, headers: { "Retry-After": "1.5" }, body: { error: "malformed" } },
     { status: 503, body: { error: "unavailable" } },
     { status: 500, body: { error: "failed" } },
-    { status: 200, body: { eventId: "browser-recovery-event" } },
+    { status: 200, body: { eventId: 42 } },
+    { status: 200, body: { eventId: RECOVERY_DIAGNOSTIC_EVENT_ID } },
   ]
   const reportBodies: Array<Record<string, unknown>> = []
   let releaseUnmountedResponse: () => void = () => undefined
@@ -654,11 +662,15 @@ test("diagnostic malformed limit, unavailable, and generic failure require manua
   await expect(page.getByText("Diagnostic report delivery uncertain", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "Try Diagnostic Again", exact: true }).click()
   await expect.poll(() => reportBodies.length).toBe(5)
+  await expect(page.getByText("Diagnostic report delivery uncertain", { exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Open Email", exact: true })).toHaveCount(0)
+  await page.getByRole("button", { name: "Try Diagnostic Again", exact: true }).click()
+  await expect.poll(() => reportBodies.length).toBe(6)
   await expect(page.getByText("Diagnostic report sent", { exact: true })).toBeVisible()
   await expect(liveStatus).toContainText("Diagnostic report sent")
 
   const diagnosticEmail = page.getByRole("link", { name: "Open Email", exact: true }).last()
-  await expect(diagnosticEmail).toHaveAttribute("href", /browser-recovery-event/)
+  await expect(diagnosticEmail).toHaveAttribute("href", new RegExp(RECOVERY_DIAGNOSTIC_EVENT_ID))
   for (const body of reportBodies) {
     expect(Object.keys(body).sort()).toEqual([
       "area",
