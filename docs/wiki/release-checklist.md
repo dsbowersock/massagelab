@@ -100,28 +100,25 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
 
 ## Operational Abuse And Email-Ceiling Gate
 
-- Before any runtime containing the operational limiter, apply the additive
-  `20260831120000_operational_rate_limit_bucket` migration as the only new
-  pending migration through the separately authorized direct
-  maintenance target and verify all 46 committed migrations current with no
-  extras or failure. The migration adds the bucket owner, three nullable Admin
-  email claim fields, and append-only hashed retry operation-key ownership; do
-  not deploy this runtime while it is pending.
-- Immediately before applying `20260831120000_operational_rate_limit_bucket`,
-  run a count-only Production `AdminEmailIntent` row-count preflight against
-  that exact authorized direct target. The current read-only aggregate evidence
-  is `0`, but it must be refreshed. Proceed only when the exact count is `0`;
-  any nonzero count must stop migration and trigger re-review. Do not connect or
-  query Production without separate authorization. PostgreSQL permits multiple
-  `NULL` values in the unique claim-operation-key index, so nullable expansion
-  values do not collide. The exact-zero gate is deliberately stronger than that
-  uniqueness prerequisite: it verifies the expected pre-claim-aware rollout
-  state and forces non-concurrent index lock/application-plan re-review if any
-  row exists. Confirm the migration closes the post-count writer race inside
-  its explicit transaction: it must take an access-exclusive table lock,
-  atomically validate and then drop its temporary false zero-row constraint,
-  hold the lock through commit, and roll back the whole migration if any
-  intervening row exists.
+- Production and the repository have all 46 migrations current, including the
+  additive `20260831120000_operational_rate_limit_bucket`; do not reapply it or
+  repeat its preflight as though it remains pending. Preserve the completed
+  count-only collision check and exact-target application evidence. Any future
+  migration remains separately authorized and must pass the direct-target
+  status gate before its dependent runtime serves.
+- Preserve the completed Layer A procedure verbatim as audit and incident
+  evidence: the count-only Production `AdminEmailIntent` row-count preflight
+  ran against the authorized direct target immediately before applying
+  `20260831120000_operational_rate_limit_bucket`. Its required gate said the
+  current read-only aggregate evidence is `0`, but it must be refreshed for
+  that exact authorized target; proceed only when the exact count is `0`; any
+  nonzero count must stop migration and trigger re-review. PostgreSQL permits
+  multiple `NULL` values in the unique claim-operation-key index, so nullable
+  expansion values do not collide. The exact-zero gate is deliberately stronger
+  than that uniqueness prerequisite: it verifies the expected
+  pre-claim-aware rollout state and forces non-concurrent index lock/application-plan
+  re-review if any row exists. This is completed-history wording, not authority
+  to rerun the query or migration.
 - Prove outbound mail classification at the exact candidate: public-auth mail
   consumes both 70/global/fixed-24h and 90-total/global/fixed-24h, security mail
   consumes only the total 90, unknown classification and limiter unavailability
@@ -133,9 +130,50 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
   cleanup removes only its own restrictive children. Provider delivery/bounce
   proof, migration application, and Production SMTP remain separate actions.
 
+## Public Provider Ingress Gate
+
+- Record the exact current-main base and Layer D runtime/test head. Confirm the
+  candidate changes only the planned donation Checkout, voluntary diagnostic,
+  retry UI, shared Stripe helper, Browser-QA registration, and their tests; it
+  must add no schema, migration, provider setting, or background replay owner.
+- Donation must reject untrusted origin, unsupported media, over-bound declared
+  or streamed input, malformed UTF-8, unsupported amount, and noncanonical
+  attempt identity before quota or Stripe. Denial and limiter unavailability
+  must construct no Stripe client. An allowed call must pass only
+  `massagelab-donation-v1:<canonical UUID>` as the second Checkout request
+  option. Browser recovery may retain one attempt only through
+  `23h55m - 1ms`, rotates it at exactly `23h55m`, and never silently replays an
+  ambiguous provider request.
+- Problem reporting must validate trusted Origin, JSON media type, streamed
+  2,048-byte input, fatal UTF-8, privacy normalization, Sentry readiness, and
+  trusted network identity before durable `PROBLEM_REPORT` consumption.
+  Invalid, disabled, denied, and limiter-unavailable paths must perform zero
+  capture or flush; an allowed request may perform one capture and one bounded
+  flush only. The client must settle fetch and response-body consumption under
+  one 10-second deadline, describe timeout or transport uncertainty without
+  asserting success or failure, accept `sent` only for a canonical 32-hex
+  Sentry receipt, return malformed `2xx` data to uncertain manual recovery,
+  never automatically replay, keep the visual
+  retry countdown outside one stable polite live announcement, and bind a
+  successful support-email link to the submitted taxonomy.
+- Run the focused and adjacent Node matrices, Prisma validate/generate,
+  TypeScript, lint, the complete Node suite, `git diff --check`, and fresh
+  Browser-QA and Production builds. Run all 12 public-provider cases across
+  desktop and mobile Chromium from an isolated exact-candidate server; never
+  accept a pass from a reused worktree process. The ordinary manifest must
+  retain 17 specs, 34 exact desktop/mobile assignments, and four nonempty
+  lanes. Complete unfiltered Browser QA remains a hosted pre-merge gate.
+- Require independent specification and quality/security review, exact-head
+  hosted GitHub CodeRabbit with no actionable comments, hosted CI, and the
+  ordinary exact-SHA deployment/alias/public-health/aggregate-runtime checks.
+  Intercepted routes and injected provider fakes are not live Stripe or Sentry
+  proof. Provider or environment changes, database access, payment/Checkout or
+  event creation/replay, Sentry capture, email delivery, push, merge, and
+  deployment each retain their separate authorization boundaries.
+
 ## Navigation And Action Feedback Gate
 
-- Keep `interaction-feedback.spec.ts` registered exactly once in each ordinary Chromium project. The lane contract is 14 ordinary browser specs, 28 desktop/mobile project-spec assignments, and four nonempty lanes; `tests/browser/ci-lanes.test.mjs` plus `tests/browser-qa-harness.test.mjs` must prove that topology before browser execution.
+- Keep `interaction-feedback.spec.ts` registered exactly once in each ordinary Chromium project. With Layer D, the lane contract is 17 ordinary browser specs, 34 desktop/mobile project-spec assignments, and four nonempty lanes; `tests/browser/ci-lanes.test.mjs` plus `tests/browser-qa-harness.test.mjs` must prove that topology before browser execution.
 - Run the focused Node interaction/auth/membership/loader/lane matrix, create a fresh Browser-QA build, and run the complete interaction-feedback spec in both `desktop-chromium` and `mobile-chromium`. Do not reuse stale browser output. The final release candidate must also pass the unfiltered `npm run test:browser` gate.
 - Exercise a throttled successful route, a throttled successful action, and a thrown request. Pending feedback must appear promptly, disable only the owned action, settle after success or failure, produce one useful live announcement, never take focus, never intercept pointer input, and never replay an uncertain request.
 - Cover desktop 1280×900, mobile portrait 390×844, compact landscape 844×390, 200% root text, real keyboard Tab/Enter activation, and reduced motion. Require no horizontal overflow, visible focus before activation, reduced-motion feedback whose real Loader contributes composited pixels and remains rendered identically across two samples at least 400ms apart, and app-bar/player control centers that remain uncovered.
@@ -145,8 +183,8 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
 ## Identity And Account-Method Gate
 
 - The count-only normalized-email preflight and the five ordered identity/membership migrations were completed under separate authorization. Production baseline deployment `06a730fcc6b7ed54f91e7d6330c023f9e06262c8` verified all 45 baseline migrations current with no extras or failure. Preserve that evidence and do not rerun the preflight or reapply the five as though they remain pending.
-- The completed order was `20260828120000_identity_method_safety`, `20260828121000_identity_normalized_email_index`, `20260828130000_membership_subscription_convergence`, `20260901100000_auth_method_intent_two_factor_purposes`, then `20260901101000_auth_method_intent_registration_callback`. The normalized-email index monitoring and invalid-index recovery boundary remain applicable incident guidance. Only `20260831120000_operational_rate_limit_bucket` is pending for Layer A, even though its repository timestamp sorts before the two already-current 2026-09-01 migrations.
-- Current Production serves the identity/membership runtime with membership webhook writes enabled and `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED=0`. Preserve the separately authorized cutover evidence; Layer A must not alter identity or membership writer authority, routing, or rollback semantics.
+- The completed identity/membership order was `20260828120000_identity_method_safety`, `20260828121000_identity_normalized_email_index`, `20260828130000_membership_subscription_convergence`, `20260901100000_auth_method_intent_two_factor_purposes`, then `20260901101000_auth_method_intent_registration_callback`. The normalized-email index monitoring and invalid-index recovery boundary remain applicable incident guidance. The separately gated `20260831120000_operational_rate_limit_bucket` migration was subsequently applied and is also current, even though its repository timestamp sorts before the two 2026-09-01 migrations.
+- Current Production serves the identity/membership runtime with membership webhook writes enabled and `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED=0`. Production and the repository have all 46 migrations current, including the already-applied `20260831120000_operational_rate_limit_bucket`; do not describe or reapply it as pending. Preserve the separately authorized cutover evidence; later layers must not alter identity or membership writer authority, routing, or rollback semantics.
 - Verify the 15-minute limiter matrix exactly: `REGISTER` 5/account + 12/network; `PASSWORD_RESET` 5/account + 20/network; `LOGIN` 8/account + 30/network; `TWO_FACTOR` 8/account + 30/network; `GOOGLE_INTENT` 30/network. Persistence must contain only the domain-separated hashed identifier and bucket metadata. Confirm the best-effort stale pass samples once in 64 operations, removes at most 100 inactive, non-blocked buckets older than 24 hours, and rechecks those predicates in the delete so a concurrently reactivated or blocked bucket survives.
 - Keep dangerous automatic email linking absent. Prove each Google start uses the private `ml-auth-method-binding` cookie with `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age=600` (10 minutes), and `Secure` in Production. No intent, binding, provider proof, or OAuth token may reach URLs, `localStorage`, `sessionStorage`, rendered data, logs, or evidence. Matching-email linking requires the same browser's provider proof plus explicit fresh Credentials confirmation, provider/cross-account conflicts fail closed, and method removal cannot leave zero credentials.
 - Before changing or publishing Google OAuth settings, read back one exact Production origin and its matching `/api/auth/callback/google` URI, reconciled with `AUTH_URL`, the canonical Vercel alias, and apex/`www` redirects. Read back consent publishing status, support/contact details, required scopes, and intended real-account/test-user access. Provider changes and real Google account testing require separate authorization.
@@ -158,7 +196,7 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
 ## Subscription Entitlement Convergence Gate
 
 - `20260828130000_membership_subscription_convergence` and the other four baseline identity/membership migrations are current in Production. The membership migration created `MembershipWebhookReceipt`, its unique `(provider, providerEventId)` owner, bounded status/attempt/failure/timing metadata, and nullable ordering/authoritative watermarks without backfilling or rewriting existing rows.
-- Membership webhook writes are enabled with the pause flag at `0`. Preserve the completed bridge rollout evidence and the rule that any later rollback uses only a bridge-capable deployment with exact flag `1`, never a pre-bridge writer. The pending operational migration and Layer A deployment do not authorize or require another membership pause cycle.
+- Membership webhook writes are enabled with the pause flag at `0`. Preserve the completed bridge rollout evidence and the rule that any later rollback uses only a bridge-capable deployment with exact flag `1`, never a pre-bridge writer. The completed operational migration and Layers A-D do not authorize or require another membership pause cycle.
 - Preserve the signed ordering contract. A terminal receipt or same-event duplicate is a no-op; an event already proven stale is ignored without provider retrieval or overwriting the stored snapshot; a newer unambiguous Stripe event may apply; equal provider timestamps, legacy rows with null watermarks, membership Checkout completion, and every different event not already proven stale after a successful authoritative read must retrieve current Stripe state outside the transaction. After retrieval, use only a short compare-and-commit transaction. Compare Stripe event time only with the stored Stripe event watermark and the local authoritative marker only with the captured local marker; never compare the two clocks.
 - Keep receipt creation race recovery exact. At the receipt insert site, recognize only `P2002` on the `MembershipWebhookReceipt` model with exact ordered target `provider, providerEventId` or connector-safe index `MembershipWebhookReceipt_provider_providerEventId_key`, or installed PrismaNeon metadata that additionally proves `DriverAdapterError`, `UniqueConstraintViolation`, and PostgreSQL `23505` with the same exact ordered fields/index. Convert that exact race once into the shared `P2034` retry signal so the bounded transaction runner abandons the failed snapshot and starts a fresh `Serializable` transaction. Never retry the raw unique error inside its failed transaction. Wrong codes, models, field order, indexes, mixed constraint metadata, malformed shapes, or a second insert race are not duplicate-delivery proof.
 - Once an envelope can identify or create a receipt, a failure before terminal completion leaves that receipt `RECEIVED` with only an allowlisted failure code. A malformed envelope may reject before any receipt is identified or created, but it still returns non-2xx/retry and grants nothing. There is no durable membership background worker, so a retryable membership failure makes the signed route return private HTTP `503` and let Stripe retry. Do not convert provider, price, ownership, malformed-event, or concurrent uncertainty into a successful acknowledgement. Cache invalidation is permitted only after the convergence owner commits `changed: true`.
@@ -169,7 +207,7 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
 - Before release, rerun the exact clean candidate gate: Prisma validate/generate, TypeScript, lint, complete tests, ordinary Production build, `git diff --check`, fresh Browser-QA build, and focused desktop/mobile `membership-return-status.spec.ts`. Do not run the browser specs from stale output. Database-backed browser rows require the separately approved non-Production disposable runtime/direct target, exact SHA-256 fingerprint, every exact-candidate migration including the operational migration for Layer A, fresh-process wrappers, and exact cleanup; otherwise those rows must hard-skip while public rows still run.
 - The next predecessor-head receipt is historical local evidence. Its migration/deployment status is superseded by the current Production status above; retain its test totals only as predecessor evidence.
 - Current runtime head `6838ff574695b23d206d2272da241d30bed91507` is not yet a Production release pass. A fresh exact-runtime-head focused rerun of the Fix A bridge, Fix B Account-return normalization, background-routing non-regression, and focused Portal contracts passes 62/62. The last complete Task 5 Prisma/type/lint gate, 379/379 focused subscription/Stripe/background matrix, 3,342-test Windows suite, ordinary 114-page Production build, and restricted-Google-Fonts Browser-QA attempt remain predecessor-head evidence at `04881a884d6e5cce656e1ff939bd3b998c67bc18`; none was rerun after Fix A/B. That predecessor Windows suite recorded 3,329 pass, 10 known host-line-ending failures, and 3 intentional skips: nine established Atmoshaper CRLF fixture failures with committed blobs matching their pinned hashes and one Windows CRLF exact-newline failure in `auth-schema-migration.test.mjs`. No final full-suite or exact-runtime-head release pass is claimed. Obtain fresh hosted Linux, complete exact-candidate, and Browser-QA evidence before Production release.
-- Layer A Production remains separately gated on exact-target authorization/application of `20260831120000_operational_rate_limit_bucket`, verification that all 46 committed migrations are current, exact-candidate validation and deployment, outbound delivery/bounce proof, provider callback/origin and delivery health, and pool/capacity/alert posture. The five baseline identity/membership migrations and enabled membership writer are current in Production and are not pending Layer A actions. Any test or live Stripe payment, Checkout, event emission or replay, refund, cancellation, provider/Portal setting or environment mutation, database connection or private-row fixture, deployment, push, or merge needs its own authority. Historical billing smoke is useful context only and must not be reported as exact-head proof.
+- Layer A's exact-target operational migration, all-46-current verification, candidate validation, deployment, and post-deploy health gate are complete. Outbound delivery/bounce proof, provider callback/origin and delivery health, and pool/capacity/alert posture remain broader pre-launch checks rather than pending Layer A code. Any test or live Stripe payment, Checkout, event emission or replay, refund, cancellation, provider/Portal setting or environment mutation, database connection or private-row fixture, deployment, push, or merge needs its own authority. Historical billing smoke is useful context only and must not be reported as exact-head proof.
 
 ## Password-reset integrity gate
 
