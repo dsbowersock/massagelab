@@ -8,7 +8,7 @@
 - Source patch: 25 files, 3,236 insertions, 531 deletions.
 - Current-main overlap inside those 25 paths: only `docs/project-state.md`, `docs/project-log.md`, `docs/wiki/deployment.md`, and `docs/wiki/release-checklist.md` changed; runtime and test paths are unchanged from the historical base.
 - Target worktree was clean with no active Git operation before branch creation.
-- External-action evidence: none; this slice is local-only.
+- External-action evidence: PR #204 was pushed and opened under exact authorization; its initial hosted review evidence is recorded below.
 
 ## Port identity
 
@@ -32,10 +32,12 @@
 - Fresh Browser-QA build: passed and generated 115 pages.
 - Fresh Production build: passed and generated 115 pages. The expected fixed privacy-safe Anatomime shedder initialization diagnostic appeared in the inert local build context.
 - Public-provider Browser QA: the original 10/10 matrix passed against an isolated current-branch server on port 43118; the expanded matrix passed at 12/12 after the first quality correction on port 43119 and again after final receipt validation against a freshly rebuilt exact candidate on isolated port 43120. The earlier default-port run reused another worktree's pre-Layer-D server and is explicitly discarded, not counted as evidence.
-- No real Stripe, Sentry, email, database, migration, provider-setting, payment, push, PR, merge, deployment, or Production action was performed.
+- No real Stripe, Sentry, email, database, migration, provider-setting, payment, merge, Production deployment, or other Production action was performed.
 
 ## Review boundary
 
 - Independent exact-head specification re-review after `1ac38584`: SPEC PASS.
 - Independent exact-head quality/security re-review: QUALITY/SECURITY PASS at `b8c8f40f27fe8412ed1a4e8784fd6dc73ef2c027` with no actionable runtime or test findings.
-- Hosted GitHub CodeRabbit, hosted CI, unfiltered Browser QA, push, PR, merge, deployment, and Production verification remain outside this local integration authorization.
+- PR #204 opened against `8cc0c80f4d0e08cd85f0431af963f339e1f6f5d4` from exact initial head `1512883ff1eb1047aad5f82de5d7fdd089ca0e11`. Initial hosted Code quality, Browser build, all four Browser QA lanes, aggregate QA, all three CodeQL analyzers, Vercel preview, and GitHub Codex review passed.
+- The first exact-head GitHub-hosted CodeRabbit review raised six verified minor findings. The review-fix candidate preserves mounted donation status/alert regions, adds the reachable `invalid-request` return notice, corrects the evidence count to five pre-hosted findings, imports the production diagnostic timeout into Browser QA, proves rapid double-click suppression while the first POST is still pending, and makes the Stripe double return a distinct session for a distinct attempt key.
+- Corrected-head hosted CI and a fresh eligible GitHub-hosted CodeRabbit review remain pending. Merge, Production deployment, and Production verification remain outside the current authorization.

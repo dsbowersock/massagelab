@@ -186,12 +186,12 @@ export function DonationCheckoutForm({
         >
           Start a new checkout attempt
         </Button>
-        {pending ? <span role="status">Opening secure checkout…</span> : null}
-        {storageError ? (
-          <span role="alert" className="text-destructive">
-            Checkout could not start in this browser. Please try again.
-          </span>
-        ) : null}
+        <span role="status" aria-live="polite" aria-atomic="true">
+          {pending ? "Opening secure checkout…" : ""}
+        </span>
+        <span role="alert" aria-atomic="true" className="text-destructive">
+          {storageError ? "Checkout could not start in this browser. Please try again." : ""}
+        </span>
       </div>
     </form>
   )

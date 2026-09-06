@@ -180,6 +180,14 @@ function pricingOneTimeSupportNotice(code?: string) {
     }
   }
 
+  if (code === "invalid-request") {
+    return {
+      tone: "destructive" as const,
+      title: "One-time support checkout request invalid",
+      description: "Start a new checkout attempt and choose one of the listed amounts.",
+    }
+  }
+
   if (code === "rate-limited") {
     return {
       tone: "destructive" as const,

@@ -428,6 +428,12 @@ describe("one-time support pricing owner", () => {
         (element) => element.type === "button" && element.props.type === "button",
       )[0]
       assert.equal(explicitNewButton.props.variant, "link")
+      const idleStatus = findElements(tree, (element) => element.props.role === "status")
+      const idleAlert = findElements(tree, (element) => element.props.role === "alert")
+      assert.equal(idleStatus.length, 1)
+      assert.equal(idleStatus[0].props.children, "")
+      assert.equal(idleAlert.length, 1)
+      assert.equal(idleAlert[0].props.children, "")
 
       const submitButton = submitButtons.find((button) => button.props.value === 500)
       assert.ok(submitButton)
@@ -466,7 +472,12 @@ describe("one-time support pricing owner", () => {
           .every((button) => button.props.disabled === false),
         true,
       )
-      assert.equal(findElements(tree, (element) => element.props.role === "status").length, 0)
+      const restoredStatus = findElements(tree, (element) => element.props.role === "status")
+      const restoredAlert = findElements(tree, (element) => element.props.role === "alert")
+      assert.equal(restoredStatus.length, 1)
+      assert.equal(restoredStatus[0].props.children, "")
+      assert.equal(restoredAlert.length, 1)
+      assert.equal(restoredAlert[0].props.children, "")
       assert.equal(storageWrites.length, 1, "pageshow must not replay or replace the retained attempt")
       assert.equal(nativeSubmissions.length, 1, "pageshow must not resubmit the retained attempt")
 
@@ -486,6 +497,7 @@ describe("one-time support pricing owner", () => {
     for (const [code, title] of [
       ["rate-limited", "One-time support checkout temporarily paused"],
       ["unavailable", "One-time support checkout temporarily unavailable"],
+      ["invalid-request", "One-time support checkout request invalid"],
       ["conflict", "One-time support checkout attempt changed"],
     ]) {
       const pricingPage = await renderPricingPage(code)

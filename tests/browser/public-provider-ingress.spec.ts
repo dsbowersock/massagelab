@@ -5,11 +5,11 @@ import {
   type Page,
   type Route,
 } from "@playwright/test"
+import { PROBLEM_REPORT_REQUEST_TIMEOUT_MS } from "../../lib/problem-report.js"
 
 const DONATION_PATH = "/api/billing/donation"
 const REPORT_PATH = "/api/support/problem-report"
 const DONATION_STORAGE_KEY = "massagelab-donation-checkout-attempt-v1"
-const REPORT_REQUEST_TIMEOUT_MS = 10_000
 const RETRY_DIAGNOSTIC_EVENT_ID = "11111111111111111111111111111111"
 const TIMEOUT_DIAGNOSTIC_EVENT_ID = "22222222222222222222222222222222"
 const RECOVERY_DIAGNOSTIC_EVENT_ID = "33333333333333333333333333333333"
@@ -273,7 +273,8 @@ test("donation keeps one attempt through bounded, unavailable, generic, and ambi
     status: "Opening secure checkout…",
   })
   await expect.poll(() => calls.length).toBe(1)
-  await expect.poll(() => calls.length).toBe(1)
+  await page.waitForTimeout(250)
+  expect(calls).toHaveLength(1)
   releaseFirst()
   await firstNavigation
   form = await settledDonationForm(page)
@@ -290,12 +291,14 @@ test("donation keeps one attempt through bounded, unavailable, generic, and ambi
     busy: owner.getAttribute("aria-busy"),
     allSubmitsEnabled: [...owner.querySelectorAll<HTMLButtonElement>('button[type="submit"]')]
       .every((submit) => !submit.disabled),
-    statusCount: owner.querySelectorAll('[role="status"]').length,
+    statusText: owner.querySelector('[role="status"]')?.textContent,
+    alertText: owner.querySelector('[role="alert"]')?.textContent,
   }))
   expect(restoredState).toEqual({
     busy: "false",
     allSubmitsEnabled: true,
-    statusCount: 0,
+    statusText: "",
+    alertText: "",
   })
   expect(calls).toHaveLength(1)
   await expect.poll(async () => (await storedAttempt(page))?.attemptId).toBe(firstAttempt)
@@ -548,7 +551,7 @@ test("diagnostic client deadline returns to manual ambiguous recovery without re
   await submit.click()
   await expect.poll(() => reportBodies.length).toBe(1)
   await expect(form).toHaveAttribute("aria-busy", "true")
-  await page.clock.fastForward(REPORT_REQUEST_TIMEOUT_MS - 1_000)
+  await page.clock.fastForward(PROBLEM_REPORT_REQUEST_TIMEOUT_MS - 1_000)
   await expect(page.getByRole("button", { name: "Sending...", exact: true })).toBeDisabled()
   await page.clock.fastForward(1_000)
 

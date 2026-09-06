@@ -27,6 +27,7 @@ const SUPPORTER_2_YEARLY_PRICE_ID = "price_supporter_2_yearly"
 const SUPPORTER_5_MONTHLY_PRICE_ID = "price_supporter_5_monthly"
 const SUPPORTER_5_YEARLY_PRICE_ID = "price_supporter_5_yearly"
 const DONATION_IDEMPOTENCY_KEY = "massagelab-donation-v1:123e4567-e89b-42d3-a456-426614174000"
+const SECOND_DONATION_IDEMPOTENCY_KEY = "massagelab-donation-v1:123e4567-e89b-42d3-a456-426614174001"
 const AUTHORITY_HANGING_READ_RECONCILIATION_BUDGET_MS = 2_000
 const SUPPORTER_PRICE_ID_BY_ENV_KEY = Object.freeze({
   STRIPE_SUPPORTER_1_MONTHLY_PRICE_ID: DEFAULT_SUPPORTER_PRICE_ID,
@@ -3502,8 +3503,14 @@ describe("Stripe billing helpers", () => {
             if (prior) {
               return prior
             }
-            idempotentResults.set(requestOptions.idempotencyKey, providerSession)
-            return providerSession
+            const created = idempotentResults.size === 0
+              ? providerSession
+              : {
+                  id: `cs_donation_new_${idempotentResults.size}`,
+                  url: "https://checkout.stripe.com/c/donation-new",
+                }
+            idempotentResults.set(requestOptions.idempotencyKey, created)
+            return created
           },
         },
       },
@@ -3511,9 +3518,19 @@ describe("Stripe billing helpers", () => {
 
     const first = await createStripeDonationCheckoutSession(donationCheckoutOptions({ stripeClient }))
     const second = await createStripeDonationCheckoutSession(donationCheckoutOptions({ stripeClient }))
+    const distinct = await createStripeDonationCheckoutSession(donationCheckoutOptions({
+      idempotencyKey: SECOND_DONATION_IDEMPOTENCY_KEY,
+      stripeClient,
+    }))
 
     assert.equal(first, providerSession)
     assert.equal(second, providerSession)
+    assert.notEqual(distinct, providerSession)
+    assert.equal(idempotentResults.size, 2)
+    assert.deepEqual(
+      [...idempotentResults.keys()],
+      [DONATION_IDEMPOTENCY_KEY, SECOND_DONATION_IDEMPOTENCY_KEY],
+    )
   })
 
   it("normalizes Stripe donation idempotency conflicts without inspecting provider messages", async () => {
