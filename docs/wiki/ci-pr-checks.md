@@ -19,6 +19,8 @@ it validates that the four lanes cover every ordinary desktop- and
 mobile-Chromium project/spec pair exactly once. Keep that manifest as the source
 of truth for project/spec assignments, and keep the workflow matrix lane IDs
 synchronized with its validated lanes without duplicating the assignment map.
+The 25-minute lane cap includes hosted setup and a rerun-only fallback build;
+it is a bounded failure ceiling, not a target runtime.
 
 The final `qa` job always runs after `code_quality`, `browser_build`, and the
 four-lane `browser_qa` matrix have concluded. It succeeds only when every
@@ -56,7 +58,11 @@ result.
   cache speeds builds; it is not the browser runtime artifact.
 - **Runtime artifact:** Browser build uploads `.next` excluding `.next/cache`.
   The artifact is named for the commit and run attempt, retained for one day,
-  and downloaded by every Browser QA lane.
+  and downloaded by every Browser QA lane. GitHub can make artifacts from an
+  earlier attempt unavailable when a rerun starts. The first attempt therefore
+  remains fail-closed on download failure, while a later attempt may run the
+  existing `npm run build:browser-qa` owner only when its current-attempt
+  download fails. A successful download never rebuilds.
 - **Diagnostics:** Every Browser QA lane uploads `test-results` even on
   failure. These diagnostics are retained for seven days when present.
 - **Retries:** Playwright retries a failed test once in CI and captures a trace
@@ -110,6 +116,26 @@ Those were GitHub-hosted infrastructure failures, not application or test
 failures. Each was a real cache miss/save but lacked full 310-test execution,
 so neither is labeled as an accepted cold sample. Their created caches were
 deleted individually with explicit authorization before the next cold attempt.
+
+## 2026-09-06 rerun-resilience maintenance
+
+Layer D main run `34025979327` supplied the current maintenance evidence. Its
+first attempt lost about five minutes to hosted checkout retries and lane 1 hit
+the 20-minute whole-job cap without an application assertion failure. A
+failed-job-only second attempt retained the successful Browser build but
+advanced `github.run_attempt` for the consumer, so the lane requested an
+artifact its skipped producer had never created. The authorized full third
+attempt rebuilt the matching artifact and all jobs passed.
+
+The maintenance candidate keeps attempt-qualified artifacts, makes only later
+attempts eligible for a fallback `build:browser-qa`, and raises the whole-job
+cap to 25 minutes. Exact hosted browser-step timings on the successful third
+attempt were `17m50s / 13m07s / 15m58s / 8m11s`; lane 1 owned both mobile App
+Shell and desktop Anatomime. The canonical manifest therefore moves only mobile
+App Shell to lane 4. Local exact-once and discovery evidence is green, but
+hosted proof remains required: first pass normal PR CI, then explicitly rerun a
+successful Browser QA job and confirm that the skipped producer leads to one
+fallback build followed by passing Browser QA and aggregate `qa`.
 
 ## Diagnosing a browser-lane failure
 

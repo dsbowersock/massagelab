@@ -2100,9 +2100,13 @@ for (const reducedMotion of [false, true] as const) {
       await expect.poll(centeredId).toBe(lastId)
       await page.keyboard.press("ArrowRight")
       await expect.poll(centeredId).toBe(firstId)
+      // Finish the prior keyboard transition before starting the previous swipe.
+      await waitForCarouselMotionToSettle(page, "background-carousel-stage")
 
       await swipeCarouselStage(page, "background-carousel-stage", "previous")
       await expect.poll(centeredId).toBe(lastId)
+      // Finish the previous swipe transition before starting the next swipe.
+      await waitForCarouselMotionToSettle(page, "background-carousel-stage")
       await swipeCarouselStage(page, "background-carousel-stage", "next")
       await expect.poll(centeredId).toBe(firstId)
     }
