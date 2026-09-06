@@ -156,8 +156,8 @@ separately from its read-only review.
 Do not print auth, database, OAuth, SMTP, target, or fingerprint configuration values in release evidence. The completed identity/membership rollout used expand, pause/cut over, drain, unpause, and only then clean up. Layer A does not repeat that bridge ceremony; its remaining schema and runtime sequence is recorded separately below:
 
 1. **Completed under separate authorization for the identity/membership baseline:** the count-only normalized-email preflight ran against the selected direct, non-pooler maintenance target, and the five identity/membership migrations applied in their reviewed order: `20260828120000_identity_method_safety`; `20260828121000_identity_normalized_email_index`; `20260828130000_membership_subscription_convergence`; `20260901100000_auth_method_intent_two_factor_purposes`; then `20260901101000_auth_method_intent_registration_callback`. Production deployment `06a730fcc6b7ed54f91e7d6330c023f9e06262c8` verified all 45 baseline migrations current. Preserve that evidence; do not repeat the preflight or reapply those migrations as though they remain pending. As completed-history and current incident guidance, the normalized-email migration contains only PostgreSQL `CREATE UNIQUE INDEX CONCURRENTLY` for `User_normalized_email_key`. If a concurrent build fails, stop the migration and runtime rollout; do not deploy, mark the migration applied, or assume the index exists, because an invalid index may remain. Inspect only count/status catalog evidence, then use a separately reviewed recovery to resolve collisions, remove the invalid index, recreate and verify the concurrent index, and reconcile Prisma's failed-migration record only after every expansion object is proven correct.
-2. **Pending for Layer A:** run a count-only Production `AdminEmailIntent` row-count preflight against the separately authorized direct maintenance target immediately before applying `20260831120000_operational_rate_limit_bucket`. The current read-only aggregate evidence is `0`, but it must be refreshed for that exact authorized target. Proceed only when the exact count is `0`; any nonzero count must stop migration and trigger re-review. The migration then closes the post-count writer race inside its one transaction: it takes an access-exclusive `AdminEmailIntent` lock, atomically validates an intentionally false temporary constraint to prove the table is still empty, drops that temporary constraint, and holds the lock through commit. Any intervening row fails and rolls back the whole migration. PostgreSQL permits multiple `NULL` values in the unique claim-operation-key index, so nullable expansion values do not collide. The exact-zero gate is deliberately stronger than that uniqueness prerequisite: it verifies the expected pre-claim-aware rollout state and forces non-concurrent index lock/application-plan re-review if any row exists. Apply only this migration and verify all 46 committed migrations current with no extras or failure before serving Layer A runtime. This additive migration creates the operational rate-limit bucket owner, adds three nullable Admin email claim fields, and creates append-only hashed retry-key ownership. The repository timestamp places it before the two already-applied 2026-09-01 migrations, but current Production truth is authoritative: those baseline migrations are current and only this new migration remains pending. This reconciliation did not connect to a database, apply it, or deploy.
-3. The identity/membership bridge is already serving with membership webhook writes enabled and `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED=0`. Preserve its separately authorized rollout evidence and do not repeat the paused/unpaused bridge sequence for this Layer A migration. Layer A deployment remains a separate authorization after the operational migration verifies current; it does not change membership writer authority or routing.
+2. **Completed under separate authorization for Layer A:** the count-only Production `AdminEmailIntent` row-count preflight ran against the separately authorized direct maintenance target immediately before applying `20260831120000_operational_rate_limit_bucket`. The gate's required wording was: the current read-only aggregate evidence is `0`, but it must be refreshed for that exact authorized target; proceed only when the exact count is `0`; any nonzero count must stop migration and trigger re-review. The migration closed the post-count writer race inside its one transaction by taking an access-exclusive `AdminEmailIntent` lock, atomically validating an intentionally false temporary constraint to prove the table was still empty, dropping that temporary constraint, and holding the lock through commit. PostgreSQL permits multiple `NULL` values in the unique claim-operation-key index, so nullable expansion values do not collide. The exact-zero gate was deliberately stronger than that uniqueness prerequisite: it verified the expected pre-claim-aware rollout state and forced non-concurrent index lock/application-plan re-review if any row existed. Only this migration applied, all 46 committed migrations verified current, and Layer A subsequently deployed. Preserve this procedure and receipt as completed audit/incident evidence; do not repeat the query or reapply the migration as though it remains pending.
+3. The identity/membership bridge and Layers A-C are serving with membership webhook writes enabled and `MASSAGELAB_MEMBERSHIP_WEBHOOK_WRITES_PAUSED=0`. Preserve their separately authorized rollout evidence. Layer D adds no migration and does not change membership writer authority or routing.
 4. Keep `AuthAttempt` through the bridge-capable rollback window. Read-only target fingerprinting with `npm run auth:cleanup-legacy-attempts -- --print-fingerprint` and any cleanup are later release actions, not part of deployment. The fingerprint is purpose-bound and includes the database username, host, port, and database; never reuse a fingerprint from another command. Any parser, namespace, role, or target change invalidates earlier fingerprints, so regenerate it within the newly authorized read-only preflight. After cutover/drain evidence, separately authorize the exact production fingerprint and bounded mutation scope before each approved invocation of `npm run auth:cleanup-legacy-attempts -- --expected-fingerprint=<64 lowercase hex> --max-rows=<1..100>`. Record only `legacy_auth_attempt_rows_deleted=<number>`; never record target values, row identifiers, raw keys, email addresses, or network identifiers. No cleanup or future table-drop contract migration occurred in Task 7. Dropping `AuthAttempt` requires its own reviewed migration and authorization after rollback is retired.
 
 The active limiter uses one 15-minute window and persists only a domain-separated HMAC-SHA-256 `keyHash`, purpose, scope, counts, times, and block state. Thresholds are `REGISTER` 5/account and 12/network, `PASSWORD_RESET` 5/account and 20/network, `LOGIN` 8/account and 30/network, `TWO_FACTOR` 8/account and 30/network, and `GOOGLE_INTENT` 30/network. Successful credential proof clears only that account's `LOGIN` and `TWO_FACTOR` buckets, not the network buckets. Best-effort stale cleanup is sampled once per 64 limiter operations, selects at most 100 buckets inactive for 24 hours, and repeats the inactive/non-blocked predicates when deleting so a bucket reactivated after selection survives; it never changes the already-committed limiter decision.
@@ -475,14 +475,14 @@ explicitly authorized, and cannot override the catalog release prefix.
 ## Operational Abuse And Email Ceilings
 
 The operational limiter is deployment-wide database state, not an in-memory
-per-instance counter. All 45 baseline migrations are current in Production;
-apply the new `20260831120000_operational_rate_limit_bucket` as the only pending
-migration before serving a runtime that imports it.
+per-instance counter. Production and the repository have all 46 migrations
+current, including `20260831120000_operational_rate_limit_bucket`; Layers A-C
+already serve on that foundation.
 The additive migration creates the operational bucket table, adds three
 nullable Admin email claim fields, and creates the append-only hashed retry-key
-owner. A pending or unavailable migration status must stop the new Production
-build through the existing gate; do not deploy the runtime first and do not
-substitute the pooled runtime URL for the direct maintenance target.
+owner. Any future pending or unavailable migration status must stop a new
+Production build through the existing gate; never deploy a dependent runtime
+first or substitute the pooled runtime URL for the direct maintenance target.
 
 Outbound mail has a mandatory private class. Verification, verification
 resend, password reset, password setup, and the fixed existing-account
@@ -501,6 +501,51 @@ raw keys enter only the existing finalized `AdminAction.idempotencyKey` audit.
 Do not expose claim values, key hashes, recipients, message copy, or provider
 diagnostics in release evidence. This foundation does not itself apply a
 migration, send mail, change SMTP settings, or authorize a Production retry.
+
+## Public Provider Ingress Hardening
+
+Layer D builds on the deployed operational limiter and adds no schema or
+migration. One-time support Checkout accepts only a trusted request with an
+exact supported media type, a declared and actually streamed body of at most
+4,096 bytes, fatal UTF-8 decoding, one fixed catalog amount, and one canonical
+UUIDv4 attempt. Authenticated requests consume account, network, and global
+limits; anonymous requests consume network and global limits. Denial or
+limiter unavailability occurs before Stripe construction. An accepted call
+passes only the non-identifying
+`massagelab-donation-v1:<canonical UUID>` idempotency key to Checkout.
+
+The browser stores the donation attempt in first-party `sessionStorage` for
+less than 23 hours 55 minutes. That age is only a browser recovery boundary, not a server-wide
+deduplication window. Bounded, unavailable, generic, and ambiguous responses
+retain the attempt for a visible user-initiated retry. Amount changes,
+conflicts, success, cancellation, and an explicit new attempt rotate it. Never
+automatically replay an uncertain Checkout request.
+
+The voluntary problem-report route requires a trusted Origin, JSON media type,
+a streamed object body of at most 2,048 bytes, fatal UTF-8, the established
+privacy normalization, enabled Sentry, and trusted network identification
+before consuming the durable deployment-wide `PROBLEM_REPORT` policy. Invalid,
+disabled, denied, or limiter-unavailable requests perform no Sentry capture or
+flush. An allowed request attempts one `captureMessage` and, only when capture
+returns, one bounded `flush(2000)`; failure after quota remains charged and
+returns generic guidance.
+
+The diagnostic client owns one 10-second deadline across fetch and response-body
+consumption. A timeout, transport loss, malformed success body, or generic
+response leaves delivery uncertain, never triggers an automatic replay, and
+offers only an explicit manual retry. Keep the visible retry countdown outside
+the stable polite live announcement so assistive technology hears one waiting
+message and one readiness change instead of a per-second stream. After success,
+the support-email link must use the taxonomy submitted with that diagnostic,
+not any selector values changed while the request was pending.
+
+Local tests inject Stripe, Sentry, and limiter fakes, while Browser QA
+intercepts the exact app routes. Those receipts prove application ordering and
+manual recovery, not live provider traffic. Release still requires exact-head
+hosted GitHub CodeRabbit and CI, the deployed SHA and aliases, public health,
+and read-only aggregate Production provider/runtime evidence. Provider-setting
+changes, live or test Checkout/payment/event/capture actions, email delivery,
+push, merge, and deployment remain separately authorized.
 
 ## Production Migrations
 

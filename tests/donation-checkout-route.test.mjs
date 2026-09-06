@@ -4,10 +4,6 @@ import { describe, it } from "node:test"
 
 import {
   createCompiledModuleLoader,
-  createElement,
-  findElements,
-  passThroughElement,
-  renderFunctionComponents,
 } from "./helpers/compiled-module.mjs"
 import { DONATION_OPTIONS } from "../lib/donations.js"
 import { safeErrorCode } from "../lib/safe-error-code.js"
@@ -17,73 +13,22 @@ import {
 } from "../lib/trusted-form-origin.js"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
+const CHECKOUT_ATTEMPT_ID = "123e4567-e89b-42d3-a456-426614174000"
+const publicRequestIdSource = await readFile(
+  new URL("../lib/public-request-id.ts", import.meta.url),
+  "utf8",
+)
 const donationRouteSource = await readFile(
   new URL("../app/api/billing/donation/route.ts", import.meta.url),
   "utf8",
 )
-const pricingPageSource = await readFile(
-  new URL("../app/pricing/page.tsx", import.meta.url),
-  "utf8",
+
+const { normalizePublicRequestId } = loadCompiledModule(
+  publicRequestIdSource,
+  "lib/public-request-id.ts",
 )
 
-/** Renders the public pricing page with local read-only doubles around its billing forms. */
-async function renderPricingPage() {
-  const Div = passThroughElement("div")
-  const Button = passThroughElement("button")
-  const Form = passThroughElement("form")
-  const pricingPage = loadCompiledModule(
-    pricingPageSource,
-    "app/pricing/page.tsx",
-    {
-      "react/jsx-runtime": { Fragment: "fragment", jsx: createElement, jsxs: createElement },
-      "next/link": passThroughElement("a"),
-      "lucide-react": {
-        HeartHandshake: Div,
-        ShieldCheck: Div,
-        Sparkles: Div,
-      },
-      "@/lib/rsc-session": { getCurrentRscSession: async () => null },
-      "@/lib/donations": { DONATION_OPTIONS },
-      "@/lib/membership": {
-        getUserMembershipPricingStatus: async () => null,
-        resolveMembershipPricingMode: () => "auth",
-      },
-      "@/lib/membership-pricing": {
-        getMembershipPricingCatalog: async () => ({
-          defaultInterval: "year",
-          intervals: [{
-            id: "year",
-            label: "Yearly",
-            nudge: "Best value",
-            displaySuffix: "/year",
-          }],
-          plans: [],
-        }),
-      },
-      "@/lib/public-launch-controls": {
-        getPublicLaunchControls: () => ({ registrationOpen: true, supporterCheckoutOpen: true }),
-      },
-      "@/lib/prisma": { prisma: {} },
-      "@/components/membership/pricing-cards": { MembershipPricingCards: Div },
-      "@/components/forms/pending-submission-form": {
-        PendingSubmissionForm: Form,
-        PendingSubmitButton: Button,
-      },
-      "@/components/ui/app-surface": {
-        AppNotice: Div,
-        AppPageShell: Div,
-        AppSurface: Div,
-        appCalloutClassName: "test-callout",
-      },
-      "@/components/ui/button": { Button },
-      "@/components/ui/metal-attention-button": { MetalAttentionButton: Button },
-      "@/lib/seo": { createPublicPageMetadata: () => ({}) },
-      "@/lib/safe-error-code": { safeErrorCode },
-    },
-  )
-
-  return renderFunctionComponents(await pricingPage.default({ searchParams: Promise.resolve({}) }))
-}
+class DonationCheckoutAttemptConflictError extends Error {}
 
 /**
  * Loads the production route with deterministic amount lookup and billing
@@ -93,7 +38,10 @@ function donationPost({
   createCheckoutSession = async () => {
     throw new Error("Stripe Checkout double was not configured.")
   },
+  consumeRateLimit = async () => ({ allowed: true }),
   findDonationOption = () => ({ amountCents: 500 }),
+  getSession,
+  networkIdentifier = "network_household",
   session = {
     user: {
       id: "user_supporter",
@@ -108,15 +56,31 @@ function donationPost({
     {
       "next/server": {
         NextResponse: {
-          json: (body, init = {}) => ({ body, status: init.status ?? 200 }),
+          json: (body, init = {}) => ({
+            body,
+            status: init.status ?? 200,
+            ...(init.headers ? { headers: Object.fromEntries(new Headers(init.headers)) } : {}),
+          }),
           redirect: (url, status) => ({ url, status }),
         },
       },
       "@/auth": {
-        getCurrentSession: async () => session,
+        getCurrentSession: getSession ?? (async () => session),
+      },
+      "@/lib/auth-request": {
+        authRequestNetworkIdentifier: typeof networkIdentifier === "function"
+          ? networkIdentifier
+          : () => networkIdentifier,
       },
       "@/lib/auth-env": {
         getSiteUrl: () => siteUrl,
+      },
+      "@/lib/donation-checkout-attempt": {
+        donationCheckoutIdempotencyKey: (attemptId) => {
+          const normalized = normalizePublicRequestId(attemptId)
+          if (!normalized) throw new Error("Invalid donation Checkout attempt.")
+          return `massagelab-donation-v1:${normalized}`
+        },
       },
       "@/lib/donations": {
         findDonationOption,
@@ -124,11 +88,15 @@ function donationPost({
       "@/lib/safe-error-code": {
         safeErrorCode,
       },
+      "@/lib/operational-rate-limit": {
+        consumeOperationalRateLimit: consumeRateLimit,
+      },
       "@/lib/trusted-form-origin": {
         isBrowserFormRequest,
         isTrustedCheckoutFormOrigin,
       },
       "@/lib/stripe-billing": {
+        DonationCheckoutAttemptConflictError,
         createStripeDonationCheckoutSession: createCheckoutSession,
       },
     },
@@ -137,18 +105,89 @@ function donationPost({
   return route.POST
 }
 
-function jsonRequest(body = JSON.stringify({ amountCents: 500 })) {
+function jsonRequest(body = JSON.stringify({
+  amountCents: 500,
+  checkoutAttemptId: CHECKOUT_ATTEMPT_ID,
+}), headers = {}) {
   return new Request("https://massagelab.app/api/billing/donation", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body,
   })
+}
+
+/** Builds a request whose open stream reports each explicit cancellation. */
+function streamingRequest({
+  chunks,
+  contentLength,
+  contentType = "application/json",
+  origin,
+}) {
+  let cancelCalls = 0
+  let nextChunk = 0
+  let closeTimer
+  const body = new ReadableStream({
+    pull(controller) {
+      if (nextChunk >= chunks.length) return
+      controller.enqueue(chunks[nextChunk])
+      nextChunk += 1
+      if (nextChunk === chunks.length) {
+        closeTimer = setTimeout(() => controller.close(), 25)
+      }
+    },
+    cancel() {
+      clearTimeout(closeTimer)
+      cancelCalls += 1
+    },
+  })
+  const headers = new Headers({ "content-type": contentType })
+  if (contentLength !== undefined) headers.set("content-length", contentLength)
+  if (origin !== undefined) headers.set("origin", origin)
+
+  return {
+    request: new Request("https://massagelab.app/api/billing/donation", {
+      method: "POST",
+      headers,
+      body,
+      duplex: "half",
+    }),
+    cancellationCount: () => cancelCalls,
+  }
+}
+
+/** Captures every expensive boundary that malformed ingress must not reach. */
+function guardedDonationPost() {
+  const events = []
+  const POST = donationPost({
+    findDonationOption: (amountCents) => {
+      events.push(`selection:${amountCents}`)
+      return { amountCents: 500 }
+    },
+    getSession: async () => {
+      events.push("session")
+      return null
+    },
+    networkIdentifier: () => {
+      events.push("network")
+      return "network_household"
+    },
+    consumeRateLimit: async () => {
+      events.push("quota")
+      return { allowed: true }
+    },
+    createCheckoutSession: async () => {
+      events.push("checkout")
+      return { url: "https://checkout.stripe.com/c/unexpected" }
+    },
+  })
+  return { POST, events }
 }
 
 /**
  * Builds browser-form requests for the origin-policy scenario table.
  */
 function formRequest({
+  body = new URLSearchParams(),
   fetchSite,
   origin,
   referer,
@@ -164,36 +203,450 @@ function formRequest({
   return new Request(url, {
     method: "POST",
     headers,
-    body: new URLSearchParams(),
+    body,
   })
 }
 
 describe("one-time support Checkout route", () => {
-  it("keeps every catalog donation as a native POST with its exact submitted amount", async () => {
-    const pricingPage = await renderPricingPage()
-    const donationForms = findElements(
-      pricingPage,
-      (element) => element.type === "form" && element.props.action === "/api/billing/donation",
+  it("accepts exactly 4096 UTF-8 JSON bytes with a media parameter", async () => {
+    const prefix = JSON.stringify({
+      amountCents: 500,
+      checkoutAttemptId: CHECKOUT_ATTEMPT_ID,
+      padding: "",
+    }).replace('""}', '"')
+    const suffix = '"}'
+    const body = `${prefix}${"x".repeat(4096 - Buffer.byteLength(prefix + suffix))}${suffix}`
+    assert.equal(Buffer.byteLength(body), 4096)
+
+    const response = await donationPost({
+      createCheckoutSession: async () => ({ url: "https://checkout.stripe.com/c/exact-limit" }),
+    })(jsonRequest(body, {
+      "content-length": "4096",
+      "content-type": "Application/JSON; Charset=UTF-8",
+    }))
+
+    assert.deepEqual(response, {
+      body: { url: "https://checkout.stripe.com/c/exact-limit" },
+      status: 200,
+    })
+  })
+
+  it("rejects declared oversize and malformed lengths before identity, network, quota, or Checkout", async () => {
+    for (const [label, contentLength] of [
+      ["oversize", "4097"],
+      ["negative", "-1"],
+      ["decimal", "12.5"],
+      ["nonnumeric", "not-a-number"],
+      ["unsafe integer", "9007199254740992"],
+    ]) {
+      const { POST, events } = guardedDonationPost()
+      const response = await POST(jsonRequest(undefined, { "content-length": contentLength }))
+
+      assert.deepEqual(response, {
+        body: { error: "Unsupported one-time support amount" },
+        status: 400,
+      }, label)
+      assert.deepEqual(events, [], label)
+    }
+  })
+
+  it("rejects undeclared streamed oversize before identity, network, quota, or Checkout", async () => {
+    const { POST, events } = guardedDonationPost()
+    const response = await POST(jsonRequest(JSON.stringify({
+      amountCents: 500,
+      checkoutAttemptId: CHECKOUT_ATTEMPT_ID,
+      padding: "x".repeat(4096),
+    })))
+
+    assert.deepEqual(response, {
+      body: { error: "Unsupported one-time support amount" },
+      status: 400,
+    })
+    assert.deepEqual(events, [])
+  })
+
+  it("redirects an oversized native form without identity, network, quota, or Checkout", async () => {
+    const body = new URLSearchParams({
+      amountCents: "500",
+      checkoutAttemptId: CHECKOUT_ATTEMPT_ID,
+      padding: "x".repeat(4096),
+    })
+    const { POST, events } = guardedDonationPost()
+
+    const response = await POST(formRequest({ origin: "https://massagelab.app", body }))
+
+    assert.deepEqual(response, {
+      url: "https://massagelab.app/pricing?donation=invalid-amount",
+      status: 303,
+    })
+    assert.deepEqual(events, [])
+  })
+
+  it("does not trust a small declared length and cancels the open oversize stream exactly once", async () => {
+    const encoder = new TextEncoder()
+    const streamed = streamingRequest({
+      chunks: [encoder.encode("x".repeat(4096)), encoder.encode("secret-request-data")],
+      contentLength: "1",
+    })
+    const { POST, events } = guardedDonationPost()
+
+    const response = await POST(streamed.request)
+
+    assert.deepEqual(response, {
+      body: { error: "Unsupported one-time support amount" },
+      status: 400,
+    })
+    assert.equal(streamed.cancellationCount(), 1)
+    assert.deepEqual(events, [])
+  })
+
+  it("cancels an open stream rejected by a declared oversize exactly once", async () => {
+    const streamed = streamingRequest({
+      chunks: [new TextEncoder().encode("secret-request-data")],
+      contentLength: "4097",
+    })
+    const { POST, events } = guardedDonationPost()
+
+    const response = await POST(streamed.request)
+
+    assert.deepEqual(response, {
+      body: { error: "Unsupported one-time support amount" },
+      status: 400,
+    })
+    assert.equal(streamed.cancellationCount(), 1)
+    assert.deepEqual(events, [])
+  })
+
+  it("rejects malformed UTF-8 for JSON and urlencoded forms without exposing request data", async (context) => {
+    const logged = []
+    context.mock.method(console, "error", (...args) => logged.push(args))
+    const encoder = new TextEncoder()
+    const withInvalidByte = (prefix, suffix) => {
+      const prefixBytes = encoder.encode(prefix)
+      const suffixBytes = encoder.encode(suffix)
+      const bytes = new Uint8Array(prefixBytes.byteLength + 1 + suffixBytes.byteLength)
+      bytes.set(prefixBytes)
+      bytes[prefixBytes.byteLength] = 0xff
+      bytes.set(suffixBytes, prefixBytes.byteLength + 1)
+      return bytes
+    }
+    const invalidJson = withInvalidByte(
+      `{"amountCents":500,"checkoutAttemptId":"${CHECKOUT_ATTEMPT_ID}","padding":"`,
+      '"}',
+    )
+    const invalidUrlencoded = withInvalidByte(
+      `amountCents=500&checkoutAttemptId=${CHECKOUT_ATTEMPT_ID}&padding=`,
+      "",
     )
 
-    assert.equal(donationForms.length, DONATION_OPTIONS.length)
-    assert.deepEqual(
-      donationForms.map((form) => ({
-        action: form.props.action,
-        method: form.props.method,
-        pendingLabel: form.props.pendingLabel,
-        amountCents: findElements(
-          form,
-          (element) => element.type === "input" && element.props.name === "amountCents",
-        )[0]?.props.value,
-      })),
-      DONATION_OPTIONS.map((option) => ({
-        action: "/api/billing/donation",
-        method: "post",
-        pendingLabel: "Opening secure checkout…",
-        amountCents: option.amountCents,
-      })),
+    for (const scenario of [
+      {
+        request: new Request("https://massagelab.app/api/billing/donation", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: invalidJson,
+        }),
+        expected: {
+          body: { error: "Unsupported one-time support amount" },
+          status: 400,
+        },
+      },
+      {
+        request: new Request("https://massagelab.app/api/billing/donation", {
+          method: "POST",
+          headers: {
+            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+            origin: "https://massagelab.app",
+          },
+          body: invalidUrlencoded,
+        }),
+        expected: {
+          url: "https://massagelab.app/pricing?donation=invalid-amount",
+          status: 303,
+        },
+      },
+    ]) {
+      const { POST, events } = guardedDonationPost()
+      assert.deepEqual(await POST(scenario.request), scenario.expected)
+      assert.deepEqual(events, [])
+    }
+    assert.deepEqual(logged, [])
+    assert.doesNotMatch(JSON.stringify(logged), /secret-request-data|amount/)
+  })
+
+  it("requires an exact supported media base before identity, network, quota, or Checkout", async () => {
+    for (const [label, contentType] of [
+      ["missing", null],
+      ["wrong", "text/plain"],
+      ["JSON lookalike", "application/json-seq"],
+      ["form lookalike", "application/x-www-form-urlencoded-json"],
+      ["multipart lookalike", "multipart/form-data-extra; boundary=x"],
+    ]) {
+      const headers = new Headers({ origin: "https://massagelab.app" })
+      if (contentType !== null) headers.set("content-type", contentType)
+      const request = new Request("https://massagelab.app/api/billing/donation", {
+        method: "POST",
+        headers,
+        body: new TextEncoder().encode("secret-request-data"),
+      })
+      const { POST, events } = guardedDonationPost()
+
+      assert.deepEqual(await POST(request), {
+        body: { error: "Unsupported request media type" },
+        status: 415,
+      }, label)
+      assert.deepEqual(events, [], label)
+    }
+  })
+
+  it("preserves duplicate native urlencoded and multipart fields from bounded bytes", async () => {
+    const requests = []
+    const POST = donationPost({
+      createCheckoutSession: async (input) => {
+        requests.push(input)
+        return { url: "https://checkout.stripe.com/c/duplicate-fields" }
+      },
+    })
+
+    const urlencoded = new URLSearchParams()
+    urlencoded.append("amountCents", "500")
+    urlencoded.append("amountCents", "500")
+    urlencoded.append("checkoutAttemptId", CHECKOUT_ATTEMPT_ID)
+    const multipart = new FormData()
+    multipart.append("amountCents", "500")
+    multipart.append("amountCents", "500")
+    multipart.append("checkoutAttemptId", CHECKOUT_ATTEMPT_ID)
+
+    for (const request of [
+      formRequest({ origin: "https://massagelab.app", body: urlencoded }),
+      new Request("https://massagelab.app/api/billing/donation", {
+        method: "POST",
+        headers: { origin: "https://massagelab.app" },
+        body: multipart,
+      }),
+    ]) {
+      assert.deepEqual(await POST(request), {
+        url: "https://checkout.stripe.com/c/duplicate-fields",
+        status: 303,
+      })
+    }
+    assert.equal(requests.length, 2)
+    assert.deepEqual(requests.map((request) => request.amountCents), [500, 500])
+  })
+
+  it("rejects malformed amounts and attempt IDs before identity, network, quota, or Checkout", async () => {
+    for (const [label, body] of [
+      ["unsupported amount", { amountCents: 1499, checkoutAttemptId: CHECKOUT_ATTEMPT_ID }],
+      ["noncanonical amount", { amountCents: "500x", checkoutAttemptId: CHECKOUT_ATTEMPT_ID }],
+      ["noncanonical attempt", { amountCents: 500, checkoutAttemptId: CHECKOUT_ATTEMPT_ID.toUpperCase() }],
+      ["missing attempt", { amountCents: 500 }],
+    ]) {
+      const events = []
+      const response = await donationPost({
+        findDonationOption: (value) => {
+          events.push(`selection:${value}`)
+          return DONATION_OPTIONS.find((option) => option.amountCents === Number(value)) ?? null
+        },
+        getSession: async () => {
+          events.push("session")
+          return null
+        },
+        networkIdentifier: () => {
+          events.push("network")
+          return "network_household"
+        },
+        consumeRateLimit: async () => {
+          events.push("quota")
+          return { allowed: true }
+        },
+        createCheckoutSession: async () => {
+          events.push("checkout")
+          return { url: "https://checkout.stripe.com/c/unexpected" }
+        },
+      })(jsonRequest(JSON.stringify(body)))
+
+      assert.equal(response.status, 400, label)
+      assert.equal(events.includes("session"), false, label)
+      assert.equal(events.includes("network"), false, label)
+      assert.equal(events.includes("quota"), false, label)
+      assert.equal(events.includes("checkout"), false, label)
+    }
+  })
+
+  it("rejects repeated native-form attempt IDs before identity, quota, or Checkout", async () => {
+    for (const attemptIds of [
+      [CHECKOUT_ATTEMPT_ID, CHECKOUT_ATTEMPT_ID],
+      [CHECKOUT_ATTEMPT_ID, "01890f47-9f7b-4f2a-8c6d-f2bf668ad3d1"],
+    ]) {
+      const events = []
+      const body = new URLSearchParams({ amountCents: "500" })
+      for (const attemptId of attemptIds) body.append("checkoutAttemptId", attemptId)
+      const response = await donationPost({
+        getSession: async () => {
+          events.push("session")
+          return null
+        },
+        consumeRateLimit: async () => {
+          events.push("quota")
+          return { allowed: true }
+        },
+        createCheckoutSession: async () => {
+          events.push("checkout")
+          return { url: "https://checkout.stripe.com/c/unexpected" }
+        },
+      })(formRequest({ origin: "https://massagelab.app", body }))
+
+      assert.deepEqual(response, {
+        url: "https://massagelab.app/pricing?donation=invalid-request",
+        status: 303,
+      })
+      assert.deepEqual(events, [])
+    }
+  })
+
+  it("consumes authenticated account and network donation quota before passing the exact provider key", async () => {
+    const events = []
+    const quotaInputs = []
+    const checkoutInputs = []
+    const POST = donationPost({
+      getSession: async () => {
+        events.push("session")
+        return { user: { id: "user_supporter", email: "supporter@example.com" } }
+      },
+      networkIdentifier: () => {
+        events.push("network")
+        return "network_household"
+      },
+      consumeRateLimit: async (input) => {
+        events.push("quota")
+        quotaInputs.push(input)
+        return { allowed: true }
+      },
+      createCheckoutSession: async (input) => {
+        events.push("checkout")
+        checkoutInputs.push(input)
+        return { url: "https://checkout.stripe.com/c/auth-support" }
+      },
+    })
+
+    assert.deepEqual(await POST(jsonRequest()), {
+      body: { url: "https://checkout.stripe.com/c/auth-support" },
+      status: 200,
+    })
+    assert.deepEqual(events, ["session", "network", "quota", "checkout"])
+    assert.deepEqual(quotaInputs, [{
+      operation: "DONATION_CHECKOUT",
+      networkIdentifier: "network_household",
+      account: { kind: "ACCOUNT_ID", value: "user_supporter" },
+    }])
+    assert.equal(
+      checkoutInputs[0].idempotencyKey,
+      `massagelab-donation-v1:${CHECKOUT_ATTEMPT_ID}`,
     )
+  })
+
+  it("consumes only anonymous network/global donation quota for guests", async () => {
+    const quotaInputs = []
+    const POST = donationPost({
+      session: null,
+      consumeRateLimit: async (input) => {
+        quotaInputs.push(input)
+        return { allowed: true }
+      },
+      createCheckoutSession: async () => ({ url: "https://checkout.stripe.com/c/guest-support" }),
+    })
+
+    await POST(jsonRequest())
+    assert.deepEqual(quotaInputs, [{
+      operation: "DONATION_CHECKOUT",
+      networkIdentifier: "network_household",
+    }])
+  })
+
+  it("maps denied and unavailable quota before Checkout for JSON and native forms", async () => {
+    for (const scenario of [
+      {
+        decision: { allowed: false, reason: "RATE_LIMITED", retryAfterSeconds: 17 },
+        json: {
+          body: { error: "Too many one-time support checkout attempts. Please try again later." },
+          headers: { "retry-after": "17" },
+          status: 429,
+        },
+        formCode: "rate-limited",
+      },
+      {
+        decision: { allowed: false, reason: "UNAVAILABLE" },
+        json: {
+          body: { error: "One-time support checkout is temporarily unavailable." },
+          status: 503,
+        },
+        formCode: "unavailable",
+      },
+    ]) {
+      let checkoutCalls = 0
+      const POST = donationPost({
+        consumeRateLimit: async () => scenario.decision,
+        createCheckoutSession: async () => {
+          checkoutCalls += 1
+          return { url: "https://checkout.stripe.com/c/unexpected" }
+        },
+      })
+
+      assert.deepEqual(await POST(jsonRequest()), scenario.json)
+      assert.deepEqual(await POST(formRequest({
+        origin: "https://massagelab.app",
+        body: new URLSearchParams({
+          amountCents: "500",
+          checkoutAttemptId: CHECKOUT_ATTEMPT_ID,
+        }),
+      })), {
+        url: `https://massagelab.app/pricing?donation=${scenario.formCode}`,
+        status: 303,
+      })
+      assert.equal(checkoutCalls, 0)
+    }
+  })
+
+  it("treats a throwing quota owner as generic unavailable without constructing Checkout", async () => {
+    let checkoutCalls = 0
+    const response = await donationPost({
+      consumeRateLimit: async () => {
+        throw new Error("durable limiter unavailable")
+      },
+      createCheckoutSession: async () => {
+        checkoutCalls += 1
+        return { url: "https://checkout.stripe.com/c/unexpected" }
+      },
+    })(jsonRequest())
+
+    assert.deepEqual(response, {
+      body: { error: "One-time support checkout is temporarily unavailable." },
+      status: 503,
+    })
+    assert.equal(checkoutCalls, 0)
+  })
+
+  it("maps normalized attempt conflicts to fixed JSON and form outcomes", async () => {
+    const POST = donationPost({
+      createCheckoutSession: async () => {
+        throw new DonationCheckoutAttemptConflictError()
+      },
+    })
+
+    assert.deepEqual(await POST(jsonRequest()), {
+      body: { error: "This one-time support checkout attempt conflicts with an earlier request." },
+      status: 409,
+    })
+    assert.deepEqual(await POST(formRequest({
+      origin: "https://massagelab.app",
+      body: new URLSearchParams({
+        amountCents: "500",
+        checkoutAttemptId: CHECKOUT_ATTEMPT_ID,
+      }),
+    })), {
+      url: "https://massagelab.app/pricing?donation=conflict",
+      status: 303,
+    })
   })
 
   it("recognizes mixed-case browser form content types", () => {
@@ -393,6 +846,7 @@ describe("one-time support Checkout route", () => {
     assert.deepEqual(checkoutInputs, [{
       amountCents: 500,
       customerEmail: "",
+      idempotencyKey: `massagelab-donation-v1:${CHECKOUT_ATTEMPT_ID}`,
       userId: "",
       successUrl: "https://massagelab.app/pricing?donation=thanks&session_id={CHECKOUT_SESSION_ID}",
       cancelUrl: "https://massagelab.app/pricing?donation=cancelled",
@@ -422,15 +876,19 @@ describe("one-time support Checkout route", () => {
         "content-type": "application/x-www-form-urlencoded",
         origin: "https://massagelab.app",
       },
-      body: new URLSearchParams({ amountCents: "999" }),
+      body: new URLSearchParams({
+        amountCents: "999",
+        checkoutAttemptId: CHECKOUT_ATTEMPT_ID,
+      }),
     })
 
     const response = await POST(request)
 
-    assert.deepEqual(lookedUpAmounts, ["999"])
+    assert.deepEqual(lookedUpAmounts, [999])
     assert.deepEqual(checkoutInputs, [{
       amountCents: 500,
       customerEmail: "supporter@example.com",
+      idempotencyKey: `massagelab-donation-v1:${CHECKOUT_ATTEMPT_ID}`,
       userId: "user_supporter",
       successUrl: "https://massagelab.app/pricing?donation=thanks&session_id={CHECKOUT_SESSION_ID}",
       cancelUrl: "https://massagelab.app/pricing?donation=cancelled",
@@ -455,7 +913,10 @@ describe("one-time support Checkout route", () => {
         "content-type": "application/x-www-form-urlencoded",
         origin: "https://massagelab.app",
       },
-      body: new URLSearchParams({ amountCents: "500" }),
+      body: new URLSearchParams({
+        amountCents: "500",
+        checkoutAttemptId: CHECKOUT_ATTEMPT_ID,
+      }),
     })
 
     const response = await POST(request)
@@ -592,7 +1053,7 @@ describe("one-time support Checkout route", () => {
         body: { error: "Unsupported one-time support amount" },
         status: 400,
       })
-      assert.deepEqual(lookedUpAmounts, [undefined])
+      assert.deepEqual(lookedUpAmounts, [])
       assert.equal(checkoutCalls, 0)
     })
   }
@@ -627,7 +1088,7 @@ describe("one-time support Checkout route", () => {
       url: "https://massagelab.app/pricing?donation=invalid-amount",
       status: 303,
     })
-    assert.deepEqual(lookedUpAmounts, [null])
+    assert.deepEqual(lookedUpAmounts, [])
     assert.equal(checkoutCalls, 0)
   })
 

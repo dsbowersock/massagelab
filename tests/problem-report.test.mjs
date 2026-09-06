@@ -9,9 +9,23 @@ import {
   normalizeProblemReportPath,
   PROBLEM_REPORT_AREAS,
   PROBLEM_REPORT_CATEGORIES,
+  PROBLEM_REPORT_REQUEST_TIMEOUT_MS,
+  problemReportRetryAnnouncement,
 } from "../lib/problem-report.js"
 
 describe("privacy-safe problem reports", () => {
+  it("keeps retry announcements stable and bounds client settlement", () => {
+    assert.equal(PROBLEM_REPORT_REQUEST_TIMEOUT_MS, 10_000)
+    const waiting = "Diagnostic reports are temporarily paused. Wait before trying again. This page will not resend the report automatically."
+    assert.equal(problemReportRetryAnnouncement(3), waiting)
+    assert.equal(problemReportRetryAnnouncement(2), waiting)
+    assert.equal(problemReportRetryAnnouncement(1), waiting)
+    assert.equal(
+      problemReportRetryAnnouncement(0),
+      "You can try again now. This page will not resend the report automatically.",
+    )
+  })
+
   it("strips query strings and fragments before route classification", () => {
     assert.equal(
       normalizeProblemReportPath("https://massagelab.app/notes/soap?client=Jane#pain-map"),
@@ -73,6 +87,7 @@ describe("privacy-safe problem reports", () => {
   it("falls back to known safe values for unknown report categories and event ids", () => {
     const payload = buildProblemReportSentryPayload({
       category: "freeform problem with dana@example.com",
+      area: "private-area-with-dana@example.com",
       route: "/support",
       linkedEventId: "not-a-sentry-event",
       clientContext: {
@@ -83,6 +98,8 @@ describe("privacy-safe problem reports", () => {
     })
 
     assert.equal(payload.contexts.problemReport.category, "action-failed")
+    assert.equal(payload.contexts.problemReport.selectedArea, "not-sure")
+    assert.equal(payload.contexts.problemReport.area, "public-page")
     assert.equal(payload.contexts.problemReport.safePath, "/support")
     assert.equal(payload.contexts.problemReport.displayMode, "unknown")
     assert.equal(payload.contexts.problemReport.network, "unknown")
@@ -95,6 +112,7 @@ describe("privacy-safe problem reports", () => {
     assert.equal(getSafeBrowserHint("Mozilla/5.0 Firefox/120.0"), "firefox")
     assert.equal(normalizeLinkedSentryEventId(" ABCDEFabcdef12345678901234567890 "), "abcdefabcdef12345678901234567890")
     assert.equal(normalizeLinkedSentryEventId("abc"), undefined)
+    assert.equal(normalizeLinkedSentryEventId(42), undefined)
   })
 
   it("survives the final Sentry sanitizer without retaining identity or behavior data", () => {

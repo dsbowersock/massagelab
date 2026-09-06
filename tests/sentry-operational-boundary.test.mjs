@@ -246,6 +246,16 @@ const BOUNDARY_REFERENCES = BOUNDARY_SOURCES
   .flatMap(([filePath, contents]) => findReviewedSentryReferences(filePath, contents))
 
 describe("anonymous operational Sentry boundary", () => {
+  it("uses the shared durable limiter instead of retaining request identities in process", () => {
+    const route = source("app/api/support/problem-report/route.ts")
+
+    assert.match(route, /consumeOperationalRateLimit/)
+    assert.match(route, /authRequestNetworkIdentifier/)
+    assert.match(route, /isTrustedCheckoutFormOrigin/)
+    assert.doesNotMatch(route, /createHash|reportRateLimitBuckets|new Map|pruneExpiredClientRateLimitBuckets/)
+    assert.doesNotMatch(route, /console\.(?:debug|info|log|warn|error)/)
+  })
+
   it("keeps prohibited Sentry products and identity APIs out of application source", () => {
     const prohibitedCalls = BOUNDARY_REFERENCES
       .filter(({ method }) => PROHIBITED_SENTRY_METHODS.has(method) || method === "<dynamic>")

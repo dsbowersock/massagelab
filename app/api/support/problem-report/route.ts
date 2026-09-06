@@ -1,99 +1,22 @@
 import * as Sentry from "@sentry/nextjs"
-import { createHash } from "node:crypto"
 import { headers } from "next/headers"
 import { NextResponse } from "next/server"
+import { getSiteUrl } from "@/lib/auth-env"
+import { authRequestNetworkIdentifier } from "@/lib/auth-request"
+import { consumeOperationalRateLimit } from "@/lib/operational-rate-limit"
 import { buildProblemReportSentryPayload } from "@/lib/problem-report"
+import { isTrustedCheckoutFormOrigin } from "@/lib/trusted-form-origin"
 
 export const dynamic = "force-dynamic"
 
 const MAX_REPORT_BODY_BYTES = 2048
-const REPORT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
-const REPORT_RATE_LIMIT_MAX_PER_CLIENT = 5
-const REPORT_RATE_LIMIT_MAX_GLOBAL = 100
-const REPORT_RATE_LIMIT_MAX_RETAINED_CLIENTS = REPORT_RATE_LIMIT_MAX_GLOBAL
 
-type RateLimitBucket = {
-  count: number
-  resetAt: number
-}
-
-const reportRateLimitBuckets = new Map<string, RateLimitBucket>()
-
-/** Drops expired hashed client identifiers before enforcing the retention cap. */
-function pruneExpiredClientRateLimitBuckets(now: number) {
-  for (const [key, bucket] of reportRateLimitBuckets) {
-    if (key.startsWith("client:") && bucket.resetAt <= now) {
-      reportRateLimitBuckets.delete(key)
-    }
-  }
-}
-
-/** Checks capacity without consuming quota or creating a new bucket. */
-function rateLimitBucketHasCapacity(key: string, now: number, maxCount: number) {
-  const current = reportRateLimitBuckets.get(key)
-  return !current || current.resetAt <= now || current.count < maxCount
-}
-
-/** Counts caller-derived buckets for retention-cap enforcement, excluding the global quota bucket. */
-function retainedClientBucketCount() {
-  let count = 0
-  for (const key of reportRateLimitBuckets.keys()) {
-    if (key.startsWith("client:")) count += 1
-  }
-  return count
-}
-
-function rateLimitBucketAllows(key: string, now: number, maxCount: number) {
-  const current = reportRateLimitBuckets.get(key)
-
-  if (!current || current.resetAt <= now) {
-    reportRateLimitBuckets.set(key, {
-      count: 1,
-      resetAt: now + REPORT_RATE_LIMIT_WINDOW_MS,
-    })
-    return true
-  }
-
-  if (current.count >= maxCount) {
-    return false
-  }
-
-  current.count += 1
-  return true
-}
-
-function clientRateLimitKey(requestHeaders: Headers) {
-  const forwardedFor = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim()
-  const realIp = requestHeaders.get("x-real-ip")?.trim()
-  const source = forwardedFor || realIp || "unknown-client"
-
-  // Keep rate limiting local to this process without retaining raw IP values.
-  return `client:${createHash("sha256").update(source).digest("hex").slice(0, 32)}`
-}
-
-function allowProblemReportCapture(requestHeaders: Headers) {
-  const now = Date.now()
-  // This privacy-preserving map is a best-effort instance-local limit. Sentry
-  // provider quotas remain the deployment-wide backstop across serverless instances.
-  pruneExpiredClientRateLimitBuckets(now)
-
-  // Reject globally blocked traffic before retaining a caller-derived key, but
-  // do not consume global quota until the caller also passes its own limit.
-  if (!rateLimitBucketHasCapacity("global", now, REPORT_RATE_LIMIT_MAX_GLOBAL)) {
-    return false
-  }
-
-  const clientKey = clientRateLimitKey(requestHeaders)
-  if (!reportRateLimitBuckets.has(clientKey)
-    && retainedClientBucketCount() >= REPORT_RATE_LIMIT_MAX_RETAINED_CLIENTS) {
-    return false
-  }
-
-  if (!rateLimitBucketAllows(clientKey, now, REPORT_RATE_LIMIT_MAX_PER_CLIENT)) {
-    return false
-  }
-
-  return rateLimitBucketAllows("global", now, REPORT_RATE_LIMIT_MAX_GLOBAL)
+/** Accepts JSON parameters while rejecting every non-JSON structured suffix or lookalike. */
+function isProblemReportJson(request: Request) {
+  return (request.headers.get("content-type") ?? "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase() === "application/json"
 }
 
 /** Reads and parses a report without buffering more than the approved byte cap. */
@@ -134,8 +57,8 @@ async function readReportBody(request: Request) {
       offset += chunk.byteLength
     }
 
-    const body = JSON.parse(new TextDecoder().decode(bytes))
-    return body && typeof body === "object" && !Array.isArray(body) ? body : {}
+    const body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))
+    return body && typeof body === "object" && !Array.isArray(body) ? body : null
   } catch {
     return null
   } finally {
@@ -151,38 +74,94 @@ function unavailableDiagnosticResponse() {
   )
 }
 
+/** Returns one bounded denial without reflecting request or limiter state. */
+function rateLimitedDiagnosticResponse(retryAfterSeconds: number) {
+  return NextResponse.json(
+    { error: "Too many diagnostic reports. Please try again later." },
+    { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } },
+  )
+}
+
 export async function POST(request: Request) {
+  const origin = request.headers.get("origin")
+  let trustedOrigin = false
+  try {
+    trustedOrigin = Boolean(origin) && isTrustedCheckoutFormOrigin(request, getSiteUrl())
+  } catch {
+    trustedOrigin = false
+  }
+  if (!trustedOrigin) {
+    return NextResponse.json({ error: "Invalid request origin" }, { status: 403 })
+  }
+
+  if (!isProblemReportJson(request)) {
+    return NextResponse.json(
+      { error: "Problem report requires application/json." },
+      { status: 415 },
+    )
+  }
+
   const body = await readReportBody(request)
 
   if (!body) {
     return NextResponse.json({ error: "Problem report could not be accepted." }, { status: 400 })
   }
 
-  if (!Sentry.isEnabled()) {
+  let requestHeaders: Headers
+  let payload: ReturnType<typeof buildProblemReportSentryPayload>
+  try {
+    requestHeaders = await headers()
+    payload = buildProblemReportSentryPayload({
+      ...body,
+      userAgent: requestHeaders.get("user-agent") ?? "",
+    })
+  } catch {
     return unavailableDiagnosticResponse()
   }
 
-  const requestHeaders = await headers()
-
-  if (!allowProblemReportCapture(requestHeaders)) {
-    return NextResponse.json({ error: "Too many diagnostic reports. Please try again later." }, { status: 429 })
+  let sentryEnabled = false
+  try {
+    sentryEnabled = Sentry.isEnabled()
+  } catch {
+    sentryEnabled = false
+  }
+  if (!sentryEnabled) {
+    return unavailableDiagnosticResponse()
   }
 
-  const payload = buildProblemReportSentryPayload({
-    ...body,
-    userAgent: requestHeaders.get("user-agent") ?? "",
-  })
+  let limiterDecision: Awaited<ReturnType<typeof consumeOperationalRateLimit>>
+  try {
+    const networkIdentifier = authRequestNetworkIdentifier({ headers: requestHeaders })
+    limiterDecision = await consumeOperationalRateLimit({
+      operation: "PROBLEM_REPORT",
+      networkIdentifier,
+    })
+  } catch {
+    return unavailableDiagnosticResponse()
+  }
 
-  const eventId = Sentry.captureMessage(payload.message, {
-    level: "warning",
-    tags: payload.tags,
-    contexts: payload.contexts,
-  })
-  // A serverless response can finish before the SDK transport drains, so the
-  // voluntary report is not acknowledged until its queued event is flushed.
-  const delivered = await Sentry.flush(2000)
+  if (!limiterDecision.allowed) {
+    if (
+      limiterDecision.reason === "RATE_LIMITED"
+      && Number.isInteger(limiterDecision.retryAfterSeconds)
+      && limiterDecision.retryAfterSeconds > 0
+    ) {
+      return rateLimitedDiagnosticResponse(limiterDecision.retryAfterSeconds)
+    }
+    return unavailableDiagnosticResponse()
+  }
 
-  if (!delivered) {
+  let eventId: string
+  try {
+    eventId = Sentry.captureMessage(payload.message, {
+      level: "warning",
+      tags: payload.tags,
+      contexts: payload.contexts,
+    })
+    // A serverless response can finish before the SDK transport drains, so the
+    // voluntary report is not acknowledged until its queued event is flushed.
+    if (!await Sentry.flush(2000)) return unavailableDiagnosticResponse()
+  } catch {
     return unavailableDiagnosticResponse()
   }
 

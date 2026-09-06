@@ -307,13 +307,12 @@ test("pending submission unit harness owns its global window cleanup boundary", 
   )
 })
 
-test("billing browser evidence covers native invalid-form idleness and the production donation label", () => {
+test("billing browser evidence leaves production donation behavior to its real-component journey", () => {
   const browserSpec = source("tests/browser/interaction-feedback.spec.ts")
   const nativeSnapshot = source("tests/browser/native-submission-snapshot.ts")
 
   assert.match(browserSpec, /test\("native constraint validation stays idle until the billing form is valid"/)
-  assert.match(browserSpec, /test\("donation fixture keeps its production label while pending copy is announced"/)
-  assert.match(browserSpec, /ariaLabel: "\$5 Small project support"/)
+  assert.doesNotMatch(browserSpec, /billing-form-donation|fixtureId: "donation"/)
   assert.match(browserSpec, /form\.getByRole\("status"\)\)\.toHaveCount\(1\)/)
   assert.match(browserSpec, /PageTransitionEvent\("pageshow", \{ persisted: true \}\)/)
   assert.match(nativeSnapshot, /requestSubmit\(\)/)

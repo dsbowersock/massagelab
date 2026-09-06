@@ -111,14 +111,6 @@ async function buildBillingFixtureBundle() {
         pendingLabel: "Opening billing portal…",
         fields: [["destination", "manage"]],
       },
-      {
-        id: "donation",
-        action: "/api/billing/donation",
-        idleLabel: "$5",
-        ariaLabel: "$5 Small project support",
-        pendingLabel: "Opening secure checkout…",
-        fields: [["amountCents", "500"]],
-      },
     ];
 
     createRoot(document.getElementById("root")).render(
@@ -149,8 +141,8 @@ async function buildBillingFixtureBundle() {
             type: "submit",
             "aria-label": form.ariaLabel,
             pendingLabel: form.pendingLabel,
-            presentation: form.id === "donation" ? "button" : "metal-attention",
-            metalFullWidth: form.id !== "donation",
+            presentation: "metal-attention",
+            metalFullWidth: true,
           }, form.idleLabel),
         )
       )),
@@ -243,7 +235,7 @@ async function assertOneDelayedJsonSubmission({
 }
 
 type NativeBillingFixtureCase = {
-  fixtureId: "subscription" | "portal" | "donation"
+  fixtureId: "subscription" | "portal"
   action: string
   controlName: string
   pendingLabel: string
@@ -251,7 +243,6 @@ type NativeBillingFixtureCase = {
   returnPath: string
   returnNotices: readonly string[]
   requiresTerms?: boolean
-  stableAccessibleName?: boolean
 }
 
 async function assertOneDelayedNativeBillingSubmission({
@@ -264,7 +255,6 @@ async function assertOneDelayedNativeBillingSubmission({
   returnPath,
   returnNotices,
   requiresTerms = false,
-  stableAccessibleName = false,
 }: NativeBillingFixtureCase & { page: Page }) {
   let requests = 0
   let method = ""
@@ -299,7 +289,6 @@ async function assertOneDelayedNativeBillingSubmission({
     statusCount: 1,
     statusText: pendingLabel,
   })
-  if (stableAccessibleName) expect(pendingSnapshot.buttonAriaLabel).toBe(controlName)
   await expect.poll(() => requests).toBe(1)
 
   await expect.poll(() => {
@@ -840,48 +829,7 @@ const nativeBillingCases: readonly NativeBillingFixtureCase[] = [
     returnPath: "/account?tab=membership&portal=returned",
     returnNotices: ["Sign in to manage membership and billing"],
   },
-  {
-    fixtureId: "donation" as const,
-    action: "/api/billing/donation",
-    controlName: "$5 Small project support",
-    pendingLabel: "Opening secure checkout…",
-    expectedFields: { amountCents: "500" },
-    returnPath: "/pricing?donation=cancelled",
-    returnNotices: ["One-time support checkout cancelled"],
-    stableAccessibleName: true,
-  },
 ]
-
-test("donation fixture keeps its production label while pending copy is announced", async ({ page }) => {
-  let requests = 0
-  await page.route("**/api/billing/donation", async (route) => {
-    requests += 1
-    await new Promise((resolve) => setTimeout(resolve, 900))
-    await route.fulfill({ status: 204, body: "" })
-  })
-  await openBillingFixture(page)
-  const form = page.getByTestId("billing-form-donation")
-  const controlName = "$5 Small project support"
-  const pendingLabel = "Opening secure checkout…"
-  const control = form.getByRole("button", { name: controlName })
-  const recorder = await installNativeSubmitSnapshotRecorder({ page, form, pendingLabel })
-
-  await control.evaluate((element) => {
-    ;(element as HTMLButtonElement).click()
-  })
-  const pendingSnapshot = await recorder.snapshot
-  expect(pendingSnapshot).toMatchObject({
-    buttonAriaBusy: "true",
-    buttonAriaLabel: controlName,
-    buttonDisabled: true,
-    formAriaBusy: "true",
-    pendingCopyVisible: true,
-    statusCount: 1,
-    statusText: pendingLabel,
-  })
-  await expect.poll(() => requests).toBe(1)
-  await expect(page).toHaveURL(/__interaction-feedback-billing-fixture$/)
-})
 
 test("native constraint validation stays idle until the billing form is valid", async ({ page }) => {
   let requests = 0
