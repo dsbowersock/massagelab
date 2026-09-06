@@ -175,7 +175,9 @@ Then walk [../alpha-qa.md](../alpha-qa.md) with anonymous test data where it sti
   `8cc0c80f4d0e08cd85f0431af963f339e1f6f5d4` as exact commit
   `5e5601fef23ad3b8b7281107d5e9469b6102f5a8`; the merge and reviewed trees are
   byte-identical. The final full GitHub Actions rerun `34025979327` passed Code
-  quality, Browser build, all four Browser QA lanes, and aggregate `qa`.
+  quality, Browser build, all four Browser QA lanes, and aggregate `qa`; the
+  exact-merge CodeQL analyzers for Actions, JavaScript/TypeScript, and Python
+  also passed.
   Deployment `dpl_2sHQqJvy9G793CTViZCJvA4u9Lht` is READY at that exact SHA on
   all five Production aliases; the homepage, Pricing, and Support returned HTTP
   200; all 46 migrations are current; the membership webhook-write pause flag
