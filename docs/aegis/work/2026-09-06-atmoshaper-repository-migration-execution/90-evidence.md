@@ -17,7 +17,7 @@
 
 ## Current evidence state
 
-- This evidence now includes Tasks 1 and 2 only; it is not a complete Phase 1 or Phase 2 gate result.
+- Tasks 1 and 2 are complete. Task 3 has passed code/document review but not its browser/database capture gate; this is not a complete Phase 1 or Phase 2 gate result.
 
 ## Task 1 receipt — source lock and authority
 
@@ -34,7 +34,7 @@
 
 - Locked-source inventory: 1,856 Git-tracked files totaling 37,102,557 bytes across 41 top-level partitions.
 - Created: the reference inventory, exact JSON export manifest, external-account checklist, domain cutover plan, local-data/PWA plan, cleanup register, and refactor register.
-- Exact export contract: one omitted source path, five replaced paths, 37 Task 5 additions, six Task 6 additions, and 37 overlay paths; Task 5 total `1,856 - 1 + 37 = 1,892`; final total `1,856 - 1 + 37 + 6 = 1,898`.
+- Exact export contract at the Task 2 commit: one omitted source path, five replaced paths, 37 Task 5 additions, six Task 6 additions, and 37 overlay paths; Task 5 total `1,856 - 1 + 37 = 1,892`; final total `1,856 - 1 + 37 + 6 = 1,898`. Task 3's reviewed source-present harness/config corrections update the prospective replacement/overlay counts to seven/39 without changing either path total.
 - Omission proof: only `.agents/refactor/2026-06-21-refactor-anatomime-session-wrapper.md` is omitted; it is a completed historical planning artifact with no live reference.
 - Prospective artifacts: the parity spec plus 24 planned snapshots are absent from the locked source and must be reconciled by Task 3 before export.
 - Specification review correction: 112 historical plans were regrouped into 22 entries whose files have identical complete owner sets; fresh re-review passed.
@@ -43,3 +43,17 @@
 - Verification: the seven staged paths exactly matched the task contract; JSON sets were safe, sorted, unique, mutually consistent, and matched the embedded Markdown contract; cached/final diff checks passed; no unstaged path remained.
 - Commit: `421a4f5ecf53012bf6af19a385b8a82f82b4883f` (`docs: inventory AtmoShaper migration boundaries`), exactly seven added files, post-commit status clean.
 - Protected state: runtime, `main`, old history, providers, credentials, messages, database, deployment, DNS, payment, email, media, and legal ownership remained untouched.
+
+## Task 3 prepared-state receipt — visual parity code review, capture blocked
+
+- Prepared but not committed: `package.json`, `playwright.config.ts`, `tests/browser-qa-harness.test.mjs`, the new migration parity spec, export manifest, reference inventory, and amended implementation plan. No snapshot directory or PNG exists.
+- Discovery: explicit opt-in lists exactly 22 tests, comprising ten public routes plus one signed-in profile/security case in each of desktop and mobile Chromium; WebKit is not selected.
+- Focused verification: 45/45 Node checks passed, TypeScript passed, changed executable files passed ESLint, diff checks passed, and `tests/browser/ci-lanes.mjs` remained unchanged with 17 ordinary specs/34 project assignments.
+- Review correction 1: the ordinary-lane completeness oracle now names exactly one migration-only spec, independently asserts that it exists, and excludes it from ordinary lane membership. The manifest carries the source-present harness replacement/overlay.
+- Quality correction 2: the exact migration invocation refuses existing-server reuse and both source/destination commands build the current checkout; Clock uses UTC/en-US and a fixed Playwright time with visible settled controls and no mask; all browser non-GET/HEAD requests are blocked at the first hop; activity remains observed through explicit browser-context closure before exact project-qualified fixture cleanup and final assertions.
+- Current difference contract: one omission, seven source-present replacements, 37 Task 5 additions, six Task 6 additions, and 39 overlays; source/Task 5/final totals remain `1,856/1,892/1,898`; machine JSON and embedded inventory JSON match.
+- Reviews: initial specification review marked capture incomplete and found the harness/mask obligations; fresh fix-round re-review passed. Independent quality review found stale-server, Clock, redirect, teardown, and wording risks; fresh fix-round re-review passed with no remaining Critical/Important code finding.
+- Fail-closed external gate: all three required parent values are absent — `MASSAGELAB_BROWSER_QA_DATABASE_URL`, `MASSAGELAB_BROWSER_QA_DIRECT_URL`, and `MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT`. The exact capture command stopped on the first missing value before fingerprint validation, build, server, browser, fixture, database, or provider activity.
+- Still unproven: owned-server/occupied-port runtime behavior, 22 executed tests, 24 accepted PNGs, unchanged repeat comparison, browser error/mutation receipts, read-only external request inventory, and exact post-run fixture absence.
+- Completion decision: do not commit Task 3 or begin Task 4 until the approved disposable QA environment is supplied and every capture/repeat/cleanup requirement passes.
+- Protected state: no browser launched, no fixture installed, no database/provider request made, no snapshot accepted, no runtime file changed, and no Git branch/push/merge/deploy/DNS/payment/email/media/legal mutation performed.
