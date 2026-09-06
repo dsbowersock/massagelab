@@ -118,9 +118,9 @@ jobs:
     name: Browser QA (lane ${{ matrix.lane }})
     needs: browser_build
     runs-on: ubuntu-latest
-    # The exact-once music lane keeps AtmoShaper and media-session coverage
-    # together and needs bounded headroom beyond its roughly 18-minute job run.
-    timeout-minutes: 20
+    # The cap includes hosted setup and the rerun-only artifact fallback build,
+    # so keep bounded headroom beyond the slowest expected browser lane.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -157,10 +157,18 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Download browser runtime
+        id: download_browser_runtime
+        # GitHub may discard artifacts from an earlier attempt. The first run
+        # remains fail-closed; a rerun can rebuild the exact checked-out SHA.
+        continue-on-error: ${{ github.run_attempt > 1 }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: next-runtime-${{ github.sha }}-${{ github.run_attempt }}
           path: .next
+
+      - name: Rebuild browser runtime after rerun artifact loss
+        if: ${{ github.run_attempt > 1 && steps.download_browser_runtime.outcome == 'failure' }}
+        run: npm run build:browser-qa
 
       - name: Browser QA
         run: npm run test:browser

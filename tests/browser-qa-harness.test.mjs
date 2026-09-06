@@ -402,7 +402,6 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
       {
         name: "mobile-chromium",
         testMatch: [
-          "**/app-shell.spec.ts",
           "**/pwa.spec.ts",
         ],
       },
@@ -459,6 +458,7 @@ test("browser QA lane resolver preserves ordinary runs and returns exact lane as
       {
         name: "mobile-chromium",
         testMatch: [
+          "**/app-shell.spec.ts",
           "**/admin-user-operations.spec.ts",
           "**/background-commerce.spec.ts",
           "**/control-system-review.spec.ts",
@@ -725,7 +725,7 @@ test("CI workflow parallelizes browser QA and aggregates every upstream result",
   assert.match(ciWorkflow, /^  qa:\r?$/m)
   assert.match(ciWorkflow, /code_quality:\r?\n    name: Code quality[\s\S]*?timeout-minutes: 12/)
   assert.match(ciWorkflow, /browser_build:\r?\n    name: Browser build[\s\S]*?timeout-minutes: 12/)
-  assert.match(ciWorkflow, /browser_qa:\r?\n    name: Browser QA \(lane \$\{\{ matrix\.lane \}\}\)[\s\S]*?needs: browser_build[\s\S]*?timeout-minutes: 20/)
+  assert.match(ciWorkflow, /browser_qa:\r?\n    name: Browser QA \(lane \$\{\{ matrix\.lane \}\}\)[\s\S]*?needs: browser_build[\s\S]*?timeout-minutes: 25/)
   assert.match(ciWorkflow, /qa:\r?\n    name: qa[\s\S]*?if: \$\{\{ always\(\) \}\}[\s\S]*?timeout-minutes: 2/)
   assert.doesNotMatch(getWorkflowJob(ciWorkflow, "code_quality"), /^    needs:/m)
   assert.doesNotMatch(getWorkflowJob(ciWorkflow, "browser_build"), /^    needs:/m)
@@ -736,7 +736,7 @@ test("CI workflow parallelizes browser QA and aggregates every upstream result",
     )
   }
 
-  assert.equal((ciWorkflow.match(/npm run build(?::next)?/g) ?? []).length, 1)
+  assert.equal((getWorkflowJob(ciWorkflow, "browser_build").match(/^        run: npm run build$/gm) ?? []).length, 1)
   assert.match(ciWorkflow, /strategy:\r?\n      fail-fast: false\r?\n      matrix:\r?\n        lane: \["1", "2", "3", "4"\]/)
   assert.match(ciWorkflow, /PLAYWRIGHT_CI_LANE: \$\{\{ matrix\.lane \}\}/)
   assert.match(ciWorkflow, /key: \$\{\{ runner\.os \}\}-nextjs-v2-/)
@@ -749,7 +749,11 @@ test("CI workflow parallelizes browser QA and aggregates every upstream result",
   )
   assert.match(
     ciWorkflow,
-    /uses: actions\/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c\r?\n        with:\r?\n          name: next-runtime-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}\r?\n          path: \.next/,
+    /id: download_browser_runtime\r?\n        #[^\r\n]*\r?\n        #[^\r\n]*\r?\n        continue-on-error: \$\{\{ github\.run_attempt > 1 \}\}\r?\n        uses: actions\/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c\r?\n        with:\r?\n          name: next-runtime-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}\r?\n          path: \.next/,
+  )
+  assert.match(
+    ciWorkflow,
+    /- name: Rebuild browser runtime after rerun artifact loss\r?\n        if: \$\{\{ github\.run_attempt > 1 && steps\.download_browser_runtime\.outcome == 'failure' \}\}\r?\n        run: npm run build:browser-qa/,
   )
   assert.match(
     ciWorkflow,

@@ -24,7 +24,8 @@ export const ORDINARY_BROWSER_QA_SPEC_FILES = [
 ]
 
 // Rebalance only from exact-head hosted wall-clock evidence, not static test counts.
-// The latest hosted baseline still makes lane 3 the critical path, so placement stays unchanged.
+// Run 34025979327 showed lane 1 owning both slow App Shell and Anatomime rows;
+// moving only mobile App Shell to lane 4 preserves coverage while restoring headroom.
 export const BROWSER_QA_LANES = {
   "1": {
     "desktop-chromium": [
@@ -38,7 +39,6 @@ export const BROWSER_QA_LANES = {
       "public-provider-ingress.spec.ts",
     ],
     "mobile-chromium": [
-      "app-shell.spec.ts",
       "pwa.spec.ts",
     ],
   },
@@ -77,6 +77,7 @@ export const BROWSER_QA_LANES = {
       "music-visualizer.spec.ts",
     ],
     "mobile-chromium": [
+      "app-shell.spec.ts",
       "admin-user-operations.spec.ts",
       "background-commerce.spec.ts",
       "control-system-review.spec.ts",
