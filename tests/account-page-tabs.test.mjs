@@ -312,6 +312,31 @@ describe("Account page tab model", () => {
     assert.match(accountPageSource, /pendingLabel="Submitting verification…"/)
   })
 
+  it("spaces Profile form layout without counting hidden metadata as a visible sibling", () => {
+    const profileSource = topLevelFunctionSource(accountPageSource, "ProfileTab", "app/account/page.tsx")
+    const tree = ts.createSourceFile("profile.tsx", profileSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+    const elements = []
+    const visit = (node) => {
+      if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) elements.push(node)
+      ts.forEachChild(node, visit)
+    }
+    visit(tree)
+    const forms = elements.filter((node) => node.tagName.getText(tree) === "PendingSubmissionForm")
+    assert.equal(forms.length, 1, "Profile has one canonical server-action form")
+    const classTokens = (node) => {
+      const attribute = node.attributes.properties.find((attribute) => ts.isJsxAttribute(attribute) && attribute.name.getText(tree) === "className")
+      assert.ok(attribute?.initializer && ts.isStringLiteral(attribute.initializer), "Layout classes are explicit at their owner")
+      return attribute.initializer.text.split(/\s+/)
+    }
+    // This locks the source-owned layout contract, not a simulated CSS engine:
+    // grid gaps exclude display:none children without inspecting private names.
+    assert.deepEqual(classTokens(forms[0]), ["grid", "gap-5"])
+    assert.ok(classTokens(forms[0]).every((token) => !/(^|:)space-y-/.test(token)))
+    const buttons = elements.filter((node) => node.tagName.getText(tree) === "PendingSubmitButton")
+    assert.equal(buttons.length, 1)
+    assert.ok(classTokens(buttons[0]).includes("justify-self-start"), "Keep the existing content-width button in the grid")
+  })
+
   it("keeps signed-out membership returns visible without provider details", () => {
     const { accountNotice } = loadAccountReturnContract()
 

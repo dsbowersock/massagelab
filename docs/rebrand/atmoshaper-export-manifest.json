@@ -8,9 +8,14 @@
   "replacePaths": [
     "AGENTS.md",
     "README.md",
+    "app/account/page.tsx",
     "docs/project-log.md",
     "docs/project-state.md",
-    "package.json"
+    "next.config.mjs",
+    "package.json",
+    "playwright.config.ts",
+    "tests/account-page-tabs.test.mjs",
+    "tests/browser-qa-harness.test.mjs"
   ],
   "task5AddPaths": [
     "MIGRATION_LINEAGE.md",
@@ -60,6 +65,7 @@
     "tests/repository-audit.test.mjs"
   ],
   "overlayPaths": [
+    "app/account/page.tsx",
     "docs/rebrand/atmoshaper-cleanup-register.md",
     "docs/rebrand/atmoshaper-domain-cutover-plan.md",
     "docs/rebrand/atmoshaper-export-manifest.json",
@@ -71,7 +77,11 @@
     "docs/rebrand/atmoshaper-rollback-plan.md",
     "docs/superpowers/plans/2026-09-06-atmoshaper-repository-migration.md",
     "docs/superpowers/specs/2026-09-06-atmoshaper-repository-migration-design.md",
+    "next.config.mjs",
     "package.json",
+    "playwright.config.ts",
+    "tests/account-page-tabs.test.mjs",
+    "tests/browser-qa-harness.test.mjs",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/account-profile-desktop-chromium-win32.png",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/account-profile-mobile-chromium-win32.png",

@@ -522,7 +522,8 @@ async function ProfileTab({ userId, sessionUser }: { userId: string; sessionUser
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PendingSubmissionForm action={saveProfileAction} className="space-y-5">
+          {/* Layout gaps ignore hidden Server Action metadata before hydration. */}
+          <PendingSubmissionForm action={saveProfileAction} className="grid gap-5">
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="display_name">Display name</Label>
@@ -551,7 +552,7 @@ async function ProfileTab({ userId, sessionUser }: { userId: string; sessionUser
                 <Input id="npi_number" name="npi_number" defaultValue={profile?.npiNumber ?? ""} />
               </div>
             </div>
-            <PendingSubmitButton type="submit" idleLabel="Save profile" pendingLabel="Saving profile…" />
+            <PendingSubmitButton className="justify-self-start" type="submit" idleLabel="Save profile" pendingLabel="Saving profile…" />
           </PendingSubmissionForm>
         </CardContent>
       </Card>

@@ -150,6 +150,34 @@ export function getPlaywrightFileFilterArguments(argv: readonly string[]) {
 
 const playwrightSubcommands = new Set(["test", "show-report", "codegen", "install"])
 const adminUserOperationsSpec = "tests/browser/admin-user-operations.spec.ts"
+const migrationParitySpec = "tests/browser/atmoshaper-repository-migration-parity.spec.ts"
+
+/** Matches only an exact migration-spec path, including absolute paths and line selectors. */
+export function isMigrationParityInvocation(argv: readonly string[]) {
+  return getPlaywrightFileFilterArguments(argv)
+    .filter((argument, index) => index !== 0 || !playwrightSubcommands.has(argument))
+    .some((argument) => {
+      const normalized = argument.replaceAll("\\", "/").replace(/:\d+(?::\d+)?$/, "")
+      return normalized === migrationParitySpec || normalized.endsWith(`/${migrationParitySpec}`)
+    })
+}
+
+/** Explicit empty values prevent Next dotenv fallback and build-time DSN inlining. */
+export const migrationParityTelemetryEnvironment = {
+  NEXT_PUBLIC_SENTRY_DSN: "",
+  SENTRY_DSN: "",
+  SENTRY_AUTH_TOKEN: "",
+  NEXT_TELEMETRY_DISABLED: "1",
+} as const
+
+/** Fails without echoing values; run before the fresh build and owned-server capture. */
+export function assertMigrationParityTelemetryEnvironment(environment: NodeJS.ProcessEnv) {
+  for (const [name, expected] of Object.entries(migrationParityTelemetryEnvironment)) {
+    if (environment[name] !== expected) {
+      throw new Error(`Migration parity requires explicit telemetry-disabled ${name}; rebuild with the approved capture environment`)
+    }
+  }
+}
 
 /** Matches the safe Playwright file-filter subset that can select the Admin spec. */
 function matchesAdminUserOperationsArgument(argument: string) {
@@ -200,6 +228,10 @@ export function resolveDevelopmentPaletteReviewIgnoreGlobs(argv: readonly string
 
 const runsDevelopmentPaletteReview = isDevelopmentPaletteReviewInvocation(process.argv.slice(2))
 const runsAdminUserOperations = isAdminUserOperationsInvocation(process.argv.slice(2))
+const runsMigrationParity = isMigrationParityInvocation(process.argv.slice(2))
+if (runsMigrationParity && process.env.ATMOSHAPER_MIGRATION_PARITY === "1" && !process.argv.includes("--list")) {
+  assertMigrationParityTelemetryEnvironment(process.env)
+}
 const defaultWebServerCommand = runsDevelopmentPaletteReview
   ? `npm run dev -- -p ${browserQaPort}`
   : `npm run start -- -p ${browserQaPort}`
@@ -221,6 +253,9 @@ Object.assign(playwrightWebServerEnvironment, {
   SMTP_PASSWORD: "",
   SMTP_PORT: "",
 })
+if (runsMigrationParity && process.env.ATMOSHAPER_MIGRATION_PARITY === "1") {
+  Object.assign(playwrightWebServerEnvironment, migrationParityTelemetryEnvironment)
+}
 
 const ordinaryProjects = [
   {
@@ -271,7 +306,10 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Migration Home pins the browser clock before a cached client remount.
+  // Serialize projects: concurrent route work stalled that frozen commit, while
+  // the unchanged one-worker parity reproduction completed its exact frame.
+  workers: runsMigrationParity || process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
   timeout: 60_000,
   expect: {
@@ -291,9 +329,9 @@ export default defineConfig({
         command: process.env.PLAYWRIGHT_START_COMMAND ?? defaultWebServerCommand,
         url: browserQaBaseUrl,
         env: playwrightWebServerEnvironment,
-        // A stale production server would turn a development review into a
-        // misleading 404. Fail on the occupied port instead of reusing it.
-        reuseExistingServer: !process.env.CI && !runsDevelopmentPaletteReview && !runsAdminUserOperations,
+        // A stale server invalidates development review and source/destination
+        // parity. Those exact invocations fail on an occupied port.
+        reuseExistingServer: !process.env.CI && !runsDevelopmentPaletteReview && !runsAdminUserOperations && !runsMigrationParity,
         timeout: 120_000,
       },
 })

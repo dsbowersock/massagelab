@@ -3,6 +3,17 @@ import { fileURLToPath } from "node:url"
 import { withSentryConfig } from "@sentry/nextjs"
 
 const root = dirname(fileURLToPath(import.meta.url))
+const migrationParityBuild = process.env.ATMOSHAPER_MIGRATION_PARITY === "1"
+// Fail before compilation/provider hooks: NEXT_PUBLIC values are inlined into
+// browser bundles, so disabling Sentry only in the later server cannot suffice.
+if (migrationParityBuild) {
+  for (const name of ["NEXT_PUBLIC_SENTRY_DSN", "SENTRY_DSN", "SENTRY_AUTH_TOKEN"]) {
+    if (process.env[name] !== "") throw new Error(`Migration parity build requires explicitly empty ${name}`)
+  }
+  if (process.env.NEXT_TELEMETRY_DISABLED !== "1") {
+    throw new Error("Migration parity build requires NEXT_TELEMETRY_DISABLED=1")
+  }
+}
 const buildCpuOverride = Number.parseInt(process.env.NEXT_BUILD_CPUS ?? (process.env.CI ? "" : "4"), 10)
 // Resolve the real diagnostics owner only while producing the isolated QA artifact;
 // ordinary builds cannot emit its globals or injected-failure strings.
@@ -82,6 +93,8 @@ const nextConfig = {
 }
 
 export default withSentryConfig(nextConfig, {
+  // The build plugin has its own telemetry DSN, independent of the app DSN.
+  ...(migrationParityBuild ? { telemetry: false } : {}),
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,

@@ -418,14 +418,16 @@ Create `atmoshaper-export-manifest.json` from that reviewed contract using this 
   "sourceRepository": "dsbowersock/massagelab",
   "sourceCommit": "fa78ca01a42179329cc223df77c76f308e76320b",
   "omitPaths": [],
-  "replacePaths": ["AGENTS.md", "README.md", "docs/project-log.md", "docs/project-state.md"],
+  "replacePaths": ["AGENTS.md", "README.md", "app/account/page.tsx", "docs/project-log.md", "docs/project-state.md", "next.config.mjs", "package.json", "playwright.config.ts", "tests/account-page-tabs.test.mjs", "tests/browser-qa-harness.test.mjs"],
   "task5AddPaths": [],
   "task6AddPaths": [],
   "overlayPaths": []
 }
 ```
 
-The SHA shown is the current live-verified `main` value at plan approval. If Task 1 observes a different source SHA, update this value to that newly locked exact SHA before committing the manifest. Populate every empty array with exact normalized repository file paths. `task5AddPaths` and `task6AddPaths` divide source-absent files by their creating task. Expand every omitted directory candidate into exact tracked file paths in `omitPaths`; the execution step never infers descendants. `overlayPaths` contains every migration-owned file copied from the preparation branch, including `package.json`, the design, this plan, all rebrand documents, parity spec, and snapshots. `replacePaths` identifies source-present files whose contents intentionally change. Sort every array by code-point order, reject duplicates within an array, and require an overlay path to appear in either the unchanged source path set or the appropriate add-path array. The JSON and Markdown difference contract must describe the same path set; a mismatch stops execution.
+The SHA shown is the current live-verified `main` value at plan approval. If Task 1 observes a different source SHA, update this value to that newly locked exact SHA before committing the manifest. Populate every empty array with exact normalized repository file paths. `task5AddPaths` and `task6AddPaths` divide source-absent files by their creating task. Expand every omitted directory candidate into exact tracked file paths in `omitPaths`; the execution step never infers descendants. `overlayPaths` contains every migration-owned file copied from the preparation branch, including `app/account/page.tsx`, `tests/account-page-tabs.test.mjs`, `next.config.mjs`, `package.json`, `playwright.config.ts`, `tests/browser-qa-harness.test.mjs`, the design, this plan, all rebrand documents, parity spec, and snapshots. `replacePaths` identifies source-present files whose contents intentionally change. Sort every array by code-point order, reject duplicates within an array, and require an overlay path to appear in either the retained source path set or the appropriate add-path array; a source-present overlay whose bytes change must also be declared in `replacePaths`. The JSON and Markdown difference contract must describe the same path set; a mismatch stops execution.
+
+Task 3's reviewed harness/server-ownership/telemetry corrections and proven Profile form-layout repair make the current locked contract one omission, ten replacements, 37 Task 5 additions, six Task 6 additions, and 42 overlays. All six source-present preparation overlays replace existing source paths, so `1,856 - 1 + 37 = 1,892` Task 5 files and `1,892 + 6 = 1,898` final files remain the required totals.
 
 - [ ] **Step 4: Write the external account checklist**
 
@@ -477,11 +479,21 @@ git commit -m "docs: inventory AtmoShaper migration boundaries"
 
 ### Task 3: Add source/destination visual parity characterization
 
+**Accepted source-parity evidence — 2026-09-07:** implementation, discovery, reviewed capture and fresh-build full no-update comparison are complete. The final comparison passes 22/22 with all 24 baseline hashes unchanged, no failure artifacts and exact fixture cleanup confirmed. Earlier failure/reopening notes below are chronological evidence, superseded by the final acceptance receipt before Step 6. Final documentation review and the coordinator-owned Task 3 commit are complete; no Task 4 or destination acceptance is implied.
+
 **Files:**
 
 - Create: `tests/browser/atmoshaper-repository-migration-parity.spec.ts`
 - Create: Playwright snapshots adjacent to that spec
 - Modify: `package.json`
+- Modify: `next.config.mjs`
+- Modify: `playwright.config.ts`
+- Modify: `tests/browser-qa-harness.test.mjs`
+- Modify: `app/account/page.tsx` (only the proved Profile form spacing defect)
+- Modify: `tests/account-page-tabs.test.mjs`
+- Modify: `docs/rebrand/atmoshaper-export-manifest.json`
+- Modify: `docs/rebrand/atmoshaper-reference-inventory.md`
+- Modify: `docs/superpowers/plans/2026-09-06-atmoshaper-repository-migration.md`
 
 **Interfaces:**
 
@@ -490,13 +502,13 @@ git commit -m "docs: inventory AtmoShaper migration boundaries"
 
 **Why:** Existing browser tests prove behavior but do not persist the exact source rendering needed to compare a fresh repository.
 
-**Change Necessity:** A manual screenshot folder lacks repeatable viewport, fixture, animation, and comparison behavior. The minimum change is one explicit migration spec and one package command; runtime source remains untouched.
+**Change Necessity:** A manual screenshot folder lacks repeatable viewport, fixture, animation, and comparison behavior. Add one explicit migration spec, one package command, one named migration-only exclusion in the existing harness test, exact-invocation server ownership and single-worker execution in Playwright config, and an explicit migration-mode telemetry guard in Next config, with matching export/inventory/plan corrections; ordinary runtime/build behavior remains untouched by that tooling. The later Profile diagnostic proves one product-layout defect: hidden Server Action metadata participates in space-y sibling margins. The coordinator-authorized exception changes only that Profile form to grid gap-5 and retains its content-width submit button; it is not permission for other product changes. Task 3 discovery exposed a contradiction in the original file scope: the harness directory scan treated every non-development spec as a permanent CI-lane member while this plan deliberately excludes migration parity from those lanes. The correction must preserve an independent assertion that the migration file exists and the exact 17 ordinary specs/34 assignments. It must not weaken discovery through a prefix, wildcard, or broad skip.
 
-**Impact/Compatibility:** Test-only. Signed-in tests may write only deterministic `.example.test` fixtures to an already approved non-production database and must clean them exactly. Stop if the database fingerprint gate is unavailable; do not substitute production or real accounts.
+**Impact/Compatibility:** Test tooling plus the explicitly authorized Profile-only layout correction; no action, persistence, auth, or shared Card/PendingSubmissionForm behavior changes. Signed-in tests may write only deterministic `.example.test` fixtures to an already approved non-production database and must clean them exactly. Stop if the database fingerprint gate is unavailable; do not substitute production or real accounts.
 
-**Verification:** Source capture passes on desktop/mobile; signed-in tests execute rather than skip; existing CI-lane manifest remains unchanged; no external request or persistent fixture remains.
+**Verification:** Source capture passes on desktop/mobile; signed-in tests execute rather than skip; the 54 migration-harness checks and 34 account/form regression checks pass; existing CI-lane manifest and its exact 17 specs/34 assignments remain unchanged; manifest and embedded inventory JSON match with ten replacements/42 overlays and unchanged 1,892/1,898 path totals; no browser mutation request or persistent fixture remains. Record read-only external requests separately. Exact migration invocations use one worker, refuse an occupied server port and use a fresh current-checkout, telemetry-inert Browser-QA build. Ordinary runs preserve their existing worker default and CI remains one worker; do not override migration runs back to concurrent workers.
 
-- [ ] **Step 1: Add the package command**
+- [x] **Step 1: Add the package command**
 
 Add exactly:
 
@@ -506,25 +518,33 @@ Add exactly:
 
 Do not add the migration spec to `tests/browser/ci-lanes.mjs`; it is an explicit source/destination gate, not an ordinary permanent lane.
 
-- [ ] **Step 2: Implement the parity spec using existing fixtures**
+Export the focused `isMigrationParityInvocation` matcher from `playwright.config.ts`. Recognize only the normalized exact migration-spec path (including absolute paths and line selectors), not generic browser filters, substrings, other specs, or option values. Add its result to the existing `reuseExistingServer` denial expression while retaining ordinary behavior. Add focused matcher/wiring assertions to the harness and declare `playwright.config.ts` in both source-present replacement and overlay sets. The source and destination fresh-child commands must build the current checkout immediately before Playwright; an occupied port is a failure.
+
+Export `assertMigrationParityTelemetryEnvironment` and its exact disabled environment from `playwright.config.ts`. Before an enabled exact-spec execution (but not discovery), require explicitly empty `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_DSN`, and `SENTRY_AUTH_TOKEN`, plus `NEXT_TELEMETRY_DISABLED=1`, without printing values. Apply those same settings to its owned server only in migration mode. In `next.config.mjs`, fail before compilation/provider hooks unless those values are exact when `ATMOSHAPER_MIGRATION_PARITY=1`, and pass `telemetry: false` to `withSentryConfig` only in that mode. The plugin uses a separate telemetry DSN, so blanking only the app DSN is insufficient. Outside explicit migration mode, preserve ordinary build/runtime behavior. Add focused guard/plugin-option/readiness/inventory tests; declare `next.config.mjs` as a source-present replacement and overlay. Do not disable telemetry by suppressing the zero-mutation assertion or intercepting writes before they can be counted.
+
+In `tests/browser-qa-harness.test.mjs`, name `atmoshaper-repository-migration-parity.spec.ts` as the one migration-only filename. Assert that it is present in the browser directory before excluding exactly that filename from ordinary-spec discovery. Retain the existing independent ordinary-spec list, project list, and 17/34 lane assertions. Add `tests/browser-qa-harness.test.mjs` in code-point order to both `replacePaths` and `overlayPaths` in the machine manifest and embedded inventory JSON; document why this source-present replacement changes neither destination path total.
+
+- [x] **Step 2: Implement the parity spec using existing fixtures**
 
 The spec must:
 
 - run only when `ATMOSHAPER_MIGRATION_PARITY=1`;
 - define public surfaces `/`, `/tools`, `/education`, `/music`, `/chimer`, `/clock`, `/wellness`, `/notes`, `/pricing`, and `/support`;
-- use stable readiness locators/text already owned by current browser tests;
+- use stable readiness locators/text owned by current browser tests or the rendered page; Education uses the exact visible `Open flashcards` link in `app/education/page.tsx`, never the hidden sidebar/screen-reader-only Education label;
 - test both configured Chromium projects;
 - set reduced motion and a deterministic light color scheme;
+- pin Clock time/timezone and the existing app Reduced ambient-motion preference before navigation, assert the canonical selected background's visible settled static fallback, pause after load, and reveal/assert visible controls without masking glyphs;
+- for Chimer, observe the exact resolved guest notice, await its normal DOM unmount, and assert the responsive initial step marker is visible/in-viewport/unobscured before capturing;
 - wait for fonts and the surface readiness marker;
 - disable caret and remaining CSS animation only for screenshot capture;
 - assert no horizontal page overflow;
 - capture full-page screenshots with stable names;
 - install the `BOTH_METHODS` identity fixture for `/account?tab=profile` and `/account?tab=security`;
 - assert the exact non-production Browser-QA database authorization before signed-in setup;
-- remove the exact project-qualified fixture in `afterEach`; and
-- fail on browser console/page errors and any non-GET/HEAD browser request outside the local test origin; record read-only external media/provider requests separately in the inventory.
+- explicitly close the owned browser context before final activity assertions, then remove the exact project-qualified fixture in `afterEach`, including partially failed setup/closure paths; and
+- abort and fail every non-GET/HEAD browser request at its first hop, local or external; fail on browser console/page errors through context closure and record read-only external media/provider requests separately in the inventory.
 
-Use this structure and the exact existing imports; fill each surface's readiness locator from its current test owner rather than introducing test IDs in application code:
+Use the existing fixture imports below and `writeFile` from `node:fs/promises` for owned test-output inventory persistence; the implementation owner is `tests/browser/atmoshaper-repository-migration-parity.spec.ts`. Fill each readiness locator from its existing browser/page owner without adding application test IDs.
 
 ```ts
 import { expect, test, type Page } from "@playwright/test"
@@ -533,99 +553,27 @@ import {
   installIdentityMethodSafetyFixture,
   removeIdentityMethodSafetyFixture,
 } from "./identity-method-safety-fixture"
-
-const enabled = process.env.ATMOSHAPER_MIGRATION_PARITY === "1"
-const publicSurfaces = [
-  { name: "home", path: "/", ready: /MassageLab/i },
-  { name: "tools", path: "/tools", ready: /MassageLab Tools/i },
-  { name: "education", path: "/education", ready: /Education/i },
-  { name: "music", path: "/music", ready: /Treatment room starters/i },
-  { name: "chimer", path: "/chimer", ready: /Chimer/i },
-  { name: "clock", path: "/clock", ready: /Clock|AM|PM/i },
-  { name: "wellness", path: "/wellness", ready: /Client-owned self-tracking/i },
-  { name: "notes", path: "/notes", ready: /Therapist or Team\/Practice required/i },
-  { name: "pricing", path: "/pricing", ready: /Supporter/i },
-  { name: "support", path: "/support", ready: /Support/i },
-] as const
-
-function observeUnexpectedActivity(page: Page, baseURL: string) {
-  const localOrigin = new URL(baseURL).origin
-  const browserErrors: string[] = []
-  const externalMutations: string[] = []
-  page.on("console", (message) => {
-    if (message.type() === "error") browserErrors.push(message.text())
-  })
-  page.on("pageerror", (error) => browserErrors.push(error.message))
-  page.on("request", (request) => {
-    const url = new URL(request.url())
-    if (url.origin !== localOrigin && !["GET", "HEAD"].includes(request.method())) {
-      externalMutations.push(`${request.method()} ${url.origin}${url.pathname}`)
-    }
-  })
-  return () => {
-    expect(browserErrors).toEqual([])
-    expect(externalMutations).toEqual([])
-  }
-}
-
-test.describe("AtmoShaper repository migration parity", () => {
-  test.skip(!enabled, "Run only for an explicit repository migration comparison")
-
-  for (const surface of publicSurfaces) {
-    test(`${surface.name} source rendering`, async ({ page }, testInfo) => {
-      const assertNoUnexpectedActivity = observeUnexpectedActivity(
-        page,
-        String(testInfo.project.use.baseURL),
-      )
-      await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" })
-      const response = await page.goto(surface.path, { waitUntil: "domcontentloaded" })
-      expect(response?.ok()).toBe(true)
-      await expect(page.getByText(surface.ready).first()).toBeVisible()
-      await page.evaluate(() => document.fonts.ready)
-      expect(await page.locator("html").evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
-      await expect(page).toHaveScreenshot(`${surface.name}.png`, {
-        animations: "disabled",
-        caret: "hide",
-        fullPage: true,
-      })
-      assertNoUnexpectedActivity()
-    })
-  }
-
-  test("signed-in account profile and security source rendering", async ({ context, page }, testInfo) => {
-    expect(isBrowserQaDatabaseTargetAuthorized(process.env)).toBe(true)
-    const projectName = testInfo.project.name
-    const baseURL = String(testInfo.project.use.baseURL)
-    const assertNoUnexpectedActivity = observeUnexpectedActivity(page, baseURL)
-    await installIdentityMethodSafetyFixture({
-      context,
-      baseURL,
-      projectName,
-      scenario: "BOTH_METHODS",
-    })
-    try {
-      for (const tab of ["profile", "security"] as const) {
-        const response = await page.goto(`/account?tab=${tab}`, { waitUntil: "domcontentloaded" })
-        expect(response?.ok()).toBe(true)
-        await page.evaluate(() => document.fonts.ready)
-        expect(await page.locator("html").evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
-        await expect(page).toHaveScreenshot(`account-${tab}.png`, {
-          animations: "disabled",
-          caret: "hide",
-          fullPage: true,
-        })
-      }
-      assertNoUnexpectedActivity()
-    } finally {
-      await removeIdentityMethodSafetyFixture(projectName, "BOTH_METHODS")
-    }
-  })
-})
 ```
 
-If current rendering includes unstable clock text, generated dates, media canvases, or account timestamps, mask only those exact locators in both source and destination and document each mask in the reference inventory. Do not mask layout, navigation, branding, controls, errors, or content merely to force parity.
+Use Playwright's installed official clock API with `timezoneId: "UTC"` and `locale: "en-US"`. Before `/clock` navigation, install at `2026-09-06T09:55:00.000Z`; after load/readiness, pause at `2026-09-06T10:00:00.000Z`, click the existing `Reveal clock controls` button, and advance exactly 1,000ms. Remain paused at `2026-09-06T10:00:01.000Z`, assert the `Immersive display controls` group is visible, the shell opacity is `1`, and the current-time display contains `10:00 AM`. This settles the source's 900ms transition before its three-second fade or six-second hide timers. Declare no masks: glyph shadows/glow, controls, and layout must all compare.
 
-- [ ] **Step 3: Verify discovery before capturing**
+For `/chimer`, use the `Chimer setup` region and exact existing guest-sync copy from `app/chimer/set-timer.tsx`/the public-routes browser owner. Assert that resolved guest notice visible, then `toHaveCount(0, { timeout: 12_000 })`: source display is 7,500ms plus the 420ms JavaScript exit/unmount delay, including under reduced motion. This condition wait proves completed lifecycle rather than merely pre-hydration absence or offscreen animation. Assert `1 Time` on desktop or `Step 1 of 5` on mobile is visible, inside the viewport, and owns its center-point hit-test before capture. Do not dismiss by DOM manipulation, hide/mask the notice, mutate settings, insert a fixed sleep, or alter the separate Clock timing contract.
+
+For `/clock` only, seed `localStorage["massage-lab-settings"]` with `{ ambientMotionMode: "reduced" }` in `page.addInitScript` before navigation, reusing the existing public-routes owner pattern. The route-owned active-motion policy otherwise overrides OS reduced motion and the default lamp canvas initializes unseeded random orbs; Date/timer pinning plus CSS-animation suppression cannot normalize that spatial state. Do not seed/replace Math.random or hide a renderer. Wait for `body.chimer-running` and the visible `chimer-premium-background` host with ID `massage-lab-moving-gradient`, effect-mounted `false`, fallback-only `false`, underlay `visible`, zero canvases, and one visible radial-gradient child with animation-name `none`. This verifies the app's real, settled Reduced-mode fallback, not a lazy-loading frame. Keep the selected ID, default palette, digits/glow/shadows, and existing exact time/control sequence unchanged. Persist the explicit `ambientMotionMode`, `backgroundId`, and `backgroundPresentation: "static-fallback"` alongside the original Clock receipt fields.
+
+Block every browser non-GET/HEAD request at its first hop, including same-origin requests, before a local 307/308 can forward a write externally. Record method/origin/path only and fail on every attempted write. Keep request and browser-error observation active through explicit owned context closure in `afterEach`; use nested `finally` blocks so exact project-qualified `BOTH_METHODS` cleanup and inventory/error assertions still run if closure or cleanup fails. Do not detach observers or assert activity before context closure completes. No additional fixed delay is required by the awaited context-closure boundary.
+
+Require explicit owner uniqueness rather than document-wide matches. Clock uses the exact accessible `Chimer clock` region, then its single `chimer-premium-background` and `running-current-time` descendants and scoped reveal button from `RunningTimer`. Its controls are separately portaled by `ImmersivePanelShell`: assert one visible exact `Immersive display controls` group and one visible `[data-immersive-shell]` containing it before opacity `1`. Pricing uses the single visible `#one-time-support` AppSurface, then its single visible `form[action="/api/billing/donation"]`. Assert counts of one plus visibility; multiple visible owners remain a failure. Do not introduce positional `.first()`/`.nth()`, arbitrary sleeps, application changes, masks, or weaker pixel thresholds. This targets the original intended rendering, not a new visual state.
+
+Home's attempted pre-navigation single-pause / zero-performance / 80ms-first-frame contract is retired: the real missing-only run returned performance 101 on desktop, while mobile never reached upstream first-copy visibility after the 80ms advance. Its local GPU-stubbed proof did not cover injected clock resume, native observer delivery, or mounting. The replacement is grounded in diagnostic G's ten real browser observations, not another theory-only deadline. Retain source-owned hero uniqueness, decoded assets/fonts, reduced-motion `therapists`, native paused state/opacity, real nontransparent ring pixels, no masks, and unchanged pixel thresholds.
+
+Diagnostic G passed target verification, fresh build and 10/10 observations (five per project), with complete warm teardown, second mounts at performance 300000, first paint at 300016 and identical per-viewport hashes through 300512. Its source-grounded Home contract now belongs to the existing tracked parity spec: install the official clock at 09:55 UTC; load the MetalFx-free Tools route; follow the real unique Home link while time runs and verify actual paused paint; return with real Back in the same document; require Tools title uniqueness within the existing `main .ml-app-content`, zero MetalFx DOM roots and both native observer cleanups for every warmed instance. Only then pause at 10:00, assert exact monotonic/wall time, follow the cached real Home link, and require a same-document remount at frozen 300000 without any pre-mount clock advancement. Observe the renderer's own 64px intersection callback, upstream hidden/transparent pre-copy state, then compare all 32 official 16ms steps: first actual pixels at 300016, matching canvas geometry, paused/visible state, opacity 0.72 and one retained SHA-256 through 300512. Persist safe first/final paint and warm/retired/remount count receipts. Delegate only native observer readiness/cleanup; do not promote the ignored event/rAF/timeout logger into parity. The screenshot still compares the real full rendering with unchanged thresholds. G was the terminal diagnostic; no H or fallback timing path is authorized.
+
+The execution contract is also part of Home determinism: the full two-worker adoption passed warm-up/teardown but both projects stalled at the frozen remount. Running the unchanged Home parity tests with one worker completed both remounts and exact G paint receipts, failing only because the two expected PNGs intentionally remain absent. Therefore the canonical Playwright `workers` setting is one for an exact migration parity invocation, preserving ordinary and CI semantics. This applies automatically to source capture, missing-only capture, source repeat and destination comparison; an ad hoc diagnostic CLI flag is not the durable owner. Do not alter waits, advance the frozen clock or weaken assertions to compensate for concurrent execution.
+
+Persist the sanitized `migration-parity-inventory.json` to `testInfo.outputPath(...)` after context closure/fixture cleanup, then attach that path: a console-only reporter does not preserve body attachments. Document the pinned-clock/control and Home first-frame contracts, empty mask list, and observed read-only external media/provider requests in the reference inventory. Keep accepted capture evidence pending until the exact authorized environment passes both projects under this serialized execution contract.
+
+- [x] **Step 3: Verify discovery before capturing**
 
 Run:
 
@@ -637,9 +585,11 @@ Remove-Item Env:ATMOSHAPER_MIGRATION_PARITY
 
 Expected: 22 tests: ten public plus one signed-in test in each of desktop and mobile Chromium. WebKit is outside the screenshot baseline and remains covered by its existing media smoke.
 
-- [ ] **Step 4: Capture accepted source snapshots**
+If discovery fails because the generated Prisma client is absent, run the existing local `npm run prisma:generate` owner and repeat discovery. This generator is not a database migration or authorization for browser fixture setup.
 
-Run this in a fresh child PowerShell so the task-specific environment cannot leak into the operator's shell. The three dedicated QA values must already be present in the parent environment; the command refuses to invent or print them:
+- [x] **Step 4: Capture accepted source snapshots**
+
+Run this in a fresh child PowerShell so the task-specific environment cannot leak into the operator's shell. The three dedicated QA values must already be present in the parent environment; the command refuses to invent or print them. Clear inherited server/lane overrides, explicitly blank the public/private Sentry DSNs and upload token, disable Next telemetry, build this checkout, and let Playwright start its owned server. Empty values must be present (not unset), preventing Next dotenv fallback; the preflight fails without echoing any value if the child shell cannot preserve them. The exact migration-spec matcher sets `reuseExistingServer=false`; an occupied port must fail:
 
 ```powershell
 & pwsh.exe -NoProfile -Command @'
@@ -656,18 +606,31 @@ $env:VERCEL_ENV = "preview"
 $env:DATABASE_URL = $env:MASSAGELAB_BROWSER_QA_DATABASE_URL
 $env:DIRECT_URL = $env:MASSAGELAB_BROWSER_QA_DIRECT_URL
 $env:ATMOSHAPER_MIGRATION_PARITY = "1"
+$env:NEXT_PUBLIC_SENTRY_DSN = ""
+$env:SENTRY_DSN = ""
+$env:SENTRY_AUTH_TOKEN = ""
+$env:NEXT_TELEMETRY_DISABLED = "1"
+node --input-type=module -e "import { assertMigrationParityTelemetryEnvironment } from './playwright.config.ts'; assertMigrationParityTelemetryEnvironment(process.env)"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Remove-Item Env:PLAYWRIGHT_SKIP_WEB_SERVER, Env:PLAYWRIGHT_START_COMMAND, Env:PLAYWRIGHT_BASE_URL, Env:PLAYWRIGHT_CI_LANE -ErrorAction SilentlyContinue
 npm run browser-qa:db:target -- --expected-fingerprint=$env:MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+npm run build:browser-qa
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 npm run test:browser:migration-parity -- --update-snapshots
 exit $LASTEXITCODE
 '@
 ```
 
-Expected: 22 passed, zero skipped, zero browser errors, zero external mutation requests, and 24 platform/project-qualified PNG snapshots: ten public plus two account snapshots per project. Stop if private signed-in tests skip or the authorized disposable target is unavailable.
+Expected: 22 passed, zero skipped, zero browser errors, zero browser mutation requests, and 24 platform/project-qualified PNG snapshots: ten public plus two account snapshots per project. Stop if private signed-in tests skip or the authorized disposable target is unavailable.
 
-- [ ] **Step 5: Run focused repeat comparison**
+The first authorized 2026-09-06 source attempt produced 18 passes and four failures (Education readiness and signed-in Sentry attempts, both projects). Its 22 PNGs are historical failed-run evidence. The next 22-test/24-PNG run was rejected for the Chimer notice overlay. The post-Chimer-wait capture passed 22/22 but its no-update repeat passed only **21/22**: desktop Clock differed by **12,875 pixels** from the route-owned randomized lamp field. The Clock-only app Reduced preference above corrected that test-state contract without application changes. Its fresh coherent capture now passes **22/22**, and all **24 new PNGs plus 22 inventories** were individually inspected/validated: both Clock static lamps are visible with zero canvases asserted, exact new Clock receipts, 10:00 AM/glow/controls intact; both Chimer notices absent and markers clear; all masks/mutations empty. Exact names/dimensions, actual/baseline byte equality, and no unexpected visual artifacts were confirmed within the initial internal-scroll scope. External reads are **44 GET entries / 33 distinct sanitized descriptions**: four font reads, eight Music desktop indexes, and Music mobile's eight indexes plus 24 samples (aisatsana 9, day-dream 12, Observable Streams 3). Step 4 source-capture evidence is accepted. Preserve the current 24 hashes and proceed to Step 5; no further recapture/deletion is indicated. Capture acceptance does not replace the mandatory no-update repeat or complete Task 3.
 
-Repeat the same fresh-child command, replacing its final npm invocation with:
+- [x] **Step 5: Run focused repeat comparison**
+
+Historical Step 4 reopening was Home-only: G established the replacement timing contract, followed by review and serialized missing-only capture. Only the two Home PNGs had been removed at that checkpoint; the capture restored them and preserved the other 22. Both new images/Home receipts and all activity were reviewed. This gate is completed; the accepted full no-update result is recorded below. Do not revive the retired 0/80ms setup or replace retained images based on this historical instruction.
+
+Repeat the same fresh-child command, retaining its explicit-empty telemetry preflight, current-checkout build, and owned-server requirements and replacing only its final npm invocation with:
 
 ```powershell
 npm run test:browser:migration-parity
@@ -675,24 +638,105 @@ npm run test:browser:migration-parity
 
 Expected: all 22 tests compare successfully without changing any PNG.
 
-- [ ] **Step 6: Verify and commit Task 3**
+The first repeat of the inspected Reduced-motion capture returned **20/22 passes**: desktop Clock's document-wide background locator and mobile Pricing's document-wide donation-form locator each matched two nodes before capture. Source owners and failure artifacts support the scoped/visible uniqueness correction above; the artifacts do not establish the extra nodes' producer cause. No screenshot comparison failed in those two tests. All 24 baseline hashes are unchanged. **Keep the inspected 24 baselines and rerun all 22 tests without updates** after the locator-only correction; recapture is not required because settings, timing, and visual state are unchanged. The failed repeat's 22 inventories have empty masks/mutations, 105 sanitized external GET entries / 79 distinct descriptions, and only mobile Clock reaches its complete receipt boundary. Step 5 remains pending until a successful full repeat with unchanged hashes and clean activity/fixture evidence.
 
-Run with the exact fresh-child QA environment and fingerprint procedure from Task 3 Step 5:
+That repeat's locator failures are now resolved: the latest full repeat passes Clock/Pricing and all other non-Home tests (**20/22 total**), with only Home's four/five ring pixels failing. Both Clock receipts are complete; all 22 inventories have empty masks/mutations and 26 sanitized GET entries / 15 distinct descriptions. All 24 baseline hashes remain unchanged. The preceding no-recapture instruction applied to locator scoping only and is superseded for the two Home files by the deterministic first-frame amendment. No tolerance is approved or implemented.
+
+The subsequent missing-only run also passed **20/22**, but invalidated the old first-frame amendment: desktop monotonic time was 101 rather than zero, and mobile first-copy visibility remained hidden after 80ms. No Home snapshots were created; 22 retained hashes stayed unchanged. Its 22 attached/persisted inventories have empty masks/mutations, two exact Clock receipts, no Home receipts, and **23 sanitized expected GET entries / 12 distinct descriptions** (four fonts, eight desktop Music indexes, eight mobile Music indexes plus three aisatsana samples). Later G resolves the diagnostic phase question with ten consistent observations, not screenshot acceptance. Step 4/5 and Task 3 remain unaccepted until the reviewed tracked contract passes missing-only capture and full repeat. The 54-check local suite cannot substitute for those gates.
+
+**Reviewed Profile layout correction after serialized capture/repeat:** the new Home capture succeeded and all 24 baselines exist, but the next fresh-build no-update repeat exposed a mobile Profile 20px vertical shift. Five one-worker mobile observations in ignored profile-layout-1 prove that a direct display:none/type=hidden input without [hidden] matches the form's space-y-5 sibling selector. While present, the first grid has margin-top:20px; after removal it has 0px. Repetitions 0/2/4 lose it before nonzero visible geometry (grid y341/label y345); 1/3 retain it through all 180 frames (y361/y365). CardContent padding-top remains 0px. All receipts/attachments match, all activity/error/screenshot/drop counts are zero, cleanup succeeds, and coordinator SQL confirms zero synthetic fixture users. This is a form layout defect, not p-6/pt-0 CSS order or a reason to wait for private metadata removal.
+
+Replace only ProfileTab's PendingSubmissionForm space-y-5 with grid gap-5; keep the Save profile button content-width using justify-self-start. Add a parser-scoped regression to the existing account-page-tabs test. Preserve inner field grids, labels/inputs, action and CardContent. This deliberately chooses the no-extra-leading-gap state while retaining 20px spacing between visible form children. Source-present app/account/page.tsx and tests/account-page-tabs.test.mjs belong to both replacement and overlay sets. Do not add test waits, metadata selectors, masks, thresholds or fixture changes.
+
+**Final source-image acceptance — 2026-09-07:** the post-fix comparison failed only the two Profile images (desktop 11,348 pixels; mobile 3,834). Coordinator visual review confirmed precisely the corrected 20px offset, preserved Save button content width and unchanged card/header/navigation. The authorized changed-only refresh then passed 2/2 signed-in tests and changed exactly the two Profile PNGs; both Security images and the other 20 PNGs remained unchanged. Accepted Profile SHA-256/bytes: desktop `D13936F708A17851088B2C5A20A281FF5C64E17DA67A8BB3C33F8C2F699E4A08` / 130305; mobile `D93DFE8F511AAC63EB21EA127AA9ACBD5F5B871CFCE3FA14FE4AA43FBD9D425B` / 58169. The no-extra-leading-gap state is accepted; no compensating pt-5 is needed.
+
+The subsequent fresh-build full no-update repeat passed **22/22**, with all **24 hashes unchanged during that run** and zero failure artifacts. All 22 canonical inventories equal their attachments (11 tests per project), with zero mutation attempts/masks, two exact static-fallback Clock receipts and two G-matching Home receipts. External reads: **68 GET entries / 57 distinct descriptions** — four font reads; Music desktop eight indexes; Music mobile eight indexes plus 48 Opus samples (aisatsana18/day-dream18/Observable Streams12). Only the expected online font and public media origins occur, with queries/credentials absent. Coordinator SQL confirms exact synthetic fixture count0 after the failed comparison, targeted refresh and final repeat. Task 3 source-capture/repeat acceptance is complete. Preserve these 24 baselines; no further refresh is authorized by this receipt. Manifest schema/path sets remain unchanged: omit1/replace10/task5Add37/task6Add6/overlay42 and source1856/Task51892/final1898.
+
+- [x] **Step 6: Verify Task 3**
+
+Run the pure local checks below; they do not require a live QA database. Capture, repeat comparison, and fixture readback still require the exact fresh-child QA environment and fingerprint procedure from Task 3 Step 5. A missing QA environment permits these local checks but does not complete Task 3 or authorize capture retries with invented values.
 
 ```powershell
 node --test tests/browser-qa-database-target.test.mjs tests/browser/ci-lanes.test.mjs tests/browser-qa-harness.test.mjs
+node --test tests/account-page-tabs.test.mjs tests/interaction-feedback.test.mjs
+npm run typecheck
+npm run lint
+git diff --exit-code -- tests/browser/ci-lanes.mjs
 git diff --check
 git status --short
 ```
 
-Stage only the package script, parity spec, and generated snapshots. Commit:
+Expected: 54/54 migration-harness checks plus 34/34 account/form checks (88 total), successful TypeScript/lint, and no lane-manifest delta. Verify the manifest against its embedded JSON, sorted unique normalized path arrays, source-present omit/replace sets, disjoint source-absent additions, and exact overlay coverage. The authorized Profile repair adds app/account/page.tsx and its canonical tests/account-page-tabs.test.mjs as source-present replacements/overlays. Expected counts are one omission, ten replacements, 37 Task 5 additions, six Task 6 additions, and 42 overlays; computed Task 5/final path totals remain 1,892/1,898.
+
+Run this read-only path-contract check from the preparation repository; it validates declared future snapshot paths without pretending they have already been captured:
 
 ```powershell
-git add package.json tests/browser/atmoshaper-repository-migration-parity.spec.ts tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots
+node --input-type=module -e @'
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+const manifest = JSON.parse(readFileSync("docs/rebrand/atmoshaper-export-manifest.json", "utf8"));
+const inventory = readFileSync("docs/rebrand/atmoshaper-reference-inventory.md", "utf8");
+const embedded = inventory.match(/\x60{3}json\r?\n([\s\S]*?)\r?\n\x60{3}/);
+assert.ok(embedded, "Embedded JSON must exist");
+assert.deepEqual(JSON.parse(embedded[1]), manifest, "Manifest and inventory JSON must match");
+const fields = ["omitPaths", "replacePaths", "task5AddPaths", "task6AddPaths", "overlayPaths"];
+for (const field of fields) {
+  const paths = manifest[field];
+  assert.equal(new Set(paths).size, paths.length, field + " duplicates");
+  assert.deepEqual(paths, [...paths].sort(), field + " code-point ordering");
+  for (const path of paths) assert.ok(!path.includes("\\") && !path.startsWith("/") && !path.includes(":") && path.split("/").every(part => part && part !== "." && part !== ".."), field + " normalized paths");
+}
+const sourcePaths = execFileSync("git", ["ls-tree", "-r", "--name-only", manifest.sourceCommit], { encoding: "utf8" }).trim().split(/\r?\n/);
+const source = new Set(sourcePaths);
+for (const field of ["omitPaths", "replacePaths"]) for (const path of manifest[field]) assert.ok(source.has(path), field + " must exist in source: " + path);
+for (const path of manifest.replacePaths) assert.ok(!manifest.omitPaths.includes(path), "Replacement cannot be omitted");
+const additions = [...manifest.task5AddPaths, ...manifest.task6AddPaths];
+assert.equal(new Set(additions).size, additions.length, "Task additions must be disjoint");
+for (const path of additions) assert.ok(!source.has(path), "Added path must be source-absent: " + path);
+const expectedOverlays = [...manifest.task5AddPaths.filter(path => path !== "MIGRATION_LINEAGE.md"), "app/account/page.tsx", "tests/account-page-tabs.test.mjs", "next.config.mjs", "package.json", "playwright.config.ts", "tests/browser-qa-harness.test.mjs"].sort();
+assert.deepEqual(manifest.overlayPaths, expectedOverlays, "Exact preparation overlay coverage");
+for (const path of manifest.overlayPaths) {
+  assert.ok(!manifest.omitPaths.includes(path), "Overlay cannot be omitted");
+  assert.ok(source.has(path) ? manifest.replacePaths.includes(path) : manifest.task5AddPaths.includes(path), "Overlay needs exact replace/add declaration");
+}
+assert.deepEqual(fields.map(field => manifest[field].length), [1, 10, 37, 6, 42]);
+assert.equal(source.size, 1856);
+const task5 = new Set([...sourcePaths.filter(path => !manifest.omitPaths.includes(path)), ...manifest.task5AddPaths]);
+const final = new Set([...task5, ...manifest.task6AddPaths]);
+assert.equal(task5.size, 1892);
+assert.equal(final.size, 1898);
+console.log("PASS: JSON equality; normalized sorted unique arrays; source/add/replace/overlay contracts; counts omit=1 replace=10 task5Add=37 task6Add=6 overlay=42; source=1856 Task5=1892 final=1898");
+'@
+```
+
+- [x] **Coordinator closeout: review the final documentation and commit accepted Task 3**
+
+Verification and source parity are accepted; this separate checkbox does not claim a commit has occurred. After final review, stage only the Profile form and canonical account regression correction, package script, Next migration-only telemetry correction, Playwright server-ownership/telemetry correction, parity spec, generated snapshots, focused harness correction, updated manifest/reference inventory, and this amended plan. Commit:
+
+```powershell
+git add app/account/page.tsx tests/account-page-tabs.test.mjs next.config.mjs package.json playwright.config.ts tests/browser/atmoshaper-repository-migration-parity.spec.ts tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots tests/browser-qa-harness.test.mjs docs/rebrand/atmoshaper-export-manifest.json docs/rebrand/atmoshaper-reference-inventory.md docs/superpowers/plans/2026-09-06-atmoshaper-repository-migration.md
 git commit -m "test: capture repository migration parity"
 ```
 
-Read back the exact files and confirm no fixture rows remain.
+Read back the exact changed text files and snapshot hashes:
+
+```powershell
+Get-Content -Raw app/account/page.tsx
+Get-Content -Raw tests/account-page-tabs.test.mjs
+Get-Content -Raw package.json
+Get-Content -Raw next.config.mjs
+Get-Content -Raw playwright.config.ts
+Get-Content -Raw tests/browser/atmoshaper-repository-migration-parity.spec.ts
+Get-Content -Raw tests/browser-qa-harness.test.mjs
+Get-Content -Raw docs/rebrand/atmoshaper-export-manifest.json
+Get-Content -Raw docs/rebrand/atmoshaper-reference-inventory.md
+Get-Content -Raw docs/superpowers/plans/2026-09-06-atmoshaper-repository-migration.md
+Get-FileHash tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/*.png -Algorithm SHA256
+git diff HEAD^ HEAD -- tests/browser/ci-lanes.mjs
+```
+
+Confirm all 24 expected PNGs exist, the committed lane manifest is unchanged, the inventory records the pinned Clock/visible-control contract with no masks and observed external reads, and no exact project-qualified fixture rows remain after the authorized run. If capture never ran, record that no fixture setup was invoked; do not claim a database absence check or completed parity.
 
 ---
 
@@ -768,11 +812,7 @@ Do not run database-backed private rows unless the exact non-production fingerpr
 
 - [ ] **Step 5: Re-run migration parity without updating snapshots**
 
-Run:
-
-```powershell
-npm run test:browser:migration-parity
-```
+Run the exact Task 3 Step 5 fresh-child command, including the approved QA fingerprint, cleared inherited server/lane overrides, explicit-empty telemetry preflight, fresh `npm run build:browser-qa`, and final `npm run test:browser:migration-parity`. Do not update snapshots and do not reuse an existing server.
 
 Expected: 22 passed, zero skipped.
 
@@ -1005,7 +1045,7 @@ $pathDifference = @(Compare-Object $expectedTask5Paths $actualTask5Paths)
 if ($pathDifference.Count -gt 0) { throw "Task 5 destination path set violates the export manifest." }
 ```
 
-Also verify that every `replacePaths` and `overlayPaths` entry exists, every declared omit path is absent, and all manifest arrays are sorted and duplicate-free. Compare changed content with the Markdown difference contract. Stop on any unexplained path or absent declared Task 5 path. Task 6 add paths remain intentionally absent until Task 6.
+Also verify that every `replacePaths` and `overlayPaths` entry exists, every declared omit path is absent, and all manifest arrays are sorted and duplicate-free. The reviewed contract has ten replacements and 42 overlays, including the source-present Profile page/account test, harness, Playwright-config, and Next-config corrections; the staged Task 5 set still has 1,892 paths and the final set after six Task 6 additions has 1,898. Compare changed content with the Markdown difference contract. Stop on any unexplained path or absent declared Task 5 path. Task 6 add paths remain intentionally absent until Task 6.
 
 ---
 
@@ -1653,7 +1693,40 @@ Record exact results and compare them with Task 4. Stop on any unexplained diffe
 
 Run all four `PLAYWRIGHT_CI_LANE` values exactly as in Task 4, then run migration parity with `ATMOSHAPER_MIGRATION_PARITY=1` and the exact authorized disposable database fingerprint. Do not update snapshots in the destination.
 
-Expected: lane counts match source and all 22 migration screenshots compare. Any snapshot update in the destination is prohibited.
+Run this from the destination checkout in a fresh child, applying the same explicit-empty telemetry preflight and building that checkout immediately before the owned-server comparison:
+
+```powershell
+& pwsh.exe -NoProfile -Command @'
+$required = @(
+  "MASSAGELAB_BROWSER_QA_DATABASE_URL",
+  "MASSAGELAB_BROWSER_QA_DIRECT_URL",
+  "MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT"
+)
+foreach ($name in $required) {
+  if (-not [Environment]::GetEnvironmentVariable($name)) { throw "Missing approved QA variable: $name" }
+}
+$env:MASSAGELAB_BROWSER_QA_DATABASE = "1"
+$env:VERCEL_ENV = "preview"
+$env:DATABASE_URL = $env:MASSAGELAB_BROWSER_QA_DATABASE_URL
+$env:DIRECT_URL = $env:MASSAGELAB_BROWSER_QA_DIRECT_URL
+$env:ATMOSHAPER_MIGRATION_PARITY = "1"
+$env:NEXT_PUBLIC_SENTRY_DSN = ""
+$env:SENTRY_DSN = ""
+$env:SENTRY_AUTH_TOKEN = ""
+$env:NEXT_TELEMETRY_DISABLED = "1"
+node --input-type=module -e "import { assertMigrationParityTelemetryEnvironment } from './playwright.config.ts'; assertMigrationParityTelemetryEnvironment(process.env)"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Remove-Item Env:PLAYWRIGHT_SKIP_WEB_SERVER, Env:PLAYWRIGHT_START_COMMAND, Env:PLAYWRIGHT_BASE_URL, Env:PLAYWRIGHT_CI_LANE -ErrorAction SilentlyContinue
+npm run browser-qa:db:target -- --expected-fingerprint=$env:MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+npm run build:browser-qa
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+npm run test:browser:migration-parity
+exit $LASTEXITCODE
+'@
+```
+
+Expected: lane counts match source, all 22 migration tests pass, and all 24 screenshots compare. Any snapshot update in the destination is prohibited.
 
 - [ ] **Step 3: Run audit and tree checks**
 
