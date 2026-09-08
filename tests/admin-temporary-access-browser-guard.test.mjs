@@ -14,6 +14,7 @@ const temporaryAccessTestStart = browserSource.indexOf(
   'test("Admin grants and append-only revokes one bounded temporary feature with Account expiration evidence"',
 )
 const nextTestStart = browserSource.indexOf("\n  test(", temporaryAccessTestStart + 1)
+// A selected final test extends through the end of the browser source.
 const temporaryAccessTestEnd = nextTestStart === -1 ? browserSource.length : nextTestStart
 assert.ok(temporaryAccessTestStart >= 0, "temporary-access browser test must remain present")
 assert.ok(temporaryAccessTestEnd > temporaryAccessTestStart, "temporary-access browser test must retain a closing boundary")
