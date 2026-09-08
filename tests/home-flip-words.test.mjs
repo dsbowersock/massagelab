@@ -26,6 +26,7 @@ describe("Homepage FlipWords layout", () => {
     const headingVisible = contract.indexOf("await expect(heading).toBeVisible()")
     const phraseLoop = contract.indexOf('for (const word of ["therapists"')
     assert.notEqual(phraseLoop, -1)
+    // Verify the complete positive finite-height polling chain before phrase iteration.
     const positiveHeightMatch = contract.slice(0, phraseLoop).match(
       /await expect\s*\.poll\(async \(\) => \{\s*const headingHeight = await heading\.evaluate\(\(element\) => element\.getBoundingClientRect\(\)\.height\)\s*return Number\.isFinite\(headingHeight\) \? headingHeight : 0\s*\}, \{ message: "expected a positive finite homepage heading height" \}\)\s*\.toBeGreaterThan\(0\)/,
     )
