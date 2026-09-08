@@ -47,6 +47,7 @@
     "tests/browser/public-routes.spec.ts",
     "tests/browser/signed-in-session-cookie.ts",
     "tests/carousel-lab-source.test.mjs",
+    "tests/family-friends-server-workload.test.mjs",
     "tests/home-flip-words.test.mjs",
     "tests/rsc-session.test.mjs"
   ],
@@ -189,6 +190,7 @@
     "tests/browser/signed-in-session-cookie.ts",
     "tests/browser/signed-in-user-fixture.ts",
     "tests/carousel-lab-source.test.mjs",
+    "tests/family-friends-server-workload.test.mjs",
     "tests/home-flip-words.test.mjs",
     "tests/migration-parity-browser-runner.test.mjs",
     "tests/rsc-session.test.mjs",

@@ -427,7 +427,7 @@ Create `atmoshaper-export-manifest.json` from that reviewed contract using this 
 
 The SHA shown is the current live-verified `main` value at plan approval. If Task 1 observes a different source SHA, update this value to that newly locked exact SHA before committing the manifest. Populate every empty array with exact normalized repository file paths. `task5AddPaths` and `task6AddPaths` divide source-absent files by their creating task. Expand every omitted directory candidate into exact tracked file paths in `omitPaths`; the execution step never infers descendants. `overlayPaths` contains every migration-owned file copied from the preparation branch, including `app/account/page.tsx`, `tests/account-page-tabs.test.mjs`, `next.config.mjs`, `package.json`, `playwright.config.ts`, `tests/browser-qa-harness.test.mjs`, the design, this plan, all rebrand documents, parity spec, and snapshots. `replacePaths` identifies source-present files whose contents intentionally change. Sort every array by code-point order, reject duplicates within an array, and require an overlay path to appear in either the retained source path set or the appropriate add-path array; a source-present overlay whose bytes change must also be declared in `replacePaths`. The JSON and Markdown difference contract must describe the same path set; a mismatch stops execution.
 
-Task 3's reviewed harness/server-ownership/telemetry corrections, the proven Profile form-layout repair, and Task 4A's source-QA hardening make the current locked contract one omission, 43 replacements, 47 Task 5 additions, six Task 6 additions, and 85 overlays. The 39 source-present overlays add no paths; the ten additional source-absent Task 4A helpers/tests produce `1,856 - 1 + 47 = 1,902` Task 5 files and `1,902 + 6 = 1,908` final files. The locked source SHA does not move.
+Task 3's reviewed harness/server-ownership/telemetry corrections, the proven Profile form-layout repair, Task 4A's source-QA hardening, and the later prepublication date-contract repair make the current locked contract one omission, 44 replacements, 47 Task 5 additions, six Task 6 additions, and 86 overlays. The 40 source-present overlays add no paths; the ten additional source-absent Task 4A helpers/tests produce `1,856 - 1 + 47 = 1,902` Task 5 files and `1,902 + 6 = 1,908` final files. The locked source SHA does not move.
 
 - [ ] **Step 4: Write the external account checklist**
 
@@ -506,7 +506,7 @@ git commit -m "docs: inventory AtmoShaper migration boundaries"
 
 **Impact/Compatibility:** Test tooling plus the explicitly authorized Profile-only layout correction; no action, persistence, auth, or shared Card/PendingSubmissionForm behavior changes. Signed-in tests may write only deterministic `.example.test` fixtures to an already approved non-production database and must clean them exactly. Stop if the database fingerprint gate is unavailable; do not substitute production or real accounts.
 
-**Verification:** Source capture passes on desktop/mobile; signed-in tests execute rather than skip; the 63 migration-harness checks and 34 account/form regression checks pass; existing CI-lane manifest and its exact 17 specs/34 assignments remain unchanged; manifest and embedded inventory JSON match with 43 replacements/85 overlays and exact 1,902/1,908 path totals; no browser mutation request or persistent fixture remains. Record read-only external requests separately. Exact migration invocations use one worker, refuse an occupied server port and use a fresh current-checkout, telemetry-inert Browser-QA build. Ordinary runs preserve their existing worker default and CI remains one worker; do not override migration runs back to concurrent workers.
+**Verification:** Source capture passes on desktop/mobile; signed-in tests execute rather than skip; the 63 migration-harness checks and 34 account/form regression checks pass; existing CI-lane manifest and its exact 17 specs/34 assignments remain unchanged; manifest and embedded inventory JSON match with 44 replacements/86 overlays and exact 1,902/1,908 path totals; no browser mutation request or persistent fixture remains. Record read-only external requests separately. Exact migration invocations use one worker, refuse an occupied server port and use a fresh current-checkout, telemetry-inert Browser-QA build. Ordinary runs preserve their existing worker default and CI remains one worker; do not override migration runs back to concurrent workers.
 
 - [x] **Step 1: Add the package command**
 
@@ -654,7 +654,7 @@ The subsequent fresh-build full no-update repeat passed **22/22**, with all **24
 
 **Task 4A Pricing-only parity acceptance — 2026-09-08:** under the shared fail-closed Browser-QA environment, which forces `MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED=true` without changing Pricing application source, the controlled changed-only refresh passed **2/2**. Exactly `pricing-desktop-chromium-win32.png` and `pricing-mobile-chromium-win32.png` changed; the other 22 PNGs remained byte-identical. Accepted Pricing evidence is desktop **167815 bytes**, SHA-256 `6cadc650bc1e88608e822ad9dc1daf56fca9d995ce48484c088efc8dae54f437`, and mobile **102456 bytes**, SHA-256 `6cee3ef80384efad6d63dccaf42597cc14c401de9620218b9f6b81fe903c05ba`. Visual review confirmed only the neutral paused-checkout banner/state and its downstream content shift, with no clipping or unrelated visual change.
 
-The subsequent fresh-build no-update parity run passed **22/22 in 1.3m**, and its post-run hashes were stable **24/24**. The last-run receipt is passed, with no failed tests or failure artifacts. All 22 inventories are present, 11 per project: their external activity is read-only with **29 GET entries / 18 distinct sanitized descriptions**, zero mutation attempts, zero masks, two Clock receipts, and two Home receipts. Disposable database fixture counts were zero before deletion. The temporary empty QA project was deleted and verified absent, while the production project remains present and untouched; no project identifiers, URLs, credentials, or secrets are recorded. Both Pricing PNGs remain source-absent members of `task5AddPaths` and `overlayPaths`, so the manifest stays omit1/replace43/task5Add47/task6Add6/overlay85 and the Task 5/final totals stay 1,902/1,908. This accepts only the Task 4A source Pricing parity correction; it makes no destination or Phase 2 acceptance claim.
+The subsequent fresh-build no-update parity run passed **22/22 in 1.3m**, and its post-run hashes were stable **24/24**. The last-run receipt is passed, with no failed tests or failure artifacts. All 22 inventories are present, 11 per project: their external activity is read-only with **29 GET entries / 18 distinct sanitized descriptions**, zero mutation attempts, zero masks, two Clock receipts, and two Home receipts. Disposable database fixture counts were zero before deletion. The temporary empty QA project was deleted and verified absent, while the production project remains present and untouched; no project identifiers, URLs, credentials, or secrets are recorded. Both Pricing PNGs remain source-absent members of `task5AddPaths` and `overlayPaths`, so the manifest stays omit1/replace44/task5Add47/task6Add6/overlay86 and the Task 5/final totals stay 1,902/1,908. This accepts only the Task 4A source Pricing parity correction; it makes no destination or Phase 2 acceptance claim.
 
 - [x] **Step 6: Verify Task 3**
 
@@ -670,7 +670,7 @@ git diff --check
 git status --short
 ```
 
-Expected: 63/63 migration-harness checks plus 34/34 account/form checks (97 total), successful TypeScript/lint, and no lane-manifest delta. Verify the manifest against its embedded JSON, sorted unique normalized path arrays, source-present omit/replace sets, disjoint source-absent additions, and exact overlay coverage. The authorized Profile repair and Task 4A source-QA hardening are source-present replacements/overlays; Task 4A's ten new helpers/tests are Task 5 additions/overlays. Expected counts are one omission, 43 replacements, 47 Task 5 additions, six Task 6 additions, and 85 overlays; computed Task 5/final path totals are 1,902/1,908.
+Expected: 63/63 migration-harness checks plus 34/34 account/form checks (97 total), successful TypeScript/lint, and no lane-manifest delta. Verify the manifest against its embedded JSON, sorted unique normalized path arrays, source-present omit/replace sets, disjoint source-absent additions, and exact overlay coverage. The authorized Profile repair and Task 4A source-QA hardening are source-present replacements/overlays; Task 4A's ten new helpers/tests are Task 5 additions/overlays. Expected counts are one omission, 44 replacements, 47 Task 5 additions, six Task 6 additions, and 86 overlays; computed Task 5/final path totals are 1,902/1,908.
 
 Run this read-only path-contract check from the preparation repository; it validates declared future snapshot paths without pretending they have already been captured:
 
@@ -706,13 +706,13 @@ for (const path of manifest.overlayPaths) {
   assert.ok(!manifest.omitPaths.includes(path), "Overlay cannot be omitted");
   assert.ok(source.has(path) ? manifest.replacePaths.includes(path) : manifest.task5AddPaths.includes(path), "Overlay needs exact replace/add declaration");
 }
-assert.deepEqual(fields.map(field => manifest[field].length), [1, 43, 47, 6, 85]);
+assert.deepEqual(fields.map(field => manifest[field].length), [1, 44, 47, 6, 86]);
 assert.equal(source.size, 1856);
 const task5 = new Set([...sourcePaths.filter(path => !manifest.omitPaths.includes(path)), ...manifest.task5AddPaths]);
 const final = new Set([...task5, ...manifest.task6AddPaths]);
 assert.equal(task5.size, 1902);
 assert.equal(final.size, 1908);
-console.log("PASS: JSON equality; normalized sorted unique arrays; source/add/replace/overlay contracts; counts omit=1 replace=43 task5Add=47 task6Add=6 overlay=85; source=1856 Task5=1902 final=1908");
+console.log("PASS: JSON equality; normalized sorted unique arrays; source/add/replace/overlay contracts; counts omit=1 replace=44 task5Add=47 task6Add=6 overlay=86; source=1856 Task5=1902 final=1908");
 '@
 ```
 
@@ -765,7 +765,7 @@ Confirm all 24 expected PNGs exist, the committed lane manifest is unchanged, th
 
 **Impact/Compatibility:** Generated `node_modules`, `.next`, and `test-results` are ignored. Read-only hosted inspection only. No production/database/provider mutation beyond exact disposable Browser-QA fixtures already authorized and cleaned by Task 3.
 
-Task 4A full source QA exposed baseline blockers in the ordinary Browser-QA environment, authenticated fixture isolation, connected Admin-action rendering, carousel synchronization, homepage measurement readiness, and affected acceptance contracts. Preserve its reviewed 33 source-present changes and ten source-absent helpers/tests as exact preparation-branch overlays. The locked source SHA remains `fa78ca01a42179329cc223df77c76f308e76320b`; Task 5 must apply these 43 overlays instead of exporting their old or absent locked-source state. This hardening changes no provider configuration, schema, migration, or rebrand behavior.
+Task 4A full source QA exposed baseline blockers in the ordinary Browser-QA environment, authenticated fixture isolation, connected Admin-action rendering, carousel synchronization, homepage measurement readiness, and affected acceptance contracts. Preserve its reviewed 33 source-present changes and ten source-absent helpers/tests as 43 exact preparation-branch overlays. The later prepublication full-suite gate adds `tests/family-friends-server-workload.test.mjs` as one separate source-present replacement/overlay. The locked source SHA remains `fa78ca01a42179329cc223df77c76f308e76320b`; Task 5 must apply those 43 Task 4A overlays plus the separate prepublication repair instead of exporting their old or absent locked-source state. These changes alter no provider configuration, schema, migration, or rebrand behavior.
 
 **Verification:** Every required source command exits zero; all four lane discoveries execute; route/size/metadata/PWA/provider inventory is recorded; worktree is clean afterward.
 
@@ -1053,7 +1053,7 @@ $pathDifference = @(Compare-Object $expectedTask5Paths $actualTask5Paths)
 if ($pathDifference.Count -gt 0) { throw "Task 5 destination path set violates the export manifest." }
 ```
 
-Also verify that every `replacePaths` and `overlayPaths` entry exists, every declared omit path is absent, and all manifest arrays are sorted and duplicate-free. The reviewed contract has 43 replacements and 85 overlays, including the 43 Task 4A baseline-unblock/hardening paths; the staged Task 5 set has 1,902 paths and the final set after six Task 6 additions has 1,908. Compare changed content with the Markdown difference contract. Stop on any unexplained path or absent declared Task 5 path. Task 6 add paths remain intentionally absent until Task 6.
+Also verify that every `replacePaths` and `overlayPaths` entry exists, every declared omit path is absent, and all manifest arrays are sorted and duplicate-free. The reviewed contract has 44 replacements and 86 overlays, including 43 Task 4A baseline-unblock/hardening paths plus the separate prepublication date-contract repair; the staged Task 5 set has 1,902 paths and the final set after six Task 6 additions has 1,908. Compare changed content with the Markdown difference contract. Stop on any unexplained path or absent declared Task 5 path. Task 6 add paths remain intentionally absent until Task 6.
 
 ---
 
