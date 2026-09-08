@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { ADMIN_REASON_CODES } from "@/lib/admin/operation-contract"
 import type { DelegatedAnatomyRole, ExpectedAnatomyRoleStatus } from "@/lib/admin/role-service"
 import { changeAnatomyRoleAction, type RoleChangeActionState } from "./role-actions"
+import { usePendingActionRenderNudge } from "./use-pending-action-render-nudge"
 
 const ROLE_CHANGE_CONFIRMATION = "CONFIRM_ANATOMY_ROLE_CHANGE"
 const INITIAL_ROLE_CHANGE_STATE: RoleChangeActionState = { status: "idle", message: "" }
@@ -93,6 +94,7 @@ function RoleChangeForm({
     changeAnatomyRoleAction.bind(null, userId),
     INITIAL_ROLE_CHANGE_STATE,
   )
+  usePendingActionRenderNudge(isPending)
   const status = evidence?.status ?? "ABSENT"
   const supportedStatus = status === "ABSENT" || status === "VERIFIED" || status === "REVOKED"
   const operation = status === "VERIFIED" ? "REVOKE" : "ASSIGN"

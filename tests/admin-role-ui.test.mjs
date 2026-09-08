@@ -10,6 +10,7 @@ import {
   passThroughElement,
   renderFunctionComponents,
 } from "./helpers/compiled-module.mjs"
+import { resolvePlaywrightWebServerEnvironment } from "../playwright.config.ts"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 const actionSource = await readFile(new URL("../app/admin/users/[userId]/role-actions.ts", import.meta.url), "utf8")
@@ -110,6 +111,7 @@ function roleUiHarness(actionState = idleState) {
       ADMIN_REASON_CODES: ["ROLE_ASSIGNMENT", "ROLE_REVOCATION", "OTHER"],
     },
     "./role-actions": { changeAnatomyRoleAction() {}, RoleChangeActionState: {} },
+    "./use-pending-action-render-nudge": { usePendingActionRenderNudge() {} },
   })
 }
 
@@ -437,7 +439,7 @@ describe("Admin anatomy role controls", () => {
     assert.equal((pageSource.match(/requireFullAdminUser\(\)/g) ?? []).length, 1)
   })
 
-  it("defines desktop/mobile browser acceptance and blanks SMTP for Playwright-owned servers", () => {
+  it("defines desktop/mobile browser acceptance and isolates Playwright-owned servers", () => {
     assert.match(browserSource, /browser\.newContext\(\)/)
     assert.match(browserSource, /installSignedInSessionCookie/)
     assert.match(browserSource, /usesPlaywrightOwnedServer/)
@@ -455,10 +457,18 @@ describe("Admin anatomy role controls", () => {
     assert.match(browserSource, /Revoke Anatomy Reviewer/)
     assert.match(browserSource, /toBeChecked\(\{ checked: false \}\)/)
     assert.doesNotMatch(browserSource, /page\.reload/)
-    for (const name of ["SMTP_HOST", "SMTP_FROM", "SMTP_USER", "SMTP_PASSWORD", "SMTP_PORT"]) {
-      assert.match(playwrightSource, new RegExp(`${name}: ""`))
+    const inherited = {
+      SMTP_HOST: "developer-host",
+      SMTP_FROM: "developer-from",
+      SMTP_USER: "developer-user",
+      SMTP_PASSWORD: "developer-password",
+      SMTP_PORT: "587",
     }
-    assert.match(playwrightSource, /runsAdminUserOperations/)
-    assert.match(playwrightSource, /!runsDevelopmentPaletteReview && !runsAdminUserOperations/)
+    const ownedServer = resolvePlaywrightWebServerEnvironment(inherited, "http://localhost:3999")
+    for (const name of Object.keys(inherited)) {
+      assert.equal(ownedServer[name], "")
+    }
+    assert.equal(inherited.SMTP_HOST, "developer-host")
+    assert.match(playwrightSource, /reuseExistingServer:\s*false/)
   })
 })

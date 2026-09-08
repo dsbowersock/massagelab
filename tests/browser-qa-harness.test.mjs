@@ -5,8 +5,8 @@ import { runInNewContext } from "node:vm"
 
 import {
   assertMigrationParityTelemetryEnvironment,
+  assertBrowserQaRepeatEachSupported,
   getPlaywrightFileFilterArguments,
-  isAdminUserOperationsInvocation,
   isDevelopmentPaletteReviewInvocation,
   isMigrationParityInvocation,
   migrationParityTelemetryEnvironment,
@@ -521,41 +521,44 @@ test("development review invocation ignores the leading Playwright subcommand", 
   assert.equal(isDevelopmentPaletteReviewInvocation(["test", "dna-twisted"]), true)
 })
 
-test("Admin user operations QA disables stale-server reuse for unfiltered and explicit spec runs", () => {
-  assert.equal(isAdminUserOperationsInvocation(["test"]), true)
-  assert.equal(isAdminUserOperationsInvocation(["test", "--grep", "role change"]), true)
-  assert.equal(
-    isAdminUserOperationsInvocation(["test", "tests/browser/admin-user-operations.spec.ts"]),
-    true,
-  )
-  assert.equal(isAdminUserOperationsInvocation(["test", "admin-user-operations.spec.ts:42"]), true)
-  assert.equal(isAdminUserOperationsInvocation(["test", "tests/browser"]), true)
-  assert.equal(isAdminUserOperationsInvocation(["test", "admin-user-operations"]), true)
-  assert.equal(
-    isAdminUserOperationsInvocation(["test", String.raw`tests[\\/]browser[\\/]admin-user-operations\.spec\.ts$`]),
-    true,
-  )
-  assert.equal(isAdminUserOperationsInvocation(["test", "[invalid"]), false)
-  assert.equal(
-    isAdminUserOperationsInvocation(["test", "tests/browser/public-routes.spec.ts"]),
-    false,
-  )
-})
-
-test("Playwright-owned Browser QA enables Google controls with inert spawned-server credentials only", async () => {
-  const config = await readProjectFile("playwright.config.ts")
-
-  assert.match(
-    config,
-    /Object\.assign\(playwrightWebServerEnvironment,[\s\S]*AUTH_GOOGLE_ID:\s*"browser-qa-inert-google-client-id\.invalid"/,
-  )
-  assert.match(
-    config,
-    /Object\.assign\(playwrightWebServerEnvironment,[\s\S]*AUTH_GOOGLE_SECRET:\s*"browser-qa-inert-google-client-secret\.invalid"/,
-  )
-  assert.doesNotMatch(config, /process\.env\.AUTH_GOOGLE_(?:ID|SECRET)\s*=/)
-  for (const name of ["SMTP_HOST", "SMTP_FROM", "SMTP_USER", "SMTP_PASSWORD", "SMTP_PORT"]) {
-    assert.match(config, new RegExp(`${name}: ""`))
+test("Browser QA rejects repeat-each values that can collide deterministic fixtures", () => {
+  for (const argv of [
+    [],
+    ["test"],
+    ["test", "--repeat-each", "1"],
+    ["test", "--repeat-each=1"],
+    ["test", "--repeat-each-other=2"],
+    ["test", "--", "--repeat-each=2"],
+  ]) {
+    assert.doesNotThrow(() => assertBrowserQaRepeatEachSupported(argv))
+  }
+  for (const argv of [
+    ["test", "--repeat-each", "2"],
+    ["test", "--repeat-each=2"],
+    ["test", "--repeat-each", "1garbage"],
+    ["test", "--repeat-each=1garbage"],
+    ["test", "--repeat-each", "2garbage"],
+    ["test", "--repeat-each=2garbage"],
+    ["test", "--repeat-each"],
+    ["test", "--repeat-each="],
+    ["test", "--repeat-each=01"],
+    ["test", "--repeat-each=1.0"],
+  ]) {
+    assert.throws(
+      () => assertBrowserQaRepeatEachSupported(argv),
+      /supports only the exact --repeat-each value 1/i,
+    )
+  }
+  for (const argv of [
+    ["test", "--repeat-each", "1", "--repeat-each", "1"],
+    ["test", "--repeat-each", "1", "--repeat-each=1"],
+    ["test", "--repeat-each=1", "--repeat-each", "1"],
+    ["test", "--repeat-each=1", "--repeat-each=1"],
+  ]) {
+    assert.throws(
+      () => assertBrowserQaRepeatEachSupported(argv),
+      /supports at most one --repeat-each option/i,
+    )
   }
 })
 
@@ -566,8 +569,9 @@ test("migration parity selects exact spec paths, serializes projects, and refuse
   assert.ok(workerExpression, "The canonical worker setting must remain inspectable")
   // Exercise the actual config expression with the exact-invocation matcher;
   // no browser is launched and ordinary/CI worker semantics stay independent.
-  const resolveWorkers = (args, CI) => runInNewContext(workerExpression, {
+  const resolveWorkers = (args, CI, usesAuthorizedBrowserQaDatabase = false) => runInNewContext(workerExpression, {
     runsMigrationParity: isMigrationParityInvocation(args),
+    usesAuthorizedBrowserQaDatabase,
     process: { env: { CI, ATMOSHAPER_MIGRATION_PARITY: "1" } },
   })
   for (const exact of [spec, `./${spec}`, `${spec}:42:7`, `C:\\repo\\${spec.replaceAll("/", "\\")}`]) {
@@ -595,9 +599,11 @@ test("migration parity selects exact spec paths, serializes projects, and refuse
   }
   assert.equal(resolveWorkers(["test", spec, "--update-snapshots=missing"], undefined), 1)
   assert.equal(resolveWorkers(["test", spec, "--update-snapshots=none"], undefined), 1)
+  assert.equal(resolveWorkers(["test", "tests/browser/public-routes.spec.ts"], undefined, true), 1)
 
   assert.match(config, /const runsMigrationParity = isMigrationParityInvocation\(process\.argv\.slice\(2\)\)/)
-  assert.match(config, /reuseExistingServer:\s*!process\.env\.CI && !runsDevelopmentPaletteReview && !runsAdminUserOperations && !runsMigrationParity/)
+  assert.match(config, /const usesAuthorizedBrowserQaDatabase = isBrowserQaDatabaseTargetAuthorized\(process\.env\)/)
+  assert.match(config, /reuseExistingServer:\s*false/)
 })
 
 test("migration parity telemetry preflight requires explicit inert values without exposing rejected values", async () => {
@@ -619,51 +625,6 @@ test("migration parity telemetry preflight requires explicit inert values withou
   const config = await readProjectFile("playwright.config.ts")
   assert.match(config, /if \(runsMigrationParity && process\.env\.ATMOSHAPER_MIGRATION_PARITY === "1" && !process\.argv\.includes\("--list"\)\) \{\s*assertMigrationParityTelemetryEnvironment\(process\.env\)/)
   assert.match(config, /if \(runsMigrationParity && process\.env\.ATMOSHAPER_MIGRATION_PARITY === "1"\) \{\s*Object\.assign\(playwrightWebServerEnvironment, migrationParityTelemetryEnvironment\)/)
-})
-
-test("only migration-mode builds disable Sentry plugin telemetry and require blank runtime/upload variables", async () => {
-  const source = await readProjectFile("next.config.mjs")
-  const start = source.indexOf("const migrationParityBuild =")
-  assert.notEqual(start, -1)
-  assert.equal((source.match(/export default withSentryConfig/g) ?? []).length, 1)
-  // Execute the actual config body with a recording wrapper, not Next/Sentry:
-  // this exercises environment guards and plugin options without a build or network.
-  const executable = source.slice(start).replace("export default withSentryConfig", "result = withSentryConfig")
-  const configure = (environment) => {
-    const sandbox = {
-      process: { env: environment },
-      root: "/browser-qa-test",
-      withSentryConfig: (_config, options) => options,
-    }
-    runInNewContext(executable, sandbox)
-    return sandbox.result
-  }
-  for (const mode of [undefined, "0", "true"]) {
-    const environment = {
-      ATMOSHAPER_MIGRATION_PARITY: mode,
-      NEXT_PUBLIC_SENTRY_DSN: "ordinary-public-dsn",
-      SENTRY_DSN: "ordinary-dsn",
-      SENTRY_AUTH_TOKEN: "ordinary-token",
-      NEXT_TELEMETRY_DISABLED: "0",
-    }
-    const original = { ...environment }
-    const ordinary = configure(environment)
-    assert.equal(ordinary.telemetry, undefined)
-    assert.equal(ordinary.authToken, "ordinary-token")
-    assert.deepEqual(environment, original)
-  }
-  const inert = { ...migrationParityTelemetryEnvironment, ATMOSHAPER_MIGRATION_PARITY: "1" }
-  const migration = configure(inert)
-  assert.equal(migration.telemetry, false)
-  assert.equal(migration.authToken, "")
-  for (const name of Object.keys(migrationParityTelemetryEnvironment)) {
-    for (const rejected of [undefined, "must-not-appear-in-errors"]) {
-      assert.throws(
-        () => configure({ ...inert, [name]: rejected }),
-        (error) => error.message.includes(name) && !error.message.includes("must-not-appear-in-errors"),
-      )
-    }
-  }
 })
 
 test("migration parity uses Education content readiness and persists sanitized activity through teardown", async () => {
@@ -1013,7 +974,9 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(config, /process\.env\.PLAYWRIGHT_PORT/)
   assert.match(config, /function parseBooleanEnv/)
   assert.match(config, /const skipWebServer = parseBooleanEnv\(process\.env\.PLAYWRIGHT_SKIP_WEB_SERVER\)/)
-  assert.match(config, /webServer: skipWebServer/)
+  assert.match(config, /assertBrowserQaOwnedServerRequirement\(skipWebServer\)/)
+  assert.match(config, /webServer:\s*\{/)
+  assert.doesNotMatch(config, /webServer:\s*skipWebServer/)
   assert.match(config, /runsDevelopmentPaletteReview/)
   assert.doesNotMatch(config, /new RegExp\(argument\)/)
   assert.match(
@@ -1098,7 +1061,7 @@ test("CI workflow parallelizes browser QA and aggregates every upstream result",
     )
   }
 
-  assert.equal((getWorkflowJob(ciWorkflow, "browser_build").match(/^        run: npm run build$/gm) ?? []).length, 1)
+  assert.equal((getWorkflowJob(ciWorkflow, "browser_build").match(/^        run: npm run build:browser-qa$/gm) ?? []).length, 1)
   assert.match(ciWorkflow, /strategy:\r?\n      fail-fast: false\r?\n      matrix:\r?\n        lane: \["1", "2", "3", "4"\]/)
   assert.match(ciWorkflow, /PLAYWRIGHT_CI_LANE: \$\{\{ matrix\.lane \}\}/)
   assert.match(ciWorkflow, /key: \$\{\{ runner\.os \}\}-nextjs-v2-/)

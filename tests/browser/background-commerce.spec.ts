@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test"
+import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
 import { centerCarouselItem } from "./carousel-test-helpers"
-import { installSignedInSessionCookie } from "./signed-in-session-cookie"
+import { installSignedInUserFixture, removeSignedInUserFixture } from "./signed-in-user-fixture"
 
 const USER_ID = "background-commerce-browser-user"
 const AURORA_ID = "massage-lab-aurora"
@@ -9,6 +10,7 @@ const AURORA_NAME = "Interstellar"
 const DOTTED_GLOW_ID = "massage-lab-dotted-glow"
 const DOTTED_GLOW_NAME = "Shimmer"
 const RETURN_STORAGE_KEY = "massagelab-background-checkout-return-v1"
+const signedInFixtureProjects = new Set<string>()
 
 type CartItem = {
   productType: "background"
@@ -89,6 +91,7 @@ async function installCommerceFixture({
   context,
   page,
   baseURL,
+  projectName,
   initialSnapshot = emptySnapshot(),
   featureKeys = [],
   appSettings = {},
@@ -102,6 +105,7 @@ async function installCommerceFixture({
   context: BrowserContext
   page: Page
   baseURL: string
+  projectName: string
   initialSnapshot?: CommerceSnapshot
   featureKeys?: string[]
   appSettings?: Record<string, unknown>
@@ -112,12 +116,16 @@ async function installCommerceFixture({
   sessionResponseDelayMs?: number
   preferenceResponseDelayMs?: number
 }) {
+  let sessionIdentity = { id: USER_ID, email: "commerce-qa@example.invalid" }
   if (installServerSessionCookie) {
-    await installSignedInSessionCookie(context, baseURL, {
-      id: USER_ID,
-      name: "Commerce QA",
-      email: "commerce-qa@example.invalid",
+    const identity = await installSignedInUserFixture({
+      context,
+      baseURL,
+      projectName,
+      owner: "background-commerce",
     })
+    sessionIdentity = { id: identity.user.id, email: identity.user.email }
+    signedInFixtureProjects.add(projectName)
   }
   const snapshot = structuredClone(initialSnapshot)
   let snapshotReads = 0
@@ -128,6 +136,7 @@ async function installCommerceFixture({
   let sessionResponseCompletions = 0
   let preferenceRequestsBeforeSessionCompletion = 0
   let preferenceAccessUnavailable = startPreferenceAccessUnavailable
+  let currentAppSettings = { ...appSettings }
   const checkoutBodies: Array<Record<string, unknown>> = []
 
   // Signed-in shell links may prefetch Account routes, whose server loaders are
@@ -143,7 +152,7 @@ async function installCommerceFixture({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        user: { id: USER_ID, email: "commerce-qa@example.invalid", emailVerified: true },
+        user: { ...sessionIdentity, emailVerified: true },
       }),
     })
     sessionResponseCompletions += 1
@@ -179,7 +188,7 @@ async function installCommerceFixture({
         ownedBackgroundIds: snapshot.ownedBackgroundIds,
         chimerSettings,
         // Return the fixture's current shell settings for signed-in hydration.
-        appSettings,
+        appSettings: currentAppSettings,
       }),
     })
     if (request.method() === "GET") preferenceAccessSuccesses += 1
@@ -293,8 +302,25 @@ async function installCommerceFixture({
     getSessionResponseCompletions: () => sessionResponseCompletions,
     getPreferenceRequestsBeforeSessionCompletion: () => preferenceRequestsBeforeSessionCompletion,
     restorePreferenceAccess: () => { preferenceAccessUnavailable = false },
+    setAppSettings: async (patch: Record<string, unknown>) => {
+      currentAppSettings = { ...currentAppSettings, ...patch }
+      if (!isBrowserQaDatabaseTargetAuthorized(process.env)) return
+
+      const response = await context.request.put(
+        new URL("/api/account/preferences", baseURL).href,
+        { data: { appSettings: patch } },
+      )
+      if (!response.ok()) {
+        throw new Error(`Browser QA app-settings fixture write failed with HTTP ${response.status()}.`)
+      }
+    },
   }
 }
+
+test.afterEach(async ({}, testInfo) => {
+  if (!signedInFixtureProjects.delete(testInfo.project.name)) return
+  await removeSignedInUserFixture(testInfo.project.name, "background-commerce")
+})
 
 async function installGuestFixture(page: Page) {
   await page.route("**/api/auth/session", async (route) => {
@@ -511,7 +537,7 @@ test("ordinary signed-in shell defers commerce until a real background consumer 
       }
     }) as typeof window.removeEventListener
   })
-  const fixture = await installCommerceFixture({ context, page, baseURL })
+  const fixture = await installCommerceFixture({ context, page, baseURL, projectName: testInfo.project.name })
 
   await page.goto("/music", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true }))
@@ -554,6 +580,7 @@ test("signed-in cart return marker opens once and is consumed", async ({ context
     context,
     page,
     baseURL,
+    projectName: testInfo.project.name,
     initialSnapshot: emptySnapshot({
       cart: {
         items: [PRODUCTS[AURORA_ID]],
@@ -586,7 +613,7 @@ test("signed-in cart return marker opens once and is consumed", async ({ context
 
 test("Clock redeems one explicit permanent credit and keeps the nested dialog focus order", async ({ context, page }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL)
-  await installCommerceFixture({ context, page, baseURL })
+  await installCommerceFixture({ context, page, baseURL, projectName: testInfo.project.name })
   await openClockBackground(page)
   const backgroundPanel = page.getByRole("dialog", { name: "Background" })
   const aurora = await centerPremium(page, AURORA_ID)
@@ -627,7 +654,7 @@ test("Clock redeems one explicit permanent credit and keeps the nested dialog fo
 
 test("Chimer selects a newly redeemed background before account ownership reloads", async ({ context, page }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL)
-  await installCommerceFixture({ context, page, baseURL })
+  await installCommerceFixture({ context, page, baseURL, projectName: testInfo.project.name })
   await startActiveChimer(page)
   await page.getByRole("button", { name: "Background", exact: true }).click()
   const panel = page.getByRole("dialog", { name: "Background" })
@@ -657,6 +684,7 @@ test("pre-timer Chimer setup selects a newly redeemed background when ownership 
     context,
     page,
     baseURL,
+    projectName: testInfo.project.name,
     failRedemptionRefresh: true,
   })
   await openChimerAfterPreferenceSeed(page)
@@ -688,7 +716,7 @@ test("pre-timer Chimer setup selects a newly redeemed background when ownership 
 
 test("Music selects a newly redeemed background before account ownership reloads", async ({ context, page }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL)
-  await installCommerceFixture({ context, page, baseURL })
+  await installCommerceFixture({ context, page, baseURL, projectName: testInfo.project.name })
   await openMusicBackground(page)
   const panel = page.getByRole("dialog", { name: "Background" })
   await centerPremium(page, AURORA_ID)
@@ -717,6 +745,7 @@ test("zero-credit cart persists across refresh and checkout failure keeps one su
     context,
     page,
     baseURL,
+    projectName: testInfo.project.name,
     initialSnapshot: emptySnapshot({ creditBalance: 0 }),
   })
   await page.addInitScript(() => {
@@ -772,6 +801,7 @@ test("cancel return reopens the originating Background panel with the account ca
     context,
     page,
     baseURL,
+    projectName: testInfo.project.name,
     initialSnapshot: emptySnapshot({
       creditBalance: 0,
       cart: {
@@ -805,6 +835,7 @@ test("subscriber and purchased ownership stay distinct in active Chimer", async 
     context,
     page,
     baseURL,
+    projectName: testInfo.project.name,
     featureKeys: ["premium_backgrounds"],
     initialSnapshot: emptySnapshot({
       creditBalance: 1,
@@ -882,6 +913,7 @@ test("returning signed-in Clock retries subscription access after a wake-time pr
     context,
     page,
     baseURL,
+    projectName: testInfo.project.name,
     featureKeys: ["premium_backgrounds"],
     startPreferenceAccessUnavailable: true,
   })
@@ -916,6 +948,7 @@ test("newly signed-in Clock waits for a cold subscription response without Accou
     context,
     page,
     baseURL,
+    projectName: testInfo.project.name,
     featureKeys: ["premium_backgrounds"],
     // Keep the server-rendered shell database-free while the client receives
     // the same signed-in session and authoritative access contract as Production.
@@ -939,6 +972,7 @@ test("newly signed-in Clock waits for a cold session response before loading sub
     context,
     page,
     baseURL,
+    projectName: testInfo.project.name,
     featureKeys: ["premium_backgrounds"],
     installServerSessionCookie: false,
     sessionResponseDelayMs: 2_000,
@@ -962,6 +996,7 @@ test("Music visualizer keeps the shared account cart through minimize and restor
     context,
     page,
     baseURL,
+    projectName: testInfo.project.name,
     initialSnapshot: emptySnapshot({ creditBalance: 0 }),
   })
   await page.addInitScript(() => {
@@ -1010,8 +1045,7 @@ test("Music visualizer keeps the shared account cart through minimize and restor
 
 test("global account cart appears after explicit cart intent and stays hidden on Calendar", async ({ context, page }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL)
-  // Keep one mutable response object so the second navigation can adopt the top bar.
-  const appSettings = {
+  const initialAppSettings = {
     appBarPosition: "bottom",
     sidebarPosition: "left",
     sidebarTriggerPosition: "bottom",
@@ -1021,7 +1055,7 @@ test("global account cart appears after explicit cart intent and stays hidden on
     context,
     page,
     baseURL,
-    appSettings,
+    projectName: testInfo.project.name,
     initialSnapshot: emptySnapshot({
       cart: {
         items: [PRODUCTS[AURORA_ID]],
@@ -1032,7 +1066,10 @@ test("global account cart appears after explicit cart intent and stays hidden on
       },
     }),
   })
+  await fixture.setAppSettings(initialAppSettings)
   await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.locator(".ml-app-shell"))
+    .toHaveAttribute("data-app-bar-position", "bottom")
   await expect(page.getByRole("region", { name: "Atmosphere audio stations" }))
     .toHaveAttribute("data-music-storage-status", "available")
   const trigger = page.locator("[data-commerce-cart-trigger]:visible")
@@ -1064,8 +1101,7 @@ test("global account cart appears after explicit cart intent and stays hidden on
   }
   await expectBadgeToPaint()
 
-  // Change the preferences response before navigating so signed-in sync adopts the top edge.
-  appSettings.appBarPosition = "top"
+  await fixture.setAppSettings({ appBarPosition: "top" })
   await page.goto("/music?commerceCart=open", { waitUntil: "domcontentloaded" })
   await expect(cartDialog).toContainText(AURORA_NAME)
   await page.keyboard.press("Escape")
@@ -1085,6 +1121,7 @@ test("success return waits for a refreshed server snapshot before confirming own
     context,
     page,
     baseURL,
+    projectName: testInfo.project.name,
     fulfillAfterReads: 3,
     initialSnapshot: emptySnapshot({
       creditBalance: 0,

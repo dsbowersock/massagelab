@@ -72,6 +72,19 @@ async function completePasswordTwoFactorEnrollment(
   await page.getByRole("button", { name: "Verify and enable" }).click()
 }
 
+/** Proves a revoked session sees Account's canonical signed-out Security surface. */
+async function expectSignedOutSecuritySurface(page: Page) {
+  await expect(page).toHaveURL((url) => (
+    url.pathname === "/account" && url.searchParams.get("tab") === "security"
+  ))
+  const visiblePrompt = page
+    .getByText("Sign in to manage security", { exact: true })
+    .filter({ visible: true })
+  await expect(visiblePrompt).toHaveCount(1)
+  await expect(visiblePrompt).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Sign-in methods" })).toHaveCount(0)
+}
+
 test.describe("public account-entry recovery", () => {
   test("login prevents duplicate Credentials submission and recovers from a thrown request", async ({ page }) => {
     const providerRequests = await blockLiveGoogleProviderRequests(page)
@@ -273,8 +286,10 @@ test.describe("private identity-method journeys", () => {
     await page.getByLabel("Password").fill(installed.password)
     const confirm = page.getByRole("button", { name: /confirm same MassageLab account/i })
     await confirm.dblclick()
-    await expect(page.getByRole("status")).toContainText(/linked|redirecting/i)
-    await expect(page).toHaveURL(/\/account\?tab=security/)
+    await expect(page).toHaveURL("/account?tab=security")
+    await expect(page.getByRole("heading", { name: "Sign-in methods" })).toBeVisible()
+    const googleMethod = page.getByText("Google", { exact: true }).locator("..")
+    await expect(googleMethod.getByText("Linked", { exact: true })).toBeVisible()
   })
 
   test("method controls keep a last sign-in method and recover after expired proof", async ({ context, page }, testInfo) => {
@@ -299,9 +314,11 @@ test.describe("private identity-method journeys", () => {
     await page.getByRole("checkbox", { name: /confirm.*remove Google/i }).check()
     await unlink.click()
     await expect(page).toHaveURL(/\/login\?security=sign-in-methods-changed$/)
-    await expect(page.getByRole("status")).toContainText(/sign-in methods changed.*sign in again/i)
+    await expect(page.getByRole("status").filter({
+      hasText: /^Your sign-in methods changed\. Sign in again to continue\.$/,
+    })).toHaveCount(1)
     await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
-    await expect(page).toHaveURL(/\/login(?:\?|$)/)
+    await expectSignedOutSecuritySurface(page)
   })
 
   test("changing a password signs the current browser out", async ({ context, page }, testInfo) => {
@@ -319,7 +336,9 @@ test.describe("private identity-method journeys", () => {
     await page.getByText("Confirm this password sign-in change.").click()
     await page.getByRole("button", { name: "Update password" }).click()
     await expect(page).toHaveURL(/\/login\?security=sign-in-methods-changed$/)
-    await expect(page.getByRole("status")).toContainText(/sign-in methods changed.*sign in again/i)
+    await expect(page.getByRole("status").filter({
+      hasText: /^Your sign-in methods changed\. Sign in again to continue\.$/,
+    })).toHaveCount(1)
   })
 
   test("adds a password after a mocked completed Google reauthentication", async ({ context, page }, testInfo) => {
@@ -337,7 +356,9 @@ test.describe("private identity-method journeys", () => {
     await expect(save).toBeDisabled()
     await page.getByText("Confirm this password sign-in change.").click()
     await save.dblclick()
-    await expect(page.getByRole("status")).toContainText(/enabled|saved/i)
+    await expect(page.getByRole("status").filter({
+      hasText: /^Password sign-in is now enabled\.$/,
+    })).toHaveCount(1)
     await expect(page.getByText("Enabled", { exact: true })).toBeVisible()
     await expect(page.getByText(/Add a password first/i)).toHaveCount(0)
     await expect(page.getByRole("button", { name: "Start two-factor setup" })).toBeVisible()
@@ -353,9 +374,11 @@ test.describe("private identity-method journeys", () => {
     await page.getByLabel("Confirm disable password sign-in").check()
     await disable.click()
     await expect(page).toHaveURL(/\/login\?security=sign-in-methods-changed$/)
-    await expect(page.getByRole("status")).toContainText(/sign-in methods changed.*sign in again/i)
+    await expect(page.getByRole("status").filter({
+      hasText: /^Your sign-in methods changed\. Sign in again to continue\.$/,
+    })).toHaveCount(1)
     await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
-    await expect(page).toHaveURL(/\/login(?:\?|$)/)
+    await expectSignedOutSecuritySurface(page)
   })
 
   test("announces an expired matching intent and allows an explicit retry", async ({ context, page }, testInfo) => {
@@ -385,7 +408,9 @@ test.describe("private identity-method journeys", () => {
     await page.getByLabel("Account email").fill(installed.identity.user.email)
     await page.getByLabel("Password").fill(installed.password)
     await page.getByRole("button", { name: "Confirm same MassageLab account" }).click()
-    await expect(page.getByRole("alert")).toContainText(/expired/i)
+    await expect(page.getByRole("alert").filter({
+      hasText: /^This confirmation expired or belongs to another session\. Start again with Google sign-in\.$/,
+    })).toHaveCount(1)
     await page.getByLabel("Password").fill(installed.password)
     await page.getByRole("button", { name: "Confirm same MassageLab account" }).click()
     await expect(page).toHaveURL(/\/account\?tab=security/)
@@ -483,8 +508,7 @@ test.describe("private identity-method journeys", () => {
     await expect(page).toHaveURL(/\/login\?security=two-factor-changed$/)
     await expect(page.getByText("browser-final-backup")).toHaveCount(0)
     await page.goto("/account?tab=security", { waitUntil: "domcontentloaded" })
-    await expect(page).toHaveURL(/\/login(?:\?|$)/)
-    await expect(page).not.toHaveURL(/\/account\?tab=security/)
+    await expectSignedOutSecuritySurface(page)
   })
 
   test("security surface remains usable with keyboard, enlarged text, landscape, and reduced motion", async ({ context, page }, testInfo) => {

@@ -13,6 +13,7 @@ import {
   isBrowserBillingGoodwillMutationBlocked,
 } from "../lib/admin/browser-billing-goodwill-preview.ts"
 import { createBrowserAdminFixtureIdentity } from "../lib/admin/browser-fixture-identity.ts"
+import { fingerprintBrowserQaDatabaseTarget } from "../scripts/assert-browser-qa-database-target.mjs"
 
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
 
@@ -167,11 +168,18 @@ describe("Admin billing-goodwill UI", () => {
     assert.doesNotMatch(text, /cus_|sub_|cbtxn_/)
   })
 
-  it("enables the read-only browser preview only for opted-in disposable identities outside Vercel Production", async () => {
+  it("enables the read-only browser preview only for fingerprint-approved disposable identities", async () => {
     const target = "browser-admin-target-desktop-chromium"
+    const runtimeUrl = "postgresql://admin_qa:runtime-secret@qa-runtime.example.test:5432/massagelab_admin_qa?sslmode=require"
+    const directUrl = "postgresql://admin_owner:direct-secret@qa-direct.example.test:5433/massagelab_admin_qa?sslmode=require"
     const authorizedEnvironment = {
-      DATABASE_URL: "postgresql://example.test/not-real",
+      DATABASE_URL: runtimeUrl,
+      DIRECT_URL: directUrl,
       MASSAGELAB_BROWSER_QA_DATABASE: "1",
+      MASSAGELAB_BROWSER_QA_DATABASE_URL: runtimeUrl,
+      MASSAGELAB_BROWSER_QA_DIRECT_URL: directUrl,
+      MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT: fingerprintBrowserQaDatabaseTarget(runtimeUrl, directUrl),
+      VERCEL_ENV: "preview",
     }
     assert.equal(browserBillingGoodwillPreviewClient(target, {}), null)
     assert.equal(browserBillingGoodwillPreviewClient(target, {

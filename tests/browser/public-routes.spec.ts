@@ -2,7 +2,7 @@ import { expect, test as base, type Locator, type Page, type Request, type Respo
 import { readFile } from "node:fs/promises"
 import { centerCarouselItem } from "./carousel-test-helpers"
 import { isHeldRouteTeardownCancellation } from "./held-route-teardown"
-import { installSignedInSessionCookie } from "./signed-in-session-cookie"
+import { installSignedInUserFixture, removeSignedInUserFixture } from "./signed-in-user-fixture"
 
 type PublicNetworkGuardState = {
   allowedExternalUrls: Set<string>
@@ -49,6 +49,25 @@ const test = base.extend<{ publicNetworkGuard: PublicNetworkGuardState }>({
       "allowed external requests without an exact fixture",
     ).toEqual([])
   }, { auto: true }],
+})
+
+const signedInFixtureOwnersByProject = new Map<string, Set<string>>()
+
+async function installOwnedSignedInUserFixture(input: Parameters<typeof installSignedInUserFixture>[0]) {
+  const identity = await installSignedInUserFixture(input)
+  const owners = signedInFixtureOwnersByProject.get(input.projectName) ?? new Set<string>()
+  owners.add(input.owner)
+  signedInFixtureOwnersByProject.set(input.projectName, owners)
+  return identity
+}
+
+test.afterEach(async ({}, testInfo) => {
+  const owners = signedInFixtureOwnersByProject.get(testInfo.project.name)
+  if (!owners) return
+  signedInFixtureOwnersByProject.delete(testInfo.project.name)
+  for (const owner of owners) {
+    await removeSignedInUserFixture(testInfo.project.name, owner)
+  }
 })
 
 function getPublicNetworkGuard(page: Page) {
@@ -1550,10 +1569,11 @@ test("Music visualizer background selection and account default actions preserve
     showClock: false,
   }
 
-  await installSignedInSessionCookie(context, String(testInfo.project.use.baseURL), {
-    id: "music-qa-user",
-    name: "Music QA",
-    email: "music-qa@example.com",
+  await installOwnedSignedInUserFixture({
+    context,
+    baseURL: String(testInfo.project.use.baseURL),
+    projectName: testInfo.project.name,
+    owner: "public-routes-visualizer-default",
   })
 
   await page.addInitScript(() => {
@@ -1669,9 +1689,8 @@ test("Music visualizer background selection and account default actions preserve
   ])
   expect(
     accountRequests.filter((request) => request === "GET /api/account/preferences"),
-    "one shared shell fallback plus one Chimer-owned preference read",
+    "one Chimer-owned preference read and no ready RSC shell fallback",
   ).toEqual([
-    "GET /api/account/preferences",
     "GET /api/account/preferences",
   ])
   expect(accountRequests.filter((request) => request === "PUT /api/account/preferences").length)
@@ -1693,10 +1712,11 @@ test("Music account preference owner switch ignores a delayed old-owner PUT", as
     markOwnerAWriteResponseProcessed = resolve
   })
 
-  await installSignedInSessionCookie(context, String(testInfo.project.use.baseURL), {
-    id: "music-owner-a",
-    name: "Music Owner A",
-    email: "music-owner-a@example.com",
+  await installOwnedSignedInUserFixture({
+    context,
+    baseURL: String(testInfo.project.use.baseURL),
+    projectName: testInfo.project.name,
+    owner: "public-routes-owner-a",
   })
   await page.addInitScript(() => {
     localStorage.setItem("massagelab-atmosphere-v2", JSON.stringify({
@@ -1752,13 +1772,17 @@ test("Music account preference owner switch ignores a delayed old-owner PUT", as
     .evaluate((button) => (button as HTMLButtonElement).click())
   await ownerAWriteStarted
 
-  await installSignedInSessionCookie(context, String(testInfo.project.use.baseURL), {
-    id: "music-owner-b",
-    name: "Music Owner B",
-    email: "music-owner-b@example.com",
+  await installOwnedSignedInUserFixture({
+    context,
+    baseURL: String(testInfo.project.use.baseURL),
+    projectName: testInfo.project.name,
+    owner: "public-routes-owner-b",
   })
   await page.reload({ waitUntil: "domcontentloaded" })
-  await expect(page.getByLabel("Music visualizer")).toBeVisible()
+  await expect(page.getByRole("region", {
+    name: "Music visualizer",
+    exact: true,
+  })).toBeVisible()
   await page.getByRole("button", { name: "Visual", exact: true }).click()
   await expect(page.getByRole("button", { name: "Set as visualizer default", exact: true })).toBeVisible()
 
@@ -2406,6 +2430,17 @@ test("homepage audience phrases reserve stable heading layout at 704px", async (
   const followingParagraph = heading.locator("xpath=following-sibling::p[1]")
   const metrics: Array<{ word: string; headingHeight: number; lineCount: number; paragraphY: number }> = []
 
+  await page.evaluate(async () => {
+    await document.fonts.ready
+  })
+  await expect(heading).toBeVisible()
+  await expect
+    .poll(async () => {
+      const headingHeight = await heading.evaluate((element) => element.getBoundingClientRect().height)
+      return Number.isFinite(headingHeight) ? headingHeight : 0
+    }, { message: "expected a positive finite homepage heading height" })
+    .toBeGreaterThan(0)
+
   for (const word of ["therapists", "students", "educators", "clients", "curious people"]) {
     await expect(flipWord).toHaveText(word, { timeout: 3_000 })
     metrics.push(await heading.evaluate((element, currentWord) => {
@@ -2422,6 +2457,7 @@ test("homepage audience phrases reserve stable heading layout at 704px", async (
   }
 
   const baseline = metrics[0]
+  expect(baseline.headingHeight, "baseline heading height").toBeGreaterThan(0)
   for (const metric of metrics) {
     expect(metric.headingHeight, `${metric.word} heading height`).toBeCloseTo(baseline.headingHeight, 0)
     expect(metric.lineCount, `${metric.word} heading lines`).toBe(baseline.lineCount)
@@ -2449,10 +2485,11 @@ test("homepage flip words stay stable when reduced motion is requested", async (
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
-  const flipWord = page.getByTestId("home-flip-word")
-  await expect(flipWord).toBeVisible()
+  const flipWord = page.getByTestId("home-flip-word").filter({ visible: true })
+  await expect(flipWord).toHaveCount(1)
   const firstWord = await flipWord.textContent()
   await page.waitForTimeout(3_500)
+  await expect(flipWord).toHaveCount(1)
   await expect(flipWord).toHaveText(firstWord ?? "")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])

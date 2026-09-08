@@ -10,7 +10,7 @@ export type NativePendingSnapshot = {
   statusText: string | undefined
 }
 
-/** Records native pending after React's delegated submit handler, then triggers one duplicate submit. */
+/** Records pending and duplicate prevention out of band while native navigation remains unresolved. */
 export async function installNativeSubmitSnapshotRecorder({
   page,
   form,
@@ -24,10 +24,29 @@ export async function installNativeSubmitSnapshotRecorder({
   const snapshot = new Promise<NativePendingSnapshot>((resolve) => {
     resolveSnapshot = resolve
   })
+  let resolveDuplicatePrevented: (prevented: boolean) => void = () => {}
+  const duplicatePrevented = new Promise<boolean>((resolve) => {
+    resolveDuplicatePrevented = resolve
+  })
   await page.exposeFunction("__recordNativeBillingPending", (value: NativePendingSnapshot) => {
     resolveSnapshot(value)
   })
+  await page.exposeFunction("__recordNativeBillingDuplicatePrevented", (value: boolean) => {
+    resolveDuplicatePrevented(value)
+  })
   await form.evaluate((element, label) => {
+    let attempts = 0
+    const observeDuplicatePrevention = (event: SubmitEvent) => {
+      if (event.target !== element) return
+      attempts += 1
+      if (attempts !== 2) return
+      document.removeEventListener("submit", observeDuplicatePrevention)
+      const recordDuplicatePrevented = Reflect.get(
+        window,
+        "__recordNativeBillingDuplicatePrevented",
+      ) as (prevented: boolean) => void
+      recordDuplicatePrevented(event.defaultPrevented)
+    }
     const observePending = (event: SubmitEvent) => {
       const submittedForm = event.target
       if (!(submittedForm instanceof HTMLFormElement) || submittedForm !== element) return
@@ -53,6 +72,7 @@ export async function installNativeSubmitSnapshotRecorder({
       setTimeout(() => submittedForm.requestSubmit(), 0)
     }
     document.addEventListener("submit", observePending)
+    document.addEventListener("submit", observeDuplicatePrevention)
   }, pendingLabel)
-  return { snapshot }
+  return { snapshot, duplicatePrevented }
 }

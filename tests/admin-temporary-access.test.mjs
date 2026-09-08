@@ -68,6 +68,7 @@ function temporaryAccessUiHarness({ formPending = false } = {}) {
         grantTemporaryAccessAction() {},
         revokeTemporaryAccessAction() {},
       },
+      "./use-pending-action-render-nudge": { usePendingActionRenderNudge() {} },
     },
   )
 }

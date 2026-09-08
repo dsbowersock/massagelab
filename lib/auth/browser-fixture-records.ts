@@ -61,10 +61,11 @@ export async function createBrowserIdentityMethodFixtureRecords(input: {
       : "REMOVE_PASSWORD"
   const status = input.identity.scenario === "MATCHING_LINK" ? "PROVIDER_PROVEN" : "CONSUMED"
 
-  await input.prismaClient.user.create({
+  const user = await input.prismaClient.user.create({
     data: {
       ...input.identity.user,
       emailVerified: now,
+      authSessionVersion: 0,
       ...(hasPassword ? { passwordCredential: { create: { passwordHash } } } : {}),
       ...(hasGoogle ? {
         accounts: {
@@ -97,6 +98,7 @@ export async function createBrowserIdentityMethodFixtureRecords(input: {
     password: BROWSER_IDENTITY_METHOD_PASSWORD,
     intentId: input.identity.intentId,
     bindingCookie: `${input.identity.intentId}.${browserBindingToken}`,
+    authSessionVersion: user.authSessionVersion,
   }
 }
 

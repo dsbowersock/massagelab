@@ -184,20 +184,12 @@ test.describe("private persisted membership returns", () => {
     })
 
     await page.goto("/account?tab=membership&portal=returned", { waitUntil: "domcontentloaded" })
-    const form = page.locator('form[action="/api/billing/portal"]')
+    const returnStatus = page.locator('[data-membership-return-status="portal"]')
+    await expect(returnStatus).toContainText(/needs billing attention/i)
+    const form = returnStatus.locator('form[action="/api/billing/portal"]')
+    await expect(form).toHaveCount(1)
     const pendingLabel = "Opening billing portal…"
     const recorder = await installNativeSubmitSnapshotRecorder({ page, form, pendingLabel })
-    await form.evaluate((element) => {
-      let attempts = 0
-      const recordDuplicatePrevention = (event: SubmitEvent) => {
-        if (event.target !== element) return
-        attempts += 1
-        if (attempts !== 2) return
-        element.dataset.duplicateSubmitPrevented = String(event.defaultPrevented)
-        document.removeEventListener("submit", recordDuplicatePrevention)
-      }
-      document.addEventListener("submit", recordDuplicatePrevention)
-    })
 
     try {
       await form.getByRole("button", { name: "Manage billing account" }).evaluate((element) => {
@@ -209,7 +201,7 @@ test.describe("private persisted membership returns", () => {
         { message: "billing portal route must start before pending-state assertions", timeout: 5_000 },
       ).toBe(true)
       const snapshot = await recorder.snapshot
-      await expect(form).toHaveAttribute("data-duplicate-submit-prevented", "true")
+      expect(await recorder.duplicatePrevented).toBe(true)
       expect(snapshot).toMatchObject({
         buttonAriaBusy: "true",
         buttonDisabled: true,

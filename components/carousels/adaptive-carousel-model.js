@@ -254,6 +254,29 @@ export function reconcileAdaptiveCarouselCenter(items, preferredId, selectedId) 
 }
 
 /**
+ * Preserves an in-session browsing position across item metadata refreshes,
+ * while allowing a new external selection to take control. If either identity
+ * disappears, the existing preferred, selected, then first-item precedence
+ * supplies the surviving fallback.
+ * @template {AdaptiveCarouselItem} T
+ * @param {readonly T[]} items
+ * @param {string | null | undefined} centeredId
+ * @param {string | null | undefined} selectedId
+ * @param {string | null | undefined} previousSelectedId
+ */
+export function reconcileAdaptiveCarouselUpdateCenter(
+  items,
+  centeredId,
+  selectedId,
+  previousSelectedId,
+) {
+  if (selectedId && selectedId !== previousSelectedId) {
+    return reconcileAdaptiveCarouselCenter(items, selectedId, centeredId)
+  }
+  return reconcileAdaptiveCarouselCenter(items, centeredId, selectedId)
+}
+
+/**
  * Returns the centered item plus the configured number of nearby renderers.
  * Distant slides retain semantics through lightweight shells.
  * @param {readonly AdaptiveCarouselItem[]} items

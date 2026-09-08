@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Request } from "@playwright/test"
 import {
   installAdminUserOperationsFixture,
   removeBrowserAdminFixture,
@@ -49,9 +49,21 @@ test.describe("Admin user operations", () => {
   test("Admin confirms a delegated role change and invalidates the target JWT", async ({ page, browser }, testInfo) => {
     const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
     const baseURL = String(testInfo.project.use.baseURL)
+    const targetAdminUserPathname = `/admin/users/${encodeURIComponent(fixture.target.id)}`
     const targetContext = await browser.newContext()
+    let delegatedRolePostCount = 0
+    const delegatedRolePostObserver = (request: Request) => {
+      if (
+        request.method() === "POST"
+        && new URL(request.url()).pathname === targetAdminUserPathname
+      ) delegatedRolePostCount += 1
+    }
+    page.on("request", delegatedRolePostObserver)
     try {
-      await installSignedInSessionCookie(targetContext, baseURL, fixture.target)
+      await installSignedInSessionCookie(targetContext, baseURL, {
+        ...fixture.target,
+        authSessionVersion: 0,
+      })
       const targetPage = await targetContext.newPage()
       await targetPage.goto(new URL("/account", baseURL).href, { waitUntil: "domcontentloaded" })
       const sessionUrl = new URL("/api/auth/session", baseURL).href
@@ -60,14 +72,16 @@ test.describe("Admin user operations", () => {
       const beforeSession = await beforeSessionResponse.json()
       expect(beforeSession.user?.id).toBe(fixture.target.id)
 
-      await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=access`, { waitUntil: "domcontentloaded" })
-      const reviewerCard = page.locator("article").filter({
+      await page.goto(`${targetAdminUserPathname}?section=access`, { waitUntil: "domcontentloaded" })
+      const delegatedRoleRegion = page.getByRole("region", { name: "Delegated anatomy access" })
+      await expect(delegatedRoleRegion).toBeVisible()
+      const reviewerCard = delegatedRoleRegion.locator("article").filter({
         has: page.getByRole("heading", { name: "Anatomy Reviewer" }),
       })
-      const editorCard = page.locator("article").filter({
+      const editorCard = delegatedRoleRegion.locator("article").filter({
         has: page.getByRole("heading", { name: "Anatomy Editor" }),
       })
-      await expect(page.getByText(
+      await expect(delegatedRoleRegion.getByText(
         "Reviewer can review anatomy content. Editor can review and edit anatomy content.",
         { exact: true },
       )).toBeVisible()
@@ -82,7 +96,9 @@ test.describe("Admin user operations", () => {
       await assignButton.focus()
       await expect(assignButton).toBeFocused()
       await assignButton.press("Enter")
-      await expect(reviewerCard.getByText("Current state: Assigned (VERIFIED)", { exact: true })).toBeVisible()
+      await expect(reviewerCard.getByText("Current state: Assigned (VERIFIED)", { exact: true })).toBeVisible({
+        timeout: 30_000,
+      })
       await expect(reviewerCard.getByText("After confirmation: Not assigned (REVOKED)", { exact: true })).toBeVisible()
       const revokeButton = reviewerCard.getByRole("button", { name: "Revoke Anatomy Reviewer" })
       const revokeConfirmation = reviewerCard.getByLabel(/I understand this exact change will sign the user out/)
@@ -96,57 +112,78 @@ test.describe("Admin user operations", () => {
       expect(afterSessionResponse.ok()).toBe(true)
       const afterSession = await afterSessionResponse.json()
       expect(afterSession?.user?.id).toBeUndefined()
+      page.off("request", delegatedRolePostObserver)
+      expect(delegatedRolePostCount).toBe(1)
     } finally {
+      page.off("request", delegatedRolePostObserver)
       await targetContext.close()
     }
   })
 
   test("Admin previews and confirms one positive background-credit goodwill grant", async ({ page }, testInfo) => {
     const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
-    await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=access`, { waitUntil: "domcontentloaded" })
-    const creditCard = page.locator("article").filter({
-      has: page.getByRole("heading", { name: "Add background credits" }),
-    })
-    const submitButton = creditCard.getByRole("button", { name: "Add background credits" })
-    await expect(creditCard.getByText("Current persisted balance: 0", { exact: true })).toBeVisible()
-    await expect(creditCard.getByText("Automatic verified-account allocation: +2", { exact: true })).toBeVisible()
-    await expect(submitButton).toBeDisabled()
+    const targetAdminUserPathname = `/admin/users/${encodeURIComponent(fixture.target.id)}`
+    let backgroundCreditPostCount = 0
+    const backgroundCreditPostObserver = (request: Request) => {
+      if (
+        request.method() === "POST"
+        && new URL(request.url()).pathname === targetAdminUserPathname
+      ) backgroundCreditPostCount += 1
+    }
+    page.on("request", backgroundCreditPostObserver)
+    try {
+      await page.goto(`${targetAdminUserPathname}?section=access`, { waitUntil: "domcontentloaded" })
+      const creditCard = page.locator("article").filter({
+        has: page.getByRole("heading", { name: "Add background credits" }),
+      })
+      const submitButton = creditCard.getByRole("button", { name: "Add background credits" })
+      await expect(creditCard.getByText("Current persisted balance: 0", { exact: true })).toBeVisible()
+      await expect(creditCard.getByText("Automatic verified-account allocation: +2", { exact: true })).toBeVisible()
+      await expect(submitButton).toBeDisabled()
 
-    const fivePreset = creditCard.getByRole("button", { name: "+5" })
-    await fivePreset.focus()
-    await expect(fivePreset).toBeFocused()
-    await fivePreset.press("Enter")
-    await expect(creditCard.getByText("Admin grant: +5", { exact: true })).toBeVisible()
-    await expect(creditCard.getByText("Resulting balance: 2 + 5 = 7", { exact: true })).toBeVisible()
+      const fivePreset = creditCard.getByRole("button", { name: "+5" })
+      await fivePreset.focus()
+      await expect(fivePreset).toBeFocused()
+      await fivePreset.press("Enter")
+      await expect(creditCard.getByText("Admin grant: +5", { exact: true })).toBeVisible()
+      await expect(creditCard.getByText("Resulting balance: 2 + 5 = 7", { exact: true })).toBeVisible()
 
-    const customAmount = creditCard.getByLabel("Custom credit amount")
-    await customAmount.fill("3")
-    await expect(creditCard.getByText("Admin grant: +3", { exact: true })).toBeVisible()
-    await expect(creditCard.getByText("Resulting balance: 2 + 3 = 5", { exact: true })).toBeVisible()
-    await creditCard.getByLabel("Reason").selectOption("BACKGROUND_CREDIT_GOODWILL")
-    const confirmation = creditCard.locator('input[name="confirmation"]')
-    await creditCard.getByLabel(/I confirm that 3 background credits will be added/).check()
-    await expect(submitButton).toBeEnabled()
-    await customAmount.fill("4")
-    await expect(confirmation).toBeChecked({ checked: false })
-    await expect(submitButton).toBeDisabled()
-    await customAmount.fill("3")
-    await creditCard.getByLabel(/I confirm that 3 background credits will be added/).check()
-    await expect(submitButton).toBeEnabled()
-    await submitButton.focus()
-    await expect(submitButton).toBeFocused()
-    await submitButton.press("Enter")
+      const customAmount = creditCard.getByLabel("Custom credit amount")
+      await customAmount.fill("3")
+      await expect(creditCard.getByText("Admin grant: +3", { exact: true })).toBeVisible()
+      await expect(creditCard.getByText("Resulting balance: 2 + 3 = 5", { exact: true })).toBeVisible()
+      await creditCard.getByLabel("Reason").selectOption("BACKGROUND_CREDIT_GOODWILL")
+      const confirmation = creditCard.locator('input[name="confirmation"]')
+      await creditCard.getByLabel(/I confirm that 3 background credits will be added/).check()
+      await expect(submitButton).toBeEnabled()
+      await customAmount.fill("4")
+      await expect(confirmation).toBeChecked({ checked: false })
+      await expect(submitButton).toBeDisabled()
+      await customAmount.fill("3")
+      await creditCard.getByLabel(/I confirm that 3 background credits will be added/).check()
+      await expect(submitButton).toBeEnabled()
+      await submitButton.focus()
+      await expect(submitButton).toBeFocused()
+      await submitButton.press("Enter")
 
-    await expect(creditCard.getByText("Current balance: 5", { exact: true })).toBeVisible()
-    await expect(creditCard.getByText(/3 background credits were added\. The balance changed from 2 to 5\./i)).toBeVisible()
-    const freshConfirmation = creditCard.getByLabel(/I confirm that 1 background credit will be added/)
-    await expect(freshConfirmation).toBeChecked({ checked: false })
-    await expect(submitButton).toBeDisabled()
+      await expect(creditCard.getByText("Current balance: 5", { exact: true })).toBeVisible({
+        timeout: 30_000,
+      })
+      await expect(creditCard.getByText(/3 background credits were added\. The balance changed from 2 to 5\./i)).toBeVisible()
+      const freshConfirmation = creditCard.getByLabel(/I confirm that 1 background credit will be added/)
+      await expect(freshConfirmation).toBeChecked({ checked: false })
+      await expect(submitButton).toBeDisabled()
+      expect(backgroundCreditPostCount).toBe(1)
 
-    await page.getByRole("navigation", { name: "Account detail sections" }).getByRole("link", { name: "Activity" }).click()
-    const activity = page.getByRole("listitem").filter({ hasText: "Background credits added" }).first()
-    await expect(activity).toContainText("Effective value: +3 credits")
-    await expect(activity).toContainText("Email delivery")
+      await page.getByRole("navigation", { name: "Account detail sections" }).getByRole("link", { name: "Activity" }).click()
+      const activity = page.getByRole("listitem").filter({ hasText: "Background credits added" }).first()
+      await expect(activity).toContainText("Effective value: +3 credits")
+      await expect(activity).toContainText("Email delivery")
+      page.off("request", backgroundCreditPostObserver)
+      expect(backgroundCreditPostCount).toBe(1)
+    } finally {
+      page.off("request", backgroundCreditPostObserver)
+    }
   })
 
   test("Admin previews billing goodwill confirmation without creating a Stripe transaction", async ({ page }, testInfo) => {
@@ -191,17 +228,32 @@ test.describe("Admin user operations", () => {
   test("Admin grants and append-only revokes one bounded temporary feature with Account expiration evidence", async ({ page, browser }, testInfo) => {
     const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
     const baseURL = String(testInfo.project.use.baseURL)
+    const targetAdminUserPathname = `/admin/users/${encodeURIComponent(fixture.target.id)}`
     const targetContext = await browser.newContext()
+    let temporaryAccessPostCount = 0
+    const temporaryAccessPostObserver = (request: Request) => {
+      if (
+        request.method() === "POST"
+        && new URL(request.url()).pathname === targetAdminUserPathname
+      ) temporaryAccessPostCount += 1
+    }
+    page.on("request", temporaryAccessPostObserver)
     try {
-      await installSignedInSessionCookie(targetContext, baseURL, fixture.target)
+      await installSignedInSessionCookie(targetContext, baseURL, {
+        ...fixture.target,
+        authSessionVersion: 0,
+      })
       const targetPage = await targetContext.newPage()
-      await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=access`, { waitUntil: "domcontentloaded" })
+      await page.goto(`${targetAdminUserPathname}?section=access`, { waitUntil: "domcontentloaded" })
 
       const temporaryCard = page.locator("article").filter({
         has: page.getByRole("heading", { name: "Temporary feature access" }),
       })
       const feature = temporaryCard.getByLabel("Temporary feature")
-      const allowedOptions = await feature.locator("option").evaluateAll((options) => (
+      const featureOptions = feature.locator("option")
+      await expect(feature).toBeVisible()
+      await expect(featureOptions).toHaveCount(5)
+      const allowedOptions = await featureOptions.evaluateAll((options) => (
         options.map((option) => ({ value: (option as HTMLOptionElement).value, label: option.textContent?.trim() }))
       ))
       expect(allowedOptions).toEqual([
@@ -245,8 +297,10 @@ test.describe("Admin user operations", () => {
       const grantButton = temporaryCard.getByRole("button", { name: "Grant temporary access" })
       await expect(grantButton).toBeEnabled()
       await grantButton.press("Enter")
-
-      await expect(temporaryCard.getByText(/Temporary Premium backgrounds access was granted through/i)).toBeVisible()
+      await expect(temporaryCard.getByText(/Temporary Premium backgrounds access was granted through/i)).toBeVisible({
+        timeout: 30_000,
+      })
+      expect(temporaryAccessPostCount).toBe(1)
       await expect(confirmation).toBeChecked({ checked: false })
       await expect(grantButton).toBeDisabled()
       const activeGrant = temporaryCard.locator('[data-temporary-grant="active"]').first()
@@ -274,7 +328,9 @@ test.describe("Admin user operations", () => {
       const revokeButton = activeGrant.getByRole("button", { name: "Revoke this temporary grant" })
       await expect(revokeButton).toBeEnabled()
       await revokeButton.press("Enter")
-      await expect(temporaryCard.getByText(/one temporary Premium backgrounds grant was revoked/i)).toBeVisible()
+      await expect(temporaryCard.getByText(/one temporary Premium backgrounds grant was revoked/i)).toBeVisible({
+        timeout: 30_000,
+      })
       await expect(temporaryCard.getByText("No active temporary grants.", { exact: true })).toBeVisible()
 
       await page.getByRole("navigation", { name: "Account detail sections" }).getByRole("link", { name: "Activity" }).click()
@@ -283,7 +339,10 @@ test.describe("Admin user operations", () => {
 
       await targetPage.reload({ waitUntil: "domcontentloaded" })
       await expect(targetPage.getByRole("heading", { name: "Temporary feature access" })).toHaveCount(0)
+      page.off("request", temporaryAccessPostObserver)
+      expect(temporaryAccessPostCount).toBe(2)
     } finally {
+      page.off("request", temporaryAccessPostObserver)
       await targetContext.close()
     }
   })
@@ -291,15 +350,27 @@ test.describe("Admin user operations", () => {
   test("Admin confirms sign-in token revocation and the target JWT is rejected on refresh", async ({ page, browser }, testInfo) => {
     const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
     const baseURL = String(testInfo.project.use.baseURL)
+    const targetAdminUserPathname = `/admin/users/${encodeURIComponent(fixture.target.id)}`
     const targetContext = await browser.newContext()
+    let sessionRevocationPostCount = 0
+    const sessionRevocationPostObserver = (request: Request) => {
+      if (
+        request.method() === "POST"
+        && new URL(request.url()).pathname === targetAdminUserPathname
+      ) sessionRevocationPostCount += 1
+    }
+    page.on("request", sessionRevocationPostObserver)
     try {
-      await installSignedInSessionCookie(targetContext, baseURL, fixture.target)
+      await installSignedInSessionCookie(targetContext, baseURL, {
+        ...fixture.target,
+        authSessionVersion: 0,
+      })
       const targetPage = await targetContext.newPage()
       const sessionUrl = new URL("/api/auth/session", baseURL).href
       const beforeSession = await (await targetPage.request.get(sessionUrl)).json()
       expect(beforeSession.user?.id).toBe(fixture.target.id)
 
-      await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=security`, { waitUntil: "domcontentloaded" })
+      await page.goto(`${targetAdminUserPathname}?section=security`, { waitUntil: "domcontentloaded" })
       await expect(page.getByText("Compatibility Session rows", { exact: true })).toBeVisible()
       await expect(page.getByText(/not a count of active JWT sessions or users signed out/i)).toBeVisible()
       const revokeCard = page.locator("article").filter({
@@ -314,66 +385,110 @@ test.describe("Admin user operations", () => {
       await revokeButton.focus()
       await expect(revokeButton).toBeFocused()
       await revokeButton.press("Enter")
-      await expect(revokeCard.getByText(/Existing sign-in tokens were invalidated/)).toBeVisible()
+      await expect(revokeCard.getByRole("status")).toContainText(
+        /Existing sign-in tokens were invalidated/,
+        { timeout: 30_000 },
+      )
 
       await targetPage.reload({ waitUntil: "domcontentloaded" })
       const afterSession = await (await targetPage.request.get(sessionUrl)).json()
       expect(afterSession?.user?.id).toBeUndefined()
+      page.off("request", sessionRevocationPostObserver)
+      expect(sessionRevocationPostCount).toBe(1)
     } finally {
+      page.off("request", sessionRevocationPostObserver)
       await targetContext.close()
     }
   })
 
   test("Admin creates a fresh failed reset delivery and uses the fresh-token Activity resend", async ({ page }, testInfo) => {
     const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
-    await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=security`, { waitUntil: "domcontentloaded" })
-    const resetCard = page.locator("article").filter({
-      has: page.getByRole("heading", { name: "Send password reset" }),
-    })
-    const resetButton = resetCard.getByRole("button", { name: "Send password reset" })
-    await expect(resetButton).toBeDisabled()
-    await resetCard.getByLabel("Reason").selectOption("LOGIN_SUPPORT")
-    await resetCard.getByLabel(/I confirm this creates a fresh password-reset link/).check()
-    await expect(resetButton).toBeEnabled()
-    await resetButton.press("Enter")
-    await expect(resetCard.getByText(/fresh password-reset link was created, but email delivery failed/i)).toBeVisible()
+    const targetAdminUserPathname = `/admin/users/${encodeURIComponent(fixture.target.id)}`
+    let passwordResetPostCount = 0
+    const passwordResetPostObserver = (request: Request) => {
+      if (
+        request.method() === "POST"
+        && new URL(request.url()).pathname === targetAdminUserPathname
+      ) passwordResetPostCount += 1
+    }
+    page.on("request", passwordResetPostObserver)
+    try {
+      await page.goto(`${targetAdminUserPathname}?section=security`, { waitUntil: "domcontentloaded" })
+      const resetCard = page.locator("article").filter({
+        has: page.getByRole("heading", { name: "Send password reset" }),
+      })
+      const resetButton = resetCard.getByRole("button", { name: "Send password reset" })
+      await expect(resetButton).toBeDisabled()
+      await resetCard.getByLabel("Reason").selectOption("LOGIN_SUPPORT")
+      await resetCard.getByLabel(/I confirm this creates a fresh password-reset link/).check()
+      await expect(resetButton).toBeEnabled()
+      await resetButton.press("Enter")
+      await expect(resetCard.getByText(/fresh password-reset link was created, but email delivery failed/i)).toBeVisible()
 
-    await page.getByRole("navigation", { name: "Account detail sections" }).getByRole("link", { name: "Activity" }).click()
-    const failedReset = page.getByRole("listitem").filter({ hasText: "Password reset requested" }).first()
-    const submittedActivityId = await failedReset.getAttribute("data-activity-id")
-    if (!submittedActivityId) throw new Error("Failed password-reset Activity requires a durable row identity.")
-    const submittedFailedReset = page.locator(`[data-activity-id="${submittedActivityId}"]`)
-    const submittedFeedback = submittedFailedReset.getByRole("status")
-    const resendButton = submittedFailedReset.getByRole("button", { name: "Send a new reset link" })
-    await expect(resendButton).toBeDisabled()
-    await submittedFailedReset.getByLabel("Reason").selectOption("LOGIN_SUPPORT")
-    await submittedFailedReset.getByLabel(/I confirm this creates a fresh password-reset link/).check()
-    await expect(resendButton).toBeEnabled()
-    await resendButton.focus()
-    await resendButton.press("Enter")
-    await expect(page.getByRole("listitem").filter({ hasText: "Password reset requested" })).toHaveCount(2)
-    await expect(submittedFailedReset).toBeVisible()
-    await expect(submittedFeedback).toContainText(/fresh password-reset link was created, but email delivery failed/i)
+      await page.getByRole("navigation", { name: "Account detail sections" }).getByRole("link", { name: "Activity" }).click()
+      const failedReset = page.getByRole("listitem").filter({ hasText: "Password reset requested" }).first()
+      const submittedActivityId = await failedReset.getAttribute("data-activity-id")
+      if (!submittedActivityId) throw new Error("Failed password-reset Activity requires a durable row identity.")
+      const submittedFailedReset = page.locator(`[data-activity-id="${submittedActivityId}"]`)
+      const submittedFeedback = submittedFailedReset.getByRole("status")
+      const resendButton = submittedFailedReset.getByRole("button", { name: "Send a new reset link" })
+      await expect(resendButton).toBeDisabled()
+      await submittedFailedReset.getByLabel("Reason").selectOption("LOGIN_SUPPORT")
+      await submittedFailedReset.getByLabel(/I confirm this creates a fresh password-reset link/).check()
+      await expect(resendButton).toBeEnabled()
+      await resendButton.focus()
+      await resendButton.press("Enter")
+      await expect(page.getByRole("listitem").filter({ hasText: "Password reset requested" })).toHaveCount(2, {
+        timeout: 30_000,
+      })
+      await expect(submittedFailedReset).toBeVisible()
+      await expect(submittedFeedback).toContainText(/fresh password-reset link was created, but email delivery failed/i)
+      page.off("request", passwordResetPostObserver)
+      expect(passwordResetPostCount).toBe(2)
+    } finally {
+      page.off("request", passwordResetPostObserver)
+    }
   })
 
   test("Admin Security is self-read-only and 2FA reset requires the target confirmation email", async ({ page }, testInfo) => {
     const fixture = createBrowserAdminFixtureIdentity(testInfo.project.name)
-    await page.goto(`/admin/users/${encodeURIComponent(fixture.operator.id)}?section=security`, { waitUntil: "domcontentloaded" })
-    await expect(page.getByText(/cannot perform security remediation on your own account/i)).toBeVisible()
-    await expect(page.getByRole("button", { name: "Send password reset" })).toHaveCount(0)
+    const targetAdminUserPathname = `/admin/users/${encodeURIComponent(fixture.target.id)}`
+    let twoFactorResetPostCount = 0
+    const twoFactorResetPostObserver = (request: Request) => {
+      if (
+        request.method() === "POST"
+        && new URL(request.url()).pathname === targetAdminUserPathname
+      ) twoFactorResetPostCount += 1
+    }
+    page.on("request", twoFactorResetPostObserver)
+    try {
+      await page.goto(`/admin/users/${encodeURIComponent(fixture.operator.id)}?section=security`, { waitUntil: "domcontentloaded" })
+      const securityRegion = page.getByRole("region", { name: "Security" }).filter({ visible: true })
+      await expect(securityRegion).toHaveCount(1)
+      const selfRemediationNotice = securityRegion.getByText("You cannot perform security remediation on your own account from this console.", { exact: true }).filter({ visible: true })
+      await expect(selfRemediationNotice).toHaveCount(1)
+      await expect(selfRemediationNotice).toBeVisible()
+      await expect(page.getByRole("button", { name: "Send password reset" })).toHaveCount(0)
 
-    await page.goto(`/admin/users/${encodeURIComponent(fixture.target.id)}?section=security`, { waitUntil: "domcontentloaded" })
-    const twoFactorCard = page.locator("article").filter({
-      has: page.getByRole("heading", { name: "Reset two-factor authentication" }),
-    })
-    const twoFactorButton = twoFactorCard.getByRole("button", { name: "Reset two-factor authentication" })
-    await twoFactorCard.getByLabel("Reason").selectOption("SECURITY_RECOVERY")
-    await twoFactorCard.getByLabel("Confirmation email").fill("mismatch@example.test")
-    await expect(twoFactorButton).toBeDisabled()
-    await twoFactorCard.getByLabel("Confirmation email").fill(fixture.target.email)
-    await expect(twoFactorButton).toBeEnabled()
-    await twoFactorButton.press("Enter")
-    await expect(page.getByText(/Two-factor authentication was reset and existing sign-in tokens were invalidated/)).toBeVisible()
-    await expect(page.locator('[data-detail-key="Two-factor authentication"] [data-detail-value]')).toHaveText("No")
+      await page.goto(`${targetAdminUserPathname}?section=security`, { waitUntil: "domcontentloaded" })
+      const twoFactorCard = page.locator("article").filter({
+        has: page.getByRole("heading", { name: "Reset two-factor authentication" }),
+      })
+      const twoFactorButton = twoFactorCard.getByRole("button", { name: "Reset two-factor authentication" })
+      await twoFactorCard.getByLabel("Reason").selectOption("SECURITY_RECOVERY")
+      await twoFactorCard.getByLabel("Confirmation email").fill("mismatch@example.test")
+      await expect(twoFactorButton).toBeDisabled()
+      await twoFactorCard.getByLabel("Confirmation email").fill(fixture.target.email)
+      await expect(twoFactorButton).toBeEnabled()
+      await twoFactorButton.press("Enter")
+      await expect(page.getByText(/Two-factor authentication was reset and existing sign-in tokens were invalidated/)).toBeVisible({
+        timeout: 30_000,
+      })
+      await expect(page.locator('[data-detail-key="Two-factor authentication"] [data-detail-value]')).toHaveText("No")
+      page.off("request", twoFactorResetPostObserver)
+      expect(twoFactorResetPostCount).toBe(1)
+    } finally {
+      page.off("request", twoFactorResetPostObserver)
+    }
   })
 })

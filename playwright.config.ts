@@ -1,6 +1,13 @@
 import { defineConfig, devices } from "@playwright/test"
 import path from "node:path"
 import { resolveCiBrowserQaLaneProjects } from "./tests/browser/ci-lanes.mjs"
+import { isBrowserQaDatabaseTargetAuthorized } from "./scripts/assert-browser-qa-database-target.mjs"
+import {
+  assertBrowserQaTelemetryEnvironment,
+  BROWSER_QA_INERT_PROVIDER_ENVIRONMENT,
+  BROWSER_QA_TELEMETRY_ENVIRONMENT,
+  resolveBrowserQaDatabaseEnvironment,
+} from "./scripts/browser-qa-environment.mjs"
 
 const defaultBrowserQaPort = 3010
 const defaultBrowserQaBaseUrl = "http://localhost:3010"
@@ -28,7 +35,10 @@ function parseBooleanEnv(value: string | undefined) {
 const browserQaPort = parseBrowserQaPort(process.env.PLAYWRIGHT_PORT)
 const browserQaBaseUrl = process.env.PLAYWRIGHT_BASE_URL
   ?? (browserQaPort === defaultBrowserQaPort ? defaultBrowserQaBaseUrl : `http://localhost:${browserQaPort}`)
+const usesAuthorizedBrowserQaDatabase = isBrowserQaDatabaseTargetAuthorized(process.env)
 const skipWebServer = parseBooleanEnv(process.env.PLAYWRIGHT_SKIP_WEB_SERVER)
+assertBrowserQaOwnedServerRequirement(skipWebServer)
+assertBrowserQaRepeatEachSupported(process.argv.slice(2))
 const developmentPaletteReviewSpecs = [
   "tests/browser/background-palette.spec.ts",
   "tests/browser/background-carousel-preview.spec.ts",
@@ -149,7 +159,6 @@ export function getPlaywrightFileFilterArguments(argv: readonly string[]) {
 }
 
 const playwrightSubcommands = new Set(["test", "show-report", "codegen", "install"])
-const adminUserOperationsSpec = "tests/browser/admin-user-operations.spec.ts"
 const migrationParitySpec = "tests/browser/atmoshaper-repository-migration-parity.spec.ts"
 
 /** Matches only an exact migration-spec path, including absolute paths and line selectors. */
@@ -162,41 +171,64 @@ export function isMigrationParityInvocation(argv: readonly string[]) {
     })
 }
 
-/** Explicit empty values prevent Next dotenv fallback and build-time DSN inlining. */
-export const migrationParityTelemetryEnvironment = {
-  NEXT_PUBLIC_SENTRY_DSN: "",
-  SENTRY_DSN: "",
-  SENTRY_AUTH_TOKEN: "",
-  NEXT_TELEMETRY_DISABLED: "1",
-} as const
+/** Explicit empty values prevent Next dotenv fallback and Browser-QA provider traffic. */
+export const browserQaTelemetryEnvironment = BROWSER_QA_TELEMETRY_ENVIRONMENT
+
+export const migrationParityTelemetryEnvironment = browserQaTelemetryEnvironment
 
 /** Fails without echoing values; run before the fresh build and owned-server capture. */
 export function assertMigrationParityTelemetryEnvironment(environment: NodeJS.ProcessEnv) {
-  for (const [name, expected] of Object.entries(migrationParityTelemetryEnvironment)) {
-    if (environment[name] !== expected) {
-      throw new Error(`Migration parity requires explicit telemetry-disabled ${name}; rebuild with the approved capture environment`)
-    }
+  assertBrowserQaTelemetryEnvironment(environment, { label: "Migration parity" })
+}
+
+/** Canonical Browser QA always requires the exact server lifecycle Playwright owns. */
+export function assertBrowserQaOwnedServerRequirement(skipsOwnedServer: boolean) {
+  if (skipsOwnedServer) {
+    throw new Error("Browser QA requires Playwright's owned web server.")
   }
 }
 
-/** Matches the safe Playwright file-filter subset that can select the Admin spec. */
-function matchesAdminUserOperationsArgument(argument: string) {
-  const normalizedArgument = argument
-    .replaceAll("\\", "/")
-    .replace(/:\d+(?::\d+)?$/, "")
-  if (
-    normalizedArgument === adminUserOperationsSpec
-    || normalizedArgument.endsWith(`/${adminUserOperationsSpec}`)
-  ) return true
+/** Only an exact single copy preserves deterministic fixture ownership. */
+export function assertBrowserQaRepeatEachSupported(argv: readonly string[]) {
+  let repeatEachIndex = -1
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index]
+    if (argument === "--") break
+    if (argument === "--repeat-each" || argument.startsWith("--repeat-each=")) {
+      if (repeatEachIndex !== -1) {
+        throw new Error("Browser QA supports at most one --repeat-each option with deterministic fixtures.")
+      }
+      repeatEachIndex = index
+    }
+  }
+  if (repeatEachIndex === -1) return
 
-  const argumentBasename = path.posix.basename(normalizedArgument)
-  const isStandaloneFilter = normalizedArgument === argumentBasename && argumentBasename.length > 0
-  const substringMatches = isStandaloneFilter
-    ? path.posix.basename(adminUserOperationsSpec).includes(argumentBasename)
-    : adminUserOperationsSpec.includes(normalizedArgument)
-  if (substringMatches) return true
+  const argument = argv[repeatEachIndex]
+  const value = argument === "--repeat-each"
+    ? argv[repeatEachIndex + 1]
+    : argument.slice("--repeat-each=".length)
+  if (value !== "1") {
+    throw new Error("Browser QA supports only the exact --repeat-each value 1 with deterministic fixtures.")
+  }
+}
 
-  return matchesSpecFilterPattern(argument, [adminUserOperationsSpec])
+/** Resolves the isolated environment for the server Playwright starts and stops. */
+export function resolvePlaywrightWebServerEnvironment(
+  environment: Record<string, string | undefined>,
+  baseUrl: string,
+) {
+  const resolved: Record<string, string> = {}
+  for (const [name, value] of Object.entries(environment)) {
+    if (value !== undefined) resolved[name] = value
+  }
+  Object.assign(resolved, {
+    AUTH_URL: baseUrl,
+    NEXTAUTH_URL: baseUrl,
+    ...BROWSER_QA_INERT_PROVIDER_ENVIRONMENT,
+    ...browserQaTelemetryEnvironment,
+    ...resolveBrowserQaDatabaseEnvironment(environment),
+  })
+  return resolved
 }
 
 /** Detects review-spec filters without treating a Playwright subcommand as a file filter. */
@@ -204,19 +236,6 @@ export function isDevelopmentPaletteReviewInvocation(argv: readonly string[]) {
   return getPlaywrightFileFilterArguments(argv)
     .filter((argument, index) => index !== 0 || !playwrightSubcommands.has(argument))
     .some(matchesDevelopmentPaletteReviewArgument)
-}
-
-/**
- * Identifies runs that can execute Admin account mutations. An invocation with
- * no file filter includes the Admin spec, so it must receive the same isolated
- * SMTP-disabled server as an explicit selection of that spec.
- */
-export function isAdminUserOperationsInvocation(argv: readonly string[]) {
-  const fileFilters = getPlaywrightFileFilterArguments(argv)
-    .filter((argument, index) => index !== 0 || !playwrightSubcommands.has(argument))
-  if (fileFilters.length === 0) return true
-
-  return fileFilters.some(matchesAdminUserOperationsArgument)
 }
 
 /** Resolves development-only review exclusions from explicit Playwright arguments. */
@@ -227,7 +246,6 @@ export function resolveDevelopmentPaletteReviewIgnoreGlobs(argv: readonly string
 }
 
 const runsDevelopmentPaletteReview = isDevelopmentPaletteReviewInvocation(process.argv.slice(2))
-const runsAdminUserOperations = isAdminUserOperationsInvocation(process.argv.slice(2))
 const runsMigrationParity = isMigrationParityInvocation(process.argv.slice(2))
 if (runsMigrationParity && process.env.ATMOSHAPER_MIGRATION_PARITY === "1" && !process.argv.includes("--list")) {
   assertMigrationParityTelemetryEnvironment(process.env)
@@ -240,19 +258,10 @@ const defaultWebServerCommand = runsDevelopmentPaletteReview
 // live SMTP or Google OAuth credentials. Inert Google values render the public
 // controls for fully intercepted QA; SMTP remains blank so account-change
 // delivery fails safely and locally.
-const playwrightWebServerEnvironment: Record<string, string> = {}
-for (const [name, value] of Object.entries(process.env)) {
-  if (value !== undefined) playwrightWebServerEnvironment[name] = value
-}
-Object.assign(playwrightWebServerEnvironment, {
-  AUTH_GOOGLE_ID: "browser-qa-inert-google-client-id.invalid",
-  AUTH_GOOGLE_SECRET: "browser-qa-inert-google-client-secret.invalid",
-  SMTP_HOST: "",
-  SMTP_FROM: "",
-  SMTP_USER: "",
-  SMTP_PASSWORD: "",
-  SMTP_PORT: "",
-})
+const playwrightWebServerEnvironment = resolvePlaywrightWebServerEnvironment(
+  process.env,
+  browserQaBaseUrl,
+)
 if (runsMigrationParity && process.env.ATMOSHAPER_MIGRATION_PARITY === "1") {
   Object.assign(playwrightWebServerEnvironment, migrationParityTelemetryEnvironment)
 }
@@ -306,10 +315,10 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  // Migration Home pins the browser clock before a cached client remount.
-  // Serialize projects: concurrent route work stalled that frozen commit, while
-  // the unchanged one-worker parity reproduction completed its exact frame.
-  workers: runsMigrationParity || process.env.CI ? 1 : undefined,
+  // Serialize migration capture and fingerprint-approved fixture ownership.
+  // Migration Home pins the browser clock before a cached client remount, while
+  // connected fixtures deliberately use deterministic project/owner identities.
+  workers: runsMigrationParity || usesAuthorizedBrowserQaDatabase || process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
   timeout: 60_000,
   expect: {
@@ -323,15 +332,13 @@ export default defineConfig({
     navigationTimeout: 30_000,
   },
   projects: browserQaProjects,
-  webServer: skipWebServer
-    ? undefined
-    : {
-        command: process.env.PLAYWRIGHT_START_COMMAND ?? defaultWebServerCommand,
-        url: browserQaBaseUrl,
-        env: playwrightWebServerEnvironment,
-        // A stale server invalidates development review and source/destination
-        // parity. Those exact invocations fail on an occupied port.
-        reuseExistingServer: !process.env.CI && !runsDevelopmentPaletteReview && !runsAdminUserOperations && !runsMigrationParity,
-        timeout: 120_000,
-      },
+  webServer: {
+    command: process.env.PLAYWRIGHT_START_COMMAND ?? defaultWebServerCommand,
+    url: browserQaBaseUrl,
+    env: playwrightWebServerEnvironment,
+    // Every Browser-QA result must come from this exact build and owned
+    // environment; an occupied port is always a hard failure.
+    reuseExistingServer: false,
+    timeout: 120_000,
+  },
 })

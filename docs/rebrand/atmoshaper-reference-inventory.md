@@ -125,9 +125,9 @@ Provider console state, domain ownership/DNS, the installed baseline's complete 
 
 ## Destination Overlay Set
 
-The manifest contains 42 exact preparation-branch overlay paths: nine rebrand artifacts, the approved design and plan, one parity spec, 24 expected PNGs, `app/account/page.tsx`, `tests/account-page-tabs.test.mjs`, `next.config.mjs`, `package.json`, `playwright.config.ts`, and `tests/browser-qa-harness.test.mjs`. Task 5 separately creates `MIGRATION_LINEAGE.md` and the four replacement authority documents.
+The manifest contains 85 exact preparation-branch overlay paths: the 42 previously reviewed migration artifacts and corrections plus 43 Task 4A baseline-unblock and hardening paths discovered by full source QA. Task 5 separately creates `MIGRATION_LINEAGE.md` and the four replacement authority documents.
 
-Overlay is a **copy mechanism**, while add/replace describes the **difference from the source**. Thus all 36 source-absent overlays also appear in `task5AddPaths`, and the six source-present overlays, `app/account/page.tsx`, `tests/account-page-tabs.test.mjs`, `next.config.mjs`, `package.json`, `playwright.config.ts`, and `tests/browser-qa-harness.test.mjs`, also appear in `replacePaths`. This overlap is intentional. No overlay may be omitted, and every overlay must belong to the source set or a task-specific add set. Membership in the source set means the path existed, not that its bytes are exempt from the replacement contract.
+Overlay is a **copy mechanism**, while add/replace describes the **difference from the source**. Thus all 46 source-absent overlays also appear in `task5AddPaths`, and all 39 source-present overlays also appear in `replacePaths`. This overlap is intentional. No overlay may be omitted, and every overlay must belong to the source set or a task-specific add set. Membership in the source set means the path existed, not that its bytes are exempt from the replacement contract.
 
 The 24 PNG names below are the exact intended Windows Task 3 capture contract: twelve names for each existing `desktop-chromium` and `mobile-chromium` project. They have **not been captured or verified in Task 2**. Task 3 must compare real generated paths with this list and update both JSON and Markdown under review if the actual platform/name differs. It may not silently add extra files or infer descendants at export. Task 5 refuses missing/uncommitted overlays. Task-local briefs/reports under the current `.superpowers/sdd/2026-09-06-atmoshaper-repository-migration/` directory are not source files or destination overlays.
 
@@ -231,7 +231,7 @@ These hashes match D's successful and E's early cohorts, not E's delayed phase. 
 
 The tracked Home test now uses this observed sequence: official clock installed at 09:55; actual Tools -> Home link while running; decoded assets/fonts, unique hero/ring, reduced-motion therapists/paused state and visible actual warm paint; real Back to structurally scoped Tools in the same document; zero DOM roots plus both native observer cleanups for every warm instance; pause at 10:00; cached same-document Home remount with all new native observer registrations at frozen 300000 and no pre-mount clock progression. It waits for MetalFx's own 64px intersection callback, asserts upstream hidden/transparent state, and samples all 32 official 16ms steps, requiring first paint immediately at 300016 and one identical canvas hash through 300512 before the unmodified screenshot comparison. Only native observer state needed for readiness/cleanup is retained; the diagnostic event/rAF/timeout logger is not promoted. No production app behavior, reduced-motion preference, image, mask or pixel threshold is changed.
 
-Home inventories now carry install/pause times, pausedPerformanceMs=300000, frameStepMs=16, frameSteps=32, paused motion state, actual warm/retired/remount counts, and first/final paint receipts (clock, dimensions, expected dimensions, real nontransparent count, SHA-256, inline visibility, native opacity and paused state). Full diagnostic logs and image bytes are not persisted in parity. The obsolete 0/80ms assumption and misleading local-model claim are removed; focused regression coverage is **54 checks**. Helpers remain in the existing spec/harness, so the machine manifest and embedded JSON need no path/schema change: omit=1, replace=8, task5Add=37, task6Add=6, overlay=40; totals remain source=1856, Task5=1892, final=1898.
+Home inventories now carry install/pause times, pausedPerformanceMs=300000, frameStepMs=16, frameSteps=32, paused motion state, actual warm/retired/remount counts, and first/final paint receipts (clock, dimensions, expected dimensions, real nontransparent count, SHA-256, inline visibility, native opacity and paused state). Full diagnostic logs and image bytes are not persisted in parity. The obsolete 0/80ms assumption and misleading local-model claim are removed; focused regression coverage is **54 checks**. Helpers remain in the existing spec/harness, so this correction required no additional path owner; the later Task 4A contract below supersedes the interim manifest counts.
 
 The first full tracked adoption used two workers and passed 20/22; both Home tests completed warm-up and teardown but stalled at the second frozen remount (prepareHomeCapture line 279). The coordinator then ran the **unchanged tracked Home tests with one worker** into a protected ignored output directory with snapshot updates disabled. Both reached captureSurface and failed only for the intentionally absent expected PNGs. Their complete Home receipts match G exactly: warm/retired/remount counts 2/2/2, first paint 300016, final paint 300512, the same desktop/mobile hashes above, real pixels/geometry, visible/paused state and opacity 0.72. Both inventories have zero external reads, mutation attempts and masks. No baseline was created. This isolates the migration execution contract rather than requiring another clock or observer change.
 
@@ -243,7 +243,7 @@ The canonical `playwright.config.ts` now uses **one worker for exact migration p
 
 After the serialized source capture created both Home images, the next fresh-build repeat exposed a mobile account-profile difference of 3,834 pixels: visible fields were exactly 20px higher while page/Card headers and navigation aligned. All 24 baseline hashes remained unchanged. The five ignored profile-layout-1 mobile receipts and matching attachments prove the spacing source: every HTML-arrival sample includes a direct type=hidden/display:none child without [hidden], so space-y-5 gives the following first grid margin-top:20px. Repetitions 0/2/4 remove it before visible nonzero geometry and settle at grid y341/label y345 with margin0; repetitions 1/3 retain it through all 180 observed frames and settle at y361/y365 with margin20. CardContent padding-top remains 0px. Early streamed samples have zero bounds and are not represented as visible geometry. All five receipts report cleanup=true and zero mutations/external reads/browser errors/screenshots/drops; coordinator SQL independently confirms zero synthetic fixture users.
 
-The coordinator-approved product correction changes only ProfileTab's server-action form from space-y-5 to grid gap-5, with justify-self-start preserving the existing Save profile button's content width. Layout gaps ignore display:none metadata naturally, retain 20px between visible children and remove the accidental leading gap without depending on framework-private names or hydration timing. The canonical account-page-tabs test checks this exact owner and preserves the button sizing contract. Shared form/Card behavior, actions, fixture safety, inner field layouts and parity thresholds remain unchanged. These two source-present files, app/account/page.tsx and tests/account-page-tabs.test.mjs, are now declared replacements and overlays: omit1/replace10/task5Add37/task6Add6/overlay42; totals remain 1856/1892/1898. Current local verification requires 54 migration-harness plus 34 account/form checks.
+The coordinator-approved product correction changes only ProfileTab's server-action form from space-y-5 to grid gap-5, with justify-self-start preserving the existing Save profile button's content width. Layout gaps ignore display:none metadata naturally, retain 20px between visible children and remove the accidental leading gap without depending on framework-private names or hydration timing. The canonical account-page-tabs test checks this exact owner and preserves the button sizing contract. Shared form/Card behavior, actions, fixture safety, inner field layouts and parity thresholds remain unchanged. These two source-present files remain declared replacements and overlays within the current omit1/replace43/task5Add47/task6Add6/overlay85 contract; totals are source1856/Task51902/final1908. Current local verification requires 63 migration-harness plus 34 account/form checks.
 
 **Source baseline choice accepted after visual review:** both old Profile images recorded the extra leading gap. The post-fix no-update comparison failed only those two (desktop 11,348 pixels; mobile 3,834), and coordinator review confirmed precisely the 20px correction, preserved Save button content width and unchanged card/header/navigation. A fresh-build, exact signed-in-test refresh passed 2/2 using changed-only updates: exactly the two Profile PNGs changed, while both Security and all other 20 images retained their hashes. The no-leading-gap state is canonical; no pt-5 compensation, DOM mask, sleep or tolerance is introduced.
 
@@ -258,7 +258,13 @@ The final fresh-build full no-update comparison **passed 22/22**. All **24 accep
 
 All 22 canonical inventories equal their attachments: 11 tests per project, zero mutation attempts/masks, two complete static-fallback Clock receipts and two complete G-matching Home receipts. External reads are **68 GET entries / 57 distinct sanitized descriptions**: four font reads, Music desktop eight indexes, Music mobile eight indexes plus 48 Opus samples (aisatsana18/day-dream18/Observable Streams12). The other sixteen tests have empty read arrays. Only db.onlinewebfonts.com and the existing media.massagelab.app/atmosphere paths occur, without query/fragment/credentials. These counts supersede earlier run-specific read summaries, not the underlying read-only dependency contract. Coordinator SQL confirms synthetic fixture count0 after the failed compare, targeted refresh and final repeat.
 
-Task 3 implementation/source-capture/repeat evidence is accepted. Preserve all 24 current baselines; no further refresh is indicated. Final documentation review and coordinator-owned commit remain closeout actions, not completed Git operations. Broader source-baseline and destination gates remain Tasks 4/7. The machine manifest remains the exact path-only contract, with no acceptance metadata added: omit1/replace10/task5Add37/task6Add6/overlay42; totals1856/1892/1898.
+Task 3 implementation/source-capture/repeat evidence and its coordinator-owned commit are accepted. Its no-further-refresh instruction is superseded only by the Task 4A Pricing amendment below. Broader source-baseline and destination gates remain Tasks 4/7. The machine manifest remains the exact path-only contract, with no acceptance metadata added: omit1/replace43/task5Add47/task6Add6/overlay85; totals source1856/Task51902/final1908.
+
+**Task 4A Pricing-only parity acceptance — 2026-09-08:** the shared fail-closed Browser-QA environment forces `MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED=true`, while Pricing application source remains unchanged. The controlled changed-only refresh passed **2/2** and changed exactly `pricing-desktop-chromium-win32.png` and `pricing-mobile-chromium-win32.png`; the other 22 PNGs stayed byte-identical. Accepted Pricing evidence is desktop **167815 bytes**, SHA-256 `6cadc650bc1e88608e822ad9dc1daf56fca9d995ce48484c088efc8dae54f437`, and mobile **102456 bytes**, SHA-256 `6cee3ef80384efad6d63dccaf42597cc14c401de9620218b9f6b81fe903c05ba`. Visual review confirmed only the neutral paused-checkout banner/state and the resulting downstream content shift, without clipping or unrelated visual change.
+
+The fresh-build no-update parity confirmation passed **22/22 in 1.3m**, with post-run hashes stable **24/24**. The last-run receipt is passed and has no failed tests or failure artifacts. Its 22 inventories divide 11 per project and contain read-only external activity of **29 GET entries / 18 distinct sanitized descriptions**, zero mutation attempts, zero masks, two Clock receipts, and two Home receipts. Disposable database fixture counts were zero before deletion. The temporary empty QA project was deleted and verified absent; the production project remains present and untouched, with no project identifiers, URLs, credentials, or secrets recorded here. The two Pricing PNGs remain source-absent `task5AddPaths` and `overlayPaths`, so omit1/replace43/task5Add47/task6Add6/overlay85 and source1856/Task51902/final1908 remain unchanged. This receipt accepts only Task 4A source Pricing parity and makes no destination or Phase 2 acceptance claim.
+
+Task 4A's full source QA exposed baseline blockers in the ordinary Browser-QA environment, authenticated fixture isolation, connected Admin-action rendering, carousel synchronization, homepage measurement readiness, and affected acceptance contracts. The reviewed preparation branch therefore carries 33 additional source-present replacements and ten source-absent helpers/tests as exact overlays. The locked source SHA remains `fa78ca01a42179329cc223df77c76f308e76320b`; Task 5 must overlay these 43 paths rather than silently exporting their old source versions. This hardening changes no provider configuration, schema, migration, or rebrand behavior.
 
 ## Compatibility Map
 
@@ -282,10 +288,10 @@ This map owns one row per identity surface; detailed browser keys appear once in
 
 ## Exact Destination Difference Contract
 
-The following JSON is the same ordered path contract as [the machine-readable manifest](atmoshaper-export-manifest.json). Paths are normalized files, not globs. Arrays are code-point sorted and duplicate-free. Source present: one omitted, ten replaced. Source absent: 37 Task 5 additions and six Task 6 additions. The Profile page/account-test, harness, Playwright-config, and Next-config replacements add no destination paths, so the Task 5/final totals remain unchanged.
+The following JSON is the same ordered path contract as [the machine-readable manifest](atmoshaper-export-manifest.json). Paths are normalized files, not globs. Arrays are code-point sorted and duplicate-free. Source present: one omitted, 43 replaced. Source absent: 47 Task 5 additions and six Task 6 additions. Source-present replacements add no destination paths; the ten new Task 4A helpers/tests account for the path-total increase.
 
-`Task5Paths = (SourcePaths - omitPaths) union task5AddPaths` gives **1,892** paths.
-`FinalPaths = Task5Paths union task6AddPaths` gives **1,898** paths.
+`Task5Paths = (SourcePaths - omitPaths) union task5AddPaths` gives **1,902** paths.
+`FinalPaths = Task5Paths union task6AddPaths` gives **1,908** paths.
 The retained source set contains **1,855** files / **37,101,188** original blob bytes before replacements/additions. Task 6 additions must remain absent until Task 6. All other source blobs must match exactly; a declared replacement is not permission to change arbitrary contents.
 
 ```json
@@ -297,19 +303,53 @@ The retained source set contains **1,855** files / **37,101,188** original blob 
     ".agents/refactor/2026-06-21-refactor-anatomime-session-wrapper.md"
   ],
   "replacePaths": [
+    ".github/workflows/ci.yml",
     "AGENTS.md",
     "README.md",
     "app/account/page.tsx",
+    "app/admin/users/[userId]/credit-action-form.tsx",
+    "app/admin/users/[userId]/role-change-form.tsx",
+    "app/admin/users/[userId]/security-action-forms.tsx",
+    "app/admin/users/[userId]/temporary-access-form.tsx",
+    "components/carousels/adaptive-carousel-model.js",
+    "components/carousels/use-adaptive-carousel-controller.ts",
     "docs/project-log.md",
     "docs/project-state.md",
+    "lib/admin/browser-qa-authorization.ts",
+    "lib/auth/browser-fixture-records.ts",
     "next.config.mjs",
     "package.json",
     "playwright.config.ts",
+    "scripts/build-browser-qa.mjs",
     "tests/account-page-tabs.test.mjs",
-    "tests/browser-qa-harness.test.mjs"
+    "tests/admin-background-credit-ui.test.mjs",
+    "tests/admin-billing-goodwill-ui.test.mjs",
+    "tests/admin-role-ui.test.mjs",
+    "tests/admin-security-ui.test.mjs",
+    "tests/admin-temporary-access.test.mjs",
+    "tests/admin-user-operations-fixture.test.mjs",
+    "tests/browser-qa-database-target.test.mjs",
+    "tests/browser-qa-harness.test.mjs",
+    "tests/browser/admin-user-operations-fixture.ts",
+    "tests/browser/admin-user-operations.spec.ts",
+    "tests/browser/background-carousel-preview.spec.ts",
+    "tests/browser/background-commerce.spec.ts",
+    "tests/browser/identity-method-safety-fixture.ts",
+    "tests/browser/identity-method-safety.spec.ts",
+    "tests/browser/interaction-feedback.spec.ts",
+    "tests/browser/membership-return-status-fixture.ts",
+    "tests/browser/membership-return-status.spec.ts",
+    "tests/browser/music-visualizer.spec.ts",
+    "tests/browser/native-submission-snapshot.ts",
+    "tests/browser/public-routes.spec.ts",
+    "tests/browser/signed-in-session-cookie.ts",
+    "tests/carousel-lab-source.test.mjs",
+    "tests/home-flip-words.test.mjs",
+    "tests/rsc-session.test.mjs"
   ],
   "task5AddPaths": [
     "MIGRATION_LINEAGE.md",
+    "app/admin/users/[userId]/use-pending-action-render-nudge.ts",
     "docs/rebrand/atmoshaper-cleanup-register.md",
     "docs/rebrand/atmoshaper-domain-cutover-plan.md",
     "docs/rebrand/atmoshaper-export-manifest.json",
@@ -321,6 +361,12 @@ The retained source set contains **1,855** files / **37,101,188** original blob 
     "docs/rebrand/atmoshaper-rollback-plan.md",
     "docs/superpowers/plans/2026-09-06-atmoshaper-repository-migration.md",
     "docs/superpowers/specs/2026-09-06-atmoshaper-repository-migration-design.md",
+    "lib/auth/browser-user-fixture.ts",
+    "scripts/browser-qa-environment.mjs",
+    "scripts/run-migration-parity-browser-qa.mjs",
+    "tests/admin-action-render-nudge.test.mjs",
+    "tests/admin-temporary-access-browser-guard.test.mjs",
+    "tests/browser-qa-environment.test.mjs",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/account-profile-desktop-chromium-win32.png",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/account-profile-mobile-chromium-win32.png",
@@ -345,7 +391,10 @@ The retained source set contains **1,855** files / **37,101,188** original blob 
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/tools-desktop-chromium-win32.png",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/tools-mobile-chromium-win32.png",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/wellness-desktop-chromium-win32.png",
-    "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/wellness-mobile-chromium-win32.png"
+    "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/wellness-mobile-chromium-win32.png",
+    "tests/browser/signed-in-user-fixture.ts",
+    "tests/migration-parity-browser-runner.test.mjs",
+    "tests/task-4a-browser-harness-contract.test.mjs"
   ],
   "task6AddPaths": [
     "scripts/repository-audit/brand-reference-baseline.json",
@@ -356,7 +405,15 @@ The retained source set contains **1,855** files / **37,101,188** original blob 
     "tests/repository-audit.test.mjs"
   ],
   "overlayPaths": [
+    ".github/workflows/ci.yml",
     "app/account/page.tsx",
+    "app/admin/users/[userId]/credit-action-form.tsx",
+    "app/admin/users/[userId]/role-change-form.tsx",
+    "app/admin/users/[userId]/security-action-forms.tsx",
+    "app/admin/users/[userId]/temporary-access-form.tsx",
+    "app/admin/users/[userId]/use-pending-action-render-nudge.ts",
+    "components/carousels/adaptive-carousel-model.js",
+    "components/carousels/use-adaptive-carousel-controller.ts",
     "docs/rebrand/atmoshaper-cleanup-register.md",
     "docs/rebrand/atmoshaper-domain-cutover-plan.md",
     "docs/rebrand/atmoshaper-export-manifest.json",
@@ -368,11 +425,29 @@ The retained source set contains **1,855** files / **37,101,188** original blob 
     "docs/rebrand/atmoshaper-rollback-plan.md",
     "docs/superpowers/plans/2026-09-06-atmoshaper-repository-migration.md",
     "docs/superpowers/specs/2026-09-06-atmoshaper-repository-migration-design.md",
+    "lib/admin/browser-qa-authorization.ts",
+    "lib/auth/browser-fixture-records.ts",
+    "lib/auth/browser-user-fixture.ts",
     "next.config.mjs",
     "package.json",
     "playwright.config.ts",
+    "scripts/browser-qa-environment.mjs",
+    "scripts/build-browser-qa.mjs",
+    "scripts/run-migration-parity-browser-qa.mjs",
     "tests/account-page-tabs.test.mjs",
+    "tests/admin-action-render-nudge.test.mjs",
+    "tests/admin-background-credit-ui.test.mjs",
+    "tests/admin-billing-goodwill-ui.test.mjs",
+    "tests/admin-role-ui.test.mjs",
+    "tests/admin-security-ui.test.mjs",
+    "tests/admin-temporary-access-browser-guard.test.mjs",
+    "tests/admin-temporary-access.test.mjs",
+    "tests/admin-user-operations-fixture.test.mjs",
+    "tests/browser-qa-database-target.test.mjs",
+    "tests/browser-qa-environment.test.mjs",
     "tests/browser-qa-harness.test.mjs",
+    "tests/browser/admin-user-operations-fixture.ts",
+    "tests/browser/admin-user-operations.spec.ts",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/account-profile-desktop-chromium-win32.png",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/account-profile-mobile-chromium-win32.png",
@@ -397,7 +472,24 @@ The retained source set contains **1,855** files / **37,101,188** original blob 
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/tools-desktop-chromium-win32.png",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/tools-mobile-chromium-win32.png",
     "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/wellness-desktop-chromium-win32.png",
-    "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/wellness-mobile-chromium-win32.png"
+    "tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots/wellness-mobile-chromium-win32.png",
+    "tests/browser/background-carousel-preview.spec.ts",
+    "tests/browser/background-commerce.spec.ts",
+    "tests/browser/identity-method-safety-fixture.ts",
+    "tests/browser/identity-method-safety.spec.ts",
+    "tests/browser/interaction-feedback.spec.ts",
+    "tests/browser/membership-return-status-fixture.ts",
+    "tests/browser/membership-return-status.spec.ts",
+    "tests/browser/music-visualizer.spec.ts",
+    "tests/browser/native-submission-snapshot.ts",
+    "tests/browser/public-routes.spec.ts",
+    "tests/browser/signed-in-session-cookie.ts",
+    "tests/browser/signed-in-user-fixture.ts",
+    "tests/carousel-lab-source.test.mjs",
+    "tests/home-flip-words.test.mjs",
+    "tests/migration-parity-browser-runner.test.mjs",
+    "tests/rsc-session.test.mjs",
+    "tests/task-4a-browser-harness-contract.test.mjs"
   ]
 }
 ```

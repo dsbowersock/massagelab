@@ -9,6 +9,7 @@ import {
   sendAdminPasswordResetAction,
   type SecurityActionState,
 } from "./security-actions"
+import { usePendingActionRenderNudge } from "./use-pending-action-render-nudge"
 
 const SESSION_REVOCATION_CONFIRMATION = "CONFIRM_SECURITY_SESSION_REVOCATION"
 const PASSWORD_RESET_CONFIRMATION = "CONFIRM_ADMIN_PASSWORD_RESET"
@@ -143,6 +144,7 @@ export function FreshPasswordResetForm({
     sendAdminPasswordResetAction.bind(null, userId),
     INITIAL_SECURITY_STATE,
   )
+  usePendingActionRenderNudge(isPending)
   const formId = useId()
   const [reasonCode, setReasonCode] = useState("")
   const [internalNote, setInternalNote] = useState("")
@@ -189,6 +191,7 @@ function RevokeSessionsForm({
     revokeUserSessionsAction.bind(null, userId),
     INITIAL_SECURITY_STATE,
   )
+  usePendingActionRenderNudge(isPending)
   const formId = useId()
   const [reasonCode, setReasonCode] = useState("")
   const [internalNote, setInternalNote] = useState("")
@@ -238,6 +241,7 @@ function TwoFactorResetForm({
     resetUserTwoFactorAction.bind(null, userId),
     INITIAL_SECURITY_STATE,
   )
+  usePendingActionRenderNudge(isPending)
   const formId = useId()
   const [reasonCode, setReasonCode] = useState("")
   const [internalNote, setInternalNote] = useState("")

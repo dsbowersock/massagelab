@@ -418,7 +418,7 @@ Create `atmoshaper-export-manifest.json` from that reviewed contract using this 
   "sourceRepository": "dsbowersock/massagelab",
   "sourceCommit": "fa78ca01a42179329cc223df77c76f308e76320b",
   "omitPaths": [],
-  "replacePaths": ["AGENTS.md", "README.md", "app/account/page.tsx", "docs/project-log.md", "docs/project-state.md", "next.config.mjs", "package.json", "playwright.config.ts", "tests/account-page-tabs.test.mjs", "tests/browser-qa-harness.test.mjs"],
+  "replacePaths": [],
   "task5AddPaths": [],
   "task6AddPaths": [],
   "overlayPaths": []
@@ -427,7 +427,7 @@ Create `atmoshaper-export-manifest.json` from that reviewed contract using this 
 
 The SHA shown is the current live-verified `main` value at plan approval. If Task 1 observes a different source SHA, update this value to that newly locked exact SHA before committing the manifest. Populate every empty array with exact normalized repository file paths. `task5AddPaths` and `task6AddPaths` divide source-absent files by their creating task. Expand every omitted directory candidate into exact tracked file paths in `omitPaths`; the execution step never infers descendants. `overlayPaths` contains every migration-owned file copied from the preparation branch, including `app/account/page.tsx`, `tests/account-page-tabs.test.mjs`, `next.config.mjs`, `package.json`, `playwright.config.ts`, `tests/browser-qa-harness.test.mjs`, the design, this plan, all rebrand documents, parity spec, and snapshots. `replacePaths` identifies source-present files whose contents intentionally change. Sort every array by code-point order, reject duplicates within an array, and require an overlay path to appear in either the retained source path set or the appropriate add-path array; a source-present overlay whose bytes change must also be declared in `replacePaths`. The JSON and Markdown difference contract must describe the same path set; a mismatch stops execution.
 
-Task 3's reviewed harness/server-ownership/telemetry corrections and proven Profile form-layout repair make the current locked contract one omission, ten replacements, 37 Task 5 additions, six Task 6 additions, and 42 overlays. All six source-present preparation overlays replace existing source paths, so `1,856 - 1 + 37 = 1,892` Task 5 files and `1,892 + 6 = 1,898` final files remain the required totals.
+Task 3's reviewed harness/server-ownership/telemetry corrections, the proven Profile form-layout repair, and Task 4A's source-QA hardening make the current locked contract one omission, 43 replacements, 47 Task 5 additions, six Task 6 additions, and 85 overlays. The 39 source-present overlays add no paths; the ten additional source-absent Task 4A helpers/tests produce `1,856 - 1 + 47 = 1,902` Task 5 files and `1,902 + 6 = 1,908` final files. The locked source SHA does not move.
 
 - [ ] **Step 4: Write the external account checklist**
 
@@ -506,17 +506,17 @@ git commit -m "docs: inventory AtmoShaper migration boundaries"
 
 **Impact/Compatibility:** Test tooling plus the explicitly authorized Profile-only layout correction; no action, persistence, auth, or shared Card/PendingSubmissionForm behavior changes. Signed-in tests may write only deterministic `.example.test` fixtures to an already approved non-production database and must clean them exactly. Stop if the database fingerprint gate is unavailable; do not substitute production or real accounts.
 
-**Verification:** Source capture passes on desktop/mobile; signed-in tests execute rather than skip; the 54 migration-harness checks and 34 account/form regression checks pass; existing CI-lane manifest and its exact 17 specs/34 assignments remain unchanged; manifest and embedded inventory JSON match with ten replacements/42 overlays and unchanged 1,892/1,898 path totals; no browser mutation request or persistent fixture remains. Record read-only external requests separately. Exact migration invocations use one worker, refuse an occupied server port and use a fresh current-checkout, telemetry-inert Browser-QA build. Ordinary runs preserve their existing worker default and CI remains one worker; do not override migration runs back to concurrent workers.
+**Verification:** Source capture passes on desktop/mobile; signed-in tests execute rather than skip; the 63 migration-harness checks and 34 account/form regression checks pass; existing CI-lane manifest and its exact 17 specs/34 assignments remain unchanged; manifest and embedded inventory JSON match with 43 replacements/85 overlays and exact 1,902/1,908 path totals; no browser mutation request or persistent fixture remains. Record read-only external requests separately. Exact migration invocations use one worker, refuse an occupied server port and use a fresh current-checkout, telemetry-inert Browser-QA build. Ordinary runs preserve their existing worker default and CI remains one worker; do not override migration runs back to concurrent workers.
 
 - [x] **Step 1: Add the package command**
 
 Add exactly:
 
 ```json
-"test:browser:migration-parity": "playwright test tests/browser/atmoshaper-repository-migration-parity.spec.ts"
+"test:browser:migration-parity": "node scripts/run-migration-parity-browser-qa.mjs"
 ```
 
-Do not add the migration spec to `tests/browser/ci-lanes.mjs`; it is an explicit source/destination gate, not an ordinary permanent lane.
+The Task 4A environment bridge retains the exact migration-spec selection inside that runner, forwards CLI arguments without a shell, and reasserts the explicit telemetry-disabled values that Windows otherwise drops when empty. Do not add the migration spec to `tests/browser/ci-lanes.mjs`; it is an explicit source/destination gate, not an ordinary permanent lane.
 
 Export the focused `isMigrationParityInvocation` matcher from `playwright.config.ts`. Recognize only the normalized exact migration-spec path (including absolute paths and line selectors), not generic browser filters, substrings, other specs, or option values. Add its result to the existing `reuseExistingServer` denial expression while retaining ordinary behavior. Add focused matcher/wiring assertions to the harness and declare `playwright.config.ts` in both source-present replacement and overlay sets. The source and destination fresh-child commands must build the current checkout immediately before Playwright; an occupied port is a failure.
 
@@ -650,14 +650,18 @@ Replace only ProfileTab's PendingSubmissionForm space-y-5 with grid gap-5; keep 
 
 **Final source-image acceptance — 2026-09-07:** the post-fix comparison failed only the two Profile images (desktop 11,348 pixels; mobile 3,834). Coordinator visual review confirmed precisely the corrected 20px offset, preserved Save button content width and unchanged card/header/navigation. The authorized changed-only refresh then passed 2/2 signed-in tests and changed exactly the two Profile PNGs; both Security images and the other 20 PNGs remained unchanged. Accepted Profile SHA-256/bytes: desktop `D13936F708A17851088B2C5A20A281FF5C64E17DA67A8BB3C33F8C2F699E4A08` / 130305; mobile `D93DFE8F511AAC63EB21EA127AA9ACBD5F5B871CFCE3FA14FE4AA43FBD9D425B` / 58169. The no-extra-leading-gap state is accepted; no compensating pt-5 is needed.
 
-The subsequent fresh-build full no-update repeat passed **22/22**, with all **24 hashes unchanged during that run** and zero failure artifacts. All 22 canonical inventories equal their attachments (11 tests per project), with zero mutation attempts/masks, two exact static-fallback Clock receipts and two G-matching Home receipts. External reads: **68 GET entries / 57 distinct descriptions** — four font reads; Music desktop eight indexes; Music mobile eight indexes plus 48 Opus samples (aisatsana18/day-dream18/Observable Streams12). Only the expected online font and public media origins occur, with queries/credentials absent. Coordinator SQL confirms exact synthetic fixture count0 after the failed comparison, targeted refresh and final repeat. Task 3 source-capture/repeat acceptance is complete. Preserve these 24 baselines; no further refresh is authorized by this receipt. Manifest schema/path sets remain unchanged: omit1/replace10/task5Add37/task6Add6/overlay42 and source1856/Task51892/final1898.
+The subsequent fresh-build full no-update repeat passed **22/22**, with all **24 hashes unchanged during that run** and zero failure artifacts. All 22 canonical inventories equal their attachments (11 tests per project), with zero mutation attempts/masks, two exact static-fallback Clock receipts and two G-matching Home receipts. External reads: **68 GET entries / 57 distinct descriptions** — four font reads; Music desktop eight indexes; Music mobile eight indexes plus 48 Opus samples (aisatsana18/day-dream18/Observable Streams12). Only the expected online font and public media origins occur, with queries/credentials absent. Coordinator SQL confirms exact synthetic fixture count0 after the failed comparison, targeted refresh and final repeat. Task 3 source-capture/repeat acceptance is complete. Its no-further-refresh instruction is superseded only by the Task 4A Pricing amendment below. Task 4A otherwise expands the preparation overlay contract without changing this accepted Task 3 evidence.
+
+**Task 4A Pricing-only parity acceptance — 2026-09-08:** under the shared fail-closed Browser-QA environment, which forces `MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED=true` without changing Pricing application source, the controlled changed-only refresh passed **2/2**. Exactly `pricing-desktop-chromium-win32.png` and `pricing-mobile-chromium-win32.png` changed; the other 22 PNGs remained byte-identical. Accepted Pricing evidence is desktop **167815 bytes**, SHA-256 `6cadc650bc1e88608e822ad9dc1daf56fca9d995ce48484c088efc8dae54f437`, and mobile **102456 bytes**, SHA-256 `6cee3ef80384efad6d63dccaf42597cc14c401de9620218b9f6b81fe903c05ba`. Visual review confirmed only the neutral paused-checkout banner/state and its downstream content shift, with no clipping or unrelated visual change.
+
+The subsequent fresh-build no-update parity run passed **22/22 in 1.3m**, and its post-run hashes were stable **24/24**. The last-run receipt is passed, with no failed tests or failure artifacts. All 22 inventories are present, 11 per project: their external activity is read-only with **29 GET entries / 18 distinct sanitized descriptions**, zero mutation attempts, zero masks, two Clock receipts, and two Home receipts. Disposable database fixture counts were zero before deletion. The temporary empty QA project was deleted and verified absent, while the production project remains present and untouched; no project identifiers, URLs, credentials, or secrets are recorded. Both Pricing PNGs remain source-absent members of `task5AddPaths` and `overlayPaths`, so the manifest stays omit1/replace43/task5Add47/task6Add6/overlay85 and the Task 5/final totals stay 1,902/1,908. This accepts only the Task 4A source Pricing parity correction; it makes no destination or Phase 2 acceptance claim.
 
 - [x] **Step 6: Verify Task 3**
 
 Run the pure local checks below; they do not require a live QA database. Capture, repeat comparison, and fixture readback still require the exact fresh-child QA environment and fingerprint procedure from Task 3 Step 5. A missing QA environment permits these local checks but does not complete Task 3 or authorize capture retries with invented values.
 
 ```powershell
-node --test tests/browser-qa-database-target.test.mjs tests/browser/ci-lanes.test.mjs tests/browser-qa-harness.test.mjs
+node --test tests/browser-qa-database-target.test.mjs tests/browser/ci-lanes.test.mjs tests/browser-qa-harness.test.mjs tests/migration-parity-browser-runner.test.mjs
 node --test tests/account-page-tabs.test.mjs tests/interaction-feedback.test.mjs
 npm run typecheck
 npm run lint
@@ -666,7 +670,7 @@ git diff --check
 git status --short
 ```
 
-Expected: 54/54 migration-harness checks plus 34/34 account/form checks (88 total), successful TypeScript/lint, and no lane-manifest delta. Verify the manifest against its embedded JSON, sorted unique normalized path arrays, source-present omit/replace sets, disjoint source-absent additions, and exact overlay coverage. The authorized Profile repair adds app/account/page.tsx and its canonical tests/account-page-tabs.test.mjs as source-present replacements/overlays. Expected counts are one omission, ten replacements, 37 Task 5 additions, six Task 6 additions, and 42 overlays; computed Task 5/final path totals remain 1,892/1,898.
+Expected: 63/63 migration-harness checks plus 34/34 account/form checks (97 total), successful TypeScript/lint, and no lane-manifest delta. Verify the manifest against its embedded JSON, sorted unique normalized path arrays, source-present omit/replace sets, disjoint source-absent additions, and exact overlay coverage. The authorized Profile repair and Task 4A source-QA hardening are source-present replacements/overlays; Task 4A's ten new helpers/tests are Task 5 additions/overlays. Expected counts are one omission, 43 replacements, 47 Task 5 additions, six Task 6 additions, and 85 overlays; computed Task 5/final path totals are 1,902/1,908.
 
 Run this read-only path-contract check from the preparation repository; it validates declared future snapshot paths without pretending they have already been captured:
 
@@ -694,25 +698,27 @@ for (const path of manifest.replacePaths) assert.ok(!manifest.omitPaths.includes
 const additions = [...manifest.task5AddPaths, ...manifest.task6AddPaths];
 assert.equal(new Set(additions).size, additions.length, "Task additions must be disjoint");
 for (const path of additions) assert.ok(!source.has(path), "Added path must be source-absent: " + path);
-const expectedOverlays = [...manifest.task5AddPaths.filter(path => path !== "MIGRATION_LINEAGE.md"), "app/account/page.tsx", "tests/account-page-tabs.test.mjs", "next.config.mjs", "package.json", "playwright.config.ts", "tests/browser-qa-harness.test.mjs"].sort();
+const replacementAuthorityDocuments = new Set(["AGENTS.md", "README.md", "docs/project-log.md", "docs/project-state.md"]);
+const sourcePresentOverlays = manifest.replacePaths.filter(path => !replacementAuthorityDocuments.has(path));
+const expectedOverlays = [...manifest.task5AddPaths.filter(path => path !== "MIGRATION_LINEAGE.md"), ...sourcePresentOverlays].sort();
 assert.deepEqual(manifest.overlayPaths, expectedOverlays, "Exact preparation overlay coverage");
 for (const path of manifest.overlayPaths) {
   assert.ok(!manifest.omitPaths.includes(path), "Overlay cannot be omitted");
   assert.ok(source.has(path) ? manifest.replacePaths.includes(path) : manifest.task5AddPaths.includes(path), "Overlay needs exact replace/add declaration");
 }
-assert.deepEqual(fields.map(field => manifest[field].length), [1, 10, 37, 6, 42]);
+assert.deepEqual(fields.map(field => manifest[field].length), [1, 43, 47, 6, 85]);
 assert.equal(source.size, 1856);
 const task5 = new Set([...sourcePaths.filter(path => !manifest.omitPaths.includes(path)), ...manifest.task5AddPaths]);
 const final = new Set([...task5, ...manifest.task6AddPaths]);
-assert.equal(task5.size, 1892);
-assert.equal(final.size, 1898);
-console.log("PASS: JSON equality; normalized sorted unique arrays; source/add/replace/overlay contracts; counts omit=1 replace=10 task5Add=37 task6Add=6 overlay=42; source=1856 Task5=1892 final=1898");
+assert.equal(task5.size, 1902);
+assert.equal(final.size, 1908);
+console.log("PASS: JSON equality; normalized sorted unique arrays; source/add/replace/overlay contracts; counts omit=1 replace=43 task5Add=47 task6Add=6 overlay=85; source=1856 Task5=1902 final=1908");
 '@
 ```
 
 - [x] **Coordinator closeout: review the final documentation and commit accepted Task 3**
 
-Verification and source parity are accepted; this separate checkbox does not claim a commit has occurred. After final review, stage only the Profile form and canonical account regression correction, package script, Next migration-only telemetry correction, Playwright server-ownership/telemetry correction, parity spec, generated snapshots, focused harness correction, updated manifest/reference inventory, and this amended plan. Commit:
+Verification and source parity are accepted, and the coordinator committed the reviewed Task 3 package as `ecd28af0`. The historical staging and commit commands below record that completed closeout; they do not claim Task 4 or destination acceptance:
 
 ```powershell
 git add app/account/page.tsx tests/account-page-tabs.test.mjs next.config.mjs package.json playwright.config.ts tests/browser/atmoshaper-repository-migration-parity.spec.ts tests/browser/atmoshaper-repository-migration-parity.spec.ts-snapshots tests/browser-qa-harness.test.mjs docs/rebrand/atmoshaper-export-manifest.json docs/rebrand/atmoshaper-reference-inventory.md docs/superpowers/plans/2026-09-06-atmoshaper-repository-migration.md
@@ -758,6 +764,8 @@ Confirm all 24 expected PNGs exist, the committed lane manifest is unchanged, th
 **Why:** Phase 2 must stop unless the current source passes its own required gates.
 
 **Impact/Compatibility:** Generated `node_modules`, `.next`, and `test-results` are ignored. Read-only hosted inspection only. No production/database/provider mutation beyond exact disposable Browser-QA fixtures already authorized and cleaned by Task 3.
+
+Task 4A full source QA exposed baseline blockers in the ordinary Browser-QA environment, authenticated fixture isolation, connected Admin-action rendering, carousel synchronization, homepage measurement readiness, and affected acceptance contracts. Preserve its reviewed 33 source-present changes and ten source-absent helpers/tests as exact preparation-branch overlays. The locked source SHA remains `fa78ca01a42179329cc223df77c76f308e76320b`; Task 5 must apply these 43 overlays instead of exporting their old or absent locked-source state. This hardening changes no provider configuration, schema, migration, or rebrand behavior.
 
 **Verification:** Every required source command exits zero; all four lane discoveries execute; route/size/metadata/PWA/provider inventory is recorded; worktree is clean afterward.
 
@@ -1045,7 +1053,7 @@ $pathDifference = @(Compare-Object $expectedTask5Paths $actualTask5Paths)
 if ($pathDifference.Count -gt 0) { throw "Task 5 destination path set violates the export manifest." }
 ```
 
-Also verify that every `replacePaths` and `overlayPaths` entry exists, every declared omit path is absent, and all manifest arrays are sorted and duplicate-free. The reviewed contract has ten replacements and 42 overlays, including the source-present Profile page/account test, harness, Playwright-config, and Next-config corrections; the staged Task 5 set still has 1,892 paths and the final set after six Task 6 additions has 1,898. Compare changed content with the Markdown difference contract. Stop on any unexplained path or absent declared Task 5 path. Task 6 add paths remain intentionally absent until Task 6.
+Also verify that every `replacePaths` and `overlayPaths` entry exists, every declared omit path is absent, and all manifest arrays are sorted and duplicate-free. The reviewed contract has 43 replacements and 85 overlays, including the 43 Task 4A baseline-unblock/hardening paths; the staged Task 5 set has 1,902 paths and the final set after six Task 6 additions has 1,908. Compare changed content with the Markdown difference contract. Stop on any unexplained path or absent declared Task 5 path. Task 6 add paths remain intentionally absent until Task 6.
 
 ---
 

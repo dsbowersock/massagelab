@@ -15,7 +15,10 @@ export async function installAdminUserOperationsFixture(context: BrowserContext,
   const identity = createBrowserAdminFixtureIdentity(projectName)
   await removeBrowserAdminFixture(projectName)
   await createBrowserAdminFixtureRecords({ prismaClient: prisma, identity })
-  await installSignedInSessionCookie(context, baseURL, identity.operator)
+  await installSignedInSessionCookie(context, baseURL, {
+    ...identity.operator,
+    authSessionVersion: 0,
+  })
 }
 
 /** Removes only the calling project's deterministic fixture Users and cascading test-only roles. */

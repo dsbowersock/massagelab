@@ -16,6 +16,14 @@ const actionSource = await readFile(new URL("../app/admin/users/[userId]/credit-
 const formSource = await readFile(new URL("../app/admin/users/[userId]/credit-action-form.tsx", import.meta.url), "utf8")
 const pageSource = await readFile(new URL("../app/admin/users/[userId]/page.tsx", import.meta.url), "utf8")
 const browserSource = await readFile(new URL("browser/admin-user-operations.spec.ts", import.meta.url), "utf8")
+const backgroundCreditBrowserTestStart = browserSource.indexOf(
+  'test("Admin previews and confirms one positive background-credit goodwill grant"',
+)
+const backgroundCreditBrowserTestEnd = browserSource.indexOf("\n  test(", backgroundCreditBrowserTestStart + 1)
+const backgroundCreditBrowserContract = browserSource.slice(
+  backgroundCreditBrowserTestStart,
+  backgroundCreditBrowserTestEnd,
+)
 
 const idleState = { status: "idle", message: "" }
 const operationId = "42b90a0b-41d5-48f8-b798-b6da77178b67"
@@ -103,6 +111,7 @@ function creditUiHarness(actionState = idleState, { useState } = {}) {
       ADMIN_REASON_CODES: ["BACKGROUND_CREDIT_GOODWILL", "ADMIN_CORRECTION", "OTHER"],
     },
     "./credit-actions": { grantBackgroundCreditsAction() {}, CreditGrantActionState: {} },
+    "./use-pending-action-render-nudge": { usePendingActionRenderNudge() {} },
   })
 }
 
@@ -449,17 +458,48 @@ describe("Admin background-credit controls", () => {
 
 describe("Admin background-credit browser contract", () => {
   it("covers desktop/mobile preset and custom preview, keyboard confirmation, one grant, Activity, and fresh confirmation", () => {
-    assert.match(browserSource, /Add background credits/)
-    assert.match(browserSource, /getByRole\("button", \{ name: "\+5" \}\)/)
-    assert.match(browserSource, /getByLabel\("Custom credit amount"\)/)
-    assert.match(browserSource, /Automatic verified-account allocation: \+2/)
-    assert.match(browserSource, /Resulting balance: 2 \+ 3 = 5/)
-    assert.match(browserSource, /CONFIRM_BACKGROUND_CREDIT_GRANT|I confirm that 3 background credits/)
-    assert.match(browserSource, /press\("Enter"\)/)
-    assert.match(browserSource, /Background credits added/)
-    assert.match(browserSource, /Current balance: 5/)
-    assert.match(browserSource, /toBeChecked\(\{ checked: false \}\)/)
-    assert.match(browserSource, /fill\("4"\)[\s\S]*toBeChecked\(\{ checked: false \}\)[\s\S]*toBeDisabled\(\)/)
-    assert.doesNotMatch(browserSource, /subtract background credits|set exact background credit balance/i)
+    assert.ok(backgroundCreditBrowserTestStart >= 0, "background-credit browser test must remain present")
+    assert.match(backgroundCreditBrowserContract, /Add background credits/)
+    assert.match(backgroundCreditBrowserContract, /getByRole\("button", \{ name: "\+5" \}\)/)
+    assert.match(backgroundCreditBrowserContract, /getByLabel\("Custom credit amount"\)/)
+    assert.match(backgroundCreditBrowserContract, /Automatic verified-account allocation: \+2/)
+    assert.match(backgroundCreditBrowserContract, /Resulting balance: 2 \+ 3 = 5/)
+    assert.match(backgroundCreditBrowserContract, /CONFIRM_BACKGROUND_CREDIT_GRANT|I confirm that 3 background credits/)
+    assert.match(backgroundCreditBrowserContract, /press\("Enter"\)/)
+    assert.match(backgroundCreditBrowserContract, /Background credits added/)
+    assert.match(backgroundCreditBrowserContract, /Current balance: 5/)
+    assert.match(backgroundCreditBrowserContract, /toBeChecked\(\{ checked: false \}\)/)
+    assert.match(backgroundCreditBrowserContract, /fill\("4"\)[\s\S]*toBeChecked\(\{ checked: false \}\)[\s\S]*toBeDisabled\(\)/)
+    assert.doesNotMatch(backgroundCreditBrowserContract, /subtract background credits|set exact background credit balance/i)
+  })
+
+  it("counts one exact-path POST through final Activity evidence without inspecting request data", () => {
+    assert.match(backgroundCreditBrowserContract, /const backgroundCreditPostObserver = \(request: Request\) =>/)
+    assert.match(backgroundCreditBrowserContract, /request\.method\(\) === "POST"/)
+    assert.match(backgroundCreditBrowserContract, /new URL\(request\.url\(\)\)\.pathname === targetAdminUserPathname/)
+    assert.match(backgroundCreditBrowserContract, /page\.on\("request", backgroundCreditPostObserver\)/)
+    assert.doesNotMatch(
+      backgroundCreditBrowserContract,
+      /postData|request\.(?:headers|allHeaders|headerValue|response)\(|console\.(?:log|warn|error)\(/,
+    )
+    assert.match(
+      backgroundCreditBrowserContract,
+      /Current balance: 5[\s\S]*3 background credits were added[\s\S]*toBeChecked\(\{ checked: false \}\)[\s\S]*expect\(submitButton\)\.toBeDisabled\(\)[\s\S]*expect\(backgroundCreditPostCount\)\.toBe\(1\)/,
+    )
+    const finalActivityEvidence = backgroundCreditBrowserContract.indexOf(
+      'await expect(activity).toContainText("Email delivery")',
+    )
+    const listenerClosures = [...backgroundCreditBrowserContract.matchAll(
+      /page\.off\("request", backgroundCreditPostObserver\)/g,
+    )].map((match) => match.index)
+    const finalRequestCount = backgroundCreditBrowserContract.indexOf(
+      "expect(backgroundCreditPostCount).toBe(1)",
+      finalActivityEvidence,
+    )
+    assert.ok(finalActivityEvidence >= 0)
+    assert.equal(listenerClosures.length, 2)
+    assert.ok(listenerClosures[0] > finalActivityEvidence)
+    assert.ok(finalRequestCount > listenerClosures[0])
+    assert.ok(listenerClosures[1] > finalRequestCount)
   })
 })

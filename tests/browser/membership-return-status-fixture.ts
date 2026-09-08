@@ -72,10 +72,11 @@ export async function installMembershipReturnStatusFixture(input: {
   await requireMembershipConvergenceMigration()
   const identity = fixtureIdentity(input.projectName)
   await removeMembershipReturnStatusFixture(input.projectName)
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       ...identity.user,
       emailVerified: new Date("2026-08-29T00:00:00.000Z"),
+      authSessionVersion: 0,
     },
   })
   await prisma.stripeCustomer.create({
@@ -94,7 +95,10 @@ export async function installMembershipReturnStatusFixture(input: {
       ...statusFields(input.status),
     },
   })
-  await installSignedInSessionCookie(input.context, input.baseURL, identity.user)
+  await installSignedInSessionCookie(input.context, input.baseURL, {
+    ...identity.user,
+    authSessionVersion: user.authSessionVersion,
+  })
   return identity
 }
 

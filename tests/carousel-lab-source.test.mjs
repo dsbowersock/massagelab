@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 import {
   normalizeAdaptiveCarouselItems,
   reconcileAdaptiveCarouselCenter,
+  reconcileAdaptiveCarouselUpdateCenter,
 } from "../components/carousels/adaptive-carousel-model.js"
 
 function read(path) {
@@ -187,6 +188,66 @@ describe("Carousel Lab source boundaries", () => {
     assert.equal(reconcileAdaptiveCarouselCenter(items, "third", "second"), "third")
     assert.equal(reconcileAdaptiveCarouselCenter(items, "missing", "second"), "second")
     assert.equal(reconcileAdaptiveCarouselCenter(items, "missing", "also-missing"), "first")
+  })
+
+  it("preserves a surviving centered item across metadata-only updates", () => {
+    const updatedItems = [
+      { id: "first", statusLabel: "owned" },
+      { id: "second", statusLabel: "free" },
+      { id: "third", statusLabel: "locked" },
+    ]
+
+    assert.equal(
+      reconcileAdaptiveCarouselUpdateCenter(
+        updatedItems,
+        "second",
+        "first",
+        "first",
+      ),
+      "second",
+    )
+  })
+
+  it("recenters when the selected item identity genuinely changes", () => {
+    const items = [{ id: "first" }, { id: "second" }, { id: "third" }]
+
+    assert.equal(
+      reconcileAdaptiveCarouselUpdateCenter(
+        items,
+        "second",
+        "third",
+        "first",
+      ),
+      "third",
+    )
+  })
+
+  it("falls back to the selected item when the centered item is removed", () => {
+    const items = [{ id: "first" }, { id: "third" }]
+
+    assert.equal(
+      reconcileAdaptiveCarouselUpdateCenter(
+        items,
+        "second",
+        "third",
+        "third",
+      ),
+      "third",
+    )
+  })
+
+  it("falls back to the first item when neither centered nor selected identity survives", () => {
+    const items = [{ id: "first" }, { id: "third" }]
+
+    assert.equal(
+      reconcileAdaptiveCarouselUpdateCenter(
+        items,
+        "second",
+        "missing",
+        "missing",
+      ),
+      "first",
+    )
   })
 
   it("uses real Background data with isolated access fixtures and nearby video previews", () => {
