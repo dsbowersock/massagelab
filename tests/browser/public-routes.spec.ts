@@ -1,5 +1,6 @@
 import { expect, test as base, type Locator, type Page, type Request, type Response, type Route } from "@playwright/test"
 import { readFile } from "node:fs/promises"
+import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
 import { centerCarouselItem } from "./carousel-test-helpers"
 import { isHeldRouteTeardownCancellation } from "./held-route-teardown"
 import { installSignedInUserFixture, removeSignedInUserFixture } from "./signed-in-user-fixture"
@@ -1687,12 +1688,11 @@ test("Music visualizer background selection and account default actions preserve
   expect(accountRequests.filter((request) => request === "GET /api/auth/session")).toEqual([
     "GET /api/auth/session",
   ])
+  const expectedPreferenceReads = isBrowserQaDatabaseTargetAuthorized(process.env) ? 1 : 2
   expect(
     accountRequests.filter((request) => request === "GET /api/account/preferences"),
-    "one Chimer-owned preference read and no ready RSC shell fallback",
-  ).toEqual([
-    "GET /api/account/preferences",
-  ])
+    "one Chimer-owned preference read, plus one client shell fallback only without an authorized Browser QA database",
+  ).toEqual(Array(expectedPreferenceReads).fill("GET /api/account/preferences"))
   expect(accountRequests.filter((request) => request === "PUT /api/account/preferences").length)
     .toBeGreaterThanOrEqual(1)
 })

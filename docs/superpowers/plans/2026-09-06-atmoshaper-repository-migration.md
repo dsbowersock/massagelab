@@ -872,7 +872,7 @@ git add docs/rebrand/atmoshaper-migration-charter.md docs/rebrand/atmoshaper-ref
 git commit -m "docs: verify MassageLab migration baseline"
 ```
 
-- [ ] **Step 10: Publish the preflight branch for review without merging**
+- [x] **Step 10: Publish the preflight branch for review without merging**
 
 After local verification, push `codex/atmoshaper-migration-preflight` and open a MassageLab PR describing the design, inventory, parity harness, and source evidence. Use the authenticated WSL Git/GitHub path because Windows Git does not currently have usable GitHub credentials:
 
@@ -880,6 +880,8 @@ After local verification, push `codex/atmoshaper-migration-preflight` and open a
 wsl.exe -d Ubuntu -- git -c safe.directory=/mnt/c/Users/derri/code/my_projects/massagelab -C /mnt/c/Users/derri/code/my_projects/massagelab push -u origin codex/atmoshaper-migration-preflight
 wsl.exe -d Ubuntu -- gh pr create --repo dsbowersock/massagelab --base main --head codex/atmoshaper-migration-preflight --title "Prepare AtmoShaper repository migration" --body-file /mnt/c/Users/derri/code/my_projects/massagelab/docs/rebrand/atmoshaper-migration-charter.md
 ```
+
+Completed on 2026-09-08: the branch was published and MassageLab pull request [#206](https://github.com/dsbowersock/massagelab/pull/206) was opened for review. The pull request remains unmerged, the destination repository remains uncreated, and current-head hosted checks plus review remain mandatory before any later merge decision.
 
 Do not merge it. Hosted CI must run against the exact branch head; record the PR URL and status in the charter.
 
