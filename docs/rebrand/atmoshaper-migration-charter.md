@@ -105,12 +105,12 @@ If local, tracked, or live `main` changes before source-baseline work begins, th
 | --- | --- | --- | --- | --- |
 | Task 1 checkout and operation state | Clean preparation checkout; one root worktree; no active Git operation. Historical standalone `REBASE_HEAD` retained untouched. | Not created | Not applicable until Phase 2 | 2026-09-06 |
 | Task 1 source-ref selection | Local `main`, `origin/main`, and live GitHub `main` all `fa78ca01a42179329cc223df77c76f308e76320b`. | Not created | Exact source lock established | 2026-09-06 |
-| Source baseline installation, Prisma, typecheck, lint, tests, builds, Browser QA, and measurements | Pending Phase 1 baseline work | Not created | Pending | — |
+| Source baseline installation, Prisma, typecheck, lint, tests, builds, Browser QA, and measurements | Passed locally: dependency/schema setup, typecheck/lint, 4,196-test unit suite, both 115-page builds, all four Browser-QA lanes, 22/22 fresh-build no-update migration parity, PWA checks, route/bundle/public-output measurements, and redacted hosted identity readbacks are recorded in the reference inventory. Task 3 parity is committed as `ecd28af0`; Task 4A source-QA hardening is committed as `a8fe56fd`. | Not created | Source gate passed only; destination comparison remains pending | 2026-09-08 |
 | Fresh-root bootstrap and source/destination parity | Locked source available | Pending Phase 2 | Pending; no parity claim yet | — |
 
 ## Current Status
 
-- Current phase: Phase 1, Task 1 source lock and migration authority documentation.
-- Last passed gate: Task 1 local/tracked/live `main` agreement at `fa78ca01a42179329cc223df77c76f308e76320b` with a clean, non-operating checkout on 2026-09-06.
-- Current stop condition: none.
-- Next exact action: Task 2, build the file, compatibility, provider, domain, local-data, cleanup, and refactor inventories while retaining this source SHA in every generated migration artifact.
+- Current phase: Phase 1 local preflight is complete through the Task 4 source-baseline gate. The destination repository has not been created.
+- Last passed gate: Task 4 local source verification on 2026-09-08 against locked `main` `fa78ca01a42179329cc223df77c76f308e76320b`, with Task 3 parity commit `ecd28af0` and reviewed Task 4A hardening commit `a8fe56fd` carried as declared overlays.
+- Current stop condition: external publication requires fresh authorization. No destination repository or deployment, no production or destination provider/DNS configuration, no production database mutation, and no Phase 2 acceptance has occurred. This boundary preserves the disclosed, authorization-bound temporary empty QA-project lifecycle recorded in the source-baseline receipt.
+- Next exact action: this receipt completes Task 4. Step 10 may publish `codex/atmoshaper-migration-preflight` for review only if the user gives fresh authorization. Do not merge it or create the destination as part of that review publication.

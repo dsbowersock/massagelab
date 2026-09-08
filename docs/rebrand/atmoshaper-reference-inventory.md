@@ -2,7 +2,7 @@
 
 Source repository: `dsbowersock/massagelab`. Locked source: `fa78ca01a42179329cc223df77c76f308e76320b`. Inventory date: 2026-09-06. Preparation base: `f5967be698218aff49e625a09dbd5835fc89ac08`.
 
-Authority: [charter](atmoshaper-migration-charter.md), [approved design](../superpowers/specs/2026-09-06-atmoshaper-repository-migration-design.md), [implementation plan](../superpowers/plans/2026-09-06-atmoshaper-repository-migration.md), and [rollback plan](atmoshaper-rollback-plan.md). This is the Task 2 classification contract, not a source-baseline or destination-parity receipt. Task 3/4 must record real snapshots, measurements and provider readbacks before Task 5 executes.
+Authority: [charter](atmoshaper-migration-charter.md), [approved design](../superpowers/specs/2026-09-06-atmoshaper-repository-migration-design.md), [implementation plan](../superpowers/plans/2026-09-06-atmoshaper-repository-migration.md), and [rollback plan](atmoshaper-rollback-plan.md). This document remains the Task 2 classification contract and now also owns the accepted Task 3/4 source-baseline receipts below. It is not a destination-parity receipt; Task 5 has not created a destination.
 
 ## Source Tree Summary
 
@@ -262,9 +262,252 @@ Task 3 implementation/source-capture/repeat evidence and its coordinator-owned c
 
 **Task 4A Pricing-only parity acceptance — 2026-09-08:** the shared fail-closed Browser-QA environment forces `MASSAGELAB_SUPPORTER_CHECKOUT_PAUSED=true`, while Pricing application source remains unchanged. The controlled changed-only refresh passed **2/2** and changed exactly `pricing-desktop-chromium-win32.png` and `pricing-mobile-chromium-win32.png`; the other 22 PNGs stayed byte-identical. Accepted Pricing evidence is desktop **167815 bytes**, SHA-256 `6cadc650bc1e88608e822ad9dc1daf56fca9d995ce48484c088efc8dae54f437`, and mobile **102456 bytes**, SHA-256 `6cee3ef80384efad6d63dccaf42597cc14c401de9620218b9f6b81fe903c05ba`. Visual review confirmed only the neutral paused-checkout banner/state and the resulting downstream content shift, without clipping or unrelated visual change.
 
-The fresh-build no-update parity confirmation passed **22/22 in 1.3m**, with post-run hashes stable **24/24**. The last-run receipt is passed and has no failed tests or failure artifacts. Its 22 inventories divide 11 per project and contain read-only external activity of **29 GET entries / 18 distinct sanitized descriptions**, zero mutation attempts, zero masks, two Clock receipts, and two Home receipts. Disposable database fixture counts were zero before deletion. The temporary empty QA project was deleted and verified absent; the production project remains present and untouched, with no project identifiers, URLs, credentials, or secrets recorded here. The two Pricing PNGs remain source-absent `task5AddPaths` and `overlayPaths`, so omit1/replace43/task5Add47/task6Add6/overlay85 and source1856/Task51902/final1908 remain unchanged. This receipt accepts only Task 4A source Pricing parity and makes no destination or Phase 2 acceptance claim.
+The fresh-build no-update parity confirmation passed **22/22 in 1.3m**, with post-run hashes stable **24/24**. The last-run receipt is passed and has no failed tests or failure artifacts. Its 22 inventories divide 11 per project and contain read-only external activity of **29 GET entries / 18 distinct sanitized descriptions**, zero mutation attempts, zero masks, two Clock receipts, and two Home receipts. The five checked application tables retained zero Browser-QA fixture rows before deletion. The temporary empty QA project was deleted and verified absent; the production project remains present and untouched, with no project identifiers, URLs, credentials, or secrets recorded here. The two Pricing PNGs remain source-absent `task5AddPaths` and `overlayPaths`, so omit1/replace43/task5Add47/task6Add6/overlay85 and source1856/Task51902/final1908 remain unchanged. This receipt accepts only Task 4A source Pricing parity and makes no destination or Phase 2 acceptance claim.
 
-Task 4A's full source QA exposed baseline blockers in the ordinary Browser-QA environment, authenticated fixture isolation, connected Admin-action rendering, carousel synchronization, homepage measurement readiness, and affected acceptance contracts. The reviewed preparation branch therefore carries 33 additional source-present replacements and ten source-absent helpers/tests as exact overlays. The locked source SHA remains `fa78ca01a42179329cc223df77c76f308e76320b`; Task 5 must overlay these 43 paths rather than silently exporting their old source versions. This hardening changes no provider configuration, schema, migration, or rebrand behavior.
+Task 4A's full source QA exposed baseline blockers in the ordinary Browser-QA environment, authenticated fixture isolation, connected Admin-action rendering, carousel synchronization, homepage measurement readiness, and affected acceptance contracts. The reviewed preparation branch therefore carries 33 additional source-present replacements and ten source-absent helpers/tests as exact overlays. The locked source SHA remains `fa78ca01a42179329cc223df77c76f308e76320b`; Task 5 must overlay these 43 paths rather than silently exporting their old source versions. This hardening changes no production or destination provider/DNS configuration, schema, migration, or rebrand behavior; the disclosed temporary empty QA-project lifecycle remains the sole provider mutation in this gate.
+
+## Accepted Task 4 MassageLab Source Baseline — 2026-09-08
+
+This is a local source-gate receipt for locked `main` `fa78ca01a42179329cc223df77c76f308e76320b` plus the explicitly declared preparation overlays. Task 3 migration parity is committed as `ecd28af0`; the reviewed Task 4A source-QA hardening is committed as `a8fe56fd`. It does not accept or imply a destination repository, source/destination parity, deployment, production or destination provider/DNS configuration, production database mutation, or Phase 2 completion. The only provider mutation in this gate is the disclosed, authorization-bound temporary empty QA-project lifecycle below.
+
+### Setup, quality, builds, and Browser QA
+
+| Check | Accepted result |
+| --- | --- |
+| Dependency and schema setup | `npm ci`, `npm run prisma:validate`, and `npm run prisma:generate` exited zero. The repository contains 46 committed migration directories. |
+| Static quality | `npm run typecheck` and `npm run lint` exited zero. The only noted non-failing build/lint output is Babel's established large-file deoptimization note for `app/chimer/running-timer.tsx` over 500 KB; no new build warning is recorded. |
+| Unit suite | 4,196 total; 4,193 passed; 0 failed; 3 intentional skips; 39.2816 seconds. |
+| Production build | Passed with 115 generated pages. |
+| Browser-QA build | Passed with 115 generated pages. |
+| Browser QA lane 1 | 144 discovered; 137 passed; 7 skipped; 0 failed; 0 retried. |
+| Browser QA lane 2 | 218 discovered; 184 passed; 34 skipped; 0 failed; 0 retried. |
+| Browser QA lane 3 | 194 discovered; 160 passed; 34 skipped; 0 failed; 0 retried. |
+| Browser QA lane 4 | 200 discovered; 149 passed; 51 skipped; 0 failed; 0 retried. |
+| PWA contract | Four rows passed across desktop and mobile Chromium: each project passed manifest/install metadata plus resolvable icons, and each passed service-worker registration/control with offline Chimer reload plus the Calendar offline fallback. No PWA row failed or retried. |
+| Migration parity | A fresh Browser-QA build followed by a no-update comparison passed 22/22 in 1.3 minutes. Hashes stayed stable 24/24; the passed last-run receipt had no failed-test or failure artifact. All 22 activity inventories were present, 11 per project, with 29 read-only GET entries / 18 distinct sanitized descriptions, zero mutation attempts, zero masks, two Clock receipts, and two Home receipts. |
+
+The temporary database used for the authenticated rows was a newly created empty Neon QA project, within the user's exact authorization. It received exactly the 46 committed migrations and no production data. Fixture cleanup left zero retained Browser-QA fixture rows in the five checked application tables; the temporary project was deleted and verified absent. The production project remained present and untouched. No project identifier, database URL, credential, fingerprint, row content, or secret is recorded.
+
+### Route and production build artifact ledger
+
+The final production measurement recorded 148 keys in `.next/server/app-paths-manifest.json`, 19,074,461 bytes under `.next/static`, and 11,806,033 bytes under `.next/server/app`. The manifest keys below are code-point sorted:
+
+```text
+/_global-error/page
+/_not-found/page
+/about/derrick/page
+/about/page
+/account/link-google/page
+/account/page
+/account/security/page
+/admin/anatomy/media-review/page
+/admin/anatomy/page
+/admin/commerce/[orderId]/page
+/admin/commerce/page
+/admin/page
+/admin/users/[userId]/page
+/admin/users/page
+/anatomime/join/page
+/anatomime/page
+/anatomime/play/[code]/page
+/anatomy/corrections/page
+/api/account/email-verification/request/route
+/api/account/password-reset/confirm/route
+/api/account/password-reset/request/route
+/api/account/preferences/route
+/api/account/profile/route
+/api/account/register/route
+/api/account/security/backup-codes/route
+/api/account/security/google/link/confirm/route
+/api/account/security/google/unlink/route
+/api/account/security/password/disable/route
+/api/account/security/password/route
+/api/account/security/totp/disable/route
+/api/account/security/totp/enable/route
+/api/account/security/totp/setup/route
+/api/account/templates/route
+/api/admin/anatomy/media-flags/route
+/api/anatomime/sessions/[code]/end/route
+/api/anatomime/sessions/[code]/guess/route
+/api/anatomime/sessions/[code]/host-election/route
+/api/anatomime/sessions/[code]/host-judged/route
+/api/anatomime/sessions/[code]/host/transfer/route
+/api/anatomime/sessions/[code]/join/route
+/api/anatomime/sessions/[code]/next-game/route
+/api/anatomime/sessions/[code]/next-team/route
+/api/anatomime/sessions/[code]/realtime-token/route
+/api/anatomime/sessions/[code]/route
+/api/anatomime/sessions/[code]/start/route
+/api/anatomime/sessions/[code]/team/route
+/api/anatomime/sessions/[code]/timeout/route
+/api/anatomime/sessions/route
+/api/atmosphere/stations/[stationId]/artwork/route
+/api/auth/[...nextauth]/route
+/api/auth/google/intent/route
+/api/background-commerce/cart/route
+/api/background-commerce/checkout/cancel/route
+/api/background-commerce/checkout/route
+/api/background-commerce/credits/redeem/route
+/api/background-commerce/state/route
+/api/billing/checkout/route
+/api/billing/donation/route
+/api/billing/membership-status/route
+/api/billing/portal/route
+/api/billing/webhook/route
+/api/book/[practiceSlug]/sequence-options/route
+/api/calendar/google/callback/route
+/api/calendar/google/connect/route
+/api/calendar/sidebar-context/route
+/api/clients/invitations/route
+/api/clinical/sync/route
+/api/debug/sentry/route
+/api/dev/atmoshaper-candidates/audio/[sourceId]/route
+/api/dev/atmoshaper-candidates/derived/[batchOrOutputIdentity]/[outputIdentity]/route
+/api/dev/atmoshaper-candidates/derived/[batchOrOutputIdentity]/route
+/api/dev/atmoshaper-candidates/speech-reduction/[batchId]/[outputIdentity]/route
+/api/education/flashcards/decks/[slug]/route
+/api/education/flashcards/decks/route
+/api/education/flashcards/progress/round/route
+/api/education/flashcards/progress/route
+/api/education/flashcards/prompts/route
+/api/education/flashcards/sessions/[sessionId]/complete/route
+/api/education/flashcards/sessions/route
+/api/support/problem-report/route
+/book/[practiceSlug]/[bookingSlug]/page
+/book/[practiceSlug]/page
+/browse/page
+/calendar/availability/page
+/calendar/booking/page
+/calendar/new/appointment/page
+/calendar/new/class/page
+/calendar/new/page
+/calendar/new/personal/page
+/calendar/new/reminder/page
+/calendar/page
+/calendar/requests/page
+/calendar/services/[serviceId]/page
+/calendar/services/new/page
+/calendar/services/page
+/calendar/sync/page
+/chimer/background-preview/[backgroundId]/page
+/chimer/page
+/clock/page
+/dev/bgpreviews/page
+/dev/buttons/page
+/dev/candidates/concepts/page
+/dev/candidates/construction/page
+/dev/candidates/page
+/dev/candidates/prepared/page
+/dev/candidates/processing/page
+/dev/candidates/recordings/page
+/dev/clock/page
+/dev/rsc-session-proof/page
+/education/flashcards/decks/[slug]/page
+/education/flashcards/decks/page
+/education/flashcards/page
+/education/page
+/favicon.ico/route
+/forgot-password/page
+/help/page
+/legal/[slug]/page
+/legal/accept/page
+/legal/page
+/login/page
+/manifest.webmanifest/route
+/music/page
+/notes/intake/page
+/notes/journal/page
+/notes/page
+/notes/rom/page
+/notes/soap/page
+/onboarding/page
+/page
+/pricing/page
+/register/page
+/reset-password/page
+/roadmap/page
+/robots.txt/route
+/settings/page
+/sitemap.xml/route
+/support/page
+/tools/business-planner/add-on-profit/page
+/tools/business-planner/break-even/page
+/tools/business-planner/income/page
+/tools/business-planner/launch-checklist/page
+/tools/business-planner/page
+/tools/business-planner/plan-outline/page
+/tools/business-planner/service-menu/page
+/tools/page
+/verify-email/page
+/wellness/breathing/page
+/wellness/page
+```
+
+The ten largest JavaScript files under the measured production `.next/server/app` tree were:
+
+| File | Bytes |
+| --- | ---: |
+| `.next/server/app/account/page_client-reference-manifest.js` | 383455 |
+| `.next/server/app/admin/users/[userId]/page_client-reference-manifest.js` | 348824 |
+| `.next/server/app/pricing/page_client-reference-manifest.js` | 332546 |
+| `.next/server/app/dev/bgpreviews/page_client-reference-manifest.js` | 330643 |
+| `.next/server/app/onboarding/page_client-reference-manifest.js` | 325019 |
+| `.next/server/app/chimer/background-preview/[backgroundId]/page_client-reference-manifest.js` | 317786 |
+| `.next/server/app/admin/commerce/[orderId]/page_client-reference-manifest.js` | 317570 |
+| `.next/server/app/admin/commerce/page_client-reference-manifest.js` | 317540 |
+| `.next/server/app/admin/page_client-reference-manifest.js` | 317513 |
+| `.next/server/app/dev/buttons/page_client-reference-manifest.js` | 103653 |
+
+### Local public-output ledger
+
+The exact owned production server on localhost port 3010 returned HTTP 200 for every requested output and was stopped afterward. The root HTML is dynamically rendered, so its hash is a nonnormative same-run observation rather than a durable parity key.
+
+| Path | Status | Content type | Bytes | SHA-256 | Normative use |
+| --- | ---: | --- | ---: | --- | --- |
+| `/` | 200 | `text/html` | 242331 | `9305714075b40e5f9434e0c2d52e45feef66ca361ce1ab94fe06fe7661d357ad` | Nonnormative dynamic receipt |
+| `/manifest.webmanifest` | 200 | `application/manifest+json` | 703 | `dc428665e722fbe81f1240ad2fd6f0a8256bbca812f8c96e1144af63c641c2ae` | Source metadata baseline |
+| `/robots.txt` | 200 | `text/plain` | 554 | `df9d029b2e1ce198ce143f22574fd82f7667fa150e6715b7bc1d1fd5a9cd1413` | Source metadata baseline |
+| `/sitemap.xml` | 200 | `application/xml` | 4290 | `5ba6ff754a94e3e2a16a39eb3439b7ce6f0cda31fc83bc97eca181d2d303ebae` | Source metadata baseline |
+| `/sw.js` | 200 | `application/javascript` | 5037 | `c47bb1b21c79a76bde8385f3a3d9d0afa8aac8ccb813987a65518e65c0f0c247` | Source service-worker baseline |
+
+### Accepted migration-parity screenshots
+
+These are the complete 24 accepted Windows PNGs after the reviewed Pricing-only Task 4A correction. The final no-update run left every byte and hash unchanged.
+
+| PNG | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `account-profile-desktop-chromium-win32.png` | 130305 | `d13936f708a17851088b2c5a20a281ff5c64e17da67a8bb3c33f8c2f699e4a08` |
+| `account-profile-mobile-chromium-win32.png` | 58169 | `d93dfe8f511aac63eb21ea127aa9acbd5f5b871cfce3fa14fe4aa43fbd9d425b` |
+| `account-security-desktop-chromium-win32.png` | 132115 | `f8d815d5a9090b6a78edeef6ca1aba1c51d35131f0afa3066da906a959311ec4` |
+| `account-security-mobile-chromium-win32.png` | 65619 | `02bcbe425b7827e01c100bc953d2afb7f96592b38227c9e22f59b415e968773d` |
+| `chimer-desktop-chromium-win32.png` | 111787 | `20632d5bc45f579a9797547960142f25344a8193d83aec0a0fb9775769ce61c1` |
+| `chimer-mobile-chromium-win32.png` | 74047 | `d91c25c959464b71d0e9741c665375c04e5ebfe2c3cd57737e52bb5ed6a1eea2` |
+| `clock-desktop-chromium-win32.png` | 652613 | `a74c0fc0583d423caf7e24a1a909a876336db7653ae6549ca2b975f0e60328e8` |
+| `clock-mobile-chromium-win32.png` | 219632 | `34819a15f7b6407d1e635253567480add824dd2f4466409f45b61e0c63a6f198` |
+| `education-desktop-chromium-win32.png` | 129741 | `36164f0af16b4b20716da04c8471a41f888abe9171327db35377c2cfc6a54e1b` |
+| `education-mobile-chromium-win32.png` | 85445 | `f3359bfe6e17cfd565e5e637de8a61ee4128b693eb46bad8d480a5d078b005db` |
+| `home-desktop-chromium-win32.png` | 307314 | `45f7a4b56ecd0495b9d7533800b91ec9a83aac8a6c6d2e9bf4e3689ab2fcd2cd` |
+| `home-mobile-chromium-win32.png` | 158290 | `062d87f7402bab921a6b69a51c19751b53adf034e6057c6603a9dd17ee4955e9` |
+| `music-desktop-chromium-win32.png` | 337278 | `c5e751d5b9222b7d0c67e39491d0b0dd29766be2778a6f69a4c9e614da509c0c` |
+| `music-mobile-chromium-win32.png` | 167679 | `a38ef19093dcb9360a8fe9194f3f3d97f8154b30419afd4d5467049447e3bf34` |
+| `notes-desktop-chromium-win32.png` | 215654 | `3f8ed1a1eb17561d50d367a4e006f7441155d63e1ecd4aa20d99aa64a6e14911` |
+| `notes-mobile-chromium-win32.png` | 120602 | `5d7a826adf10a7d16e4d982740f36612e5cc55abbea101a7ced30cd123eb7773` |
+| `pricing-desktop-chromium-win32.png` | 167815 | `6cadc650bc1e88608e822ad9dc1daf56fca9d995ce48484c088efc8dae54f437` |
+| `pricing-mobile-chromium-win32.png` | 102456 | `6cee3ef80384efad6d63dccaf42597cc14c401de9620218b9f6b81fe903c05ba` |
+| `support-desktop-chromium-win32.png` | 121806 | `54bc34fcfde448ba70d87fbdaf1bac14729e9798fb56ce0bf95de0b895eb3b28` |
+| `support-mobile-chromium-win32.png` | 63199 | `401f376f790d12e56ec79e770255a2043341da5af33d409f1585ba949b5c1b92` |
+| `tools-desktop-chromium-win32.png` | 151007 | `bbe2f76e010f852a0bff15fbff98fdf351749a210e0dfb7a70903774fa5b7b2f` |
+| `tools-mobile-chromium-win32.png` | 109451 | `72af12857d87745ef2eac3707efbcd5d0dcc0b2903ce269ffb9b0b4bd97e79c0` |
+| `wellness-desktop-chromium-win32.png` | 168180 | `f72bd5d7bf65d64bcf4b8e4b2a319bd576c34f8a768923066632bb7d161c5203` |
+| `wellness-mobile-chromium-win32.png` | 108037 | `06ed9916bc7ae22250b2e77e7c7ce55b0c7b74d7a01fab9a028fd036c5da5828` |
+
+### Redacted hosted source identity
+
+- GitHub read-only inspection confirmed `dsbowersock/massagelab` is public, its default branch is `main`, and it is not archived. The selected source lock remains `fa78ca01a42179329cc223df77c76f308e76320b`.
+- Vercel CLI `59.11.7` read-only inspection confirmed project `massagelab`, framework Next.js, Node.js 22.x, and production domains `massagelab.app` and `www.massagelab.app`. No project, deployment, alias, domain, or environment setting changed.
+- Neon evidence is limited to the authorization-bound temporary empty QA lifecycle described above and a read-only confirmation that production remained present. No production connection, row, schema, setting, or data was copied or changed.
+
+The exact difference contract remains omit1/replace43/task5Add47/task6Add6/overlay85. With 1,856 locked source files, the computed Task 5 and final inventories remain 1,902 and 1,908 paths. Task 4 closes only the local source-baseline gate. The destination remains uncreated, and Step 10 publication of this preflight branch for review requires fresh authorization; it does not authorize merge, destination creation, deployment, production or destination provider/DNS work, or Phase 2 acceptance. The disclosed temporary empty QA-project lifecycle is complete and does not broaden that authorization.
 
 ## Compatibility Map
 
