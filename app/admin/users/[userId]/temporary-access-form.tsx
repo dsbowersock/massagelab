@@ -18,6 +18,7 @@ import {
   revokeTemporaryAccessAction,
   type TemporaryAccessActionState,
 } from "./temporary-access-actions"
+import { usePendingActionRenderNudge } from "./use-pending-action-render-nudge"
 
 const INITIAL_ACTION_STATE: TemporaryAccessActionState = { status: "idle", message: "" }
 const GRANT_CONFIRMATION = "CONFIRM_TEMPORARY_ACCESS_GRANT"
@@ -79,6 +80,7 @@ export function TemporaryAccessControls({
     revokeTemporaryAccessAction.bind(null, userId),
     INITIAL_ACTION_STATE,
   )
+  usePendingActionRenderNudge(grantPending || revokePending)
 
   return (
     <article className="min-w-0 space-y-5 rounded-md border bg-background/60 p-4">

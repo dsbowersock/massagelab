@@ -23,7 +23,10 @@ export async function installIdentityMethodSafetyFixture(input: {
   await removeBrowserIdentityMethodFixtureRecords({ prismaClient: prisma, identity })
   const created = await createBrowserIdentityMethodFixtureRecords({ prismaClient: prisma, identity })
   if (input.signedIn !== false) {
-    await installSignedInSessionCookie(input.context, input.baseURL, identity.user)
+    await installSignedInSessionCookie(input.context, input.baseURL, {
+      ...identity.user,
+      authSessionVersion: created.authSessionVersion,
+    })
   }
   if (created.bindingCookie) {
     await input.context.addCookies([{

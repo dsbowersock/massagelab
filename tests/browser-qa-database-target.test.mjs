@@ -5,6 +5,13 @@ import { describe, it } from "node:test"
 import * as targetGuard from "../scripts/assert-browser-qa-database-target.mjs"
 import { createBrowserIdentityMethodFixtureIdentity } from "../lib/auth/browser-fixture-identity.ts"
 import { removeBrowserIdentityMethodFixtureRecords } from "../lib/auth/browser-fixture-records.ts"
+import {
+  createBrowserUserFixtureIdentity,
+  createBrowserUserFixtureRecord,
+  removeBrowserUserFixtureRecord,
+} from "../lib/auth/browser-user-fixture.ts"
+import { decideAuthSessionVersion } from "../lib/auth-session-version.ts"
+import { signedInSessionToken } from "./browser/signed-in-session-cookie.ts"
 
 const {
   assertBrowserQaDatabaseTarget,
@@ -58,6 +65,184 @@ describe("disposable browser-QA database target guard", () => {
     assert.notEqual(desktop.user.email, mobile.user.email)
     assert.equal(desktop.user.email.endsWith(".example.test"), true)
     assert.throws(() => createBrowserIdentityMethodFixtureIdentity("unsafe project", "MATCHING_LINK"), /safe Playwright project/i)
+  })
+
+  it("project-and-owner qualifies generic signed-in users and carries the persisted JWT version", () => {
+    const first = createBrowserUserFixtureIdentity("desktop-chromium", "public-routes-owner-a")
+    const second = createBrowserUserFixtureIdentity("desktop-chromium", "public-routes-owner-b")
+    const mobile = createBrowserUserFixtureIdentity("mobile-chromium", "public-routes-owner-a")
+    assert.notEqual(first.user.id, second.user.id)
+    assert.notEqual(first.user.id, mobile.user.id)
+    assert.equal(first.user.email.endsWith(".example.test"), true)
+    assert.equal(signedInSessionToken(first.user).authSessionVersion, 0)
+    assert.deepEqual(decideAuthSessionVersion({ currentVersion: 0, tokenVersion: 0, isSignIn: false }), {
+      accepted: true,
+      version: 0,
+    })
+    assert.deepEqual(decideAuthSessionVersion({ currentVersion: 1, tokenVersion: 0, isSignIn: false }), {
+      accepted: false,
+    })
+    assert.deepEqual(decideAuthSessionVersion({ currentVersion: undefined, tokenVersion: 0, isSignIn: false }), {
+      accepted: false,
+    })
+    assert.throws(() => createBrowserUserFixtureIdentity("unsafe project", "owner"), /safe project and owner/i)
+    assert.throws(() => signedInSessionToken({ ...first.user, authSessionVersion: -1 }), /nonnegative integer/i)
+  })
+
+  it("keeps hyphenated project and owner pairs distinct through exact cleanup", async () => {
+    const first = createBrowserUserFixtureIdentity("desktop-chromium", "a-b")
+    const second = createBrowserUserFixtureIdentity("desktop-chromium-a", "b")
+    assert.notEqual(first.user.id, second.user.id)
+    assert.notEqual(first.user.email, second.user.email)
+
+    const rows = new Map()
+    const prismaClient = {
+      user: {
+        async create({ data }) {
+          assert.equal(rows.has(data.id), false)
+          rows.set(data.id, data)
+          return data
+        },
+        async deleteMany({ where }) {
+          const row = rows.get(where.id)
+          if (row?.email !== where.email) return { count: 0 }
+          rows.delete(where.id)
+          return { count: 1 }
+        },
+        async findUnique({ where }) {
+          return rows.get(where.id) ?? null
+        },
+      },
+    }
+
+    await createBrowserUserFixtureRecord({
+      prismaClient,
+      identity: first,
+      environment: completeAuthorizedEnvironment(),
+    })
+    await createBrowserUserFixtureRecord({
+      prismaClient,
+      identity: second,
+      environment: completeAuthorizedEnvironment(),
+    })
+    await removeBrowserUserFixtureRecord({
+      prismaClient,
+      identity: first,
+      environment: completeAuthorizedEnvironment(),
+    })
+
+    assert.equal(rows.has(first.user.id), false)
+    assert.equal(rows.get(second.user.id)?.email, second.user.email)
+  })
+
+  it("generic signed-in fixture refuses unauthorized mutation and creates an explicit version", async () => {
+    const identity = createBrowserUserFixtureIdentity("desktop-chromium", "music-visualizer-defaults")
+    let creates = 0
+    await assert.rejects(
+      createBrowserUserFixtureRecord({
+        prismaClient: {
+          user: { async create() { creates += 1 } },
+        },
+        identity,
+        environment: {},
+      }),
+      /approved disposable browser-QA database target/i,
+    )
+    assert.equal(creates, 0)
+
+    let createQuery
+    const created = await createBrowserUserFixtureRecord({
+      prismaClient: {
+        user: {
+          async create(query) {
+            createQuery = query
+            return { ...query.data }
+          },
+        },
+      },
+      identity,
+      environment: completeAuthorizedEnvironment(),
+    })
+    assert.equal(createQuery.data.authSessionVersion, 0)
+    assert.equal(createQuery.data.id, identity.user.id)
+    assert.equal(createQuery.data.email, identity.user.email)
+    assert.equal(created.authSessionVersion, 0)
+  })
+
+  it("generic signed-in cleanup verifies ownership and deletes only the exact id/email pair", async () => {
+    const identity = createBrowserUserFixtureIdentity("mobile-chromium", "background-commerce")
+    const calls = []
+    await removeBrowserUserFixtureRecord({
+      prismaClient: {
+        user: {
+          async deleteMany(query) {
+            calls.push(["deleteMany", query])
+            return { count: 1 }
+          },
+          async findUnique() {
+            throw new Error("successful cleanup must not need a follow-up read")
+          },
+        },
+      },
+      identity,
+      environment: completeAuthorizedEnvironment(),
+    })
+    assert.deepEqual(calls, [
+      ["deleteMany", { where: { id: identity.user.id, email: identity.user.email } }],
+    ])
+  })
+
+  it("keeps an already-absent generic signed-in fixture cleanup idempotent", async () => {
+    const identity = createBrowserUserFixtureIdentity("mobile-chromium", "background-commerce")
+    const calls = []
+    await removeBrowserUserFixtureRecord({
+      prismaClient: {
+        user: {
+          async deleteMany(query) {
+            calls.push(["deleteMany", query])
+            return { count: 0 }
+          },
+          async findUnique(query) {
+            calls.push(["findUnique", query])
+            return null
+          },
+        },
+      },
+      identity,
+      environment: completeAuthorizedEnvironment(),
+    })
+    assert.deepEqual(calls, [
+      ["deleteMany", { where: { id: identity.user.id, email: identity.user.email } }],
+      ["findUnique", { where: { id: identity.user.id }, select: { email: true } }],
+    ])
+  })
+
+  it("fails closed when zero-count generic cleanup finds a different owner", async () => {
+    const identity = createBrowserUserFixtureIdentity("mobile-chromium", "background-commerce")
+    await assert.rejects(removeBrowserUserFixtureRecord({
+      prismaClient: {
+        user: {
+          async deleteMany() { return { count: 0 } },
+          async findUnique() { return { email: "different@browser-user.massagelab.example.test" } },
+        },
+      },
+      identity,
+      environment: completeAuthorizedEnvironment(),
+    }), { message: "Browser user fixture ownership mismatch." })
+  })
+
+  it("fails exactly when zero-count generic cleanup leaves the owned row present", async () => {
+    const identity = createBrowserUserFixtureIdentity("mobile-chromium", "background-commerce")
+    await assert.rejects(removeBrowserUserFixtureRecord({
+      prismaClient: {
+        user: {
+          async deleteMany() { return { count: 0 } },
+          async findUnique() { return { email: identity.user.email } },
+        },
+      },
+      identity,
+      environment: completeAuthorizedEnvironment(),
+    }), { message: "Browser user fixture cleanup did not remove exactly one owned user." })
   })
 
   it("guards fixture creation and exact cleanup before any database call", () => {

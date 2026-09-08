@@ -1,10 +1,29 @@
 import type { BrowserContext } from "@playwright/test"
 import { encode } from "next-auth/jwt"
 
-type SignedInSessionIdentity = {
+export type SignedInSessionIdentity = {
   id: string
   name: string
   email: string
+  authSessionVersion: number
+}
+
+/** Builds the exact persisted-version claims used by an Auth.js browser cookie. */
+export function signedInSessionToken(identity: SignedInSessionIdentity) {
+  if (!Number.isSafeInteger(identity.authSessionVersion) || identity.authSessionVersion < 0) {
+    throw new Error("Signed-in browser QA requires a nonnegative integer authSessionVersion")
+  }
+  return {
+    id: identity.id,
+    sub: identity.id,
+    name: identity.name,
+    email: identity.email,
+    emailVerified: true,
+    authSessionVersion: identity.authSessionVersion,
+    role: "USER",
+    roles: ["USER"],
+    roleAssignments: [{ role: "USER", status: "VERIFIED" }],
+  }
 }
 
 /**
@@ -23,16 +42,7 @@ export async function installSignedInSessionCookie(
     ? "__Secure-authjs.session-token"
     : "authjs.session-token"
   const value = await encode({
-    token: {
-      id: identity.id,
-      sub: identity.id,
-      name: identity.name,
-      email: identity.email,
-      emailVerified: true,
-      role: "USER",
-      roles: ["USER"],
-      roleAssignments: [{ role: "USER", status: "VERIFIED" }],
-    },
+    token: signedInSessionToken(identity),
     secret,
     salt: cookieName,
     maxAge: 60 * 60,

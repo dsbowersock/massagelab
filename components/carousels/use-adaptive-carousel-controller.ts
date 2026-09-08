@@ -7,6 +7,7 @@ import {
   getAdaptiveCarouselPresentationVariables,
   getMountedAdaptiveCarouselItemIds,
   reconcileAdaptiveCarouselCenter,
+  reconcileAdaptiveCarouselUpdateCenter,
   resolveEffectiveCarouselLoop,
 } from "./adaptive-carousel-model"
 
@@ -110,6 +111,9 @@ export function useAdaptiveCarouselController(
   const itemElements = useRef(new Map<string, HTMLElement>())
   const frameRef = useRef<number | null>(null)
   const onCenteredItemChangeRef = useRef(options.onCenteredItemChange)
+  // Distinguish a newly supplied external selection from a stable selection
+  // during item refreshes; the reconciliation effect advances this ref first.
+  const previousSelectedItemIdRef = useRef(selectedItemId)
   const [centeredId, setCenteredId] = useState<string | null>(initialCenter.id)
   const [canGoPrevious, setCanGoPrevious] = useState(false)
   const [canGoNext, setCanGoNext] = useState(false)
@@ -239,16 +243,22 @@ export function useAdaptiveCarouselController(
 
   useEffect(() => {
     if (!api) return
-    const nextId = reconcileAdaptiveCarouselCenter(items, selectedItemId, null)
+    const previousSelectedItemId = previousSelectedItemIdRef.current
+    previousSelectedItemIdRef.current = selectedItemId
+    const nextId = reconcileAdaptiveCarouselUpdateCenter(
+      items,
+      centeredId,
+      selectedItemId,
+      previousSelectedItemId,
+    )
     const nextIndex = items.findIndex(({ id }) => id === nextId)
     if (
-      selectedItemId
-      && nextIndex >= 0
+      nextIndex >= 0
       && items[api.selectedScrollSnap()]?.id !== nextId
     ) {
       api.scrollTo(nextIndex)
     }
-  }, [api, items, selectedItemId])
+  }, [api, centeredId, items, selectedItemId])
 
   const centerItem = useCallback((id: string, jump = false) => {
     const index = items.findIndex((item) => item.id === id)

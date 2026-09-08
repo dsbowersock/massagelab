@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import { requireBrowserAdminFixtureQaAuthorization } from "../lib/admin/browser-qa-authorization.ts"
+import { fingerprintBrowserQaDatabaseTarget } from "../scripts/assert-browser-qa-database-target.mjs"
 import { createBrowserAdminFixtureIdentity } from "../lib/admin/browser-fixture-identity.ts"
 import { removeBrowserAdminFixtureRecords } from "../lib/admin/browser-fixture-cleanup.ts"
 import {
@@ -10,20 +11,73 @@ import {
 } from "../lib/admin/browser-fixture-provisioning.ts"
 
 const browserSpecSource = await readFile(new URL("browser/admin-user-operations.spec.ts", import.meta.url), "utf8")
+const runtimeUrl = "postgresql://admin_qa:runtime-secret@qa-runtime.example.test:5432/massagelab_admin_qa?sslmode=require"
+const directUrl = "postgresql://admin_owner:direct-secret@qa-direct.example.test:5433/massagelab_admin_qa?sslmode=require"
+
+function completeAuthorizedEnvironment(overrides = {}) {
+  return {
+    DATABASE_URL: runtimeUrl,
+    DIRECT_URL: directUrl,
+    MASSAGELAB_BROWSER_QA_DATABASE: "1",
+    MASSAGELAB_BROWSER_QA_DATABASE_URL: runtimeUrl,
+    MASSAGELAB_BROWSER_QA_DIRECT_URL: directUrl,
+    MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT: fingerprintBrowserQaDatabaseTarget(runtimeUrl, directUrl),
+    VERCEL_ENV: "preview",
+    ...overrides,
+  }
+}
 
 describe("admin user operations browser fixture", () => {
-  it("fails closed unless the dedicated QA mutation opt-in is explicitly set", () => {
-    assert.throws(
-      () => requireBrowserAdminFixtureQaAuthorization({ DATABASE_URL: "postgresql://example.test/not-a-real-database" }),
-      /MASSAGELAB_BROWSER_QA_DATABASE=1/,
-    )
+  it("fails closed unless the complete disposable target gate passes", () => {
+    for (const environment of [
+      completeAuthorizedEnvironment({ MASSAGELAB_BROWSER_QA_DATABASE: undefined }),
+      completeAuthorizedEnvironment({ MASSAGELAB_BROWSER_QA_DIRECT_URL: undefined }),
+      completeAuthorizedEnvironment({ DIRECT_URL: undefined }),
+      completeAuthorizedEnvironment({ DATABASE_URL: `${runtimeUrl}-other` }),
+      completeAuthorizedEnvironment({ MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT: "0".repeat(64) }),
+      completeAuthorizedEnvironment({ VERCEL_ENV: "production" }),
+    ]) {
+      assert.throws(
+        () => requireBrowserAdminFixtureQaAuthorization(environment),
+        /complete approved disposable Browser-QA database target/i,
+      )
+    }
   })
 
-  it("accepts only the dedicated QA mutation opt-in", () => {
-    assert.doesNotThrow(() => requireBrowserAdminFixtureQaAuthorization({
-      DATABASE_URL: "postgresql://example.test/not-a-real-database",
-      MASSAGELAB_BROWSER_QA_DATABASE: "1",
-    }))
+  it("accepts the exact runtime/direct pair, fingerprint, opt-in, and non-Production environment", () => {
+    assert.doesNotThrow(() => requireBrowserAdminFixtureQaAuthorization(completeAuthorizedEnvironment()))
+  })
+
+  it("blocks provisioning and cleanup before either mutation owner starts when the full gate fails", async () => {
+    const identity = createBrowserAdminFixtureIdentity("desktop-chromium")
+    let transactions = 0
+    let cleanupMutations = 0
+    const unauthorized = completeAuthorizedEnvironment({
+      MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT: "0".repeat(64),
+    })
+    await assert.rejects(
+      createBrowserAdminFixtureRecords({
+        prismaClient: {
+          async $transaction() {
+            transactions += 1
+            throw new Error("must not start provisioning")
+          },
+        },
+        identity,
+        environment: unauthorized,
+      }),
+      /complete approved disposable Browser-QA database target/i,
+    )
+    await assert.rejects(
+      removeBrowserAdminFixtureRecords({
+        prismaClient: cleanupPrisma({ push() { cleanupMutations += 1 } }),
+        projectName: "desktop-chromium",
+        environment: unauthorized,
+      }),
+      /complete approved disposable Browser-QA database target/i,
+    )
+    assert.equal(transactions, 0)
+    assert.equal(cleanupMutations, 0)
   })
 
   it("derives isolated deterministic browser-admin identities for each Playwright project", () => {
@@ -83,7 +137,7 @@ describe("admin user operations browser fixture", () => {
     await removeBrowserAdminFixtureRecords({
       prismaClient: cleanupPrisma(calls),
       projectName: "desktop-chromium",
-      environment: { DATABASE_URL: "postgresql://example.test/not-a-real-database", MASSAGELAB_BROWSER_QA_DATABASE: "1" },
+      environment: completeAuthorizedEnvironment(),
     })
 
     const ids = ["browser-admin-operator-desktop-chromium", "browser-admin-target-desktop-chromium"]
@@ -121,7 +175,7 @@ describe("admin user operations browser fixture", () => {
     await createBrowserAdminFixtureRecords({
       prismaClient: provisioningPrisma(calls),
       identity,
-      environment: { DATABASE_URL: "postgresql://example.test/not-a-real-database", MASSAGELAB_BROWSER_QA_DATABASE: "1" },
+      environment: completeAuthorizedEnvironment(),
       provisionCredits: async (_prismaClient, userId) => { calls.push(["ensureVerifiedUserBackgroundCredits", userId]) },
     })
 

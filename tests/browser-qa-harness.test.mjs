@@ -1,11 +1,15 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { readFile, readdir } from "node:fs/promises"
+import { runInNewContext } from "node:vm"
 
 import {
+  assertMigrationParityTelemetryEnvironment,
+  assertBrowserQaRepeatEachSupported,
   getPlaywrightFileFilterArguments,
-  isAdminUserOperationsInvocation,
   isDevelopmentPaletteReviewInvocation,
+  isMigrationParityInvocation,
+  migrationParityTelemetryEnvironment,
   matchesDevelopmentPaletteReviewArgument,
   resolveDevelopmentPaletteReviewIgnoreGlobs,
 } from "../playwright.config.ts"
@@ -330,8 +334,15 @@ test("browser QA lanes cover each ordinary project and spec exactly once", async
   const developmentOnlySpecs = new Set(
     resolveDevelopmentPaletteReviewIgnoreGlobs([]).map((glob) => glob.split("/").at(-1)),
   )
-  const discoveredOrdinarySpecs = (await readdir(new URL("./browser/", import.meta.url)))
-    .filter((filename) => filename.endsWith(".spec.ts") && !developmentOnlySpecs.has(filename))
+  // Migration parity is an explicit source/destination gate outside CI lanes;
+  // assert its presence independently so the exclusion cannot hide a missing spec.
+  const migrationOnlySpec = "atmoshaper-repository-migration-parity.spec.ts"
+  const discoveredSpecFiles = await readdir(new URL("./browser/", import.meta.url))
+  assert.ok(discoveredSpecFiles.includes(migrationOnlySpec), "Expected the explicit migration parity spec to exist")
+  const discoveredOrdinarySpecs = discoveredSpecFiles
+    .filter((filename) => filename.endsWith(".spec.ts")
+      && !developmentOnlySpecs.has(filename)
+      && filename !== migrationOnlySpec)
     .sort()
 
   assert.deepEqual(BROWSER_QA_PROJECT_NAMES, expectedProjects)
@@ -510,41 +521,353 @@ test("development review invocation ignores the leading Playwright subcommand", 
   assert.equal(isDevelopmentPaletteReviewInvocation(["test", "dna-twisted"]), true)
 })
 
-test("Admin user operations QA disables stale-server reuse for unfiltered and explicit spec runs", () => {
-  assert.equal(isAdminUserOperationsInvocation(["test"]), true)
-  assert.equal(isAdminUserOperationsInvocation(["test", "--grep", "role change"]), true)
-  assert.equal(
-    isAdminUserOperationsInvocation(["test", "tests/browser/admin-user-operations.spec.ts"]),
-    true,
-  )
-  assert.equal(isAdminUserOperationsInvocation(["test", "admin-user-operations.spec.ts:42"]), true)
-  assert.equal(isAdminUserOperationsInvocation(["test", "tests/browser"]), true)
-  assert.equal(isAdminUserOperationsInvocation(["test", "admin-user-operations"]), true)
-  assert.equal(
-    isAdminUserOperationsInvocation(["test", String.raw`tests[\\/]browser[\\/]admin-user-operations\.spec\.ts$`]),
-    true,
-  )
-  assert.equal(isAdminUserOperationsInvocation(["test", "[invalid"]), false)
-  assert.equal(
-    isAdminUserOperationsInvocation(["test", "tests/browser/public-routes.spec.ts"]),
-    false,
-  )
+test("Browser QA rejects repeat-each values that can collide deterministic fixtures", () => {
+  for (const argv of [
+    [],
+    ["test"],
+    ["test", "--repeat-each", "1"],
+    ["test", "--repeat-each=1"],
+    ["test", "--repeat-each-other=2"],
+    ["test", "--", "--repeat-each=2"],
+  ]) {
+    assert.doesNotThrow(() => assertBrowserQaRepeatEachSupported(argv))
+  }
+  for (const argv of [
+    ["test", "--repeat-each", "2"],
+    ["test", "--repeat-each=2"],
+    ["test", "--repeat-each", "1garbage"],
+    ["test", "--repeat-each=1garbage"],
+    ["test", "--repeat-each", "2garbage"],
+    ["test", "--repeat-each=2garbage"],
+    ["test", "--repeat-each"],
+    ["test", "--repeat-each="],
+    ["test", "--repeat-each=01"],
+    ["test", "--repeat-each=1.0"],
+  ]) {
+    assert.throws(
+      () => assertBrowserQaRepeatEachSupported(argv),
+      /supports only the exact --repeat-each value 1/i,
+    )
+  }
+  for (const argv of [
+    ["test", "--repeat-each", "1", "--repeat-each", "1"],
+    ["test", "--repeat-each", "1", "--repeat-each=1"],
+    ["test", "--repeat-each=1", "--repeat-each", "1"],
+    ["test", "--repeat-each=1", "--repeat-each=1"],
+  ]) {
+    assert.throws(
+      () => assertBrowserQaRepeatEachSupported(argv),
+      /supports at most one --repeat-each option/i,
+    )
+  }
 })
 
-test("Playwright-owned Browser QA enables Google controls with inert spawned-server credentials only", async () => {
+test("migration parity selects exact spec paths, serializes projects, and refuses stale-server reuse", async () => {
+  const spec = "tests/browser/atmoshaper-repository-migration-parity.spec.ts"
   const config = await readProjectFile("playwright.config.ts")
+  const workerExpression = config.match(/^\s*workers: (.+),$/m)?.[1]
+  assert.ok(workerExpression, "The canonical worker setting must remain inspectable")
+  // Exercise the actual config expression with the exact-invocation matcher;
+  // no browser is launched and ordinary/CI worker semantics stay independent.
+  const resolveWorkers = (args, CI, usesAuthorizedBrowserQaDatabase = false) => runInNewContext(workerExpression, {
+    runsMigrationParity: isMigrationParityInvocation(args),
+    usesAuthorizedBrowserQaDatabase,
+    process: { env: { CI, ATMOSHAPER_MIGRATION_PARITY: "1" } },
+  })
+  for (const exact of [spec, `./${spec}`, `${spec}:42:7`, `C:\\repo\\${spec.replaceAll("/", "\\")}`]) {
+    assert.equal(isMigrationParityInvocation(["test", exact]), true, exact)
+    for (const CI of [undefined, "", "1", "true", "0"]) {
+      assert.equal(resolveWorkers(["test", exact], CI), 1, exact)
+    }
+  }
+  for (const args of [
+    ["test"],
+    ["test", "tests/browser"],
+    ["test", "atmoshaper-repository-migration-parity"],
+    ["test", "atmoshaper-repository-migration-parity.spec.ts"],
+    ["test", "tests/browser/atmoshaper.spec.ts"],
+    ["test", `prefix-${spec}`],
+    ["test", `${spec}.backup`],
+    ["test", ".*migration-parity.*"],
+    ["test", "--grep", spec],
+    ["test", "--output", spec],
+  ]) {
+    assert.equal(isMigrationParityInvocation(args), false, args.join(" "))
+    for (const CI of [undefined, "", "1", "true", "0"]) {
+      assert.equal(resolveWorkers(args, CI), CI ? 1 : undefined, args.join(" "))
+    }
+  }
+  assert.equal(resolveWorkers(["test", spec, "--update-snapshots=missing"], undefined), 1)
+  assert.equal(resolveWorkers(["test", spec, "--update-snapshots=none"], undefined), 1)
+  assert.equal(resolveWorkers(["test", "tests/browser/public-routes.spec.ts"], undefined, true), 1)
 
-  assert.match(
-    config,
-    /Object\.assign\(playwrightWebServerEnvironment,[\s\S]*AUTH_GOOGLE_ID:\s*"browser-qa-inert-google-client-id\.invalid"/,
-  )
-  assert.match(
-    config,
-    /Object\.assign\(playwrightWebServerEnvironment,[\s\S]*AUTH_GOOGLE_SECRET:\s*"browser-qa-inert-google-client-secret\.invalid"/,
-  )
-  assert.doesNotMatch(config, /process\.env\.AUTH_GOOGLE_(?:ID|SECRET)\s*=/)
-  for (const name of ["SMTP_HOST", "SMTP_FROM", "SMTP_USER", "SMTP_PASSWORD", "SMTP_PORT"]) {
-    assert.match(config, new RegExp(`${name}: ""`))
+  assert.match(config, /const runsMigrationParity = isMigrationParityInvocation\(process\.argv\.slice\(2\)\)/)
+  assert.match(config, /const usesAuthorizedBrowserQaDatabase = isBrowserQaDatabaseTargetAuthorized\(process\.env\)/)
+  assert.match(config, /reuseExistingServer:\s*false/)
+})
+
+test("migration parity telemetry preflight requires explicit inert values without exposing rejected values", async () => {
+  assert.deepEqual(migrationParityTelemetryEnvironment, {
+    NEXT_PUBLIC_SENTRY_DSN: "",
+    SENTRY_DSN: "",
+    SENTRY_AUTH_TOKEN: "",
+    NEXT_TELEMETRY_DISABLED: "1",
+  })
+  assert.doesNotThrow(() => assertMigrationParityTelemetryEnvironment({ ...migrationParityTelemetryEnvironment }))
+  for (const name of Object.keys(migrationParityTelemetryEnvironment)) {
+    for (const rejected of [undefined, "must-not-appear-in-errors"]) {
+      assert.throws(
+        () => assertMigrationParityTelemetryEnvironment({ ...migrationParityTelemetryEnvironment, [name]: rejected }),
+        (error) => error.message.includes(name) && !error.message.includes("must-not-appear-in-errors"),
+      )
+    }
+  }
+  const config = await readProjectFile("playwright.config.ts")
+  assert.match(config, /if \(runsMigrationParity && process\.env\.ATMOSHAPER_MIGRATION_PARITY === "1" && !process\.argv\.includes\("--list"\)\) \{\s*assertMigrationParityTelemetryEnvironment\(process\.env\)/)
+  assert.match(config, /if \(runsMigrationParity && process\.env\.ATMOSHAPER_MIGRATION_PARITY === "1"\) \{\s*Object\.assign\(playwrightWebServerEnvironment, migrationParityTelemetryEnvironment\)/)
+})
+
+test("migration parity uses Education content readiness and persists sanitized activity through teardown", async () => {
+  const spec = await readProjectFile("tests/browser/atmoshaper-repository-migration-parity.spec.ts")
+  const education = await readProjectFile("app/education/page.tsx")
+  assert.match(education, /<Link href="\/education\/flashcards">Open flashcards<\/Link>/)
+  assert.match(spec, /name: "education"[^\n]+getByRole\("link", \{ name: "Open flashcards", exact: true \}\)/)
+  assert.doesNotMatch(spec, /getByText\(\/Education\/i\)/)
+  assert.match(spec, /await context\.close\(\)[\s\S]*removeIdentityMethodSafetyFixture[\s\S]*testInfo\.outputPath\("migration-parity-inventory\.json"\)/)
+  assert.match(spec, /await writeFile\(inventoryPath, JSON\.stringify/)
+  assert.match(spec, /testInfo\.attach\("migration-parity-inventory", \{\s*contentType: "application\/json",\s*path: inventoryPath/)
+  assert.match(spec, /expect\.soft\(activity\.browserMutations, "Render-only parity must not attempt any browser mutation"\)\.toEqual\(\[\]\)/)
+})
+
+test("migration parity waits for Chimer's owned notice unmount before capturing the unobscured stepper", async () => {
+  const spec = await readProjectFile("tests/browser/atmoshaper-repository-migration-parity.spec.ts")
+  const owner = await readProjectFile("app/chimer/set-timer.tsx")
+  const publicOwner = await readProjectFile("tests/browser/public-routes.spec.ts")
+  assert.match(owner, /const SYNC_NOTICE_EXIT_DURATION_MS = 420/)
+  assert.match(owner, /const visibleDuration = syncStatus === "conflict" \? 12000 : 7500/)
+  assert.match(owner, /shouldShowSyncNotice && !syncNoticeDismissed &&/)
+  assert.match(publicOwner, /getByText\(\/Settings stay on this device\\\.\/i\)\)\.toBeVisible\(\)/)
+  const chimer = sliceBetweenMarkers(spec, 'if (surface.name === "chimer") {', 'if (surface.name === "clock") {', "Chimer settled capture").slice
+  assert.match(chimer, /await expect\(guestNotice\)\.toBeVisible\(\)[\s\S]*await expect\(guestNotice\)\.toHaveCount\(0, \{ timeout: 12_000 \}\)/)
+  assert.match(chimer, /isMobile[\s\S]*"Step 1 of 5"[\s\S]*"1 Time"/)
+  assert.match(chimer, /toBeVisible\(\)[\s\S]*toBeInViewport\(\)[\s\S]*document\.elementFromPoint/)
+  assert.doesNotMatch(chimer, /waitForTimeout|addStyleTag|\.remove\(|\.style\s*[.=]|mask:|page\.clock/)
+  assert.ok(spec.indexOf(chimer) < spec.indexOf("await captureSurface(page, surface.name)", spec.indexOf(chimer)))
+})
+
+test("migration parity pins Clock to the real app reduced-motion background before capture", async () => {
+  const spec = await readProjectFile("tests/browser/atmoshaper-repository-migration-parity.spec.ts")
+  const publicOwner = await readProjectFile("tests/browser/public-routes.spec.ts")
+  const settingsOwner = await readProjectFile("components/providers/settings-provider.tsx")
+  const motionOwner = await readProjectFile("lib/motion-preferences.js")
+  const renderer = await readProjectFile("components/moving-background.tsx")
+  const host = await readProjectFile("components/backgrounds/BackgroundHost.tsx")
+  const { shouldAnimateAmbientBackground } = await import("../lib/motion-preferences.js")
+  assert.equal(shouldAnimateAmbientBackground({
+    prefersReducedMotion: false, compactViewport: false, documentHidden: false,
+    ambientMotionMode: "reduced", forceMotion: true,
+  }), false, "The explicit app preference wins even over forced animation")
+  assert.match(publicOwner, /localStorage\.setItem\("massage-lab-settings", JSON\.stringify\(\{ ambientMotionMode: "reduced" \}\)\)/)
+  assert.match(settingsOwner, /localStorage\.getItem\("massage-lab-settings"\)/)
+  assert.match(motionOwner, /classList\.contains\("chimer-running"\)/)
+  assert.match(renderer, /x: Math\.random\(\) \* canvas\.width/)
+  assert.match(host, /\(!reduceMotion \|\| entry\.motionIntensity === "static" \|\| entry\.supportsReducedMotionStatic\)/)
+  assert.match(spec, /ambientMotionMode: "reduced",\s*backgroundId: "massage-lab-moving-gradient",\s*backgroundPresentation: "static-fallback"/)
+  const setup = sliceBetweenMarkers(spec, 'if (surface.name === "clock") {', "const response = await page.goto", "Clock pre-navigation preference").slice
+  assert.match(setup, /page\.addInitScript[\s\S]*localStorage\.setItem\("massage-lab-settings", JSON\.stringify\(\{ ambientMotionMode \}\)\)[\s\S]*clockCapture\.ambientMotionMode[\s\S]*page\.clock\.install/)
+  const capture = sliceBetweenMarkers(spec, 'await page.waitForLoadState("load")', "await captureSurface(page, surface.name)", "Clock static capture").slice
+  assert.match(capture, /page\.locator\("body"\)\)\.toHaveClass\(\/chimer-running\//)
+  assert.match(capture, /getByTestId\("chimer-premium-background"\)/)
+  for (const attribute of ["data-background-effect-mounted", "data-background-fallback-only"]) {
+    assert.ok(capture.includes(`toHaveAttribute("${attribute}", "false")`))
+  }
+  assert.match(capture, /toHaveAttribute\("data-background-underlay", "visible"\)/)
+  assert.match(capture, /background\.locator\("canvas"\)\)\.toHaveCount\(0\)/)
+  assert.match(capture, /staticBackground\)\.toBeVisible\(\)[\s\S]*"background-image", \/radial-gradient\/[\s\S]*"animation-name", "none"[\s\S]*page\.clock\.pauseAt/)
+  assert.match(capture, /page\.clock\.runFor\(clockCapture\.controlsSettleMs\)/)
+  assert.match(capture, /toHaveCSS\("opacity", "1"\)/)
+  assert.doesNotMatch(spec, /Math\.random\s*=|addStyleTag|\.remove\(|mask:|maxDiffPixels|maxDiffPixelRatio|threshold:/)
+})
+
+test("migration parity requires unique visible Pricing and route-owned Clock content", async () => {
+  const spec = await readProjectFile("tests/browser/atmoshaper-repository-migration-parity.spec.ts")
+  const pricingOwner = await readProjectFile("app/pricing/page.tsx")
+  const surfaceOwner = await readProjectFile("components/ui/app-surface.tsx")
+  const donationOwner = await readProjectFile("app/pricing/donation-checkout-form.tsx")
+  const clockOwner = await readProjectFile("app/chimer/running-timer.tsx")
+  const shellOwner = await readProjectFile("app/chimer/immersive-panel-shell.tsx")
+  assert.match(pricingOwner, /<AppSurface\s+id="one-time-support"[\s\S]*?<DonationCheckoutForm/)
+  assert.match(surfaceOwner, /<Card id=\{id\}/)
+  assert.equal((pricingOwner.match(/<DonationCheckoutForm\b/g) ?? []).length, 1)
+  assert.match(donationOwner, /<form\s+action="\/api\/billing\/donation"/)
+  assert.match(spec, /name: "pricing"[^\n]+page\.locator\("#one-time-support:visible"\)/)
+  const pricing = sliceBetweenMarkers(spec, 'if (surface.name === "pricing") {', 'if (surface.name === "chimer") {', "Pricing owned readiness").slice
+  assert.match(pricing, /expect\(support\)\.toHaveCount\(1\)/)
+  assert.match(pricing, /support\.locator\('form\[action="\/api\/billing\/donation"\]:visible'\)/)
+  assert.match(pricing, /expect\(donationForm\)\.toHaveCount\(1\)[\s\S]*expect\(donationForm\)\.toBeVisible\(\)/)
+  assert.match(clockOwner, /<section[^\n]+isClockMode \? "Chimer clock"/)
+  assert.equal((clockOwner.match(/testId="chimer-premium-background"/g) ?? []).length, 1)
+  assert.match(clockOwner, /data-testid="running-current-time"/)
+  assert.match(shellOwner, /return createPortal\([\s\S]*data-immersive-shell[\s\S]*aria-label="Immersive display controls"/)
+  const clock = sliceBetweenMarkers(spec, 'await page.waitForLoadState("load")', "await captureSurface(page, surface.name)", "Clock owned readiness").slice
+  assert.match(clock, /const clock = page\.getByRole\("region", \{ name: "Chimer clock", exact: true \}\)/)
+  assert.match(clock, /expect\(clock\)\.toHaveCount\(1\)[\s\S]*expect\(clock\)\.toBeVisible\(\)/)
+  assert.match(clock, /const background = clock\.getByTestId\("chimer-premium-background"\)/)
+  assert.match(clock, /expect\(background\)\.toHaveCount\(1\)[\s\S]*expect\(background\)\.toBeVisible\(\)/)
+  assert.match(clock, /clock\.getByRole\("button", \{ name: "Reveal clock controls", exact: true \}\)\.click\(\)/)
+  assert.match(clock, /getByRole\("group", \{ name: "Immersive display controls", exact: true \}\)/)
+  assert.match(clock, /expect\(controls\)\.toHaveCount\(1\)[\s\S]*expect\(controls\)\.toBeVisible\(\)/)
+  assert.match(clock, /page\.locator\("\[data-immersive-shell\]:visible"\)\.filter\(\{ has: controls \}\)/)
+  assert.match(clock, /expect\(shell\)\.toHaveCount\(1\)[\s\S]*expect\(shell\)\.toHaveCSS\("opacity", "1"\)/)
+  assert.match(clock, /const currentTime = clock\.getByTestId\("running-current-time"\)/)
+  assert.match(clock, /expect\(currentTime\)\.toHaveCount\(1\)[\s\S]*expect\(currentTime\)\.toBeVisible\(\)[\s\S]*expect\(currentTime\)\.toContainText/)
+  assert.doesNotMatch(pricing + clock, /\.first\(|\.nth\(|waitForTimeout|addStyleTag|\.remove\(|mask:|maxDiffPixels|maxDiffPixelRatio|threshold:/)
+  assert.doesNotMatch(clock, /page\.getByTestId\("(?:chimer-premium-background|running-current-time)"\)/)
+})
+
+test("migration parity remounts Home at the G-proven clock phase without pixel allowances", async () => {
+  const spec = await readProjectFile("tests/browser/atmoshaper-repository-migration-parity.spec.ts")
+  const homeOwner = await readProjectFile("app/page.tsx")
+  const ringOwner = await readProjectFile("components/ui/metal-attention-button.tsx")
+  const metal = await readProjectFile("node_modules/metal-fx/dist/index.es.js")
+  assert.match(homeOwner, /data-testid="home-brand-wordmark"/)
+  assert.match(homeOwner, /<MetalAttentionButton asChild size="lg">/)
+  assert.match(ringOwner, /if \(reducedMotion\) \{\s*setMotionState\("paused"\)/)
+  assert.match(ringOwner, /metalPaused=\{motionState === "paused"\}/)
+  assert.match(metal, /startMs: performance\.now\(\)/)
+  assert.match(metal, /\(e - i\.startMs - i\.pausedMs\) \/ 1e3 \* o\.speed/)
+  assert.match(metal, /onFirstCopy: \(\) => M\(!0\)/)
+  assert.match(metal, /visibility: y \? "visible" : "hidden"/)
+  assert.match(spec, /pausedPerformanceMs: 300_000,\s*frameStepMs: 16,\s*frameSteps: 32/)
+  const capture = sliceBetweenMarkers(spec, "async function prepareHomeCapture", "test.describe(", "Home capture sequence").slice
+  assert.match(capture, /clock\.install[\s\S]*installHomeObservation[\s\S]*goto\("\/tools"[\s\S]*homeLink\.click\(\)[\s\S]*readyHomeRing[\s\S]*goBack\(\)[\s\S]*sampleHomeTeardown[\s\S]*clock\.pauseAt[\s\S]*homeLink\.click\(\)/)
+  assert.match(capture, /page\.locator\("main \.ml-app-content"\)/)
+  assert.match(capture, /routeContent\.getByText\("MassageLab Tools", \{ exact: true \}\)/)
+  assert.equal((capture.match(/expect\(routeContent\)\.toHaveCount\(1\)/g) ?? []).length, 2)
+  assert.match(capture, /before === document/)
+  assert.match(capture, /"\.ml-metal-attention-root"\)\)\.toHaveCount\(0\)/)
+  assert.match(capture, /retiredRootCount: warmRootCount/)
+  const frozen = sliceBetweenMarkers(capture, "await page.clock.pauseAt", "for (let step", "Frozen remount before frame sweep").slice
+  assert.doesNotMatch(frozen, /clock\.runFor|clock\.fastForward|clock\.resume/)
+  assert.match(frozen, /mountedAt === homeCapture\.pausedPerformanceMs/)
+  assert.match(frozen, /\.style\.visibility\)\)\.toBe\("hidden"\)/)
+  assert.match(frozen, /\.intersecting\)\)\.toBe\(true\)/)
+  assert.match(capture, /step <= homeCapture\.frameSteps[\s\S]*clock\.runFor\(homeCapture\.frameStepMs\)/)
+  assert.match(capture, /expect\(paint\.sha256\)\.toBe\(firstPaint\.sha256\)/)
+  assert.match(capture, /activityByPage\.get\(page\)!\.home = \{/)
+  assert.match(spec, /document\.fonts\.ready[\s\S]*image\.decode\(\)/)
+  assert.match(spec, /getByTestId\("home-flip-word"\)\)\.toHaveText\("therapists"\)/)
+  assert.match(spec, /getImageData\(0, 0, canvas\.width, canvas\.height\)/)
+  assert.match(spec, /nontransparentPixels\)\.toBeGreaterThan\(0\)/)
+  assert.match(spec, /home: activity\.home/)
+  assert.doesNotMatch(capture, /\.first\(|\.nth\(|waitForTimeout|addStyleTag|\.remove\(|Math\.random\s*=|\.resume\(/)
+  assert.doesNotMatch(spec, /maxDiffPixels|maxDiffPixelRatio|threshold:|mask:/)
+})
+
+test("Home native observation delegates callbacks and rejects incomplete warm-root teardown", async () => {
+  const spec = await readProjectFile("tests/browser/atmoshaper-repository-migration-parity.spec.ts")
+  const { transpileModule } = await import("typescript")
+  const source = sliceBetweenMarkers(spec, "async function installHomeObservation", "/** Shared real Home prerequisites", "Home native observation and teardown").slice
+  const observed = []
+  class ResizeObserver {
+    constructor(callback) { this.callback = callback }
+    observe(target, options) { observed.push({ owner: this, target, options }) }
+    disconnect() { this.didDisconnect = true }
+  }
+  class IntersectionObserver extends ResizeObserver {
+    constructor(callback, options) {
+      super(callback)
+      this.options = options
+      this.rootMargin = "64px 64px 64px 64px"
+    }
+  }
+  const root = { isConnected: true, matches: (selector) => selector === ".ml-metal-attention-root" }
+  const other = { isConnected: true, matches: () => false }
+  const window = { ResizeObserver, IntersectionObserver }
+  const sandbox = { window, performance: { now: () => 300000 } }
+  runInNewContext(transpileModule(source, { compilerOptions: { target: 9 } }).outputText, sandbox)
+  await sandbox.installHomeObservation({ addInitScript: (install) => install() })
+  const resize = new window.ResizeObserver(() => {})
+  const resizeOptions = { box: "border-box" }
+  resize.observe(root, resizeOptions)
+  resize.observe(other)
+  let delivery
+  const options = { rootMargin: "64px" }
+  const intersection = new window.IntersectionObserver(function (...args) { delivery = { receiver: this, args } }, options)
+  intersection.observe(root)
+  const entries = [{ target: root, isIntersecting: true }]
+  intersection.callback.call(intersection, entries, intersection)
+  assert.equal(intersection.options, options)
+  assert.equal(observed[0].options, resizeOptions)
+  assert.equal(delivery.receiver, intersection)
+  assert.equal(delivery.args[0], entries)
+  assert.equal(delivery.args[1], intersection)
+  const observation = window.__migrationHomeObservation
+  assert.equal(observation.roots.size, 1, "Unrelated observer targets must stay outside the Home receipt")
+  assert.equal(observation.roots.get(root).mountedAt, 300000)
+  assert.equal(observation.roots.get(root).intersecting, true)
+  const sample = async () => JSON.parse(JSON.stringify(await sandbox.sampleHomeTeardown({ evaluate: (read) => read() })))
+  assert.deepEqual(await sample(), { observedRootCount: 1, retiredRootCount: 0 })
+  root.isConnected = false
+  resize.disconnect()
+  assert.equal(resize.didDisconnect, true)
+  assert.deepEqual(await sample(), { observedRootCount: 1, retiredRootCount: 0 }, "Removal plus only one native cleanup is insufficient")
+  intersection.disconnect()
+  assert.equal(intersection.didDisconnect, true)
+  assert.deepEqual(await sample(), { observedRootCount: 1, retiredRootCount: 1 })
+})
+
+test("installed paused MetalFx selection retains the G-observed 300016 frame in a bounded model", async () => {
+  const core = await readProjectFile("node_modules/playwright-core/lib/coreBundle.js")
+  const metal = await readProjectFile("node_modules/metal-fx/dist/index.es.js")
+  const clockLiteral = core.match(/source = ('(?:\\.|[^'\\])*');/s)
+  assert.ok(clockLiteral, "Installed clock implementation must remain inspectable")
+  const clockSource = runInNewContext(clockLiteral[1])
+  assert.match(core, /async pauseAt\(ticks\) \{\s*await this\._installIfNeeded\(\)/)
+  assert.match(clockSource, /return 16 - this\._now\.ticks % 16/)
+  assert.match(metal, /const wt = 66,/)
+  const loop = sliceBetweenMarkers(metal, "function ot(e) {", "function te() {", "Installed MetalFx render loop").slice
+  // G's actual browser receipts establish navigation/native readiness. This
+  // narrower model checks only selection/retention after that proven boundary;
+  // it must not be treated as proof of navigation clock replay or native IO.
+  for (const hostTime of [1, 99999]) {
+    const clockSandbox = { module: {}, Map, Date, Math, Promise, setTimeout, clearTimeout }
+    runInNewContext(clockSource, clockSandbox)
+    const ClockController = clockSandbox.module.exports.ClockController()
+    const clock = new ClockController({
+      dateNow: () => hostTime,
+      performanceNow: () => hostTime,
+      setTimeout: (callback, delay) => {
+        const timer = setTimeout(callback, delay)
+        return () => clearTimeout(timer)
+      },
+    })
+    const pausedAt = Date.parse("2026-09-06T10:00:00.000Z")
+    await clock.log("install", hostTime, pausedAt - 300000)
+    await clock.pauseAt(pausedAt)
+    assert.equal(clock.performanceNow(), 300000)
+    assert.equal(clock.now(), pausedAt)
+    const copies = []
+    const frames = []
+    const instance = { visible: true, paused: true, everCopied: false }
+    const renderer = {
+      i: { instances: new Set([instance]), glowQueue: [], rafId: 0, useOffscreen: false },
+      we: null,
+      jt: (time) => frames.push(time),
+      Vt: () => copies.push(clock.performanceNow()),
+      requestAnimationFrame: (callback) => clock.addTimer({
+        type: "AnimationFrame", func: callback, delay: clock.getTimeToNextFrame(),
+      }),
+    }
+    runInNewContext(`const wt = 66; let Ie = 0; ${loop}`, renderer)
+    renderer.requestAnimationFrame(renderer.ot)
+    await clock.runFor(16)
+    assert.deepEqual(frames, [300016])
+    assert.deepEqual(copies, [300016])
+    assert.equal(instance.everCopied, true)
+    await clock.runFor(496)
+    assert.deepEqual(copies, [300016], "Paused instances retain their first copied frame")
+    assert.equal(clock.performanceNow(), 300512)
   }
 })
 
@@ -651,7 +974,9 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(config, /process\.env\.PLAYWRIGHT_PORT/)
   assert.match(config, /function parseBooleanEnv/)
   assert.match(config, /const skipWebServer = parseBooleanEnv\(process\.env\.PLAYWRIGHT_SKIP_WEB_SERVER\)/)
-  assert.match(config, /webServer: skipWebServer/)
+  assert.match(config, /assertBrowserQaOwnedServerRequirement\(skipWebServer\)/)
+  assert.match(config, /webServer:\s*\{/)
+  assert.doesNotMatch(config, /webServer:\s*skipWebServer/)
   assert.match(config, /runsDevelopmentPaletteReview/)
   assert.doesNotMatch(config, /new RegExp\(argument\)/)
   assert.match(
@@ -736,7 +1061,7 @@ test("CI workflow parallelizes browser QA and aggregates every upstream result",
     )
   }
 
-  assert.equal((getWorkflowJob(ciWorkflow, "browser_build").match(/^        run: npm run build$/gm) ?? []).length, 1)
+  assert.equal((getWorkflowJob(ciWorkflow, "browser_build").match(/^        run: npm run build:browser-qa$/gm) ?? []).length, 1)
   assert.match(ciWorkflow, /strategy:\r?\n      fail-fast: false\r?\n      matrix:\r?\n        lane: \["1", "2", "3", "4"\]/)
   assert.match(ciWorkflow, /PLAYWRIGHT_CI_LANE: \$\{\{ matrix\.lane \}\}/)
   assert.match(ciWorkflow, /key: \$\{\{ runner\.os \}\}-nextjs-v2-/)

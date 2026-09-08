@@ -1,5 +1,7 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test"
-import { installSignedInSessionCookie } from "./signed-in-session-cookie"
+import { installSignedInUserFixture, removeSignedInUserFixture } from "./signed-in-user-fixture"
+
+const signedInFixtureProjects = new Set<string>()
 
 type PreviewRuntimeProbe = {
   playCalls: number
@@ -102,21 +104,24 @@ async function installRestrictedCommerceFixture(
   context: BrowserContext,
   page: Page,
   baseURL: string,
+  projectName: string,
   ownershipStatus?: "refund_pending",
 ) {
-  await installSignedInSessionCookie(context, baseURL, {
-    id: "background-preview-unavailable-user",
-    name: "Preview unavailable QA",
-    email: "preview-unavailable@example.invalid",
+  const identity = await installSignedInUserFixture({
+    context,
+    baseURL,
+    projectName,
+    owner: "background-carousel-preview",
   })
+  signedInFixtureProjects.add(projectName)
   await page.route("**/api/auth/session", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         user: {
-          id: "background-preview-unavailable-user",
-          email: "preview-unavailable@example.invalid",
+          id: identity.user.id,
+          email: identity.user.email,
           emailVerified: true,
         },
       }),
@@ -160,6 +165,11 @@ async function installRestrictedCommerceFixture(
     })
   })
 }
+
+test.afterEach(async ({}, testInfo) => {
+  if (!signedInFixtureProjects.delete(testInfo.project.name)) return
+  await removeSignedInUserFixture(testInfo.project.name, "background-carousel-preview")
+})
 
 /** Verifies every compact tray action stays inside its owner and has no overlapping hit area. */
 async function expectCompactActionGeometry(controls: Locator) {
@@ -517,7 +527,12 @@ test("short-landscape Background tray shows free access without opening Info", a
 })
 
 test("short-landscape Background tray keeps locked controls within the compact grid", async ({ context, page }, testInfo) => {
-  await installRestrictedCommerceFixture(context, page, String(testInfo.project.use.baseURL))
+  await installRestrictedCommerceFixture(
+    context,
+    page,
+    String(testInfo.project.use.baseURL),
+    testInfo.project.name,
+  )
   await page.setViewportSize({ width: 844, height: 390 })
   const panel = await openProductionBackgroundCarousel(page, "/clock?panel=background")
   const controls = panel.getByTestId("background-carousel-controls")
@@ -529,7 +544,13 @@ test("short-landscape Background tray keeps locked controls within the compact g
 })
 
 test("short-landscape Background tray keeps unavailable controls within the compact grid", async ({ context, page }, testInfo) => {
-  await installRestrictedCommerceFixture(context, page, String(testInfo.project.use.baseURL), "refund_pending")
+  await installRestrictedCommerceFixture(
+    context,
+    page,
+    String(testInfo.project.use.baseURL),
+    testInfo.project.name,
+    "refund_pending",
+  )
   await page.setViewportSize({ width: 844, height: 390 })
   const panel = await openProductionBackgroundCarousel(page, "/clock?panel=background")
   await expect(page).toHaveURL((url) => url.pathname === "/clock" && url.searchParams.get("panel") === "background")

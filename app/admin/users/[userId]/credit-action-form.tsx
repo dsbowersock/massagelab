@@ -8,6 +8,7 @@ import {
   ADMIN_REASON_CODES,
 } from "@/lib/admin/operation-contract"
 import { grantBackgroundCreditsAction, type CreditGrantActionState } from "./credit-actions"
+import { usePendingActionRenderNudge } from "./use-pending-action-render-nudge"
 
 const CREDIT_GRANT_CONFIRMATION = "CONFIRM_BACKGROUND_CREDIT_GRANT"
 const INITIAL_CREDIT_GRANT_STATE: CreditGrantActionState = { status: "idle", message: "" }
@@ -46,6 +47,7 @@ export function CreditGrantControls({
     grantBackgroundCreditsAction.bind(null, userId),
     INITIAL_CREDIT_GRANT_STATE,
   )
+  usePendingActionRenderNudge(isPending)
 
   return (
     <article className="min-w-0 space-y-4 rounded-md border bg-background/60 p-4">

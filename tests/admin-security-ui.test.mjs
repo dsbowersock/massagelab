@@ -127,6 +127,7 @@ function uiHarness(actionState = idleState) {
       resetUserTwoFactorAction() {},
       SecurityActionState: {},
     },
+    "./use-pending-action-render-nudge": { usePendingActionRenderNudge() {} },
   })
 }
 
@@ -445,7 +446,10 @@ describe("Admin security browser contract", () => {
     assert.match(browserSource, /const submittedActivityId = await failedReset\.getAttribute\("data-activity-id"\)/)
     assert.match(browserSource, /const submittedFailedReset = page\.locator\(`\[data-activity-id="\$\{submittedActivityId\}"\]`\)/)
     assert.match(browserSource, /const submittedFeedback = submittedFailedReset\.getByRole\("status"\)/)
-    assert.match(browserSource, /toHaveCount\(2\)[\s\S]*submittedFeedback[\s\S]*fresh password-reset link was created, but email delivery failed/i)
+    assert.match(
+      browserSource,
+      /toHaveCount\(2,\s*\{\s*timeout: 30_000,\s*\}\)[\s\S]*submittedFeedback[\s\S]*fresh password-reset link was created, but email delivery failed/i,
+    )
     assert.match(pageSource, /data-detail-key=\{label\}/)
     assert.match(pageSource, /data-detail-value/)
     assert.match(browserSource, /\[data-detail-key="Two-factor authentication"\] \[data-detail-value\]/)

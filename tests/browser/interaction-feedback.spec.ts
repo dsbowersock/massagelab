@@ -21,6 +21,7 @@ import { installNativeSubmitSnapshotRecorder } from "./native-submission-snapsho
 const hasPrivateQaAuthorization = isBrowserQaDatabaseTargetAuthorized(process.env)
 const PRIVATE_QA_SKIP_REASON = "Account action browser QA requires the missing explicit disposable-database opt-in/authorization."
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
+const interactionFixtureProject = (projectName: string) => `${projectName}-interaction-feedback`
 const require = createRequire(import.meta.url)
 let billingFixtureRoot: string | null = null
 let billingFixtureBundle: string | null = null
@@ -975,7 +976,7 @@ test.describe("private account action settlement", () => {
     if (!hasPrivateQaAuthorization) return
     const fixture = await import("./identity-method-safety-fixture")
     for (const scenario of ["MATCHING_LINK", "GOOGLE_ONLY", "BOTH_METHODS"] as const) {
-      await fixture.removeIdentityMethodSafetyFixture(testInfo.project.name, scenario)
+      await fixture.removeIdentityMethodSafetyFixture(interactionFixtureProject(testInfo.project.name), scenario)
     }
   })
 
@@ -984,7 +985,7 @@ test.describe("private account action settlement", () => {
     const installed = await fixture.installIdentityMethodSafetyFixture({
       context,
       baseURL: String(testInfo.project.use.baseURL),
-      projectName: testInfo.project.name,
+      projectName: interactionFixtureProject(testInfo.project.name),
       scenario: "MATCHING_LINK",
       signedIn: false,
     })
@@ -1000,7 +1001,9 @@ test.describe("private account action settlement", () => {
     await page.getByRole("button", { name: "Confirm same MassageLab account" }).click()
     await expect(page.getByRole("button", { name: "Connecting Google…" })).toBeDisabled()
     await page.getByRole("button", { name: "Connecting Google…" }).click({ force: true })
-    await expect(page.getByRole("alert")).toContainText("Something went wrong. Please try again.")
+    await expect(page.getByRole("alert").filter({
+      hasText: /^Something went wrong\. Please try again\.$/,
+    })).toHaveCount(1)
     await expect(page.getByRole("button", { name: "Confirm same MassageLab account" })).toBeEnabled()
     expect(confirmations).toBe(1)
   })
@@ -1010,7 +1013,7 @@ test.describe("private account action settlement", () => {
     await fixture.installIdentityMethodSafetyFixture({
       context,
       baseURL: String(testInfo.project.use.baseURL),
-      projectName: testInfo.project.name,
+      projectName: interactionFixtureProject(testInfo.project.name),
       scenario: "BOTH_METHODS",
     })
     let actions = 0
@@ -1039,7 +1042,8 @@ test.describe("private account action settlement", () => {
     await page.getByRole("button", { name: "Save profile" }).click()
     await expect(page.getByRole("button", { name: "Saving profile…" })).toBeDisabled()
     await expect(page).toHaveURL(/\/account\?tab=profile&profile=saved/)
-    await expect(page.getByRole("heading", { name: "Profile saved" })).toBeVisible()
+    await expect(page.getByText("Profile saved", { exact: true })).toBeVisible()
+    await expect(page.getByText("Your account profile was saved.", { exact: true })).toBeVisible()
     expect(actions).toBe(2)
   })
 
@@ -1048,7 +1052,7 @@ test.describe("private account action settlement", () => {
     await fixture.installIdentityMethodSafetyFixture({
       context,
       baseURL: String(testInfo.project.use.baseURL),
-      projectName: testInfo.project.name,
+      projectName: interactionFixtureProject(testInfo.project.name),
       scenario: "GOOGLE_ONLY",
     })
     let intents = 0
@@ -1062,15 +1066,17 @@ test.describe("private account action settlement", () => {
     const proofPending = page.getByRole("button", { name: "Saving sign-in method…" })
     await expect(proofPending).toBeDisabled()
     await proofPending.click({ force: true })
-    await expect(page.getByRole("alert")).toContainText("Something went wrong. Please try again.")
+    await expect(page.getByRole("alert").filter({
+      hasText: /^Something went wrong\. Please try again\.$/,
+    })).toHaveCount(1)
     await expect(page.getByRole("button", { name: "Add password" })).toBeEnabled()
     expect(intents).toBe(1)
 
-    await fixture.removeIdentityMethodSafetyFixture(testInfo.project.name, "GOOGLE_ONLY")
+    await fixture.removeIdentityMethodSafetyFixture(interactionFixtureProject(testInfo.project.name), "GOOGLE_ONLY")
     const installed = await fixture.installIdentityMethodSafetyFixture({
       context,
       baseURL: String(testInfo.project.use.baseURL),
-      projectName: testInfo.project.name,
+      projectName: interactionFixtureProject(testInfo.project.name),
       scenario: "BOTH_METHODS",
     })
     let passwordRequests = 0
@@ -1087,7 +1093,9 @@ test.describe("private account action settlement", () => {
     const methodPending = page.getByRole("button", { name: "Saving sign-in method…" })
     await expect(methodPending).toBeDisabled()
     await methodPending.click({ force: true })
-    await expect(page.getByRole("alert")).toContainText("Something went wrong. Please try again.")
+    await expect(page.getByRole("alert").filter({
+      hasText: /^Something went wrong\. Please try again\.$/,
+    })).toHaveCount(1)
     await expect(page.getByRole("button", { name: "Update password" })).toBeEnabled()
     expect(passwordRequests).toBe(1)
   })

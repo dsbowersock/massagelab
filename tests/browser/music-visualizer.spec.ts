@@ -1,11 +1,18 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
+import { isBrowserQaDatabaseTargetAuthorized } from "../../scripts/assert-browser-qa-database-target.mjs"
 import { centerCarouselItem } from "./carousel-test-helpers"
-import { installSignedInSessionCookie } from "./signed-in-session-cookie"
+import { installSignedInUserFixture, removeSignedInUserFixture } from "./signed-in-user-fixture"
 
 const ATMOSPHERE_STORAGE_KEY = "massagelab-atmosphere-v2"
 const CHIMER_STORAGE_KEY = "massagelab-chimer-settings"
 const VISUAL_PANEL_OPENED_STORAGE_KEY = "massagelab.chimer.visual-panel-opened.v1"
 const PROOF_STATION_TITLE = "MassageLab Proof Drone"
+const signedInFixtureProjects = new Set<string>()
+
+test.afterEach(async ({}, testInfo) => {
+  if (!signedInFixtureProjects.delete(testInfo.project.name)) return
+  await removeSignedInUserFixture(testInfo.project.name, "music-visualizer-defaults")
+})
 
 type DeviceVisualizerPreferences = {
   backgroundId: string | null
@@ -156,7 +163,9 @@ async function selectNextAvailableBackground(page: Page) {
 
 async function openClock(page: Page) {
   await page.goto("/clock", { waitUntil: "domcontentloaded" })
-  await expect(page.getByLabel("Chimer clock")).toBeVisible()
+  const clock = page.getByRole("region", { name: "Chimer clock", exact: true })
+  await expect(clock).toHaveCount(1)
+  await expect(clock).toBeVisible()
   await expect(page.locator("body")).toHaveClass(/chimer-running/)
 }
 
@@ -1796,6 +1805,7 @@ test("rotation and forward glow follow the centered display and stop for reduced
 
 test("signed-in defaults, device precedence, failed save, retry, and unrelated settings coexist", async ({ context, page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "single account preference proof")
+  const baseURL = String(testInfo.project.use.baseURL)
   const writes: Array<Record<string, unknown>> = []
   let failNextPut = true
   let serverAppSettings: Record<string, unknown> = {
@@ -1811,16 +1821,32 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
     backgroundId: "static-gradient",
     showClock: false,
   })
-  await installSignedInSessionCookie(context, String(testInfo.project.use.baseURL), {
-    id: "task8-user",
-    name: "Task 8 QA",
-    email: "task8@example.com",
+  const identity = await installSignedInUserFixture({
+    context,
+    baseURL,
+    projectName: testInfo.project.name,
+    owner: "music-visualizer-defaults",
   })
+  signedInFixtureProjects.add(testInfo.project.name)
+  if (isBrowserQaDatabaseTargetAuthorized(process.env)) {
+    const response = await context.request.put(
+      new URL("/api/account/preferences", baseURL).href,
+      { data: { appSettings: serverAppSettings } },
+    )
+    if (!response.ok()) {
+      throw new Error(`Browser QA app-settings fixture write failed with HTTP ${response.status()}.`)
+    }
+    const savedPreferences = await response.json() as {
+      appSettings?: { musicVisualizer?: { defaultBackgroundId?: unknown } }
+    }
+    expect(savedPreferences.appSettings?.musicVisualizer?.defaultBackgroundId)
+      .toBe("massage-lab-moving-gradient")
+  }
   await page.route("**/api/auth/session", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ user: { id: "task8-user", email: "task8@example.com" } }),
+      body: JSON.stringify({ user: { id: identity.user.id, email: identity.user.email } }),
     })
   })
   await page.route("**/api/account/preferences", async (route) => {
@@ -1906,8 +1932,11 @@ test("signed-in defaults, device precedence, failed save, retry, and unrelated s
   await page.getByRole("button", { name: "Restore account default", exact: true }).click()
   const unsavedVisualChanges = page.getByRole("alertdialog", { name: "Save Visual changes?" })
   await expect(unsavedVisualChanges).toBeVisible()
+  await expect(page.getByRole("dialog", { name: "Background" })).toHaveCount(0)
   await unsavedVisualChanges.getByRole("button", { name: "Discard changes" }).click()
   await expect(page.getByTestId("chimer-premium-background")).toBeVisible()
+  await expect(signedInVisual).toBeVisible()
+  await expect(signedInVisual.getByText("Current default", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "Close Visual panel" }).click()
 
   await page.getByRole("button", { name: "Background", exact: true }).click()

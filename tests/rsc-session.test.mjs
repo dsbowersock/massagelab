@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url"
 import { describe, it } from "node:test"
 import ts from "typescript"
 import { createCompiledModuleLoader } from "./helpers/compiled-module.mjs"
+import { resolveBrowserQaBuildEnvironment } from "../scripts/browser-qa-environment.mjs"
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const loadCompiledModule = createCompiledModuleLoader(import.meta.url)
@@ -165,10 +166,12 @@ describe("RSC session snapshot proof boundary", () => {
   })
 
   it("enables the auth-entry counter only in the isolated Browser-QA artifact", () => {
-    const buildScript = source("scripts/build-browser-qa.mjs")
+    const ordinaryEnvironment = {}
+    const buildEnvironment = resolveBrowserQaBuildEnvironment(ordinaryEnvironment)
     const nextConfig = source("next.config.mjs")
 
-    assert.match(buildScript, /NEXT_PUBLIC_RSC_SESSION_PROOF:\s*"1"/)
+    assert.equal(buildEnvironment.NEXT_PUBLIC_RSC_SESSION_PROOF, "1")
+    assert.equal(ordinaryEnvironment.NEXT_PUBLIC_RSC_SESSION_PROOF, undefined)
     assert.match(nextConfig, /rscSessionProofEnabled/)
     assert.match(nextConfig, /NEXT_PUBLIC_RSC_SESSION_PROOF === "1"/)
     assert.doesNotMatch(nextConfig, /@\/auth/)
