@@ -2,7 +2,7 @@
 
 Date: 2026-09-06
 
-Status: Proposed design for Derrick's review
+Status: Approved Phase 1-2 design; authority is recorded in the migration charter
 
 Design authority: Derrick's 2026-09-06 AtmoShaper migration handoff, which supersedes the earlier Stage 1 handoff that kept the work inside `dsbowersock/massagelab`
 

@@ -14,6 +14,9 @@ const temporaryAccessTestStart = browserSource.indexOf(
   'test("Admin grants and append-only revokes one bounded temporary feature with Account expiration evidence"',
 )
 const temporaryAccessTestEnd = browserSource.indexOf("\n  test(", temporaryAccessTestStart + 1)
+assert.ok(temporaryAccessTestStart >= 0, "temporary-access browser test must remain present")
+assert.ok(temporaryAccessTestEnd > temporaryAccessTestStart, "temporary-access browser test must retain a closing boundary")
+// Keep source-contract assertions scoped to this one selected browser test.
 const temporaryAccessBrowserContract = browserSource.slice(temporaryAccessTestStart, temporaryAccessTestEnd)
 const retiredDiagnosticTokens = [
   "MASSAGELAB_BROWSER_QA_PHASE_" + "TIMINGS",

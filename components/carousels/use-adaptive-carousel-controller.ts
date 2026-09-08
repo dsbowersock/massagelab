@@ -111,6 +111,8 @@ export function useAdaptiveCarouselController(
   const itemElements = useRef(new Map<string, HTMLElement>())
   const frameRef = useRef<number | null>(null)
   const onCenteredItemChangeRef = useRef(options.onCenteredItemChange)
+  // Distinguish a newly supplied external selection from a stable selection
+  // during item refreshes; the reconciliation effect advances this ref first.
   const previousSelectedItemIdRef = useRef(selectedItemId)
   const [centeredId, setCenteredId] = useState<string | null>(initialCenter.id)
   const [canGoPrevious, setCanGoPrevious] = useState(false)

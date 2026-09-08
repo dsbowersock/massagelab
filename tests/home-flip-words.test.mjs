@@ -24,8 +24,12 @@ describe("Homepage FlipWords layout", () => {
 
     const fontsReady = contract.indexOf("document.fonts.ready")
     const headingVisible = contract.indexOf("await expect(heading).toBeVisible()")
-    const positiveHeightPoll = contract.indexOf("expected a positive finite homepage heading height")
     const phraseLoop = contract.indexOf('for (const word of ["therapists"')
+    assert.notEqual(phraseLoop, -1)
+    const positiveHeightMatch = contract.slice(0, phraseLoop).match(
+      /await expect\s*\.poll\(async \(\) => \{\s*const headingHeight = await heading\.evaluate\(\(element\) => element\.getBoundingClientRect\(\)\.height\)\s*return Number\.isFinite\(headingHeight\) \? headingHeight : 0\s*\}, \{ message: "expected a positive finite homepage heading height" \}\)\s*\.toBeGreaterThan\(0\)/,
+    )
+    const positiveHeightPoll = positiveHeightMatch?.index ?? -1
     const positiveBaseline = contract.indexOf('expect(baseline.headingHeight, "baseline heading height").toBeGreaterThan(0)')
     const comparisons = contract.indexOf("for (const metric of metrics)")
 

@@ -20,6 +20,9 @@ const backgroundCreditBrowserTestStart = browserSource.indexOf(
   'test("Admin previews and confirms one positive background-credit goodwill grant"',
 )
 const backgroundCreditBrowserTestEnd = browserSource.indexOf("\n  test(", backgroundCreditBrowserTestStart + 1)
+assert.ok(backgroundCreditBrowserTestStart >= 0, "background-credit browser test must remain present")
+assert.ok(backgroundCreditBrowserTestEnd > backgroundCreditBrowserTestStart, "background-credit browser test must retain a closing boundary")
+// Keep source-contract assertions scoped to this one selected browser test.
 const backgroundCreditBrowserContract = browserSource.slice(
   backgroundCreditBrowserTestStart,
   backgroundCreditBrowserTestEnd,

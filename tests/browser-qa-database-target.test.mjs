@@ -89,6 +89,52 @@ describe("disposable browser-QA database target guard", () => {
     assert.throws(() => signedInSessionToken({ ...first.user, authSessionVersion: -1 }), /nonnegative integer/i)
   })
 
+  it("keeps hyphenated project and owner pairs distinct through exact cleanup", async () => {
+    const first = createBrowserUserFixtureIdentity("desktop-chromium", "a-b")
+    const second = createBrowserUserFixtureIdentity("desktop-chromium-a", "b")
+    assert.notEqual(first.user.id, second.user.id)
+    assert.notEqual(first.user.email, second.user.email)
+
+    const rows = new Map()
+    const prismaClient = {
+      user: {
+        async create({ data }) {
+          assert.equal(rows.has(data.id), false)
+          rows.set(data.id, data)
+          return data
+        },
+        async deleteMany({ where }) {
+          const row = rows.get(where.id)
+          if (row?.email !== where.email) return { count: 0 }
+          rows.delete(where.id)
+          return { count: 1 }
+        },
+        async findUnique({ where }) {
+          return rows.get(where.id) ?? null
+        },
+      },
+    }
+
+    await createBrowserUserFixtureRecord({
+      prismaClient,
+      identity: first,
+      environment: completeAuthorizedEnvironment(),
+    })
+    await createBrowserUserFixtureRecord({
+      prismaClient,
+      identity: second,
+      environment: completeAuthorizedEnvironment(),
+    })
+    await removeBrowserUserFixtureRecord({
+      prismaClient,
+      identity: first,
+      environment: completeAuthorizedEnvironment(),
+    })
+
+    assert.equal(rows.has(first.user.id), false)
+    assert.equal(rows.get(second.user.id)?.email, second.user.email)
+  })
+
   it("generic signed-in fixture refuses unauthorized mutation and creates an explicit version", async () => {
     const identity = createBrowserUserFixtureIdentity("desktop-chromium", "music-visualizer-defaults")
     let creates = 0

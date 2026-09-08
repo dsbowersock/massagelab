@@ -108,6 +108,8 @@ describe("Admin pending-action render nudge ownership", () => {
   })
 })
 
+// Source ownership checks above remain active even when this local compiler
+// cannot load the hook; only the executable behavior cases are then skipped.
 const behaviorDescribe = hookSource ? describe : describe.skip
 behaviorDescribe("Admin pending-action render nudge behavior", () => {
   it("schedules nothing while pending is false", () => {
@@ -254,6 +256,8 @@ function createHookHarness() {
     const changed = !effectDependencies
       || nextDependencies.length !== effectDependencies.length
       || nextDependencies.some((value, index) => value !== effectDependencies[index])
+    // Retaining the existing effect and timers for unchanged dependencies
+    // mirrors React's useEffect dependency-array behavior.
     if (!changed) return
     effectCleanup?.()
     effectCleanup = pendingEffect.effect()

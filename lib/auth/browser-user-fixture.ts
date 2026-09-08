@@ -26,8 +26,9 @@ export function createBrowserUserFixtureIdentity(
   if (!SAFE_NAME.test(projectName) || !SAFE_NAME.test(owner)) {
     throw new Error("Browser user fixture requires safe project and owner names.")
   }
-  const id = `browser-user-${projectName}-${owner}`
-  const email = `${projectName}-${owner}@browser-user.massagelab.example.test`
+  const fixtureKey = `${projectName}--${owner}`
+  const id = `browser-user-${fixtureKey}`
+  const email = `${fixtureKey}@browser-user.massagelab.example.test`
   if (id.length > 191 || email.length > 320) {
     throw new Error("Browser user fixture identity exceeds persisted field limits.")
   }

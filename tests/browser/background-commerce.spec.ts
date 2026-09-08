@@ -303,6 +303,8 @@ async function installCommerceFixture({
     getPreferenceRequestsBeforeSessionCompletion: () => preferenceRequestsBeforeSessionCompletion,
     restorePreferenceAccess: () => { preferenceAccessUnavailable = false },
     setAppSettings: async (patch: Record<string, unknown>) => {
+      // Always update the intercepted response state; persist the patch only
+      // when the explicit disposable Browser-QA database gate passes.
       currentAppSettings = { ...currentAppSettings, ...patch }
       if (!isBrowserQaDatabaseTargetAuthorized(process.env)) return
 

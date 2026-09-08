@@ -17,7 +17,7 @@
 
 ## Current evidence state
 
-- Tasks 1 and 2 are complete. Task 3 has passed code/document review but not its browser/database capture gate; this is not a complete Phase 1 or Phase 2 gate result.
+- Tasks 1 through 4 are complete through PR #206 publication. Task 3's authorized disposable-QA capture and cleanup passed, and Task 4's source-baseline gate passed; current PR-head checks and review remain the only active boundary in this execution slice.
 
 ## Task 1 receipt — source lock and authority
 
@@ -44,16 +44,17 @@
 - Commit: `421a4f5ecf53012bf6af19a385b8a82f82b4883f` (`docs: inventory AtmoShaper migration boundaries`), exactly seven added files, post-commit status clean.
 - Protected state: runtime, `main`, old history, providers, credentials, messages, database, deployment, DNS, payment, email, media, and legal ownership remained untouched.
 
-## Task 3 prepared-state receipt — visual parity code review, capture blocked
+## Historical Task 3 prepared-state receipt — superseded
 
-- Prepared but not committed: `package.json`, `playwright.config.ts`, `tests/browser-qa-harness.test.mjs`, the new migration parity spec, export manifest, reference inventory, and amended implementation plan. No snapshot directory or PNG exists.
+The following receipt records the temporary pre-capture blocker. It is superseded by committed parity `ecd28af0`, source-QA hardening `a8fe56fd`, and the completed Task 4 evidence in `docs/project-state.md` and the AtmoShaper reference inventory.
+
+- At this historical checkpoint, the parity/config package was prepared but not committed and no snapshot directory or PNG existed.
 - Discovery: explicit opt-in lists exactly 22 tests, comprising ten public routes plus one signed-in profile/security case in each of desktop and mobile Chromium; WebKit is not selected.
 - Focused verification: 45/45 Node checks passed, TypeScript passed, changed executable files passed ESLint, diff checks passed, and `tests/browser/ci-lanes.mjs` remained unchanged with 17 ordinary specs/34 project assignments.
 - Review correction 1: the ordinary-lane completeness oracle now names exactly one migration-only spec, independently asserts that it exists, and excludes it from ordinary lane membership. The manifest carries the source-present harness replacement/overlay.
 - Quality correction 2: the exact migration invocation refuses existing-server reuse and both source/destination commands build the current checkout; Clock uses UTC/en-US and a fixed Playwright time with visible settled controls and no mask; all browser non-GET/HEAD requests are blocked at the first hop; activity remains observed through explicit browser-context closure before exact project-qualified fixture cleanup and final assertions.
-- Current difference contract: one omission, seven source-present replacements, 37 Task 5 additions, six Task 6 additions, and 39 overlays; source/Task 5/final totals remain `1,856/1,892/1,898`; machine JSON and embedded inventory JSON match.
+- Then-current difference contract: one omission, seven source-present replacements, 37 Task 5 additions, six Task 6 additions, and 39 overlays; source/Task 5/final totals remain `1,856/1,892/1,898`; machine JSON and embedded inventory JSON match.
 - Reviews: initial specification review marked capture incomplete and found the harness/mask obligations; fresh fix-round re-review passed. Independent quality review found stale-server, Clock, redirect, teardown, and wording risks; fresh fix-round re-review passed with no remaining Critical/Important code finding.
-- Fail-closed external gate: all three required parent values are absent — `MASSAGELAB_BROWSER_QA_DATABASE_URL`, `MASSAGELAB_BROWSER_QA_DIRECT_URL`, and `MASSAGELAB_BROWSER_QA_DATABASE_FINGERPRINT`. The exact capture command stopped on the first missing value before fingerprint validation, build, server, browser, fixture, database, or provider activity.
-- Still unproven: owned-server/occupied-port runtime behavior, 22 executed tests, 24 accepted PNGs, unchanged repeat comparison, browser error/mutation receipts, read-only external request inventory, and exact post-run fixture absence.
-- Completion decision: do not commit Task 3 or begin Task 4 until the approved disposable QA environment is supplied and every capture/repeat/cleanup requirement passes.
-- Protected state: no browser launched, no fixture installed, no database/provider request made, no snapshot accepted, no runtime file changed, and no Git branch/push/merge/deploy/DNS/payment/email/media/legal mutation performed.
+- At this historical checkpoint, the fail-closed external gate stopped before fingerprint validation, build, server, browser, fixture, database, or provider activity because the approved disposable-QA values were not yet available.
+- The later authorized run proved the owned-server behavior, 22 executed tests, 24 accepted and repeat-stable PNGs, browser mutation/error receipts, and exact post-run fixture absence. The temporary empty Neon QA project was then deleted and verified absent; production data was neither copied nor altered.
+- The original stop decision is closed. Task 3 and Task 4 completed without authorizing merge, deployment, destination-provider/DNS work, or production database mutation.
